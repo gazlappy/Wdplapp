@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Application
+    x:Class="Wdpl2.App"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Merge Shared Styles -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/SharedStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Application-Level Button Style -->
+            <Style TargetType="Button">
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="Padding" Value="12,8" />
+            </Style>
+
+            <!-- Entry Style -->
+            <Style TargetType="Entry">
+                <Setter Property="Margin" Value="0,0,0,8" />
+            </Style>
+
+            <!-- Editor Style -->
+            <Style TargetType="Editor">
+                <Setter Property="Margin" Value="0,0,0,8" />
+                <Setter Property="AutoSize" Value="TextChanges" />
+            </Style>
+
+            <!-- Label Style -->
+            <Style TargetType="Label">
+                <Setter Property="Margin" Value="0,4,0,2" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

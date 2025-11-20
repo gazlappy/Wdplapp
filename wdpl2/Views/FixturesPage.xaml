@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.FixturesPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:Wdpl2.Views"
+    Title="Fixtures">
+
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+        
+        <!-- Header with Burger Menu Button -->
+        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
+            <Button 
+                x:Name="BurgerMenuBtn"
+                Text="☰"
+                FontSize="24"
+                WidthRequest="50"
+                HeightRequest="50"
+                Padding="0"
+                Margin="0,0,12,0"
+                BackgroundColor="{StaticResource PrimaryColor}"
+                TextColor="White" />
+            
+            <Label 
+                Grid.Column="1"
+                Text="Manage Fixtures" 
+                Style="{StaticResource PageTitleStyle}"
+                VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Flyout Menu Overlay -->
+        <Border 
+            x:Name="FlyoutOverlay"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            IsVisible="False"
+            BackgroundColor="#80000000"
+            ZIndex="100">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer x:Name="OverlayTap" />
+            </Border.GestureRecognizers>
+        </Border>
+
+        <!-- Flyout Menu Panel -->
+        <Border 
+            x:Name="FlyoutPanel"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            HorizontalOptions="Start"
+            WidthRequest="400"
+            IsVisible="False"
+            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 0,12,12,0"
+            Padding="{StaticResource LargePadding}"
+            ZIndex="101">
+            <ScrollView>
+                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                    
+                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <Label Text="Controls" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
+                        <Button 
+                            x:Name="CloseFlyoutBtn"
+                            Text="✕"
+                            FontSize="18"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
+                            HorizontalOptions="EndAndExpand"
+                            Style="{StaticResource DangerButtonStyle}"
+                            CornerRadius="20" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+
+                    <Label Text="Filters" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Search" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
+                        <Entry x:Name="SearchEntry" Placeholder="Search (team or venue)..." />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="From Date" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
+                        <DatePicker x:Name="FromDate" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*,Auto" Padding="0,8,0,0">
+                        <Label Text="Active season only" VerticalOptions="Center" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                        <Switch x:Name="ActiveSeasonOnly" Grid.Column="1" IsToggled="True" />
+                    </Grid>
+
+                    <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+
+                    <Button x:Name="DiagnosticsBtn"
+                            Text="🔍 Check Active Season"
+                            BackgroundColor="{StaticResource Gray600}"
+                            TextColor="White" />
+
+                    <Button x:Name="GenerateFixturesBtn"
+                            Text="Generate Fixtures"
+                            Style="{StaticResource SuccessButtonStyle}" />
+
+                    <Button x:Name="DeleteSeasonBtn"
+                            Text="Delete Fixtures (Active Season)"
+                            Style="{StaticResource WarningButtonStyle}" />
+                    
+                    <Button x:Name="DeleteAllBtn"
+                            Text="Delete ALL Fixtures"
+                            Style="{StaticResource DangerButtonStyle}" />
+                    
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- LEFT: Fixtures List -->
+        <Border 
+            Grid.Row="1"
+            Grid.Column="0"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <Grid RowDefinitions="Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+                <Label Text="Fixtures" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+                
+                <CollectionView
+                    x:Name="FixturesList"
+                    Grid.Row="1"
+                    SelectionMode="Single"
+                    VerticalScrollBarVisibility="Always">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border
+                                Padding="{StaticResource StandardPadding}"
+                                Margin="0,0,0,4"
+                                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 8">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource MediumSpacing}">
+                                    <Label 
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        Text="{Binding Date, StringFormat='{0:ddd dd MMM}'}"
+                                        VerticalOptions="Center" />
+
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label 
+                                            FontAttributes="Bold"
+                                            FontSize="14"
+                                            Text="{Binding Title}" />
+                                        <Label 
+                                            Style="{StaticResource CaptionStyle}"
+                                            Text="{Binding Subtitle}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout 
+                            Spacing="{StaticResource MediumSpacing}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center"
+                            Padding="20">
+                            <Label 
+                                Text="No fixtures found"
+                                Style="{StaticResource CaptionStyle}"
+                                HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
+            </Grid>
+        </Border>
+
+        <!-- RIGHT: Fixture Editor -->
+        <Border 
+            Grid.Row="1" 
+            Grid.Column="1"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <ScrollView>
+                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                    
+                    <Label x:Name="HeaderLbl"
+                           Text="Select a fixture"
+                           Style="{StaticResource SectionHeaderStyle}"
+                           Margin="0" />
+                    
+                    <Label x:Name="ScoreLbl"
+                           Text=""
+                           Style="{StaticResource BodyTextStyle}" />
+
+                    <!-- Frame Editor -->
+                    <Border Style="{StaticResource CardBorderStyle}">
+                        <VerticalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <Grid Padding="{StaticResource StandardPadding}" ColumnSpacing="{StaticResource StandardSpacing}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="80" />
+                                </Grid.ColumnDefinitions>
+
+                                <Label Text="#" Style="{StaticResource FieldLabelStyle}" Margin="0" HorizontalTextAlignment="Center" />
+                                <Label Grid.Column="1" Text="Home Player" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                                <Label Grid.Column="2" Text="vs" Style="{StaticResource FieldLabelStyle}" Margin="0" HorizontalTextAlignment="Center" />
+                                <Label Grid.Column="3" Text="Away Player" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                                <Label Grid.Column="4" Text="Score" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                                <Label Grid.Column="5" Text="8-ball" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                            </Grid>
+
+                            <!-- Rows of frame editors get injected here -->
+                            <VerticalStackLayout x:Name="FramesHost" Spacing="{StaticResource StandardSpacing}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Actions -->
+                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <Button x:Name="SaveBtn" Text="Save Result" Style="{StaticResource PrimaryButtonStyle}" />
+                        <Button x:Name="ClearBtn" Text="Clear Frames" Style="{StaticResource SecondaryButtonStyle}" />
+                    </HorizontalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

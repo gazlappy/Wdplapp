@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.ImportHistoricalDataPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:Wdpl2.Services"
+    Title="Import from Previous Seasons">
+
+    <Grid Padding="12" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+        
+        <!-- Header -->
+        <VerticalStackLayout Spacing="8">
+            <Label Text="Import from Previous Seasons" 
+                   Style="{StaticResource PageTitleStyle}" />
+            <Label x:Name="SeasonLabel"
+                   Text="Target Season: (Select a season first)"
+                   Style="{StaticResource BodyTextStyle}" />
+            <Label Text="Select items from previous seasons to copy into the current season. Duplicates will be automatically skipped."
+                   Style="{StaticResource CaptionStyle}" />
+        </VerticalStackLayout>
+
+        <!-- Tabs -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                
+                <!-- Tab Selector -->
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="4">
+                        <Button x:Name="DivisionsTabBtn" 
+                                Text="Divisions" 
+                                Clicked="OnDivisionsTabClicked"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                        <Button x:Name="VenuesTabBtn" 
+                                Grid.Column="1"
+                                Text="Venues" 
+                                Clicked="OnVenuesTabClicked"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button x:Name="TeamsTabBtn" 
+                                Grid.Column="2"
+                                Text="Teams" 
+                                Clicked="OnTeamsTabClicked"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button x:Name="PlayersTabBtn" 
+                                Grid.Column="3"
+                                Text="Players" 
+                                Clicked="OnPlayersTabClicked"
+                                Style="{StaticResource SecondaryButtonStyle}" />
+                    </Grid>
+                </Border>
+
+                <!-- DIVISIONS TAB -->
+                <Border x:Name="DivisionsTab" 
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="True">
+                    <VerticalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <Label Text="Divisions from Previous Seasons" 
+                                   Style="{StaticResource SectionHeaderStyle}" 
+                                   Margin="0"
+                                   HorizontalOptions="FillAndExpand" />
+                            <Button Text="Select All" 
+                                    Clicked="OnSelectAllDivisions"
+                                    Padding="8,4"
+                                    FontSize="12" />
+                            <Button Text="Clear" 
+                                    Clicked="OnClearAllDivisions"
+                                    Padding="8,4"
+                                    FontSize="12"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                        </HorizontalStackLayout>
+
+                        <CollectionView x:Name="DivisionsList" 
+                                       SelectionMode="None"
+                                       HeightRequest="400">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="local:SeasonCopyService+HistoricalDivision">
+                                    <Border Padding="{StaticResource StandardPadding}"
+                                           Margin="0,0,0,4"
+                                           BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                           StrokeThickness="0"
+                                           StrokeShape="RoundRectangle 6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                            <CheckBox IsChecked="{Binding IsSelected}" 
+                                                     VerticalOptions="Center" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Name}" 
+                                                      FontSize="14" 
+                                                      FontAttributes="Bold" />
+                                                <Label Text="{Binding SeasonsUsed}" 
+                                                      Style="{StaticResource CaptionStyle}" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="No divisions found in previous seasons" 
+                                      Style="{StaticResource CaptionStyle}"
+                                      HorizontalOptions="Center"
+                                      Margin="20" />
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- VENUES TAB -->
+                <Border x:Name="VenuesTab" 
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <Label Text="Venues from Previous Seasons" 
+                                   Style="{StaticResource SectionHeaderStyle}" 
+                                   Margin="0"
+                                   HorizontalOptions="FillAndExpand" />
+                            <Button Text="Select All" 
+                                    Clicked="OnSelectAllVenues"
+                                    Padding="8,4"
+                                    FontSize="12" />
+                            <Button Text="Clear" 
+                                    Clicked="OnClearAllVenues"
+                                    Padding="8,4"
+                                    FontSize="12"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                        </HorizontalStackLayout>
+
+                        <CollectionView x:Name="VenuesList" 
+                                       SelectionMode="None"
+                                       HeightRequest="400">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="local:SeasonCopyService+HistoricalVenue">
+                                    <Border Padding="{StaticResource StandardPadding}"
+                                           Margin="0,0,0,4"
+                                           BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                           StrokeThickness="0"
+                                           StrokeShape="RoundRectangle 6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                            <CheckBox IsChecked="{Binding IsSelected}" 
+                                                     VerticalOptions="Center" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Name}" 
+                                                      FontSize="14" 
+                                                      FontAttributes="Bold" />
+                                                <Label Text="{Binding Address}" 
+                                                      Style="{StaticResource CaptionStyle}" />
+                                                <Label Text="{Binding TableCount, StringFormat='{0} table(s)'}" 
+                                                      Style="{StaticResource CaptionStyle}"
+                                                      FontSize="11" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                  Text="{Binding SeasonsUsed}" 
+                                                  Style="{StaticResource CaptionStyle}"
+                                                  VerticalOptions="Center"
+                                                  FontSize="10" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="No venues found in previous seasons" 
+                                      Style="{StaticResource CaptionStyle}"
+                                      HorizontalOptions="Center"
+                                      Margin="20" />
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- TEAMS TAB -->
+                <Border x:Name="TeamsTab" 
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <Label Text="Teams from Previous Seasons" 
+                                   Style="{StaticResource SectionHeaderStyle}" 
+                                   Margin="0"
+                                   HorizontalOptions="FillAndExpand" />
+                            <Button Text="Select All" 
+                                    Clicked="OnSelectAllTeams"
+                                    Padding="8,4"
+                                    FontSize="12" />
+                            <Button Text="Clear" 
+                                    Clicked="OnClearAllTeams"
+                                    Padding="8,4"
+                                    FontSize="12"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                        </HorizontalStackLayout>
+
+                        <CollectionView x:Name="TeamsList" 
+                                       SelectionMode="None"
+                                       HeightRequest="400">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="local:SeasonCopyService+HistoricalTeam">
+                                    <Border Padding="{StaticResource StandardPadding}"
+                                           Margin="0,0,0,4"
+                                           BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                           StrokeThickness="0"
+                                           StrokeShape="RoundRectangle 6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                            <CheckBox IsChecked="{Binding IsSelected}" 
+                                                     VerticalOptions="Center" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Name}" 
+                                                      FontSize="14" 
+                                                      FontAttributes="Bold" />
+                                                <Label Text="{Binding Captain, StringFormat='Captain: {0}'}" 
+                                                      Style="{StaticResource CaptionStyle}" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                  Text="{Binding SeasonsPlayed}" 
+                                                  Style="{StaticResource CaptionStyle}"
+                                                  VerticalOptions="Center"
+                                                  FontSize="10" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="No teams found in previous seasons" 
+                                      Style="{StaticResource CaptionStyle}"
+                                      HorizontalOptions="Center"
+                                      Margin="20" />
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- PLAYERS TAB -->
+                <Border x:Name="PlayersTab" 
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <Label Text="Players from Previous Seasons" 
+                                   Style="{StaticResource SectionHeaderStyle}" 
+                                   Margin="0"
+                                   HorizontalOptions="FillAndExpand" />
+                            <Button Text="Select All" 
+                                    Clicked="OnSelectAllPlayers"
+                                    Padding="8,4"
+                                    FontSize="12" />
+                            <Button Text="Clear" 
+                                    Clicked="OnClearAllPlayers"
+                                    Padding="8,4"
+                                    FontSize="12"
+                                    Style="{StaticResource SecondaryButtonStyle}" />
+                        </HorizontalStackLayout>
+
+                        <CollectionView x:Name="PlayersList" 
+                                       SelectionMode="None"
+                                       HeightRequest="400">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="local:SeasonCopyService+HistoricalPlayer">
+                                    <Border Padding="{StaticResource StandardPadding}"
+                                           Margin="0,0,0,4"
+                                           BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                           StrokeThickness="0"
+                                           StrokeShape="RoundRectangle 6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                            <CheckBox IsChecked="{Binding IsSelected}" 
+                                                     VerticalOptions="Center" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding FullName}" 
+                                                      FontSize="14" 
+                                                      FontAttributes="Bold" />
+                                                <Label Text="{Binding LastTeamName, StringFormat='Last team: {0}'}" 
+                                                      Style="{StaticResource CaptionStyle}" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                  Text="{Binding SeasonsPlayed}" 
+                                                  Style="{StaticResource CaptionStyle}"
+                                                  VerticalOptions="Center"
+                                                  FontSize="10" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                            <CollectionView.EmptyView>
+                                <Label Text="No players found in previous seasons" 
+                                      Style="{StaticResource CaptionStyle}"
+                                      HorizontalOptions="Center"
+                                      Margin="20" />
+                            </CollectionView.EmptyView>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Actions -->
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                <Label x:Name="StatusLabel" 
+                       Text="Select items to import"
+                       Style="{StaticResource StatusTextStyle}"
+                       VerticalOptions="Center" />
+                <Button Grid.Column="1"
+                        x:Name="ImportBtn"
+                        Text="Import Selected"
+                        Clicked="OnImportClicked"
+                        Style="{StaticResource SuccessButtonStyle}"
+                        HorizontalOptions="End" />
+                <Button Grid.Column="2"
+                        Text="Close"
+                        Clicked="OnCloseClicked"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        HorizontalOptions="End" />
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>

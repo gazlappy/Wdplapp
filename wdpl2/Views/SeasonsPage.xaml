@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.SeasonsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:Wdpl2.Models"
+    Title="Seasons">
+
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+        
+        <!-- Header with Burger Menu Button -->
+        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
+            <Button 
+                x:Name="BurgerMenuBtn"
+                Text="☰"
+                FontSize="24"
+                WidthRequest="50"
+                HeightRequest="50"
+                Padding="0"
+                Margin="0,0,12,0"
+                BackgroundColor="{StaticResource PrimaryColor}"
+                TextColor="White" />
+            
+            <Label 
+                Grid.Column="1"
+                Text="Manage Seasons" 
+                Style="{StaticResource PageTitleStyle}"
+                VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Flyout Menu Overlay -->
+        <Border 
+            x:Name="FlyoutOverlay"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            IsVisible="False"
+            BackgroundColor="#80000000"
+            ZIndex="100">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer x:Name="OverlayTap" />
+            </Border.GestureRecognizers>
+        </Border>
+
+        <!-- Flyout Menu Panel -->
+        <Border 
+            x:Name="FlyoutPanel"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            HorizontalOptions="Start"
+            WidthRequest="400"
+            IsVisible="False"
+            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 0,12,12,0"
+            Padding="{StaticResource LargePadding}"
+            ZIndex="101">
+            <ScrollView>
+                <Grid
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+                    ColumnDefinitions="Auto,*"
+                    ColumnSpacing="{StaticResource MediumSpacing}"
+                    RowSpacing="{StaticResource StandardSpacing}">
+
+                    <HorizontalStackLayout Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                        <Label Text="Controls" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
+                        <Button 
+                            x:Name="CloseFlyoutBtn"
+                            Text="✕"
+                            FontSize="18"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
+                            HorizontalOptions="EndAndExpand"
+                            Style="{StaticResource DangerButtonStyle}"
+                            CornerRadius="20" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView Grid.Row="1" Grid.ColumnSpan="2" HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+
+                    <Label Grid.Row="2" Grid.ColumnSpan="2" Text="Season Details" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
+
+                    <Label Grid.Row="3" Grid.Column="0" Text="Name:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
+                    <Entry x:Name="NameEntry" Grid.Row="3" Grid.Column="1" Placeholder="e.g. Winter 2025" />
+
+                    <Label Grid.Row="4" Grid.Column="0" Text="Start date:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
+                    <DatePicker x:Name="StartPicker" Grid.Row="4" Grid.Column="1" />
+
+                    <Label Grid.Row="5" Grid.Column="0" Text="End date:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
+                    <DatePicker x:Name="EndPicker" Grid.Row="5" Grid.Column="1" />
+
+                    <Label Grid.Row="6" Grid.Column="0" Text="Active:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
+                    <Switch x:Name="ActiveSwitch" Grid.Row="6" Grid.Column="1" />
+
+                    <Label Grid.Row="7" Grid.ColumnSpan="2" Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+
+                    <HorizontalStackLayout Grid.Row="8" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                        <Button x:Name="SaveBtn" Text="Save" Clicked="OnSaveClicked" Style="{StaticResource PrimaryButtonStyle}" />
+                        <Button x:Name="DeleteBtn" Text="Delete" Clicked="OnDeleteClicked" Style="{StaticResource DangerButtonStyle}" />
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Grid.Row="9" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                        <Button x:Name="SetActiveBtn" Text="Set Active" Clicked="OnSetActiveClicked" Style="{StaticResource SuccessButtonStyle}" />
+                        <Button x:Name="GenerateBtn" Text="Generate Fixtures" Clicked="OnGenerateClicked" />
+                    </HorizontalStackLayout>
+
+                    <Button x:Name="ImportHistoricalBtn" 
+                            Grid.Row="10"
+                            Grid.ColumnSpan="2"
+                            Text="📋 Import from Previous Seasons" 
+                            Clicked="OnImportHistoricalClicked"
+                            BackgroundColor="{StaticResource WarningColor}"
+                            TextColor="White" />
+                        
+                    <!-- Exclusion Dates Section (in flyout) -->
+                    <BoxView Grid.Row="11" Grid.ColumnSpan="2" HeightRequest="1" 
+                             Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
+                             Margin="0,12" />
+
+                    <VerticalStackLayout Grid.Row="12" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                        <Label Text="Exclusion Dates" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
+                        
+                        <Label Text="Dates when matches should not be scheduled:" 
+                               Style="{StaticResource CaptionStyle}" />
+
+                        <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                            <DatePicker x:Name="ExclusionDatePicker" 
+                                       HorizontalOptions="FillAndExpand" />
+                            <Button x:Name="AddExclusionBtn" 
+                                   Text="+ Add" 
+                                   Clicked="OnAddExclusionClicked"
+                                   Style="{StaticResource PrimaryButtonStyle}" />
+                        </HorizontalStackLayout>
+
+                        <Border 
+                            Style="{StaticResource CardBorderStyle}"
+                            HeightRequest="120">
+                            <CollectionView x:Name="ExclusionDatesList" SelectionMode="None" VerticalScrollBarVisibility="Always">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="{x:Type x:String}">
+                                        <Border
+                                            Padding="{StaticResource StandardPadding}"
+                                            Margin="0,0,0,4"
+                                            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                                <Label Text="{Binding}" 
+                                                       VerticalOptions="Center"
+                                                       FontSize="12" />
+                                                <Button Grid.Column="1" 
+                                                       Text="Remove" 
+                                                       FontSize="11"
+                                                       Padding="6,3"
+                                                       Clicked="OnRemoveExclusionClicked"
+                                                       CommandParameter="{Binding}"
+                                                       Style="{StaticResource DangerButtonStyle}"
+                                                       CornerRadius="4" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                                <CollectionView.EmptyView>
+                                    <Label Text="No exclusion dates" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" 
+                                           VerticalOptions="Center" />
+                                </CollectionView.EmptyView>
+                            </CollectionView>
+                        </Border>
+
+                        <Label x:Name="StatusLabel" Style="{StaticResource StatusTextStyle}" />
+                    </VerticalStackLayout>
+                    
+                </Grid>
+            </ScrollView>
+        </Border>
+
+        <!-- LEFT: Season list -->
+        <Border 
+            Grid.Row="1"
+            Grid.Column="0"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
+                <Label Text="Seasons" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+                <CollectionView
+                    Grid.Row="1"
+                    x:Name="SeasonsList"
+                    SelectionMode="Single"
+                    SelectionChanged="OnSelectionChanged"
+                    VerticalScrollBarVisibility="Always">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Season">
+                            <Border
+                                Padding="{StaticResource StandardPadding}"
+                                Margin="0,0,0,4"
+                                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 8">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                    <Label
+                                        Text="{Binding Name}"
+                                        FontSize="14"
+                                        FontAttributes="Bold"
+                                        LineBreakMode="TailTruncation"
+                                        VerticalOptions="Center" />
+                                    <Border
+                                        Grid.Column="1"
+                                        Style="{StaticResource SuccessBadgeStyle}"
+                                        IsVisible="{Binding IsActive}"
+                                        VerticalOptions="Center">
+                                        <Label Text="Active" Style="{StaticResource BadgeTextStyle}" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Button 
+                    Grid.Row="2"
+                    Text="+ New Season" 
+                    Clicked="OnNewClicked" 
+                    Style="{StaticResource PrimaryButtonStyle}" />
+            </Grid>
+        </Border>
+
+        <!-- RIGHT: Season Info Panel -->
+        <Border 
+            Grid.Row="1" 
+            Grid.Column="1"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <ScrollView>
+                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                    
+                    <!-- Empty State -->
+                    <VerticalStackLayout 
+                        x:Name="EmptyStatePanel"
+                        Spacing="{StaticResource MediumSpacing}"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Padding="20"
+                        IsVisible="True">
+                        <Label 
+                            Text="Select a season"
+                            FontSize="16"
+                            TextColor="{StaticResource Gray400}"
+                            HorizontalOptions="Center" />
+                        <Label 
+                            Text="Click a season from the list to view and edit details"
+                            Style="{StaticResource CaptionStyle}"
+                            HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+
+                    <!-- Season Info Panel (initially hidden) -->
+                    <VerticalStackLayout x:Name="SeasonInfoPanel" IsVisible="False" Spacing="4">
+                        <Label x:Name="SelectedSeasonName" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+                        <Label x:Name="SelectedSeasonDates" Style="{StaticResource BodyTextStyle}" />
+                        <Label x:Name="SelectedSeasonStatus" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

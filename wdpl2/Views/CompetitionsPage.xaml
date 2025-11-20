@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.CompetitionsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:Wdpl2.Models"
+    xmlns:viewmodels="clr-namespace:Wdpl2.ViewModels"
+    x:DataType="viewmodels:CompetitionsViewModel"
+    Title="Competitions">
+
+    <ContentPage.Resources>
+        <Style TargetType="Frame">
+            <Setter Property="HasShadow" Value="False"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#FFFFFF, Dark=#1E1E1E}"/>
+        </Style>
+        <Style TargetType="Label" x:Key="SectionTitle">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontAttributes" Value="Bold"/>
+            <Setter Property="Margin" Value="8,0,0,8"/>
+        </Style>
+        <Style TargetType="Label" x:Key="FieldLabel">
+            <Setter Property="VerticalTextAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+    </ContentPage.Resources>
+
+    <!-- Split grid: 1* (competitions list) | 2* (competition details) -->
+    <Grid x:Name="RootGrid" Padding="12" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT: Competitions List -->
+        <Frame Grid.Column="0">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Competitions" Style="{StaticResource SectionTitle}" />
+                
+                <!-- Competition List -->
+                <CollectionView
+                    x:Name="CompetitionsList"
+                    ItemsSource="{Binding Competitions}"
+                    SelectedItem="{Binding SelectedCompetition}"
+                    SelectionMode="Single"
+                    SelectionChanged="OnCompetitionSelectionChanged"
+                    HeightRequest="400">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Competition">
+                            <Frame Padding="12,10" Margin="0,2">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <VerticalStackLayout Grid.Column="0">
+                                        <Label 
+                                            Text="{Binding Name}" 
+                                            FontSize="15"
+                                            FontAttributes="Bold" />
+                                        <Label 
+                                            Text="{Binding Format}" 
+                                            FontSize="12"
+                                            TextColor="Gray" />
+                                        <Label 
+                                            Text="{Binding Status}" 
+                                            FontSize="11"
+                                            TextColor="Gray" />
+                                    </VerticalStackLayout>
+                                    <Label 
+                                        Grid.Column="1"
+                                        Text="{Binding ParticipantIds.Count, StringFormat='{0} entries'}"
+                                        FontSize="12"
+                                        VerticalTextAlignment="Center"
+                                        TextColor="Gray" />
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Action Buttons -->
+                <HorizontalStackLayout Spacing="8" Margin="0,8,0,0">
+                    <Button 
+                        x:Name="NewBtn"
+                        Text="New"
+                        Clicked="OnNewCompetition"
+                        HorizontalOptions="FillAndExpand" />
+                    <Button 
+                        x:Name="DeleteBtn"
+                        Text="Delete"
+                        Command="{Binding DeleteCompetitionCommand}"
+                        CommandParameter="{Binding SelectedCompetition}"
+                        BackgroundColor="#EF4444"
+                        TextColor="White"
+                        HorizontalOptions="FillAndExpand" />
+                </HorizontalStackLayout>
+
+                <!-- Status Label -->
+                <Label 
+                    x:Name="StatusLbl"
+                    Text="{Binding StatusMessage}"
+                    FontSize="11"
+                    TextColor="Gray"
+                    Margin="0,8,0,0"
+                    HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- RIGHT: Competition Details/Editor -->
+        <Frame Grid.Column="1">
+            <ScrollView>
+                <ContentView x:Name="ContentPanel" Padding="12"/>
+            </ScrollView>
+        </Frame>
+    </Grid>
+</ContentPage>

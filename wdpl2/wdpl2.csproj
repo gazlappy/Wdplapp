@@ -1,0 +1,95 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'">
+		<!-- Include Windows App Runtime with the app when running unpackaged -->
+		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst;net9.0-windows10.0.19041.0</TargetFrameworks>
+		<OutputType>Exe</OutputType>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+
+		<RootNamespace>Wdpl2</RootNamespace>
+		<AssemblyName>Wdpl2</AssemblyName>
+
+		<ApplicationTitle>Wdpl2</ApplicationTitle>
+		<ApplicationId>com.wdpl2.app</ApplicationId>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+		
+		<!-- Suppress warnings -->
+		<!-- MVVMTK: Using backing fields -->
+		<!-- CS0618: Obsolete APIs (Frame, LayoutOptions.FillAndExpand) -->
+		<!-- CS8618: Non-nullable field initialization -->
+		<!-- CA1416: Platform-specific APIs -->
+		<NoWarn>$(NoWarn);MVVMTK0034;MVVMTK0035;CS0618;CS8618;CA1416</NoWarn>
+	</PropertyGroup>
+
+	<!-- Keep default MAUI resources so Android icons/splash generate -->
+	<ItemGroup>
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiImage Include="Resources\Images\**\*;Resources\Raw\**\*" />
+		<MauiFont Include="Resources\Fonts\*" />
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+	<ItemGroup>
+	  <MauiImage Update="Resources\Images\dotnet_bot.svg">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </MauiImage>
+	</ItemGroup>
+	<ItemGroup>
+	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\CompetitionsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\FixturesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ImportHistoricalDataPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ImportPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\LeagueTablesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\PlayersPage.xaml">
+	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\SeasonsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\SettingsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\TeamsPage.xaml">
+	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\VenuesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Update="Microsoft.Maui.Controls" Version="10.0.10" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="CommunityToolkit.Maui" Version="10.0.0" />
+	  <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />
+	</ItemGroup>
+
+</Project>

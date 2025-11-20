@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="Wdpl2.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:Wdpl2.Views">
+
+    <TabBar>
+        <Tab Title="Seasons" Icon="calendar.png">
+            <ShellContent Title="Seasons" ContentTemplate="{DataTemplate views:SeasonsPage}" />
+        </Tab>
+
+        <Tab Title="Divisions">
+            <ShellContent Title="Divisions" ContentTemplate="{DataTemplate views:DivisionsPage}" />
+        </Tab>
+
+        <Tab Title="Teams">
+            <ShellContent Title="Teams" ContentTemplate="{DataTemplate views:TeamsPage}" />
+        </Tab>
+
+        <Tab Title="Players">
+            <ShellContent Title="Players" ContentTemplate="{DataTemplate views:PlayersPage}" />
+        </Tab>
+
+        <Tab Title="Venues">
+            <ShellContent Title="Venues" ContentTemplate="{DataTemplate views:VenuesPage}" />
+        </Tab>
+
+        <Tab Title="Fixtures" Icon="calendar.png">
+            <ShellContent Title="Fixtures" ContentTemplate="{DataTemplate views:FixturesPage}" />
+        </Tab>
+
+        <Tab Title="Competitions">
+            <ShellContent Title="Competitions" ContentTemplate="{DataTemplate views:CompetitionsPage}" />
+        </Tab>
+
+        <Tab Title="Tables" Icon="stats.png">
+            <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
+        </Tab>
+
+        <Tab Title="Settings">
+            <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
+        </Tab>
+    </TabBar>
+
+    <!-- Add this in your ShellContent items -->
+    <ShellContent
+        Title="Import Data"
+        ContentTemplate="{DataTemplate views:ImportPage}"
+        Route="import"
+        Icon="{FontImageSource FontFamily='MaterialIcons', Glyph='&#xe2c6;', Size=24}" />
+</Shell>

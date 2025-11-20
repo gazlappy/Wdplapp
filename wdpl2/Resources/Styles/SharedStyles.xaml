@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- =============================================== -->
+    <!-- COLORS -->
+    <!-- =============================================== -->
+    
+    <!-- Primary Colors -->
+    <Color x:Key="PrimaryColor">#3B82F6</Color>
+    <Color x:Key="PrimaryDark">#2563EB</Color>
+    <Color x:Key="PrimaryLight">#60A5FA</Color>
+    
+    <!-- Semantic Colors -->
+    <Color x:Key="SuccessColor">#10B981</Color>
+    <Color x:Key="WarningColor">#F59E0B</Color>
+    <Color x:Key="DangerColor">#EF4444</Color>
+    <Color x:Key="InfoColor">#06B6D4</Color>
+    
+    <!-- Neutral Colors -->
+    <Color x:Key="Gray50">#F9FAFB</Color>
+    <Color x:Key="Gray100">#F3F4F6</Color>
+    <Color x:Key="Gray200">#E5E7EB</Color>
+    <Color x:Key="Gray300">#D1D5DB</Color>
+    <Color x:Key="Gray400">#9CA3AF</Color>
+    <Color x:Key="Gray500">#6B7280</Color>
+    <Color x:Key="Gray600">#4B5563</Color>
+    <Color x:Key="Gray700">#374151</Color>
+    <Color x:Key="Gray800">#1F2937</Color>
+    <Color x:Key="Gray900">#111827</Color>
+
+    <!-- =============================================== -->
+    <!-- TYPOGRAPHY STYLES -->
+    <!-- =============================================== -->
+    
+    <!-- Page Title -->
+    <Style x:Key="PageTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=White}" />
+    </Style>
+    
+    <!-- Section Headers -->
+    <Style x:Key="SectionHeaderStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Margin" Value="0,16,0,8" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray800}, Dark=White}" />
+    </Style>
+    
+    <!-- Subsection Headers -->
+    <Style x:Key="SubsectionHeaderStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Margin" Value="0,12,0,6" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray700}, Dark={StaticResource Gray200}}" />
+    </Style>
+    
+    <!-- Field Labels -->
+    <Style x:Key="FieldLabelStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="Margin" Value="0,8,0,4" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray700}, Dark={StaticResource Gray300}}" />
+    </Style>
+    
+    <!-- Body Text -->
+    <Style x:Key="BodyTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray800}, Dark={StaticResource Gray200}}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+    
+    <!-- Caption Text -->
+    <Style x:Key="CaptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{StaticResource Gray500}" />
+    </Style>
+    
+    <!-- Status Text -->
+    <Style x:Key="StatusTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Italic" />
+        <Setter Property="TextColor" Value="{StaticResource Gray500}" />
+    </Style>
+
+    <!-- =============================================== -->
+    <!-- BUTTON STYLES -->
+    <!-- =============================================== -->
+    
+    <!-- Primary Button -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+    
+    <!-- Secondary Button -->
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray700}}" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray700}, Dark=White}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    
+    <!-- Success Button -->
+    <Style x:Key="SuccessButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+    
+    <!-- Danger Button -->
+    <Style x:Key="DangerButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource DangerColor}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+    
+    <!-- Warning Button -->
+    <Style x:Key="WarningButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource WarningColor}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+    
+    <!-- Outline Button -->
+    <Style x:Key="OutlineButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource PrimaryColor}" />
+        <Setter Property="BorderColor" Value="{StaticResource PrimaryColor}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- =============================================== -->
+    <!-- BORDER & CARD STYLES -->
+    <!-- =============================================== -->
+    
+    <!-- Card Border -->
+    <Style x:Key="CardBorderStyle" TargetType="Border">
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,4" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}" />
+    </Style>
+    
+    <!-- List Item Border -->
+    <Style x:Key="ListItemBorderStyle" TargetType="Border">
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 6" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}" />
+    </Style>
+    
+    <!-- Panel Border -->
+    <Style x:Key="PanelBorderStyle" TargetType="Border">
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray50}, Dark={StaticResource Gray900}}" />
+    </Style>
+
+    <!-- =============================================== -->
+    <!-- INPUT STYLES -->
+    <!-- =============================================== -->
+    
+    <!-- Entry Style -->
+    <Style x:Key="StandardEntryStyle" TargetType="Entry">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=White}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Gray400}" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}" />
+    </Style>
+    
+    <!-- Editor Style -->
+    <Style x:Key="StandardEditorStyle" TargetType="Editor">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=White}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Gray400}" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}" />
+        <Setter Property="AutoSize" Value="TextChanges" />
+    </Style>
+    
+    <!-- Picker Style -->
+    <Style x:Key="StandardPickerStyle" TargetType="Picker">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=White}" />
+        <Setter Property="TitleColor" Value="{StaticResource Gray500}" />
+    </Style>
+    
+    <!-- SearchBar Style -->
+    <Style x:Key="StandardSearchBarStyle" TargetType="SearchBar">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=White}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Gray400}" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}" />
+    </Style>
+
+    <!-- =============================================== -->
+    <!-- BADGE STYLES -->
+    <!-- =============================================== -->
+    
+    <!-- Success Badge -->
+    <Style x:Key="SuccessBadgeStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+    
+    <!-- Warning Badge -->
+    <Style x:Key="WarningBadgeStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource WarningColor}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+    
+    <!-- Danger Badge -->
+    <Style x:Key="DangerBadgeStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource DangerColor}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+    
+    <!-- Info Badge -->
+    <Style x:Key="InfoBadgeStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{StaticResource InfoColor}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+    
+    <!-- Badge Text -->
+    <Style x:Key="BadgeTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="White" />
+    </Style>
+
+    <!-- =============================================== -->
+    <!-- LAYOUT HELPERS -->
+    <!-- =============================================== -->
+    
+    <!-- Standard Spacing -->
+    <x:Double x:Key="SmallSpacing">4</x:Double>
+    <x:Double x:Key="StandardSpacing">8</x:Double>
+    <x:Double x:Key="MediumSpacing">12</x:Double>
+    <x:Double x:Key="LargeSpacing">16</x:Double>
+    <x:Double x:Key="ExtraLargeSpacing">24</x:Double>
+    
+    <!-- Standard Padding -->
+    <Thickness x:Key="SmallPadding">4</Thickness>
+    <Thickness x:Key="StandardPadding">8</Thickness>
+    <Thickness x:Key="MediumPadding">12</Thickness>
+    <Thickness x:Key="LargePadding">16</Thickness>
+    <Thickness x:Key="ExtraLargePadding">24</Thickness>
+    
+    <!-- Standard Corner Radius -->
+    <x:Double x:Key="SmallCornerRadius">4</x:Double>
+    <x:Double x:Key="StandardCornerRadius">8</x:Double>
+    <x:Double x:Key="LargeCornerRadius">12</x:Double>
+    <x:Double x:Key="ExtraLargeCornerRadius">16</x:Double>
+
+</ResourceDictionary>

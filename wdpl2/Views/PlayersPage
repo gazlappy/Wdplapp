@@ -1,0 +1,159 @@
+.xaml.cs
+    private void SafeRefreshPlayers(string? search)
+    {
+        try
+        {
+            if (!_currentSeasonId.HasValue)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _items.Clear();
+                    SetStatus("No season selected");
+                });
+                return;
+            }
+
+            if (DataStore.Data?.Players == null)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _items.Clear();
+                    SetStatus("No players data available");
+                });
+                return;
+            }
+
+            var players = DataStore.Data.Players
+                .Where(p => p != null && p.SeasonId == _currentSeasonId.Value)
+                .OrderBy(p => p.LastName ?? "")
+                .ThenBy(p => p.FirstName ?? "")
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var lower = search.ToLower();
+                players = players.Where(p =>
+                    (p.FirstName ?? "").ToLower().Contains(lower) ||
+                    (p.LastName ?? "").ToLower().Contains(lower))
+                    .OrderBy(p => p.LastName ?? "")
+                    .ThenBy(p => p.FirstName ?? "")
+                    .ToList();
+            }
+
+            // Build a team lookup dictionary for faster access
+            var teamLookup = DataStore.Data.Teams?
+                .Where(t => t != null && t.SeasonId == _currentSeasonId)
+                .ToDictionary(t => t.Id, t => t.Name ?? "Unknown Team")
+                ?? new Dictionary<Guid, string>();
+
+            // Build the list items BEFORE updating UI
+            var newItems = new List<PlayerListItem>();
+            foreach (var p in players)
+            {
+                var teamLabel = "";
+                if (p.TeamId.HasValue && teamLookup.TryGetValue(p.TeamId.Value, out var teamName))
+                {
+                    teamLabel = teamName;
+                }
+
+                newItems.Add(new PlayerListItem
+                {
+                    Id = p.Id,
+                    First = p.FirstName,
+                    Last = p.LastName,
+                    TeamLabel = teamLabel
+                });
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Loaded {newItems.Count} players for season {_currentSeasonId}");
+
+            // UPDATE UI ON MAIN THREAD
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                try
+                {
+                    _items.Clear();
+                    foreach (var item in newItems)
+                    {
+                        _items.Add(item);
+                    }
+
+                    var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                    var seasonInfo = season != null ? $" in {season.Name}" : "";
+                    var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
+                    SetStatus($"{_items.Count} player(s){seasonInfo}{importedTag}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"UI Update Error: {ex}");
+                    SetStatus($"UI update error: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SafeRefreshPlayers Error: {ex}");
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                SetStatus($"Error loading players: {ex.Message}");
+            });
+        }
+    }
+
+    private void SafeRefreshTeams()
+    {
+        try
+        {
+            if (!_currentSeasonId.HasValue)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _teams.Clear();
+                    SetStatus("No season selected");
+                });
+                return;
+            }
+
+            if (DataStore.Data?.Teams == null)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _teams.Clear();
+                    SetStatus("No teams data available");
+                });
+                return;
+            }
+
+            var teams = DataStore.Data.Teams
+                .Where(t => t != null && t.SeasonId == _currentSeasonId)
+                .OrderBy(t => t.Name ?? "")
+                .ToList();
+
+            System.Diagnostics.Debug.WriteLine($"Loaded {teams.Count} teams for season {_currentSeasonId}");
+
+            // UPDATE UI ON MAIN THREAD
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                try
+                {
+                    _teams.Clear();
+                    foreach (var t in teams)
+                    {
+                        _teams.Add(t);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Teams UI Update Error: {ex}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SafeRefreshTeams Error: {ex}");
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                SetStatus($"Error loading teams: {ex.Message}");
+            });
+        }
+    }

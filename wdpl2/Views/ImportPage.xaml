@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.ImportPage"
+             Title="Import from Access Database">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <Label Text="Import Historical Data"
+                   FontSize="24"
+                   FontAttributes="Bold"/>
+
+            <Label Text="Import seasons, divisions, teams, players, venues, and match results from your Access database (.accdb or .mdb)."
+                   FontSize="14"
+                   TextColor="Gray"/>
+
+            <Border Stroke="#3B82F6"
+                    StrokeThickness="2"
+                    Padding="16"
+                    BackgroundColor="#F0F9FF">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="⚠️ Important" FontAttributes="Bold" FontSize="16"/>
+                    <Label FontSize="13" LineHeight="1.4">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="• This will "/>
+                                <Span Text="merge" FontAttributes="Bold"/>
+                                <Span Text=" imported data with your existing data&#10;"/>
+                                <Span Text="• Back up your current data before importing&#10;"/>
+                                <Span Text="• Ensure your Access database is not open in Access&#10;"/>
+                                <Span Text="• Supported formats: .accdb (Access 2007+) and .mdb (Access 2003)"/>
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+
+            <Button x:Name="SelectFileBtn"
+                    Text="Select Access Database File"
+                    Clicked="OnSelectFileClicked"/>
+
+            <Label x:Name="SelectedFileLabel"
+                   Text="No file selected"
+                   FontSize="12"
+                   TextColor="Gray"/>
+
+            <Button x:Name="ImportBtn"
+                    Text="Import Data"
+                    IsEnabled="False"
+                    Clicked="OnImportClicked"
+                    BackgroundColor="#10B981"
+                    TextColor="White"/>
+
+            <ActivityIndicator x:Name="LoadingIndicator"
+                              IsRunning="False"
+                              IsVisible="False"
+                              Color="#3B82F6"/>
+
+            <Label x:Name="StatusLabel"
+                   FontSize="14"
+                   TextColor="#666"/>
+
+            <Border x:Name="ResultsBorder"
+                    IsVisible="False"
+                    Stroke="#10B981"
+                    StrokeThickness="1"
+                    Padding="16"
+                    BackgroundColor="#F0FDF4">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Import Results" FontAttributes="Bold" FontSize="16"/>
+                    <Label x:Name="ResultsLabel" FontSize="13" LineHeight="1.4"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border x:Name="ErrorsBorder"
+                    IsVisible="False"
+                    Stroke="#EF4444"
+                    StrokeThickness="1"
+                    Padding="16"
+                    BackgroundColor="#FEF2F2">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Errors" FontAttributes="Bold" FontSize="16" TextColor="#EF4444"/>
+                    <ScrollView MaximumHeightRequest="200">
+                        <Label x:Name="ErrorsLabel" FontSize="12" LineHeight="1.4"/>
+                    </ScrollView>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

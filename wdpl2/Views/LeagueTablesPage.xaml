@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.LeagueTablesPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="League Tables &amp; Player Ratings">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="12" RowSpacing="12">
+        
+        <!-- Header -->
+        <Label 
+            Text="League Tables &amp; Player Ratings" 
+            Style="{StaticResource PageTitleStyle}" />
+
+        <!-- Division Selector Row -->
+        <Border 
+            Grid.Row="1"
+            Style="{StaticResource CardBorderStyle}"
+            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+            <Grid ColumnDefinitions="Auto,200,*,Auto,150,Auto" ColumnSpacing="{StaticResource MediumSpacing}">
+                <Label Text="Division:" VerticalOptions="Center" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                <Picker x:Name="DivisionPicker" 
+                        Grid.Column="1"
+                        ItemDisplayBinding="{Binding Name}" 
+                        VerticalOptions="Center" />
+                
+                <Label x:Name="StatusLbl" 
+                       Grid.Column="2"
+                       Text="" 
+                       Style="{StaticResource StatusTextStyle}"
+                       VerticalOptions="Center"
+                       Margin="12,0,0,0" />
+
+                <Label Grid.Column="3" Text="Sort:" VerticalOptions="Center" Style="{StaticResource FieldLabelStyle}" Margin="0" />
+                <Picker x:Name="SortPicker" 
+                        Grid.Column="4"
+                        VerticalOptions="Center">
+                    <Picker.Items>
+                        <x:String>Rating</x:String>
+                        <x:String>Win %</x:String>
+                        <x:String>Played</x:String>
+                        <x:String>Name</x:String>
+                    </Picker.Items>
+                </Picker>
+
+                <Button x:Name="ExportBtn" 
+                        Grid.Column="5"
+                        Text="Export" 
+                        VerticalOptions="Center"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Padding="12,6" />
+            </Grid>
+        </Border>
+
+        <!-- Two-column layout: League Table (left) and Player Ratings (right) -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="{StaticResource MediumSpacing}">
+            
+            <!-- LEFT: League Table -->
+            <Border StrokeShape="RoundRectangle 12" 
+                    Padding="{StaticResource MediumPadding}"
+                    BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                    StrokeThickness="1">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+                    <Label Text="Division Table" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+                    
+                    <!-- Table Header -->
+                    <Border x:Name="TeamTableHeaderBorder" 
+                            Grid.Row="1"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark=#2A2A2A}" 
+                            Padding="10,8"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 8">
+                        <Grid x:Name="TeamTableHeaderGrid" ColumnSpacing="{StaticResource StandardSpacing}" />
+                    </Border>
+
+                    <!-- Table Rows -->
+                    <CollectionView x:Name="TeamTableList" 
+                                    Grid.Row="2"
+                                    SelectionMode="Single"
+                                    VerticalScrollBarVisibility="Always">
+                        <CollectionView.EmptyView>
+                            <VerticalStackLayout Spacing="{StaticResource MediumSpacing}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"
+                                               Padding="20">
+                                <Label Text="No teams in this division"
+                                       Style="{StaticResource CaptionStyle}"
+                                       HorizontalTextAlignment="Center" />
+                            </VerticalStackLayout>
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </Grid>
+            </Border>
+
+            <!-- RIGHT: Player Ratings -->
+            <Border Grid.Column="1" 
+                    StrokeShape="RoundRectangle 12" 
+                    Padding="{StaticResource MediumPadding}"
+                    BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                    StrokeThickness="1">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+                    <Label Text="Player Ratings" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+
+                    <!-- Ratings Header -->
+                    <Border x:Name="RatingsHeaderBorder" 
+                            Grid.Row="1"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark=#2A2A2A}" 
+                            Padding="10,8"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 8">
+                        <Grid x:Name="RatingsHeaderGrid" ColumnSpacing="{StaticResource StandardSpacing}" />
+                    </Border>
+
+                    <!-- Ratings Rows -->
+                    <CollectionView x:Name="PlayerRatingsList" 
+                                    Grid.Row="2"
+                                    SelectionMode="None"
+                                    VerticalScrollBarVisibility="Always">
+                        <CollectionView.EmptyView>
+                            <VerticalStackLayout Spacing="{StaticResource MediumSpacing}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"
+                                               Padding="20">
+                                <Label Text="No players in this division"
+                                       Style="{StaticResource CaptionStyle}"
+                                       HorizontalTextAlignment="Center" />
+                            </VerticalStackLayout>
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </Grid>
+            </Border>
+
+        </Grid>
+    </Grid>
+</ContentPage>

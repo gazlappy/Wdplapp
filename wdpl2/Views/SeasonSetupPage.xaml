@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.SeasonSetupPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="New Season Setup">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Header -->
+            <Label 
+                Text="Create New Season" 
+                FontSize="28" 
+                FontAttributes="Bold"
+                HorizontalOptions="Center"
+                Margin="0,0,0,10" />
+            
+            <Label 
+                Text="Choose how you want to set up your season"
+                FontSize="16"
+                TextColor="#666"
+                HorizontalOptions="Center"
+                Margin="0,0,0,20" />
+
+            <!-- Setup Method Selection -->
+            <Grid x:Name="MethodSelectionPanel" RowSpacing="16" ColumnSpacing="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Option 1: Copy from Previous Season -->
+                <Border
+                    x:Name="CopyPreviousBorder"
+                    Grid.Row="0"
+                    Padding="20"
+                    BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#1E293B}"
+                    Stroke="{AppThemeBinding Light=#CBD5E1, Dark=#475569}"
+                    StrokeThickness="2"
+                    StrokeShape="RoundRectangle 12">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCopyPreviousSelected" />
+                    </Border.GestureRecognizers>
+                    
+                    <Grid ColumnDefinitions="60,*" ColumnSpacing="16">
+                        <Border
+                            Grid.Column="0"
+                            WidthRequest="60"
+                            HeightRequest="60"
+                            BackgroundColor="{AppThemeBinding Light=#3B82F6, Dark=#2563EB}"
+                            StrokeShape="RoundRectangle 30">
+                            <Label
+                                Text="&#x1F4CB;"
+                                FontFamily="Segoe UI Emoji"
+                                FontSize="32"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                            <Label 
+                                Text="Copy From Previous Season" 
+                                FontSize="18" 
+                                FontAttributes="Bold" />
+                            <Label 
+                                Text="Quick setup - duplicate teams, players, and settings from your last season"
+                                FontSize="14"
+                                TextColor="#64748B"
+                                LineBreakMode="WordWrap" />
+                            <HorizontalStackLayout Spacing="4">
+                                <Label 
+                                    Text="&#x26A1;"
+                                    FontFamily="Segoe UI Emoji"
+                                    FontSize="12"
+                                    TextColor="#10B981" />
+                                <Label 
+                                    Text="Fastest option for returning leagues"
+                                    FontSize="12"
+                                    TextColor="#10B981"
+                                    FontAttributes="Italic" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Option 2: Use Template -->
+                <Border
+                    x:Name="UseTemplateBorder"
+                    Grid.Row="1"
+                    Padding="20"
+                    BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#1E293B}"
+                    Stroke="{AppThemeBinding Light=#CBD5E1, Dark=#475569}"
+                    StrokeThickness="2"
+                    StrokeShape="RoundRectangle 12">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnUseTemplateSelected" />
+                    </Border.GestureRecognizers>
+                    
+                    <Grid ColumnDefinitions="60,*" ColumnSpacing="16">
+                        <Border
+                            Grid.Column="0"
+                            WidthRequest="60"
+                            HeightRequest="60"
+                            BackgroundColor="{AppThemeBinding Light=#8B5CF6, Dark=#7C3AED}"
+                            StrokeShape="RoundRectangle 30">
+                            <Label
+                                Text="&#x1F3AF;"
+                                FontFamily="Segoe UI Emoji"
+                                FontSize="32"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                            <Label 
+                                Text="Start With Template" 
+                                FontSize="18" 
+                                FontAttributes="Bold" />
+                            <Label 
+                                Text="Choose from pre-configured league structures or create your own"
+                                FontSize="14"
+                                TextColor="#64748B"
+                                LineBreakMode="WordWrap" />
+                            <HorizontalStackLayout Spacing="4">
+                                <Label 
+                                    Text="&#x1F44D;"
+                                    FontFamily="Segoe UI Emoji"
+                                    FontSize="12"
+                                    TextColor="#10B981" />
+                                <Label 
+                                    Text="Best for new leagues or standardized setups"
+                                    FontSize="12"
+                                    TextColor="#10B981"
+                                    FontAttributes="Italic" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Option 3: Manual Setup -->
+                <Border
+                    x:Name="ManualSetupBorder"
+                    Grid.Row="2"
+                    Padding="20"
+                    BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#1E293B}"
+                    Stroke="{AppThemeBinding Light=#CBD5E1, Dark=#475569}"
+                    StrokeThickness="2"
+                    StrokeShape="RoundRectangle 12">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnManualSetupSelected" />
+                    </Border.GestureRecognizers>
+                    
+                    <Grid ColumnDefinitions="60,*" ColumnSpacing="16">
+                        <Border
+                            Grid.Column="0"
+                            WidthRequest="60"
+                            HeightRequest="60"
+                            BackgroundColor="{AppThemeBinding Light=#10B981, Dark=#059669}"
+                            StrokeShape="RoundRectangle 30">
+                            <Label
+                                Text="&#x270F;&#xFE0F;"
+                                FontFamily="Segoe UI Emoji"
+                                FontSize="32"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                            <Label 
+                                Text="Manual Setup" 
+                                FontSize="18" 
+                                FontAttributes="Bold" />
+                            <Label 
+                                Text="Start from scratch with complete control over every detail"
+                                FontSize="14"
+                                TextColor="#64748B"
+                                LineBreakMode="WordWrap" />
+                            <HorizontalStackLayout Spacing="4">
+                                <Label 
+                                    Text="&#x1F527;"
+                                    FontFamily="Segoe UI Emoji"
+                                    FontSize="12"
+                                    TextColor="#10B981" />
+                                <Label 
+                                    Text="Most flexible - configure everything yourself"
+                                    FontSize="12"
+                                    TextColor="#10B981"
+                                    FontAttributes="Italic" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Content Panel (will be replaced based on selection) -->
+            <ContentView x:Name="ContentPanel" />
+
+            <!-- Action Buttons -->
+            <HorizontalStackLayout 
+                x:Name="ActionButtons"
+                Spacing="12" 
+                HorizontalOptions="Center"
+                Margin="0,20,0,0"
+                IsVisible="False">
+                <Button 
+                    x:Name="BackBtn"
+                    Text="? Back"
+                    Clicked="OnBackToSelection"
+                    WidthRequest="120"
+                    BackgroundColor="#6B7280" />
+                <Button 
+                    x:Name="ContinueBtn"
+                    Text="Continue ?"
+                    Clicked="OnContinue"
+                    WidthRequest="120"
+                    BackgroundColor="#3B82F6" />
+            </HorizontalStackLayout>
+
+            <!-- Status Label -->
+            <Label 
+                x:Name="StatusLabel"
+                FontSize="12"
+                TextColor="#6B7280"
+                HorizontalOptions="Center"
+                Margin="0,10,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
