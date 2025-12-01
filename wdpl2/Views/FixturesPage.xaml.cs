@@ -46,6 +46,8 @@ public partial class FixturesPage : ContentPage
 
     public FixturesPage()
     {
+        System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor START ===");
+        
         InitializeComponent();
 
         // Wire up burger menu and flyout
@@ -85,29 +87,64 @@ public partial class FixturesPage : ContentPage
             ManageNotificationsBtn.Clicked += async (_, __) => await OnManageNotificationsAsync();
         }
 
+        // SUBSCRIBE to global season changes
+        System.Diagnostics.Debug.WriteLine("   Subscribing to SeasonService.SeasonChanged...");
+        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        System.Diagnostics.Debug.WriteLine($"   SeasonService.CurrentSeasonId: {SeasonService.CurrentSeasonId?.ToString() ?? "NULL"}");
+
+        System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor END, calling RefreshList ===");
         RefreshList();
     }
     
-    // NEW: Override OnAppearing to initialize services when handler is available
-    protected override void OnAppearing()
+    ~FixturesPage()
     {
-        base.OnAppearing();
-        
-        // Initialize services once when handler is available
-        if (!_servicesInitialized && Handler?.MauiContext != null)
+        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+    }
+    
+    private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
+    {
+        try
         {
-            try
+            System.Diagnostics.Debug.WriteLine($"=== FIXTURES PAGE: Season Changed Event ===");
+            System.Diagnostics.Debug.WriteLine($"Old Season: {e.OldSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season: {e.NewSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season Name: {e.NewSeason?.Name ?? "NULL"}");
+            
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                _reminderService = Handler.MauiContext.Services.GetService<MatchReminderService>();
-                _notificationService = Handler.MauiContext.Services.GetService<INotificationService>();
-                _servicesInitialized = true;
+                // Update the active season toggle state if no season is active
+                if (!e.NewSeasonId.HasValue)
+                {
+                    ActiveSeasonOnly.IsToggled = false; // Show all when no season
+                }
                 
-                System.Diagnostics.Debug.WriteLine($"Services initialized: Reminder={_reminderService != null}, Notification={_notificationService != null}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to initialize services: {ex.Message}");
-            }
+                // Force clear the list first
+                System.Diagnostics.Debug.WriteLine($"?? Clearing fixtures list...");
+                _items.Clear();
+                
+                // Clear selected fixture
+                _selectedFixture = null;
+                FramesHost.Children.Clear();
+                _frameRows.Clear();
+                HeaderLbl.Text = e.NewSeasonId.HasValue ? "Select a fixture" : "No season selected";
+                ScoreLbl.Text = "";
+                if (ReminderStatusLabel != null)
+                    ReminderStatusLabel.Text = "";
+                
+                // Then refresh
+                RefreshList();
+                
+                var statusMsg = e.NewSeason != null 
+                    ? $"Season changed to: {e.NewSeason.Name}" 
+                    : "No active season - data cleared";
+                
+                System.Diagnostics.Debug.WriteLine(statusMsg);
+                System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Refresh Complete ===");
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FixturesPage Season change error: {ex}");
         }
     }
 
@@ -174,7 +211,7 @@ public partial class FixturesPage : ContentPage
         }
     }
 
-    // ========== DIAGNOSTICS ==========[]
+    // ========== DIAGNOSTICS ========= []
     
     private async System.Threading.Tasks.Task OnDiagnosticsAsync()
     {
@@ -249,9 +286,20 @@ public partial class FixturesPage : ContentPage
 
     private void RefreshList()
     {
+        System.Diagnostics.Debug.WriteLine($"=== FIXTURES RefreshList START ===");
+        System.Diagnostics.Debug.WriteLine($"   ActiveSeasonOnly.IsToggled: {ActiveSeasonOnly?.IsToggled ?? false}");
+        System.Diagnostics.Debug.WriteLine($"   DataStore.ActiveSeasonId: {DataStore.Data?.ActiveSeasonId?.ToString() ?? "NULL"}");
+        
         _items.Clear();
 
         var data = DataStore.Data;
+        
+        if (data == null)
+        {
+            System.Diagnostics.Debug.WriteLine("   DataStore.Data is NULL!");
+            return;
+        }
+        
         var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
         var venueById = data.Venues.ToDictionary(v => v.Id, v => v);
         var tableById = data.Venues
@@ -259,20 +307,33 @@ public partial class FixturesPage : ContentPage
             .ToDictionary(x => x.Table.Id, x => (venueId: x.Id, table: x.Table));
 
         IEnumerable<Fixture> src = data.Fixtures;
+        System.Diagnostics.Debug.WriteLine($"   Total fixtures in database: {data.Fixtures.Count}");
 
         if (ActiveSeasonOnly.IsToggled && data.ActiveSeasonId != null)
+        {
+            System.Diagnostics.Debug.WriteLine($"   Filtering by active season: {data.ActiveSeasonId}");
             src = src.Where(f => f.SeasonId == data.ActiveSeasonId);
+        }
+        else if (ActiveSeasonOnly.IsToggled && data.ActiveSeasonId == null)
+        {
+            System.Diagnostics.Debug.WriteLine("   ? ActiveSeasonOnly is ON but NO active season - returning 0 fixtures");
+            // No active season, so show no fixtures when toggle is on
+            System.Diagnostics.Debug.WriteLine($"=== FIXTURES RefreshList END: 0 fixtures ===");
+            return;
+        }
 
         // ADD NULL CHECK
         if (FromDate != null)
         {
             var from = FromDate.Date.Date;
+            System.Diagnostics.Debug.WriteLine($"   Filtering by date from: {from:yyyy-MM-dd}");
             src = src.Where(f => f.Date.Date >= from);
         }
 
         var q = (SearchEntry.Text ?? "").Trim().ToLowerInvariant();
         if (!string.IsNullOrEmpty(q))
         {
+            System.Diagnostics.Debug.WriteLine($"   Filtering by search query: '{q}'");
             src = src.Where(f =>
             {
                 var home = teamById.TryGetValue(f.HomeTeamId, out var ht) ? (ht.Name ?? "") : "";
@@ -282,7 +343,10 @@ public partial class FixturesPage : ContentPage
             });
         }
 
-        foreach (var f in src.OrderBy(f => f.Date))
+        var fixturesList = src.OrderBy(f => f.Date).ToList();
+        System.Diagnostics.Debug.WriteLine($"   After filtering: {fixturesList.Count} fixtures");
+
+        foreach (var f in fixturesList)
         {
             var home = teamById.TryGetValue(f.HomeTeamId, out var ht) ? (ht.Name ?? "Home") : "Home";
             var away = teamById.TryGetValue(f.AwayTeamId, out var at) ? (at.Name ?? "Away") : "Away";
@@ -305,6 +369,9 @@ public partial class FixturesPage : ContentPage
                 HasReminder = hasReminder
             });
         }
+        
+        System.Diagnostics.Debug.WriteLine($"   Added {_items.Count} fixtures to list");
+        System.Diagnostics.Debug.WriteLine($"=== FIXTURES RefreshList END ===");
     }
 
     private void OnSelectFixture(object? sender, SelectionChangedEventArgs e)
@@ -1091,5 +1158,37 @@ public partial class FixturesPage : ContentPage
 
         HeaderLbl.Text = $"{_selectedFixture.Date:ddd dd MMM yyyy HH:mm} • {home} vs {away}";
         ScoreLbl.Text = $"Score: {_selectedFixture.HomeScore} – {_selectedFixture.AwayScore}";
+    }
+    
+    // NEW: Override OnAppearing to initialize services when handler is available
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        
+        System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: OnAppearing ===");
+        System.Diagnostics.Debug.WriteLine($"   SeasonService.CurrentSeasonId: {SeasonService.CurrentSeasonId?.ToString() ?? "NULL"}");
+        System.Diagnostics.Debug.WriteLine($"   DataStore.ActiveSeasonId: {DataStore.Data?.ActiveSeasonId?.ToString() ?? "NULL"}");
+        
+        // Initialize services once when handler is available
+        if (!_servicesInitialized && Handler?.MauiContext != null)
+        {
+            try
+            {
+                _reminderService = Handler.MauiContext.Services.GetService<MatchReminderService>();
+                _notificationService = Handler.MauiContext.Services.GetService<INotificationService>();
+                _servicesInitialized = true;
+                
+                System.Diagnostics.Debug.WriteLine($"Services initialized: Reminder={_reminderService != null}, Notification={_notificationService != null}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize services: {ex.Message}");
+            }
+        }
+        
+        // IMPORTANT: Refresh list to ensure we show current season's data
+        // This handles the case where the page was created after a season change event
+        System.Diagnostics.Debug.WriteLine("   Calling RefreshList from OnAppearing...");
+        RefreshList();
     }
 }

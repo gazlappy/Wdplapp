@@ -40,10 +40,10 @@ namespace Wdpl2.Views
         {
             _selected = e.CurrentSelection?.FirstOrDefault() as Season;
 
-            // UPDATE GLOBAL SEASON when a season is selected
+            // Don't change the global season just because we selected it in the list
+            // Only change it when explicitly activating via "Set Active" button or saving with Active switch ON
             if (_selected != null)
             {
-                SeasonService.CurrentSeasonId = _selected.Id;
                 ShowSeasonInfo(_selected);
             }
             else
@@ -58,6 +58,29 @@ namespace Wdpl2.Views
         {
             // Navigate to the new season setup wizard
             Navigation.PushAsync(new SeasonSetupPage());
+        }
+
+        private void OnRefreshListClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                // Reload data from storage
+                DataStore.Load();
+                
+                // Refresh the list
+                RefreshList(selectFirst: false);
+                
+                // Update status
+                StatusLabel.Text = "✅ Seasons list refreshed";
+                
+                System.Diagnostics.Debug.WriteLine("=== Seasons List Refreshed ===");
+                System.Diagnostics.Debug.WriteLine($"Total seasons: {League.Seasons.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Refresh error: {ex.Message}");
+                StatusLabel.Text = $"❌ Refresh failed: {ex.Message}";
+            }
         }
 
         private async void OnSaveClicked(object sender, EventArgs e)
@@ -78,7 +101,46 @@ namespace Wdpl2.Views
             model.Name = NameEntry.Text!.Trim();
             model.StartDate = StartPicker.Date;
             model.EndDate = EndPicker.Date;
-            model.IsActive = ActiveSwitch.IsToggled;
+            
+            // Handle IsActive properly
+            bool wasActive = model.IsActive;
+            bool willBeActive = ActiveSwitch.IsToggled;
+            
+            if (willBeActive && !wasActive)
+            {
+                // Turning this season ON - deactivate all others
+                System.Diagnostics.Debug.WriteLine($"🟢 Activating season: {model.Name}");
+                foreach (var s in League.Seasons)
+                    s.IsActive = false;
+                    
+                model.IsActive = true;
+                League.ActiveSeasonId = model.Id;
+            }
+            else if (!willBeActive && wasActive)
+            {
+                // Turning this season OFF
+                System.Diagnostics.Debug.WriteLine($"🔴 Deactivating season: {model.Name}");
+                model.IsActive = false;
+                
+                // If this was the active season, clear the ActiveSeasonId
+                if (League.ActiveSeasonId == model.Id)
+                {
+                    League.ActiveSeasonId = null;
+                }
+            }
+            else if (willBeActive && wasActive)
+            {
+                // Season was already active and staying active
+                System.Diagnostics.Debug.WriteLine($"✅ Season remains active: {model.Name}");
+                model.IsActive = true;
+                League.ActiveSeasonId = model.Id;
+            }
+            else
+            {
+                // Season was inactive and staying inactive
+                System.Diagnostics.Debug.WriteLine($"⚪ Season remains inactive: {model.Name}");
+                model.IsActive = false;
+            }
 
             model.BlackoutDates = _exclusionDates
                 .Select(s => DateTime.Parse(s))
@@ -98,10 +160,61 @@ namespace Wdpl2.Views
                 existing.BlackoutDates = model.BlackoutDates;
             }
 
-            try { DataStore.Save(); } catch { }
+            try 
+            { 
+                DataStore.Save();
+                System.Diagnostics.Debug.WriteLine($"💾 Season saved: {model.Name} (ID: {model.Id})");
+                System.Diagnostics.Debug.WriteLine($"   IsActive: {model.IsActive}");
+                System.Diagnostics.Debug.WriteLine($"   ActiveSeasonId: {League.ActiveSeasonId?.ToString() ?? "NULL"}");
+            } 
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Save error: {ex.Message}");
+            }
+
+            // ALWAYS update SeasonService to trigger the event
+            System.Diagnostics.Debug.WriteLine($"🔄 Updating SeasonService.CurrentSeasonId...");
+            System.Diagnostics.Debug.WriteLine($"   Before: {SeasonService.CurrentSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"   wasActive: {wasActive}, willBeActive: {willBeActive}");
+            System.Diagnostics.Debug.WriteLine($"   League.ActiveSeasonId: {League.ActiveSeasonId?.ToString() ?? "NULL"}");
+            
+            if (willBeActive)
+            {
+                // Season is being activated or staying active
+                SeasonService.CurrentSeasonId = model.Id;
+            }
+            else
+            {
+                // Season is NOT active (either deactivated or staying inactive)
+                // Clear the current season if there's no active season
+                if (League.ActiveSeasonId == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"   No active season in League - setting CurrentSeasonId to NULL");
+                    SeasonService.CurrentSeasonId = null;
+                }
+                else
+                {
+                    // There's another active season - switch to it
+                    var activeSeason = League.Seasons.FirstOrDefault(s => s.IsActive);
+                    if (activeSeason != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   Switching to active season: {activeSeason.Name}");
+                        SeasonService.CurrentSeasonId = activeSeason.Id;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   No active season found - setting CurrentSeasonId to NULL");
+                        SeasonService.CurrentSeasonId = null;
+                    }
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"   After: {SeasonService.CurrentSeasonId?.ToString() ?? "NULL"}");
 
             RefreshList(selectId: model.Id);
-            StatusLabel.Text = $"Saved \"{model.Name}\" with {model.BlackoutDates.Count} exclusion date(s).";
+            
+            var activeStatus = model.IsActive ? "✅ Active" : "⚪ Inactive";
+            StatusLabel.Text = $"Saved \"{model.Name}\" - {activeStatus}";
         }
 
         private async void OnDeleteClicked(object sender, EventArgs e)
@@ -164,17 +277,116 @@ namespace Wdpl2.Views
                 DataStore.Save();
                 System.Diagnostics.Debug.WriteLine($"✅ Active season set: {_selected.Name} (ID: {_selected.Id})");
                 System.Diagnostics.Debug.WriteLine($"✅ ActiveSeasonId saved: {League.ActiveSeasonId}");
+                System.Diagnostics.Debug.WriteLine($"✅ SeasonService.CurrentSeasonId BEFORE: {SeasonService.CurrentSeasonId}");
             } 
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error saving: {ex.Message}");
             }
 
+            // Notify SeasonService - THIS MUST HAPPEN TO UPDATE ALL PAGES
+            SeasonService.CurrentSeasonId = _selected.Id;
+            
+            System.Diagnostics.Debug.WriteLine($"✅ SeasonService.CurrentSeasonId AFTER: {SeasonService.CurrentSeasonId}");
+            
             RefreshList(selectId: _selected.Id);
             StatusLabel.Text = $"✅ \"{_selected.Name}\" set as active.";
-            
-            // Notify SeasonService
-            SeasonService.CurrentSeasonId = _selected.Id;
+        }
+
+        private async void OnFixMissingSeasonIdsClicked(object sender, EventArgs e)
+        {
+            if (_selected == null)
+            {
+                await DisplayAlert("Fix Data", "Please select the season to assign to items with missing Season IDs.", "OK");
+                return;
+            }
+
+            try
+            {
+                // Count items without season IDs
+                int teamsFixed = 0;
+                int playersFixed = 0;
+                int divisionsFixed = 0;
+                int venuesFixed = 0;
+                int fixturesFixed = 0;
+
+                // Fix Teams
+                foreach (var team in League.Teams.Where(t => !t.SeasonId.HasValue))
+                {
+                    team.SeasonId = _selected.Id;
+                    teamsFixed++;
+                }
+
+                // Fix Players
+                foreach (var player in League.Players.Where(p => !p.SeasonId.HasValue))
+                {
+                    player.SeasonId = _selected.Id;
+                    playersFixed++;
+                }
+
+                // Fix Divisions
+                foreach (var division in League.Divisions.Where(d => !d.SeasonId.HasValue))
+                {
+                    division.SeasonId = _selected.Id;
+                    divisionsFixed++;
+                }
+
+                // Fix Venues
+                foreach (var venue in League.Venues.Where(v => !v.SeasonId.HasValue))
+                {
+                    venue.SeasonId = _selected.Id;
+                    venuesFixed++;
+                }
+
+                // Fix Fixtures
+                foreach (var fixture in League.Fixtures.Where(f => !f.SeasonId.HasValue))
+                {
+                    fixture.SeasonId = _selected.Id;
+                    fixturesFixed++;
+                }
+
+                int totalFixed = teamsFixed + playersFixed + divisionsFixed + venuesFixed + fixturesFixed;
+
+                if (totalFixed == 0)
+                {
+                    await DisplayAlert("✅ All Good!", "No items found with missing Season IDs.", "OK");
+                    return;
+                }
+
+                var message = $"Found and fixed {totalFixed} item(s) with missing Season IDs:\n\n" +
+                              $"• Teams: {teamsFixed}\n" +
+                              $"• Players: {playersFixed}\n" +
+                              $"• Divisions: {divisionsFixed}\n" +
+                              $"• Venues: {venuesFixed}\n" +
+                              $"• Fixtures: {fixturesFixed}\n\n" +
+                              $"All items have been assigned to season: {_selected.Name}\n\n" +
+                              $"Save changes now?";
+
+                var confirm = await DisplayAlert("Fix Data", message, "Yes, Save", "Cancel");
+                
+                if (confirm)
+                {
+                    DataStore.Save();
+                    StatusLabel.Text = $"✅ Fixed {totalFixed} items and saved!";
+                    
+                    // Trigger a refresh on all pages by updating the season service
+                    SeasonService.CurrentSeasonId = _selected.Id;
+                    
+                    await DisplayAlert("Success!", $"Successfully fixed and saved {totalFixed} items.", "OK");
+                }
+                else
+                {
+                    // Reload data to undo changes
+                    DataStore.Load();
+                    StatusLabel.Text = "❌ Changes cancelled";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OnFixMissingSeasonIdsClicked Error: {ex}");
+                await DisplayAlert("Error", $"Failed to fix data: {ex.Message}", "OK");
+                StatusLabel.Text = $"Error: {ex.Message}";
+            }
         }
 
         private async void OnGenerateClicked(object sender, EventArgs e)

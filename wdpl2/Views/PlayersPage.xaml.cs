@@ -372,16 +372,33 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"=== PLAYERS PAGE: Season Changed Event ===");
+            System.Diagnostics.Debug.WriteLine($"Old Season: {e.OldSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season: {e.NewSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season Name: {e.NewSeason?.Name ?? "NULL"}");
+            
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _currentSeasonId = e.NewSeasonId;
+                System.Diagnostics.Debug.WriteLine($"Players Page _currentSeasonId updated to: {_currentSeasonId?.ToString() ?? "NULL"}");
+                
+                // Force clear the list first
+                System.Diagnostics.Debug.WriteLine($"🧹 Clearing player list...");
+                _items.Clear();
+                
+                // Then refresh
                 SafeRefreshPlayers(SearchEntry?.Text);
                 SafeRefreshTeams();
                 RefreshH2HSeasons();
 
                 var seasonName = e.NewSeason?.Name ?? "None";
                 var isImported = e.NewSeason != null && !e.NewSeason.IsActive ? " (Imported)" : "";
-                SetStatus($"Season: {seasonName}{isImported}");
+                var statusMsg = e.NewSeason != null 
+                    ? $"Season: {seasonName}{isImported}" 
+                    : "No active season - data cleared";
+                SetStatus(statusMsg);
+                
+                System.Diagnostics.Debug.WriteLine("=== PLAYERS PAGE: Refresh Complete ===");
             });
         }
         catch (Exception ex)
@@ -494,19 +511,29 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"=== SafeRefreshPlayers START ===");
+            System.Diagnostics.Debug.WriteLine($"   _currentSeasonId: {_currentSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"   _showAllSeasons: {_showAllSeasons}");
+            
             _items.Clear();
 
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected - check 'Show all seasons' to see all data");
-                return;
+                SetStatus("No season selected - check 'Show all seasons' or activate a season");
+                System.Diagnostics.Debug.WriteLine("   ✅ No active season - returning early (list cleared)");
+                System.Diagnostics.Debug.WriteLine("=== SafeRefreshPlayers END ===");
+                return; // List is already cleared
             }
 
             if (DataStore.Data?.Players == null)
             {
                 SetStatus("No players data available");
+                System.Diagnostics.Debug.WriteLine("   ⚠️ No players data available");
+                System.Diagnostics.Debug.WriteLine("=== SafeRefreshPlayers END ===");
                 return;
             }
+
+            System.Diagnostics.Debug.WriteLine($"   📥 Loading players...");
 
             var players = _showAllSeasons
                 ? DataStore.Data.Players
@@ -519,6 +546,8 @@ public partial class PlayersPage : ContentPage
                     .OrderBy(p => p.LastName ?? "")
                     .ThenBy(p => p.FirstName ?? "")
                     .ToList();
+
+            System.Diagnostics.Debug.WriteLine($"   Found {players.Count} players");
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -560,20 +589,25 @@ public partial class PlayersPage : ContentPage
             }
 
             // Update status message
-            if (_showAllSeasons)
+            if (_showAllSeasons && players.Any())
             {
                 var seasonGroups = players.GroupBy(p => p.SeasonId).Count();
                 SetStatus($"{_items.Count} player(s) across {seasonGroups} season(s)");
             }
-            else
+            else if (players.Any())
             {
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
                 var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
                 SetStatus($"{_items.Count} player(s){seasonInfo}{importedTag}");
             }
+            else
+            {
+                SetStatus("No players found for the current season");
+            }
 
             System.Diagnostics.Debug.WriteLine($"Loaded {_items.Count} players for season {_currentSeasonId}");
+            System.Diagnostics.Debug.WriteLine("=== SafeRefreshPlayers END ===");
         }
         catch (Exception ex)
         {

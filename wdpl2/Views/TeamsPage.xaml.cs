@@ -375,12 +375,30 @@ public partial class TeamsPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"=== TEAMS PAGE: Season Changed Event ===");
+            System.Diagnostics.Debug.WriteLine($"Old Season: {e.OldSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season: {e.NewSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"New Season Name: {e.NewSeason?.Name ?? "NULL"}");
+            
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _currentSeasonId = e.NewSeasonId;
+                System.Diagnostics.Debug.WriteLine($"Teams Page _currentSeasonId updated to: {_currentSeasonId?.ToString() ?? "NULL"}");
+                
+                // Force clear the list first
+                System.Diagnostics.Debug.WriteLine($"🧹 Clearing team list...");
+                _teamItems.Clear();
+                
+                // Then refresh
                 RefreshTeamList(SearchEntry?.Text);
                 RefreshH2HSeasons();
-                SetStatus($"Season changed to: {e.NewSeason?.Name ?? "None"}");
+                
+                var statusMsg = e.NewSeason != null 
+                    ? $"Season changed to: {e.NewSeason.Name}" 
+                    : "No active season - data cleared";
+                SetStatus(statusMsg);
+                
+                System.Diagnostics.Debug.WriteLine("=== TEAMS PAGE: Refresh Complete ===");
             });
         }
         catch (Exception ex)
@@ -453,38 +471,35 @@ public partial class TeamsPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"=== RefreshTeamList START ===");
+            System.Diagnostics.Debug.WriteLine($"   _currentSeasonId: {_currentSeasonId?.ToString() ?? "NULL"}");
+            System.Diagnostics.Debug.WriteLine($"   _showAllSeasons: {_showAllSeasons}");
+            
             _teamItems.Clear();
-
-            System.Diagnostics.Debug.WriteLine("=== TEAMS DEBUG ===");
-            System.Diagnostics.Debug.WriteLine($"Current Season ID: {_currentSeasonId}");
-            System.Diagnostics.Debug.WriteLine($"Show All Seasons: {_showAllSeasons}");
-            System.Diagnostics.Debug.WriteLine($"Total Teams in DB: {DataStore.Data?.Teams?.Count ?? 0}");
-
-            if (DataStore.Data?.Teams != null)
-            {
-                foreach (var t in DataStore.Data.Teams)
-                {
-                    System.Diagnostics.Debug.WriteLine($"  Team: '{t.Name}' (SeasonId: {t.SeasonId})");
-                }
-            }
 
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected");
-                return;
+                SetStatus("No season selected - check 'Show all seasons' or activate a season");
+                System.Diagnostics.Debug.WriteLine("   ✅ No active season - returning early (list cleared)");
+                System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
+                return; // This already clears the list since we called _teamItems.Clear() above
             }
 
             if (DataStore.Data?.Teams == null)
             {
                 SetStatus("No teams data available");
+                System.Diagnostics.Debug.WriteLine("   ⚠️ No teams data available");
+                System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
                 return;
             }
+
+            System.Diagnostics.Debug.WriteLine($"   📥 Loading teams...");
 
             var teams = _showAllSeasons
                 ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
                 : DataStore.Data.Teams.Where(t => t != null && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
 
-            System.Diagnostics.Debug.WriteLine($"Filtered Teams: {teams.Count}");
+            System.Diagnostics.Debug.WriteLine($"   Found {teams.Count} teams");
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -515,12 +530,25 @@ public partial class TeamsPage : ContentPage
                 });
             }
 
-            var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
-            var seasonInfo = season != null ? $" in {season.Name}" : "";
-            var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-            SetStatus($"{_teamItems.Count} team(s){seasonInfo}{importedTag}");
+            if (_showAllSeasons && teams.Any())
+            {
+                var seasonGroups = teams.GroupBy(t => t.SeasonId).Count();
+                SetStatus($"{_teamItems.Count} team(s) across {seasonGroups} season(s)");
+            }
+            else if (teams.Any())
+            {
+                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                var seasonInfo = season != null ? $" in {season.Name}" : "";
+                var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
+                SetStatus($"{_teamItems.Count} team(s){seasonInfo}{importedTag}");
+            }
+            else
+            {
+                SetStatus("No teams found for the current season");
+            }
 
             System.Diagnostics.Debug.WriteLine($"Added {_teamItems.Count} items to ObservableCollection");
+            System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
         }
         catch (Exception ex)
         {

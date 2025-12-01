@@ -141,24 +141,35 @@ public partial class VenuesPage : ContentPage
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"=== RefreshVenues START ===");
+            System.Diagnostics.Debug.WriteLine($"   _currentSeasonId: {_currentSeasonId?.ToString() ?? "NULL"}");
+            
             _venues.Clear();
 
             if (!_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected");
-                return;
+                SetStatus("No season selected - activate a season to see venues");
+                System.Diagnostics.Debug.WriteLine("   ✅ No active season - returning early (list cleared)");
+                System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
+                return; // List is already cleared
             }
 
             if (DataStore.Data?.Venues == null)
             {
                 SetStatus("No venues data available");
+                System.Diagnostics.Debug.WriteLine("   ⚠️ No venues data available");
+                System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
                 return;
             }
+
+            System.Diagnostics.Debug.WriteLine($"   📥 Loading venues...");
 
             var venues = DataStore.Data.Venues
                 .Where(v => v != null && v.SeasonId == _currentSeasonId.Value)
                 .OrderBy(v => v.Name ?? "")
                 .ToList();
+
+            System.Diagnostics.Debug.WriteLine($"   Found {venues.Count} venues");
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -175,10 +186,13 @@ public partial class VenuesPage : ContentPage
             var seasonInfo = season != null ? $" in {season.Name}" : "";
             var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
             SetStatus($"{_venues.Count} venue(s){seasonInfo}{importedTag}");
+            
+            System.Diagnostics.Debug.WriteLine($"Added {_venues.Count} venues to list");
+            System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"VenuesPage RefreshVenues Error: {ex}");
+            System.Diagnostics.Debug.WriteLine($"RefreshVenues Error: {ex}");
             SetStatus($"Error loading venues: {ex.Message}");
         }
     }

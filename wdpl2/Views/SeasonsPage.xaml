@@ -57,7 +57,7 @@
             ZIndex="101">
             <ScrollView>
                 <Grid
-                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                     ColumnDefinitions="Auto,*"
                     ColumnSpacing="{StaticResource MediumSpacing}"
                     RowSpacing="{StaticResource StandardSpacing}">
@@ -111,13 +111,22 @@
                             Clicked="OnImportHistoricalClicked"
                             BackgroundColor="{StaticResource WarningColor}"
                             TextColor="White" />
+                    
+                    <!-- NEW: Fix Data Button -->
+                    <Button x:Name="FixDataBtn" 
+                            Grid.Row="11"
+                            Grid.ColumnSpan="2"
+                            Text="🔧 Fix Missing Season IDs" 
+                            Clicked="OnFixMissingSeasonIdsClicked"
+                            BackgroundColor="#FF6B00"
+                            TextColor="White" />
                         
                     <!-- Exclusion Dates Section (in flyout) -->
-                    <BoxView Grid.Row="11" Grid.ColumnSpan="2" HeightRequest="1" 
+                    <BoxView Grid.Row="12" Grid.ColumnSpan="2" HeightRequest="1" 
                              Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
                              Margin="0,12" />
 
-                    <VerticalStackLayout Grid.Row="12" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                    <VerticalStackLayout Grid.Row="13" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Label Text="Exclusion Dates" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
                         
                         <Label Text="Dates when matches should not be scheduled:" 
@@ -220,11 +229,18 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
-                <Button 
-                    Grid.Row="2"
-                    Text="+ New Season" 
-                    Clicked="OnNewClicked" 
-                    Style="{StaticResource PrimaryButtonStyle}" />
+                <HorizontalStackLayout Grid.Row="2" Spacing="8">
+                    <Button 
+                        x:Name="RefreshListBtn"
+                        Text="🔄 Refresh" 
+                        Clicked="OnRefreshListClicked"
+                        HorizontalOptions="FillAndExpand" />
+                    <Button 
+                        Text="+ New Season" 
+                        Clicked="OnNewClicked" 
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        HorizontalOptions="FillAndExpand" />
+                </HorizontalStackLayout>
             </Grid>
         </Border>
 
