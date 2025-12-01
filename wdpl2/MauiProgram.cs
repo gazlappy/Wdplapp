@@ -58,7 +58,6 @@ public static class MauiProgram
         builder.Services.AddTransient<FixturesPage>();
         builder.Services.AddTransient<LeagueTablesPage>();
         builder.Services.AddTransient<SettingsPage>();
-        builder.Services.AddTransient<TestPage>();
 
         var app = builder.Build();
 

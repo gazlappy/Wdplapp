@@ -59,6 +59,7 @@ public partial class PlayersPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _isFlyoutOpen = false;
+    private bool _showAllSeasons = false; // NEW: Track show all seasons state
 
     public PlayersPage()
     {
@@ -79,6 +80,13 @@ public partial class PlayersPage : ContentPage
             PlayersList.SelectionChanged += OnSelectionChanged;
             SearchEntry.TextChanged += (_, __) => SafeRefreshPlayers(SearchEntry?.Text);
             H2HSeasonPicker.SelectedIndexChanged += (_, __) => RefreshHeadToHead();
+
+            // NEW: Wire up show all seasons toggle
+            ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
+            {
+                _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+                SafeRefreshPlayers(SearchEntry?.Text);
+            };
 
             AddBtn.Clicked += OnAdd;
             UpdateBtn.Clicked += OnUpdate;
@@ -446,7 +454,7 @@ public partial class PlayersPage : ContentPage
         {
             _teams.Clear();
 
-            if (!_currentSeasonId.HasValue)
+            if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
                 SetStatus("No season selected");
                 return;
@@ -458,10 +466,15 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var teams = DataStore.Data.Teams
-                .Where(t => t != null && t.SeasonId == _currentSeasonId)
-                .OrderBy(t => t.Name ?? "")
-                .ToList();
+            var teams = _showAllSeasons
+                ? DataStore.Data.Teams
+                    .Where(t => t != null)
+                    .OrderBy(t => t.Name ?? "")
+                    .ToList()
+                : DataStore.Data.Teams
+                    .Where(t => t != null && t.SeasonId == _currentSeasonId)
+                    .OrderBy(t => t.Name ?? "")
+                    .ToList();
 
             foreach (var t in teams)
             {
@@ -483,9 +496,9 @@ public partial class PlayersPage : ContentPage
         {
             _items.Clear();
 
-            if (!_currentSeasonId.HasValue)
+            if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected");
+                SetStatus("No season selected - check 'Show all seasons' to see all data");
                 return;
             }
 
@@ -495,11 +508,17 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var players = DataStore.Data.Players
-                .Where(p => p != null && p.SeasonId == _currentSeasonId.Value)
-                .OrderBy(p => p.LastName ?? "")
-                .ThenBy(p => p.FirstName ?? "")
-                .ToList();
+            var players = _showAllSeasons
+                ? DataStore.Data.Players
+                    .Where(p => p != null)
+                    .OrderBy(p => p.LastName ?? "")
+                    .ThenBy(p => p.FirstName ?? "")
+                    .ToList()
+                : DataStore.Data.Players
+                    .Where(p => p != null && p.SeasonId == _currentSeasonId.Value)
+                    .OrderBy(p => p.LastName ?? "")
+                    .ThenBy(p => p.FirstName ?? "")
+                    .ToList();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -513,10 +532,15 @@ public partial class PlayersPage : ContentPage
             }
 
             // Build a team lookup dictionary for faster access
-            var teamLookup = DataStore.Data.Teams?
-                .Where(t => t != null && t.SeasonId == _currentSeasonId)
-                .ToDictionary(t => t.Id, t => t.Name ?? "Unknown Team")
-                ?? new Dictionary<Guid, string>();
+            var teamLookup = _showAllSeasons
+                ? DataStore.Data.Teams?
+                    .Where(t => t != null)
+                    .ToDictionary(t => t.Id, t => t.Name ?? "Unknown Team")
+                    ?? new Dictionary<Guid, string>()
+                : DataStore.Data.Teams?
+                    .Where(t => t != null && t.SeasonId == _currentSeasonId)
+                    .ToDictionary(t => t.Id, t => t.Name ?? "Unknown Team")
+                    ?? new Dictionary<Guid, string>();
 
             foreach (var p in players)
             {
@@ -535,10 +559,19 @@ public partial class PlayersPage : ContentPage
                 });
             }
 
-            var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
-            var seasonInfo = season != null ? $" in {season.Name}" : "";
-            var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-            SetStatus($"{_items.Count} player(s){seasonInfo}{importedTag}");
+            // Update status message
+            if (_showAllSeasons)
+            {
+                var seasonGroups = players.GroupBy(p => p.SeasonId).Count();
+                SetStatus($"{_items.Count} player(s) across {seasonGroups} season(s)");
+            }
+            else
+            {
+                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                var seasonInfo = season != null ? $" in {season.Name}" : "";
+                var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
+                SetStatus($"{_items.Count} player(s){seasonInfo}{importedTag}");
+            }
 
             System.Diagnostics.Debug.WriteLine($"Loaded {_items.Count} players for season {_currentSeasonId}");
         }
@@ -551,6 +584,12 @@ public partial class PlayersPage : ContentPage
 
     private void RefreshPlayers(string? search) => SafeRefreshPlayers(search);
     private void RefreshTeams() => SafeRefreshTeams();
+
+    // NEW: Tap handler for label
+    private void OnShowAllSeasonsTapped(object? sender, EventArgs e)
+    {
+        ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
+    }
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -680,7 +719,7 @@ public partial class PlayersPage : ContentPage
             _selected.Notes = NotesEntry.Text?.Trim();
 
             SafeRefreshPlayers(SearchEntry?.Text);
-            RefreshHeadToHead(); // Refresh H2H with updated player info
+            RefreshHeadToHead(); // Refresh H2D with updated player info
             SetStatus(msg: $"Updated: {_selected.FullName}");
         }
         catch (Exception ex)

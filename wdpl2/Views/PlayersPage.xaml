@@ -135,12 +135,22 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1">
-            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
                 <Entry x:Name="SearchEntry" Placeholder="Search players..." />
+                
+                <!-- Show All Seasons Toggle -->
+                <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
+                    <CheckBox x:Name="ShowAllSeasonsCheck" />
+                    <Label Text="Show all seasons" VerticalOptions="Center" FontSize="14">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnShowAllSeasonsTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </HorizontalStackLayout>
                 
                 <CollectionView 
                     x:Name="PlayersList" 
-                    Grid.Row="1"
+                    Grid.Row="2"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always">
                     <CollectionView.ItemTemplate>

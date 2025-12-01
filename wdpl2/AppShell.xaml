@@ -38,10 +38,6 @@
             <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
         </Tab>
 
-        <Tab Title="Test">
-            <ShellContent Title="Test" ContentTemplate="{DataTemplate views:TestPage}" />
-        </Tab>
-
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>

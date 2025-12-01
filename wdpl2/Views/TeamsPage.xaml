@@ -148,11 +148,11 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1">
-            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
                 <Entry x:Name="SearchEntry" Placeholder="Search teams..." />
 
                 <!-- SHOW ALL SEASONS -->
-                <HorizontalStackLayout Spacing="8" Padding="4,4,0,4">
+                <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
                     <CheckBox x:Name="ShowAllSeasonsCheck" />
                     <Label Text="Show all seasons" VerticalOptions="Center" FontSize="14">
                         <Label.GestureRecognizers>
@@ -163,7 +163,7 @@
 
                 <CollectionView 
                     x:Name="TeamsList" 
-                    Grid.Row="1"
+                    Grid.Row="2"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always">
                     <CollectionView.ItemTemplate>
