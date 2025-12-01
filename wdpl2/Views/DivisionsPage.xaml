@@ -109,6 +109,9 @@
                     <Button x:Name="ExportBtn" Text="Export CSV" />
 
                     <ctrls:CsvImportBox x:Name="DivisionsImport" Title="Import Divisions (.csv)" />
+                    
+                    <!-- NEW: Debug button to check database -->
+                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" />
 
                     <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" />
                     
@@ -124,12 +127,25 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1">
-            <Grid RowDefinitions="Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
                 <Entry x:Name="SearchEntry" Placeholder="Search divisions..." />
+                
+                <!-- NEW: Show All Seasons Toggle -->
+                <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
+                    <CheckBox x:Name="ShowAllSeasonsCheck" />
+                    <Label 
+                        Text="Show all seasons" 
+                        VerticalOptions="Center"
+                        FontSize="14">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnShowAllSeasonsTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </HorizontalStackLayout>
                 
                 <CollectionView 
                     x:Name="DivisionsList" 
-                    Grid.Row="1"
+                    Grid.Row="2"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always">
                     <CollectionView.ItemTemplate>

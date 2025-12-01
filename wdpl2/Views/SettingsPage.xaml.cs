@@ -8,6 +8,7 @@ using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Storage;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -22,6 +23,7 @@ namespace Wdpl2.Views
             "Player Ratings",
             "Match Scoring",
             "Fixture Defaults",
+            "Notifications",
             "Import Data",
             "About"
         };
@@ -69,6 +71,7 @@ namespace Wdpl2.Views
                 "Player Ratings" => CreatePlayerRatingsPanel(),
                 "Match Scoring" => CreateMatchScoringPanel(),
                 "Fixture Defaults" => CreateFixtureDefaultsPanel(),
+                "Notifications" => CreateNotificationsPanel(),
                 "Import Data" => CreateImportDataPanel(),
                 "About" => CreateAboutPanel(),
                 _ => null
@@ -129,23 +132,18 @@ namespace Wdpl2.Views
                 {
                     FontSize = 12,
                     LineHeight = 1.4,
-                    FormattedText = new FormattedString
-                    {
-                        Spans =
-                        {
-                            new Span { Text = "VBA-Style Cumulative Weighted Rating:\n\n", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "• Earlier frames have lower weight (Weighting - Bias × frames)\n" },
-                            new Span { Text = "• Later frames have higher weight (progressive bias increase)\n" },
-                            new Span { Text = "• Rating based on opponent strength at time of match\n" },
-                            new Span { Text = "• Win against stronger opponent = higher rating gain\n\n" },
-                            new Span { Text = "Min Frames %:\n", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Percentage of maximum available frames needed to appear in ratings table.\n" },
-                            new Span { Text = "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" },
-                            new Span { Text = "All players still have ratings calculated.\n\n" },
-                            new Span { Text = "Formula:\n", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Rating = ?(OpponentRating × Factor × Weight) / ?Weight" }
-                        }
-                    }
+                    TextColor = Colors.Black,
+                    Text = "VBA-Style Cumulative Weighted Rating:\n\n" +
+                           "• Earlier frames have lower weight (Weighting - Bias × frames)\n" +
+                           "• Later frames have higher weight (progressive bias increase)\n" +
+                           "• Rating based on opponent strength at time of match\n" +
+                           "• Win against stronger opponent = higher rating gain\n\n" +
+                           "Min Frames %:\n" +
+                           "Percentage of maximum available frames needed to appear in ratings table.\n" +
+                           "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
+                           "All players still have ratings calculated.\n\n" +
+                           "Formula:\n" +
+                           "Rating = ?(OpponentRating × Factor × Weight) / ?Weight"
                 }
             };
 
@@ -200,24 +198,15 @@ namespace Wdpl2.Views
                 {
                     FontSize = 12,
                     LineHeight = 1.4,
-                    FormattedText = new FormattedString
-                    {
-                        Spans =
-                        {
-                            new Span { Text = "New Points System:\n\n", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Team points = Frames Won + Bonus\n\n" },
-                            new Span { Text = "• Win: ", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Frames Won + Match Win Bonus\n" },
-                            new Span { Text = "• Draw: ", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Frames Won + Match Draw Bonus\n" },
-                            new Span { Text = "• Loss: ", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Frames Won (no bonus)\n\n" },
-                            new Span { Text = "Example: ", FontAttributes = FontAttributes.Bold },
-                            new Span { Text = "Team wins 6-4 with Win Bonus=2:\n" },
-                            new Span { Text = "  Winner gets 6+2=8 points\n" },
-                            new Span { Text = "  Loser gets 4 points" }
-                        }
-                    }
+                    TextColor = Colors.Black,
+                    Text = "New Points System:\n\n" +
+                           "Team points = Frames Won + Bonus\n\n" +
+                           "• Win: Frames Won + Match Win Bonus\n" +
+                           "• Draw: Frames Won + Match Draw Bonus\n" +
+                           "• Loss: Frames Won (no bonus)\n\n" +
+                           "Example: Team wins 6-4 with Win Bonus=2:\n" +
+                           "  Winner gets 6+2=8 points\n" +
+                           "  Loser gets 4 points"
                 }
             };
 
@@ -284,6 +273,7 @@ namespace Wdpl2.Views
                 {
                     FontSize = 12,
                     LineHeight = 1.4,
+                    TextColor = Colors.Black,
                     Text = "These defaults are used when generating fixtures for a season. \nYou can override them when creating a specific season."
                 }
             };
@@ -312,6 +302,425 @@ namespace Wdpl2.Views
                     _statusLabel
                 }
             };
+        }
+
+        private View CreateNotificationsPanel()
+        {
+            _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
+
+            // ========== PHASE 3: USER PREFERENCES ==========
+            
+            // Match Reminders Enable/Disable
+            var matchRemindersSwitch = new Switch 
+            { 
+                IsToggled = Settings.MatchRemindersEnabled,
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            // Reminder Hours Picker
+            var reminderHoursPicker = new Picker
+            {
+                Title = "Select hours",
+                ItemsSource = new List<string> { "1 hour", "2 hours", "4 hours", "6 hours", "12 hours", "24 hours" },
+                SelectedIndex = Settings.ReminderHoursBefore switch
+                {
+                    1 => 0,
+                    2 => 1,
+                    4 => 2,
+                    6 => 3,
+                    12 => 4,
+                    24 => 5,
+                    _ => 1 // Default to 2 hours
+                },
+                HorizontalOptions = LayoutOptions.FillAndExpand
+            };
+
+            // Result Notifications Enable/Disable
+            var resultNotificationsSwitch = new Switch 
+            { 
+                IsToggled = Settings.ResultNotificationsEnabled,
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            // Weekly Fixture List Enable/Disable
+            var weeklyFixtureSwitch = new Switch 
+            { 
+                IsToggled = Settings.WeeklyFixtureListEnabled,
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            // Event Handlers for Phase 3 Settings
+            matchRemindersSwitch.Toggled += (s, e) =>
+            {
+                Settings.MatchRemindersEnabled = e.Value;
+                DataStore.Save();
+                if (_statusLabel != null)
+                    _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Match reminders {(e.Value ? "enabled" : "disabled")}";
+            };
+
+            reminderHoursPicker.SelectedIndexChanged += (s, e) =>
+            {
+                Settings.ReminderHoursBefore = reminderHoursPicker.SelectedIndex switch
+                {
+                    0 => 1,
+                    1 => 2,
+                    2 => 4,
+                    3 => 6,
+                    4 => 12,
+                    5 => 24,
+                    _ => 2
+                };
+                DataStore.Save();
+                if (_statusLabel != null)
+                    _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Reminder time set to {Settings.ReminderHoursBefore} hour(s) before match";
+            };
+
+            resultNotificationsSwitch.Toggled += (s, e) =>
+            {
+                Settings.ResultNotificationsEnabled = e.Value;
+                DataStore.Save();
+                if (_statusLabel != null)
+                    _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Result notifications {(e.Value ? "enabled" : "disabled")}";
+            };
+
+            weeklyFixtureSwitch.Toggled += (s, e) =>
+            {
+                Settings.WeeklyFixtureListEnabled = e.Value;
+                DataStore.Save();
+                if (_statusLabel != null)
+                    _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Weekly fixture list {(e.Value ? "enabled" : "disabled")}";
+            };
+
+            // Preferences Grid
+            var preferencesGrid = new Grid 
+            { 
+                ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }, 
+                RowSpacing = 16,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+
+            // Row 0: Match Reminders
+            preferencesGrid.Add(new Label 
+            { 
+                Text = $"{Emojis.Bell} Match Reminders:", 
+                VerticalTextAlignment = TextAlignment.Center,
+                FontAttributes = FontAttributes.Bold,
+                FontFamily = Emojis.GetFontFamily()
+            }, 0, 0);
+            preferencesGrid.Add(matchRemindersSwitch, 1, 0);
+
+            // Row 1: Reminder Hours (only if enabled)
+            preferencesGrid.Add(new Label 
+            { 
+                Text = "  Remind me:",
+                VerticalTextAlignment = TextAlignment.Center,
+                Margin = new Thickness(20, 0, 0, 0)
+            }, 0, 1);
+            preferencesGrid.Add(reminderHoursPicker, 1, 1);
+
+            // Row 2: Result Notifications
+            preferencesGrid.Add(new Label 
+            { 
+                Text = $"{Emojis.Success} Result Notifications:", 
+                VerticalTextAlignment = TextAlignment.Center,
+                FontAttributes = FontAttributes.Bold,
+                FontFamily = Emojis.GetFontFamily()
+            }, 0, 2);
+            preferencesGrid.Add(resultNotificationsSwitch, 1, 2);
+
+            // Row 3: Weekly Fixture List
+            preferencesGrid.Add(new Label 
+            { 
+                Text = $"{Emojis.Calendar} Weekly Fixture List:", 
+                VerticalTextAlignment = TextAlignment.Center,
+                FontAttributes = FontAttributes.Bold,
+                FontFamily = Emojis.GetFontFamily()
+            }, 0, 3);
+            preferencesGrid.Add(weeklyFixtureSwitch, 1, 3);
+
+            // Request Permissions Button
+            var requestPermissionsBtn = new Button
+            {
+                Text = $"{Emojis.Bell} Request Notification Permissions",
+                BackgroundColor = Color.FromArgb("#3B82F6"),
+                TextColor = Colors.White,
+                Margin = new Thickness(0, 16, 0, 8),
+                FontFamily = Emojis.GetFontFamily()
+            };
+
+            // Test Notification Button
+            var testNotificationBtn = new Button
+            {
+                Text = $"{Emojis.Bell} Send Test Notification",
+                BackgroundColor = Color.FromArgb("#10B981"),
+                TextColor = Colors.White,
+                Margin = new Thickness(0, 4),
+                FontFamily = Emojis.GetFontFamily()
+            };
+
+            // Pending Notifications Label
+            var pendingLabel = new Label
+            {
+                Text = "Pending notifications: Checking...",
+                FontSize = 12,
+                Margin = new Thickness(0, 8, 0, 0),
+                TextColor = Color.FromArgb("#666")
+            };
+
+            // Cancel All Button
+            var cancelAllBtn = new Button
+            {
+                Text = $"{Emojis.Error} Cancel All Notifications",
+                BackgroundColor = Color.FromArgb("#EF4444"),
+                TextColor = Colors.White,
+                Margin = new Thickness(0, 4),
+                FontFamily = Emojis.GetFontFamily()
+            };
+
+            // Request Permissions Event Handler
+            requestPermissionsBtn.Clicked += async (s, e) =>
+            {
+                try
+                {
+                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
+                    if (notificationService != null)
+                    {
+                        var granted = await notificationService.RequestPermissionsAsync();
+                        if (granted)
+                        {
+                            await DisplayAlert($"{Emojis.Success} Success", "Notifications enabled! You can now receive match reminders.", "OK");
+                            if (_statusLabel != null)
+                                _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Notifications enabled";
+                        }
+                        else
+                        {
+                            await DisplayAlert($"{Emojis.Error} Permission Denied", "Please enable notifications in your device settings.", "OK");
+                            if (_statusLabel != null)
+                                _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Error} Permission denied";
+                        }
+                    }
+                    else
+                    {
+                        await DisplayAlert("Error", "Notification service not available.", "OK");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await DisplayAlert("Error", $"Failed to request permissions: {ex.Message}", "OK");
+                }
+            };
+
+            // Test Notification Event Handler
+            testNotificationBtn.Clicked += async (s, e) =>
+            {
+                try
+                {
+                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
+                    if (notificationService != null)
+                    {
+                        await notificationService.ShowNotificationAsync(
+                            id: 99999,
+                            title: $"{Emojis.EightBall} Test Notification",
+                            message: "Notifications are working! You'll get match reminders."
+                        );
+                        await DisplayAlert($"{Emojis.Success} Sent", "Check your notification panel!", "OK");
+                        if (_statusLabel != null)
+                            _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Test notification sent";
+                    }
+                    else
+                    {
+                        await DisplayAlert("Error", "Notification service not available.", "OK");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await DisplayAlert("Error", $"Failed to send notification: {ex.Message}", "OK");
+                }
+            };
+
+            // Cancel All Event Handler
+            cancelAllBtn.Clicked += async (s, e) =>
+            {
+                try
+                {
+                    var reminderService = Handler?.MauiContext?.Services.GetService<MatchReminderService>();
+                    if (reminderService != null)
+                    {
+                        await reminderService.CancelAllMatchRemindersAsync();
+                        pendingLabel.Text = "Pending notifications: 0";
+                        await DisplayAlert($"{Emojis.Success} Cancelled", "All scheduled notifications have been cancelled.", "OK");
+                        if (_statusLabel != null)
+                            _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} All notifications cancelled";
+                    }
+                    else
+                    {
+                        await DisplayAlert("Error", "Reminder service not available.", "OK");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await DisplayAlert("Error", $"Failed to cancel notifications: {ex.Message}", "OK");
+                }
+            };
+
+            // Info Frame - Updated for Phase 3
+            var infoFrame = new Border
+            {
+                Padding = 12,
+                BackgroundColor = Color.FromArgb("#F0F9FF"),
+                Stroke = Color.FromArgb("#3B82F6"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 16, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new Label 
+                        { 
+                            Text = $"{Emojis.Info} About Notifications", 
+                            FontAttributes = FontAttributes.Bold, 
+                            FontSize = 14,
+                            TextColor = Colors.Black,
+                            FontFamily = Emojis.GetFontFamily()
+                        },
+                        new Label
+                        {
+                            FontSize = 12,
+                            LineHeight = 1.4,
+                            TextColor = Colors.Black,
+                            FormattedText = new FormattedString
+                            {
+                                Spans =
+                                {
+                                    new Span { Text = "Notification Types:\n", FontAttributes = FontAttributes.Bold },
+                                    new Span { Text = $"{Emojis.Bell} Match Reminders - Get notified before your matches\n" },
+                                    new Span { Text = $"{Emojis.Success} Result Alerts - Instant notifications when results are posted\n" },
+                                    new Span { Text = $"{Emojis.Calendar} Weekly Summary - Monday morning fixture list\n\n" },
+                                    new Span { Text = "Customization:\n", FontAttributes = FontAttributes.Bold },
+                                    new Span { Text = $"{Emojis.Success} Choose reminder timing (1-24 hours before match)\n" },
+                                    new Span { Text = $"{Emojis.Success} Enable/disable each notification type independently\n" },
+                                    new Span { Text = $"{Emojis.Success} Settings saved automatically when changed\n\n" },
+                                    new Span { Text = "How It Works:\n", FontAttributes = FontAttributes.Bold },
+                                    new Span { Text = "• Reminders scheduled automatically when fixtures are generated or saved\n" },
+                                    new Span { Text = "• Past matches don't get reminders\n" },
+                                    new Span { Text = "• Settings apply to all future notifications\n" },
+                                    new Span { Text = "• Works on iOS, Android, and Windows"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var warningFrame = new Border
+            {
+                Padding = 12,
+                BackgroundColor = Color.FromArgb("#FFFBEB"),
+                Stroke = Color.FromArgb("#F59E0B"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 8, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new Label 
+                        { 
+                            Text = $"{Emojis.Warning} Important", 
+                            FontAttributes = FontAttributes.Bold, 
+                            FontSize = 14, 
+                            TextColor = Colors.Black,
+                            FontFamily = Emojis.GetFontFamily()
+                        },
+                        new Label
+                        {
+                            FontSize = 12,
+                            LineHeight = 1.4,
+                            TextColor = Colors.Black,
+                            FormattedText = new FormattedString
+                            {
+                                Spans =
+                                {
+                                    new Span { Text = $"{Emojis.Info} You must grant notification permissions first\n" },
+                                    new Span { Text = $"{Emojis.Info} Changing reminder time affects new notifications only\n" },
+                                    new Span { Text = $"{Emojis.Info} Battery saver mode may delay notifications\n" },
+                                    new Span { Text = $"{Emojis.Info} Test notifications to ensure they're working"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var scrollView = new ScrollView
+            {
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 12,
+                    Children =
+                    {
+                        new Label { Text = "Match Notifications", FontSize = 20, FontAttributes = FontAttributes.Bold },
+                        new Label { Text = "Customize your notification preferences", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
+                        
+                        // Phase 3: User Preferences Section
+                        new Border
+                        {
+                            Padding = 16,
+                            BackgroundColor = Color.FromArgb("#FAFAFA"),
+                            Stroke = Color.FromArgb("#E5E7EB"),
+                            StrokeThickness = 1,
+                            Margin = new Thickness(0, 8, 0, 0),
+                            Content = new VerticalStackLayout
+                            {
+                                Spacing = 8,
+                                Children =
+                                {
+                                    new Label { Text = "?? Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
+                                    preferencesGrid
+                                }
+                            }
+                        },
+                        
+                        // Permissions & Management Section
+                        new Label { Text = "Setup & Testing", FontAttributes = FontAttributes.Bold, FontSize = 16, Margin = new Thickness(0, 16, 0, 0) },
+                        requestPermissionsBtn,
+                        testNotificationBtn,
+                        pendingLabel,
+                        cancelAllBtn,
+                        
+                        infoFrame,
+                        warningFrame,
+                        _statusLabel
+                    }
+                }
+            };
+
+            // Check pending notifications after a short delay to ensure Handler is ready
+            Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(500), async () =>
+            {
+                try
+                {
+                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
+                    if (notificationService != null)
+                    {
+                        var count = await notificationService.GetPendingNotificationCountAsync();
+                        pendingLabel.Text = $"Pending notifications: {count}";
+                    }
+                    else
+                    {
+                        pendingLabel.Text = "Pending notifications: Service not available";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    pendingLabel.Text = $"Pending notifications: Error - {ex.Message}";
+                }
+            });
+
+            return scrollView;
         }
 
         private View CreateImportDataPanel()
@@ -668,30 +1077,25 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "?? Access Database Import & Inspection", FontAttributes = FontAttributes.Bold, FontSize = 14 },
+                        new Label { Text = "?? Access Database Import & Inspection", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
                         new Label
                         {
                             FontSize = 12,
                             LineHeight = 1.4,
-                            FormattedText = new FormattedString
-                            {
-                                Spans =
-                                {
-                                    new Span { Text = "Instructions:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = "1. Click 'Select Access Database' to choose your .accdb or .mdb file\n" },
-                                    new Span { Text = "2. Use 'Inspect Schema' to view database structure before importing\n" },
-                                    new Span { Text = "3. Use 'Import Data' to merge historical data into your league\n\n" },
-                                    new Span { Text = "Features:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = "• Imports divisions, venues, teams, players, seasons, and fixtures\n" },
-                                    new Span { Text = "• Merges with existing data (no duplicates)\n" },
-                                    new Span { Text = "• Calculates accurate VBA-style player ratings\n" },
-                                    new Span { Text = "• Copy results to clipboard for reference\n\n" },
-                                    new Span { Text = "Requirements:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = "• Windows-only (requires OLE DB drivers)\n" },
-                                    new Span { Text = "• Supports .accdb (2007+) and .mdb (2003)\n" },
-                                    new Span { Text = "• Database must be closed (not open in Access)" }
-                                }
-                            }
+                            TextColor = Colors.Black,
+                            Text = "Instructions:\n" +
+                                   "1. Click 'Select Access Database' to choose your .accdb or .mdb file\n" +
+                                   "2. Use 'Inspect Schema' to view database structure before importing\n" +
+                                   "3. Use 'Import Data' to merge historical data into your league\n\n" +
+                                   "Features:\n" +
+                                   "• Imports divisions, venues, teams, players, seasons, and fixtures\n" +
+                                   "• Merges with existing data (no duplicates)\n" +
+                                   "• Calculates accurate VBA-style player ratings\n" +
+                                   "• Copy results to clipboard for reference\n\n" +
+                                   "Requirements:\n" +
+                                   "• Windows-only (requires OLE DB drivers)\n" +
+                                   "• Supports .accdb (2007+) and .mdb (2003)\n" +
+                                   "• Database must be closed (not open in Access)"
                         }
                     }
                 }
@@ -705,29 +1109,21 @@ namespace Wdpl2.Views
                 Stroke = Color.FromArgb("#F59E0B"),
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 8, 0, 0),
-                StrokeShape = new RoundRectangle { CornerRadius = 8 },
                 Content = new VerticalStackLayout
                 {
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "?? Important Notes", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#F59E0B") },
+                        new Label { Text = "?? Important Notes", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
                         new Label
                         {
                             FontSize = 12,
                             LineHeight = 1.4,
-                            FormattedText = new FormattedString
-                            {
-                                Spans =
-                                {
-                                    new Span { Text = "• " },
-                                    new Span { Text = "Back up your data", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = " before importing\n" },
-                                    new Span { Text = "• Imports cannot be undone\n" },
-                                    new Span { Text = "• Large databases may take several minutes\n" },
-                                    new Span { Text = "• The app will reload after successful import" }
-                                }
-                            }
+                            TextColor = Colors.Black,
+                            Text = "• Back up your data before importing\n" +
+                                   "• Imports cannot be undone\n" +
+                                   "• Large databases may take several minutes\n" +
+                                   "• The app will reload after successful import"
                         }
                     }
                 }
@@ -768,6 +1164,15 @@ namespace Wdpl2.Views
         {
             await Task.Run(() =>
             {
+                System.Diagnostics.Debug.WriteLine("=== IMPORT MERGE DEBUG ===");
+                System.Diagnostics.Debug.WriteLine($"Divisions to import: {importedData.Divisions.Count}");
+                System.Diagnostics.Debug.WriteLine($"Venues to import: {importedData.Venues.Count}");
+                System.Diagnostics.Debug.WriteLine($"Teams to import: {importedData.Teams.Count}");
+                System.Diagnostics.Debug.WriteLine($"Players to import: {importedData.Players.Count}");
+                System.Diagnostics.Debug.WriteLine($"Seasons to import: {importedData.Seasons.Count}");
+                System.Diagnostics.Debug.WriteLine($"Fixtures to import: {importedData.Fixtures.Count}");
+                System.Diagnostics.Debug.WriteLine("");
+
                 var beforeCounts = new
                 {
                     Divisions = DataStore.Data.Divisions.Count,
@@ -778,50 +1183,143 @@ namespace Wdpl2.Views
                     Fixtures = DataStore.Data.Fixtures.Count
                 };
 
-                // Merge data (avoiding duplicates)
+                System.Diagnostics.Debug.WriteLine("Before merge:");
+                System.Diagnostics.Debug.WriteLine($"  Divisions: {beforeCounts.Divisions}");
+                System.Diagnostics.Debug.WriteLine($"  Venues: {beforeCounts.Venues}");
+                System.Diagnostics.Debug.WriteLine($"  Teams: {beforeCounts.Teams}");
+                System.Diagnostics.Debug.WriteLine($"  Players: {beforeCounts.Players}");
+                System.Diagnostics.Debug.WriteLine($"  Seasons: {beforeCounts.Seasons}");
+                System.Diagnostics.Debug.WriteLine($"  Fixtures: {beforeCounts.Fixtures}");
+                System.Diagnostics.Debug.WriteLine("");
+
+                // Merge divisions
+                int divsAdded = 0, divsSkipped = 0;
+                System.Diagnostics.Debug.WriteLine("=== MERGING DIVISIONS ===");
                 foreach (var div in importedData.Divisions)
                 {
-                    if (!DataStore.Data.Divisions.Any(d => d.Name.Equals(div.Name, StringComparison.OrdinalIgnoreCase)))
+                    var exists = DataStore.Data.Divisions.Any(d => d.Name.Equals(div.Name, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists)
+                    {
                         DataStore.Data.Divisions.Add(div);
+                        divsAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added: {div.Name} (SeasonId: {div.SeasonId})");
+                    }
+                    else
+                    {
+                        divsSkipped++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {div.Name}");
+                    }
                 }
+                System.Diagnostics.Debug.WriteLine($"Divisions: {divsAdded} added, {divsSkipped} skipped");
+                System.Diagnostics.Debug.WriteLine("");
 
+                // Merge venues
+                int venuesAdded = 0, venuesSkipped = 0;
+                System.Diagnostics.Debug.WriteLine("=== MERGING VENUES ===");
                 foreach (var venue in importedData.Venues)
                 {
-                    if (!DataStore.Data.Venues.Any(v => v.Name != null && v.Name.Equals(venue.Name, StringComparison.OrdinalIgnoreCase)))
+                    var exists = DataStore.Data.Venues.Any(v => v.Name != null && v.Name.Equals(venue.Name, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists)
+                    {
                         DataStore.Data.Venues.Add(venue);
+                        venuesAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added: {venue.Name} (SeasonId: {venue.SeasonId})");
+                    }
+                    else
+                    {
+                        venuesSkipped++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {venue.Name}");
+                    }
                 }
+                System.Diagnostics.Debug.WriteLine($"Venues: {venuesAdded} added, {venuesSkipped} skipped");
+                System.Diagnostics.Debug.WriteLine("");
 
+                // Merge teams
+                int teamsAdded = 0, teamsSkipped = 0;
+                System.Diagnostics.Debug.WriteLine("=== MERGING TEAMS ===");
                 foreach (var team in importedData.Teams)
                 {
-                    if (!DataStore.Data.Teams.Any(t => t.Name != null && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase)))
+                    var exists = DataStore.Data.Teams.Any(t => t.Name != null && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists)
+                    {
                         DataStore.Data.Teams.Add(team);
+                        teamsAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added: {team.Name} (SeasonId: {team.SeasonId}, DivisionId: {team.DivisionId})");
+                    }
+                    else
+                    {
+                        teamsSkipped++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {team.Name}");
+                    }
                 }
+                System.Diagnostics.Debug.WriteLine($"Teams: {teamsAdded} added, {teamsSkipped} skipped");
+                System.Diagnostics.Debug.WriteLine("");
 
+                // Merge players
+                int playersAdded = 0, playersSkipped = 0;
+                System.Diagnostics.Debug.WriteLine("=== MERGING PLAYERS ===");
                 foreach (var player in importedData.Players)
                 {
                     var fullName = player.FullName;
-                    if (!DataStore.Data.Players.Any(p => p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase)))
+                    var exists = DataStore.Data.Players.Any(p => p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists)
+                    {
                         DataStore.Data.Players.Add(player);
+                        playersAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added: {fullName} (SeasonId: {player.SeasonId}, TeamId: {player.TeamId})");
+                    }
+                    else
+                    {
+                        playersSkipped++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {fullName}");
+                    }
                 }
+                System.Diagnostics.Debug.WriteLine($"Players: {playersAdded} added, {playersSkipped} skipped");
+                System.Diagnostics.Debug.WriteLine("");
 
+                // Merge seasons
+                int seasonsAdded = 0, seasonsSkipped = 0;
+                System.Diagnostics.Debug.WriteLine("=== MERGING SEASONS ===");
                 foreach (var season in importedData.Seasons)
                 {
                     season.IsActive = false; // Don't auto-activate imported seasons
-                    if (!DataStore.Data.Seasons.Any(s => s.Name.Equals(season.Name, StringComparison.OrdinalIgnoreCase)))
+                    var exists = DataStore.Data.Seasons.Any(s => s.Name.Equals(season.Name, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists)
+                    {
                         DataStore.Data.Seasons.Add(season);
+                        seasonsAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added: {season.Name} (ID: {season.Id})");
+                    }
+                    else
+                    {
+                        seasonsSkipped++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {season.Name}");
+                    }
                 }
+                System.Diagnostics.Debug.WriteLine($"Seasons: {seasonsAdded} added, {seasonsSkipped} skipped");
+                System.Diagnostics.Debug.WriteLine("");
 
+                // Fixtures - always add (no deduplication)
+                System.Diagnostics.Debug.WriteLine("=== MERGING FIXTURES ===");
                 DataStore.Data.Fixtures.AddRange(importedData.Fixtures);
+                System.Diagnostics.Debug.WriteLine($"  ? Added ALL {importedData.Fixtures.Count} fixtures");
+                System.Diagnostics.Debug.WriteLine("");
                 
                 DataStore.Save();
 
-                System.Diagnostics.Debug.WriteLine($"Import Complete:");
-                System.Diagnostics.Debug.WriteLine($"  Divisions: {beforeCounts.Divisions} ? {DataStore.Data.Divisions.Count}");
-                System.Diagnostics.Debug.WriteLine($"  Venues: {beforeCounts.Venues} ? {DataStore.Data.Venues.Count}");
-                System.Diagnostics.Debug.WriteLine($"  Teams: {beforeCounts.Teams} ? {DataStore.Data.Teams.Count}");
-                System.Diagnostics.Debug.WriteLine($"  Players: {beforeCounts.Players} ? {DataStore.Data.Players.Count}");
-                System.Diagnostics.Debug.WriteLine($"  Seasons: {beforeCounts.Seasons} ? {DataStore.Data.Seasons.Count}");
-                System.Diagnostics.Debug.WriteLine($"  Fixtures: {beforeCounts.Fixtures} ? {DataStore.Data.Fixtures.Count}");
+                System.Diagnostics.Debug.WriteLine("=== AFTER MERGE ===");
+                System.Diagnostics.Debug.WriteLine($"  Divisions: {beforeCounts.Divisions} ? {DataStore.Data.Divisions.Count} (added: {divsAdded}, skipped: {divsSkipped})");
+                System.Diagnostics.Debug.WriteLine($"  Venues: {beforeCounts.Venues} ? {DataStore.Data.Venues.Count} (added: {venuesAdded}, skipped: {venuesSkipped})");
+                System.Diagnostics.Debug.WriteLine($"  Teams: {beforeCounts.Teams} ? {DataStore.Data.Teams.Count} (added: {teamsAdded}, skipped: {teamsSkipped})");
+                System.Diagnostics.Debug.WriteLine($"  Players: {beforeCounts.Players} ? {DataStore.Data.Players.Count} (added: {playersAdded}, skipped: {playersSkipped})");
+                System.Diagnostics.Debug.WriteLine($"  Seasons: {beforeCounts.Seasons} ? {DataStore.Data.Seasons.Count} (added: {seasonsAdded}, skipped: {seasonsSkipped})");
+                System.Diagnostics.Debug.WriteLine($"  Fixtures: {beforeCounts.Fixtures} ? {DataStore.Data.Fixtures.Count} (added: {importedData.Fixtures.Count})");
+                System.Diagnostics.Debug.WriteLine("=== END MERGE ===");
             });
         }
 
@@ -840,23 +1338,18 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "How Settings Work", FontAttributes = FontAttributes.Bold, FontSize = 14 },
+                        new Label { Text = "How Settings Work", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
                         new Label
                         {
                             FontSize = 12,
                             LineHeight = 1.4,
-                            FormattedText = new FormattedString
-                            {
-                                Spans =
-                                {
-                                    new Span { Text = "• Settings are saved with your league data\n" },
-                                    new Span { Text = "• Player ratings use VBA-style cumulative weighted calculation\n" },
-                                    new Span { Text = "• Rating changes based on opponent strength at time of match\n" },
-                                    new Span { Text = "• Changes to rating settings require refreshing the Tables page\n" },
-                                    new Span { Text = "• Fixture defaults only apply to newly generated fixtures\n" },
-                                    new Span { Text = "• Use 'Reset to Defaults' to restore original values" }
-                                }
-                            }
+                            TextColor = Colors.Black,
+                            Text = "• Settings are saved with your league data\n" +
+                                   "• Player ratings use VBA-style cumulative weighted calculation\n" +
+                                   "• Rating changes based on opponent strength at time of match\n" +
+                                   "• Changes to rating settings require refreshing the Tables page\n" +
+                                   "• Fixture defaults only apply to newly generated fixtures\n" +
+                                   "• Use 'Reset to Defaults' to restore original values"
                         }
                     }
                 }

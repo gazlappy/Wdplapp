@@ -19,6 +19,7 @@ public partial class DivisionsPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _isFlyoutOpen = false;
+    private bool _showAllSeasons = false; // NEW: Track show all seasons state
 
     public DivisionsPage()
     {
@@ -33,6 +34,13 @@ public partial class DivisionsPage : ContentPage
 
         SearchEntry.TextChanged += (_, __) => RefreshDivisions(SearchEntry.Text);
         DivisionsList.SelectionChanged += OnSelectionChanged;
+        
+        // NEW: Wire up show all seasons toggle
+        ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
+        {
+            _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+            RefreshDivisions(SearchEntry?.Text);
+        };
 
         AddBtn.Clicked += OnAdd;
         UpdateBtn.Clicked += OnUpdate;
@@ -56,6 +64,9 @@ public partial class DivisionsPage : ContentPage
 
         ExportBtn.Clicked += async (_, __) => await ExportDivisionsAsync();
         DivisionsImport.ImportRequested += async (stream, fileName) => await ImportDivisionsCsvAsync(stream, fileName);
+
+        // NEW: Debug button
+        DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
         // SUBSCRIBE to global season changes
         SeasonService.SeasonChanged += OnGlobalSeasonChanged;
@@ -137,22 +148,51 @@ public partial class DivisionsPage : ContentPage
         {
             _divisions.Clear();
 
-            if (!_currentSeasonId.HasValue)
+            // ALWAYS show debug info first
+            System.Diagnostics.Debug.WriteLine($"=== DIVISIONS DEBUG ===");
+            System.Diagnostics.Debug.WriteLine($"Current Season ID: {_currentSeasonId}");
+            System.Diagnostics.Debug.WriteLine($"Show All Seasons: {_showAllSeasons}");
+            System.Diagnostics.Debug.WriteLine($"Total Divisions in DB: {DataStore.Data?.Divisions?.Count ?? 0}");
+            
+            if (DataStore.Data?.Divisions != null)
             {
-                SetStatus("No season selected");
+                foreach (var d in DataStore.Data.Divisions)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Division: '{d.Name}' (SeasonId: {d.SeasonId})");
+                }
+            }
+
+            if (!_showAllSeasons && !_currentSeasonId.HasValue)
+            {
+                SetStatus("No season selected - check 'Show all seasons' to see all data");
+                System.Diagnostics.Debug.WriteLine("No season selected and show all seasons is OFF");
                 return;
             }
 
             if (DataStore.Data?.Divisions == null)
             {
                 SetStatus("No divisions data available");
+                System.Diagnostics.Debug.WriteLine("DataStore.Data.Divisions is NULL");
                 return;
             }
 
-            var divisions = DataStore.Data.Divisions
-                .Where(d => d != null && d.SeasonId == _currentSeasonId.Value)
-                .OrderBy(d => d.Name ?? "")
-                .ToList();
+            // Filter divisions based on show all seasons toggle
+            var divisions = _showAllSeasons
+                ? DataStore.Data.Divisions
+                    .Where(d => d != null)
+                    .OrderBy(d => d.Name ?? "")
+                    .ToList()
+                : DataStore.Data.Divisions
+                    .Where(d => d != null && d.SeasonId == _currentSeasonId.Value)
+                    .OrderBy(d => d.Name ?? "")
+                    .ToList();
+
+            System.Diagnostics.Debug.WriteLine($"Filtered Divisions: {divisions.Count}");
+            
+            foreach (var d in divisions)
+            {
+                System.Diagnostics.Debug.WriteLine($"  Will display: '{d.Name}' (SeasonId: {d.SeasonId})");
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -160,21 +200,61 @@ public partial class DivisionsPage : ContentPage
                 divisions = divisions.Where(d => (d.Name ?? "").ToLower().Contains(lower))
                     .OrderBy(d => d.Name ?? "")
                     .ToList();
+                System.Diagnostics.Debug.WriteLine($"After search filter: {divisions.Count}");
             }
 
             foreach (var d in divisions)
                 _divisions.Add(d);
 
-            var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
-            var seasonInfo = season != null ? $" in {season.Name}" : "";
-            var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-            SetStatus($"{_divisions.Count} division(s){seasonInfo}{importedTag}");
+            System.Diagnostics.Debug.WriteLine($"Added {_divisions.Count} items to ObservableCollection");
+
+            // Update status message
+            if (_showAllSeasons)
+            {
+                var seasonGroups = divisions.GroupBy(d => d.SeasonId).Count();
+                SetStatus($"{_divisions.Count} division(s) across {seasonGroups} season(s)");
+            }
+            else
+            {
+                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                var seasonInfo = season != null ? $" in {season.Name}" : "";
+                var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
+                
+                // SHOW HELPFUL MESSAGE if no divisions found
+                if (_divisions.Count == 0 && DataStore.Data.Divisions.Count > 0)
+                {
+                    var otherSeasons = DataStore.Data.Divisions
+                        .Where(d => d.SeasonId != _currentSeasonId)
+                        .GroupBy(d => d.SeasonId)
+                        .Select(g => new { SeasonId = g.Key, Count = g.Count() })
+                        .ToList();
+                    
+                    if (otherSeasons.Any())
+                    {
+                        var otherSeasonInfo = string.Join(", ", otherSeasons.Select(s => $"{s.Count} in season {s.SeasonId}"));
+                        SetStatus($"No divisions in current season. Found: {otherSeasonInfo}. Check 'Show all seasons' or go to Seasons page to switch.");
+                        System.Diagnostics.Debug.WriteLine($"Found divisions in other seasons: {otherSeasonInfo}");
+                        return;
+                    }
+                }
+                
+                SetStatus($"{_divisions.Count} division(s){seasonInfo}{importedTag}");
+            }
+            
+            System.Diagnostics.Debug.WriteLine("=== END DIVISIONS DEBUG ===");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"DivisionsPage RefreshDivisions Error: {ex}");
+            System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             SetStatus($"Error loading divisions: {ex.Message}");
         }
+    }
+    
+    // NEW: Tap handler for label
+    private void OnShowAllSeasonsTapped(object? sender, EventArgs e)
+    {
+        ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
     }
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -451,5 +531,120 @@ public partial class DivisionsPage : ContentPage
     {
         EmptyStatePanel.IsVisible = true;
         DivisionInfoPanel.IsVisible = false;
+    }
+    
+    // NEW: Comprehensive database check
+    private async System.Threading.Tasks.Task CheckDatabaseAsync()
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("🔍 DATABASE DIAGNOSTIC CHECK\n");
+            sb.AppendLine("================================\n");
+            
+            // Check DataStore
+            sb.AppendLine($"DataStore.Data is null: {DataStore.Data == null}");
+            if (DataStore.Data == null)
+            {
+                await DisplayAlert("Database Check", sb.ToString(), "OK");
+                return;
+            }
+            
+            // Check Seasons
+            sb.AppendLine($"\n📅 SEASONS:");
+            sb.AppendLine($"Total Seasons: {DataStore.Data.Seasons?.Count ?? 0}");
+            sb.AppendLine($"Active Season ID: {DataStore.Data.ActiveSeasonId?.ToString() ?? "NOT SET"}");
+            sb.AppendLine($"Current Season ID (page): {_currentSeasonId?.ToString() ?? "NOT SET"}");
+            
+            if (DataStore.Data.Seasons != null && DataStore.Data.Seasons.Any())
+            {
+                sb.AppendLine($"\nSeason List:");
+                foreach (var season in DataStore.Data.Seasons.OrderByDescending(s => s.IsActive))
+                {
+                    var marker = season.IsActive ? "✓ ACTIVE" : "  ";
+                    sb.AppendLine($"{marker} {season.Name}");
+                    sb.AppendLine($"    ID: {season.Id}");
+                    sb.AppendLine($"    IsActive: {season.IsActive}");
+                }
+            }
+            
+            // Check Divisions
+            sb.AppendLine($"\n🏆 DIVISIONS:");
+            sb.AppendLine($"Total Divisions: {DataStore.Data.Divisions?.Count ?? 0}");
+            
+            if (DataStore.Data.Divisions != null && DataStore.Data.Divisions.Any())
+            {
+                sb.AppendLine($"\nDivision List:");
+                foreach (var div in DataStore.Data.Divisions.OrderBy(d => d.Name))
+                {
+                    var seasonName = "UNKNOWN";
+                    if (div.SeasonId.HasValue)
+                    {
+                        var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == div.SeasonId.Value);
+                        seasonName = season?.Name ?? "Season Not Found";
+                    }
+                    else
+                    {
+                        seasonName = "NO SEASON ID";
+                    }
+                    
+                    sb.AppendLine($"  • {div.Name}");
+                    sb.AppendLine($"    Season: {seasonName}");
+                    sb.AppendLine($"    SeasonId: {div.SeasonId?.ToString() ?? "NULL"}");
+                }
+                
+                // Group by season
+                var grouped = DataStore.Data.Divisions
+                    .GroupBy(d => d.SeasonId)
+                    .Select(g => new { 
+                        SeasonId = g.Key, 
+                        Count = g.Count(),
+                        SeasonName = g.Key.HasValue 
+                            ? DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == g.Key.Value)?.Name ?? "Unknown"
+                            : "No Season"
+                    })
+                    .ToList();
+                    
+                sb.AppendLine($"\n📊 Divisions by Season:");
+                foreach (var group in grouped)
+                {
+                    var currentMarker = group.SeasonId == _currentSeasonId ? " ← CURRENT" : "";
+                    sb.AppendLine($"  {group.SeasonName}: {group.Count} division(s){currentMarker}");
+                    sb.AppendLine($"    SeasonId: {group.SeasonId}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  ❌ NO DIVISIONS FOUND IN DATABASE!");
+            }
+            
+            // Check Teams
+            sb.AppendLine($"\n👥 TEAMS:");
+            sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
+            
+            // Check Players  
+            sb.AppendLine($"\n🎱 PLAYERS:");
+            sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
+            
+            // Check Venues
+            sb.AppendLine($"\n🏠 VENUES:");
+            sb.AppendLine($"Total Venues: {DataStore.Data.Venues?.Count ?? 0}");
+            
+            // Check Fixtures
+            sb.AppendLine($"\n📋 FIXTURES:");
+            sb.AppendLine($"Total Fixtures: {DataStore.Data.Fixtures?.Count ?? 0}");
+            
+            // Check UI State
+            sb.AppendLine($"\n🖥️ UI STATE:");
+            sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
+            sb.AppendLine($"Items in ObservableCollection: {_divisions.Count}");
+            sb.AppendLine($"DivisionsList.ItemsSource is null: {DivisionsList.ItemsSource == null}");
+            
+            await DisplayAlert("Database Check", sb.ToString(), "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Database check failed:\n\n{ex.Message}\n\n{ex.StackTrace}", "OK");
+        }
     }
 }

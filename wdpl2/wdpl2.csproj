@@ -89,6 +89,7 @@
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
+	  <PackageReference Include="Plugin.LocalNotification" Version="11.1.7" />
 	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />
 	</ItemGroup>
 

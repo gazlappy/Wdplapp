@@ -63,6 +63,7 @@ public partial class TeamsPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _isFlyoutOpen = false;
+    private bool _showAllSeasons = false;
 
     public TeamsPage()
     {
@@ -108,6 +109,16 @@ public partial class TeamsPage : ContentPage
 
         ExportBtn.Clicked += async (_, __) => await ExportTeamsAsync();
         TeamsImport.ImportRequested += async (stream, fileName) => await ImportTeamsCsvAsync(stream, fileName);
+
+        // NEW: Show all seasons checkbox
+        ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
+        {
+            _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+            RefreshTeamList(SearchEntry?.Text);
+        };
+
+        // NEW: Debug check button
+        DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
         // SUBSCRIBE to global season changes
         SeasonService.SeasonChanged += OnGlobalSeasonChanged;
@@ -444,7 +455,20 @@ public partial class TeamsPage : ContentPage
         {
             _teamItems.Clear();
 
-            if (!_currentSeasonId.HasValue)
+            System.Diagnostics.Debug.WriteLine("=== TEAMS DEBUG ===");
+            System.Diagnostics.Debug.WriteLine($"Current Season ID: {_currentSeasonId}");
+            System.Diagnostics.Debug.WriteLine($"Show All Seasons: {_showAllSeasons}");
+            System.Diagnostics.Debug.WriteLine($"Total Teams in DB: {DataStore.Data?.Teams?.Count ?? 0}");
+
+            if (DataStore.Data?.Teams != null)
+            {
+                foreach (var t in DataStore.Data.Teams)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Team: '{t.Name}' (SeasonId: {t.SeasonId})");
+                }
+            }
+
+            if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
                 SetStatus("No season selected");
                 return;
@@ -456,10 +480,11 @@ public partial class TeamsPage : ContentPage
                 return;
             }
 
-            var teams = DataStore.Data.Teams
-                .Where(t => t != null && t.SeasonId == _currentSeasonId.Value)
-                .OrderBy(t => t.Name ?? "")
-                .ToList();
+            var teams = _showAllSeasons
+                ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
+                : DataStore.Data.Teams.Where(t => t != null && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
+
+            System.Diagnostics.Debug.WriteLine($"Filtered Teams: {teams.Count}");
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -470,7 +495,7 @@ public partial class TeamsPage : ContentPage
             }
 
             var venueLookup = DataStore.Data.Venues?
-                .Where(v => v != null && v.SeasonId == _currentSeasonId)
+                .Where(v => _showAllSeasons || (v != null && v.SeasonId == _currentSeasonId))
                 .ToDictionary(v => v.Id, v => v)
                 ?? new Dictionary<Guid, Venue>();
 
@@ -494,32 +519,46 @@ public partial class TeamsPage : ContentPage
             var seasonInfo = season != null ? $" in {season.Name}" : "";
             var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
             SetStatus($"{_teamItems.Count} team(s){seasonInfo}{importedTag}");
+
+            System.Diagnostics.Debug.WriteLine($"Added {_teamItems.Count} items to ObservableCollection");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"TeamsPage RefreshTeamList Error: {ex}");
+            System.Diagnostics.Debug.WriteLine($"RefreshTeamList Error: {ex}");
             SetStatus($"Error loading teams: {ex.Message}");
         }
     }
 
-    private void OnTeamSelected(object? sender, SelectionChangedEventArgs e)
+    // NEW: Tap handler label
+    private void OnShowAllSeasonsTapped(object? sender, EventArgs e)
     {
-        if (_isMultiSelectMode) return;
+        ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
+    }
 
-        var item = e.CurrentSelection?.FirstOrDefault() as TeamListItem;
-        if (item == null)
+    private async System.Threading.Tasks.Task CheckDatabaseAsync()
+    {
+        try
         {
-            _selectedTeam = null;
-            ClearEditor();
-            RefreshHeadToHead(); // Clear H2H
-            return;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("🔍 TEAMS DATABASE CHECK\n");
+            sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
+            sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
+            sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
+            sb.AppendLine("\nTeams by season:");
+
+            var grouped = DataStore.Data.Teams.GroupBy(t => t.SeasonId).Select(g => new { SeasonId = g.Key, Count = g.Count() });
+            foreach (var g in grouped)
+            {
+                var season = g.SeasonId.HasValue ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == g.SeasonId.Value)?.Name : "No season";
+                sb.AppendLine($"  {season}: {g.Count} (SeasonId: {g.SeasonId})");
+            }
+
+            await DisplayAlert("Database Check", sb.ToString(), "OK");
         }
-
-        _selectedTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
-        if (_selectedTeam == null) return;
-
-        LoadEditor(_selectedTeam);
-        RefreshHeadToHead(); // Load H2H for selected team
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", ex.Message, "OK");
+        }
     }
 
     private void LoadEditor(Team team)
@@ -540,55 +579,46 @@ public partial class TeamsPage : ContentPage
         CaptainPicker.SelectedItem = _players.FirstOrDefault(p => p.Id == team.CaptainPlayerId);
     }
 
-    private void ClearEditor()
-    {
-        TeamNameEntry.Text = "";
-        FoodSwitch.IsToggled = false;
-        DivisionPicker.SelectedIndex = -1;
-        VenuePicker.SelectedIndex = -1;
-        TablePicker.SelectedIndex = -1;
-        CaptainPicker.SelectedIndex = -1;
-    }
-
     private void RefreshDivisions()
     {
         _divisions.Clear();
-        if (!_currentSeasonId.HasValue) return;
 
-        foreach (var d in DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).OrderBy(d => d.Name))
+        // If showing all seasons, include every division; otherwise only current season
+        var divisions = _showAllSeasons
+            ? DataStore.Data.Divisions.OrderBy(d => d.Name)
+            : DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).OrderBy(d => d.Name);
+
+        foreach (var d in divisions)
             _divisions.Add(d);
     }
 
     private void RefreshVenues()
     {
         _venues.Clear();
-        if (!_currentSeasonId.HasValue) return;
 
-        foreach (var v in DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name))
+        var venues = _showAllSeasons
+            ? DataStore.Data.Venues.OrderBy(v => v.Name)
+            : DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
+
+        foreach (var v in venues)
             _venues.Add(v);
     }
 
     private void RefreshPlayers()
     {
         _players.Clear();
-        if (!_currentSeasonId.HasValue) return;
 
-        foreach (var p in DataStore.Data.Players.Where(p => p.SeasonId == _currentSeasonId).OrderBy(p => p.FullName))
+        var players = _showAllSeasons
+            ? DataStore.Data.Players.OrderBy(p => p.FullName)
+            : DataStore.Data.Players.Where(p => p.SeasonId == _currentSeasonId).OrderBy(p => p.FullName);
+
+        foreach (var p in players)
             _players.Add(p);
-    }
-
-    private void RefreshTablesForSelectedVenue()
-    {
-        _tables.Clear();
-        if (VenuePicker.SelectedItem is not Venue v) return;
-
-        foreach (var t in v.Tables)
-            _tables.Add(t);
     }
 
     private void OnAdd(object? sender, EventArgs e)
     {
-        if (!_currentSeasonId.HasValue)
+        if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             SetStatus("Please select a season first on the Seasons page");
             return;
@@ -601,11 +631,14 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
+        var selectedDivision = DivisionPicker.SelectedItem as Division;
+        var seasonIdForTeam = selectedDivision?.SeasonId ?? _currentSeasonId ?? selectedDivision?.SeasonId;
+
         var team = new Team
         {
-            SeasonId = _currentSeasonId.Value,
+            SeasonId = seasonIdForTeam,
             Name = name,
-            DivisionId = (DivisionPicker.SelectedItem as Division)?.Id,
+            DivisionId = selectedDivision?.Id,
             VenueId = (VenuePicker.SelectedItem as Venue)?.Id,
             TableId = (TablePicker.SelectedItem as VenueTable)?.Id,
             CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id,
@@ -625,8 +658,16 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
+        var selectedDivision = DivisionPicker.SelectedItem as Division;
+
+        // If user selected a division from a different season, move the team to that season
+        if (selectedDivision != null && selectedDivision.SeasonId.HasValue && _selectedTeam.SeasonId != selectedDivision.SeasonId)
+        {
+            _selectedTeam.SeasonId = selectedDivision.SeasonId;
+        }
+
         _selectedTeam.Name = TeamNameEntry.Text?.Trim();
-        _selectedTeam.DivisionId = (DivisionPicker.SelectedItem as Division)?.Id;
+        _selectedTeam.DivisionId = selectedDivision?.Id;
         _selectedTeam.VenueId = (VenuePicker.SelectedItem as Venue)?.Id;
         _selectedTeam.TableId = (TablePicker.SelectedItem as VenueTable)?.Id;
         _selectedTeam.CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id;
@@ -636,6 +677,38 @@ public partial class TeamsPage : ContentPage
         RefreshTeamList(SearchEntry.Text);
         RefreshHeadToHead(); // Refresh H2H with updated team info
         SetStatus($"Updated: {updatedName}");
+    }
+
+    private void OnTeamSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isMultiSelectMode) return;
+
+        var item = e.CurrentSelection?.FirstOrDefault() as TeamListItem;
+        if (item == null)
+        {
+            _selectedTeam = null;
+            ClearEditor();
+            RefreshHeadToHead();
+            return;
+        }
+
+        _selectedTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
+        if (_selectedTeam == null)
+        {
+            SetStatus("Team not found");
+            return;
+        }
+
+        LoadEditor(_selectedTeam);
+        RefreshHeadToHead();
+    }
+
+    private void RefreshTablesForSelectedVenue()
+    {
+        _tables.Clear();
+        if (VenuePicker.SelectedItem is not Venue v) return;
+        foreach (var t in v.Tables)
+            _tables.Add(t);
     }
 
     private async void OnDelete(object? sender, EventArgs e)
@@ -653,7 +726,7 @@ public partial class TeamsPage : ContentPage
         _selectedTeam = null;
         RefreshTeamList(SearchEntry.Text);
         ClearEditor();
-        RefreshHeadToHead(); // Clear H2H
+        RefreshHeadToHead();
         SetStatus("Deleted");
     }
 
@@ -697,12 +770,7 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        var confirm = await DisplayAlert(
-            "Bulk Delete",
-            $"Delete {selectedItems.Count} team(s)?",
-            "Yes, Delete",
-            "Cancel");
-
+        var confirm = await DisplayAlert("Bulk Delete", $"Delete {selectedItems.Count} team(s)?", "Yes, Delete", "Cancel");
         if (!confirm) return;
 
         int deleted = 0;
@@ -722,7 +790,7 @@ public partial class TeamsPage : ContentPage
 
     private async Task ExportTeamsAsync()
     {
-        if (!_currentSeasonId.HasValue)
+        if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             await DisplayAlert("No Season", "Please select a season on the Seasons page first.", "OK");
             return;
@@ -732,39 +800,33 @@ public partial class TeamsPage : ContentPage
         var csv = new System.Text.StringBuilder();
         csv.AppendLine("Name,Division,Venue,Table,Captain,ProvidesFood");
 
-        var teams = DataStore.Data.Teams.Where(t => t.SeasonId == _currentSeasonId).OrderBy(t => t.Name);
+        var teams = _showAllSeasons
+            ? DataStore.Data.Teams.OrderBy(t => t.Name)
+            : DataStore.Data.Teams.Where(t => t.SeasonId == _currentSeasonId).OrderBy(t => t.Name);
 
         foreach (var t in teams)
         {
             var div = t.DivisionId.HasValue ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == t.DivisionId)?.Name : "";
             var venue = t.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == t.VenueId)?.Name : "";
             var venueObj = t.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == t.VenueId) : null;
-            var table = venueObj != null && t.TableId.HasValue
-                ? venueObj.Tables.FirstOrDefault(tb => tb.Id == t.TableId)?.Label
-                : "";
-            var captain = t.CaptainPlayerId.HasValue
-                ? DataStore.Data.Players.FirstOrDefault(p => p.Id == t.CaptainPlayerId)?.FullName
-                : "";
+            var table = venueObj != null && t.TableId.HasValue ? venueObj.Tables.FirstOrDefault(tb => tb.Id == t.TableId)?.Label : "";
+            var captain = t.CaptainPlayerId.HasValue ? DataStore.Data.Players.FirstOrDefault(p => p.Id == t.CaptainPlayerId)?.FullName : "";
 
             csv.AppendLine($"\"{t.Name}\",\"{div}\",\"{venue}\",\"{table}\",\"{captain}\",{t.ProvidesFood}");
         }
 
-        var fileName = $"Teams_{season?.Name?.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.csv";
+        var fileName = $"Teams_{season?.Name?.Replace(" ", "_") ?? "All"}_{DateTime.Now:yyyyMMdd}.csv";
         var path = System.IO.Path.Combine(FileSystem.CacheDirectory, fileName);
         await System.IO.File.WriteAllTextAsync(path, csv.ToString());
 
-        await Share.RequestAsync(new ShareFileRequest
-        {
-            Title = "Export Teams",
-            File = new ShareFile(path)
-        });
+        await Share.RequestAsync(new ShareFileRequest { Title = "Export Teams", File = new ShareFile(path) });
 
-        SetStatus($"Exported {teams.Count()} teams");
+        SetStatus($"Exported teams to {fileName}");
     }
 
     private async Task ImportTeamsCsvAsync(System.IO.Stream stream, string fileName)
     {
-        if (!_currentSeasonId.HasValue)
+        if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             await DisplayAlert("No Season", "Please select a season on the Seasons page before importing.", "OK");
             return;
@@ -773,19 +835,15 @@ public partial class TeamsPage : ContentPage
         var rows = Csv.Read(stream);
         int added = 0, updated = 0;
 
-        var divisions = DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId)
-            .ToDictionary(d => (d.Name ?? "").Trim(), d => d, StringComparer.OrdinalIgnoreCase);
-        var venues = DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId)
-            .ToDictionary(v => (v.Name ?? "").Trim(), v => v, StringComparer.OrdinalIgnoreCase);
+        var divisions = DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).ToDictionary(d => (d.Name ?? "").Trim(), d => d, StringComparer.OrdinalIgnoreCase);
+        var venues = DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).ToDictionary(v => (v.Name ?? "").Trim(), v => v, StringComparer.OrdinalIgnoreCase);
 
         foreach (var r in rows)
         {
             var name = r.Get("Name");
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            var existing = DataStore.Data.Teams.FirstOrDefault(t =>
-                t.SeasonId == _currentSeasonId &&
-                string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            var existing = DataStore.Data.Teams.FirstOrDefault(t => t.SeasonId == _currentSeasonId && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
 
             var divName = r.Get("Division");
             var venueName = r.Get("Venue");
@@ -795,7 +853,7 @@ public partial class TeamsPage : ContentPage
             {
                 var team = new Team
                 {
-                    SeasonId = _currentSeasonId.Value,
+                    SeasonId = _currentSeasonId ?? (divisions.TryGetValue(divName ?? "", out var d) ? d.SeasonId : null),
                     Name = name.Trim(),
                     DivisionId = divisions.TryGetValue(divName ?? "", out var div) ? div.Id : null,
                     VenueId = venues.TryGetValue(venueName ?? "", out var ven) ? ven.Id : null,
@@ -818,4 +876,14 @@ public partial class TeamsPage : ContentPage
     }
 
     private void SetStatus(string msg) => StatusLbl.Text = $"{DateTime.Now:HH:mm:ss} {msg}";
+
+    private void ClearEditor()
+    {
+        TeamNameEntry.Text = "";
+        FoodSwitch.IsToggled = false;
+        DivisionPicker.SelectedIndex = -1;
+        VenuePicker.SelectedIndex = -1;
+        TablePicker.SelectedIndex = -1;
+        CaptainPicker.SelectedIndex = -1;
+    }
 }

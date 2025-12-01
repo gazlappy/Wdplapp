@@ -87,6 +87,29 @@ namespace Wdpl2.Models
         /// <summary>Default number of times teams play each other (default 2).</summary>
         public int DefaultRoundsPerOpponent { get; set; } = 2;
 
+        // ========== Notification Settings (Phase 3) ==========
+
+        /// <summary>Enable/disable automatic match reminder notifications (default true).</summary>
+        public bool MatchRemindersEnabled { get; set; } = true;
+
+        /// <summary>Hours before match to send reminder notification (default 2).</summary>
+        /// <remarks>Valid values: 1, 2, 4, 6, 12, or 24 hours</remarks>
+        public int ReminderHoursBefore { get; set; } = 2;
+
+        /// <summary>Enable/disable result notifications (default false).</summary>
+        /// <remarks>Send notification when match results are posted</remarks>
+        public bool ResultNotificationsEnabled { get; set; } = false;
+
+        /// <summary>Enable/disable weekly fixture list notifications (default false).</summary>
+        /// <remarks>Send weekly summary of upcoming fixtures every Monday morning</remarks>
+        public bool WeeklyFixtureListEnabled { get; set; } = false;
+
+        /// <summary>Day of week for weekly fixture list (default Monday).</summary>
+        public DayOfWeek WeeklyFixtureDay { get; set; } = DayOfWeek.Monday;
+
+        /// <summary>Time of day for weekly fixture list (default 09:00).</summary>
+        public TimeSpan WeeklyFixtureTime { get; set; } = new TimeSpan(9, 0, 0);
+
         /// <summary>Reset all settings to defaults.</summary>
         public void ResetToDefaults()
         {
@@ -109,6 +132,14 @@ namespace Wdpl2.Models
             DefaultMatchDay = DayOfWeek.Tuesday;
             DefaultMatchTime = new TimeSpan(19, 30, 0);
             DefaultRoundsPerOpponent = 2;
+
+            // Notification Settings (Phase 3)
+            MatchRemindersEnabled = true;
+            ReminderHoursBefore = 2;
+            ResultNotificationsEnabled = false;
+            WeeklyFixtureListEnabled = false;
+            WeeklyFixtureDay = DayOfWeek.Monday;
+            WeeklyFixtureTime = new TimeSpan(9, 0, 0);
         }
 
         /// <summary>

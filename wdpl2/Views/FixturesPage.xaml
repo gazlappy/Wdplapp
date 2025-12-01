@@ -91,7 +91,29 @@
                         <Switch x:Name="ActiveSeasonOnly" Grid.Column="1" IsToggled="True" />
                     </Grid>
 
+                    <!-- NEW: Notification Status -->
+                    <Border 
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#F0F9FF, Dark=#1E3A8A}"
+                        Stroke="{StaticResource InfoColor}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Margin="0,8,0,0">
+                        <Label 
+                            x:Name="PendingNotificationsLabel"
+                            Text="Loading..."
+                            Style="{StaticResource BodyTextStyle}"
+                            FontSize="12"
+                            HorizontalTextAlignment="Center" />
+                    </Border>
+
                     <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+
+                    <!-- NEW: Manage Notifications Button -->
+                    <Button x:Name="ManageNotificationsBtn"
+                            Text="🔔 Manage Match Reminders"
+                            BackgroundColor="{StaticResource InfoColor}"
+                            TextColor="White" />
 
                     <Button x:Name="DiagnosticsBtn"
                             Text="🔍 Check Active Season"
@@ -139,7 +161,8 @@
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 8">
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource MediumSpacing}">
+                                <!-- NEW: Grid with reminder icon -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource MediumSpacing}">
                                     <Label 
                                         FontAttributes="Bold"
                                         FontSize="12"
@@ -155,6 +178,14 @@
                                             Style="{StaticResource CaptionStyle}"
                                             Text="{Binding Subtitle}" />
                                     </VerticalStackLayout>
+                                    
+                                    <!-- NEW: Bell icon for fixtures with reminders -->
+                                    <Label 
+                                        Grid.Column="2"
+                                        Text="🔔"
+                                        FontSize="16"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding HasReminder}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -195,6 +226,12 @@
                     <Label x:Name="ScoreLbl"
                            Text=""
                            Style="{StaticResource BodyTextStyle}" />
+
+                    <!-- NEW: Reminder Status -->
+                    <Label x:Name="ReminderStatusLabel"
+                           Text=""
+                           Style="{StaticResource CaptionStyle}"
+                           FontSize="12" />
 
                     <!-- Frame Editor -->
                     <Border Style="{StaticResource CardBorderStyle}">

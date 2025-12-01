@@ -19,6 +19,7 @@ public partial class FixturesPage : ContentPage
         public DateTime Date { get; init; }
         public string Title { get; init; } = "";
         public string Subtitle { get; init; } = "";
+        public bool HasReminder { get; init; } // NEW: Track if reminder is scheduled
     }
 
     // Right panel per-frame row
@@ -37,6 +38,11 @@ public partial class FixturesPage : ContentPage
 
     private Fixture? _selectedFixture;
     private bool _isFlyoutOpen = false;
+    
+    // NEW: Services for notification management
+    private MatchReminderService? _reminderService;
+    private INotificationService? _notificationService;
+    private bool _servicesInitialized = false;
 
     public FixturesPage()
     {
@@ -66,14 +72,43 @@ public partial class FixturesPage : ContentPage
         
         ActiveSeasonOnly.Toggled += (_, __) => RefreshList();
 
-        SaveBtn.Clicked += (_, __) => SaveFromUI();
+        SaveBtn.Clicked += async (_, __) => await SaveFromUIAsync(); // NOW ASYNC
         ClearBtn.Clicked += (_, __) => OnClearFrames();
         DiagnosticsBtn.Clicked += async (_, __) => await OnDiagnosticsAsync();
         GenerateFixturesBtn.Clicked += async (_, __) => await OnGenerateFixturesAsync();
         DeleteAllBtn.Clicked += async (_, __) => await OnDeleteAllFixturesAsync();
         DeleteSeasonBtn.Clicked += async (_, __) => await OnDeleteActiveSeasonFixturesAsync();
+        
+        // NEW: Notification management button (check if button exists)
+        if (ManageNotificationsBtn != null)
+        {
+            ManageNotificationsBtn.Clicked += async (_, __) => await OnManageNotificationsAsync();
+        }
 
         RefreshList();
+    }
+    
+    // NEW: Override OnAppearing to initialize services when handler is available
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        
+        // Initialize services once when handler is available
+        if (!_servicesInitialized && Handler?.MauiContext != null)
+        {
+            try
+            {
+                _reminderService = Handler.MauiContext.Services.GetService<MatchReminderService>();
+                _notificationService = Handler.MauiContext.Services.GetService<INotificationService>();
+                _servicesInitialized = true;
+                
+                System.Diagnostics.Debug.WriteLine($"Services initialized: Reminder={_reminderService != null}, Notification={_notificationService != null}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize services: {ex.Message}");
+            }
+        }
     }
 
     // ========== BURGER MENU ==========
@@ -100,6 +135,9 @@ public partial class FixturesPage : ContentPage
         // Animate flyout sliding in
         FlyoutPanel.TranslationX = -400;
         await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
+        
+        // NEW: Update pending notification count
+        await UpdatePendingNotificationCountAsync();
     }
 
     private async void CloseFlyout()
@@ -111,8 +149,32 @@ public partial class FixturesPage : ContentPage
         FlyoutPanel.IsVisible = false;
         _isFlyoutOpen = false;
     }
+    
+    // NEW: Update pending notification count
+    private async System.Threading.Tasks.Task UpdatePendingNotificationCountAsync()
+    {
+        // Check if label exists (might not exist in XAML yet)
+        if (PendingNotificationsLabel == null)
+            return;
+            
+        if (_notificationService == null)
+        {
+            PendingNotificationsLabel.Text = "Notifications not available";
+            return;
+        }
 
-    // ========== DIAGNOSTICS ==========
+        try
+        {
+            var count = await _notificationService.GetPendingNotificationCountAsync();
+            PendingNotificationsLabel.Text = $"{Emojis.Bell} {count} pending reminder(s)";
+        }
+        catch
+        {
+            PendingNotificationsLabel.Text = "Could not check pending reminders";
+        }
+    }
+
+    // ========== DIAGNOSTICS ==========[]
     
     private async System.Threading.Tasks.Task OnDiagnosticsAsync()
     {
@@ -155,6 +217,30 @@ public partial class FixturesPage : ContentPage
         sb.AppendLine($"Data for Active Season:");
         sb.AppendLine($"  Divisions: {divisions}");
         sb.AppendLine($"  Teams: {teams}");
+        
+        // NEW: Notification diagnostics
+        if (_notificationService != null && _reminderService != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("NOTIFICATION STATUS:");
+            try
+            {
+                var enabled = await _notificationService.AreNotificationsEnabledAsync();
+                var pending = await _notificationService.GetPendingNotificationCountAsync();
+                sb.AppendLine($"  Notifications Enabled: {enabled}");
+                sb.AppendLine($"  Pending Reminders: {pending}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  Error checking notifications: {ex.Message}");
+            }
+        }
+        else
+        {
+            sb.AppendLine();
+            sb.AppendLine("NOTIFICATION STATUS:");
+            sb.AppendLine("  Service not available");
+        }
         
         await DisplayAlert("Diagnostics", sb.ToString(), "OK");
     }
@@ -207,12 +293,16 @@ public partial class FixturesPage : ContentPage
             if (f.TableId.HasValue && tableById.TryGetValue(f.TableId.Value, out var tt))
                 subtitle = string.IsNullOrEmpty(subtitle) ? tt.table.Label : $"{subtitle} • {tt.table.Label}";
 
+            // NEW: Check if this fixture has a reminder scheduled
+            bool hasReminder = f.Date > DateTime.Now; // Only future fixtures can have reminders
+
             _items.Add(new FixtureListItem
             {
                 Id = f.Id,
                 Date = f.Date,
                 Title = $"{home} vs {away}",
-                Subtitle = subtitle
+                Subtitle = subtitle,
+                HasReminder = hasReminder
             });
         }
     }
@@ -227,12 +317,58 @@ public partial class FixturesPage : ContentPage
             _frameRows.Clear();
             HeaderLbl.Text = "Select a fixture";
             ScoreLbl.Text = "";
+            if (ReminderStatusLabel != null) // NEW: Null check
+                ReminderStatusLabel.Text = "";
             return;
         }
 
         _selectedFixture = DataStore.Data.Fixtures.First(x => x.Id == li.Id);
         BuildFrameEditors();
         UpdateHeader();
+        UpdateReminderStatus(); // NEW
+    }
+    
+    // NEW: Update reminder status display
+    private void UpdateReminderStatus()
+    {
+        // Check if label exists
+        if (ReminderStatusLabel == null)
+            return;
+            
+        if (_selectedFixture == null || _notificationService == null)
+        {
+            ReminderStatusLabel.Text = "";
+            return;
+        }
+
+        if (_selectedFixture.Date <= DateTime.Now)
+        {
+            ReminderStatusLabel.Text = $"{Emojis.Info} Match has passed - no reminder";
+            return;
+        }
+
+        // Check if reminders are enabled in settings
+        var settings = DataStore.Data.Settings;
+        if (!settings.MatchRemindersEnabled)
+        {
+            ReminderStatusLabel.Text = $"{Emojis.Warning} Match reminders disabled in Settings";
+            return;
+        }
+
+        var hoursUntil = (_selectedFixture.Date - DateTime.Now).TotalHours;
+        
+        // Use configurable hours from settings (Phase 3)
+        var hoursBeforeMatch = settings.ReminderHoursBefore;
+        var reminderTime = _selectedFixture.Date.AddHours(-hoursBeforeMatch);
+
+        if (DateTime.Now < reminderTime)
+        {
+            ReminderStatusLabel.Text = $"{Emojis.Bell} Reminder scheduled for {reminderTime:ddd HH:mm} ({hoursBeforeMatch}h before)";
+        }
+        else
+        {
+            ReminderStatusLabel.Text = $"{Emojis.Warning} Match within reminder window";
+        }
     }
 
     // ---------------- RIGHT PANEL (FRAMES) ----------------
@@ -443,7 +579,8 @@ public partial class FixturesPage : ContentPage
         }
     }
 
-    private void SaveFromUI()
+    // NEW: Async version of SaveFromUI with notification scheduling
+    private async System.Threading.Tasks.Task SaveFromUIAsync()
     {
         if (_selectedFixture == null) return;
 
@@ -470,7 +607,171 @@ public partial class FixturesPage : ContentPage
 
         DataStore.Save();
         UpdateHeader();
-        DisplayAlert($"{Emojis.Success} Saved", "Fixture results saved successfully!", "OK");
+        
+        // NEW: Schedule notification for this fixture
+        await ScheduleFixtureReminderAsync(_selectedFixture);
+        
+        UpdateReminderStatus();
+        RefreshList(); // Refresh to update bell icon
+        
+        await DisplayAlert($"{Emojis.Success} Saved", 
+            "Fixture results saved successfully!\n\n" +
+            (_reminderService != null && _selectedFixture.Date > DateTime.Now 
+                ? $"{Emojis.Bell} Match reminder scheduled" 
+                : ""),
+            "OK");
+    }
+    
+    // NEW: Schedule notification for a fixture
+    private async System.Threading.Tasks.Task ScheduleFixtureReminderAsync(Fixture fixture)
+    {
+        if (_reminderService == null || fixture.Date <= DateTime.Now)
+            return;
+
+        // Check if match reminders are enabled in settings
+        var settings = DataStore.Data.Settings;
+        if (!settings.MatchRemindersEnabled)
+        {
+            System.Diagnostics.Debug.WriteLine($"Match reminders disabled - skipping notification for fixture {fixture.Id}");
+            return;
+        }
+
+        try
+        {
+            var teamById = DataStore.Data.Teams.ToDictionary(t => t.Id, t => t);
+            var homeTeam = teamById.TryGetValue(fixture.HomeTeamId, out var ht) ? ht.Name : "Home";
+            var awayTeam = teamById.TryGetValue(fixture.AwayTeamId, out var at) ? at.Name : "Away";
+
+            // Use configurable reminder hours from settings (Phase 3)
+            var hoursBeforeMatch = settings.ReminderHoursBefore;
+
+            await _reminderService.ScheduleMatchReminderAsync(
+                fixture.Id,
+                fixture.Date,
+                homeTeam ?? "Home",
+                awayTeam ?? "Away",
+                hoursBeforeMatch: hoursBeforeMatch
+            );
+            
+            System.Diagnostics.Debug.WriteLine($"Scheduled reminder {hoursBeforeMatch}h before match: {homeTeam} vs {awayTeam}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to schedule reminder: {ex.Message}");
+        }
+    }
+    
+    // NEW: Cancel notification for a fixture
+    private async System.Threading.Tasks.Task CancelFixtureReminderAsync(Guid fixtureId)
+    {
+        if (_reminderService == null)
+            return;
+
+        try
+        {
+            await _reminderService.CancelMatchReminderAsync(fixtureId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to cancel reminder: {ex.Message}");
+        }
+    }
+    
+    // NEW: Notification management dialog
+    private async System.Threading.Tasks.Task OnManageNotificationsAsync()
+    {
+        if (_reminderService == null || _notificationService == null)
+        {
+            await DisplayAlert($"{Emojis.Info} Not Available", 
+                "Notification services are not available on this platform.", 
+                "OK");
+            return;
+        }
+
+        try
+        {
+            var reminders = await _reminderService.GetAllScheduledRemindersAsync();
+            
+            if (reminders.Count == 0)
+            {
+                await DisplayAlert($"{Emojis.Info} No Reminders", 
+                    "You have no scheduled match reminders.", 
+                    "OK");
+                return;
+            }
+
+            // Build display list
+            var options = new List<string>();
+            foreach (var reminder in reminders.OrderBy(r => r.MatchDate))
+            {
+                var hoursUntil = (reminder.MatchDate - DateTime.Now).TotalHours;
+                var timeDesc = hoursUntil > 24 
+                    ? $"{(int)(hoursUntil / 24)} days" 
+                    : $"{(int)hoursUntil} hours";
+                    
+                options.Add($"{reminder.HomeTeam} vs {reminder.AwayTeam}\n" +
+                           $"   {reminder.MatchDate:ddd dd MMM HH:mm} (in {timeDesc})");
+            }
+
+            var choice = await DisplayActionSheet(
+                $"{Emojis.Bell} {reminders.Count} Scheduled Reminder(s)",
+                "Close",
+                "Cancel All Reminders",
+                options.ToArray());
+
+            if (choice == "Cancel All Reminders")
+            {
+                var confirm = await DisplayAlert(
+                    $"{Emojis.Warning} Confirm",
+                    "Cancel all match reminders?",
+                    "Yes, Cancel All",
+                    "No");
+
+                if (confirm)
+                {
+                    await _reminderService.CancelAllMatchRemindersAsync();
+                    await DisplayAlert($"{Emojis.Success} Cancelled", 
+                        "All match reminders have been cancelled.", 
+                        "OK");
+                    await UpdatePendingNotificationCountAsync();
+                }
+            }
+            else if (choice != null && choice != "Close")
+            {
+                // User selected a specific reminder - show details
+                var index = options.IndexOf(choice);
+                if (index >= 0 && index < reminders.Count)
+                {
+                    var reminder = reminders[index];
+                    var details = $"{Emojis.EightBall} Match Details:\n\n" +
+                                 $"Home: {reminder.HomeTeam}\n" +
+                                 $"Away: {reminder.AwayTeam}\n" +
+                                 $"Date: {reminder.MatchDate:dddd, dd MMMM yyyy}\n" +
+                                 $"Time: {reminder.MatchDate:HH:mm}\n" +
+                                 $"Reminder: {reminder.ReminderTime:HH:mm}";
+
+                    var action = await DisplayActionSheet(
+                        details,
+                        "Close",
+                        "Cancel This Reminder");
+
+                    if (action == "Cancel This Reminder")
+                    {
+                        await _reminderService.CancelMatchReminderAsync(reminder.FixtureId);
+                        await DisplayAlert($"{Emojis.Success} Cancelled", 
+                            "Reminder cancelled.", 
+                            "OK");
+                        await UpdatePendingNotificationCountAsync();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Error", 
+                $"Failed to load reminders: {ex.Message}", 
+                "OK");
+        }
     }
 
     private void OnClearFrames()
@@ -491,6 +792,17 @@ public partial class FixturesPage : ContentPage
         if (!ok) return;
 
         int removed = DataStore.Data.Fixtures.Count;
+        
+        // NEW: Cancel all reminders
+        if (_reminderService != null)
+        {
+            try
+            {
+                await _reminderService.CancelAllMatchRemindersAsync();
+            }
+            catch { /* Continue even if cancel fails */ }
+        }
+        
         DataStore.Data.Fixtures.Clear();
         DataStore.Save();
 
@@ -499,8 +811,11 @@ public partial class FixturesPage : ContentPage
         _frameRows.Clear();
         HeaderLbl.Text = "Select a fixture";
         ScoreLbl.Text = "";
+        if (ReminderStatusLabel != null) // NEW: Null check
+            ReminderStatusLabel.Text = "";
 
         RefreshList();
+        await UpdatePendingNotificationCountAsync(); // NEW
 
         await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s).", "OK");
     }
@@ -522,6 +837,21 @@ public partial class FixturesPage : ContentPage
         if (!ok) return;
 
         int before = DataStore.Data.Fixtures.Count;
+        var fixturesToDelete = DataStore.Data.Fixtures.Where(f => f.SeasonId == seasonId).ToList();
+        
+        // NEW: Cancel reminders for deleted fixtures
+        if (_reminderService != null)
+        {
+            foreach (var fixture in fixturesToDelete)
+            {
+                try
+                {
+                    await _reminderService.CancelMatchReminderAsync(fixture.Id);
+                }
+                catch { /* Continue even if cancel fails */ }
+            }
+        }
+        
         DataStore.Data.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
         int removed = before - DataStore.Data.Fixtures.Count;
 
@@ -534,9 +864,12 @@ public partial class FixturesPage : ContentPage
             _frameRows.Clear();
             HeaderLbl.Text = "Select a fixture";
             ScoreLbl.Text = "";
+            if (ReminderStatusLabel != null) // NEW: Null check
+                ReminderStatusLabel.Text = "";
         }
 
         RefreshList();
+        await UpdatePendingNotificationCountAsync(); // NEW
 
         await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s) in the active season.", "OK");
     }
@@ -648,6 +981,20 @@ public partial class FixturesPage : ContentPage
                 roundsPerOpponent: roundsPerOpponent,
                 kickoff: new TimeSpan(19, 30, 0));
 
+            // NEW: Cancel reminders for old fixtures being replaced
+            if (_reminderService != null && existing > 0)
+            {
+                var oldFixtures = DataStore.Data.Fixtures.Where(f => f.SeasonId == seasonId).ToList();
+                foreach (var oldFixture in oldFixtures)
+                {
+                    try
+                    {
+                        await _reminderService.CancelMatchReminderAsync(oldFixture.Id);
+                    }
+                    catch { /* Continue */ }
+                }
+            }
+
             // Remove existing fixtures for this season
             DataStore.Data.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
             
@@ -655,6 +1002,23 @@ public partial class FixturesPage : ContentPage
             DataStore.Data.Fixtures.AddRange(fixtures);
 
             DataStore.Save();
+
+            // NEW: Schedule reminders for all new fixtures
+            if (_reminderService != null)
+            {
+                int scheduled = 0;
+                foreach (var fixture in fixtures.Where(f => f.Date > DateTime.Now))
+                {
+                    try
+                    {
+                        await ScheduleFixtureReminderAsync(fixture);
+                        scheduled++;
+                    }
+                    catch { /* Continue */ }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Scheduled {scheduled} match reminders");
+            }
 
             // Clear selection if it was for this season
             if (_selectedFixture != null && _selectedFixture.SeasonId == seasonId)
@@ -664,13 +1028,20 @@ public partial class FixturesPage : ContentPage
                 _frameRows.Clear();
                 HeaderLbl.Text = "Select a fixture";
                 ScoreLbl.Text = "";
+                if (ReminderStatusLabel != null) // NEW: Null check
+                    ReminderStatusLabel.Text = "";
             }
 
             RefreshList();
+            await UpdatePendingNotificationCountAsync(); // NEW
+
+            var reminderMsg = _reminderService != null 
+                ? $"\n\n{Emojis.Bell} Match reminders scheduled automatically" 
+                : "";
 
             await DisplayAlert(
                 $"{Emojis.Success} Success",
-                $"Generated {fixtures.Count} fixture(s) for '{season.Name}'",
+                $"Generated {fixtures.Count} fixture(s) for '{season.Name}'{reminderMsg}",
                 "OK");
         }
         catch (Exception ex)
@@ -718,7 +1089,7 @@ public partial class FixturesPage : ContentPage
         var home = tById.TryGetValue(_selectedFixture.HomeTeamId, out var ht) ? (ht.Name ?? "Home") : "Home";
         var away = tById.TryGetValue(_selectedFixture.AwayTeamId, out var at) ? (at.Name ?? "Away") : "Away";
 
-        HeaderLbl.Text = $"{_selectedFixture.Date:ddd dd MMM yyyy HH:mm} — {home} vs {away}";
+        HeaderLbl.Text = $"{_selectedFixture.Date:ddd dd MMM yyyy HH:mm} • {home} vs {away}";
         ScoreLbl.Text = $"Score: {_selectedFixture.HomeScore} – {_selectedFixture.AwayScore}";
     }
 }

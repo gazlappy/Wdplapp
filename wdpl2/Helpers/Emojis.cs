@@ -28,7 +28,7 @@ public static class Emojis
     public const string Settings = "\u2699\uFE0F"; // ?? Gear
     
     // ========== SPORTS & GAMES ==========
-    public const string EightBall = "8\u20E3";     // 8? Keycap 8
+    public const string EightBall = "8\u20E3";     // 8?? Keycap 8
     public const string Trophy = "\U0001F3C6";     // ?? Trophy
     public const string Medal = "\U0001F3C5";      // ?? Sports medal
     public const string Target = "\U0001F3AF";     // ?? Direct hit
@@ -92,8 +92,23 @@ public static class Emojis
     public const string ThumbsUp = "\U0001F44D";   // ?? Thumbs up
     public const string ThumbsDown = "\U0001F44E"; // ?? Thumbs down
     
+    // ========== NOTIFICATIONS (NEW) ==========
+    public const string Bell = "\U0001F514";       // ?? Bell
+    public const string Phone = "\U0001F4F1";      // ?? Mobile phone
+    
     /// <summary>
-    /// Font family to use for proper emoji rendering on Windows
+    /// Get the appropriate font family for emoji rendering based on platform
+    /// Returns "Segoe UI Emoji" on Windows, null on other platforms
+    /// </summary>
+    public static string? GetFontFamily()
+    {
+        return Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.WinUI 
+            ? "Segoe UI Emoji" 
+            : null;
+    }
+    
+    /// <summary>
+    /// Font family constant for Windows emoji rendering (use GetFontFamily() for cross-platform)
     /// </summary>
     public const string FontFamily = "Segoe UI Emoji";
 }

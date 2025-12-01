@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Maui;
+using Plugin.LocalNotification;
 using Wdpl2.Data;
 using Wdpl2.Services;
 using Wdpl2.ViewModels;
 using Wdpl2.Views;
+using WdplNotificationService = Wdpl2.Services.INotificationService;
 
 namespace Wdpl2;
 
@@ -16,6 +18,7 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseMauiCommunityToolkit()  // Add Community Toolkit
+            .UseLocalNotification()     // Add Local Notifications (NEW)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -29,6 +32,10 @@ public static class MauiProgram
         // Use SqliteDataStore for new implementation, DataStoreService for legacy
         builder.Services.AddSingleton<IDataStore, SqliteDataStore>();
         builder.Services.AddSingleton<DataMigrationService>();
+        
+        // Register Notification Services (NEW) - Use alias to avoid conflicts
+        builder.Services.AddSingleton<WdplNotificationService, LocalNotificationService>();
+        builder.Services.AddSingleton<MatchReminderService>();
         
         // Register ViewModels
         builder.Services.AddTransient<CompetitionsViewModel>();

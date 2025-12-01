@@ -131,6 +131,9 @@
 
                     <ctrls:CsvImportBox x:Name="TeamsImport" Title="Import Teams (.csv)" />
 
+                    <!-- DEBUG BUTTON -->
+                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" />
+
                     <Label x:Name="StatusLbl" Text="" FontAttributes="Italic" FontSize="12" TextColor="#666" />
                     
                 </VerticalStackLayout>
@@ -147,7 +150,17 @@
             StrokeThickness="1">
             <Grid RowDefinitions="Auto,*" RowSpacing="8">
                 <Entry x:Name="SearchEntry" Placeholder="Search teams..." />
-                
+
+                <!-- SHOW ALL SEASONS -->
+                <HorizontalStackLayout Spacing="8" Padding="4,4,0,4">
+                    <CheckBox x:Name="ShowAllSeasonsCheck" />
+                    <Label Text="Show all seasons" VerticalOptions="Center" FontSize="14">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnShowAllSeasonsTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </HorizontalStackLayout>
+
                 <CollectionView 
                     x:Name="TeamsList" 
                     Grid.Row="1"
