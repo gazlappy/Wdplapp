@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.TestPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Test">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <!-- Page Title -->
+            <Label 
+                Text="Test &amp; Sync Info" 
+                Style="{StaticResource PageTitleStyle}" 
+                Margin="0,0,0,10"/>
+
+            <!-- Device Information Section -->
+            <Border 
+                StrokeShape="RoundRectangle 12" 
+                Padding="15"
+                BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                StrokeThickness="1">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Device Information" FontSize="18" FontAttributes="Bold"/>
+                    
+                    <Grid ColumnDefinitions="Auto,*" RowSpacing="8" ColumnSpacing="10">
+                        <Label Grid.Row="0" Grid.Column="0" Text="Device:" FontAttributes="Bold"/>
+                        <Label Grid.Row="0" Grid.Column="1" x:Name="DeviceNameLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="1" Grid.Column="0" Text="Platform:" FontAttributes="Bold"/>
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="PlatformLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="2" Grid.Column="0" Text="Version:" FontAttributes="Bold"/>
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="VersionLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="3" Grid.Column="0" Text="App Version:" FontAttributes="Bold"/>
+                        <Label Grid.Row="3" Grid.Column="1" x:Name="AppVersionLabel" Text="Loading..."/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Database Information Section -->
+            <Border 
+                StrokeShape="RoundRectangle 12" 
+                Padding="15"
+                BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                StrokeThickness="1">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Database Information" FontSize="18" FontAttributes="Bold"/>
+                    
+                    <Grid ColumnDefinitions="Auto,*" RowSpacing="8" ColumnSpacing="10">
+                        <Label Grid.Row="0" Grid.Column="0" Text="DB Path:" FontAttributes="Bold"/>
+                        <Label Grid.Row="0" Grid.Column="1" x:Name="DbPathLabel" Text="Loading..." LineBreakMode="WordWrap"/>
+                        
+                        <Label Grid.Row="1" Grid.Column="0" Text="DB Size:" FontAttributes="Bold"/>
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="DbSizeLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="2" Grid.Column="0" Text="Last Modified:" FontAttributes="Bold"/>
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="DbModifiedLabel" Text="Loading..."/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Data Summary Section -->
+            <Border 
+                StrokeShape="RoundRectangle 12" 
+                Padding="15"
+                BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                StrokeThickness="1">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Data Summary" FontSize="18" FontAttributes="Bold"/>
+                    
+                    <Grid ColumnDefinitions="Auto,*" RowSpacing="8" ColumnSpacing="10">
+                        <Label Grid.Row="0" Grid.Column="0" Text="Seasons:" FontAttributes="Bold"/>
+                        <Label Grid.Row="0" Grid.Column="1" x:Name="SeasonsCountLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="1" Grid.Column="0" Text="Divisions:" FontAttributes="Bold"/>
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="DivisionsCountLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="2" Grid.Column="0" Text="Teams:" FontAttributes="Bold"/>
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="TeamsCountLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="3" Grid.Column="0" Text="Players:" FontAttributes="Bold"/>
+                        <Label Grid.Row="3" Grid.Column="1" x:Name="PlayersCountLabel" Text="Loading..."/>
+                        
+                        <Label Grid.Row="4" Grid.Column="0" Text="Fixtures:" FontAttributes="Bold"/>
+                        <Label Grid.Row="4" Grid.Column="1" x:Name="FixturesCountLabel" Text="Loading..."/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Test Actions Section -->
+            <Border 
+                StrokeShape="RoundRectangle 12" 
+                Padding="15"
+                BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                StrokeThickness="1">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Test Actions" FontSize="18" FontAttributes="Bold"/>
+                    
+                    <Button 
+                        Text="Refresh Data" 
+                        Clicked="OnRefreshClicked"
+                        BackgroundColor="{StaticResource Primary}"/>
+                    
+                    <Button 
+                        Text="Copy DB Path to Clipboard" 
+                        Clicked="OnCopyDbPathClicked"
+                        BackgroundColor="{StaticResource Secondary}"/>
+                    
+                    <Label x:Name="StatusLabel" 
+                           Text="" 
+                           FontSize="12" 
+                           TextColor="{StaticResource Primary}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Timestamp Section -->
+            <Label 
+                x:Name="TimestampLabel" 
+                Text="" 
+                FontSize="12" 
+                HorizontalOptions="Center"
+                TextColor="{StaticResource Gray600}"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
