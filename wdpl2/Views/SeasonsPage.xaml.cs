@@ -331,7 +331,7 @@ namespace Wdpl2.Views
                     divisionsFixed++;
                 }
 
-                // Fix Venues
+                // Fix Venues (NEW!)
                 foreach (var venue in League.Venues.Where(v => !v.SeasonId.HasValue))
                 {
                     venue.SeasonId = _selected.Id;

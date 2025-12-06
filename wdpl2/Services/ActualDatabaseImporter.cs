@@ -17,6 +17,8 @@ namespace Wdpl2.Services
         private readonly string _connectionString;
         private readonly Dictionary<int, Guid> _divisionMap = new();
         private readonly Dictionary<int, Guid> _venueMap = new();
+        private readonly Dictionary<int, (Guid venueId, string? tableLabel)> _venueTableMap = new();
+        private Dictionary<string, (Guid venueId, string? tableLabel)> _venueNameMap = new(); // NEW: Map venue names to venue+table
         private readonly Dictionary<int, Guid> _teamMap = new();
         private readonly Dictionary<int, Guid> _playerMap = new();
         private Guid _seasonId = Guid.NewGuid();
@@ -140,41 +142,17 @@ namespace Wdpl2.Services
         {
             try
             {
-                // Extract unique venues from tblTeams
-                using var cmd = new OleDbCommand("SELECT DISTINCT VenueID, VenueName, VenueNo, ContactNo FROM tblTeams WHERE VenueName IS NOT NULL", conn);
-                using var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    var venueId = reader["VenueID"] != DBNull.Value ? Convert.ToInt32(reader["VenueID"]) : 0;
-                    if (venueId == 0) continue;
-
-                    var venueName = reader["VenueName"]?.ToString() ?? "Unknown Venue";
-                    var address = reader["VenueNo"]?.ToString();
-                    var notes = reader["ContactNo"]?.ToString();
-
-                    if (!_venueMap.ContainsKey(venueId))
-                    {
-                        var venue = new Venue
-                        {
-                            Id = Guid.NewGuid(),
-                            SeasonId = _seasonId,  // ADD THIS
-                            Name = venueName,
-                            Address = address,
-                            Notes = notes
-                        };
-
-                        data.Venues.Add(venue);
-                        _venueMap[venueId] = venue.Id;
-                        summary.VenuesImported++;
-                    }
-                }
-
-                summary.Errors.Add($"✓ Imported {summary.VenuesImported} venues");
+                summary.Errors.Add("=== VENUE IMPORT SKIPPED ===");
+                summary.Errors.Add("Venues will be extracted from team data instead.");
+                summary.Errors.Add("After import, use 'Fix Missing Season IDs' to assign venues to the season.");
+                summary.VenuesImported = 0;
+                
+                // Initialize empty mapping so team import doesn't fail
+                _venueNameMap = new Dictionary<string, (Guid venueId, string? tableLabel)>();
             }
             catch (Exception ex)
             {
-                summary.Errors.Add($"❌ Venue error: {ex.Message}");
+                summary.Errors.Add($"❌ Venue import error: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -185,24 +163,128 @@ namespace Wdpl2.Services
                 using var cmd = new OleDbCommand("SELECT * FROM tblTeams WHERE Withdrawn = False OR Withdrawn IS NULL", conn);
                 using var reader = cmd.ExecuteReader();
 
+                // Track venues we create on the fly
+                var venuesByName = new Dictionary<string, Venue>();
+
                 while (reader.Read())
                 {
                     var teamId = Convert.ToInt32(reader["TeamID"]);
                     var teamName = reader["TeamName"]?.ToString() ?? "Unknown Team";
                     var divisionId = reader["Division"] != DBNull.Value ? Convert.ToInt32(reader["Division"]) : 0;
-                    var venueId = reader["VenueID"] != DBNull.Value ? Convert.ToInt32(reader["VenueID"]) : 0;
+                    
+                    // Try to get venue name - use safe conversion
+                    string? fullVenueName = null;
+                    try
+                    {
+                        var venueNameObj = reader["VenueName"];
+                        if (venueNameObj != null && venueNameObj != DBNull.Value)
+                        {
+                            fullVenueName = Convert.ToString(venueNameObj)?.Trim();
+                        }
+                    }
+                    catch
+                    {
+                        // If we can't read VenueName, just skip venue assignment
+                        fullVenueName = null;
+                    }
+                    
                     var captain = reader["CaptainName"]?.ToString();
                     var contact = reader["ContactNo"]?.ToString();
+
+                    // Create venue on the fly if needed
+                    Guid? assignedVenueId = null;
+                    Guid? assignedTableId = null;
+                    
+                    if (!string.IsNullOrEmpty(fullVenueName))
+                    {
+                        // Parse venue name to extract base and table
+                        string baseName;
+                        string? tableLabel = null;
+                        
+                        var parts = fullVenueName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        
+                        if (parts.Length > 1)
+                        {
+                            var lastPart = parts.Last().ToUpper();
+                            
+                            if (lastPart.StartsWith("TB") || lastPart == "BAR" || lastPart.Length <= 3)
+                            {
+                                baseName = string.Join(" ", parts.Take(parts.Length - 1));
+                                tableLabel = lastPart;
+                            }
+                            else
+                            {
+                                baseName = fullVenueName;
+                            }
+                        }
+                        else
+                        {
+                            baseName = fullVenueName;
+                        }
+
+                        // Get or create venue
+                        if (!venuesByName.ContainsKey(baseName))
+                        {
+                            var newVenue = new Venue
+                            {
+                                Id = Guid.NewGuid(),
+                                SeasonId = _seasonId,
+                                Name = baseName,
+                                Address = null,
+                                Notes = "[IMPORTED FROM TEAM DATA]",
+                                Tables = new List<VenueTable>()
+                            };
+                            
+                            venuesByName[baseName] = newVenue;
+                            data.Venues.Add(newVenue);
+                        }
+                        
+                        var targetVenue = venuesByName[baseName];
+                        assignedVenueId = targetVenue.Id;
+                        
+                        // Add table if needed
+                        if (tableLabel != null)
+                        {
+                            var table = targetVenue.Tables.FirstOrDefault(t => t.Label == tableLabel);
+                            if (table == null)
+                            {
+                                table = new VenueTable
+                                {
+                                    Id = Guid.NewGuid(),
+                                    Label = tableLabel,
+                                    MaxTeams = 2
+                                };
+                                targetVenue.Tables.Add(table);
+                            }
+                            assignedTableId = table.Id;
+                        }
+                        else
+                        {
+                            // Single table venue
+                            if (!targetVenue.Tables.Any())
+                            {
+                                var table = new VenueTable
+                                {
+                                    Id = Guid.NewGuid(),
+                                    Label = "Main",
+                                    MaxTeams = 2
+                                };
+                                targetVenue.Tables.Add(table);
+                            }
+                            assignedTableId = targetVenue.Tables.First().Id;
+                        }
+                    }
 
                     var team = new Team
                     {
                         Id = Guid.NewGuid(),
-                        SeasonId = _seasonId,  // ADD THIS (already there)
+                        SeasonId = _seasonId,
                         Name = teamName,
                         DivisionId = _divisionMap.ContainsKey(divisionId) ? _divisionMap[divisionId] : null,
-                        VenueId = _venueMap.ContainsKey(venueId) ? _venueMap[venueId] : null,
+                        VenueId = assignedVenueId,
+                        TableId = assignedTableId,
                         Captain = captain,
-                        Notes = $"[IMPORTED] {contact}", // Mark as imported
+                        Notes = $"[IMPORTED] {contact}",
                         ProvidesFood = false
                     };
 
@@ -211,15 +293,24 @@ namespace Wdpl2.Services
                     summary.TeamsImported++;
                 }
 
+                // Update venues imported count
+                summary.VenuesImported = venuesByName.Count;
+                if (venuesByName.Count > 0)
+                {
+                    summary.Errors.Add($"✓ Created {venuesByName.Count} venues from team data with {data.Venues.Sum(v => v.Tables.Count)} tables");
+                }
+                
                 summary.Errors.Add($"✓ Imported {summary.TeamsImported} teams");
             }
             catch (Exception ex)
             {
                 summary.Errors.Add($"❌ Team error: {ex.Message}");
+                summary.Errors.Add($"   Stack: {ex.StackTrace}");
             }
         }
 
-        private void ImportPlayers(OleDbConnection conn, LeagueData data, ImportSummary summary)
+        private void ImportPlayers(OleDbConnection conn, LeagueData data, ImportSummary summary
+)
         {
             try
             {
