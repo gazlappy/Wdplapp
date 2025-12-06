@@ -1239,20 +1239,65 @@ namespace Wdpl2.Views
                 // Merge teams
                 int teamsAdded = 0, teamsSkipped = 0;
                 System.Diagnostics.Debug.WriteLine("=== MERGING TEAMS ===");
+                
+                // NEW: Build global team ID map for career tracking
+                var globalTeamIdByName = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                
+                // First pass: Map existing teams' global IDs
+                foreach (var existingTeam in DataStore.Data.Teams)
+                {
+                    if (!string.IsNullOrEmpty(existingTeam.Name))
+                    {
+                        if (!existingTeam.GlobalTeamId.HasValue)
+                        {
+                            // Assign new global ID to existing team without one
+                            existingTeam.GlobalTeamId = Guid.NewGuid();
+                        }
+                        
+                        if (!globalTeamIdByName.ContainsKey(existingTeam.Name))
+                        {
+                            globalTeamIdByName[existingTeam.Name] = existingTeam.GlobalTeamId.Value;
+                        }
+                    }
+                }
+                
                 foreach (var team in importedData.Teams)
                 {
-                    var exists = DataStore.Data.Teams.Any(t => t.Name != null && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase));
+                    var existingTeam = DataStore.Data.Teams.FirstOrDefault(t => 
+                        t.Name != null && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase) &&
+                        t.SeasonId != team.SeasonId); // Different season
                     
-                    if (!exists)
+                    if (existingTeam != null)
                     {
+                        // Team exists in another season - assign same GlobalTeamId
+                        if (!existingTeam.GlobalTeamId.HasValue)
+                        {
+                            existingTeam.GlobalTeamId = Guid.NewGuid();
+                        }
+                        team.GlobalTeamId = existingTeam.GlobalTeamId;
                         DataStore.Data.Teams.Add(team);
                         teamsAdded++;
-                        System.Diagnostics.Debug.WriteLine($"  ? Added: {team.Name} (SeasonId: {team.SeasonId}, DivisionId: {team.DivisionId})");
+                        System.Diagnostics.Debug.WriteLine($"  ?? Added (linked to existing): {team.Name} (SeasonId: {team.SeasonId}, GlobalTeamId: {team.GlobalTeamId})");
                     }
                     else
                     {
-                        teamsSkipped++;
-                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {team.Name}");
+                        // Check if we've seen this team name in this import batch
+                        if (globalTeamIdByName.TryGetValue(team.Name ?? "", out var globalId))
+                        {
+                            team.GlobalTeamId = globalId;
+                        }
+                        else
+                        {
+                            team.GlobalTeamId = Guid.NewGuid();
+                            if (!string.IsNullOrEmpty(team.Name))
+                            {
+                                globalTeamIdByName[team.Name] = team.GlobalTeamId.Value;
+                            }
+                        }
+                        
+                        DataStore.Data.Teams.Add(team);
+                        teamsAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added (new): {team.Name} (SeasonId: {team.SeasonId}, GlobalTeamId: {team.GlobalTeamId})");
                     }
                 }
                 System.Diagnostics.Debug.WriteLine($"Teams: {teamsAdded} added, {teamsSkipped} skipped");
@@ -1261,21 +1306,68 @@ namespace Wdpl2.Views
                 // Merge players
                 int playersAdded = 0, playersSkipped = 0;
                 System.Diagnostics.Debug.WriteLine("=== MERGING PLAYERS ===");
+                
+                // NEW: Build global player ID map for career tracking
+                var globalPlayerIdByName = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                
+                // First pass: Map existing players' global IDs
+                foreach (var existingPlayer in DataStore.Data.Players)
+                {
+                    var fullName = existingPlayer.FullName;
+                    if (!string.IsNullOrEmpty(fullName))
+                    {
+                        if (!existingPlayer.GlobalPlayerId.HasValue)
+                        {
+                            // Assign new global ID to existing player without one
+                            existingPlayer.GlobalPlayerId = Guid.NewGuid();
+                        }
+                        
+                        if (!globalPlayerIdByName.ContainsKey(fullName))
+                        {
+                            globalPlayerIdByName[fullName] = existingPlayer.GlobalPlayerId.Value;
+                        }
+                    }
+                }
+                
                 foreach (var player in importedData.Players)
                 {
                     var fullName = player.FullName;
-                    var exists = DataStore.Data.Players.Any(p => p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase));
                     
-                    if (!exists)
+                    var existingPlayer = DataStore.Data.Players.FirstOrDefault(p => 
+                        p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase) &&
+                        p.SeasonId != player.SeasonId); // Different season
+                    
+                    if (existingPlayer != null)
                     {
+                        // Player exists in another season - assign same GlobalPlayerId
+                        if (!existingPlayer.GlobalPlayerId.HasValue)
+                        {
+                            existingPlayer.GlobalPlayerId = Guid.NewGuid();
+                        }
+                        player.GlobalPlayerId = existingPlayer.GlobalPlayerId;
                         DataStore.Data.Players.Add(player);
                         playersAdded++;
-                        System.Diagnostics.Debug.WriteLine($"  ? Added: {fullName} (SeasonId: {player.SeasonId}, TeamId: {player.TeamId})");
+                        System.Diagnostics.Debug.WriteLine($"  ?? Added (linked to existing): {fullName} (SeasonId: {player.SeasonId}, GlobalPlayerId: {player.GlobalPlayerId})");
                     }
                     else
                     {
-                        playersSkipped++;
-                        System.Diagnostics.Debug.WriteLine($"  ? Skipped (duplicate name): {fullName}");
+                        // Check if we've seen this player name in this import batch
+                        if (globalPlayerIdByName.TryGetValue(fullName, out var globalId))
+                        {
+                            player.GlobalPlayerId = globalId;
+                        }
+                        else
+                        {
+                            player.GlobalPlayerId = Guid.NewGuid();
+                            if (!string.IsNullOrEmpty(fullName))
+                            {
+                                globalPlayerIdByName[fullName] = player.GlobalPlayerId.Value;
+                            }
+                        }
+                        
+                        DataStore.Data.Players.Add(player);
+                        playersAdded++;
+                        System.Diagnostics.Debug.WriteLine($"  ? Added (new): {fullName} (SeasonId: {player.SeasonId}, GlobalPlayerId: {player.GlobalPlayerId})");
                     }
                 }
                 System.Diagnostics.Debug.WriteLine($"Players: {playersAdded} added, {playersSkipped} skipped");

@@ -38,6 +38,10 @@
             <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
         </Tab>
 
+        <Tab Title="Career Stats" Icon="stats.png">
+            <ShellContent Title="Career Stats" ContentTemplate="{DataTemplate views:CareerStatsPage}" />
+        </Tab>
+
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>

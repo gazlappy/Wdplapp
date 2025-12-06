@@ -307,43 +307,32 @@ public partial class LeagueTablesPage : ContentPage
 
     // ========== PLAYER RATINGS ==========
 
-    // ⚠️ IMPORTANT NOTE: VBA Bug Replication & Weight Calculation
+    // ✅ TRUE VBA ALGORITHM - Progressive Weighting (Newest Frame = Highest Weight)
     // ==================================================================
-    // The rating calculation below replicates the exact behavior from the original VBA Access database
-    // to maintain compatibility with historical ratings.
+    // The rating calculation uses VBA-style cumulative weighted rating where:
+    // - The NEWEST frame ALWAYS gets the base weight (RatingWeighting, e.g., 220)
+    // - Each OLDER frame gets decremented by RatingsBias (e.g., -4 per frame)
+    // - This creates a "sliding window" where recent performance has more influence
     //
-    // VBA CONSTANTS (from modGeneral):
-    //   RATINGSTART = 1000
-    //   Rating = 157 (base weighting constant)
-  //   RatingBias = 4 (weight decrement per frame)
-  //   RATINGWIN = 1.25
-  //   RATINGLOSE = 0.75
-    //   RATING8BALL = 1.35
+    // EXAMPLE (Gary Deville with 11 frames, RatingWeighting=220, RatingsBias=4):
+    //   Frame 11 (newest, 27/11/2025):  Weight = 220  ← Always base weight
+    //   Frame 10 (27/11/2025):          Weight = 216  ← Base - (4×1)
+    //   Frame 9  (27/11/2025):          Weight = 212  ← Base - (4×2)
+    //   Frame 8  (20/11/2025):          Weight = 208  ← Base - (4×3)
+    //   ...
+    //   Frame 1  (oldest, 16/10/2025):  Weight = 180  ← Base - (4×10)
     //
-  // WEIGHT CALCULATION:
-    //Starting biasX = 157 + (4 × totalFrames)
-    //   For each frame: biasX decreases by 4
-    //   Example for 24 frames:
-    //     Frame 1: weight = 157 + (4 × 24) = 253 → uses 249 in calculation (bug)
-    //     Frame 2: weight = 249 → uses 245
-    //     Frame 24: weight = 161 → uses 157
-//
-    // THE BUG: In VBA (NewRatingsCalc line ~93), biasX is decremented AFTER WeightingTot
-    // but BEFORE ValueTot, causing each frame to use the NEXT (lower) weight:
+    // KEY INSIGHT: When a NEW frame arrives, ALL previous frames' weights
+    // effectively "shift down" as they become one frame older.
     //
-    // VBA Code (with bug):
-    //   WeightingTot = WeightingTot + BiasX     ' Uses current weight
-  //   BiasX = BiasX - RatingBias     ' Decrements weight
-  //ValueTot = ValueTot + (RatingAttn * BiasX)  ' ❌ Uses NEXT weight (BUG!)
+    // FORMULA:
+    //   Rating = Σ(OpponentRating × Factor × Weight) / Σ(Weight)
+    //   Where Weight = RatingWeighting - (RatingsBias × FramesAgo)
     //
-    // CORRECT Logic would be:
-    //   weightingTot += biasX;
-    //   valueTot += ratingAttn * biasX;  // Use CURRENT weight
-    // biasX -= Settings.RatingsBias;   // Decrement AFTER
-    //
-    // TO RESTORE CORRECT CALCULATION:
-    // In CalculateVBAStyleRating method, swap the last two lines to use current weight.
-    // This will change all ratings but make them mathematically correct.
+    // FACTORS:
+    //   Win:    OpponentRating × WinFactor (1.25)
+    //   Loss:   OpponentRating × LossFactor (0.75)
+    //   8-Ball: OpponentRating × EightBallFactor (1.35)
     // ==================================================================
 
     private void RenderPlayerRatingsHeader()
@@ -557,53 +546,63 @@ Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
 
     private int CalculateVBAStyleRating(List<PlayerFrameHistory> frames)
     {
-        // ⚠️ VBA BUG REPLICATION - Exact replication of NewRatingsCalc() from VBA Access
-        // VBA Code:
-        //   BiasX = RatingWeighting - (RatingBias * (RecordCount - 1))
-        //   WeightingTot = WeightingTot + BiasX
-        //   BiasX = BiasX + RatingBias   ' ← Increments BEFORE using in ValueTot
-      //   ValueTot = ValueTot + (CLng(RatingAttn) * BiasX)  ' ← Uses INCREMENTED value + CLng!
+        // ✅ CORRECTED VBA ALGORITHM - "Newest frame always starts at base weight"
+        // ==================================================================
+        // TRUE VBA BEHAVIOR (as shown in Gary Deville's results):
+        // - Most recent frame (newest) ALWAYS gets RatingWeighting (e.g., 220)
+        // - Each older frame gets decremented by RatingsBias (e.g., -4 per frame)
+        //
+        // Example for 11 frames with RatingWeighting=220, RatingsBias=4:
+        //   Frame 11 (newest):  220
+        //   Frame 10:           216 (220 - 4)
+        //   Frame 9:            212 (220 - 8)
+        //   Frame 8:            208 (220 - 12)
+        //   ...
+        //   Frame 1 (oldest):   180 (220 - 40)
+        //
+        // This means EVERY TIME a new frame is added, ALL previous frames'
+        // weights get "shifted down" as they become older.
+        // ==================================================================
    
         if (frames == null || frames.Count == 0)
             return Settings.RatingStartValue;
 
-     long valueTot = 0;    // Use long to match VBA's Long type
+        long valueTot = 0;    // Use long to match VBA's Long type
         long weightingTot = 0;
+        int totalFrames = frames.Count;
 
-        // VBA Formula: BiasX = RatingWeighting - (RatingBias * (RecordCount - 1))
-        // For 24 frames: BiasX = 240 - (4 * 23) = 148 (starts LOW, then increments)
-        int biasX = Settings.RatingWeighting - (Settings.RatingsBias * (frames.Count - 1));
-        if (biasX < 1) biasX = 1;
-
-        foreach (var frame in frames.OrderBy(f => f.FrameNumber))
+        // Process frames in chronological order (oldest to newest)
+        for (int i = 0; i < totalFrames; i++)
         {
-       double ratingAttn;
+            var frame = frames[i];
+            
+            // Calculate weight based on "how many frames ago" this was played
+            // Most recent frame (i = totalFrames-1) gets full weight
+            // Each older frame gets decremented by RatingsBias
+            int framesAgo = totalFrames - 1 - i;  // How many frames since this one
+            int weight = Settings.RatingWeighting - (Settings.RatingsBias * framesAgo);
+            
+            if (weight < 1) weight = 1;  // Minimum weight of 1
 
+            double ratingAttn;
             if (frame.Won)
-     {
-  if (frame.EightBall && Settings.UseEightBallFactor)
-                {
-        ratingAttn = frame.OpponentRating * Settings.EightBallFactor;
-          }
-           else
-        {
-    ratingAttn = frame.OpponentRating * Settings.WinFactor;
-                }
-}
-        else
-        {
-    ratingAttn = frame.OpponentRating * Settings.LossFactor;
-          }
+            {
+                if (frame.EightBall && Settings.UseEightBallFactor)
+                    ratingAttn = frame.OpponentRating * Settings.EightBallFactor;
+                else
+                    ratingAttn = frame.OpponentRating * Settings.WinFactor;
+            }
+            else
+            {
+                ratingAttn = frame.OpponentRating * Settings.LossFactor;
+            }
 
-     // EXACT VBA BUG REPLICATION:
-         // VBA: ValueTot = ValueTot + (CLng(RatingAttn) * BiasX)
-        // CLng rounds to nearest integer BEFORE multiplying
-            long ratingAttnLong = (long)Math.Round(ratingAttn);  // VBA's CLng behavior
+            // VBA's CLng behavior: round to nearest integer BEFORE multiplying
+            long ratingAttnLong = (long)Math.Round(ratingAttn);
     
-            weightingTot += biasX;   // Add current weight to total
-      biasX += Settings.RatingsBias;// Increment BEFORE using in valueTot (THE BUG!)
-    valueTot += ratingAttnLong * biasX; // Use INCREMENTED weight with rounded rating
-}
+            weightingTot += weight;
+            valueTot += ratingAttnLong * weight;
+        }
 
         return weightingTot > 0 ? (int)Math.Round((double)valueTot / weightingTot) : Settings.RatingStartValue;
     }

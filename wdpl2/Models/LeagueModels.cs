@@ -91,6 +91,9 @@ namespace Wdpl2.Models
         /// <summary>Link to the season this team belongs to.</summary>
         public Guid? SeasonId { get; set; }
         
+        /// <summary>Global team identity - links same team across multiple seasons for career tracking.</summary>
+        public Guid? GlobalTeamId { get; set; }
+        
         public string? Name { get; set; }
 
         /// <summary>Division this team plays in.</summary>
@@ -124,6 +127,9 @@ namespace Wdpl2.Models
         
         /// <summary>Link to the season this player belongs to.</summary>
         public Guid? SeasonId { get; set; }
+
+        /// <summary>Global player identity - links same person across multiple seasons for career tracking.</summary>
+        public Guid? GlobalPlayerId { get; set; }
 
         // Maintain both single Name and split First/Last for compatibility
         private string _name = string.Empty;

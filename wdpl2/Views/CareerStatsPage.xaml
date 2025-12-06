@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.CareerStatsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Career Statistics">
+
+    <Grid ColumnDefinitions="*,2*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+        
+        <!-- Header -->
+        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
+            <Button 
+                x:Name="BurgerMenuBtn"
+                Text="?"
+                FontSize="24"
+                WidthRequest="50"
+                HeightRequest="50"
+                Padding="0"
+                Margin="0,0,12,0"
+                BackgroundColor="{StaticResource PrimaryColor}"
+                TextColor="White" />
+            
+            <Label 
+                Grid.Column="1"
+                Text="Career Statistics - All Seasons" 
+                Style="{StaticResource PageTitleStyle}"
+                VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Flyout Menu Overlay -->
+        <Border 
+            x:Name="FlyoutOverlay"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            IsVisible="False"
+            BackgroundColor="#80000000"
+            ZIndex="100">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer x:Name="OverlayTap" />
+            </Border.GestureRecognizers>
+        </Border>
+
+        <!-- Flyout Menu Panel -->
+        <Border 
+            x:Name="FlyoutPanel"
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            HorizontalOptions="Start"
+            WidthRequest="400"
+            IsVisible="False"
+            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 0,12,12,0"
+            Padding="{StaticResource LargePadding}"
+            ZIndex="101">
+            <ScrollView>
+                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                    
+                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
+                        <Label Text="Filters" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
+                        <Button 
+                            x:Name="CloseFlyoutBtn"
+                            Text="?"
+                            FontSize="18"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
+                            HorizontalOptions="EndAndExpand"
+                            Style="{StaticResource DangerButtonStyle}"
+                            CornerRadius="20" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Search Players" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
+                        <Entry x:Name="SearchEntry" Placeholder="Search by name..." />
+                    </VerticalStackLayout>
+
+                    <Label Text="Statistics Info" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+                    
+                    <Border 
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#F0F9FF, Dark=#1E3A8A}"
+                        Stroke="{StaticResource InfoColor}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8">
+                        <Label 
+                            Style="{StaticResource BodyTextStyle}"
+                            FontSize="12">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="Career Stats" FontAttributes="Bold" />
+                                    <Span Text="&#10;&#10;" />
+                                    <Span Text="Shows combined statistics across all seasons" />
+                                    <Span Text="&#10;" />
+                                    <Span Text="Players linked by name (GlobalPlayerId)" />
+                                    <Span Text="&#10;" />
+                                    <Span Text="Click a player to see season-by-season breakdown" />
+                                    <Span Text="&#10;" />
+                                    <Span Text="Win % = Frames Won / Frames Played" />
+                                    <Span Text="&#10;&#10;" />
+                                    <Span Text="8-Ball tracking included" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </Border>
+                    
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- LEFT: Players List -->
+        <Border 
+            Grid.Row="1"
+            Grid.Column="0"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
+                <Label Text="Players" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
+                
+                <CollectionView
+                    x:Name="PlayersList"
+                    Grid.Row="1"
+                    SelectionMode="Single"
+                    VerticalScrollBarVisibility="Always">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border
+                                Padding="{StaticResource StandardPadding}"
+                                Margin="0,0,0,4"
+                                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 8">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                                    
+                                    <!-- Player Name -->
+                                    <Label 
+                                        Grid.ColumnSpan="2"
+                                        FontAttributes="Bold"
+                                        FontSize="14"
+                                        Text="{Binding PlayerName}" />
+                                    
+                                    <!-- Career Span -->
+                                    <Label 
+                                        Grid.Row="1"
+                                        Style="{StaticResource CaptionStyle}"
+                                        Text="{Binding CareerSpan}" />
+                                    
+                                    <!-- Seasons Played -->
+                                    <Label 
+                                        Grid.Row="1"
+                                        Grid.Column="1"
+                                        Style="{StaticResource CaptionStyle}"
+                                        Text="{Binding SeasonsPlayed, StringFormat='{0} seasons'}"
+                                        HorizontalTextAlignment="End" />
+                                    
+                                    <!-- Win-Loss Record -->
+                                    <Label 
+                                        Grid.Row="2"
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        TextColor="{StaticResource SuccessColor}"
+                                        Text="{Binding WinLossRecord}" />
+                                    
+                                    <!-- Win Percentage -->
+                                    <Label 
+                                        Grid.Row="2"
+                                        Grid.Column="1"
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        TextColor="{StaticResource InfoColor}"
+                                        Text="{Binding CareerWinPercentage, StringFormat='{0:F1}%'}"
+                                        HorizontalTextAlignment="End" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout 
+                            Spacing="{StaticResource MediumSpacing}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center"
+                            Padding="20">
+                            <Label 
+                                Text="[Stats]"
+                                FontSize="48"
+                                HorizontalTextAlignment="Center" />
+                            <Label 
+                                Text="No career statistics available"
+                                Style="{StaticResource CaptionStyle}"
+                                HorizontalTextAlignment="Center" />
+                            <Label 
+                                Text="Import historic data to see player careers"
+                                Style="{StaticResource CaptionStyle}"
+                                FontSize="12"
+                                HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
+
+                <!-- Status -->
+                <Label 
+                    x:Name="StatusLabel"
+                    Grid.Row="2"
+                    Style="{StaticResource CaptionStyle}"
+                    Text="Loading..." />
+            </Grid>
+        </Border>
+
+        <!-- RIGHT: Season Breakdown -->
+        <Border 
+            Grid.Row="1" 
+            Grid.Column="1"
+            StrokeShape="RoundRectangle 12" 
+            Padding="{StaticResource MediumPadding}"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            StrokeThickness="1">
+            <ScrollView>
+                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
+                    
+                    <!-- Empty State -->
+                    <VerticalStackLayout 
+                        x:Name="EmptyStatePanel"
+                        Spacing="{StaticResource MediumSpacing}"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Padding="40"
+                        IsVisible="True">
+                        <Label 
+                            Text="[Trophy]"
+                            FontSize="64"
+                            HorizontalTextAlignment="Center" />
+                        <Label 
+                            Text="Select a player"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            HorizontalTextAlignment="Center" />
+                        <Label 
+                            Text="View career statistics and season-by-season performance"
+                            Style="{StaticResource CaptionStyle}"
+                            HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+
+                    <!-- Player Details -->
+                    <VerticalStackLayout 
+                        x:Name="DetailsPanel"
+                        Spacing="{StaticResource MediumSpacing}"
+                        IsVisible="False">
+                        
+                        <!-- Player Header -->
+                        <Label 
+                            x:Name="PlayerNameLabel"
+                            Text=""
+                            FontSize="24"
+                            FontAttributes="Bold" />
+
+                        <!-- Career Summary Cards -->
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" RowSpacing="8">
+                            
+                            <!-- Total Frames -->
+                            <Border Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="Total Frames" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="TotalFramesLabel" Text="" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Win Percentage -->
+                            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="Win %" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="WinPercentageLabel" Text="" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- 8-Balls -->
+                            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="8-Balls" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="EightBallsLabel" Text="" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource WarningColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Seasons Played -->
+                            <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="Seasons" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="SeasonsLabel" Text="" FontSize="20" FontAttributes="Bold" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Frames Won -->
+                            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="Frames Won" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="FramesWonLabel" Text="" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Frames Lost -->
+                            <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                                <VerticalStackLayout Padding="12" Spacing="4">
+                                    <Label Text="Frames Lost" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                                    <Label x:Name="FramesLostLabel" Text="" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource DangerColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <!-- Season Breakdown -->
+                        <Label 
+                            Text="Season-by-Season Performance"
+                            Style="{StaticResource SectionHeaderStyle}"
+                            FontSize="18"
+                            Margin="0,16,0,8" />
+
+                        <CollectionView
+                            x:Name="SeasonBreakdownList"
+                            HeightRequest="400">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+                                        <Grid Padding="12" ColumnDefinitions="*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                                            
+                                            <!-- Season Name -->
+                                            <Label 
+                                                FontAttributes="Bold"
+                                                FontSize="14"
+                                                Text="{Binding SeasonName}" />
+                                            
+                                            <!-- Win-Loss -->
+                                            <Label 
+                                                Grid.Column="1"
+                                                FontSize="12"
+                                                TextColor="{StaticResource SuccessColor}"
+                                                Text="{Binding WinLossRecord}" />
+                                            
+                                            <!-- Win % -->
+                                            <Label 
+                                                Grid.Column="2"
+                                                FontAttributes="Bold"
+                                                FontSize="12"
+                                                TextColor="{StaticResource InfoColor}"
+                                                Text="{Binding WinPercentage, StringFormat='{0:F1}%'}" />
+                                            
+                                            <!-- 8-Balls -->
+                                            <Label 
+                                                Grid.Column="3"
+                                                FontSize="12"
+                                                TextColor="{StaticResource WarningColor}"
+                                                Text="{Binding EightBalls, StringFormat='8-Ball: {0}'}" />
+                                            
+                                            <!-- Frames Played -->
+                                            <Label 
+                                                Grid.Row="1"
+                                                Grid.ColumnSpan="4"
+                                                Style="{StaticResource CaptionStyle}"
+                                                FontSize="11"
+                                                Text="{Binding FramesPlayed, StringFormat='{0} frames played'}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+    </Grid>
+</ContentPage>

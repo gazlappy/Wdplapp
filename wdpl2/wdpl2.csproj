@@ -47,6 +47,9 @@
 	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\CareerStatsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\CompetitionsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

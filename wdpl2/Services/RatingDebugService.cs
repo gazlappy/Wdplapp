@@ -76,8 +76,7 @@ public DateTime MatchDate { get; set; }
         // Now calculate with debug for target player
         double valueTot = 0;
     double weightingTot = 0;
-        int biasX = settings.RatingWeighting - (settings.RatingsBias * (playerFrames.Count - 1));
-    if (biasX < 1) biasX = 1;
+        int totalFrames = playerFrames.Count;
 
  int frameNum = 0;
         foreach (var (date, oppId, won, eightBall) in playerFrames)
@@ -98,7 +97,11 @@ ratingAttn = oppRating * settings.WinFactor;
      ratingAttn = oppRating * settings.LossFactor;
      }
 
-       // Current implementation (mathematically correct)
+       // Calculate weight: newest frame gets base, older frames decrement
+            int framesAgo = totalFrames - frameNum;
+            int biasX = settings.RatingWeighting - (settings.RatingsBias * framesAgo);
+            if (biasX < 1) biasX = 1;
+
             weightingTot += biasX;
           valueTot += ratingAttn * biasX;
             int currentRating = (int)Math.Round(valueTot / weightingTot);
@@ -141,11 +144,18 @@ ratingAttn = oppRating * settings.WinFactor;
 
         double valueTot = 0;
         double weightingTot = 0;
-      int biasX = settings.RatingWeighting - (settings.RatingsBias * (frames.Count - 1));
-        if (biasX < 1) biasX = 1;
+        int totalFrames = frames.Count;
 
-        foreach (var (date, oppId, oppRating, won, eightBall) in frames)
+        // Process frames in chronological order (oldest to newest)
+        for (int i = 0; i < totalFrames; i++)
         {
+            var (date, oppId, oppRating, won, eightBall) = frames[i];
+            
+            // Calculate weight: newest frame gets base weight, older frames decrement
+            int framesAgo = totalFrames - 1 - i;
+            int biasX = settings.RatingWeighting - (settings.RatingsBias * framesAgo);
+            if (biasX < 1) biasX = 1;
+
             double ratingAttn;
             if (won)
           {
@@ -161,7 +171,6 @@ ratingAttn = oppRating * settings.EightBallFactor;
 
     weightingTot += biasX;
             valueTot += ratingAttn * biasX;
-            biasX += settings.RatingsBias;
     }
 
  return (int)Math.Round(valueTot / weightingTot);
