@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.AchievementsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Achievements">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <!-- Header -->
+            <Label 
+                Text="Player Achievements" 
+                Style="{StaticResource PageTitleStyle}" />
+
+            <!-- Player Selection -->
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Select Player" FontAttributes="Bold" />
+                    <Picker x:Name="PlayerPicker" Title="Choose a player" SelectedIndexChanged="OnPlayerSelected" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Achievement Summary -->
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label x:Name="BronzeCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="Bronze" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label x:Name="SilverCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="Silver" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label x:Name="GoldCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="Gold" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="3" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label x:Name="PlatinumCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="Platinum" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Achievements List -->
+            <Label Text="All Achievements" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="AchievementsList">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8" Opacity="{Binding Opacity}">
+                            <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+                                <!-- Icon -->
+                                <Label 
+                                    Grid.RowSpan="3"
+                                    Text="{Binding Icon}"
+                                    FontSize="36"
+                                    VerticalOptions="Center" />
+
+                                <!-- Name and Description -->
+                                <Label 
+                                    Grid.Column="1"
+                                    Text="{Binding Name}"
+                                    FontAttributes="Bold"
+                                    FontSize="16" />
+                                
+                                <Label 
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Text="{Binding Description}"
+                                    Style="{StaticResource CaptionStyle}" />
+
+                                <!-- Progress Bar -->
+                                <ProgressBar 
+                                    Grid.Row="2"
+                                    Grid.Column="1"
+                                    Progress="{Binding ProgressPercent}"
+                                    ProgressColor="{Binding TierColor}"
+                                    IsVisible="{Binding ShowProgress}" />
+
+                                <!-- Status -->
+                                <VerticalStackLayout 
+                                    Grid.Column="2"
+                                    Grid.RowSpan="3"
+                                    VerticalOptions="Center"
+                                    Spacing="4">
+                                    <Label 
+                                        Text="{Binding StatusText}"
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        HorizontalTextAlignment="End" />
+                                    <Label 
+                                        Text="{Binding TierName}"
+                                        Style="{StaticResource CaptionStyle}"
+                                        HorizontalTextAlignment="End"
+                                        TextColor="{Binding TierColor}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Status -->
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

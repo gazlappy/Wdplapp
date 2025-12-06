@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.PlayerProfilePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Player Profile">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <!-- Player Header -->
+            <Border Style="{StaticResource CardBorderStyle}" Padding="16">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12">
+                    <Label 
+                        Grid.RowSpan="3"
+                        Text="[Player]"
+                        FontSize="48"
+                        VerticalOptions="Center" />
+                    
+                    <Label 
+                        Grid.Column="1"
+                        x:Name="PlayerNameLabel"
+                        Text="Player Name"
+                        FontSize="24"
+                        FontAttributes="Bold" />
+                    
+                    <Label 
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        x:Name="CareerSpanLabel"
+                        Text="Career: 2020-2025"
+                        Style="{StaticResource SubheaderTextStyle}" />
+                    
+                    <Label 
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        x:Name="CurrentTeamLabel"
+                        Text="Team: Unknown"
+                        Style="{StaticResource CaptionStyle}" />
+                </Grid>
+            </Border>
+
+            <!-- Career Summary Cards -->
+            <Label Text="Career Summary" Style="{StaticResource SectionHeaderStyle}" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Total Frames" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="TotalFramesLabel" Text="0" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Win Rate" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="WinRateLabel" Text="0.0%" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Current Rating" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="RatingLabel" Text="1000" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource InfoColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="8-Balls" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="EightBallsLabel" Text="0" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource WarningColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource CardBorderStyle}">
+                    <HorizontalStackLayout Padding="12" Spacing="16" HorizontalOptions="Center">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Wins" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                            <Label x:Name="WinsLabel" Text="0" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                        <BoxView WidthRequest="1" Color="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Losses" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                            <Label x:Name="LossesLabel" Text="0" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource DangerColor}" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                        <BoxView WidthRequest="1" Color="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Seasons" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
+                            <Label x:Name="SeasonsLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Season History -->
+            <Label Text="Season History" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="SeasonHistoryList" HeightRequest="250">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+                            <Grid Padding="12" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Text="{Binding SeasonName}" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Rating}" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                
+                                <Label Grid.Row="1" Text="{Binding TeamName}" Style="{StaticResource CaptionStyle}" />
+                                <Label Grid.Row="1" Grid.Column="1" Text="{Binding Record}" Style="{StaticResource CaptionStyle}" />
+                                
+                                <Label Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Stats}" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Head-to-Head Records -->
+            <Label Text="Head-to-Head Records (Top 10)" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="HeadToHeadList" HeightRequest="300">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+                            <Grid Padding="12" ColumnDefinitions="*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding OpponentName}" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Wins}" TextColor="{StaticResource SuccessColor}" FontAttributes="Bold" />
+                                <Label Grid.Column="2" Text="-" Style="{StaticResource CaptionStyle}" />
+                                <Label Grid.Column="3" Text="{Binding Losses}" TextColor="{StaticResource DangerColor}" FontAttributes="Bold" />
+                                
+                                <Label Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding Stats}" Style="{StaticResource CaptionStyle}" FontSize="11" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Performance Stats -->
+            <Label Text="Performance Stats" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto" RowSpacing="4">
+                        <Label Text="Best Season:" />
+                        <Label Grid.Column="1" x:Name="BestSeasonLabel" Text="-" FontAttributes="Bold" />
+                        
+                        <Label Grid.Row="1" Text="Highest Rating:" />
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="HighestRatingLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                        
+                        <Label Grid.Row="2" Text="Most Active Season:" />
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="MostActiveSeasonLabel" Text="-" FontAttributes="Bold" />
+                        
+                        <Label Grid.Row="3" Text="8-Ball Success Rate:" />
+                        <Label Grid.Row="3" Grid.Column="1" x:Name="EightBallRateLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource WarningColor}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Export Button -->
+            <Button 
+                Text="Export Player Profile"
+                Clicked="OnExportProfileClicked"
+                BackgroundColor="{StaticResource InfoColor}"
+                TextColor="White" />
+
+            <!-- Status -->
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -42,6 +42,30 @@
             <ShellContent Title="Career Stats" ContentTemplate="{DataTemplate views:CareerStatsPage}" />
         </Tab>
 
+        <Tab Title="Season Awards" Icon="stats.png">
+            <ShellContent Title="Season Awards" ContentTemplate="{DataTemplate views:SeasonAwardsPage}" />
+        </Tab>
+
+        <Tab Title="Match Day" Icon="calendar.png">
+            <ShellContent Title="Match Day" ContentTemplate="{DataTemplate views:MatchDayDashboardPage}" />
+        </Tab>
+
+        <Tab Title="Frame Stats" Icon="stats.png">
+            <ShellContent Title="Frame Stats" ContentTemplate="{DataTemplate views:FrameStatsPage}" />
+        </Tab>
+
+        <Tab Title="Team Analytics" Icon="stats.png">
+            <ShellContent Title="Team Analytics" ContentTemplate="{DataTemplate views:TeamAnalyticsPage}" />
+        </Tab>
+
+        <Tab Title="What If" Icon="stats.png">
+            <ShellContent Title="What If" ContentTemplate="{DataTemplate views:WhatIfSimulatorPage}" />
+        </Tab>
+
+        <Tab Title="Achievements" Icon="stats.png">
+            <ShellContent Title="Achievements" ContentTemplate="{DataTemplate views:AchievementsPage}" />
+        </Tab>
+
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>

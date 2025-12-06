@@ -27,6 +27,23 @@ public partial class CareerStatsPage : ContentPage
         SearchEntry.TextChanged += (_, __) => RefreshList();
         PlayersList.SelectionChanged += OnPlayerSelected;
 
+        // NEW: Export button
+        var exportBtn = new Button
+        {
+            Text = "?? Export to CSV",
+            BackgroundColor = Color.FromArgb("#10B981"),
+            TextColor = Colors.White,
+            Margin = new Thickness(0, 8)
+        };
+        exportBtn.Clicked += async (_, __) => await ExportCareerStatsToCsvAsync();
+        
+        // Add to flyout panel (find the VerticalStackLayout in flyout)
+        var flyoutContent = (FlyoutPanel.Content as ScrollView)?.Content as VerticalStackLayout;
+        if (flyoutContent != null)
+        {
+            flyoutContent.Children.Insert(flyoutContent.Children.Count, exportBtn);
+        }
+
         RefreshList();
     }
 
@@ -169,24 +186,13 @@ public partial class CareerStatsPage : ContentPage
             return;
         }
 
-        // Show player details
-        EmptyStatePanel.IsVisible = false;
-        DetailsPanel.IsVisible = true;
+        // Navigate to player profile page
+        var profilePage = new PlayerProfilePage();
+        profilePage.LoadPlayer(player.GlobalPlayerId, player.PlayerName);
+        Navigation.PushAsync(profilePage);
 
-        PlayerNameLabel.Text = player.PlayerName;
-        TotalFramesLabel.Text = player.TotalFramesPlayed.ToString();
-        WinPercentageLabel.Text = $"{player.CareerWinPercentage:F1}%";
-        EightBallsLabel.Text = player.TotalEightBalls.ToString();
-        SeasonsLabel.Text = player.SeasonsPlayed.ToString();
-        FramesWonLabel.Text = player.TotalFramesWon.ToString();
-        FramesLostLabel.Text = player.TotalFramesLost.ToString();
-
-        // Load season breakdown
-        _seasonBreakdown.Clear();
-        foreach (var season in player.SeasonBreakdown.OrderByDescending(s => s.SeasonYear))
-            _seasonBreakdown.Add(season);
-
-        StatusLabel.Text = $"{player.PlayerName} - {player.TotalFramesPlayed} frames across {player.SeasonsPlayed} seasons ({player.CareerSpan})";
+        // Clear selection after navigation
+        PlayersList.SelectedItem = null;
     }
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)
@@ -219,5 +225,46 @@ public partial class CareerStatsPage : ContentPage
         FlyoutOverlay.IsVisible = false;
         FlyoutPanel.IsVisible = false;
         _isFlyoutOpen = false;
+    }
+
+    private async System.Threading.Tasks.Task ExportCareerStatsToCsvAsync()
+    {
+        if (_players.Count == 0)
+        {
+            await DisplayAlert("No Data", "No career statistics to export.", "OK");
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== CAREER STATISTICS - ALL SEASONS ===");
+        sb.AppendLine("Player,Career Span,Seasons,Total Frames,Frames Won,Frames Lost,Win %,8-Balls");
+
+        foreach (var player in _players.OrderByDescending(p => p.TotalFramesPlayed))
+        {
+            sb.AppendLine($"\"{player.PlayerName}\",{player.CareerSpan},{player.SeasonsPlayed},{player.TotalFramesPlayed},{player.TotalFramesWon},{player.TotalFramesLost},{player.CareerWinPercentage:F1},{player.TotalEightBalls}");
+            
+            // Add season breakdown
+            if (player.SeasonBreakdown.Any())
+            {
+                sb.AppendLine("  Season Breakdown:");
+                foreach (var season in player.SeasonBreakdown)
+                {
+                    sb.AppendLine($"    {season.SeasonName},{season.FramesPlayed} frames,{season.WinLossRecord},{season.WinPercentage:F1}%,{season.EightBalls} 8-balls");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        var fileName = $"CareerStats_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        var path = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
+        await System.IO.File.WriteAllTextAsync(path, sb.ToString());
+
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Share.RequestAsync(new Microsoft.Maui.ApplicationModel.DataTransfer.ShareFileRequest
+        {
+            Title = "Export Career Statistics",
+            File = new Microsoft.Maui.ApplicationModel.DataTransfer.ShareFile(path, "text/csv")
+        });
+
+        StatusLabel.Text = $"Exported {_players.Count} player career stats";
     }
 }

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.TeamAnalyticsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Team Analytics">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <!-- Header -->
+            <Label 
+                Text="Team Performance Analytics" 
+                Style="{StaticResource PageTitleStyle}" />
+
+            <!-- Team Selection -->
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Select Team" FontAttributes="Bold" />
+                    <Picker x:Name="TeamPicker" Title="Choose a team" SelectedIndexChanged="OnTeamSelected" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Team Summary Cards -->
+            <Label Text="Team Summary" Style="{StaticResource SectionHeaderStyle}" />
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Matches" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="MatchesPlayedLabel" Text="0" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Win Rate" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="TeamWinRateLabel" Text="0.0%" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Points" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="TotalPointsLabel" Text="0" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Home vs Away -->
+            <Label Text="Home vs Away" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Home Record" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                        <Label x:Name="HomeRecordLabel" Text="0-0-0" FontSize="18" />
+                        <Label x:Name="HomeWinRateLabel" Text="0.0% win rate" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Away Record" FontAttributes="Bold" TextColor="{StaticResource InfoColor}" />
+                        <Label x:Name="AwayRecordLabel" Text="0-0-0" FontSize="18" />
+                        <Label x:Name="AwayWinRateLabel" Text="0.0% win rate" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Player Contributions -->
+            <Label Text="Top Contributors" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="PlayerContributionsList" HeightRequest="250">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="*,Auto,Auto">
+                                <Label Text="{Binding PlayerName}" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Record}" Style="{StaticResource CaptionStyle}" />
+                                <Label Grid.Column="2" Text="{Binding Contribution}" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Team vs Opponents -->
+            <Label Text="vs Other Teams" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="OpponentRecordsList" HeightRequest="200">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="*,Auto">
+                                <Label Text="{Binding OpponentName}" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Record}" FontAttributes="Bold" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Team Rating -->
+            <Label Text="Team Strength" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Team Average Rating:" />
+                        <Label Grid.Column="1" x:Name="TeamRatingLabel" Text="1000" FontAttributes="Bold" FontSize="20" TextColor="{StaticResource PrimaryColor}" />
+                    </Grid>
+                    <Label x:Name="TeamRatingStatsLabel" Text="Based on active players" Style="{StaticResource CaptionStyle}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Export Button -->
+            <Button 
+                Text="Export Team Analytics"
+                Clicked="OnExportClicked"
+                BackgroundColor="{StaticResource InfoColor}"
+                TextColor="White" />
+
+            <!-- Status -->
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

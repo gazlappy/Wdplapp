@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.FrameStatsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Frame Statistics">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <!-- Header -->
+            <Label 
+                Text="Frame-Level Statistics" 
+                Style="{StaticResource PageTitleStyle}" />
+
+            <!-- Player Selection -->
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Select Player" FontAttributes="Bold" />
+                    <Picker x:Name="PlayerPicker" Title="Choose a player" SelectedIndexChanged="OnPlayerSelected" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Stats Cards -->
+            <Label Text="Performance Breakdown" Style="{StaticResource SectionHeaderStyle}" />
+            
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                
+                <!-- First Frame Win % -->
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="First Frame" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="FirstFrameLabel" Text="0.0%" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource InfoColor}" />
+                        <Label x:Name="FirstFrameStatsLabel" Text="0/0" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Last Frame Win % -->
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Last Frame" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="LastFrameLabel" Text="0.0%" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource InfoColor}" />
+                        <Label x:Name="LastFrameStatsLabel" Text="0/0" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Comeback Rate -->
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Comebacks" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="ComebackLabel" Text="0" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                        <Label x:Name="ComebackStatsLabel" Text="Won after behind" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Best Opponent -->
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Best Opponent" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="BestOpponentLabel" Text="-" FontSize="16" FontAttributes="Bold" />
+                        <Label x:Name="BestOpponentStatsLabel" Text="0% win rate" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Performance by Venue -->
+                <Border Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="4">
+                        <Label Text="Best Venue" Style="{StaticResource CaptionStyle}" />
+                        <Label x:Name="BestVenueLabel" Text="-" FontSize="16" FontAttributes="Bold" />
+                        <Label x:Name="BestVenueStatsLabel" Text="0% win rate" Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Performance by Day of Week -->
+            <Label Text="Performance by Day" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="DayPerformanceList" HeightRequest="200">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="*,Auto,Auto">
+                                <Label Text="{Binding DayName}" FontAttributes="Bold" />
+                                <Label Grid.Column="1" Text="{Binding Record}" Style="{StaticResource CaptionStyle}" />
+                                <Label Grid.Column="2" Text="{Binding WinRate}" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Winning Streaks -->
+            <Label Text="Streaks" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource CardBorderStyle}">
+                <Grid Padding="12" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Current Streak:" />
+                        <Label Grid.Column="1" x:Name="CurrentStreakLabel" Text="0" FontAttributes="Bold" />
+                    </Grid>
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                        <Label Text="Longest Win Streak:" />
+                        <Label Grid.Column="1" x:Name="LongestWinStreakLabel" Text="0" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                    </Grid>
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                        <Label Text="Longest Lose Streak:" />
+                        <Label Grid.Column="1" x:Name="LongestLoseStreakLabel" Text="0" FontAttributes="Bold" TextColor="{StaticResource DangerColor}" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Export Button -->
+            <Button 
+                Text="Export Frame Stats"
+                Clicked="OnExportClicked"
+                BackgroundColor="{StaticResource InfoColor}"
+                TextColor="White" />
+
+            <!-- Status -->
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

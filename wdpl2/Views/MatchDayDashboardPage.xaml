@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.MatchDayDashboardPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Match Day Dashboard">
+
+    <Grid RowDefinitions="Auto,*" Padding="12" RowSpacing="16">
+        
+        <!-- Header -->
+        <VerticalStackLayout Spacing="8">
+            <Label 
+                Text="Match Day Dashboard" 
+                Style="{StaticResource PageTitleStyle}" />
+            
+            <HorizontalStackLayout Spacing="12">
+                <Label 
+                    x:Name="DateLabel"
+                    Text="Today"
+                    Style="{StaticResource SubheaderTextStyle}"
+                    VerticalOptions="Center" />
+                
+                <Button 
+                    Text="Previous Day"
+                    Clicked="OnPreviousDayClicked"
+                    BackgroundColor="{StaticResource InfoColor}"
+                    TextColor="White"
+                    Padding="8,4" />
+                
+                <Button 
+                    Text="Today"
+                    Clicked="OnTodayClicked"
+                    BackgroundColor="{StaticResource PrimaryColor}"
+                    TextColor="White"
+                    Padding="8,4" />
+                
+                <Button 
+                    Text="Next Day"
+                    Clicked="OnNextDayClicked"
+                    BackgroundColor="{StaticResource InfoColor}"
+                    TextColor="White"
+                    Padding="8,4" />
+            </HorizontalStackLayout>
+
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}" />
+        </VerticalStackLayout>
+
+        <!-- Fixtures List -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="12">
+                
+                <!-- Empty State -->
+                <VerticalStackLayout 
+                    x:Name="EmptyStatePanel"
+                    Spacing="16"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Padding="40"
+                    IsVisible="False">
+                    <Label 
+                        Text="[Calendar]"
+                        FontSize="64"
+                        HorizontalTextAlignment="Center" />
+                    <Label 
+                        Text="No matches scheduled"
+                        FontSize="18"
+                        FontAttributes="Bold"
+                        HorizontalTextAlignment="Center" />
+                    <Label 
+                        Text="Check another date or generate fixtures"
+                        Style="{StaticResource CaptionStyle}"
+                        HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <!-- Fixtures -->
+                <CollectionView x:Name="FixturesList">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+                                <Grid Padding="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+                                    
+                                    <!-- Header Row -->
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding DivisionName}" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                        <Label Grid.Column="1" Text="{Binding Time}" Style="{StaticResource CaptionStyle}" />
+                                    </Grid>
+
+                                    <!-- Teams -->
+                                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+                                        <Label Text="{Binding HomeTeamName}" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="1" Text="vs" Style="{StaticResource CaptionStyle}" VerticalOptions="Center" />
+                                        <Label Grid.Column="2" Text="{Binding AwayTeamName}" FontSize="16" FontAttributes="Bold" />
+                                    </Grid>
+
+                                    <!-- Score (if played) -->
+                                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" ColumnSpacing="12" IsVisible="{Binding HasResult}">
+                                        <Label Text="{Binding HomeScore}" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="1" Text="-" FontSize="24" VerticalOptions="Center" />
+                                        <Label Grid.Column="2" Text="{Binding AwayScore}" FontSize="24" FontAttributes="Bold" TextColor="{StaticResource DangerColor}" />
+                                    </Grid>
+
+                                    <!-- Venue -->
+                                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding VenueName}" Style="{StaticResource CaptionStyle}" />
+                                        <Button 
+                                            Grid.Column="1"
+                                            Text="View Details"
+                                            Clicked="OnViewFixtureClicked"
+                                            CommandParameter="{Binding FixtureId}"
+                                            BackgroundColor="{StaticResource InfoColor}"
+                                            TextColor="White"
+                                            Padding="8,4"
+                                            FontSize="12" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Quick Stats Summary -->
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,8,0,0">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <Label Text="Day Summary" FontAttributes="Bold" FontSize="16" />
+                        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                            <Label Text="Total Matches:" Style="{StaticResource CaptionStyle}" />
+                            <Label Grid.Column="1" Text="Completed:" Style="{StaticResource CaptionStyle}" />
+                            <Label Grid.Column="2" Text="Upcoming:" Style="{StaticResource CaptionStyle}" />
+                            
+                            <Label Grid.Row="1" x:Name="TotalMatchesLabel" Text="0" FontAttributes="Bold" />
+                            <Label Grid.Row="1" Grid.Column="1" x:Name="CompletedMatchesLabel" Text="0" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+                            <Label Grid.Row="1" Grid.Column="2" x:Name="UpcomingMatchesLabel" Text="0" FontAttributes="Bold" TextColor="{StaticResource InfoColor}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

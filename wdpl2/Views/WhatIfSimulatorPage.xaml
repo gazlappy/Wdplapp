@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.WhatIfSimulatorPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="What If Simulator">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <!-- Header -->
+            <Label 
+                Text="League Table Simulator" 
+                Style="{StaticResource PageTitleStyle}" />
+            
+            <Label 
+                Text="Predict league standings based on hypothetical results"
+                Style="{StaticResource SubheaderTextStyle}" />
+
+            <!-- Division Selection -->
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Select Division" FontAttributes="Bold" />
+                    <Picker x:Name="DivisionPicker" Title="Choose division" SelectedIndexChanged="OnDivisionSelected" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Current Standings -->
+            <Label Text="Current Standings" Style="{StaticResource SectionHeaderStyle}" />
+            <CollectionView x:Name="CurrentStandingsList" HeightRequest="250">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding Position}" FontAttributes="Bold" FontSize="16" />
+                                <Label Grid.Column="1" Text="{Binding TeamName}" FontAttributes="Bold" />
+                                <Label Grid.Column="2" Text="{Binding Points}" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                <Label Grid.Column="3" Text="{Binding Record}" Style="{StaticResource CaptionStyle}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Remaining Fixtures -->
+            <Label Text="Remaining Fixtures" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Label x:Name="RemainingFixturesLabel" Text="0 remaining fixture(s)" Style="{StaticResource CaptionStyle}" />
+            
+            <CollectionView x:Name="RemainingFixturesList" HeightRequest="300">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
+                            <VerticalStackLayout Padding="12" Spacing="8">
+                                <Label Text="{Binding FixtureDescription}" FontAttributes="Bold" />
+                                <Grid ColumnDefinitions="Auto,*,Auto,*,Auto" ColumnSpacing="8">
+                                    <Label Text="Predict:" />
+                                    <Button Grid.Column="1" 
+                                            Text="Home Win"
+                                            Clicked="OnPredictHomeWin"
+                                            CommandParameter="{Binding .}"
+                                            BackgroundColor="{StaticResource SuccessColor}"
+                                            TextColor="White"
+                                            FontSize="12"
+                                            Padding="8,4" />
+                                    <Label Grid.Column="2" Text="Draw" VerticalOptions="Center" />
+                                    <Button Grid.Column="3"
+                                            Text="Away Win"
+                                            Clicked="OnPredictAwayWin"
+                                            CommandParameter="{Binding .}"
+                                            BackgroundColor="{StaticResource InfoColor}"
+                                            TextColor="White"
+                                            FontSize="12"
+                                            Padding="8,4" />
+                                    <Label Grid.Column="4" Text="{Binding PredictedResult}" FontAttributes="Bold" VerticalOptions="Center" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Quick Scenarios -->
+            <Label Text="Quick Scenarios" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button 
+                    Text="All Home Wins"
+                    Clicked="OnAllHomeWinsClicked"
+                    BackgroundColor="{StaticResource PrimaryColor}"
+                    TextColor="White" />
+                <Button 
+                    Grid.Column="1"
+                    Text="All Away Wins"
+                    Clicked="OnAllAwayWinsClicked"
+                    BackgroundColor="{StaticResource InfoColor}"
+                    TextColor="White" />
+            </Grid>
+
+            <!-- Calculate Button -->
+            <Button 
+                Text="Calculate Predicted Table"
+                Clicked="OnCalculatePredictionClicked"
+                BackgroundColor="{StaticResource SuccessColor}"
+                TextColor="White"
+                FontSize="16"
+                Padding="12" />
+
+            <!-- Predicted Standings -->
+            <Label Text="Predicted Final Standings" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="PredictedStandingsList" HeightRequest="250">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding Position}" FontAttributes="Bold" FontSize="16" />
+                                <Label Grid.Column="1" Text="{Binding TeamName}" FontAttributes="Bold" />
+                                <Label Grid.Column="2" Text="{Binding PositionChange}" FontAttributes="Bold" TextColor="{Binding ChangeColor}" />
+                                <Label Grid.Column="3" Text="{Binding Points}" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                <Label Grid.Column="4" Text="{Binding Record}" Style="{StaticResource CaptionStyle}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Status -->
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
