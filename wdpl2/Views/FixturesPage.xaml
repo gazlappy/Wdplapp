@@ -82,6 +82,14 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
+                        <Label Text="Division Filter" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
+                        <Picker 
+                            x:Name="DivisionPicker"
+                            Title="All Divisions"
+                            ItemDisplayBinding="{Binding Name}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
                         <Label Text="From Date" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
                         <DatePicker x:Name="FromDate" />
                     </VerticalStackLayout>

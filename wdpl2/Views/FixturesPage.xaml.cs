@@ -73,6 +73,9 @@ public partial class FixturesPage : ContentPage
             FromDate.DateSelected += (_, __) => RefreshList();
         
         ActiveSeasonOnly.Toggled += (_, __) => RefreshList();
+        
+        // NEW: Wire up division picker
+        DivisionPicker.SelectedIndexChanged += (_, __) => RefreshList();
 
         SaveBtn.Clicked += async (_, __) => await SaveFromUIAsync(); // NOW ASYNC
         ClearBtn.Clicked += (_, __) => OnClearFrames();
@@ -300,6 +303,18 @@ public partial class FixturesPage : ContentPage
             return;
         }
         
+        // NEW: Load divisions into picker if empty
+        if (DivisionPicker.ItemsSource == null)
+        {
+            var divisions = data.Divisions
+                .Where(d => !ActiveSeasonOnly.IsToggled || d.SeasonId == data.ActiveSeasonId)
+                .OrderBy(d => d.Name)
+                .ToList();
+            
+            DivisionPicker.ItemsSource = divisions;
+            System.Diagnostics.Debug.WriteLine($"   Loaded {divisions.Count} divisions into picker");
+        }
+        
         var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
         var venueById = data.Venues.ToDictionary(v => v.Id, v => v);
         var tableById = data.Venues
@@ -320,6 +335,14 @@ public partial class FixturesPage : ContentPage
             // No active season, so show no fixtures when toggle is on
             System.Diagnostics.Debug.WriteLine($"=== FIXTURES RefreshList END: 0 fixtures ===");
             return;
+        }
+        
+        // NEW: Filter by division if one is selected
+        var selectedDivision = DivisionPicker.SelectedItem as Division;
+        if (selectedDivision != null)
+        {
+            System.Diagnostics.Debug.WriteLine($"   Filtering by division: {selectedDivision.Name}");
+            src = src.Where(f => f.DivisionId == selectedDivision.Id);
         }
 
         // ADD NULL CHECK

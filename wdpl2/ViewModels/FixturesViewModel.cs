@@ -36,6 +36,15 @@ public partial class FixturesViewModel : BaseViewModel
     
     [ObservableProperty]
     private ObservableCollection<Venue> _availableVenues = new();
+    
+    [ObservableProperty]
+    private ObservableCollection<Division> _availableDivisions = new();
+    
+    [ObservableProperty]
+    private Division? _selectedDivision;
+    
+    [ObservableProperty]
+    private bool _showAllDivisions = true;
 
     public FixturesViewModel(IDataStore dataStore)
     {
@@ -74,7 +83,15 @@ public partial class FixturesViewModel : BaseViewModel
 
             var allFixtures = await _dataStore.GetFixturesAsync(_currentSeasonId);
 
-            // Apply filters
+            // Apply division filter
+            if (!_showAllDivisions && _selectedDivision != null)
+            {
+                allFixtures = allFixtures
+                    .Where(f => f.DivisionId == _selectedDivision.Id)
+                    .ToList();
+            }
+
+            // Apply date filter
             if (!_showAllDates)
             {
                 allFixtures = allFixtures
@@ -82,6 +99,7 @@ public partial class FixturesViewModel : BaseViewModel
                     .ToList();
             }
 
+            // Apply search filter
             if (!string.IsNullOrWhiteSpace(_searchText))
             {
                 var lower = _searchText.ToLower();
@@ -111,6 +129,11 @@ public partial class FixturesViewModel : BaseViewModel
     private async Task LoadReferenceDataAsync()
     {
         if (!_currentSeasonId.HasValue) return;
+
+        var divisions = await _dataStore.GetDivisionsAsync(_currentSeasonId);
+        _availableDivisions.Clear();
+        foreach (var division in divisions)
+            _availableDivisions.Add(division);
 
         var teams = await _dataStore.GetTeamsAsync(_currentSeasonId);
         _availableTeams.Clear();
@@ -142,6 +165,22 @@ public partial class FixturesViewModel : BaseViewModel
     private async Task ShowAllFixturesAsync()
     {
         _showAllDates = true;
+        await LoadFixturesAsync();
+    }
+
+    [RelayCommand]
+    private async Task FilterByDivisionAsync(Division? division)
+    {
+        _selectedDivision = division;
+        _showAllDivisions = division == null;
+        await LoadFixturesAsync();
+    }
+
+    [RelayCommand]
+    private async Task ShowAllDivisionsAsync()
+    {
+        _selectedDivision = null;
+        _showAllDivisions = true;
         await LoadFixturesAsync();
     }
 

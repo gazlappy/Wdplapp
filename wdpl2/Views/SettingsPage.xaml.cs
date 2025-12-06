@@ -977,7 +977,7 @@ namespace Wdpl2.Views
 
 #pragma warning disable CA1416 // Validate platform compatibility - runtime check performed above
                     // Run import
-                    var importer = new AccessDatabaseImporter(selectedDatabasePath);
+                    var importer = new ActualDatabaseImporterV2(selectedDatabasePath);  // FIXED: Use V2
                     var (importedData, summary) = await Task.Run(() => importer.ImportAllAsync());
 #pragma warning restore CA1416
 

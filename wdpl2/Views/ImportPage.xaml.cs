@@ -78,7 +78,7 @@ namespace Wdpl2.Views
                 ErrorsBorder.IsVisible = false;
 
                 // Run import
-                var importer = new AccessDatabaseImporter(_selectedFilePath);
+                var importer = new ActualDatabaseImporterV2(_selectedFilePath);  // Changed to V2
                 var (importedData, summary) = await importer.ImportAllAsync();
 
                 if (summary.Success)
