@@ -2,13 +2,19 @@
 <Application
     x:Class="Wdpl2.App"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:Wdpl2.Converters">
     <Application.Resources>
         <ResourceDictionary>
             <!-- Merge Shared Styles -->
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources/Styles/SharedStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
+            <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+            <converters:IsNotNullOrEmptyConverter x:Key="IsNotNullOrEmptyConverter" />
 
             <!-- Application-Level Button Style -->
             <Style TargetType="Button">

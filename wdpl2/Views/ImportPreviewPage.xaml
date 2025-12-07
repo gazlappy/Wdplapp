@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.ImportPreviewPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Import Preview">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                BackgroundColor="{StaticResource PrimaryColor}" 
+                Padding="16">
+            <VerticalStackLayout Spacing="4">
+                <Label x:Name="FileNameLabel" 
+                       Text="File: "
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       FontSize="18" />
+                <Label x:Name="SeasonLabel"
+                       Text="Target Season: "
+                       TextColor="White"
+                       FontSize="14" />
+                <Label x:Name="SummaryLabel"
+                       Text="Records: 0"
+                       TextColor="White"
+                       FontSize="14" />
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- Content -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="12" Spacing="16">
+
+                <!-- Warnings/Errors -->
+                <Border x:Name="AlertsBorder"
+                        IsVisible="False"
+                        BackgroundColor="{StaticResource WarningColor}"
+                        Padding="12"
+                        Stroke="{StaticResource WarningColor}"
+                        StrokeThickness="0">
+                    <VerticalStackLayout x:Name="AlertsStack" Spacing="4">
+                        <!-- Dynamically populated -->
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Season Selection -->
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <Label Text="Season" FontAttributes="Bold" FontSize="16" />
+                        <HorizontalStackLayout Spacing="8">
+                            <Picker x:Name="SeasonPicker" 
+                                    Title="Select target season" 
+                                    HorizontalOptions="FillAndExpand"/>
+                            <Button Text="+ New Season"
+                                    Clicked="OnCreateSeasonClicked"
+                                    BackgroundColor="{StaticResource SuccessColor}"
+                                    TextColor="White"
+                                    Padding="12,8" />
+                        </HorizontalStackLayout>
+                        <Label x:Name="SeasonInfoLabel"
+                               Style="{StaticResource CaptionStyle}"
+                               TextColor="{StaticResource InfoColor}"
+                               IsVisible="False"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Divisions -->
+                <Border x:Name="DivisionsBorder"
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Divisions" 
+                                   FontAttributes="Bold" 
+                                   FontSize="16"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="DivisionsCountLabel"
+                                   Text="(0)"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Gray600}"/>
+                            <Button x:Name="SelectAllDivisionsBtn"
+                                    Text="Select All"
+                                    Clicked="OnSelectAllDivisionsClicked"
+                                    FontSize="12"
+                                    Padding="8,4"
+                                    HorizontalOptions="EndAndExpand"/>
+                        </HorizontalStackLayout>
+                        <CollectionView x:Name="DivisionsList" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ListItemBorderStyle}" Margin="0,2">
+                                        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <CheckBox IsChecked="{Binding Include}" 
+                                                      VerticalOptions="Center"/>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Name}" FontAttributes="Bold"/>
+                                                <Label FontSize="12" TextColor="{StaticResource Gray600}">
+                                                    <Label.FormattedText>
+                                                        <FormattedString>
+                                                            <Span Text="Winner: "/>
+                                                            <Span Text="{Binding WinnerTeam}"/>
+                                                            <Span Text=" | Runner-up: "/>
+                                                            <Span Text="{Binding RunnerUpTeam}"/>
+                                                        </FormattedString>
+                                                    </Label.FormattedText>
+                                                </Label>
+                                                <Label Text="{Binding ConflictMessage}"
+                                                       IsVisible="{Binding ConflictMessage, Converter={StaticResource IsNotNullConverter}}"
+                                                       TextColor="{StaticResource WarningColor}"
+                                                       FontSize="11"/>
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                   Text="{Binding Status}"
+                                                   FontSize="11"
+                                                   VerticalOptions="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Teams -->
+                <Border x:Name="TeamsBorder"
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Teams" 
+                                   FontAttributes="Bold" 
+                                   FontSize="16"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="TeamsCountLabel"
+                                   Text="(0)"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Gray600}"/>
+                            <Button x:Name="SelectAllTeamsBtn"
+                                    Text="Select All"
+                                    Clicked="OnSelectAllTeamsClicked"
+                                    FontSize="12"
+                                    Padding="8,4"
+                                    HorizontalOptions="EndAndExpand"/>
+                        </HorizontalStackLayout>
+                        <CollectionView x:Name="TeamsList" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ListItemBorderStyle}" Margin="0,2">
+                                        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <CheckBox IsChecked="{Binding Include}"
+                                                      VerticalOptions="Center"/>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Name}" FontAttributes="Bold"/>
+                                                <Label Text="{Binding DivisionName}" 
+                                                       FontSize="12" 
+                                                       TextColor="{StaticResource Gray600}"/>
+                                                <Label Text="{Binding ConflictMessage}"
+                                                       IsVisible="{Binding ConflictMessage, Converter={StaticResource IsNotNullConverter}}"
+                                                       TextColor="{StaticResource WarningColor}"
+                                                       FontSize="11"/>
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                   Text="{Binding Status}"
+                                                   FontSize="11"
+                                                   VerticalOptions="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Players -->
+                <Border x:Name="PlayersBorder"
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Players" 
+                                   FontAttributes="Bold" 
+                                   FontSize="16"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="PlayersCountLabel"
+                                   Text="(0)"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Gray600}"/>
+                            <Button x:Name="SelectAllPlayersBtn"
+                                    Text="Select All"
+                                    Clicked="OnSelectAllPlayersClicked"
+                                    FontSize="12"
+                                    Padding="8,4"
+                                    HorizontalOptions="EndAndExpand"/>
+                        </HorizontalStackLayout>
+                        <CollectionView x:Name="PlayersList" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ListItemBorderStyle}" Margin="0,2">
+                                        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <CheckBox IsChecked="{Binding Include}"
+                                                      VerticalOptions="Center"/>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding FullName}" FontAttributes="Bold"/>
+                                                <Label FontSize="12" TextColor="{StaticResource Gray600}">
+                                                    <Label.FormattedText>
+                                                        <FormattedString>
+                                                            <Span Text="{Binding TeamName}"/>
+                                                            <Span Text=" | "/>
+                                                            <Span Text="{Binding CompetitionName}"/>
+                                                        </FormattedString>
+                                                    </Label.FormattedText>
+                                                </Label>
+                                                <Label Text="{Binding ConflictMessage}"
+                                                       IsVisible="{Binding ConflictMessage, Converter={StaticResource IsNotNullConverter}}"
+                                                       TextColor="{StaticResource WarningColor}"
+                                                       FontSize="11"/>
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="2"
+                                                   Text="{Binding Status}"
+                                                   FontSize="11"
+                                                   VerticalOptions="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Competitions -->
+                <Border x:Name="CompetitionsBorder"
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
+                    <VerticalStackLayout Padding="12" Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Competitions" 
+                                   FontAttributes="Bold" 
+                                   FontSize="16"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="CompetitionsCountLabel"
+                                   Text="(0)"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Gray600}"/>
+                            <Button x:Name="SelectAllCompetitionsBtn"
+                                    Text="Select All"
+                                    Clicked="OnSelectAllCompetitionsClicked"
+                                    FontSize="12"
+                                    Padding="8,4"
+                                    HorizontalOptions="EndAndExpand"/>
+                        </HorizontalStackLayout>
+                        <CollectionView x:Name="CompetitionsList" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ListItemBorderStyle}" Margin="0,2">
+                                        <Grid Padding="12" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                            <CheckBox IsChecked="{Binding Include}"
+                                                      VerticalOptions="Center"/>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding CompetitionName}" FontAttributes="Bold"/>
+                                                <Label FontSize="12" TextColor="{StaticResource Gray600}">
+                                                    <Label.FormattedText>
+                                                        <FormattedString>
+                                                            <Span Text="Winner: "/>
+                                                            <Span Text="{Binding WinnerName}"/>
+                                                        </FormattedString>
+                                                    </Label.FormattedText>
+                                                </Label>
+                                                <Label FontSize="12" TextColor="{StaticResource Gray600}">
+                                                    <Label.FormattedText>
+                                                        <FormattedString>
+                                                            <Span Text="Runner-up: "/>
+                                                            <Span Text="{Binding RunnerUpName}"/>
+                                                        </FormattedString>
+                                                    </Label.FormattedText>
+                                                </Label>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Actions -->
+        <Border Grid.Row="2" 
+                BackgroundColor="{StaticResource Gray100}"
+                Padding="16"
+                StrokeThickness="0">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Text="Cancel"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="{StaticResource Gray500}"
+                        TextColor="White"
+                        Padding="16,12"/>
+                <Button Grid.Column="1"
+                        Text="Import Selected"
+                        Clicked="OnImportClicked"
+                        BackgroundColor="{StaticResource SuccessColor}"
+                        TextColor="White"
+                        Padding="16,12"
+                        x:Name="ImportButton"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

@@ -62,7 +62,7 @@
                     <Label Text="Office Documents (Word/Excel/PowerPoint)" FontAttributes="Bold" FontSize="16" />
                     <Label Text="Import from Microsoft Office and OpenOffice documents" Style="{StaticResource CaptionStyle}" />
                     
-                    <!-- NEW: Auto-conversion notice -->
+                    <!-- AUTO-conversion notice -->
                     <Border BackgroundColor="{StaticResource InfoColor}" 
                             Padding="8" 
                             Stroke="{StaticResource InfoColor}"
@@ -77,6 +77,22 @@
                             </Label.FormattedText>
                         </Label>
                     </Border>
+
+                    <!-- NEW: Preview feature notice -->
+                    <Border BackgroundColor="{StaticResource SuccessColor}" 
+                            Padding="8" 
+                            Stroke="{StaticResource SuccessColor}"
+                            StrokeThickness="0"
+                            Margin="0,4">
+                        <Label TextColor="White" FontSize="12">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="NEW: PREVIEW MODE " FontAttributes="Bold"/>
+                                    <Span Text="Review and edit data before importing! Perfect for season winners documents."/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </Border>
                     
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                         <Button 
@@ -86,16 +102,24 @@
                             TextColor="White" />
                         <Button 
                             Grid.Column="1"
+                            Text="Word (Preview)"
+                            Clicked="OnImportWordWithPreviewClicked"
+                            BackgroundColor="{StaticResource SuccessColor}"
+                            TextColor="White" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button 
                             Text="PowerPoint"
                             Clicked="OnImportPowerPointClicked"
                             BackgroundColor="{StaticResource InfoColor}"
                             TextColor="White" />
+                        <Button 
+                            Grid.Column="1"
+                            Text="Excel Workbook"
+                            Clicked="OnImportExcelClicked"
+                            BackgroundColor="{StaticResource SuccessColor}"
+                            TextColor="White" />
                     </Grid>
-                    <Button 
-                        Text="Excel Workbook"
-                        Clicked="OnImportExcelClicked"
-                        BackgroundColor="{StaticResource SuccessColor}"
-                        TextColor="White" />
                 </VerticalStackLayout>
             </Border>
 
@@ -115,11 +139,36 @@
                 <VerticalStackLayout Padding="12" Spacing="8">
                     <Label Text="Cached Webpage Import (HTML)" FontAttributes="Bold" FontSize="16" />
                     <Label Text="Extract data from saved league websites or HTML files" Style="{StaticResource CaptionStyle}" />
-                    <Button 
-                        Text="Import from HTML File"
-                        Clicked="OnImportHTMLClicked"
-                        BackgroundColor="{StaticResource InfoColor}"
-                        TextColor="White" />
+                    
+                    <!-- NEW: Batch import notice -->
+                    <Border BackgroundColor="{StaticResource SuccessColor}" 
+                            Padding="8" 
+                            Stroke="{StaticResource SuccessColor}"
+                            StrokeThickness="0"
+                            Margin="0,4">
+                        <Label TextColor="White" FontSize="12">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="BATCH IMPORT: " FontAttributes="Bold"/>
+                                    <Span Text="Select multiple HTML files at once! Perfect for importing entire league archives."/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </Border>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button 
+                            Text="Single HTML File"
+                            Clicked="OnImportHTMLClicked"
+                            BackgroundColor="{StaticResource InfoColor}"
+                            TextColor="White" />
+                        <Button 
+                            Grid.Column="1"
+                            Text="Batch HTML Files"
+                            Clicked="OnImportHTMLBatchClicked"
+                            BackgroundColor="{StaticResource SuccessColor}"
+                            TextColor="White" />
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
 

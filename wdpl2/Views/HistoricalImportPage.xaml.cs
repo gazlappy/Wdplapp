@@ -90,6 +90,49 @@ public partial class HistoricalImportPage : ContentPage
         await ImportDocumentAsync("Word Document", HistoricalDataImporter.ImportFormat.Word);
     }
 
+    private async void OnImportWordWithPreviewClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            StatusLabel.Text = "Selecting Word document for preview...";
+
+            var fileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+            {
+                { DevicePlatform.WinUI, new[] { ".docx", ".doc" } },
+                { DevicePlatform.Android, new[] { "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword" } },
+                { DevicePlatform.iOS, new[] { "org.openxmlformats.wordprocessingml.document", "com.microsoft.word.doc" } }
+            });
+
+            var result = await FilePicker.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select Word document",
+                FileTypes = fileTypes
+            });
+
+            if (result == null)
+            {
+                StatusLabel.Text = "Preview cancelled";
+                return;
+            }
+
+            StatusLabel.Text = $"Opening preview for {result.FileName}...";
+
+            // Navigate to preview page
+            var previewPage = new ImportPreviewPage();
+            await Navigation.PushAsync(previewPage);
+            
+            // Load preview (async after navigation)
+            await previewPage.LoadPreviewAsync(result.FullPath);
+            
+            StatusLabel.Text = "Preview opened";
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Preview failed: {ex.Message}", "OK");
+            StatusLabel.Text = $"Error: {ex.Message}";
+        }
+    }
+
     private async void OnImportPowerPointClicked(object? sender, EventArgs e)
     {
         await ImportDocumentAsync("PowerPoint", HistoricalDataImporter.ImportFormat.PowerPoint);
@@ -107,7 +150,79 @@ public partial class HistoricalImportPage : ContentPage
 
     private async void OnImportHTMLClicked(object? sender, EventArgs e)
     {
-        await ImportFileAsync("HTML Webpage", HistoricalDataImporter.ImportFormat.HTML);
+        await ImportFileAsync("HTML", HistoricalDataImporter.ImportFormat.HTML);
+    }
+
+    private async void OnImportHTMLBatchClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            StatusLabel.Text = "Selecting HTML files for batch import...";
+
+            // Note: .NET MAUI FilePicker doesn't support multi-select yet
+            // We'll prompt user to select files one by one or use a folder picker
+            var files = new System.Collections.Generic.List<string>();
+            
+            var answer = await DisplayAlert(
+                "Batch HTML Import",
+                "Select multiple HTML files.\n\nClick 'Add File' to keep adding files, or 'Done' when finished.",
+                "Add File",
+                "Done");
+
+            while (answer)
+            {
+                var fileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.WinUI, new[] { ".html", ".htm" } },
+                    { DevicePlatform.Android, new[] { "text/html" } },
+                    { DevicePlatform.iOS, new[] { "public.html" } }
+                });
+
+                var result = await FilePicker.PickAsync(new PickOptions
+                {
+                    PickerTitle = $"Select HTML file ({files.Count + 1})",
+                    FileTypes = fileTypes
+                });
+
+                if (result != null)
+                {
+                    files.Add(result.FullPath);
+                    StatusLabel.Text = $"Added {files.Count} file(s)...";
+                    
+                    answer = await DisplayAlert(
+                        "Batch HTML Import",
+                        $"Added: {result.FileName}\n\nTotal files: {files.Count}\n\nAdd another file?",
+                        "Add File",
+                        "Done");
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (!files.Any())
+            {
+                StatusLabel.Text = "Batch import cancelled - no files selected";
+                return;
+            }
+
+            StatusLabel.Text = $"Opening batch preview for {files.Count} file(s)...";
+
+            // Navigate to batch preview page
+            var batchPreviewPage = new BatchImportPreviewPage();
+            await Navigation.PushAsync(batchPreviewPage);
+            
+            // Load batch preview (async after navigation)
+            await batchPreviewPage.LoadBatchPreviewAsync(files);
+            
+            StatusLabel.Text = $"Batch preview opened for {files.Count} files";
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Batch preview failed: {ex.Message}", "OK");
+            StatusLabel.Text = $"Error: {ex.Message}";
+        }
     }
 
     private async Task ImportFileAsync(string dataType, HistoricalDataImporter.ImportFormat format)
