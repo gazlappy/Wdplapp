@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.AnalyticsHubPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Analytics Hub">
+
+    <Grid RowDefinitions="Auto,*">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                BackgroundColor="{StaticResource PrimaryColor}" 
+                Padding="20,16">
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Analytics &amp; Statistics"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       FontSize="20" />
+                <Label Text="Deep dive into league performance and insights"
+                       TextColor="#FFFFFFCC"
+                       FontSize="14" />
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- Content -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="20" Spacing="16">
+                
+                <Label Text="What would you like to analyze?"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       Margin="0,8,0,8"/>
+
+                <!-- PLAYER ANALYTICS -->
+                <Label Text="Player Analytics"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryColor}"
+                       Margin="0,8,0,4"/>
+
+                <!-- Career Stats -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="#8B5CF6"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Career Stats"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Complete career history, win/loss records, and performance trends"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="?? Trends  ?? Records  ?? History"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnCareerStatsClicked"
+                                BackgroundColor="#8B5CF6"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- Frame Stats -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="#EC4899"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Frame Statistics"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Detailed frame-by-frame analysis, 8-ball success, and scoring patterns"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="?? 8-Ball  ?? Patterns  ?? Details"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnFrameStatsClicked"
+                                BackgroundColor="#EC4899"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- Achievements -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="#F59E0B"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Achievements"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Unlock badges, milestones, and special accomplishments"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="??? Badges  ? Milestones  ?? Awards"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnAchievementsClicked"
+                                BackgroundColor="#F59E0B"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- SEASON ANALYTICS -->
+                <Label Text="Season Analytics"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryColor}"
+                       Margin="0,16,0,4"/>
+
+                <!-- Season Awards -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="{StaticResource SuccessColor}"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Season Awards"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Top performers, MVPs, and season champions by division"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="?? Champions  ? MVPs  ?? Top Scorers"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnSeasonAwardsClicked"
+                                BackgroundColor="{StaticResource SuccessColor}"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- Match Day Analysis -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="{StaticResource InfoColor}"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Match Day Analysis"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Performance breakdown by day of week and match timing"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="?? Day Analysis  ? Timing  ?? Patterns"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnMatchDayClicked"
+                                BackgroundColor="{StaticResource InfoColor}"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- TEAM ANALYTICS -->
+                <Label Text="Team Analytics"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryColor}"
+                       Margin="0,16,0,4"/>
+
+                <!-- Team Analytics -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="{StaticResource Gray50}">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="#06B6D4"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <Label Text="Team Analytics"
+                                   FontAttributes="Bold"
+                                   FontSize="16"/>
+                            <Label Text="Team performance metrics, player contributions, and comparative analysis"
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Label Text="?? Metrics  ?? Players  ?? Comparison"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="View"
+                                Clicked="OnTeamAnalyticsClicked"
+                                BackgroundColor="#06B6D4"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"/>
+                    </Grid>
+                </Border>
+
+                <!-- SCENARIO ANALYSIS -->
+                <Label Text="Scenario Analysis"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryColor}"
+                       Margin="0,16,0,4"/>
+
+                <!-- What If Scenarios -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        BackgroundColor="#FEF3C7"
+                        Stroke="{StaticResource WarningColor}"
+                        StrokeThickness="2">
+                    <Grid ColumnDefinitions="80,*,Auto" 
+                          ColumnSpacing="16" 
+                          Padding="16">
+                        <Border Grid.Column="0"
+                                BackgroundColor="{StaticResource WarningColor}"
+                                HeightRequest="60"
+                                WidthRequest="60"
+                                StrokeThickness="0">
+                            <Label Text="??" 
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <VerticalStackLayout Grid.Column="1" 
+                                           Spacing="4"
+                                           VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="What If Scenarios"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Border BackgroundColor="{StaticResource InfoColor}"
+                                        Padding="6,2"
+                                        StrokeThickness="0">
+                                    <Label Text="INTERACTIVE"
+                                           TextColor="White"
+                                           FontSize="9"
+                                           FontAttributes="Bold"/>
+                                </Border>
+                            </HorizontalStackLayout>
+                            <Label Text="Simulate match outcomes and predict league table changes"
+                                   TextColor="{StaticResource Gray700}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"/>
+                            <Label Text="?? Simulate  ?? Predict  ?? Analyze"
+                                   TextColor="{StaticResource SuccessColor}"
+                                   FontSize="11"
+                                   Margin="0,4,0,0"/>
+                        </VerticalStackLayout>
+                        
+                        <Button Grid.Column="2"
+                                Text="Explore"
+                                Clicked="OnWhatIfClicked"
+                                BackgroundColor="{StaticResource WarningColor}"
+                                TextColor="White"
+                                VerticalOptions="Center"
+                                Padding="20,12"
+                                FontAttributes="Bold"/>
+                    </Grid>
+                </Border>
+
+                <!-- Info Footer -->
+                <Border BackgroundColor="{StaticResource Gray100}"
+                        Padding="16"
+                        Margin="0,16,0,0"
+                        StrokeThickness="0">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Analytics Tips"
+                               FontAttributes="Bold"
+                               FontSize="14"
+                               TextColor="{StaticResource PrimaryColor}"/>
+                        <Label Text="- Use filters to focus on specific seasons or divisions"
+                               FontSize="12"
+                               TextColor="{StaticResource Gray700}"/>
+                        <Label Text="- Export data for deeper analysis in Excel"
+                               FontSize="12"
+                               TextColor="{StaticResource Gray700}"/>
+                        <Label Text="- Check back regularly for new insights"
+                               FontSize="12"
+                               TextColor="{StaticResource Gray700}"/>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+</ContentPage>

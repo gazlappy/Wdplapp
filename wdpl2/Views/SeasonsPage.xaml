@@ -210,20 +210,22 @@
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 8">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                     <Label
                                         Text="{Binding Name}"
                                         FontSize="14"
                                         FontAttributes="Bold"
                                         LineBreakMode="TailTruncation"
                                         VerticalOptions="Center" />
-                                    <Border
+                                    <Ellipse
                                         Grid.Column="1"
-                                        Style="{StaticResource SuccessBadgeStyle}"
-                                        IsVisible="{Binding IsActive}"
+                                        WidthRequest="12"
+                                        HeightRequest="12"
                                         VerticalOptions="Center">
-                                        <Label Text="Active" Style="{StaticResource BadgeTextStyle}" />
-                                    </Border>
+                                        <Ellipse.Fill>
+                                            <SolidColorBrush Color="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}" />
+                                        </Ellipse.Fill>
+                                    </Ellipse>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -262,24 +264,181 @@
                         Spacing="{StaticResource MediumSpacing}"
                         HorizontalOptions="Center"
                         VerticalOptions="Center"
-                        Padding="20"
+                        Padding="40"
                         IsVisible="True">
                         <Label 
-                            Text="Select a season"
-                            FontSize="16"
-                            TextColor="{StaticResource Gray400}"
+                            Text="📅"
+                            FontSize="48"
                             HorizontalOptions="Center" />
                         <Label 
-                            Text="Click a season from the list to view and edit details"
+                            Text="Select a season"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource Gray600}"
+                            HorizontalOptions="Center" />
+                        <Label 
+                            Text="Click a season from the list to view details and statistics"
                             Style="{StaticResource CaptionStyle}"
+                            HorizontalTextAlignment="Center"
                             HorizontalOptions="Center" />
                     </VerticalStackLayout>
 
                     <!-- Season Info Panel (initially hidden) -->
-                    <VerticalStackLayout x:Name="SeasonInfoPanel" IsVisible="False" Spacing="4">
-                        <Label x:Name="SelectedSeasonName" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
-                        <Label x:Name="SelectedSeasonDates" Style="{StaticResource BodyTextStyle}" />
-                        <Label x:Name="SelectedSeasonStatus" Style="{StaticResource CaptionStyle}" />
+                    <VerticalStackLayout x:Name="SeasonInfoPanel" IsVisible="False" Spacing="16">
+                        
+                        <!-- Header -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label x:Name="SelectedSeasonName" 
+                                   Style="{StaticResource PageTitleStyle}" 
+                                   Margin="0" />
+                            <Label x:Name="SelectedSeasonDates" 
+                                   Style="{StaticResource BodyTextStyle}"
+                                   TextColor="{StaticResource Gray600}" />
+                            <Border x:Name="SelectedSeasonStatusBadge"
+                                    Style="{StaticResource SuccessBadgeStyle}"
+                                    HorizontalOptions="Start"
+                                    Margin="0,4,0,0">
+                                <Label x:Name="SelectedSeasonStatus" 
+                                       Style="{StaticResource BadgeTextStyle}" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <BoxView HeightRequest="1" Color="{StaticResource Gray200}" />
+
+                        <!-- Statistics Grid -->
+                        <Label Text="Statistics" 
+                               Style="{StaticResource SectionHeaderStyle}"
+                               Margin="0,8,0,8" />
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" 
+                              ColumnSpacing="12" RowSpacing="12">
+                            
+                            <!-- Divisions Card -->
+                            <Border Grid.Column="0" Grid.Row="0"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="📊" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="DivisionsCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryColor}"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Divisions" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Teams Card -->
+                            <Border Grid.Column="1" Grid.Row="0"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="👥" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="TeamsCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource InfoColor}"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Teams" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Players Card -->
+                            <Border Grid.Column="0" Grid.Row="1"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="🎯" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="PlayersCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource SuccessColor}"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Players" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Fixtures Card -->
+                            <Border Grid.Column="1" Grid.Row="1"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="📅" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="FixturesCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource WarningColor}"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Fixtures" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Venues Card -->
+                            <Border Grid.Column="0" Grid.Row="2"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="🏠" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="VenuesCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="#8B5CF6"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Venues" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Competitions Card -->
+                            <Border Grid.Column="1" Grid.Row="2"
+                                    Style="{StaticResource CardBorderStyle}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
+                                <VerticalStackLayout Padding="16" Spacing="4">
+                                    <Label Text="🏆" FontSize="24" HorizontalOptions="Center" />
+                                    <Label x:Name="CompetitionsCount" 
+                                           Text="0"
+                                           FontSize="32"
+                                           FontAttributes="Bold"
+                                           TextColor="#EC4899"
+                                           HorizontalOptions="Center" />
+                                    <Label Text="Competitions" 
+                                           Style="{StaticResource CaptionStyle}"
+                                           HorizontalOptions="Center" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="{StaticResource Gray200}" Margin="0,8" />
+
+                        <!-- Quick Actions -->
+                        <Label Text="Quick Actions" 
+                               Style="{StaticResource SectionHeaderStyle}"
+                               Margin="0,0,0,8" />
+
+                        <Button Text="Edit Season Details"
+                                Clicked="OnBurgerMenuClicked"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalOptions="Fill" />
+
+                        <Button Text="Generate Fixtures"
+                                Clicked="OnGenerateClicked"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                HorizontalOptions="Fill" />
+
                     </VerticalStackLayout>
 
                 </VerticalStackLayout>

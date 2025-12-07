@@ -40,11 +40,55 @@ namespace Wdpl2.Views
         {
             _selected = e.CurrentSelection?.FirstOrDefault() as Season;
 
-            // Don't change the global season just because we selected it in the list
-            // Only change it when explicitly activating via "Set Active" button or saving with Active switch ON
             if (_selected != null)
             {
+                // AUTO-ACTIVATE: When user clicks a season, activate it immediately
+                System.Diagnostics.Debug.WriteLine($"🔄 Season selected: {_selected.Name} - Auto-activating...");
+                
+                var selectedId = _selected.Id;
+                
+                // Deactivate all other seasons
+                foreach (var s in League.Seasons)
+                {
+                    if (s.Id != selectedId)
+                        s.IsActive = false;
+                }
+                
+                // Activate the selected season
+                _selected.IsActive = true;
+                League.ActiveSeasonId = selectedId;
+                
+                // Save changes
+                try
+                {
+                    DataStore.Save();
+                    System.Diagnostics.Debug.WriteLine($"✅ Auto-activated: {_selected.Name} (ID: {selectedId})");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error saving: {ex.Message}");
+                }
+                
+                // Update SeasonService to notify all pages
+                SeasonService.CurrentSeasonId = selectedId;
+                System.Diagnostics.Debug.WriteLine($"✅ SeasonService updated: {SeasonService.CurrentSeasonId}");
+                
+                // Update UI status
+                StatusLabel.Text = $"✅ \"{_selected.Name}\" activated";
+                
+                // Show season info
                 ShowSeasonInfo(_selected);
+                
+                // Force UI update - keep alphabetical order, don't move items around
+                var tempList = _items.ToList();
+                _items.Clear();
+                foreach (var season in tempList) // Keep existing order (alphabetical)
+                {
+                    _items.Add(season);
+                }
+                
+                // Restore selection
+                SeasonsList.SelectedItem = _items.FirstOrDefault(s => s.Id == selectedId);
             }
             else
             {
@@ -494,7 +538,7 @@ namespace Wdpl2.Views
         private void RefreshList(bool selectFirst = false, Guid? selectId = null)
         {
             _items.Clear();
-            foreach (var s in League.Seasons.OrderByDescending(s => s.IsActive).ThenBy(s => s.StartDate))
+            foreach (var s in League.Seasons.OrderBy(s => s.Name)) // Alphabetical order
                 _items.Add(s);
 
             Season? toSelect = null;
@@ -592,6 +636,22 @@ namespace Wdpl2.Views
             SelectedSeasonName.Text = season.Name;
             SelectedSeasonDates.Text = $"{season.StartDate:MMM d, yyyy} - {season.EndDate:MMM d, yyyy}";
             SelectedSeasonStatus.Text = season.IsActive ? "Active Season" : "Inactive";
+            
+            // Update badge color by setting background directly instead of style
+            SelectedSeasonStatusBadge.BackgroundColor = season.IsActive 
+                ? Color.FromArgb("#10B981") // SuccessColor
+                : Color.FromArgb("#06B6D4"); // InfoColor
+            
+            // Calculate statistics
+            var (divisions, venues, teams, players, fixtures) = DataStore.Data.GetSeasonData(season.Id);
+            var competitions = DataStore.Data.Competitions?.Where(c => c.SeasonId == season.Id).ToList() ?? new List<Models.Competition>();
+            
+            DivisionsCount.Text = divisions.Count.ToString();
+            TeamsCount.Text = teams.Count.ToString();
+            PlayersCount.Text = players.Count.ToString();
+            FixturesCount.Text = fixtures.Count.ToString();
+            VenuesCount.Text = venues.Count.ToString();
+            CompetitionsCount.Text = competitions.Count.ToString();
         }
 
         private void HideSeasonInfo()

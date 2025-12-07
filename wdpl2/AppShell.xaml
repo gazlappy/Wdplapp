@@ -38,47 +38,17 @@
             <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
         </Tab>
 
-        <Tab Title="Career Stats" Icon="stats.png">
-            <ShellContent Title="Career Stats" ContentTemplate="{DataTemplate views:CareerStatsPage}" />
+        <!-- ANALYTICS HUB - Replaces individual analytics tabs -->
+        <Tab Title="Analytics" Icon="stats.png">
+            <ShellContent Title="Analytics Hub" ContentTemplate="{DataTemplate views:AnalyticsHubPage}" />
         </Tab>
 
-        <Tab Title="Season Awards" Icon="stats.png">
-            <ShellContent Title="Season Awards" ContentTemplate="{DataTemplate views:SeasonAwardsPage}" />
-        </Tab>
-
-        <Tab Title="Match Day" Icon="calendar.png">
-            <ShellContent Title="Match Day" ContentTemplate="{DataTemplate views:MatchDayDashboardPage}" />
-        </Tab>
-
-        <Tab Title="Frame Stats" Icon="stats.png">
-            <ShellContent Title="Frame Stats" ContentTemplate="{DataTemplate views:FrameStatsPage}" />
-        </Tab>
-
-        <Tab Title="Team Analytics" Icon="stats.png">
-            <ShellContent Title="Team Analytics" ContentTemplate="{DataTemplate views:TeamAnalyticsPage}" />
-        </Tab>
-
-        <Tab Title="What If" Icon="stats.png">
-            <ShellContent Title="What If" ContentTemplate="{DataTemplate views:WhatIfSimulatorPage}" />
-        </Tab>
-
-        <Tab Title="Achievements" Icon="stats.png">
-            <ShellContent Title="Achievements" ContentTemplate="{DataTemplate views:AchievementsPage}" />
-        </Tab>
-
-        <Tab Title="Historical Import" Icon="stats.png">
-            <ShellContent Title="Historical Import" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
+        <Tab Title="Import" Icon="stats.png">
+            <ShellContent Title="Import Data" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
         </Tab>
 
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>
     </TabBar>
-
-    <!-- Add this in your ShellContent items -->
-    <ShellContent
-        Title="Import Data"
-        ContentTemplate="{DataTemplate views:ImportPage}"
-        Route="import"
-        Icon="{FontImageSource FontFamily='MaterialIcons', Glyph='&#xe2c6;', Size=24}" />
 </Shell>
