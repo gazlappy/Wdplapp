@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.HistoricalImportPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Historical Data Import">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="16">
+            
+            <Label 
+                Text="Import Historical Data" 
+                Style="{StaticResource PageTitleStyle}" />
+            
+            <Label 
+                Text="Import data from spreadsheets, images, and cached webpages"
+                Style="{StaticResource SubheaderTextStyle}" />
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Target Season" FontAttributes="Bold" />
+                    <Picker x:Name="SeasonPicker" Title="Select season for import" />
+                    <Button 
+                        Text="+ Create New Season"
+                        Clicked="OnCreateSeasonClicked"
+                        BackgroundColor="{StaticResource SuccessColor}"
+                        TextColor="White"
+                        FontSize="12"
+                        Padding="8,4" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Select Import Source" Style="{StaticResource SectionHeaderStyle}" />
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Spreadsheet Import (CSV/Excel)" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Import league tables, results, or player lists from CSV or Excel files" Style="{StaticResource CaptionStyle}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button 
+                            Text="Import League Table"
+                            Clicked="OnImportLeagueTableClicked"
+                            BackgroundColor="{StaticResource PrimaryColor}"
+                            TextColor="White" />
+                        <Button 
+                            Grid.Column="1"
+                            Text="Import Results"
+                            Clicked="OnImportResultsClicked"
+                            BackgroundColor="{StaticResource InfoColor}"
+                            TextColor="White" />
+                    </Grid>
+                    <Button 
+                        Text="Import Players/Teams"
+                        Clicked="OnImportPlayersClicked"
+                        BackgroundColor="{StaticResource SuccessColor}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Office Documents (Word/Excel/PowerPoint)" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Import from Microsoft Office and OpenOffice documents" Style="{StaticResource CaptionStyle}" />
+                    
+                    <!-- NEW: Auto-conversion notice -->
+                    <Border BackgroundColor="{StaticResource InfoColor}" 
+                            Padding="8" 
+                            Stroke="{StaticResource InfoColor}"
+                            StrokeThickness="0"
+                            Margin="0,4">
+                        <Label TextColor="White" FontSize="12">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="AUTO-CONVERT: " FontAttributes="Bold"/>
+                                    <Span Text="Legacy .doc files are automatically converted to .docx format for import!"/>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </Border>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button 
+                            Text="Word Document"
+                            Clicked="OnImportWordClicked"
+                            BackgroundColor="{StaticResource PrimaryColor}"
+                            TextColor="White" />
+                        <Button 
+                            Grid.Column="1"
+                            Text="PowerPoint"
+                            Clicked="OnImportPowerPointClicked"
+                            BackgroundColor="{StaticResource InfoColor}"
+                            TextColor="White" />
+                    </Grid>
+                    <Button 
+                        Text="Excel Workbook"
+                        Clicked="OnImportExcelClicked"
+                        BackgroundColor="{StaticResource SuccessColor}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="PDF Document Import" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Extract tables and text from PDF files" Style="{StaticResource CaptionStyle}" />
+                    <Button 
+                        Text="Import from PDF"
+                        Clicked="OnImportPDFClicked"
+                        BackgroundColor="{StaticResource DangerColor}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Cached Webpage Import (HTML)" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Extract data from saved league websites or HTML files" Style="{StaticResource CaptionStyle}" />
+                    <Button 
+                        Text="Import from HTML File"
+                        Clicked="OnImportHTMLClicked"
+                        BackgroundColor="{StaticResource InfoColor}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Image Import (OCR)" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Extract data from photos of league tables or results" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="WARNING: Requires manual verification" Style="{StaticResource CaptionStyle}" TextColor="{StaticResource WarningColor}" />
+                    <Button 
+                        Text="Import from Image"
+                        Clicked="OnImportImageClicked"
+                        BackgroundColor="{StaticResource WarningColor}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Import Templates" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Download Templates" FontAttributes="Bold" />
+                    <Label Text="Download CSV templates with correct column format" Style="{StaticResource CaptionStyle}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button 
+                            Text="League Table Template"
+                            Clicked="OnDownloadLeagueTableTemplateClicked"
+                            FontSize="12"
+                            Padding="8,4" />
+                        <Button 
+                            Grid.Column="1"
+                            Text="Results Template"
+                            Clicked="OnDownloadResultsTemplateClicked"
+                            FontSize="12"
+                            Padding="8,4" />
+                    </Grid>
+                    <Button 
+                        Text="Players Template"
+                        Clicked="OnDownloadPlayersTemplateClicked"
+                        FontSize="12"
+                        Padding="8,4" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Recent Imports" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <CollectionView x:Name="ImportHistoryList" HeightRequest="200">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
+                            <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding Icon}" FontSize="24" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="{Binding FileName}" FontAttributes="Bold" />
+                                    <Label Text="{Binding Summary}" Style="{StaticResource CaptionStyle}" />
+                                    <Label Text="{Binding Timestamp}" Style="{StaticResource CaptionStyle}" FontSize="10" />
+                                </VerticalStackLayout>
+                                <Button 
+                                    Grid.Column="2"
+                                    Text="Undo"
+                                    Clicked="OnUndoImportClicked"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="{StaticResource DangerColor}"
+                                    TextColor="White"
+                                    FontSize="10"
+                                    Padding="8,4"
+                                    IsVisible="{Binding CanUndo}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Import Guidelines" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource CardBorderStyle}">
+                <VerticalStackLayout Padding="12" Spacing="8">
+                    <Label Text="Tips for Successful Imports:" FontAttributes="Bold" />
+                    <Label Text="- CSV files should have headers in the first row" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="- Date format: DD/MM/YYYY or MM/DD/YYYY" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="- Team names must match exactly (case-insensitive)" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="- Images should be clear and high-resolution" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="- Always backup before large imports" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="- Review imported data for accuracy" Style="{StaticResource CaptionStyle}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label 
+                x:Name="StatusLabel"
+                Style="{StaticResource CaptionStyle}"
+                HorizontalTextAlignment="Center"
+                TextColor="{StaticResource InfoColor}"
+                FontAttributes="Bold" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

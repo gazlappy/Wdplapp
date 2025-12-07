@@ -66,6 +66,10 @@
             <ShellContent Title="Achievements" ContentTemplate="{DataTemplate views:AchievementsPage}" />
         </Tab>
 
+        <Tab Title="Historical Import" Icon="stats.png">
+            <ShellContent Title="Historical Import" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
+        </Tab>
+
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>
