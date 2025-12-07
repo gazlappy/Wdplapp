@@ -3,262 +3,503 @@
     x:Class="Wdpl2.Views.HistoricalImportPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="Historical Data Import">
+    Title="Data Import Wizard">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="12" Spacing="16">
-            
-            <Label 
-                Text="Import Historical Data" 
-                Style="{StaticResource PageTitleStyle}" />
-            
-            <Label 
-                Text="Import data from spreadsheets, images, and cached webpages"
-                Style="{StaticResource SubheaderTextStyle}" />
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Target Season" FontAttributes="Bold" />
-                    <Picker x:Name="SeasonPicker" Title="Select season for import" />
-                    <Button 
-                        Text="+ Create New Season"
-                        Clicked="OnCreateSeasonClicked"
-                        BackgroundColor="{StaticResource SuccessColor}"
-                        TextColor="White"
-                        FontSize="12"
-                        Padding="8,4" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Label Text="Select Import Source" Style="{StaticResource SectionHeaderStyle}" />
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Spreadsheet Import (CSV/Excel)" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Import league tables, results, or player lists from CSV or Excel files" Style="{StaticResource CaptionStyle}" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button 
-                            Text="Import League Table"
-                            Clicked="OnImportLeagueTableClicked"
-                            BackgroundColor="{StaticResource PrimaryColor}"
-                            TextColor="White" />
-                        <Button 
-                            Grid.Column="1"
-                            Text="Import Results"
-                            Clicked="OnImportResultsClicked"
-                            BackgroundColor="{StaticResource InfoColor}"
-                            TextColor="White" />
-                    </Grid>
-                    <Button 
-                        Text="Import Players/Teams"
-                        Clicked="OnImportPlayersClicked"
-                        BackgroundColor="{StaticResource SuccessColor}"
-                        TextColor="White" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Office Documents (Word/Excel/PowerPoint)" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Import from Microsoft Office and OpenOffice documents" Style="{StaticResource CaptionStyle}" />
-                    
-                    <!-- AUTO-conversion notice -->
-                    <Border BackgroundColor="{StaticResource InfoColor}" 
-                            Padding="8" 
-                            Stroke="{StaticResource InfoColor}"
-                            StrokeThickness="0"
-                            Margin="0,4">
-                        <Label TextColor="White" FontSize="12">
-                            <Label.FormattedText>
-                                <FormattedString>
-                                    <Span Text="AUTO-CONVERT: " FontAttributes="Bold"/>
-                                    <Span Text="Legacy .doc files are automatically converted to .docx format for import!"/>
-                                </FormattedString>
-                            </Label.FormattedText>
-                        </Label>
-                    </Border>
-
-                    <!-- NEW: Preview feature notice -->
-                    <Border BackgroundColor="{StaticResource SuccessColor}" 
-                            Padding="8" 
-                            Stroke="{StaticResource SuccessColor}"
-                            StrokeThickness="0"
-                            Margin="0,4">
-                        <Label TextColor="White" FontSize="12">
-                            <Label.FormattedText>
-                                <FormattedString>
-                                    <Span Text="NEW: PREVIEW MODE " FontAttributes="Bold"/>
-                                    <Span Text="Review and edit data before importing! Perfect for season winners documents."/>
-                                </FormattedString>
-                            </Label.FormattedText>
-                        </Label>
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Header with Progress Indicator -->
+        <Border Grid.Row="0" 
+                BackgroundColor="{StaticResource PrimaryColor}" 
+                Padding="20,16">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Import Historical Data"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       FontSize="20" />
+                
+                <!-- Step Indicator -->
+                <Grid x:Name="StepIndicator" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <!-- Step 1 -->
+                    <Border Grid.Column="0" 
+                            BackgroundColor="White"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step1Icon" Text="1" 
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step1Label" Text="Choose Type" 
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
                     </Border>
                     
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button 
-                            Text="Word Document"
-                            Clicked="OnImportWordClicked"
-                            BackgroundColor="{StaticResource PrimaryColor}"
-                            TextColor="White" />
-                        <Button 
-                            Grid.Column="1"
-                            Text="Word (Preview)"
-                            Clicked="OnImportWordWithPreviewClicked"
-                            BackgroundColor="{StaticResource SuccessColor}"
-                            TextColor="White" />
-                    </Grid>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button 
-                            Text="PowerPoint"
-                            Clicked="OnImportPowerPointClicked"
-                            BackgroundColor="{StaticResource InfoColor}"
-                            TextColor="White" />
-                        <Button 
-                            Grid.Column="1"
-                            Text="Excel Workbook"
-                            Clicked="OnImportExcelClicked"
-                            BackgroundColor="{StaticResource SuccessColor}"
-                            TextColor="White" />
-                    </Grid>
-                </VerticalStackLayout>
-            </Border>
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="PDF Document Import" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Extract tables and text from PDF files" Style="{StaticResource CaptionStyle}" />
-                    <Button 
-                        Text="Import from PDF"
-                        Clicked="OnImportPDFClicked"
-                        BackgroundColor="{StaticResource DangerColor}"
-                        TextColor="White" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Cached Webpage Import (HTML)" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Extract data from saved league websites or HTML files" Style="{StaticResource CaptionStyle}" />
-                    
-                    <!-- NEW: Batch import notice -->
-                    <Border BackgroundColor="{StaticResource SuccessColor}" 
-                            Padding="8" 
-                            Stroke="{StaticResource SuccessColor}"
-                            StrokeThickness="0"
-                            Margin="0,4">
-                        <Label TextColor="White" FontSize="12">
-                            <Label.FormattedText>
-                                <FormattedString>
-                                    <Span Text="BATCH IMPORT: " FontAttributes="Bold"/>
-                                    <Span Text="Select multiple HTML files at once! Perfect for importing entire league archives."/>
-                                </FormattedString>
-                            </Label.FormattedText>
-                        </Label>
+                    <!-- Step 2 -->
+                    <Border Grid.Column="1" 
+                            BackgroundColor="#FFFFFF40"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step2Icon" Text="2" 
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step2Label" Text="Select Files" 
+                                   TextColor="White"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
                     </Border>
                     
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button 
-                            Text="Single HTML File"
-                            Clicked="OnImportHTMLClicked"
-                            BackgroundColor="{StaticResource InfoColor}"
-                            TextColor="White" />
-                        <Button 
-                            Grid.Column="1"
-                            Text="Batch HTML Files"
-                            Clicked="OnImportHTMLBatchClicked"
-                            BackgroundColor="{StaticResource SuccessColor}"
-                            TextColor="White" />
-                    </Grid>
-                </VerticalStackLayout>
-            </Border>
+                    <!-- Step 3 -->
+                    <Border Grid.Column="2" 
+                            BackgroundColor="#FFFFFF40"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step3Icon" Text="3" 
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step3Label" Text="Import" 
+                                   TextColor="White"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
 
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Image Import (OCR)" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Extract data from photos of league tables or results" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="WARNING: Requires manual verification" Style="{StaticResource CaptionStyle}" TextColor="{StaticResource WarningColor}" />
-                    <Button 
-                        Text="Import from Image"
-                        Clicked="OnImportImageClicked"
-                        BackgroundColor="{StaticResource WarningColor}"
-                        TextColor="White" />
-                </VerticalStackLayout>
-            </Border>
+        <!-- Content Area (Swappable) -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="0">
+                
+                <!-- STEP 1: Choose Import Type -->
+                <VerticalStackLayout x:Name="Step1Content" 
+                                   Padding="20" 
+                                   Spacing="16"
+                                   IsVisible="True">
+                    
+                    <Label Text="What would you like to import?"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,16"/>
 
-            <Label Text="Import Templates" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Download Templates" FontAttributes="Bold" />
-                    <Label Text="Download CSV templates with correct column format" Style="{StaticResource CaptionStyle}" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button 
-                            Text="League Table Template"
-                            Clicked="OnDownloadLeagueTableTemplateClicked"
-                            FontSize="12"
-                            Padding="8,4" />
-                        <Button 
-                            Grid.Column="1"
-                            Text="Results Template"
-                            Clicked="OnDownloadResultsTemplateClicked"
-                            FontSize="12"
-                            Padding="8,4" />
-                    </Grid>
-                    <Button 
-                        Text="Players Template"
-                        Clicked="OnDownloadPlayersTemplateClicked"
-                        FontSize="12"
-                        Padding="8,4" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Label Text="Recent Imports" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
-            <CollectionView x:Name="ImportHistoryList" HeightRequest="200">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4">
-                            <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                <Label Text="{Binding Icon}" FontSize="24" />
-                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                    <Label Text="{Binding FileName}" FontAttributes="Bold" />
-                                    <Label Text="{Binding Summary}" Style="{StaticResource CaptionStyle}" />
-                                    <Label Text="{Binding Timestamp}" Style="{StaticResource CaptionStyle}" FontSize="10" />
-                                </VerticalStackLayout>
-                                <Button 
-                                    Grid.Column="2"
-                                    Text="Undo"
-                                    Clicked="OnUndoImportClicked"
-                                    CommandParameter="{Binding .}"
-                                    BackgroundColor="{StaticResource DangerColor}"
+                    <!-- Access Database -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource PrimaryColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🗄️" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="Access Database (.mdb/.accdb)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Label Text="Import complete league data with fixtures, results, and history"
+                                       TextColor="{StaticResource Gray600}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Teams  ✓ Players  ✓ Fixtures  ✓ Results"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectAccessDatabase"
+                                    BackgroundColor="{StaticResource PrimaryColor}"
                                     TextColor="White"
-                                    FontSize="10"
-                                    Padding="8,4"
-                                    IsVisible="{Binding CanUndo}" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
 
-            <Label Text="Import Guidelines" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
-            <Border Style="{StaticResource CardBorderStyle}">
-                <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="Tips for Successful Imports:" FontAttributes="Bold" />
-                    <Label Text="- CSV files should have headers in the first row" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="- Date format: DD/MM/YYYY or MM/DD/YYYY" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="- Team names must match exactly (case-insensitive)" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="- Images should be clear and high-resolution" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="- Always backup before large imports" Style="{StaticResource CaptionStyle}" />
-                    <Label Text="- Review imported data for accuracy" Style="{StaticResource CaptionStyle}" />
+                    <!-- Word Document -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource InfoColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="📄" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="Word Document (.docx)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Label Text="Extract season winners, runners-up, and competition results"
+                                       TextColor="{StaticResource Gray600}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Division Winners  ✓ Competitions  ✓ Awards"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectWordDocument"
+                                    BackgroundColor="{StaticResource InfoColor}"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Excel Spreadsheet -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource SuccessColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="📊" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="Excel Spreadsheet (.xlsx/.csv)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Label Text="Import structured data from spreadsheets and CSV files"
+                                       TextColor="{StaticResource Gray600}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Teams  ✓ Players  ✓ Venues  ✓ Bulk Data"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectExcelSpreadsheet"
+                                    BackgroundColor="{StaticResource SuccessColor}"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- HTML Webpage (Single) -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🌐" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="HTML Webpage (Single File)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Label Text="Extract league data from a single saved webpage"
+                                       TextColor="{StaticResource Gray600}"
+                                       FontSize="12"/>
+                                <Label Text="✓ League Tables  ✓ Results  ✓ Player Stats"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectSingleHTML"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- HTML Batch Import -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#FEF3C7"
+                            Stroke="{StaticResource WarningColor}"
+                            StrokeThickness="2">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🌐✨" 
+                                       FontSize="28"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="HTML Batch Import"
+                                           FontAttributes="Bold"
+                                           FontSize="16"/>
+                                    <Border BackgroundColor="{StaticResource SuccessColor}"
+                                            Padding="6,2"
+                                            StrokeThickness="0">
+                                        <Label Text="RECOMMENDED"
+                                               TextColor="White"
+                                               FontSize="9"
+                                               FontAttributes="Bold"/>
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="Import MULTIPLE HTML files at once - perfect for season archives!"
+                                       TextColor="{StaticResource Gray700}"
+                                       FontSize="12"
+                                       FontAttributes="Bold"/>
+                                <Label Text="✓ Multi-File  ✓ Preview All  ✓ Batch Process  ✓ Fast!"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectBatchHTML"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"
+                                    FontAttributes="Bold"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- PDF Document -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}"
+                            Opacity="0.6">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{StaticResource DangerColor}"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="📕" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="PDF Document (.pdf)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"
+                                       TextColor="{StaticResource Gray500}"/>
+                                <Label Text="Extract data from PDF reports and documents"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontSize="12"/>
+                                <Label Text="⏳ Coming Soon"
+                                       TextColor="{StaticResource Gray500}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Soon"
+                                    IsEnabled="False"
+                                    BackgroundColor="{StaticResource Gray400}"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
+
                 </VerticalStackLayout>
-            </Border>
 
-            <Label 
-                x:Name="StatusLabel"
-                Style="{StaticResource CaptionStyle}"
-                HorizontalTextAlignment="Center"
-                TextColor="{StaticResource InfoColor}"
-                FontAttributes="Bold" />
+                <!-- STEP 2: File Selection (Dynamic based on type) -->
+                <VerticalStackLayout x:Name="Step2Content" 
+                                   Padding="20" 
+                                   Spacing="16"
+                                   IsVisible="False">
+                    
+                    <Label x:Name="Step2Title"
+                           Text="Select File(s)"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,0"/>
 
-        </VerticalStackLayout>
-    </ScrollView>
+                    <Label x:Name="Step2Description"
+                           Text="Choose the file you want to import"
+                           TextColor="{StaticResource Gray600}"
+                           FontSize="14"
+                           Margin="0,0,0,16"/>
+
+                    <!-- File Selection UI (varies by type) -->
+                    <VerticalStackLayout x:Name="FileSelectionArea" Spacing="12"/>
+
+                    <!-- Selected Files Display -->
+                    <Border x:Name="SelectedFilesPanel"
+                            Style="{StaticResource CardBorderStyle}"
+                            IsVisible="False">
+                        <VerticalStackLayout Padding="16" Spacing="12">
+                            <Label Text="Selected Files"
+                                   FontAttributes="Bold"
+                                   FontSize="14"/>
+                            <CollectionView x:Name="SelectedFilesList"
+                                          SelectionMode="None">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BackgroundColor="{StaticResource Gray100}"
+                                              Padding="12,8"
+                                              Margin="0,4"
+                                              StrokeThickness="0">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                <VerticalStackLayout Spacing="2">
+                                                    <Label Text="{Binding FileName}"
+                                                           FontSize="13"
+                                                           FontAttributes="Bold"/>
+                                                    <Label Text="{Binding FilePath}"
+                                                           FontSize="11"
+                                                           TextColor="{StaticResource Gray600}"/>
+                                                </VerticalStackLayout>
+                                                <Button Grid.Column="1"
+                                                        Text="✕"
+                                                        Clicked="OnRemoveFile"
+                                                        CommandParameter="{Binding .}"
+                                                        BackgroundColor="Transparent"
+                                                        TextColor="{StaticResource DangerColor}"
+                                                        FontSize="18"
+                                                        Padding="8"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+
+                <!-- STEP 3: Processing/Results -->
+                <VerticalStackLayout x:Name="Step3Content" 
+                                   Padding="20" 
+                                   Spacing="16"
+                                   IsVisible="False">
+                    
+                    <Label x:Name="Step3Title"
+                           Text="Processing..."
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,16"/>
+
+                    <!-- Progress Indicator -->
+                    <Border x:Name="ProgressPanel"
+                            Style="{StaticResource CardBorderStyle}"
+                            IsVisible="False">
+                        <VerticalStackLayout Padding="20" Spacing="12">
+                            <ActivityIndicator IsRunning="True"
+                                             Color="{StaticResource PrimaryColor}"
+                                             HeightRequest="40"/>
+                            <Label x:Name="ProgressMessage"
+                                   Text="Processing file..."
+                                   HorizontalOptions="Center"
+                                   FontSize="14"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Results Display -->
+                    <VerticalStackLayout x:Name="ResultsArea" Spacing="12"/>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Navigation Buttons -->
+        <Border Grid.Row="2" 
+                BackgroundColor="{StaticResource Gray100}"
+                Padding="20,16"
+                StrokeThickness="0">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <Button x:Name="BackButton"
+                        Text="← Back"
+                        Clicked="OnBackClicked"
+                        BackgroundColor="{StaticResource Gray500}"
+                        TextColor="White"
+                        IsVisible="False"
+                        Padding="16,12"/>
+                
+                <Button Grid.Column="1"
+                        x:Name="CancelButton"
+                        Text="Cancel"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="{StaticResource Gray400}"
+                        TextColor="White"
+                        Padding="16,12"/>
+                
+                <Button Grid.Column="2"
+                        x:Name="NextButton"
+                        Text="Next →"
+                        Clicked="OnNextClicked"
+                        BackgroundColor="{StaticResource PrimaryColor}"
+                        TextColor="White"
+                        IsVisible="False"
+                        Padding="16,12"/>
+            </Grid>
+        </Border>
+
+        <!-- Status Label -->
+        <Label x:Name="StatusLabel"
+               Grid.Row="2"
+               Text=""
+               FontSize="11"
+               TextColor="{StaticResource Gray600}"
+               Margin="20,0,20,8"
+               HorizontalOptions="Start"
+               VerticalOptions="End"
+               IsVisible="False"/>
+
+    </Grid>
 </ContentPage>
