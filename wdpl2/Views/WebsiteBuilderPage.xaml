@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilderPage"
+             Title="Website Builder">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Header -->
+            <Label Text="Website Builder"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="#3B82F6"/>
+            
+            <Label Text="Design and publish your league website"
+                   FontSize="14"
+                   TextColor="#6B7280"/>
+            
+            <!-- Season Selection -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Season" FontAttributes="Bold" FontSize="16"/>
+                    <Picker x:Name="SeasonPicker" Title="Select Season"/>
+                    <Label Text="Select which season data to publish on the website"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Site Branding -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Site Branding" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="League Name" FontSize="14"/>
+                    <Entry x:Name="LeagueNameEntry" Placeholder="e.g., West Division Pool League"/>
+                    
+                    <Label Text="Subtitle" FontSize="14"/>
+                    <Entry x:Name="SubtitleEntry" Placeholder="e.g., Weekly 8-Ball Competition"/>
+                    
+                    <!-- Logo Upload -->
+                    <Label Text="League Logo (Optional)" FontSize="14" Margin="0,10,0,0"/>
+                    <HorizontalStackLayout Spacing="10">
+                        <Button x:Name="UploadLogoBtn" 
+                                Text="Upload Logo" 
+                                Clicked="OnUploadLogoClicked"
+                                BackgroundColor="#6B7280"/>
+                        <Label x:Name="LogoStatusLabel" 
+                               Text="No logo selected"
+                               FontSize="12"
+                               TextColor="#6B7280"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    <Image x:Name="LogoPreviewImage" 
+                           HeightRequest="100" 
+                           Aspect="AspectFit"
+                           IsVisible="False"
+                           Margin="0,5,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Template Selection -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Template" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <CollectionView x:Name="TemplatesList" SelectionMode="Single">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Margin="0,5" Padding="15" BorderColor="#E5E7EB" CornerRadius="8">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="15">
+                                        <!-- Template Preview Icon -->
+                                        <BoxView Grid.Column="0" 
+                                                 WidthRequest="60" 
+                                                 HeightRequest="60" 
+                                                 BackgroundColor="#F3F4F6"
+                                                 CornerRadius="6"/>
+                                        
+                                        <!-- Template Info -->
+                                        <VerticalStackLayout Grid.Column="1" Spacing="5">
+                                            <Label Text="{Binding Name}" 
+                                                   FontAttributes="Bold" 
+                                                   FontSize="16"/>
+                                            <Label Text="{Binding Description}" 
+                                                   FontSize="12" 
+                                                   TextColor="#6B7280"/>
+                                            <Label Text="{Binding Features, StringFormat='Features: {0}'}" 
+                                                   FontSize="11" 
+                                                   TextColor="#9CA3AF"/>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Color Theme -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Color Theme" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10" RowSpacing="10">
+                        <VerticalStackLayout Grid.Column="0" Spacing="5">
+                            <Label Text="Primary" FontSize="12"/>
+                            <Entry x:Name="PrimaryColorEntry" Placeholder="#3B82F6"/>
+                        </VerticalStackLayout>
+                        
+                        <VerticalStackLayout Grid.Column="1" Spacing="5">
+                            <Label Text="Secondary" FontSize="12"/>
+                            <Entry x:Name="SecondaryColorEntry" Placeholder="#10B981"/>
+                        </VerticalStackLayout>
+                        
+                        <VerticalStackLayout Grid.Column="2" Spacing="5">
+                            <Label Text="Accent" FontSize="12"/>
+                            <Entry x:Name="AccentColorEntry" Placeholder="#F59E0B"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Content Options -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Pages to Include" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowStandingsCheck" IsChecked="True"/>
+                        <Label Text="League Standings" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowFixturesCheck" IsChecked="True"/>
+                        <Label Text="Fixtures Schedule" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowResultsCheck" IsChecked="True"/>
+                        <Label Text="Match Results" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowPlayerStatsCheck" IsChecked="True"/>
+                        <Label Text="Player Statistics" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowDivisionsCheck" IsChecked="True"/>
+                        <Label Text="Division Information" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- FTP Settings -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="FTP Upload Settings" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="FTP Host" FontSize="14"/>
+                    <Entry x:Name="FtpHostEntry" Placeholder="ftp.yourwebsite.com"/>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <VerticalStackLayout Grid.Column="0" Spacing="5">
+                            <Label Text="Username" FontSize="14"/>
+                            <Entry x:Name="FtpUsernameEntry" Placeholder="username"/>
+                        </VerticalStackLayout>
+                        
+                        <VerticalStackLayout Grid.Column="1" Spacing="5">
+                            <Label Text="Port" FontSize="14"/>
+                            <Entry x:Name="FtpPortEntry" Placeholder="21" Keyboard="Numeric" WidthRequest="80"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                    
+                    <Label Text="Password" FontSize="14"/>
+                    <Entry x:Name="FtpPasswordEntry" Placeholder="password" IsPassword="True"/>
+                    
+                    <Label Text="Remote Path" FontSize="14"/>
+                    <Entry x:Name="FtpPathEntry" Placeholder="/public_html/"/>
+                    
+                    <Button x:Name="TestConnectionBtn" 
+                            Text="Test Connection" 
+                            Clicked="OnTestConnectionClicked"
+                            BackgroundColor="#6B7280"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Status Label -->
+            <Label x:Name="StatusLabel" 
+                   FontSize="14"
+                   TextColor="#10B981"
+                   IsVisible="False"/>
+            
+            <!-- Progress Bar -->
+            <ProgressBar x:Name="UploadProgress" 
+                         IsVisible="False" 
+                         ProgressColor="#3B82F6"/>
+            
+            <!-- WebView Preview Section -->
+            <Frame x:Name="PreviewFrame" 
+                   BorderColor="#E5E7EB" 
+                   Padding="0" 
+                   CornerRadius="8"
+                   IsVisible="False">
+                <VerticalStackLayout Spacing="0">
+                    <!-- Preview Header -->
+                    <Grid BackgroundColor="#F3F4F6" 
+                          Padding="15" 
+                          ColumnDefinitions="*,Auto,Auto">
+                        <Label Grid.Column="0" 
+                               Text="Live Preview" 
+                               FontAttributes="Bold" 
+                               FontSize="16"
+                               VerticalOptions="Center"/>
+                        
+                        <Picker Grid.Column="1" 
+                                x:Name="PreviewPagePicker"
+                                Title="Select Page"
+                                WidthRequest="150"
+                                Margin="0,0,10,0"
+                                SelectedIndexChanged="OnPreviewPageChanged"/>
+                        
+                        <Button Grid.Column="2"
+                                Text="? Close"
+                                Clicked="OnClosePreviewClicked"
+                                BackgroundColor="#EF4444"
+                                TextColor="White"
+                                WidthRequest="80"/>
+                    </Grid>
+                    
+                    <!-- WebView -->
+                    <WebView x:Name="PreviewWebView" 
+                             HeightRequest="600"
+                             WidthRequest="800"
+                             HorizontalOptions="Fill"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Grid.Column="0"
+                        x:Name="PreviewBtn"
+                        Text="Preview Website"
+                        Clicked="OnPreviewClicked"
+                        BackgroundColor="#3B82F6"/>
+                
+                <Button Grid.Column="1"
+                        x:Name="GenerateBtn"
+                        Text="Generate &amp; Upload"
+                        Clicked="OnGenerateAndUploadClicked"
+                        BackgroundColor="#10B981"/>
+            </Grid>
+            
+            <Button x:Name="SaveSettingsBtn"
+                    Text="Save Settings"
+                    Clicked="OnSaveSettingsClicked"
+                    BackgroundColor="#6B7280"/>
+            
+            <!-- Info -->
+            <Label Text="The website will be generated based on your selected season data and uploaded to your FTP server."
+                   FontSize="12"
+                   TextColor="#9CA3AF"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

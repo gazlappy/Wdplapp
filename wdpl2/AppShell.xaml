@@ -47,6 +47,11 @@
             <ShellContent Title="Import Data" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
         </Tab>
 
+        <!-- WEBSITE BUILDER -->
+        <Tab Title="Website" Icon="globe.png">
+            <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate views:WebsiteBuilderPage}" />
+        </Tab>
+
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>

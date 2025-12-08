@@ -23,6 +23,9 @@ namespace Wdpl2.Models
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
 
+        /// <summary>Website settings for HTML generation and FTP upload.</summary>
+        public WebsiteSettings WebsiteSettings { get; set; } = new();
+
         /// <summary>
         /// Get all entities for a specific season (divisions, venues, teams, players, fixtures).
         /// </summary>
