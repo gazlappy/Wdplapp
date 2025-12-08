@@ -403,8 +403,6 @@ public partial class LeagueTablesPage : ContentPage
         var seasonStartDate = season.StartDate;
 
         // Get ALL fixtures for the season (not just this division!)
-        // This is crucial because players play against opponents from other divisions
-        // and we need their ratings to be calculated correctly
         var allSeasonFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
             .Where(f => f.Frames.Any())
@@ -418,18 +416,16 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        // VBA Algorithm: Process ALL players in the league together
-        // Then filter to division for display
-
         // Track frames per player with week info
         var playerFrameData = new Dictionary<Guid, List<FrameData>>();
         
-        // tblRatings: stores rating per player per week for ALL players
-        // VBA: Rating for week N is calculated AFTER week N's matches and stored as WeekNo = N
-        // When looking up opponent rating during week N, use their rating from week N (calculated previously)
+        // VBA tblRatings: stores rating GOING INTO each week (not after)
+        // Week 1 = 1000 for all (before any matches)
+        // Week 2 = calculated after Week 1 matches
+        // Week N = calculated after Week N-1 matches
         var weeklyRatings = new Dictionary<(Guid, int), int>();
         
-        // Get ALL player IDs from ALL fixtures and initialize for Week 1
+        // Get ALL player IDs and initialize for Week 1 (before any matches)
         var allPlayerIds = new HashSet<Guid>();
         foreach (var fixture in allSeasonFixtures)
         {
@@ -440,13 +436,13 @@ public partial class LeagueTablesPage : ContentPage
             }
         }
         
-        // Initialize ALL players with RatingStartValue for Week 1
+        // VBA: Week 1 = 1000 for ALL players (this is BEFORE any matches)
         foreach (var playerId in allPlayerIds)
         {
             weeklyRatings[(playerId, 1)] = Settings.RatingStartValue;
         }
 
-        // Group fixtures by week (using SEASON start date)
+        // Group fixtures by week
         var fixturesByWeek = allSeasonFixtures
             .GroupBy(f => GetSeasonWeekNumber(f.Date, seasonStartDate))
             .OrderBy(g => g.Key)
@@ -455,13 +451,10 @@ public partial class LeagueTablesPage : ContentPage
         int maxWeek = fixturesByWeek.Max(g => g.Key);
 
         // VBA Algorithm - Process week by week:
-        // 1. For each week, first calculate ratings using PREVIOUS week's opponent ratings
-        // 2. Then store the new ratings for this week
-        // 3. The key insight: when calculating, opponent ratings come from the CURRENT lookup week
-        
+        // After processing Week N's frames, calculate and store rating for Week N+1
         for (int wkNo = 1; wkNo <= maxWeek; wkNo++)
         {
-            // First, add any NEW frames from this week to playerFrameData
+            // Add frames from this week
             var thisWeekFixtures = fixturesByWeek.FirstOrDefault(g => g.Key == wkNo);
             if (thisWeekFixtures != null)
             {
@@ -502,9 +495,8 @@ public partial class LeagueTablesPage : ContentPage
                 }
             }
 
-            // Now calculate rating for each player using ALL their frames up to this week
-            // VBA: GetOppRating = DLookup("Rating", "tblRatings", "[PlayerID] = " & rs2!Played & " and [WeekNo] = " & WkNo)
-            // This means when calculating at week N, we look up opponent's rating from week N
+            // Calculate ratings for NEXT week (wkNo + 1)
+            // VBA: After Week 1 matches, store as Week 2 rating
             foreach (var playerId in playerFrameData.Keys.ToList())
             {
                 var framesUpToNow = playerFrameData[playerId].Where(f => f.WeekNo <= wkNo).ToList();
@@ -519,9 +511,10 @@ public partial class LeagueTablesPage : ContentPage
 
                 foreach (var frameData in framesUpToNow)
                 {
-                    // VBA uses the CURRENT week number (wkNo) for opponent rating lookup
-                    // This is the key difference - opponent ratings evolve as we process weeks
-                    int oppRating = weeklyRatings.TryGetValue((frameData.OpponentId, wkNo), out var r) 
+                    // VBA: Opponent rating lookup uses the rating GOING INTO that frame's week
+                    // For a frame played in Week 1, use opponent's Week 1 rating (1000)
+                    // For a frame played in Week 2, use opponent's Week 2 rating
+                    int oppRating = weeklyRatings.TryGetValue((frameData.OpponentId, frameData.WeekNo), out var r) 
                         ? r 
                         : Settings.RatingStartValue;
 
@@ -538,7 +531,7 @@ public partial class LeagueTablesPage : ContentPage
                         ratingAttnDouble = oppRating * Settings.LossFactor;
                     }
 
-                    // IMPORTANT: Use integer truncation (not rounding) for RatingAttn as VBA does
+                    // Use integer truncation (not rounding) as VBA does
                     int ratingAttn = (int)ratingAttnDouble;
                     
                     valueTot += (long)ratingAttn * biasX;
@@ -546,16 +539,15 @@ public partial class LeagueTablesPage : ContentPage
                     biasX += Settings.RatingsBias;
                 }
 
-                // Store rating for this week (and next week as starting point)
+                // Store as NEXT week's rating (VBA stores rating for week AFTER matches)
                 int rating = weightingTot > 0 ? (int)(valueTot / weightingTot) : Settings.RatingStartValue;
-                weeklyRatings[(playerId, wkNo)] = rating;
                 weeklyRatings[(playerId, wkNo + 1)] = rating;
             }
         }
 
-        // Build display rows - NOW filter to this division only
+        // Build display rows - filter to this division only
         var rows = new List<PlayerRow>();
-        int finalWeek = maxWeek + 1;
+        int finalWeek = maxWeek + 1; // Current rating = week after last matches
 
         foreach (var kvp in playerFrameData)
         {
@@ -573,16 +565,10 @@ public partial class LeagueTablesPage : ContentPage
                 ? (t.Name ?? "")
                 : "";
 
-            // Get final rating
-            int finalRating = Settings.RatingStartValue;
-            for (int w = finalWeek; w >= 1; w--)
-            {
-                if (weeklyRatings.TryGetValue((playerId, w), out var fr))
-                {
-                    finalRating = fr;
-                    break;
-                }
-            }
+            // Get final rating (the rating going into next week, after all matches played)
+            int finalRating = weeklyRatings.TryGetValue((playerId, finalWeek), out var fr)
+                ? fr
+                : Settings.RatingStartValue;
 
             rows.Add(new PlayerRow
             {
