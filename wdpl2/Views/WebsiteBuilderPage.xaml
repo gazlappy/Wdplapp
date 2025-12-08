@@ -65,35 +65,19 @@
                 <VerticalStackLayout Spacing="10">
                     <Label Text="Template" FontAttributes="Bold" FontSize="16"/>
                     
-                    <CollectionView x:Name="TemplatesList" SelectionMode="Single">
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Frame Margin="0,5" Padding="15" BorderColor="#E5E7EB" CornerRadius="8">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="15">
-                                        <!-- Template Preview Icon -->
-                                        <BoxView Grid.Column="0" 
-                                                 WidthRequest="60" 
-                                                 HeightRequest="60" 
-                                                 BackgroundColor="#F3F4F6"
-                                                 CornerRadius="6"/>
-                                        
-                                        <!-- Template Info -->
-                                        <VerticalStackLayout Grid.Column="1" Spacing="5">
-                                            <Label Text="{Binding Name}" 
-                                                   FontAttributes="Bold" 
-                                                   FontSize="16"/>
-                                            <Label Text="{Binding Description}" 
-                                                   FontSize="12" 
-                                                   TextColor="#6B7280"/>
-                                            <Label Text="{Binding Features, StringFormat='Features: {0}'}" 
-                                                   FontSize="11" 
-                                                   TextColor="#9CA3AF"/>
-                                        </VerticalStackLayout>
-                                    </Grid>
-                                </Frame>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
+                    <Picker x:Name="TemplatePicker" 
+                            Title="Select Template"
+                            SelectedIndexChanged="OnTemplateChanged"/>
+                    
+                    <Label x:Name="TemplateDescription" 
+                           FontSize="12" 
+                           TextColor="#6B7280"
+                           IsVisible="False"/>
+                    
+                    <Label x:Name="TemplateFeatures" 
+                           FontSize="11" 
+                           TextColor="#9CA3AF"
+                           IsVisible="False"/>
                 </VerticalStackLayout>
             </Frame>
             

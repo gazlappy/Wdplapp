@@ -76,35 +76,9 @@ namespace Wdpl2.Services
             html.AppendLine("</head>");
             html.AppendLine("<body>");
             
-            // Header
-            html.AppendLine("    <header>");
-            html.AppendLine("        <div class=\"container\">");
-            html.AppendLine($"            <h1>{_settings.LeagueName}</h1>");
-            html.AppendLine($"            <p class=\"subtitle\">{_settings.LeagueSubtitle}</p>");
-            html.AppendLine($"            <p class=\"season-badge\">{season.Name}</p>");
-            html.AppendLine("        </div>");
-            html.AppendLine("    </header>");
+            AppendHeader(html, season);
+            AppendNavigation(html, "Home");
             
-            // Navigation
-            html.AppendLine("    <nav>");
-            html.AppendLine("        <div class=\"container\">");
-            html.AppendLine("            <ul>");
-            html.AppendLine("                <li><a href=\"index.html\" class=\"active\">Home</a></li>");
-            if (_settings.ShowStandings)
-                html.AppendLine("                <li><a href=\"standings.html\">Standings</a></li>");
-            if (_settings.ShowFixtures)
-                html.AppendLine("                <li><a href=\"fixtures.html\">Fixtures</a></li>");
-            if (_settings.ShowResults)
-                html.AppendLine("                <li><a href=\"results.html\">Results</a></li>");
-            if (_settings.ShowPlayerStats)
-                html.AppendLine("                <li><a href=\"players.html\">Players</a></li>");
-            if (_settings.ShowDivisions)
-                html.AppendLine("                <li><a href=\"divisions.html\">Divisions</a></li>");
-            html.AppendLine("            </ul>");
-            html.AppendLine("        </div>");
-            html.AppendLine("    </nav>");
-            
-            // Main content
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
@@ -112,7 +86,6 @@ namespace Wdpl2.Services
             html.AppendLine($"                <p class=\"hero-dates\">{season.StartDate:MMMM d, yyyy} - {season.EndDate:MMMM d, yyyy}</p>");
             html.AppendLine("            </div>");
             
-            // Quick stats
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             var completedFixtures = fixtures.Count(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None));
             
@@ -135,7 +108,6 @@ namespace Wdpl2.Services
             html.AppendLine("                </div>");
             html.AppendLine("            </div>");
             
-            // Recent results preview
             if (_settings.ShowResults && completedFixtures > 0)
             {
                 html.AppendLine("            <section class=\"section\">");
@@ -165,7 +137,6 @@ namespace Wdpl2.Services
                 html.AppendLine("            </section>");
             }
             
-            // Upcoming fixtures preview
             if (_settings.ShowFixtures)
             {
                 var upcomingFixtures = fixtures
@@ -202,12 +173,7 @@ namespace Wdpl2.Services
             html.AppendLine("        </div>");
             html.AppendLine("    </main>");
             
-            // Footer
-            html.AppendLine("    <footer>");
-            html.AppendLine("        <div class=\"container\">");
-            html.AppendLine($"            <p>&copy; {DateTime.Now.Year} {_settings.LeagueName}. Generated {DateTime.Now:dd/MM/yyyy HH:mm}</p>");
-            html.AppendLine("        </div>");
-            html.AppendLine("    </footer>");
+            AppendFooter(html);
             
             html.AppendLine("</body>");
             html.AppendLine("</html>");
@@ -217,381 +183,15 @@ namespace Wdpl2.Services
         
         private string GenerateStylesheet(WebsiteTemplate template)
         {
-            var css = new StringBuilder();
-            
-            // Modern template CSS
-            if (template.Id == "modern")
+            return template.Id switch
             {
-                css.AppendLine($@"/* {_settings.LeagueName} - Modern Template */
-:root {{
-    --primary-color: {_settings.PrimaryColor};
-    --secondary-color: {_settings.SecondaryColor};
-    --accent-color: {_settings.AccentColor};
-    --bg-color: #F9FAFB;
-    --card-bg: #FFFFFF;
-    --text-color: #1F2937;
-    --text-secondary: #6B7280;
-    --border-color: #E5E7EB;
-}}
-
-* {{
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}}
-
-body {{
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    line-height: 1.6;
-    color: var(--text-color);
-    background: var(--bg-color);
-}}
-
-.container {{
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-}}
-
-/* Header */
-header {{
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    padding: 40px 0;
-    text-align: center;
-}}
-
-header h1 {{
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-}}
-
-header .subtitle {{
-    font-size: 1.1rem;
-    opacity: 0.9;
-}}
-
-.season-badge {{
-    display: inline-block;
-    margin-top: 16px;
-    padding: 8px 20px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 20px;
-    font-weight: 600;
-}}
-
-/* Navigation */
-nav {{
-    background: var(--card-bg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}}
-
-nav ul {{
-    list-style: none;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-}}
-
-nav li {{
-    margin: 0;
-}}
-
-nav a {{
-    display: block;
-    padding: 16px 24px;
-    color: var(--text-color);
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}}
-
-nav a:hover,
-nav a.active {{
-    color: var(--primary-color);
-    background: var(--bg-color);
-}}
-
-/* Main Content */
-main {{
-    padding: 40px 0;
-    min-height: calc(100vh - 300px);
-}}
-
-.hero {{
-    text-align: center;
-    margin-bottom: 40px;
-}}
-
-.hero h2 {{
-    font-size: 2rem;
-    color: var(--primary-color);
-    margin-bottom: 8px;
-}}
-
-.hero-dates {{
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-}}
-
-/* Stats Grid */
-.stats-grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}}
-
-.stat-card {{
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    transition: transform 0.3s ease;
-}}
-
-.stat-card:hover {{
-    transform: translateY(-4px);
-    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
-}}
-
-.stat-number {{
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 8px;
-}}
-
-.stat-label {{
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}}
-
-/* Sections */
-.section {{
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}}
-
-.section h3 {{
-    color: var(--primary-color);
-    margin-bottom: 20px;
-    font-size: 1.5rem;
-}}
-
-/* Results & Fixtures Lists */
-.results-list,
-.fixtures-list {{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}}
-
-.result-item,
-.fixture-item {{
-    display: grid;
-    grid-template-columns: 120px 1fr auto 1fr;
-    gap: 16px;
-    padding: 16px;
-    background: var(--bg-color);
-    border-radius: 8px;
-    align-items: center;
-}}
-
-.fixture-item {{
-    grid-template-columns: 150px 1fr auto 1fr;
-}}
-
-.date {{
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    font-weight: 500;
-}}
-
-.team {{
-    font-weight: 600;
-}}
-
-.score {{
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    text-align: center;
-}}
-
-.vs {{
-    color: var(--text-secondary);
-    text-align: center;
-    font-size: 0.9rem;
-}}
-
-.view-all {{
-    text-align: center;
-    margin-top: 20px;
-}}
-
-.view-all a {{
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-}}
-
-.view-all a:hover {{
-    color: var(--secondary-color);
-}}
-
-/* Tables */
-table {{
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--card-bg);
-    border-radius: 8px;
-    overflow: hidden;
-}}
-
-thead {{
-    background: var(--primary-color);
-    color: white;
-}}
-
-th, td {{
-    padding: 12px 16px;
-    text-align: left;
-}}
-
-th {{
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-}}
-
-tbody tr {{
-    border-bottom: 1px solid var(--border-color);
-}}
-
-tbody tr:last-child {{
-    border-bottom: none;
-}}
-
-tbody tr:hover {{
-    background: var(--bg-color);
-}}
-
-/* Winner highlighting */
-.winner {{
-    color: var(--primary-color);
-    font-weight: 700;
-}}
-
-/* Division badges */
-.division-badge {{
-    display: inline-block;
-    padding: 4px 12px;
-    background: var(--accent-color);
-    color: white;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}}
-
-/* Venue display */
-.venue {{
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}}
-
-/* Division notes */
-.division-notes {{
-    color: var(--text-secondary);
-    font-style: italic;
-    margin-bottom: 20px;
-}}
-
-/* Team list */
-.team-list {{
-    list-style: none;
-    padding: 0;
-}}
-
-.team-list li {{
-    padding: 12px;
-    background: var(--bg-color);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    transition: background 0.3s ease;
-}}
-
-.team-list li:hover {{
-    background: var(--border-color);
-}}
-
-/* Footer */
-footer {{
-    background: var(--text-color);
-    color: white;
-    padding: 30px 0;
-    text-align: center;
-    margin-top: 60px;
-}}
-
-footer p {{
-    opacity: 0.8;
-    font-size: 0.9rem;
-}}
-
-/* Responsive */
-@media (max-width: 768px) {{
-    header h1 {{
-        font-size: 1.8rem;
-    }}
-    
-    .hero h2 {{
-        font-size: 1.5rem;
-    }}
-    
-    .stats-grid {{
-        grid-template-columns: repeat(2, 1fr);
-    }}
-    
-    .result-item,
-    .fixture-item {{
-        grid-template-columns: 1fr;
-        gap: 8px;
-        text-align: center;
-    }}
-    
-    nav ul {{
-        flex-direction: column;
-    }}
-    
-    nav a {{
-        border-bottom: 1px solid var(--border-color);
-    }}
-    
-    table {{
-        font-size: 0.85rem;
-    }}
-    
-    th, td {{
-        padding: 8px;
-    }}
-}}");
-            }
-            
-            return css.ToString();
+                "dark" => GenerateDarkModeCSS(),
+                "sport" => GenerateSportCSS(),
+                "minimalist" => GenerateMinimalistCSS(),
+                "classic" => GenerateModernCSS(),
+                "minimal" => GenerateModernCSS(),
+                _ => GenerateModernCSS()
+            };
         }
         
         private string GenerateStandingsPage(Season season, WebsiteTemplate template)
@@ -619,7 +219,6 @@ footer p {{
             html.AppendLine($"                <p class=\"hero-dates\">{season.Name}</p>");
             html.AppendLine("            </div>");
             
-            // Generate standings for each division
             foreach (var division in divisions.OrderBy(d => d.Name))
             {
                 var divisionTeams = teams.Where(t => t.DivisionId == division.Id).ToList();
@@ -644,7 +243,6 @@ footer p {{
                 html.AppendLine("                    </thead>");
                 html.AppendLine("                    <tbody>");
                 
-                // Calculate standings
                 var standings = CalculateStandings(divisionTeams, fixtures);
                 var position = 1;
                 
@@ -874,7 +472,6 @@ footer p {{
             html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
             html.AppendLine("            </div>");
             
-            // Calculate player stats
             var playerStats = CalculatePlayerStats(players, teams, fixtures);
             
             if (playerStats.Any())
@@ -1008,7 +605,6 @@ footer p {{
             return html.ToString();
         }
         
-        // Helper methods
         private void AppendHeader(StringBuilder html, Season season)
         {
             html.AppendLine("    <header>");
@@ -1163,6 +759,388 @@ footer p {{
             }
             
             return stats;
+        }
+        
+        private string GenerateModernCSS()
+        {
+            return $@"/* {_settings.LeagueName} - Modern Template */
+:root {{
+    --primary-color: {_settings.PrimaryColor};
+    --secondary-color: {_settings.SecondaryColor};
+    --accent-color: {_settings.AccentColor};
+    --bg-color: #F9FAFB;
+    --card-bg: #FFFFFF;
+    --text-color: #1F2937;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+}}
+
+* {{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}}
+
+body {{
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background: var(--bg-color);
+}}
+
+.container {{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}}
+
+header {{
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    padding: 40px 0;
+    text-align: center;
+}}
+
+header h1 {{
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}}
+
+header .subtitle {{
+    font-size: 1.1rem;
+    opacity: 0.9;
+}}
+
+.season-badge {{
+    display: inline-block;
+    margin-top: 16px;
+    padding: 8px 20px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    font-weight: 600;
+}}
+
+nav {{
+    background: var(--card-bg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}}
+
+nav ul {{
+    list-style: none;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}}
+
+nav li {{
+    margin: 0;
+}}
+
+nav a {{
+    display: block;
+    padding: 16px 24px;
+    color: var(--text-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}}
+
+nav a:hover,
+nav a.active {{
+    color: var(--primary-color);
+    background: var(--bg-color);
+}}
+
+main {{
+    padding: 40px 0;
+    min-height: calc(100vh - 300px);
+}}
+
+.hero {{
+    text-align: center;
+    margin-bottom: 40px;
+}}
+
+.hero h2 {{
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}}
+
+.hero-dates {{
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}}
+
+.stats-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}}
+
+.stat-card {{
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease;
+}}
+
+.stat-card:hover {{
+    transform: translateY(-4px);
+    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+}}
+
+.stat-number {{
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}}
+
+.stat-label {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}}
+
+.section {{
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}}
+
+.section h3 {{
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}}
+
+.results-list,
+.fixtures-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}}
+
+.result-item,
+.fixture-item {{
+    display: grid;
+    grid-template-columns: 120px 1fr auto 1fr;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    align-items: center;
+}}
+
+.fixture-item {{
+    grid-template-columns: 150px 1fr auto 1fr;
+}}
+
+.date {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}}
+
+.team {{
+    font-weight: 600;
+}}
+
+.score {{
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-align: center;
+}}
+
+.vs {{
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.9rem;
+}}
+
+.view-all {{
+    text-align: center;
+    margin-top: 20px;
+}}
+
+.view-all a {{
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}}
+
+.view-all a:hover {{
+    color: var(--secondary-color);
+}}
+
+table {{
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+}}
+
+thead {{
+    background: var(--primary-color);
+    color: white;
+}}
+
+th, td {{
+    padding: 12px 16px;
+    text-align: left;
+}}
+
+th {{
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}}
+
+tbody tr {{
+    border-bottom: 1px solid var(--border-color);
+}}
+
+tbody tr:last-child {{
+    border-bottom: none;
+}}
+
+tbody tr:hover {{
+    background: var(--bg-color);
+}}
+
+.winner {{
+    color: var(--primary-color);
+    font-weight: 700;
+}}
+
+.division-badge {{
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--accent-color);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}}
+
+.venue {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}}
+
+.division-notes {{
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 20px;
+}}
+
+.team-list {{
+    list-style: none;
+    padding: 0;
+}}
+
+.team-list li {{
+    padding: 12px;
+    background: var(--bg-color);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: background 0.3s ease;
+}}
+
+.team-list li:hover {{
+    background: var(--border-color);
+}}
+
+footer {{
+    background: var(--text-color);
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-top: 60px;
+}}
+
+footer p {{
+    opacity: 0.8;
+    font-size: 0.9rem;
+}}
+
+@media (max-width: 768px) {{
+    header h1 {{
+        font-size: 1.8rem;
+    }}
+    
+    .hero h2 {{
+        font-size: 1.5rem;
+    }}
+    
+    .stats-grid {{
+        grid-template-columns: repeat(2, 1fr);
+    }}
+    
+    .result-item,
+    .fixture-item {{
+        grid-template-columns: 1fr;
+        gap: 8px;
+        text-align: center;
+    }}
+    
+    nav ul {{
+        flex-direction: column;
+    }}
+    
+    nav a {{
+        border-bottom: 1px solid var(--border-color);
+    }}
+    
+    table {{
+        font-size: 0.85rem;
+    }}
+    
+    th, td {{
+        padding: 8px;
+    }}
+}}";
+        }
+        
+        private string GenerateDarkModeCSS()
+        {
+            return GenerateModernCSS().Replace("#F9FAFB", "#111827")
+                .Replace("#FFFFFF", "#1F2937")
+                .Replace("#1F2937", "#F9FAFB")
+                .Replace("#6B7280", "#9CA3AF")
+                .Replace("#E5E7EB", "#374151");
+        }
+        
+        private string GenerateSportCSS()
+        {
+            return GenerateModernCSS().Replace("'Segoe UI', Roboto", "'Arial Black', Arial")
+                .Replace("font-weight: 500", "font-weight: 900")
+                .Replace("font-weight: 600", "font-weight: 900")
+                .Replace("font-weight: 700", "font-weight: 900");
+        }
+        
+        private string GenerateMinimalistCSS()
+        {
+            return GenerateModernCSS().Replace("#F9FAFB", "#FFFFFF")
+                .Replace("font-weight: 700", "font-weight: 300")
+                .Replace("font-weight: 600", "font-weight: 400")
+                .Replace("font-weight: 500", "font-weight: 300");
         }
     }
 }

@@ -23,7 +23,8 @@ namespace Wdpl2.Views
             SeasonPicker.ItemsSource = _seasons;
             SeasonPicker.ItemDisplayBinding = new Binding("Name");
             
-            TemplatesList.ItemsSource = _templates;
+            TemplatePicker.ItemsSource = _templates;
+            TemplatePicker.ItemDisplayBinding = new Binding("Name");
             
             // Setup preview page picker
             PreviewPagePicker.ItemsSource = new[] 
@@ -104,11 +105,11 @@ namespace Wdpl2.Views
             var selectedTemplate = _templates.FirstOrDefault(t => t.Id == settings.SelectedTemplate);
             if (selectedTemplate != null)
             {
-                TemplatesList.SelectedItem = selectedTemplate;
+                TemplatePicker.SelectedItem = selectedTemplate;
             }
             else
             {
-                TemplatesList.SelectedItem = _templates.FirstOrDefault();
+                TemplatePicker.SelectedItem = _templates.FirstOrDefault();
             }
         }
         
@@ -143,7 +144,7 @@ namespace Wdpl2.Views
             var selectedSeason = SeasonPicker.SelectedItem as Season;
             settings.SelectedSeasonId = selectedSeason?.Id;
             
-            var selectedTemplate = TemplatesList.SelectedItem as WebsiteTemplate;
+            var selectedTemplate = TemplatePicker.SelectedItem as WebsiteTemplate;
             settings.SelectedTemplate = selectedTemplate?.Id ?? "modern";
             
             // Save logo data if uploaded
@@ -444,6 +445,17 @@ namespace Wdpl2.Views
                 StatusLabel.IsVisible = true;
                 
                 await DisplayAlert("Error", $"Failed to save settings:\n\n{ex.Message}", "OK");
+            }
+        }
+
+        private void OnTemplateChanged(object sender, EventArgs e)
+        {
+            if (TemplatePicker.SelectedItem is WebsiteTemplate template)
+            {
+                TemplateDescription.Text = template.Description;
+                TemplateDescription.IsVisible = true;
+                TemplateFeatures.Text = $"Features: {string.Join(", ", template.Features)}";
+                TemplateFeatures.IsVisible = true;
             }
         }
     }
