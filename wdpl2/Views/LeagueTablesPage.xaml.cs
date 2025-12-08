@@ -29,7 +29,6 @@ public partial class LeagueTablesPage : ContentPage
         public Guid TeamId { get; set; }
         public int P { get; set; }
         public int W { get; set; }
-        public int D { get; set; }
         public int L { get; set; }
         public int F { get; set; }
         public int A { get; set; }
@@ -145,21 +144,21 @@ public partial class LeagueTablesPage : ContentPage
         TeamTableHeaderGrid.ColumnDefinitions.Clear();
         TeamTableHeaderGrid.Children.Clear();
 
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
-        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });  // #
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });     // Team
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // P
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // W
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // L
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // F
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // A
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Diff
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Pts
 
-        string[] headers = { "#", "Team", "P", "W", "D", "L", "F", "A", "Diff", "Pts" };
+        // Removed "D" (Drawn) column - WDPL uses best-of-15 so draws not possible
+        string[] headers = { "#", "Team", "P", "W", "L", "F", "A", "Diff", "Pts" };
         TextAlignment[] aligns = {
             TextAlignment.Center, TextAlignment.Start, TextAlignment.Center, TextAlignment.Center,
-            TextAlignment.Center, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center,
+            TextAlignment.Center, TextAlignment.Center, TextAlignment.Center,
             TextAlignment.Center, TextAlignment.Center
         };
 
@@ -217,7 +216,8 @@ public partial class LeagueTablesPage : ContentPage
             hr.F += hs; hr.A += @as;
             ar.F += @as; ar.A += hs;
 
-            // NEW POINTS SYSTEM: Frames Won + Bonus
+            // WDPL uses best-of-15 frames - no draws possible
+            // Points = Frames Won + Win Bonus (for winner only)
             if (hs > @as)
             {
                 // Home wins
@@ -225,19 +225,12 @@ public partial class LeagueTablesPage : ContentPage
                 hr.Pts += hs + Settings.MatchWinBonus;  // Frames won + win bonus
                 ar.Pts += @as;                           // Just frames won (no bonus for loss)
             }
-            else if (hs < @as)
+            else
             {
-                // Away wins
+                // Away wins (or technically a draw, but not possible in best-of-15)
                 ar.W++; hr.L++;
                 ar.Pts += @as + Settings.MatchWinBonus;  // Frames won + win bonus
                 hr.Pts += hs;                             // Just frames won (no bonus for loss)
-            }
-            else
-            {
-                // Draw
-                hr.D++; ar.D++;
-                hr.Pts += hs + Settings.MatchDrawBonus;  // Frames won + draw bonus
-                ar.Pts += @as + Settings.MatchDrawBonus; // Frames won + draw bonus
             }
         }
 
@@ -266,16 +259,16 @@ public partial class LeagueTablesPage : ContentPage
                 Padding = new Thickness(10, 6)
             };
 
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            // Removed D (Drawn) column - WDPL best-of-15 has no draws
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });  // #
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });     // Team
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // P
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // W
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // L
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // F
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // A
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Diff
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Pts
 
             Label L(string path, TextAlignment align = TextAlignment.Center, bool bold = false)
             {
@@ -294,12 +287,11 @@ public partial class LeagueTablesPage : ContentPage
             grid.Add(L(nameof(TeamRow.Team), TextAlignment.Start, true), 1, 0);
             grid.Add(L(nameof(TeamRow.P)), 2, 0);
             grid.Add(L(nameof(TeamRow.W)), 3, 0);
-            grid.Add(L(nameof(TeamRow.D)), 4, 0);
-            grid.Add(L(nameof(TeamRow.L)), 5, 0);
-            grid.Add(L(nameof(TeamRow.F)), 6, 0);
-            grid.Add(L(nameof(TeamRow.A)), 7, 0);
-            grid.Add(L(nameof(TeamRow.Diff)), 8, 0);
-            grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 9, 0);
+            grid.Add(L(nameof(TeamRow.L)), 4, 0);
+            grid.Add(L(nameof(TeamRow.F)), 5, 0);
+            grid.Add(L(nameof(TeamRow.A)), 6, 0);
+            grid.Add(L(nameof(TeamRow.Diff)), 7, 0);
+            grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 8, 0);
 
             return new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
         });
@@ -332,7 +324,7 @@ public partial class LeagueTablesPage : ContentPage
     // FACTORS:
     //   Win:    OpponentRating × WinFactor (1.25)
     //   Loss:   OpponentRating × LossFactor (0.75)
-    //   8-Ball: OpponentRating × EightBallFactor (1.35)
+    //   8-Ball: OpponentRating × Settings.EightBallFactor (1.35)
     // ==================================================================
 
     private void RenderPlayerRatingsHeader()
@@ -669,11 +661,11 @@ Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
 
         var sb = new StringBuilder();
 
-        // Export team table
+        // Export team table (no D column - WDPL best-of-15 has no draws)
         sb.AppendLine("=== DIVISION TABLE ===");
-        sb.AppendLine("Pos,Team,P,W,D,L,F,A,Diff,Points");
+        sb.AppendLine("Pos,Team,P,W,L,F,A,Diff,Points");
         foreach (var o in _teamRows)
-            sb.AppendLine($"{o.Pos},{Csv(o.Team)},{o.P},{o.W},{o.D},{o.L},{o.F},{o.A},{o.Diff},{o.Pts}");
+            sb.AppendLine($"{o.Pos},{Csv(o.Team)},{o.P},{o.W},{o.L},{o.F},{o.A},{o.Diff},{o.Pts}");
 
         sb.AppendLine();
         sb.AppendLine("=== PLAYER RATINGS ===");
