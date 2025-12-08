@@ -433,6 +433,141 @@ namespace Wdpl2.Views
             }
         }
 
+        private async void OnFixVbaFixtureDatesClicked(object sender, EventArgs e)
+        {
+            if (_selected == null)
+            {
+                await DisplayAlert("Fix Data", "Please select a season first.", "OK");
+                return;
+            }
+
+            try
+            {
+                // Try to find VBA_Data folder
+                var possiblePaths = new[]
+                {
+                    System.IO.Path.Combine(AppContext.BaseDirectory, "VBA_Data"),
+                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "VBA_Data"),
+                    @"C:\Users\bobgc\source\repos\gazlappy\Wdplapp\wdpl2\VBA_Data"
+                };
+
+                string? vbaDataFolder = possiblePaths.FirstOrDefault(System.IO.Directory.Exists);
+
+                if (vbaDataFolder == null)
+                {
+                    await DisplayAlert("Error", "VBA_Data folder not found. Please ensure VBA data files are available.", "OK");
+                    return;
+                }
+
+                // Show diagnostics first
+                var diagnostics = VbaDataFixService.GetTeamMappingDiagnostics(_selected.Id, vbaDataFolder);
+                System.Diagnostics.Debug.WriteLine(diagnostics);
+
+                // Get fixtures and teams for this season
+                var fixtures = League.Fixtures.Where(f => f.SeasonId == _selected.Id).ToList();
+                var teams = League.Teams.Where(t => t.SeasonId == _selected.Id).ToList();
+
+                if (!fixtures.Any())
+                {
+                    await DisplayAlert("No Fixtures", $"No fixtures found for this season.\n\nDiagnostics:\n{diagnostics}", "OK");
+                    return;
+                }
+
+                // Show diagnostics dialog before fixing
+                var proceed = await DisplayAlert(
+                    "VBA Date Fix Diagnostics",
+                    $"Found:\n• {teams.Count} teams\n• {fixtures.Count} fixtures\n\nProceed with fix?",
+                    "Yes, Fix Dates",
+                    "Show Diagnostics First");
+
+                if (!proceed)
+                {
+                    // Show full diagnostics
+                    await DisplayAlert("Diagnostics", diagnostics.Length > 3000 ? diagnostics.Substring(0, 3000) + "..." : diagnostics, "OK");
+                    return;
+                }
+
+                // Run the fix
+                var result = VbaDataFixService.FixFixtureDates(fixtures, teams, vbaDataFolder);
+
+                // Output full log
+                System.Diagnostics.Debug.WriteLine("=== VBA FIX LOG ===");
+                foreach (var log in result.Log)
+                    System.Diagnostics.Debug.WriteLine(log);
+                System.Diagnostics.Debug.WriteLine("=== END LOG ===");
+
+                // Also fix season start date
+                VbaDataFixService.FixSeasonStartDate(_selected.Id, vbaDataFolder);
+
+                // Build result message
+                var message = new System.Text.StringBuilder();
+                
+                if (result.FixturesUpdated > 0)
+                {
+                    message.AppendLine($"✅ Fixed {result.FixturesUpdated} fixture date(s)");
+                }
+                else
+                {
+                    message.AppendLine("⚠️ No fixtures were updated");
+                }
+
+                if (result.FixturesNotFound > 0)
+                {
+                    message.AppendLine($"❌ {result.FixturesNotFound} fixture(s) could not be matched");
+                }
+
+                if (result.Errors.Any())
+                {
+                    message.AppendLine("\nErrors:");
+                    foreach (var err in result.Errors.Take(5))
+                        message.AppendLine($"• {err}");
+                }
+
+                if (result.Warnings.Any())
+                {
+                    message.AppendLine("\nWarnings:");
+                    foreach (var warn in result.Warnings.Take(10))
+                        message.AppendLine($"• {warn}");
+                }
+
+                // Show log in a separate dialog if user wants
+                message.AppendLine("\n\nView full log?");
+
+                var showLog = await DisplayAlert(
+                    result.FixturesUpdated > 0 ? "Fixture Dates Fixed" : "Fix Results",
+                    message.ToString(),
+                    "View Log",
+                    "Close");
+
+                if (showLog)
+                {
+                    var logText = string.Join("\n", result.Log);
+                    await DisplayAlert("Full Log", logText.Length > 4000 ? logText.Substring(0, 4000) + "..." : logText, "OK");
+                }
+
+                if (result.FixturesUpdated > 0)
+                {
+                    // Save changes
+                    DataStore.Save();
+
+                    // Notify other pages
+                    SeasonService.ForceRefresh();
+
+                    StatusLabel.Text = $"✅ Fixed {result.FixturesUpdated} fixture dates";
+                }
+                else
+                {
+                    StatusLabel.Text = "⚠️ No fixtures updated - check team name mapping";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OnFixVbaFixtureDatesClicked Error: {ex}");
+                await DisplayAlert("Error", $"Failed to fix fixture dates: {ex.Message}", "OK");
+                StatusLabel.Text = $"Error: {ex.Message}";
+            }
+        }
+
         private async void OnGenerateClicked(object sender, EventArgs e)
         {
             if (_selected == null)

@@ -69,6 +69,8 @@ public partial class LeagueTablesPage : ContentPage
         SortPicker.SelectedIndex = 0;
         SortPicker.SelectedIndexChanged += (_, __) => RefreshPlayerRatings();
         ExportBtn.Clicked += async (_, __) => await ExportCsvAsync();
+        RecalculateBtn.Clicked += (_, __) => OnRecalculateClicked();
+        CompareVbaBtn.Clicked += async (_, __) => await CompareWithVbaAsync();
 
         // SUBSCRIBE to global season changes
         SeasonService.SeasonChanged += OnGlobalSeasonChanged;
@@ -299,32 +301,43 @@ public partial class LeagueTablesPage : ContentPage
 
     // ========== PLAYER RATINGS ==========
 
-    // ✅ TRUE VBA ALGORITHM - Progressive Weighting (Newest Frame = Highest Weight)
+    // ✅ VBA RATING ALGORITHM - Based on analysis of tblRatings and tblPlayerResult data
     // ==================================================================
-    // The rating calculation uses VBA-style cumulative weighted rating where:
-    // - The NEWEST frame ALWAYS gets the base weight (RatingWeighting, e.g., 220)
-    // - Each OLDER frame gets decremented by RatingsBias (e.g., -4 per frame)
-    // - This creates a "sliding window" where recent performance has more influence
+    // 
+    // DATA STRUCTURES IN VBA:
+    // - tblRatings: Stores rating per player per week (ID, WeekNo, PlayerID, Rating)
+    // - tblPlayerResult: Frame results with OppRating/PlayerRating snapshots
     //
-    // EXAMPLE (Gary Deville with 11 frames, RatingWeighting=220, RatingsBias=4):
-    //   Frame 11 (newest, 27/11/2025):  Weight = 220  ← Always base weight
-    //   Frame 10 (27/11/2025):          Weight = 216  ← Base - (4×1)
-    //   Frame 9  (27/11/2025):          Weight = 212  ← Base - (4×2)
-    //   Frame 8  (20/11/2025):          Weight = 208  ← Base - (4×3)
-    //   ...
-    //   Frame 1  (oldest, 16/10/2025):  Weight = 180  ← Base - (4×10)
+    // VBA ALGORITHM FLOW:
+    // 1. All players start Week 1 at RatingStartValue (1000)
+    // 2. After each week's matches, ratings are recalculated for ALL players
+    // 3. The new rating becomes the lookup value for NEXT week's matches
     //
-    // KEY INSIGHT: When a NEW frame arrives, ALL previous frames' weights
-    // effectively "shift down" as they become one frame older.
+    // RATING FORMULA:
+    //   Rating = Σ(RatingAttn × BiasX) / Σ(BiasX)
     //
-    // FORMULA:
-    //   Rating = Σ(OpponentRating × Factor × Weight) / Σ(Weight)
-    //   Where Weight = RatingWeighting - (RatingsBias × FramesAgo)
+    // WHERE:
+    //   RatingAttn = OpponentRating × Factor
+    //     - Win:      OpponentRating × 1.25 (RATINGWIN)
+    //     - Loss:     OpponentRating × 0.75 (RATINGLOSE)
+    //     - 8-Ball:   OpponentRating × 1.35 (RATING8BALL)
+    //   
+    //   BiasX = Weight for each frame (progressive weighting)
+    //     - Oldest frame:  RatingWeighting - (4 × (TotalFrames - 1))
+    //     - Each newer frame: Previous BiasX + 4
+    //     - Newest frame:  RatingWeighting (always base weight)
     //
-    // FACTORS:
-    //   Win:    OpponentRating × WinFactor (1.25)
-    //   Loss:   OpponentRating × LossFactor (0.75)
-    //   8-Ball: OpponentRating × Settings.EightBallFactor (1.35)
+    // EXAMPLE (Player with 6 frames, Weighting=220, Bias=4):
+    //   Frame 1 (oldest): BiasX = 220 - (4 × 5) = 200
+    //   Frame 2:          BiasX = 204
+    //   Frame 3:          BiasX = 208
+    //   Frame 4:          BiasX = 212
+    //   Frame 5:          BiasX = 216
+    //   Frame 6 (newest): BiasX = 220
+    //
+    // IMPORTANT: VBA uses INTEGER arithmetic (truncation, not rounding) for RatingAttn
+    //   e.g., 1000 × 1.25 = 1250 (integer)
+    //   e.g., 1000 × 0.75 = 750 (integer)
     // ==================================================================
 
     private void RenderPlayerRatingsHeader()
@@ -368,235 +381,270 @@ public partial class LeagueTablesPage : ContentPage
         _playerRows.Clear();
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
- {
-        PlayerRatingsList.ItemTemplate = null;
+        {
+            PlayerRatingsList.ItemTemplate = null;
             return;
-   }
+        }
 
         var data = DataStore.Data;
         var tById = data.Teams.ToDictionary(t => t.Id, t => t);
 
-        // Get teams in this division
-     var divisionTeamIds = new HashSet<Guid>(
-  data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).Select(t => t.Id));
+        // Get teams in this division (for filtering display only)
+        var divisionTeamIds = new HashSet<Guid>(
+            data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).Select(t => t.Id));
 
-        var fixtures = data.Fixtures
-  .Where(f => f.SeasonId == _currentSeasonId)
-         .Where(f => divisionTeamIds.Contains(f.HomeTeamId) || divisionTeamIds.Contains(f.AwayTeamId))
+        // Get the season's START DATE (not earliest fixture date!)
+        var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        if (season == null)
+        {
+            SetStatus("Season not found");
+            return;
+        }
+        var seasonStartDate = season.StartDate;
+
+        // Get ALL fixtures for the season (not just this division!)
+        // This is crucial because players play against opponents from other divisions
+        // and we need their ratings to be calculated correctly
+        var allSeasonFixtures = data.Fixtures
+            .Where(f => f.SeasonId == _currentSeasonId)
+            .Where(f => f.Frames.Any())
             .OrderBy(f => f.Date)
-    .ToList();
+            .ThenBy(f => f.Id)
+            .ToList();
 
-        // Build frame history for each player
-     // KEY CHANGE: Process fixtures in DATE-BASED BATCHES (like VBA's weekly processing)
-        var playerFrames = new Dictionary<Guid, List<PlayerFrameHistory>>();
-        var currentRatings = new Dictionary<Guid, int>();
-
-        // Group fixtures by date (VBA-style: process all fixtures on same date, then update ratings)
-        var fixturesByDate = fixtures.GroupBy(f => f.Date.Date).OrderBy(g => g.Key);
-
-     foreach (var dateGroup in fixturesByDate)
+        if (!allSeasonFixtures.Any())
         {
-         // Snapshot ratings at START of this date's fixtures (VBA-style: uses previous batch's ratings)
-      var batchStartRatings = new Dictionary<Guid, int>(currentRatings);
-   
-        foreach (var fixture in dateGroup)
-            {
- foreach (var frame in fixture.Frames.OrderBy(fr => fr.Number))
-         {
-               // Process home player
-        if (frame.HomePlayerId.HasValue)
-       {
-  var playerId = frame.HomePlayerId.Value;
-        var oppId = frame.AwayPlayerId ?? Guid.Empty;
-     // Use rating from BEFORE this batch started (VBA behavior)
-             var oppRating = batchStartRatings.GetValueOrDefault(oppId, Settings.RatingStartValue);
-
- if (!playerFrames.ContainsKey(playerId))
-              playerFrames[playerId] = new List<PlayerFrameHistory>();
-
-    playerFrames[playerId].Add(new PlayerFrameHistory
-         {
-               PlayerId = playerId,
-        OpponentId = oppId,
-    OpponentRating = oppRating,
-     Won = frame.Winner == FrameWinner.Home,
-  EightBall = frame.EightBall && frame.Winner == FrameWinner.Home,
-           FrameNumber = playerFrames[playerId].Count + 1,
-     MatchDate = fixture.Date
-        });
-  }
-
-    // Process away player
-     if (frame.AwayPlayerId.HasValue)
-           {
-               var playerId = frame.AwayPlayerId.Value;
-        var oppId = frame.HomePlayerId ?? Guid.Empty;
-      // Use rating from BEFORE this batch started (VBA behavior)
-    var oppRating = batchStartRatings.GetValueOrDefault(oppId, Settings.RatingStartValue);
-
-                 if (!playerFrames.ContainsKey(playerId))
-   playerFrames[playerId] = new List<PlayerFrameHistory>();
-
-playerFrames[playerId].Add(new PlayerFrameHistory
-         {
-              PlayerId = playerId,
-   OpponentId = oppId,
-        OpponentRating = oppRating,
-                Won = frame.Winner == FrameWinner.Away,
-  EightBall = frame.EightBall && frame.Winner == FrameWinner.Away,
-    FrameNumber = playerFrames[playerId].Count + 1,
-       MatchDate = fixture.Date
-    });
+            SetStatus($"{_teamRows.Count} teams | 0 players (no results)");
+            return;
         }
-  }
-    }
+
+        // VBA Algorithm: Process ALL players in the league together
+        // Then filter to division for display
+
+        // Track frames per player with week info
+        var playerFrameData = new Dictionary<Guid, List<FrameData>>();
         
- // AFTER processing entire DATE BATCH, update ratings (like VBA does at end of week)
-            foreach (var playerId in playerFrames.Keys)
-            {
-  currentRatings[playerId] = CalculateVBAStyleRating(playerFrames[playerId]);
-        }
-   }
-
-      // Calculate maximum frames and minimum required
-        int maxFramesInSeason = playerFrames.Values.Any() ? playerFrames.Values.Max(frames => frames.Count) : 0;
-  int minFramesRequired = Settings.CalculateMinimumFrames(maxFramesInSeason);
-
-        // Build display rows
-        var rows = new List<PlayerRow>();
-
-        foreach (var kvp in playerFrames)
+        // tblRatings: stores rating per player per week for ALL players
+        // VBA: Rating for week N is calculated AFTER week N's matches and stored as WeekNo = N
+        // When looking up opponent rating during week N, use their rating from week N (calculated previously)
+        var weeklyRatings = new Dictionary<(Guid, int), int>();
+        
+        // Get ALL player IDs from ALL fixtures and initialize for Week 1
+        var allPlayerIds = new HashSet<Guid>();
+        foreach (var fixture in allSeasonFixtures)
         {
- var playerId = kvp.Key;
-         var frames = kvp.Value;
+            foreach (var frame in fixture.Frames)
+            {
+                if (frame.HomePlayerId.HasValue) allPlayerIds.Add(frame.HomePlayerId.Value);
+                if (frame.AwayPlayerId.HasValue) allPlayerIds.Add(frame.AwayPlayerId.Value);
+            }
+        }
+        
+        // Initialize ALL players with RatingStartValue for Week 1
+        foreach (var playerId in allPlayerIds)
+        {
+            weeklyRatings[(playerId, 1)] = Settings.RatingStartValue;
+        }
 
-         var player = data.Players.FirstOrDefault(p => p.Id == playerId);
-         if (player == null) continue;
+        // Group fixtures by week (using SEASON start date)
+        var fixturesByWeek = allSeasonFixtures
+            .GroupBy(f => GetSeasonWeekNumber(f.Date, seasonStartDate))
+            .OrderBy(g => g.Key)
+            .ToList();
 
-   // Only include players from teams in this division
- if (!player.TeamId.HasValue || !divisionTeamIds.Contains(player.TeamId.Value))
+        int maxWeek = fixturesByWeek.Max(g => g.Key);
+
+        // VBA Algorithm - Process week by week:
+        // 1. For each week, first calculate ratings using PREVIOUS week's opponent ratings
+        // 2. Then store the new ratings for this week
+        // 3. The key insight: when calculating, opponent ratings come from the CURRENT lookup week
+        
+        for (int wkNo = 1; wkNo <= maxWeek; wkNo++)
+        {
+            // First, add any NEW frames from this week to playerFrameData
+            var thisWeekFixtures = fixturesByWeek.FirstOrDefault(g => g.Key == wkNo);
+            if (thisWeekFixtures != null)
+            {
+                foreach (var fixture in thisWeekFixtures.OrderBy(f => f.Date).ThenBy(f => f.Id))
+                {
+                    foreach (var frame in fixture.Frames.OrderBy(fr => fr.Number))
+                    {
+                        if (frame.HomePlayerId.HasValue)
+                        {
+                            var playerId = frame.HomePlayerId.Value;
+                            if (!playerFrameData.ContainsKey(playerId))
+                                playerFrameData[playerId] = new List<FrameData>();
+                            
+                            playerFrameData[playerId].Add(new FrameData
+                            {
+                                OpponentId = frame.AwayPlayerId ?? Guid.Empty,
+                                Won = frame.Winner == FrameWinner.Home,
+                                EightBall = frame.EightBall && frame.Winner == FrameWinner.Home,
+                                WeekNo = wkNo
+                            });
+                        }
+                        
+                        if (frame.AwayPlayerId.HasValue)
+                        {
+                            var playerId = frame.AwayPlayerId.Value;
+                            if (!playerFrameData.ContainsKey(playerId))
+                                playerFrameData[playerId] = new List<FrameData>();
+                            
+                            playerFrameData[playerId].Add(new FrameData
+                            {
+                                OpponentId = frame.HomePlayerId ?? Guid.Empty,
+                                Won = frame.Winner == FrameWinner.Away,
+                                EightBall = frame.EightBall && frame.Winner == FrameWinner.Away,
+                                WeekNo = wkNo
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Now calculate rating for each player using ALL their frames up to this week
+            // VBA: GetOppRating = DLookup("Rating", "tblRatings", "[PlayerID] = " & rs2!Played & " and [WeekNo] = " & WkNo)
+            // This means when calculating at week N, we look up opponent's rating from week N
+            foreach (var playerId in playerFrameData.Keys.ToList())
+            {
+                var framesUpToNow = playerFrameData[playerId].Where(f => f.WeekNo <= wkNo).ToList();
+                if (framesUpToNow.Count == 0) continue;
+
+                int totalFrames = framesUpToNow.Count;
+                int biasX = Settings.RatingWeighting - (Settings.RatingsBias * (totalFrames - 1));
+                if (biasX < 1) biasX = 1;
+
+                long valueTot = 0;
+                long weightingTot = 0;
+
+                foreach (var frameData in framesUpToNow)
+                {
+                    // VBA uses the CURRENT week number (wkNo) for opponent rating lookup
+                    // This is the key difference - opponent ratings evolve as we process weeks
+                    int oppRating = weeklyRatings.TryGetValue((frameData.OpponentId, wkNo), out var r) 
+                        ? r 
+                        : Settings.RatingStartValue;
+
+                    double ratingAttnDouble;
+                    if (frameData.Won)
+                    {
+                        if (frameData.EightBall && Settings.UseEightBallFactor)
+                            ratingAttnDouble = oppRating * Settings.EightBallFactor;
+                        else
+                            ratingAttnDouble = oppRating * Settings.WinFactor;
+                    }
+                    else
+                    {
+                        ratingAttnDouble = oppRating * Settings.LossFactor;
+                    }
+
+                    // IMPORTANT: Use integer truncation (not rounding) for RatingAttn as VBA does
+                    int ratingAttn = (int)ratingAttnDouble;
+                    
+                    valueTot += (long)ratingAttn * biasX;
+                    weightingTot += biasX;
+                    biasX += Settings.RatingsBias;
+                }
+
+                // Store rating for this week (and next week as starting point)
+                int rating = weightingTot > 0 ? (int)(valueTot / weightingTot) : Settings.RatingStartValue;
+                weeklyRatings[(playerId, wkNo)] = rating;
+                weeklyRatings[(playerId, wkNo + 1)] = rating;
+            }
+        }
+
+        // Build display rows - NOW filter to this division only
+        var rows = new List<PlayerRow>();
+        int finalWeek = maxWeek + 1;
+
+        foreach (var kvp in playerFrameData)
+        {
+            var playerId = kvp.Key;
+            var frames = kvp.Value;
+
+            var player = data.Players.FirstOrDefault(p => p.Id == playerId);
+            if (player == null) continue;
+
+            // FILTER: Only show players from teams in this division
+            if (!player.TeamId.HasValue || !divisionTeamIds.Contains(player.TeamId.Value))
                 continue;
 
-    var teamName = player.TeamId.HasValue && tById.TryGetValue(player.TeamId.Value, out var t)
-     ? (t.Name ?? "")
-         : "";
+            var teamName = player.TeamId.HasValue && tById.TryGetValue(player.TeamId.Value, out var t)
+                ? (t.Name ?? "")
+                : "";
 
-            var wins = frames.Count(f => f.Won);
-            var losses = frames.Count(f => !f.Won);
-            var eightBalls = frames.Count(f => f.EightBall);
-     var rating = CalculateVBAStyleRating(frames);
+            // Get final rating
+            int finalRating = Settings.RatingStartValue;
+            for (int w = finalWeek; w >= 1; w--)
+            {
+                if (weeklyRatings.TryGetValue((playerId, w), out var fr))
+                {
+                    finalRating = fr;
+                    break;
+                }
+            }
 
             rows.Add(new PlayerRow
             {
-Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
-      PlayerId = player.Id,
-     Team = teamName,
-     Played = frames.Count,
-      Wins = wins,
-  Losses = losses,
-   EightBalls = eightBalls,
-            Rating = rating
-      });
+                Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
+                PlayerId = player.Id,
+                Team = teamName,
+                Played = frames.Count,
+                Wins = frames.Count(f => f.Won),
+                Losses = frames.Count(f => !f.Won),
+                EightBalls = frames.Count(f => f.EightBall),
+                Rating = finalRating
+            });
         }
 
-// Filter by minimum frames
+        // Calculate minimum frames required
+        int maxFramesInSeason = rows.Any() ? rows.Max(r => r.Played) : 0;
+        int minFramesRequired = Settings.CalculateMinimumFrames(maxFramesInSeason);
+
+        // Filter by minimum frames
         var displayRows = rows.Where(r => r.Played >= minFramesRequired).ToList();
 
-    // Sort based on picker
+        // Sort
         switch (Math.Max(0, SortPicker.SelectedIndex))
         {
-         case 0:
-       displayRows = displayRows.OrderByDescending(r => r.Rating)
+            case 0:
+                displayRows = displayRows.OrderByDescending(r => r.Rating)
                     .ThenBy(r => r.Player, StringComparer.OrdinalIgnoreCase).ToList();
-            break;
-       case 1:
- displayRows = displayRows.OrderByDescending(r => r.WinPct)
-       .ThenByDescending(r => r.Played)
-         .ThenBy(r => r.Player, StringComparer.OrdinalIgnoreCase).ToList();
-       break;
+                break;
+            case 1:
+                displayRows = displayRows.OrderByDescending(r => r.WinPct)
+                    .ThenByDescending(r => r.Played)
+                    .ThenBy(r => r.Player, StringComparer.OrdinalIgnoreCase).ToList();
+                break;
             case 2:
-    displayRows = displayRows.OrderByDescending(r => r.Played)
-      .ThenByDescending(r => r.WinPct).ToList();
-       break;
-     case 3:
-       displayRows = displayRows.OrderBy(r => r.Player, StringComparer.OrdinalIgnoreCase).ToList();
+                displayRows = displayRows.OrderByDescending(r => r.Played)
+                    .ThenByDescending(r => r.WinPct).ToList();
+                break;
+            case 3:
+                displayRows = displayRows.OrderBy(r => r.Player, StringComparer.OrdinalIgnoreCase).ToList();
                 break;
         }
 
-   for (int i = 0; i < displayRows.Count; i++)
-       displayRows[i].Pos = i + 1;
+        for (int i = 0; i < displayRows.Count; i++)
+            displayRows[i].Pos = i + 1;
 
-     PlayerRatingsList.ItemTemplate = PlayerRowTemplate();
-    foreach (var r in displayRows)
-       _playerRows.Add(r);
+        PlayerRatingsList.ItemTemplate = PlayerRowTemplate();
+        foreach (var r in displayRows)
+            _playerRows.Add(r);
 
-      if (maxFramesInSeason > 0 && minFramesRequired > 0)
-       SetStatus($"{_teamRows.Count} teams | {displayRows.Count} players (min {minFramesRequired} frames, {Settings.MinFramesPercentage}%)");
+        if (maxFramesInSeason > 0 && minFramesRequired > 0)
+            SetStatus($"{_teamRows.Count} teams | {displayRows.Count} players (min {minFramesRequired} frames, {Settings.MinFramesPercentage}%)");
         else
-        SetStatus($"{_teamRows.Count} teams | {displayRows.Count} players");
+            SetStatus($"{_teamRows.Count} teams | {displayRows.Count} players");
     }
 
-    private int CalculateVBAStyleRating(List<PlayerFrameHistory> frames)
+    // Helper class for frame data
+    private class FrameData
     {
-        // ✅ CORRECTED VBA ALGORITHM - "Newest frame always starts at base weight"
-        // ==================================================================
-        // TRUE VBA BEHAVIOR (as shown in Gary Deville's results):
-        // - Most recent frame (newest) ALWAYS gets RatingWeighting (e.g., 220)
-        // - Each older frame gets decremented by RatingsBias (e.g., -4 per frame)
-        //
-        // Example for 11 frames with RatingWeighting=220, RatingsBias=4:
-        //   Frame 11 (newest):  220
-        //   Frame 10:           216 (220 - 4)
-        //   Frame 9:            212 (220 - 8)
-        //   Frame 8:            208 (220 - 12)
-        //   ...
-        //   Frame 1 (oldest):   180 (220 - 40)
-        //
-        // This means EVERY TIME a new frame is added, ALL previous frames'
-        // weights get "shifted down" as they become older.
-        // ==================================================================
-   
-        if (frames == null || frames.Count == 0)
-            return Settings.RatingStartValue;
-
-        long valueTot = 0;    // Use long to match VBA's Long type
-        long weightingTot = 0;
-        int totalFrames = frames.Count;
-
-        // Process frames in chronological order (oldest to newest)
-        for (int i = 0; i < totalFrames; i++)
-        {
-            var frame = frames[i];
-            
-            // Calculate weight based on "how many frames ago" this was played
-            // Most recent frame (i = totalFrames-1) gets full weight
-            // Each older frame gets decremented by RatingsBias
-            int framesAgo = totalFrames - 1 - i;  // How many frames since this one
-            int weight = Settings.RatingWeighting - (Settings.RatingsBias * framesAgo);
-            
-            if (weight < 1) weight = 1;  // Minimum weight of 1
-
-            double ratingAttn;
-            if (frame.Won)
-            {
-                if (frame.EightBall && Settings.UseEightBallFactor)
-                    ratingAttn = frame.OpponentRating * Settings.EightBallFactor;
-                else
-                    ratingAttn = frame.OpponentRating * Settings.WinFactor;
-            }
-            else
-            {
-                ratingAttn = frame.OpponentRating * Settings.LossFactor;
-            }
-
-            // VBA's CLng behavior: round to nearest integer BEFORE multiplying
-            long ratingAttnLong = (long)Math.Round(ratingAttn);
-    
-            weightingTot += weight;
-            valueTot += ratingAttnLong * weight;
-        }
-
-        return weightingTot > 0 ? (int)Math.Round((double)valueTot / weightingTot) : Settings.RatingStartValue;
+        public Guid OpponentId { get; set; }
+        public bool Won { get; set; }
+        public bool EightBall { get; set; }
+        public int WeekNo { get; set; }
     }
 
     private static DataTemplate PlayerRowTemplate()
@@ -633,7 +681,20 @@ Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
             }
 
             grid.Add(L(nameof(PlayerRow.Pos), TextAlignment.Center, true), 0, 0);
-            grid.Add(L(nameof(PlayerRow.Player), TextAlignment.Start, true), 1, 0);
+            
+            // Make player name a clickable link
+            var playerNameLabel = new Label
+            {
+                HorizontalTextAlignment = TextAlignment.Start,
+                VerticalTextAlignment = TextAlignment.Center,
+                FontAttributes = FontAttributes.Bold,
+                FontSize = 12,
+                TextColor = Color.FromArgb("#0066CC"),
+                TextDecorations = TextDecorations.Underline
+            };
+            playerNameLabel.SetBinding(Label.TextProperty, new Binding(nameof(PlayerRow.Player)));
+            grid.Add(playerNameLabel, 1, 0);
+            
             grid.Add(L(nameof(PlayerRow.Team), TextAlignment.Start), 2, 0);
             grid.Add(L(nameof(PlayerRow.Played)), 3, 0);
             grid.Add(L(nameof(PlayerRow.Wins)), 4, 0);
@@ -642,7 +703,23 @@ Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
             grid.Add(L(nameof(PlayerRow.EightBalls)), 7, 0);
             grid.Add(L(nameof(PlayerRow.Rating), TextAlignment.Center, true), 8, 0);
 
-            return new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
+            var border = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
+            
+            // Add tap gesture to entire row
+            var tapGesture = new TapGestureRecognizer();
+            tapGesture.SetBinding(TapGestureRecognizer.CommandParameterProperty, new Binding("."));
+            tapGesture.Tapped += async (s, e) =>
+            {
+                if (e is TappedEventArgs tapped && tapped.Parameter is PlayerRow row)
+                {
+                    var resultsPage = new PlayerResultsPage();
+                    resultsPage.LoadPlayer(row.PlayerId, row.Player, row.Rating);
+                    await Application.Current?.MainPage?.Navigation.PushAsync(resultsPage)!;
+                }
+            };
+            border.GestureRecognizers.Add(tapGesture);
+
+            return border;
         });
     }
 
@@ -694,17 +771,161 @@ Player = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
             : s;
     }
 
+    private void OnRecalculateClicked()
+    {
+        SetStatus("Recalculating ratings...");
+        
+        // Force a full refresh of both team table and player ratings
+        RefreshTeamTable();
+        RefreshPlayerRatings();
+        
+        SetStatus($"Ratings recalculated at {DateTime.Now:HH:mm:ss}");
+    }
+
+    private async Task CompareWithVbaAsync()
+    {
+        try
+        {
+            SetStatus("Comparing with VBA data...");
+
+            // Try multiple paths to find the VBA data files
+            string? vbaRatingsData = null;
+            string? vbaPlayersData = null;
+
+            // Path 1: Check project VBA_Data folder (for development)
+            var possiblePaths = new[]
+            {
+                // Development paths
+                @"C:\Users\bobgc\source\repos\gazlappy\Wdplapp\wdpl2\VBA_Ratings_Data.txt",
+                @"C:\Users\bobgc\source\repos\gazlappy\Wdplapp\wdpl2\VBA_Players_Data.txt",
+                // Relative to app data
+                IOPath.Combine(FileSystem.AppDataDirectory, "VBA_Ratings_Data.txt"),
+                IOPath.Combine(FileSystem.AppDataDirectory, "VBA_Players_Data.txt"),
+            };
+
+            // Try to find ratings data
+            foreach (var path in possiblePaths.Where(p => p.Contains("Ratings")))
+            {
+                if (File.Exists(path))
+                {
+                    vbaRatingsData = await File.ReadAllTextAsync(path);
+                    break;
+                }
+            }
+
+            // Try to find players data
+            foreach (var path in possiblePaths.Where(p => p.Contains("Players")))
+            {
+                if (File.Exists(path))
+                {
+                    vbaPlayersData = await File.ReadAllTextAsync(path);
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(vbaRatingsData))
+            {
+                await DisplayAlert("VBA Data Not Found", 
+                    "Could not find VBA_Ratings_Data.txt.\n\n" +
+                    "Please ensure the VBA data files exist at:\n" +
+                    @"C:\Users\bobgc\source\repos\gazlappy\Wdplapp\wdpl2\VBA_Ratings_Data.txt", "OK");
+                return;
+            }
+
+            // Parse VBA data
+            var vbaRatings = VbaComparisonService.ParseVbaRatings(vbaRatingsData);
+            var vbaPlayers = VbaComparisonService.ParseVbaPlayers(vbaPlayersData ?? "");
+
+            if (vbaRatings.Count == 0)
+            {
+                await DisplayAlert("Error", "No VBA ratings data found or parsed.", "OK");
+                return;
+            }
+
+            SetStatus($"Parsed {vbaRatings.Count} VBA ratings, {vbaPlayers.Count} players...");
+
+            // Build player mapping
+            var mauiPlayers = DataStore.Data.Players.ToList();
+            var playerMapping = VbaComparisonService.BuildPlayerIdMapping(vbaPlayers, mauiPlayers);
+
+            SetStatus($"Mapped {playerMapping.Count} players...");
+
+            // Get season info
+            var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+            if (season == null)
+            {
+                await DisplayAlert("Error", "No season selected.", "OK");
+                return;
+            }
+
+            // Get fixtures
+            var fixtures = DataStore.Data.Fixtures
+                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
+                .OrderBy(f => f.Date)
+                .ToList();
+
+            SetStatus($"Analyzing {fixtures.Count} fixtures...");
+
+            // Run comparison
+            var report = VbaComparisonService.CompareRatings(
+                vbaRatings,
+                vbaPlayers,
+                playerMapping,
+                fixtures,
+                Settings,
+                season.StartDate);
+
+            // Save report to file
+            var fileName = $"VBA_Comparison_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            var reportPath = IOPath.Combine(FileSystem.CacheDirectory, fileName);
+            await File.WriteAllTextAsync(reportPath, report);
+
+            // Show summary
+            var lines = report.Split('\n');
+            var summaryLine = lines.FirstOrDefault(l => l.StartsWith("SUMMARY:")) ?? "Comparison complete";
+            
+            var action = await DisplayActionSheet(
+                $"VBA Comparison Complete\n{summaryLine}",
+                "Close",
+                null,
+                "View Full Report",
+                "Share Report");
+
+            if (action == "View Full Report")
+            {
+                // Show in a scrollable popup
+                var displayText = report.Length > 5000 
+                    ? report.Substring(0, 5000) + "\n\n[Truncated - share for full report]" 
+                    : report;
+                await DisplayAlert("VBA Comparison Report", displayText, "OK");
+            }
+            else if (action == "Share Report")
+            {
+                await Share.RequestAsync(new ShareFileRequest
+                {
+                    Title = "VBA Comparison Report",
+                    File = new ShareFile(reportPath, "text/plain")
+                });
+            }
+
+            SetStatus($"VBA comparison: {summaryLine}");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Comparison failed: {ex.Message}\n\n{ex.StackTrace}", "OK");
+            SetStatus($"Error: {ex.Message}");
+        }
+    }
+
     private void SetStatus(string text)
         => StatusLbl.Text = $"{DateTime.Now:HH:mm:ss}  {text}";
-}
 
-class PlayerFrameHistory
-{
-    public Guid PlayerId { get; set; }
-    public Guid OpponentId { get; set; }
-    public int OpponentRating { get; set; }
-    public bool Won { get; set; }
-    public bool EightBall { get; set; }
-    public int FrameNumber { get; set; }
-    public DateTime MatchDate { get; set; }
+    // Get season week number (1-based, weeks since season start)
+    private static int GetSeasonWeekNumber(DateTime matchDate, DateTime seasonStartDate)
+    {
+        // Calculate days since season start
+        var daysSinceStart = (matchDate.Date - seasonStartDate).Days;
+        // Week 1 = first week, Week 2 = days 7-13, etc.
+        return (daysSinceStart / 7) + 1;
+    }
 }

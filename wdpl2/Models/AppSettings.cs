@@ -20,12 +20,16 @@ namespace Wdpl2.Models
         /// <summary>Starting rating for all new players (default 1000).</summary>
         public int RatingStartValue { get; set; } = 1000;  // VBA uses 1000
 
-        /// <summary>Base weighting constant from VBA (Rating = 240).</summary>
-        /// <remarks>VBA calculates initial BiasX as: 240 + (RatingsBias × TotalFrames)</remarks>
-        public int RatingWeighting { get; set; } = 240;  // VBA constant: Rating = 240
+        /// <summary>Base weighting for newest frame (default 220 for display).</summary>
+        /// <remarks>
+        /// VBA screenshot shows Weighting starts at 220 for newest frame and decrements.
+        /// The basConstants.bas has Rating=157 but display uses 220.
+        /// </remarks>
+        public int RatingWeighting { get; set; } = 220;  // VBA display: 220, 216, 212...
 
-      /// <summary>Amount to reduce weighting for each subsequent frame (default 4).</summary>
- public int RatingsBias { get; set; } = 4;  // VBA constant "RatingBias = 4"
+        /// <summary>Amount to decrement weighting for each older frame (default 4).</summary>
+        /// <remarks>VBA: RatingBias = 4</remarks>
+        public int RatingsBias { get; set; } = 4;  // VBA: RatingBias = 4
 
         /// <summary>Win factor - multiplier applied to opponent's rating on win (default 1.0 = 100%).</summary>
         public double WinFactor { get; set; } = 1.25;  // VBA: RATINGWIN = 1.25
@@ -114,26 +118,26 @@ namespace Wdpl2.Models
         public void ResetToDefaults()
         {
             // Player Ratings (VBA-compatible values)
-            RatingStartValue = 1000;  // VBA: RATINGSTART = 1000
-            RatingWeighting = 240;     // VBA constant: Rating = 240
-            RatingsBias = 4;           // VBA constant: RatingBias = 4
+            RatingStartValue = 1000;   // VBA: RATINGSTART = 1000
+            RatingWeighting = 220;     // VBA display uses 220, 216, 212...
+            RatingsBias = 4;           // VBA: RatingBias = 4
             WinFactor = 1.25;          // VBA: RATINGWIN = 1.25
             LossFactor = 0.75;         // VBA: RATINGLOSE = 0.75
             EightBallFactor = 1.35;    // VBA: RATING8BALL = 1.35
             UseEightBallFactor = true;
-            MinFramesPercentage = 60;
+            MinFramesPercentage = 60;  // VBA: MinFrameRi = 0.6 (60%)
 
             // Match Scoring
-            MatchWinBonus = 2;
+            MatchWinBonus = 2;         // VBA: WinBonus = 2
             MatchDrawBonus = 1;
 
             // Fixture Defaults
-            DefaultFramesPerMatch = 10;
+            DefaultFramesPerMatch = 15; // VBA: Frames = 15
             DefaultMatchDay = DayOfWeek.Tuesday;
             DefaultMatchTime = new TimeSpan(19, 30, 0);
             DefaultRoundsPerOpponent = 2;
 
-            // Notification Settings (Phase 3)
+            // Notification Settings
             MatchRemindersEnabled = true;
             ReminderHoursBefore = 2;
             ResultNotificationsEnabled = false;

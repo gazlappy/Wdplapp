@@ -1,0 +1,5 @@
+# VBA tblleague data
+# Paste data below:
+
+ID	LeagueName	SeasonName	NoOfWeeks	SeasonYear	Frames	PointsPerFrame	WinBonus	MaxFramesPerPlayer	RatingWeighting	LateCard	CancelledMatch	MinFrameRating	RatingsBias	RatingStartValue	NoOfFrame	SingleWinBonus	TeamWinBonus	WinFactor	LoseFactor	EightBallFactor	MaxSingles	MinFrame	WebLocalDir	FirstMatchDate	RatingsRefreshDate	LeagueRefreshDate
+1	Wellington & District Pool League	Winter	14	2025	15	1	2	3	220	3	3	0.6	4	1000				1.25	0.75	1.35				18/09/2025	29/11/2025	29/11/2025

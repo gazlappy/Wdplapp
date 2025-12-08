@@ -17,7 +17,7 @@
             Grid.Row="1"
             Style="{StaticResource CardBorderStyle}"
             BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-            <Grid ColumnDefinitions="Auto,200,*,Auto,150,Auto" ColumnSpacing="{StaticResource MediumSpacing}">
+            <Grid ColumnDefinitions="Auto,200,*,Auto,150,Auto,Auto,Auto" ColumnSpacing="{StaticResource MediumSpacing}">
                 <Label Text="Division:" VerticalOptions="Center" Style="{StaticResource FieldLabelStyle}" Margin="0" />
                 <Picker x:Name="DivisionPicker" 
                         Grid.Column="1"
@@ -43,8 +43,22 @@
                     </Picker.Items>
                 </Picker>
 
-                <Button x:Name="ExportBtn" 
+                <Button x:Name="RecalculateBtn" 
                         Grid.Column="5"
+                        Text="🔄 Recalculate" 
+                        VerticalOptions="Center"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,6" />
+
+                <Button x:Name="CompareVbaBtn" 
+                        Grid.Column="6"
+                        Text="🔍 Compare VBA" 
+                        VerticalOptions="Center"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,6" />
+
+                <Button x:Name="ExportBtn" 
+                        Grid.Column="7"
                         Text="Export" 
                         VerticalOptions="Center"
                         Style="{StaticResource PrimaryButtonStyle}"

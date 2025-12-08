@@ -120,13 +120,22 @@
                             Clicked="OnFixMissingSeasonIdsClicked"
                             BackgroundColor="#FF6B00"
                             TextColor="White" />
+
+                    <!-- NEW: Fix VBA Dates Button -->
+                    <Button x:Name="FixVbaDateBtn" 
+                            Grid.Row="12"
+                            Grid.ColumnSpan="2"
+                            Text="📅 Fix Fixture Dates (from VBA)" 
+                            Clicked="OnFixVbaFixtureDatesClicked"
+                            BackgroundColor="#2563EB"
+                            TextColor="White" />
                         
                     <!-- Exclusion Dates Section (in flyout) -->
-                    <BoxView Grid.Row="12" Grid.ColumnSpan="2" HeightRequest="1" 
+                    <BoxView Grid.Row="13" Grid.ColumnSpan="2" HeightRequest="1" 
                              Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
                              Margin="0,12" />
 
-                    <VerticalStackLayout Grid.Row="13" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                    <VerticalStackLayout Grid.Row="14" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Label Text="Exclusion Dates" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
                         
                         <Label Text="Dates when matches should not be scheduled:" 

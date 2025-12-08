@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.PlayerResultsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Player Results">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="12" RowSpacing="12"
+          BackgroundColor="{AppThemeBinding Light=#C8C8D8, Dark=#2A2A3A}">
+        
+        <!-- Header with Player Name -->
+        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+            <Label x:Name="PlayerNameLabel" 
+                   Text="PLAYER NAME's Results" 
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light=#000080, Dark=#8080FF}" />
+            <Label x:Name="TeamLabel" 
+                   Text="Team:" 
+                   FontSize="14"
+                   HorizontalTextAlignment="Center" />
+            <Label x:Name="LastUpdatedLabel" 
+                   Text="Last updated:" 
+                   FontSize="12"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light=#800000, Dark=#FF8080}" />
+            <Label Text="? Back to Player Ratings" 
+                   FontSize="12"
+                   TextColor="{AppThemeBinding Light=#0066CC, Dark=#66AAFF}"
+                   TextDecorations="Underline"
+                   HorizontalTextAlignment="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackClicked" />
+                </Label.GestureRecognizers>
+            </Label>
+        </VerticalStackLayout>
+
+        <!-- Results Header -->
+        <Border Grid.Row="1"
+                BackgroundColor="{AppThemeBinding Light=#9090A8, Dark=#404060}"
+                Padding="8,6"
+                StrokeThickness="1"
+                Stroke="{AppThemeBinding Light=#606080, Dark=#808090}">
+            <Grid x:Name="ResultsHeaderGrid" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="85" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="65" />
+                    <ColumnDefinition Width="65" />
+                    <ColumnDefinition Width="75" />
+                </Grid.ColumnDefinitions>
+                <Label Text="Match&#x0a;Date" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="1" Text="Wk&#x0a;No" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="2" Text="Won/&#x0a;Lost" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="3" Text="Opposition&#x0a;Name" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Start" VerticalTextAlignment="Center" Margin="4,0,0,0" />
+                <Label Grid.Column="4" Text="Opposing&#x0a;Team" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Start" VerticalTextAlignment="Center" />
+                <Label Grid.Column="5" Text="Eight&#x0a;Ball" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="6" Text="Rating&#x0a;Attained" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="7" Text="Weight-&#x0a;ing" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label Grid.Column="8" Text="Rating&#x0a;Value" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Results List -->
+        <CollectionView x:Name="ResultsList" 
+                        Grid.Row="2"
+                        SelectionMode="None"
+                        VerticalScrollBarVisibility="Always"
+                        BackgroundColor="{AppThemeBinding Light=#C8C8D8, Dark=#2A2A3A}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border BackgroundColor="{AppThemeBinding Light=#C8C8D8, Dark=#3A3A4A}"
+                            Padding="8,4"
+                            StrokeThickness="0.5"
+                            Stroke="{AppThemeBinding Light=#9090A8, Dark=#505060}">
+                        <Grid ColumnSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="85" />
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="50" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="50" />
+                                <ColumnDefinition Width="65" />
+                                <ColumnDefinition Width="65" />
+                                <ColumnDefinition Width="75" />
+                            </Grid.ColumnDefinitions>
+                            <Label Text="{Binding MatchDate, StringFormat='{0:dd/MM/yyyy}'}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="1" Text="{Binding WeekNo}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="2" Text="{Binding WonLostText}" FontSize="11" FontAttributes="Bold" HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                                   TextColor="{Binding WonLostColor}" />
+                            <Label Grid.Column="3" Text="{Binding OpponentName}" FontSize="11" HorizontalTextAlignment="Start" VerticalTextAlignment="Center" Margin="4,0,0,0" />
+                            <Label Grid.Column="4" Text="{Binding OpponentTeam}" FontSize="11" HorizontalTextAlignment="Start" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="5" Text="{Binding EightBallText}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="6" Text="{Binding RatingAttained}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="7" Text="{Binding Weighting}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Label Grid.Column="8" Text="{Binding RatingValue}" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Spacing="8" HorizontalOptions="Center" VerticalOptions="Center" Padding="20">
+                    <Label Text="No results found for this player" FontSize="14" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <!-- Totals and Summary Footer -->
+        <VerticalStackLayout Grid.Row="3" Spacing="8">
+            <!-- Totals Row -->
+            <Border BackgroundColor="{AppThemeBinding Light=#9090A8, Dark=#404060}"
+                    Padding="8,6"
+                    StrokeThickness="1"
+                    Stroke="{AppThemeBinding Light=#606080, Dark=#808090}">
+                <Grid ColumnSpacing="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="85" />
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="65" />
+                        <ColumnDefinition Width="65" />
+                        <ColumnDefinition Width="75" />
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="4" Text="Totals:" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="End" VerticalTextAlignment="Center" />
+                    <Label x:Name="TotalEightBallsLabel" Grid.Column="5" Text="0" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="6" Text="------" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="TotalWeightingLabel" Grid.Column="7" Text="0" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="TotalRatingValueLabel" Grid.Column="8" Text="0" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Player Summary Box -->
+            <Border BackgroundColor="{AppThemeBinding Light=#B0B0C0, Dark=#353545}"
+                    Padding="12,8"
+                    StrokeThickness="1"
+                    Stroke="{AppThemeBinding Light=#606080, Dark=#808090}"
+                    StrokeShape="RoundRectangle 8">
+                <Grid ColumnDefinitions="*,60,60,50,50,50,70,80" ColumnSpacing="8">
+                    <Label Text="Player" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="1" Text="Max" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="2" Text="Played" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="3" Text="Won" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="4" Text="Lost" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="5" Text="8 Balls" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="6" Text="% Won" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="7" Text="Current Rating" FontAttributes="Bold" FontSize="11" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Grid>
+            </Border>
+            <Border BackgroundColor="{AppThemeBinding Light=#C8C8D8, Dark=#2A2A3A}"
+                    Padding="12,8"
+                    StrokeThickness="1"
+                    Stroke="{AppThemeBinding Light=#606080, Dark=#808090}"
+                    StrokeShape="RoundRectangle 8">
+                <Grid ColumnDefinitions="*,60,60,50,50,50,70,80" ColumnSpacing="8">
+                    <Label x:Name="SummaryPlayerName" Text="-" FontAttributes="Bold" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryMaxLabel" Grid.Column="1" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryPlayedLabel" Grid.Column="2" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryWonLabel" Grid.Column="3" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryLostLabel" Grid.Column="4" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="Summary8BallsLabel" Grid.Column="5" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryWinPctLabel" Grid.Column="6" Text="-" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    <Label x:Name="SummaryRatingLabel" Grid.Column="7" Text="-" FontAttributes="Bold" FontSize="12" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" 
+                           TextColor="{AppThemeBinding Light=#000080, Dark=#8080FF}" />
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

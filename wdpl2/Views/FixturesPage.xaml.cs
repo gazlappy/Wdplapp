@@ -76,10 +76,12 @@ public partial class FixturesPage : ContentPage
         CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
         OverlayTap.Tapped += (_, __) => CloseFlyout();
 
-        // Initial control defaults
+        // Initial control defaults - set to start of year or active season start date
         if (FromDate != null)
         {
-            FromDate.Date = DateTime.Today.AddDays(-7);
+            // Start from the beginning of the current year to ensure all fixtures are visible
+            // This will be updated in OnAppearing() when we have season data
+            FromDate.Date = new DateTime(DateTime.Today.Year, 1, 1);
         }
 
         // Bind lists
@@ -388,16 +390,13 @@ public partial class FixturesPage : ContentPage
         var data = DataStore.Data;
         if (data == null) return;
         
-        // Load divisions into picker if empty
-        if (DivisionPicker.ItemsSource == null)
-        {
-            var divisions = data.Divisions
-                .Where(d => !ActiveSeasonOnly.IsToggled || d.SeasonId == data.ActiveSeasonId)
-                .OrderBy(d => d.Name)
-                .ToList();
-            
-            DivisionPicker.ItemsSource = divisions;
-        }
+        // Load divisions into picker if empty or season changed
+        var divisions = data.Divisions
+            .Where(d => !ActiveSeasonOnly.IsToggled || d.SeasonId == data.ActiveSeasonId)
+            .OrderBy(d => d.Name)
+            .ToList();
+        
+        DivisionPicker.ItemsSource = divisions;
         
         var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
         var venueById = data.Venues.ToDictionary(v => v.Id, v => v);
@@ -419,7 +418,8 @@ public partial class FixturesPage : ContentPage
             src = src.Where(f => f.DivisionId == selectedDivision.Id);
         }
 
-        if (FromDate != null)
+        // Only apply FromDate filter if it's a valid date (not default/minimum)
+        if (FromDate != null && FromDate.Date > DateTime.MinValue)
         {
             var from = FromDate.Date.Date;
             src = src.Where(f => f.Date.Date >= from);
@@ -1207,6 +1207,26 @@ public partial class FixturesPage : ContentPage
                 _servicesInitialized = true;
             }
             catch { }
+        }
+        
+        // Update FromDate to the active season's start date if available
+        if (FromDate != null)
+        {
+            var activeSeasonId = DataStore.Data.ActiveSeasonId;
+            if (activeSeasonId.HasValue)
+            {
+                var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == activeSeasonId);
+                if (season != null)
+                {
+                    // Set to the season start date to show all fixtures
+                    FromDate.Date = season.StartDate;
+                }
+            }
+            else
+            {
+                // No active season - show fixtures from start of year
+                FromDate.Date = new DateTime(DateTime.Today.Year, 1, 1);
+            }
         }
         
         RefreshList();

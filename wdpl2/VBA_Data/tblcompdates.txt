@@ -1,0 +1,7 @@
+# VBA tblcompdates data
+# Paste data below:
+
+CompDatesID	CompDate	CompDesc
+34	25/12/2025	CHRISTMAS DAY
+36	01/01/2026	NEW YEARS DAY
+37	02/04/2026	PRESENTATIONS & FINALS NIGHT

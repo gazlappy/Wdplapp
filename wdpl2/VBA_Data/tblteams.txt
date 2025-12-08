@@ -1,0 +1,18 @@
+# VBA tblteams data
+# Paste data below:
+
+TeamID	TeamName	VenueName	ContactNo	CaptainName	VenueNo	Division	League	Withdrawn	RemoveResults	VenueID	Total	CaptainHomeNume	CaptainEmail
+1	HERE 4 THE BEER	R.G.W.M.C BAR				1	1	0	0				
+2	TWO TEES	R.G.W.M.C BAR				1	1	0	0				
+3	RATTLED BLACKS	VIC TB2				1	1	0	0				
+4	THE JETS	VIC TB2				1	1	0	0				
+5	MILO'S MINIONS	R.G.W.M.C T2				1	1	0	0				
+6	POCKET ROCKETS	R.G.W.M.C T2				1	1	0	0				
+7	LEGENDS	VIC BAR				1	1	0	0				
+8	S.S.SQUAD	VIC BAR				1	1	0	0				
+9	SNIPERS	VIC TB1				1	1	0	0				
+10	MUTTS NUTTS	VIC TB1				1	1	0	0				
+11	ROW REBELS	R.G.W.M.C T1				1	1	0	0				
+12	OLD BLUES	BLUE BALL				1	1	0	0				
+13	CHANGING LANES	CON CLUB				1	1	0	0				
+14	BYE	R.G.W.M.C T1				1	1	0	0				
