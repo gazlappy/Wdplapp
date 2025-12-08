@@ -66,6 +66,10 @@ namespace Wdpl2.Views
             ShowResultsCheck.IsChecked = settings.ShowResults;
             ShowPlayerStatsCheck.IsChecked = settings.ShowPlayerStats;
             ShowDivisionsCheck.IsChecked = settings.ShowDivisions;
+            ShowGalleryCheck.IsChecked = settings.ShowGallery;
+            
+            // Update gallery count
+            UpdateGalleryCount();
             
             FtpHostEntry.Text = settings.FtpHost;
             FtpPortEntry.Text = settings.FtpPort.ToString();
@@ -129,6 +133,7 @@ namespace Wdpl2.Views
             settings.ShowResults = ShowResultsCheck.IsChecked;
             settings.ShowPlayerStats = ShowPlayerStatsCheck.IsChecked;
             settings.ShowDivisions = ShowDivisionsCheck.IsChecked;
+            settings.ShowGallery = ShowGalleryCheck.IsChecked;
             
             settings.FtpHost = FtpHostEntry.Text?.Trim() ?? "";
             
@@ -456,6 +461,149 @@ namespace Wdpl2.Views
                 TemplateDescription.IsVisible = true;
                 TemplateFeatures.Text = $"Features: {string.Join(", ", template.Features)}";
                 TemplateFeatures.IsVisible = true;
+            }
+        }
+        
+        private void UpdateGalleryCount()
+        {
+            var count = League.WebsiteSettings.GalleryImages.Count;
+            GalleryCountLabel.Text = count == 0 
+                ? "No images in gallery" 
+                : $"{count} image{(count == 1 ? "" : "s")} in gallery";
+            GalleryCountLabel.TextColor = count > 0 
+                ? Color.FromArgb("#10B981") 
+                : Color.FromArgb("#6B7280");
+        }
+        
+        private async void OnAddGalleryImagesClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                var result = await FilePicker.Default.PickMultipleAsync(new PickOptions
+                {
+                    PickerTitle = "Select Photos",
+                    FileTypes = FilePickerFileType.Images
+                });
+                
+                if (result == null) return;
+                
+                var files = result.ToList();
+                if (files.Count == 0) return;
+                
+                StatusLabel.Text = $"Processing {files.Count} image(s)...";
+                StatusLabel.TextColor = Color.FromArgb("#3B82F6");
+                StatusLabel.IsVisible = true;
+                AddGalleryImageBtn.IsEnabled = false;
+                
+                var optimizer = new ImageOptimizationService();
+                var addedCount = 0;
+                
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        using var stream = await file.OpenReadAsync();
+                        using var memoryStream = new System.IO.MemoryStream();
+                        await stream.CopyToAsync(memoryStream);
+                        var imageData = memoryStream.ToArray();
+                        
+                        // Get image dimensions
+                        var (width, height) = await optimizer.GetImageDimensionsAsync(imageData);
+                        
+                        var galleryImage = new GalleryImage
+                        {
+                            FileName = file.FileName,
+                            ImageData = imageData,
+                            Width = width,
+                            Height = height,
+                            DateAdded = DateTime.Now,
+                            Caption = "",
+                            Category = "General"
+                        };
+                        
+                        League.WebsiteSettings.GalleryImages.Add(galleryImage);
+                        addedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error adding {file.FileName}: {ex.Message}");
+                    }
+                }
+                
+                if (addedCount > 0)
+                {
+                    DataStore.Save();
+                    UpdateGalleryCount();
+                    StatusLabel.Text = $"? Added {addedCount} image(s) to gallery";
+                    StatusLabel.TextColor = Color.FromArgb("#10B981");
+                    
+                    await DisplayAlert("Success", $"Added {addedCount} image(s) to the gallery.", "OK");
+                }
+                else
+                {
+                    StatusLabel.Text = "No images were added";
+                    StatusLabel.TextColor = Color.FromArgb("#EF4444");
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusLabel.Text = $"Error: {ex.Message}";
+                StatusLabel.TextColor = Color.FromArgb("#EF4444");
+                StatusLabel.IsVisible = true;
+                
+                await DisplayAlert("Error", $"Failed to add photos:\n\n{ex.Message}", "OK");
+            }
+            finally
+            {
+                AddGalleryImageBtn.IsEnabled = true;
+            }
+        }
+        
+        private async void OnManageGalleryClicked(object sender, EventArgs e)
+        {
+            if (League.WebsiteSettings.GalleryImages.Count == 0)
+            {
+                await DisplayAlert("Empty Gallery", "No images in gallery yet. Click 'Add Photos' to upload images.", "OK");
+                return;
+            }
+            
+            // Show action sheet with options
+            var action = await DisplayActionSheet(
+                $"Manage Gallery ({League.WebsiteSettings.GalleryImages.Count} images)",
+                "Cancel",
+                "Clear All",
+                "View Images",
+                "Set Captions");
+            
+            if (action == "Clear All")
+            {
+                var confirm = await DisplayAlert(
+                    "Clear Gallery",
+                    $"Remove all {League.WebsiteSettings.GalleryImages.Count} images from gallery?",
+                    "Yes, Clear",
+                    "Cancel");
+                
+                if (confirm)
+                {
+                    League.WebsiteSettings.GalleryImages.Clear();
+                    DataStore.Save();
+                    UpdateGalleryCount();
+                    
+                    StatusLabel.Text = "? Gallery cleared";
+                    StatusLabel.TextColor = Color.FromArgb("#10B981");
+                    StatusLabel.IsVisible = true;
+                }
+            }
+            else if (action == "View Images")
+            {
+                var imageList = string.Join("\n", League.WebsiteSettings.GalleryImages.Select((img, i) => 
+                    $"{i + 1}. {img.FileName} ({img.Width}x{img.Height}) - {img.Category}"));
+                
+                await DisplayAlert("Gallery Images", imageList, "OK");
+            }
+            else if (action == "Set Captions")
+            {
+                await DisplayAlert("Set Captions", "Caption editing will be available in the full gallery manager.", "OK");
             }
         }
     }

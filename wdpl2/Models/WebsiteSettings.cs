@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Wdpl2.Models
 {
@@ -24,6 +25,7 @@ namespace Wdpl2.Models
         public bool ShowResults { get; set; } = true;
         public bool ShowPlayerStats { get; set; } = true;
         public bool ShowDivisions { get; set; } = true;
+        public bool ShowGallery { get; set; } = false;
         
         // FTP Upload Settings
         public string FtpHost { get; set; } = "";
@@ -45,6 +47,11 @@ namespace Wdpl2.Models
         public int LogoMaxHeight { get; set; } = 150;
         public int ImageQuality { get; set; } = 85; // 1-100
         
+        // Gallery Settings
+        public List<GalleryImage> GalleryImages { get; set; } = new();
+        public int GalleryThumbnailSize { get; set; } = 300;
+        public int GalleryFullSize { get; set; } = 1200;
+        
         /// <summary>
         /// Reset to default values
         /// </summary>
@@ -64,6 +71,7 @@ namespace Wdpl2.Models
             ShowResults = true;
             ShowPlayerStats = true;
             ShowDivisions = true;
+            ShowGallery = false;
             
             SelectedTemplate = "modern";
             
@@ -72,6 +80,25 @@ namespace Wdpl2.Models
             LogoMaxWidth = 300;
             LogoMaxHeight = 150;
             ImageQuality = 85;
+            
+            GalleryImages.Clear();
+            GalleryThumbnailSize = 300;
+            GalleryFullSize = 1200;
         }
+    }
+    
+    /// <summary>
+    /// Gallery image with metadata
+    /// </summary>
+    public sealed class GalleryImage
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string FileName { get; set; } = "";
+        public string Caption { get; set; } = "";
+        public string Category { get; set; } = "General"; // Team Photos, Match Photos, Events
+        public byte[] ImageData { get; set; } = Array.Empty<byte>();
+        public DateTime DateAdded { get; set; } = DateTime.Now;
+        public int Width { get; set; }
+        public int Height { get; set; }
     }
 }

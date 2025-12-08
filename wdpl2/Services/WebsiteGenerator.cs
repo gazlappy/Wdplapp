@@ -59,6 +59,9 @@ namespace Wdpl2.Services
             if (_settings.ShowDivisions)
                 files["divisions.html"] = GenerateDivisionsPage(season, template);
             
+            if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
+                files["gallery.html"] = GenerateGalleryPage(season, template);
+            
             return files;
         }
         
@@ -605,6 +608,115 @@ namespace Wdpl2.Services
             return html.ToString();
         }
         
+        private string GenerateGalleryPage(Season season, WebsiteTemplate template)
+        {
+            var html = new StringBuilder();
+            var imageOptimizer = new ImageOptimizationService();
+            
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine($"    <title>Gallery - {_settings.LeagueName}</title>");
+            html.AppendLine("    <link rel=\"stylesheet\" href=\"style.css\">");
+            html.AppendLine("    <style>");
+            html.AppendLine("        .gallery-grid {");
+            html.AppendLine("            display: grid;");
+            html.AppendLine("            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));");
+            html.AppendLine("            gap: 20px;");
+            html.AppendLine("            padding: 20px 0;");
+            html.AppendLine("        }");
+            html.AppendLine("        .gallery-item {");
+            html.AppendLine("            background: var(--card-bg);");
+            html.AppendLine("            border-radius: 12px;");
+            html.AppendLine("            overflow: hidden;");
+            html.AppendLine("            box-shadow: 0 2px 4px rgba(0,0,0,0.1);");
+            html.AppendLine("            transition: transform 0.3s ease;");
+            html.AppendLine("        }");
+            html.AppendLine("        .gallery-item:hover {");
+            html.AppendLine("            transform: translateY(-4px);");
+            html.AppendLine("            box-shadow: 0 8px 12px rgba(0,0,0,0.15);");
+            html.AppendLine("        }");
+            html.AppendLine("        .gallery-item img {");
+            html.AppendLine("            width: 100%;");
+            html.AppendLine("            height: 250px;");
+            html.AppendLine("            object-fit: cover;");
+            html.AppendLine("            display: block;");
+            html.AppendLine("        }");
+            html.AppendLine("        .gallery-item .caption {");
+            html.AppendLine("            padding: 15px;");
+            html.AppendLine("            font-size: 0.9rem;");
+            html.AppendLine("            color: var(--text-secondary);");
+            html.AppendLine("        }");
+            html.AppendLine("        .gallery-item .category {");
+            html.AppendLine("            display: inline-block;");
+            html.AppendLine("            padding: 4px 10px;");
+            html.AppendLine("            background: var(--accent-color);");
+            html.AppendLine("            color: white;");
+            html.AppendLine("            border-radius: 12px;");
+            html.AppendLine("            font-size: 0.75rem;");
+            html.AppendLine("            margin-bottom: 8px;");
+            html.AppendLine("        }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            
+            AppendHeader(html, season);
+            AppendNavigation(html, "Gallery");
+            
+            html.AppendLine("    <main>");
+            html.AppendLine("        <div class=\"container\">");
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine("                <h2>?? Photo Gallery</h2>");
+            html.AppendLine($"                <p class=\"hero-dates\">{_settings.GalleryImages.Count} Photo{(_settings.GalleryImages.Count == 1 ? "" : "s")}</p>");
+            html.AppendLine("            </div>");
+            
+            if (_settings.GalleryImages.Count > 0)
+            {
+                html.AppendLine("            <div class=\"gallery-grid\">");
+                
+                foreach (var image in _settings.GalleryImages.OrderByDescending(i => i.DateAdded))
+                {
+                    var mimeType = imageOptimizer.GetMimeType(image.FileName);
+                    var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
+                    
+                    html.AppendLine("                <div class=\"gallery-item\">");
+                    html.AppendLine($"                    <img src=\"{dataUrl}\" alt=\"{image.Caption}\" loading=\"lazy\">");
+                    html.AppendLine("                    <div style=\"padding: 15px;\">");
+                    if (!string.IsNullOrWhiteSpace(image.Category))
+                    {
+                        html.AppendLine($"                        <span class=\"category\">{image.Category}</span>");
+                    }
+                    if (!string.IsNullOrWhiteSpace(image.Caption))
+                    {
+                        html.AppendLine($"                        <div class=\"caption\">{image.Caption}</div>");
+                    }
+                    html.AppendLine($"                        <div style=\"font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;\">{image.DateAdded:MMM d, yyyy}</div>");
+                    html.AppendLine("                    </div>");
+                    html.AppendLine("                </div>");
+                }
+                
+                html.AppendLine("            </div>");
+            }
+            else
+            {
+                html.AppendLine("            <div class=\"section\">");
+                html.AppendLine("                <p>No images available in the gallery.</p>");
+                html.AppendLine("            </div>");
+            }
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </main>");
+            
+            AppendFooter(html);
+            
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+            
+            return html.ToString();
+        }
+        
         private void AppendHeader(StringBuilder html, Season season)
         {
             html.AppendLine("    <header>");
@@ -632,6 +744,8 @@ namespace Wdpl2.Services
                 html.AppendLine($"                <li><a href=\"players.html\"{(activePage == "Players" ? " class=\"active\"" : "")}>Players</a></li>");
             if (_settings.ShowDivisions)
                 html.AppendLine($"                <li><a href=\"divisions.html\"{(activePage == "Divisions" ? " class=\"active\"" : "")}>Divisions</a></li>");
+            if (_settings.ShowGallery)
+                html.AppendLine($"                <li><a href=\"gallery.html\"{(activePage == "Gallery" ? " class=\"active\"" : "")}>Gallery</a></li>");
             html.AppendLine("            </ul>");
             html.AppendLine("        </div>");
             html.AppendLine("    </nav>");

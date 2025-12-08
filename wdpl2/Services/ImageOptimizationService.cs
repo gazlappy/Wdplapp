@@ -70,5 +70,17 @@ namespace Wdpl2.Services
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
             return extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".webp" or ".svg";
         }
+        
+        /// <summary>
+        /// Get image dimensions from byte array (simplified - returns 0,0 for now)
+        /// In production, use SkiaSharp or similar to read actual dimensions
+        /// </summary>
+        public async Task<(int width, int height)> GetImageDimensionsAsync(byte[] imageData)
+        {
+            await Task.CompletedTask;
+            // TODO: Implement proper image dimension reading with SkiaSharp
+            // For now, return default values
+            return (800, 600);
+        }
     }
 }

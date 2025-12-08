@@ -134,6 +134,42 @@
                         <CheckBox x:Name="ShowDivisionsCheck" IsChecked="True"/>
                         <Label Text="Division Information" VerticalOptions="Center"/>
                     </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox x:Name="ShowGalleryCheck" IsChecked="False"/>
+                        <Label Text="Photo Gallery" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Photo Gallery -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="📷 Photo Gallery" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Add team photos, match photos, and event images to your website"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0"
+                                x:Name="AddGalleryImageBtn"
+                                Text="Add Photos"
+                                Clicked="OnAddGalleryImagesClicked"
+                                BackgroundColor="#3B82F6"/>
+                        
+                        <Button Grid.Column="1"
+                                x:Name="ManageGalleryBtn"
+                                Text="Manage Gallery"
+                                Clicked="OnManageGalleryClicked"
+                                BackgroundColor="#6B7280"/>
+                    </Grid>
+                    
+                    <Label x:Name="GalleryCountLabel" 
+                           Text="No images in gallery"
+                           FontSize="12"
+                           TextColor="#6B7280"
+                           HorizontalOptions="Center"/>
                 </VerticalStackLayout>
             </Frame>
             
