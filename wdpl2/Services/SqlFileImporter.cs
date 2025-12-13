@@ -540,8 +540,8 @@ namespace Wdpl2.Services
 
                 // Check for duplicate team in existing data
                 var existingTeam = existingData.Teams.FirstOrDefault(t => 
-                    t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase) &&
-                    t.SeasonId == result.DetectedSeason?.Id);
+                    t.SeasonId == result.DetectedSeason?.Id &&
+                    t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
 
                 if (existingTeam != null)
                 {
@@ -658,10 +658,10 @@ namespace Wdpl2.Services
                     }
                 }
 
-                // If no team found, use first available team
+                // If no team found, use first available team (or null if no teams)
                 if (teamId == null)
                 {
-                    teamId = importedData.Teams.FirstOrDefault()?.Id ?? Guid.Empty;
+                    teamId = importedData.Teams.FirstOrDefault()?.Id;
                 }
 
                 var player = new Player
@@ -729,7 +729,7 @@ namespace Wdpl2.Services
 
                 // Check for duplicate fixture (same date + teams)
                 var existingFixture = existingData.Fixtures.FirstOrDefault(f =>
-                    f.SeasonId == result.DetectedSeason.Id &&
+                    f.SeasonId == result.DetectedSeason?.Id &&
                     f.Date.Date == matchDate.Date &&
                     f.HomeTeamId == homeTeamId &&
                     f.AwayTeamId == awayTeamId);
