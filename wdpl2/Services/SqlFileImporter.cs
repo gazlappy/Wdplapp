@@ -392,20 +392,19 @@ namespace Wdpl2.Services
             // (VBA system doesn't have a separate teams table, team info comes from players)
             if (tableData.ContainsKey("tblplayers"))
             {
-                var teamNames = new Dictionary<int, HashSet<string>>();
+                var teamIds = new HashSet<int>();
                 
                 foreach (var playerRow in tableData["tblplayers"])
                 {
                     var teamId = GetIntValue(playerRow, "Team", -1);
                     if (teamId > 0)
                     {
-                        if (!teamNames.ContainsKey(teamId))
-                            teamNames[teamId] = new HashSet<string>();
+                        teamIds.Add(teamId);
                     }
                 }
 
                 // For now, just note which teams exist - we'll use "Team X" as names
-                foreach (var teamId in teamNames.Keys)
+                foreach (var teamId in teamIds)
                 {
                     result.VbaTeamIdToName[teamId] = $"Team {teamId}";
                 }
