@@ -524,8 +524,8 @@ namespace Wdpl2.Services
             }
 
             // Use first division if available
-            var divisionId = importedData.Divisions.FirstOrDefault()?.Id ?? Guid.Empty;
-            if (divisionId == Guid.Empty)
+            var divisionId = importedData.Divisions.FirstOrDefault()?.Id;
+            if (divisionId == null)
             {
                 result.Errors.Add("No division available for teams");
                 return Task.CompletedTask;
