@@ -701,12 +701,11 @@ namespace Wdpl2.Services
                 if (fixture == null)
                 {
                     result.Warnings.Add($"Could not find fixture for match {matchNo}");
-                    result.ResultsSkipped++;
                     continue;
                 }
 
                 // Skip if fixture already has frames (duplicate check)
-                if (fixture.Frames.Any())
+                if (fixture.Frames.Count > 0)
                 {
                     result.ResultsSkipped++;
                     result.Warnings.Add($"Match {matchNo} already has results - skipping");
