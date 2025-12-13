@@ -172,6 +172,48 @@
                         </Grid>
                     </Border>
 
+                    <!-- SQL Database File -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="#9333EA"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🗃️" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <Label Text="SQL Database Dump (.sql)"
+                                       FontAttributes="Bold"
+                                       FontSize="16"/>
+                                <Label Text="Import from MySQL, PostgreSQL, SQLite, or SQL Server dumps"
+                                       TextColor="{StaticResource Gray600}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Complete Migration  ✓ All Tables  ✓ Relationships"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Select"
+                                    Clicked="OnSelectSqlFile"
+                                    BackgroundColor="#9333EA"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Excel Spreadsheet -->
                     <Border Style="{StaticResource CardBorderStyle}"
                             BackgroundColor="{StaticResource Gray50}">

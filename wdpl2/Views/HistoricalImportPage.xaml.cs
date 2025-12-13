@@ -23,7 +23,8 @@ public partial class HistoricalImportPage : ContentPage
         ExcelSpreadsheet,
         SingleHTML,
         BatchHTML,
-        PDF
+        PDF,
+        SqlFile
     }
 
     public HistoricalImportPage()
@@ -150,6 +151,15 @@ public partial class HistoricalImportPage : ContentPage
             "Choose multiple HTML files to import (add them one by one)",
             new[] { ".html", ".htm" },
             true);
+    }
+
+    private void OnSelectSqlFile(object? sender, EventArgs e)
+    {
+        _selectedImportType = ImportType.SqlFile;
+        SetupFileSelection("Select SQL Dump File", 
+            "Choose the .sql file exported from MySQL, PostgreSQL, SQLite, or SQL Server",
+            new[] { ".sql" },
+            false);
     }
 
     // ========== STEP 2: File Selection ==========
@@ -309,6 +319,10 @@ public partial class HistoricalImportPage : ContentPage
                     await ProcessBatchHTMLAsync();
                     break;
 
+                case ImportType.SqlFile:
+                    await ProcessSqlFileAsync();
+                    break;
+
                 default:
                     throw new InvalidOperationException("Unknown import type");
             }
@@ -406,6 +420,123 @@ public partial class HistoricalImportPage : ContentPage
         
         // Return to main page after batch import
         await Navigation.PopToRootAsync();
+    }
+
+    private async Task ProcessSqlFileAsync()
+    {
+        var file = _selectedFiles.FirstOrDefault();
+        if (file == null) return;
+
+        ProgressMessage.Text = "Parsing SQL file and importing data...";
+
+        try
+        {
+            // Import from SQL file with existing data and replace=false
+            var (data, result) = await SqlFileImporter.ImportFromSqlFileAsync(
+                file.FilePath, 
+                DataStore.Data, 
+                false); // replaceExisting parameter
+
+            ProgressPanel.IsVisible = false;
+
+            if (result.Success)
+            {
+                // Save imported data
+                DataStore.Save();
+
+                Step3Title.Text = "? SQL Import Successful!";
+                
+                ResultsArea.Children.Clear();
+
+                // Show summary
+                var summaryBorder = new Border
+                {
+                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#F0FDF4"),
+                    Stroke = Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
+                    StrokeThickness = 2,
+                    Padding = new Thickness(16),
+                    Margin = new Thickness(0, 16)
+                };
+
+                var summaryStack = new VerticalStackLayout { Spacing = 8 };
+                
+                summaryStack.Children.Add(new Label
+                {
+                    Text = $"Detected: {result.DetectedDialect} SQL",
+                    FontSize = 14,
+                    FontAttributes = FontAttributes.Bold
+                });
+
+                if (result.DetectedSeason != null)
+                {
+                    summaryStack.Children.Add(new Label
+                    {
+                        Text = $"Season: {result.DetectedSeason.Name}",
+                        FontSize = 13,
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6")
+                    });
+                }
+
+                summaryStack.Children.Add(new Label { Text = result.Summary, FontSize = 13 });
+
+                if (result.Warnings.Any())
+                {
+                    summaryStack.Children.Add(new Label
+                    {
+                        Text = $"\n?? Warnings: {result.Warnings.Count}",
+                        TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
+                        FontSize = 12
+                    });
+                }
+
+                summaryBorder.Content = summaryStack;
+                ResultsArea.Children.Add(summaryBorder);
+
+                // Done button
+                var doneButton = new Button
+                {
+                    Text = "Done",
+                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(32, 16),
+                    HorizontalOptions = LayoutOptions.Center,
+                    Margin = new Thickness(0, 16)
+                };
+                doneButton.Clicked += async (s, e) => await Navigation.PopAsync();
+                ResultsArea.Children.Add(doneButton);
+            }
+            else
+            {
+                throw new Exception("Import failed with errors");
+            }
+        }
+        catch (Exception ex)
+        {
+            ProgressPanel.IsVisible = false;
+            Step3Title.Text = "? Import Failed";
+            
+            var errorLabel = new Label
+            {
+                Text = $"Error: {ex.Message}",
+                TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
+                FontSize = 14,
+                Margin = new Thickness(0, 16)
+            };
+            ResultsArea.Children.Add(errorLabel);
+
+            var retryButton = new Button
+            {
+                Text = "Try Again",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+                TextColor = Colors.White,
+                Padding = new Thickness(32, 16),
+                HorizontalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 16)
+            };
+            retryButton.Clicked += (s, e) => ResetWizard();
+            ResultsArea.Children.Add(retryButton);
+        }
     }
 
     private void ShowSuccessResult(string title, string message)

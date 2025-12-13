@@ -43,6 +43,7 @@
             <ShellContent Title="Analytics Hub" ContentTemplate="{DataTemplate views:AnalyticsHubPage}" />
         </Tab>
 
+        <!-- IMPORT TAB - Multiple import options -->
         <Tab Title="Import" Icon="stats.png">
             <ShellContent Title="Import Data" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
         </Tab>

@@ -58,6 +58,7 @@ public static class MauiProgram
         builder.Services.AddTransient<FixturesPage>();
         builder.Services.AddTransient<LeagueTablesPage>();
         builder.Services.AddTransient<SettingsPage>();
+        builder.Services.AddTransient<SqlImportPage>();  // Add SQL Import page
 
         var app = builder.Build();
 
