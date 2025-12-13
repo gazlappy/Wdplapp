@@ -436,27 +436,53 @@ public partial class SqlImportPage : ContentPage
                 {
                     var seasonName = leagueData.ContainsKey("SeasonName") ? leagueData["SeasonName"] : "Unknown";
                     var seasonYear = leagueData.ContainsKey("SeasonYear") ? leagueData["SeasonYear"] : "????";
-                    preview.AppendLine($"ï Season: {seasonName} {seasonYear}");
+                    preview.AppendLine($"ÔøΩ Season: {seasonName} {seasonYear}");
                 }
             }
 
             if (_parsedData.Tables.ContainsKey("tbldivisions"))
-                preview.AppendLine($"ï Divisions: {_parsedData.Tables["tbldivisions"].Count}");
+                preview.AppendLine($"ÔøΩ Divisions: {_parsedData.Tables["tbldivisions"].Count}");
 
             if (_parsedData.Tables.ContainsKey("tblfixtures"))
-                preview.AppendLine($"ï Fixtures: {_parsedData.Tables["tblfixtures"].Count}");
+                preview.AppendLine($"ÔøΩ Fixtures: {_parsedData.Tables["tblfixtures"].Count}");
 
             if (_parsedData.Tables.ContainsKey("tblmatchdetail") || _parsedData.Tables.ContainsKey("tblplayerresult"))
             {
                 var detailTable = _parsedData.Tables.ContainsKey("tblmatchdetail") ? 
                     _parsedData.Tables["tblmatchdetail"] : _parsedData.Tables["tblplayerresult"];
-                preview.AppendLine($"ï Frame Results: {detailTable.Count}");
+                preview.AppendLine($"üéØ Frame Results: {detailTable.Count}");
+            }
+
+            // Show player name mapping if tblplayers exists
+            if (_parsedData.Tables.ContainsKey("tblplayers"))
+            {
+                preview.AppendLine();
+                preview.AppendLine($"üé± Player Names: {_parsedData.Tables["tblplayers"].Count} players found");
+                preview.AppendLine("   Sample mappings:");
+                
+                var samplePlayers = _parsedData.Tables["tblplayers"].Take(5);
+                foreach (var player in samplePlayers)
+                {
+                    var id = player.ContainsKey("PlayerID") ? player["PlayerID"] : "?";
+                    var name = player.ContainsKey("PlayerName") ? player["PlayerName"] : "Unknown";
+                    var team = player.ContainsKey("Team") ? player["Team"] : "?";
+                    preview.AppendLine($"   {id}: {name} (Team {team})");
+                }
+                if (_parsedData.Tables["tblplayers"].Count > 5)
+                    preview.AppendLine($"   ... and {_parsedData.Tables["tblplayers"].Count - 5} more");
+            }
+            else
+            {
+                preview.AppendLine();
+                preview.AppendLine("‚ö†Ô∏è Note: No tblplayers data found.");
+                preview.AppendLine("   Players will be created with placeholder names.");
             }
 
             preview.AppendLine();
-            preview.AppendLine("?? Note: Teams and players will be created");
-            preview.AppendLine("   with placeholder names and must be");
-            preview.AppendLine("   updated manually after import.");
+            preview.AppendLine("‚ú® Import will skip duplicates automatically:");
+            preview.AppendLine("   ‚Ä¢ Players with same name");
+            preview.AppendLine("   ‚Ä¢ Fixtures with same date + teams");
+            preview.AppendLine("   ‚Ä¢ Results for matches already played");
 
             // Show preview
             var previewFrame = FindElement<Border>("PreviewFrame");
@@ -508,12 +534,12 @@ public partial class SqlImportPage : ContentPage
             "Confirm Import",
             $"Import WDPL data from:\n{Path.GetFileName(_selectedFilePath)}?\n\n" +
             "This will create:\n" +
-            "ï Season (if not exists)\n" +
-            "ï Divisions\n" +
-            "ï Teams (with placeholder names)\n" +
-            "ï Players (with placeholder names)\n" +
-            "ï Fixtures\n" +
-            "ï Frame results\n\n" +
+            "ÔøΩ Season (if not exists)\n" +
+            "ÔøΩ Divisions\n" +
+            "ÔøΩ Teams (with placeholder names)\n" +
+            "ÔøΩ Players (with placeholder names)\n" +
+            "ÔøΩ Fixtures\n" +
+            "ÔøΩ Frame results\n\n" +
             "?? You'll need to update team/player names manually",
             "Import Now",
             "Cancel");
@@ -645,12 +671,12 @@ public partial class SqlImportPage : ContentPage
         var confirm = await DisplayAlert(
             "Confirm Rollback",
             $"Remove all data from last import:\n\n" +
-            $"ï {_lastImportResult.ImportedSeasonIds.Count} Seasons\n" +
-            $"ï {_lastImportResult.ImportedDivisionIds.Count} Divisions\n" +
-            $"ï {_lastImportResult.TeamsImported} Teams\n" +
-            $"ï {_lastImportResult.PlayersImported} Players\n" +
-            $"ï {_lastImportResult.FixturesImported} Fixtures\n" +
-            $"ï {_lastImportResult.FramesImported} Frames\n\n" +
+            $"ÔøΩ {_lastImportResult.ImportedSeasonIds.Count} Seasons\n" +
+            $"ÔøΩ {_lastImportResult.ImportedDivisionIds.Count} Divisions\n" +
+            $"ÔøΩ {_lastImportResult.TeamsImported} Teams\n" +
+            $"ÔøΩ {_lastImportResult.PlayersImported} Players\n" +
+            $"ÔøΩ {_lastImportResult.FixturesImported} Fixtures\n" +
+            $"ÔøΩ {_lastImportResult.FramesImported} Frames\n\n" +
             "This cannot be undone!",
             "Rollback",
             "Cancel");
