@@ -41,18 +41,29 @@ The SQL Import feature now properly handles phpMyAdmin and other SQL dump files,
 
 ## What Gets Imported
 
-### ? Currently Supported
+### ? Fully Supported
 - **Season Information** (from tblleague)
   - Season name and year
   - Start/end dates
   - League settings
+
+- **Player Names** (from tblplayers)
+  - PlayerID → PlayerName mapping
+  - Actual player names used instead of placeholders
+  - Team associations preserved
+
+- **Duplicate Detection**
+  - Automatically skips existing players (by name or ID)
+  - Skips duplicate fixtures (same date + teams)
+  - Skips duplicate results and frames
+  - Shows detailed import vs. skipped statistics
   
-### ?? Partially Implemented
-- **Divisions** (structure detected, needs mapping)
-- **Teams** (placeholder)
-- **Players** (placeholder)
-- **Fixtures** (placeholder)
-- **Results** (placeholder)
+### ?? Implemented
+- **Divisions** (from tbldivisions)
+- **Teams** (extracted from fixtures and players)
+- **Players** (with actual names from tblplayers)
+- **Fixtures** (from tblfixtures)
+- **Results** (from tblmatchdetail/tblplayerresult)
 
 ## SQL File Requirements
 
@@ -142,19 +153,38 @@ Check the following documentation:
 - `SQL_IMPORT_IMPLEMENTATION.md` - Implementation guide
 - `SQL_IMPORT_ACCESS_GUIDE.md` - Access database conversion
 
+## New Features (v2.0)
+
+? **ID-to-Name Mapping**
+- Parses `tblplayers` table to extract PlayerID → PlayerName mappings
+- Uses actual player names (e.g., "TONY HARTNELL") instead of "Player 1"
+- Team associations maintained from tblplayers Team field
+
+? **Smart Duplicate Detection**
+- Checks existing database before importing
+- Skips players already present (by name or PlayerID)
+- Skips duplicate fixtures (same date + teams)
+- Skips duplicate results/frames
+- Detailed statistics: "X imported, Y skipped"
+
+? **Comprehensive Import Summary**
+- Shows records imported vs. skipped for each type
+- Teams: imported/skipped counts
+- Players: imported/skipped with name resolution status
+- Fixtures: imported/skipped counts
+- Results & Frames: imported/skipped counts
+
 ## Current Limitations
 
 ?? **Important Notes:**
-1. Players are NOT auto-created - you must create players first
-2. Team/Player mapping from VBA IDs to GUIDs is not yet implemented
-3. Only season metadata is currently fully imported
-4. Rollback removes ALL data from the import session
+1. Team names are still placeholders ("Team 12") - update manually after import
+2. Rollback removes ALL data from the import session
+3. VBA system doesn't have explicit team names table - extracted from player data
 
 ## Future Enhancements
 
-Coming soon:
-- ? Full team/player import with ID mapping
-- ? Fixture and result import
-- ? Import preview before committing
+Possible improvements:
+- ? Team name extraction from venue or other sources
 - ? Progress bar for large files
 - ? Batch import of multiple SQL files
+- ? Update existing records option (currently only adds new)

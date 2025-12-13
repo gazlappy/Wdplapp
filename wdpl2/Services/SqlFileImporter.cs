@@ -18,6 +18,11 @@ namespace Wdpl2.Services
             public int FixturesImported { get; set; }
             public int ResultsImported { get; set; }
             public int FramesImported { get; set; }
+            public int TeamsSkipped { get; set; }
+            public int PlayersSkipped { get; set; }
+            public int FixturesSkipped { get; set; }
+            public int ResultsSkipped { get; set; }
+            public int FramesSkipped { get; set; }
             public List<Guid> ImportedSeasonIds { get; set; } = new();
             public List<Guid> ImportedDivisionIds { get; set; } = new();
             public List<Guid> ImportedTeamIds { get; set; } = new();
@@ -27,14 +32,18 @@ namespace Wdpl2.Services
             // VBA ID mappings for reference
             public Dictionary<int, Guid> VbaTeamIdToGuid { get; set; } = new();
             public Dictionary<int, Guid> VbaPlayerIdToGuid { get; set; } = new();
+            
+            // ID-to-Name mappings from SQL file
+            public Dictionary<int, string> VbaPlayerIdToName { get; set; } = new();
+            public Dictionary<int, string> VbaTeamIdToName { get; set; } = new();
 
             public string Summary =>
                 $"? Season: {DetectedSeason?.Name ?? "None"}\n" +
-                $"? Teams: {TeamsImported}\n" +
-                $"? Players: {PlayersImported}\n" +
-                $"? Fixtures: {FixturesImported}\n" +
-                $"? Results: {ResultsImported} matches\n" +
-                $"? Frames: {FramesImported}\n" +
+                $"? Teams: {TeamsImported} imported, {TeamsSkipped} skipped\n" +
+                $"? Players: {PlayersImported} imported, {PlayersSkipped} skipped\n" +
+                $"? Fixtures: {FixturesImported} imported, {FixturesSkipped} skipped\n" +
+                $"? Results: {ResultsImported} matches imported, {ResultsSkipped} skipped\n" +
+                $"? Frames: {FramesImported} imported, {FramesSkipped} skipped\n" +
                 $"? Warnings: {Warnings.Count}\n" +
                 $"? Errors: {Errors.Count}";
         }
@@ -85,16 +94,19 @@ namespace Wdpl2.Services
                 var parsed = await ParseSqlFileAsync(sqlFilePath);
                 result.DetectedDialect = parsed.DetectedDialect;
 
-                // Import in order of dependencies
+                // Step 1: Build ID-to-Name mappings from lookup tables
+                BuildIdToNameMappings(parsed.Tables, result);
+
+                // Step 2: Import in order of dependencies
                 await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result);
                 
                 if (result.DetectedSeason != null)
                 {
                     await ImportDivisions(parsed.Tables, importedData, result);
-                    await ImportTeams(parsed.Tables, importedData, result);
+                    await ImportTeams(parsed.Tables, importedData, existingData, result);
                     await ImportPlayers(parsed.Tables, importedData, existingData, result);
-                    await ImportFixtures(parsed.Tables, importedData, result);
-                    await ImportResults(parsed.Tables, importedData, result);
+                    await ImportFixtures(parsed.Tables, importedData, existingData, result);
+                    await ImportResults(parsed.Tables, importedData, existingData, result);
                 }
                 else
                 {
@@ -348,6 +360,63 @@ namespace Wdpl2.Services
             return value;
         }
 
+        /// <summary>
+        /// Build ID-to-Name mappings from tblplayers and other lookup tables
+        /// This allows us to use actual names instead of just IDs
+        /// </summary>
+        private static void BuildIdToNameMappings(
+            Dictionary<string, List<Dictionary<string, string>>> tableData,
+            SqlImportResult result)
+        {
+            // Build PlayerID -> PlayerName mapping from tblplayers
+            if (tableData.ContainsKey("tblplayers"))
+            {
+                foreach (var playerRow in tableData["tblplayers"])
+                {
+                    var playerId = GetIntValue(playerRow, "PlayerID", -1);
+                    var playerName = GetStringValue(playerRow, "PlayerName", "");
+                    
+                    if (playerId >= 0 && !string.IsNullOrWhiteSpace(playerName))
+                    {
+                        result.VbaPlayerIdToName[playerId] = playerName;
+                    }
+                }
+                
+                if (result.VbaPlayerIdToName.Count > 0)
+                {
+                    result.Warnings.Add($"Loaded {result.VbaPlayerIdToName.Count} player names from tblplayers");
+                }
+            }
+
+            // Build TeamID -> TeamName mapping from tblplayers Team field
+            // (VBA system doesn't have a separate teams table, team info comes from players)
+            if (tableData.ContainsKey("tblplayers"))
+            {
+                var teamIds = new HashSet<int>();
+                
+                foreach (var playerRow in tableData["tblplayers"])
+                {
+                    var teamId = GetIntValue(playerRow, "Team", -1);
+                    if (teamId > 0)
+                    {
+                        teamIds.Add(teamId);
+                    }
+                }
+
+                // For now, just note which teams exist - we'll use "Team X" as names
+                foreach (var teamId in teamIds)
+                {
+                    result.VbaTeamIdToName[teamId] = $"Team {teamId}";
+                }
+            }
+
+            // Try to get division names from tbldivisions
+            if (tableData.ContainsKey("tbldivisions"))
+            {
+                result.Warnings.Add($"Found {tableData["tbldivisions"].Count} divisions in tbldivisions table");
+            }
+        }
+
         private static Task ImportSeasonData(
             Dictionary<string, List<Dictionary<string, string>>> tableData,
             LeagueData importedData,
@@ -433,6 +502,7 @@ namespace Wdpl2.Services
         private static Task ImportTeams(
             Dictionary<string, List<Dictionary<string, string>>> tableData,
             LeagueData importedData,
+            LeagueData existingData,
             SqlImportResult result)
         {
             // Teams need to be extracted from fixture data (HomeTeam/AwayTeam IDs)
@@ -453,8 +523,8 @@ namespace Wdpl2.Services
             }
 
             // Use first division if available
-            var divisionId = importedData.Divisions.FirstOrDefault()?.Id ?? Guid.Empty;
-            if (divisionId == Guid.Empty)
+            var divisionId = importedData.Divisions.FirstOrDefault()?.Id;
+            if (divisionId == null)
             {
                 result.Errors.Add("No division available for teams");
                 return Task.CompletedTask;
@@ -462,11 +532,31 @@ namespace Wdpl2.Services
 
             foreach (var vbaTeamId in teamIds.OrderBy(id => id))
             {
+                // Get team name from mapping or use default
+                var teamName = result.VbaTeamIdToName.ContainsKey(vbaTeamId) 
+                    ? result.VbaTeamIdToName[vbaTeamId] 
+                    : $"Team {vbaTeamId}";
+
+                // Check for duplicate team in existing data
+                var existingTeam = existingData.Teams.FirstOrDefault(t => 
+                    t.SeasonId == result.DetectedSeason?.Id &&
+                    t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
+
+                if (existingTeam != null)
+                {
+                    // Team already exists - skip and use existing GUID
+                    result.VbaTeamIdToGuid[vbaTeamId] = existingTeam.Id;
+                    result.TeamsSkipped++;
+                    continue;
+                }
+
+                // Create new team
                 var team = new Team
                 {
                     Id = Guid.NewGuid(),
-                    Name = $"Team {vbaTeamId}",
-                    DivisionId = divisionId
+                    Name = teamName,
+                    DivisionId = divisionId,
+                    SeasonId = result.DetectedSeason?.Id
                 };
 
                 importedData.Teams.Add(team);
@@ -475,7 +565,10 @@ namespace Wdpl2.Services
                 result.TeamsImported++;
             }
 
-            result.Warnings.Add($"Created {result.TeamsImported} teams from fixture data - names should be updated manually");
+            if (result.TeamsImported > 0 || result.TeamsSkipped > 0)
+            {
+                result.Warnings.Add($"Teams: {result.TeamsImported} created, {result.TeamsSkipped} already exist");
+            }
 
             return Task.CompletedTask;
         }
@@ -486,46 +579,96 @@ namespace Wdpl2.Services
             LeagueData existingData,
             SqlImportResult result)
         {
-            // Extract player IDs from match detail data
-            if (!tableData.ContainsKey("tblmatchdetail") && !tableData.ContainsKey("tblplayerresult"))
-            {
-                result.Warnings.Add("No player data found in match details");
-                return Task.CompletedTask;
-            }
-
-            var tableName = tableData.ContainsKey("tblmatchdetail") ? "tblmatchdetail" : "tblplayerresult";
+            // First, try to get players from tblplayers table if it exists
             var playerIds = new HashSet<int>();
+            var playerTeamMapping = new Dictionary<int, int>(); // PlayerID -> TeamID
 
-            foreach (var row in tableData[tableName])
+            if (tableData.ContainsKey("tblplayers"))
             {
-                var player1Id = GetIntValue(row, "Player1", 0);
-                var player2Id = GetIntValue(row, "Player2", 0);
-                var playerId = GetIntValue(row, "PlayerID", 0);
-                var played = GetIntValue(row, "Played", 0);
-                
-                if (player1Id > 0) playerIds.Add(player1Id);
-                if (player2Id > 0) playerIds.Add(player2Id);
-                if (playerId > 0) playerIds.Add(playerId);
-                if (played > 0) playerIds.Add(played);
+                // Use tblplayers as the primary source
+                foreach (var playerRow in tableData["tblplayers"])
+                {
+                    var playerId = GetIntValue(playerRow, "PlayerID", 0);
+                    var teamId = GetIntValue(playerRow, "Team", 0);
+                    
+                    if (playerId > 0)
+                    {
+                        playerIds.Add(playerId);
+                        if (teamId > 0)
+                        {
+                            playerTeamMapping[playerId] = teamId;
+                        }
+                    }
+                }
+            }
+            else if (tableData.ContainsKey("tblmatchdetail") || tableData.ContainsKey("tblplayerresult"))
+            {
+                // Fallback: Extract player IDs from match detail data
+                var tableName = tableData.ContainsKey("tblmatchdetail") ? "tblmatchdetail" : "tblplayerresult";
+
+                foreach (var row in tableData[tableName])
+                {
+                    var player1Id = GetIntValue(row, "Player1", 0);
+                    var player2Id = GetIntValue(row, "Player2", 0);
+                    var playerId = GetIntValue(row, "PlayerID", 0);
+                    var played = GetIntValue(row, "Played", 0);
+                    
+                    if (player1Id > 0) playerIds.Add(player1Id);
+                    if (player2Id > 0) playerIds.Add(player2Id);
+                    if (playerId > 0) playerIds.Add(playerId);
+                    if (played > 0) playerIds.Add(played);
+                }
+            }
+            else
+            {
+                result.Warnings.Add("No player data found in tblplayers or match details");
+                return Task.CompletedTask;
             }
 
             foreach (var vbaPlayerId in playerIds.OrderBy(id => id))
             {
-                // Check if player already exists
+                // Get player name from mapping or use default
+                var playerName = result.VbaPlayerIdToName.ContainsKey(vbaPlayerId)
+                    ? result.VbaPlayerIdToName[vbaPlayerId]
+                    : $"Player {vbaPlayerId}";
+
+                // Check if player already exists by name or ID
                 var existingPlayer = existingData.Players.FirstOrDefault(p => 
-                    p.Name.EndsWith($"({vbaPlayerId})"));
+                    (p.Name.Equals(playerName, StringComparison.OrdinalIgnoreCase) ||
+                     p.Name.EndsWith($"({vbaPlayerId})")) &&
+                    p.SeasonId == result.DetectedSeason?.Id);
 
                 if (existingPlayer != null)
                 {
+                    // Player already exists - skip and use existing GUID
                     result.VbaPlayerIdToGuid[vbaPlayerId] = existingPlayer.Id;
+                    result.PlayersSkipped++;
                     continue;
+                }
+
+                // Get the team for this player
+                Guid? teamId = null;
+                if (playerTeamMapping.ContainsKey(vbaPlayerId))
+                {
+                    var vbaTeamId = playerTeamMapping[vbaPlayerId];
+                    if (result.VbaTeamIdToGuid.ContainsKey(vbaTeamId))
+                    {
+                        teamId = result.VbaTeamIdToGuid[vbaTeamId];
+                    }
+                }
+
+                // If no team found, use first available team (or null if no teams)
+                if (teamId == null)
+                {
+                    teamId = importedData.Teams.FirstOrDefault()?.Id;
                 }
 
                 var player = new Player
                 {
                     Id = Guid.NewGuid(),
-                    Name = $"Player {vbaPlayerId}",
-                    TeamId = importedData.Teams.FirstOrDefault()?.Id ?? Guid.Empty
+                    Name = playerName,
+                    TeamId = teamId,
+                    SeasonId = result.DetectedSeason?.Id
                 };
 
                 importedData.Players.Add(player);
@@ -535,7 +678,14 @@ namespace Wdpl2.Services
                 result.PlayersImported++;
             }
 
-            result.Warnings.Add($"Created {result.PlayersImported} placeholder players - names should be updated manually");
+            if (result.PlayersImported > 0 || result.PlayersSkipped > 0)
+            {
+                var hasNames = result.VbaPlayerIdToName.Count > 0;
+                var message = hasNames 
+                    ? $"Players: {result.PlayersImported} imported with names, {result.PlayersSkipped} already exist"
+                    : $"Players: {result.PlayersImported} created with placeholder names, {result.PlayersSkipped} already exist";
+                result.Warnings.Add(message);
+            }
 
             return Task.CompletedTask;
         }
@@ -543,6 +693,7 @@ namespace Wdpl2.Services
         private static Task ImportFixtures(
             Dictionary<string, List<Dictionary<string, string>>> tableData,
             LeagueData importedData,
+            LeagueData existingData,
             SqlImportResult result)
         {
             if (!tableData.ContainsKey("tblfixtures"))
@@ -568,11 +719,26 @@ namespace Wdpl2.Services
                     !result.VbaTeamIdToGuid.ContainsKey(vbaAwayTeamId))
                 {
                     result.Warnings.Add($"Skipping fixture with unknown team IDs: {vbaHomeTeamId} vs {vbaAwayTeamId}");
+                    result.FixturesSkipped++;
                     continue;
                 }
 
                 var homeTeamId = result.VbaTeamIdToGuid[vbaHomeTeamId];
                 var awayTeamId = result.VbaTeamIdToGuid[vbaAwayTeamId];
+
+                // Check for duplicate fixture (same date + teams)
+                var existingFixture = existingData.Fixtures.FirstOrDefault(f =>
+                    f.SeasonId == result.DetectedSeason?.Id &&
+                    f.Date.Date == matchDate.Date &&
+                    f.HomeTeamId == homeTeamId &&
+                    f.AwayTeamId == awayTeamId);
+
+                if (existingFixture != null)
+                {
+                    // Fixture already exists - skip
+                    result.FixturesSkipped++;
+                    continue;
+                }
 
                 var fixture = new Fixture
                 {
@@ -588,12 +754,18 @@ namespace Wdpl2.Services
                 result.FixturesImported++;
             }
 
+            if (result.FixturesSkipped > 0)
+            {
+                result.Warnings.Add($"Fixtures: {result.FixturesImported} imported, {result.FixturesSkipped} already exist");
+            }
+
             return Task.CompletedTask;
         }
 
         private static Task ImportResults(
             Dictionary<string, List<Dictionary<string, string>>> tableData,
             LeagueData importedData,
+            LeagueData existingData,
             SqlImportResult result)
         {
             // Import match results from tblmatchdetail or tblplayerresult
@@ -627,6 +799,15 @@ namespace Wdpl2.Services
                 if (fixture == null)
                 {
                     result.Warnings.Add($"Could not find fixture for match {matchNo}");
+                    result.ResultsSkipped++;
+                    continue;
+                }
+
+                // Check if this fixture already has results
+                if (fixture.Frames.Count > 0)
+                {
+                    result.ResultsSkipped++;
+                    result.FramesSkipped += matchGroup.Count();
                     continue;
                 }
 
@@ -642,11 +823,24 @@ namespace Wdpl2.Services
                     if (!result.VbaPlayerIdToGuid.ContainsKey(vbaPlayer1Id) || 
                         !result.VbaPlayerIdToGuid.ContainsKey(vbaPlayer2Id))
                     {
+                        result.FramesSkipped++;
                         continue;
                     }
 
                     var player1Id = result.VbaPlayerIdToGuid[vbaPlayer1Id];
                     var player2Id = result.VbaPlayerIdToGuid[vbaPlayer2Id];
+
+                    // Check for duplicate frame (same players + frame number in this fixture)
+                    var existingFrame = fixture.Frames.FirstOrDefault(f =>
+                        f.Number == frameNo &&
+                        f.HomePlayerId == player1Id &&
+                        f.AwayPlayerId == player2Id);
+
+                    if (existingFrame != null)
+                    {
+                        result.FramesSkipped++;
+                        continue;
+                    }
 
                     // Determine winner
                     var winner = homeScore > awayScore ? FrameWinner.Home : 
@@ -676,6 +870,11 @@ namespace Wdpl2.Services
                 }
 
                 result.ResultsImported++;
+            }
+
+            if (result.ResultsSkipped > 0 || result.FramesSkipped > 0)
+            {
+                result.Warnings.Add($"Results: {result.ResultsImported} matches imported, {result.ResultsSkipped} skipped; {result.FramesImported} frames imported, {result.FramesSkipped} skipped");
             }
 
             return Task.CompletedTask;
