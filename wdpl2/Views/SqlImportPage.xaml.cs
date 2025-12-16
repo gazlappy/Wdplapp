@@ -12,303 +12,851 @@ namespace Wdpl2.Views;
 
 /// <summary>
 /// Dedicated page for importing WDPL SQL dump files from phpMyAdmin/VBA Access
+/// Redesigned with step-by-step wizard and better user feedback
 /// </summary>
 public partial class SqlImportPage : ContentPage
 {
     private string? _selectedFilePath;
     private SqlFileImporter.SqlImportResult? _lastImportResult;
     private SqlFileImporter.ParsedSqlData? _parsedData;
+    
+    // UI state
+    private int _currentStep = 1;
+    private bool _isProcessing = false;
+    
+    // Optional pre-selected file path (set before page appears)
+    private string? _preSelectedFilePath;
 
     public SqlImportPage()
     {
         InitializeComponent();
         BuildUI();
     }
+    
+    /// <summary>
+    /// Constructor with pre-selected file path
+    /// </summary>
+    public SqlImportPage(string filePath) : this()
+    {
+        _preSelectedFilePath = filePath;
+    }
+    
+    /// <summary>
+    /// Load a pre-selected file after the page appears
+    /// </summary>
+    public async Task LoadFileAsync(string filePath)
+    {
+        _selectedFilePath = filePath;
+        
+        var fileLabel = FindElement<Label>("FileLabel");
+        var fileSubLabel = FindElement<Label>("FileSubLabel");
+        
+        if (fileLabel != null)
+        {
+            fileLabel.Text = Path.GetFileName(filePath);
+            fileLabel.TextColor = Color.FromArgb("#4CAF50");
+        }
+        
+        if (fileSubLabel != null)
+        {
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                fileSubLabel.Text = $"{fileInfo.Length / 1024} KB • Click to change";
+            }
+            catch
+            {
+                fileSubLabel.Text = "Click to change file";
+            }
+        }
+
+        UpdateStepVisibility();
+        
+        // Automatically start preview
+        await PreviewDataAsync();
+    }
+    
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        
+        // If we have a pre-selected file, load it automatically
+        if (!string.IsNullOrEmpty(_preSelectedFilePath))
+        {
+            await LoadFileAsync(_preSelectedFilePath);
+            _preSelectedFilePath = null; // Clear so it doesn't reload
+        }
+    }
 
     private void BuildUI()
     {
-        Title = "SQL Import";
+        Title = "SQL Import Wizard";
+        BackgroundColor = Color.FromArgb("#F5F5F5");
 
-        var layout = new VerticalStackLayout
+        var mainLayout = new VerticalStackLayout
         {
-            Padding = 20,
-            Spacing = 16
+            Padding = new Thickness(16),
+            Spacing = 0
         };
 
-        // Header
-        layout.Children.Add(new Label
+        // Header with progress steps
+        mainLayout.Children.Add(BuildHeader());
+        
+        // Step indicator
+        mainLayout.Children.Add(BuildStepIndicator());
+
+        // Main content area
+        var contentFrame = new Border
         {
-            Text = "??? Import WDPL SQL Dump",
-            FontSize = 24,
+            StrokeThickness = 0,
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(20),
+            Margin = new Thickness(0, 16, 0, 0),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+            Shadow = new Shadow { Brush = Colors.Black, Opacity = 0.1f, Offset = new Point(0, 2), Radius = 8 }
+        };
+
+        var contentStack = new VerticalStackLayout { Spacing = 16, StyleId = "ContentStack" };
+        
+        // Step 1: File Selection
+        contentStack.Children.Add(BuildStep1FileSelection());
+        
+        // Step 2: Preview (hidden initially)
+        contentStack.Children.Add(BuildStep2Preview());
+        
+        // Step 3: Import Progress (hidden initially)
+        contentStack.Children.Add(BuildStep3Progress());
+        
+        // Step 4: Results (hidden initially)
+        contentStack.Children.Add(BuildStep4Results());
+
+        contentFrame.Content = contentStack;
+        mainLayout.Children.Add(contentFrame);
+
+        // Action buttons at bottom
+        mainLayout.Children.Add(BuildActionButtons());
+
+        Content = new ScrollView { Content = mainLayout };
+        
+        UpdateStepVisibility();
+    }
+
+    private View BuildHeader()
+    {
+        var headerStack = new VerticalStackLayout { Spacing = 4 };
+        
+        headerStack.Children.Add(new Label
+        {
+            Text = "?? SQL Import Wizard",
+            FontSize = 28,
             FontAttributes = FontAttributes.Bold,
-            Margin = new Thickness(0, 0, 0, 8)
+            TextColor = Color.FromArgb("#1976D2")
         });
-
-        layout.Children.Add(new Label
+        
+        headerStack.Children.Add(new Label
         {
-            Text = "Two-step import process:\n1. Preview parsed data\n2. Confirm and import",
+            Text = "Import historical data from VBA/Access WDPL database",
             FontSize = 14,
-            TextColor = Colors.Gray,
-            Margin = new Thickness(0, 0, 0, 16)
+            TextColor = Color.FromArgb("#666666")
         });
 
-        // Info frame
-        var infoFrame = new Border
+        return headerStack;
+    }
+
+    private View BuildStepIndicator()
+    {
+        var stepGrid = new Grid
+        {
+            Margin = new Thickness(0, 20, 0, 0),
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(40) },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(40) },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(40) },
+                new ColumnDefinition { Width = GridLength.Star }
+            }
+        };
+
+        // Step 1
+        stepGrid.Add(CreateStepCircle(1, "Select", "Step1Circle", "Step1Label"), 0, 0);
+        stepGrid.Add(CreateStepLine("Line1"), 1, 0);
+        
+        // Step 2
+        stepGrid.Add(CreateStepCircle(2, "Preview", "Step2Circle", "Step2Label"), 2, 0);
+        stepGrid.Add(CreateStepLine("Line2"), 3, 0);
+        
+        // Step 3
+        stepGrid.Add(CreateStepCircle(3, "Import", "Step3Circle", "Step3Label"), 4, 0);
+        stepGrid.Add(CreateStepLine("Line3"), 5, 0);
+        
+        // Step 4
+        stepGrid.Add(CreateStepCircle(4, "Done", "Step4Circle", "Step4Label"), 6, 0);
+
+        return stepGrid;
+    }
+
+    private View CreateStepCircle(int step, string label, string circleId, string labelId)
+    {
+        var stack = new VerticalStackLayout { HorizontalOptions = LayoutOptions.Center, Spacing = 4 };
+        
+        var circle = new Border
+        {
+            WidthRequest = 36,
+            HeightRequest = 36,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 18 },
+            BackgroundColor = Color.FromArgb("#E0E0E0"),
+            HorizontalOptions = LayoutOptions.Center,
+            StyleId = circleId
+        };
+        
+        circle.Content = new Label
+        {
+            Text = step.ToString(),
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center
+        };
+        
+        stack.Children.Add(circle);
+        stack.Children.Add(new Label
+        {
+            Text = label,
+            FontSize = 11,
+            TextColor = Color.FromArgb("#666666"),
+            HorizontalTextAlignment = TextAlignment.Center,
+            StyleId = labelId
+        });
+
+        return stack;
+    }
+
+    private View CreateStepLine(string lineId)
+    {
+        return new BoxView
+        {
+            HeightRequest = 3,
+            BackgroundColor = Color.FromArgb("#E0E0E0"),
+            VerticalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, -10, 0, 0),
+            StyleId = lineId
+        };
+    }
+
+    private View BuildStep1FileSelection()
+    {
+        var step1 = new VerticalStackLayout { Spacing = 16, StyleId = "Step1Panel" };
+
+        step1.Children.Add(new Label
+        {
+            Text = "Step 1: Select SQL File",
+            FontSize = 20,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#333333")
+        });
+
+        step1.Children.Add(new Label
+        {
+            Text = "Choose a SQL dump file exported from phpMyAdmin or the VBA Access database.",
+            FontSize = 14,
+            TextColor = Color.FromArgb("#666666")
+        });
+
+        // File drop zone
+        var dropZone = new Border
+        {
+            StrokeThickness = 2,
+            Stroke = Color.FromArgb("#90CAF9"),
+            StrokeDashArray = new DoubleCollection { 5, 3 },
+            BackgroundColor = Color.FromArgb("#E3F2FD"),
+            Padding = new Thickness(30, 40),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
+        };
+
+        var dropContent = new VerticalStackLayout { Spacing = 12, HorizontalOptions = LayoutOptions.Center };
+        dropContent.Children.Add(new Label
+        {
+            Text = "??",
+            FontSize = 48,
+            HorizontalOptions = LayoutOptions.Center
+        });
+        dropContent.Children.Add(new Label
+        {
+            Text = "No file selected",
+            FontSize = 16,
+            TextColor = Color.FromArgb("#1976D2"),
+            HorizontalOptions = LayoutOptions.Center,
+            StyleId = "FileLabel"
+        });
+        dropContent.Children.Add(new Label
+        {
+            Text = "Click to browse for .sql file",
+            FontSize = 12,
+            TextColor = Color.FromArgb("#666666"),
+            HorizontalOptions = LayoutOptions.Center,
+            StyleId = "FileSubLabel"
+        });
+
+        dropZone.Content = dropContent;
+        
+        var tapGesture = new TapGestureRecognizer();
+        tapGesture.Tapped += OnSelectFileClicked;
+        dropZone.GestureRecognizers.Add(tapGesture);
+        
+        step1.Children.Add(dropZone);
+
+        // Supported tables info (collapsible)
+        var infoExpander = new Border
         {
             StrokeThickness = 1,
-            Stroke = Color.FromArgb("#90CAF9"),
-            BackgroundColor = Color.FromArgb("#E3F2FD"),
-            Padding = 16,
-            Margin = new Thickness(0, 0, 0, 16)
+            Stroke = Color.FromArgb("#E0E0E0"),
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(12),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Margin = new Thickness(0, 8, 0, 0)
         };
 
-        var infoLayout = new VerticalStackLayout { Spacing = 8 };
-        
-        infoLayout.Children.Add(new Label
+        var infoStack = new VerticalStackLayout { Spacing = 8 };
+        infoStack.Children.Add(new Label
         {
-            Text = "?? Supported VBA/WDPL Tables:",
+            Text = "?? Supported Tables",
+            FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1976D2")
         });
 
-        var tables = new[]
+        var tableList = new[]
         {
-            "? tblleague - Season and league settings",
-            "? tbldivisions - Divisions configuration",
-            "? tblfixtures - Fixture scheduling",
-            "? tblmatchdetail/tblplayerresult - Frame results",
-            "? Automatically creates placeholder teams/players",
-            "? Preserves VBA IDs for reference"
+            ("tblleague", "Season settings"),
+            ("tbldivisions", "Division names"),
+            ("tblplayers", "Player names & IDs"),
+            ("tblfixtures", "Match schedule"),
+            ("tblmatchdetail", "Frame results")
         };
 
-        foreach (var table in tables)
+        foreach (var (table, desc) in tableList)
         {
-            infoLayout.Children.Add(new Label
-            {
-                Text = table,
-                FontSize = 13,
-                TextColor = Color.FromArgb("#424242"),
-                Margin = new Thickness(8, 0, 0, 0)
-            });
+            var row = new HorizontalStackLayout { Spacing = 8 };
+            row.Children.Add(new Label { Text = "?", TextColor = Color.FromArgb("#4CAF50"), FontSize = 12 });
+            row.Children.Add(new Label { Text = $"{table}", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Color.FromArgb("#333") });
+            row.Children.Add(new Label { Text = $"- {desc}", FontSize = 12, TextColor = Color.FromArgb("#666") });
+            infoStack.Children.Add(row);
         }
 
-        infoFrame.Content = infoLayout;
-        layout.Children.Add(infoFrame);
+        infoExpander.Content = infoStack;
+        step1.Children.Add(infoExpander);
 
-        // File selection
-        var fileFrame = new Border
+        return step1;
+    }
+
+    private View BuildStep2Preview()
+    {
+        var step2 = new VerticalStackLayout { Spacing = 16, IsVisible = false, StyleId = "Step2Panel" };
+
+        step2.Children.Add(new Label
+        {
+            Text = "Step 2: Review Data",
+            FontSize = 20,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#333333")
+        });
+
+        step2.Children.Add(new Label
+        {
+            Text = "Review the data found in the SQL file before importing.",
+            FontSize = 14,
+            TextColor = Color.FromArgb("#666666")
+        });
+
+        // Data Summary Cards
+        var summaryGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+            ColumnSpacing = 12,
+            RowSpacing = 12,
+            StyleId = "SummaryGrid"
+        };
+
+        summaryGrid.Add(CreateSummaryCard("??", "Season", "0", "SeasonCard"), 0, 0);
+        summaryGrid.Add(CreateSummaryCard("??", "Players", "0", "PlayersCard"), 1, 0);
+        summaryGrid.Add(CreateSummaryCard("??", "Fixtures", "0", "FixturesCard"), 2, 0);
+
+        step2.Children.Add(summaryGrid);
+
+        // Player Names Preview
+        var playerPreviewFrame = new Border
+        {
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#4CAF50"),
+            BackgroundColor = Color.FromArgb("#E8F5E9"),
+            Padding = new Thickness(12),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            IsVisible = false,
+            StyleId = "PlayerPreviewFrame"
+        };
+
+        var playerPreviewStack = new VerticalStackLayout { Spacing = 8 };
+        playerPreviewStack.Children.Add(new Label
+        {
+            Text = "?? Player Names Found",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#2E7D32")
+        });
+
+        var playerScroll = new ScrollView { HeightRequest = 150 };
+        playerScroll.Content = new Label
+        {
+            Text = "",
+            FontSize = 11,
+            FontFamily = "Courier New",
+            StyleId = "PlayerPreviewText"
+        };
+        playerPreviewStack.Children.Add(playerScroll);
+
+        playerPreviewFrame.Content = playerPreviewStack;
+        step2.Children.Add(playerPreviewFrame);
+
+        // Tables Found
+        var tablesFrame = new Border
         {
             StrokeThickness = 1,
             Stroke = Color.FromArgb("#E0E0E0"),
-            Padding = 16,
-            Margin = new Thickness(0, 0, 0, 16)
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(12),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
         };
 
-        var fileLayout = new VerticalStackLayout { Spacing = 12 };
-
-        var selectBtn = new Button
+        var tablesStack = new VerticalStackLayout { Spacing = 8 };
+        tablesStack.Children.Add(new Label
         {
-            Text = "?? Select SQL File (*.sql)",
-            BackgroundColor = Color.FromArgb("#2196F3"),
-            TextColor = Colors.White,
-            FontSize = 16,
-            HeightRequest = 50,
-            CornerRadius = 8
-        };
-        selectBtn.Clicked += OnSelectFileClicked;
-        fileLayout.Children.Add(selectBtn);
-
-        var fileLabel = new Label
-        {
-            Text = "No file selected",
-            TextColor = Colors.Gray,
-            HorizontalTextAlignment = TextAlignment.Center,
-            StyleId = "FileLabel"
-        };
-        fileLayout.Children.Add(fileLabel);
-
-        fileFrame.Content = fileLayout;
-        layout.Children.Add(fileFrame);
-
-        // Preview section (hidden initially)
-        var previewFrame = new Border
-        {
-            StrokeThickness = 2,
-            Stroke = Color.FromArgb("#2196F3"),
-            Padding = 16,
-            IsVisible = false,
-            StyleId = "PreviewFrame",
-            Margin = new Thickness(0, 0, 0, 16)
-        };
-
-        var previewLayout = new VerticalStackLayout { Spacing = 8 };
-        previewLayout.Children.Add(new Label
-        {
-            Text = "?? Data Preview",
-            FontSize = 18,
-            FontAttributes = FontAttributes.Bold
+            Text = "?? Tables Found in SQL File",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#333")
         });
 
-        var previewScroll = new ScrollView { HeightRequest = 200 };
-        var previewText = new Label
+        var tablesScroll = new ScrollView { HeightRequest = 120 };
+        tablesScroll.Content = new Label
         {
             Text = "",
+            FontSize = 11,
             FontFamily = "Courier New",
+            StyleId = "TablesFoundText"
+        };
+        tablesStack.Children.Add(tablesScroll);
+
+        tablesFrame.Content = tablesStack;
+        step2.Children.Add(tablesFrame);
+
+        // Duplicate handling info
+        var dupeInfo = new Border
+        {
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#FF9800"),
+            BackgroundColor = Color.FromArgb("#FFF3E0"),
+            Padding = new Thickness(12),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
+        };
+
+        var dupeStack = new VerticalStackLayout { Spacing = 4 };
+        dupeStack.Children.Add(new Label
+        {
+            Text = "?? Duplicate Handling",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#E65100")
+        });
+        dupeStack.Children.Add(new Label
+        {
+            Text = "• Players matched by name (case-insensitive)\n• Teams matched by name in same season\n• Fixtures matched by date + teams\n• Duplicates will be automatically skipped",
             FontSize = 12,
-            StyleId = "PreviewText"
-        };
-        previewScroll.Content = previewText;
-        previewLayout.Children.Add(previewScroll);
+            TextColor = Color.FromArgb("#666")
+        });
 
-        previewFrame.Content = previewLayout;
-        layout.Children.Add(previewFrame);
+        dupeInfo.Content = dupeStack;
+        step2.Children.Add(dupeInfo);
 
-        // Buttons row
-        var buttonsLayout = new HorizontalStackLayout
+        return step2;
+    }
+
+    private View CreateSummaryCard(string icon, string title, string value, string cardId)
+    {
+        var card = new Border
         {
-            Spacing = 12,
-            HorizontalOptions = LayoutOptions.Fill
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#E0E0E0"),
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(12),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            StyleId = cardId
         };
 
-        // Preview button
-        var previewBtn = new Button
+        var stack = new VerticalStackLayout { HorizontalOptions = LayoutOptions.Center, Spacing = 4 };
+        stack.Children.Add(new Label { Text = icon, FontSize = 24, HorizontalOptions = LayoutOptions.Center });
+        stack.Children.Add(new Label { Text = value, FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalOptions = LayoutOptions.Center, StyleId = $"{cardId}Value" });
+        stack.Children.Add(new Label { Text = title, FontSize = 12, TextColor = Color.FromArgb("#666"), HorizontalOptions = LayoutOptions.Center });
+
+        card.Content = stack;
+        return card;
+    }
+
+    private View BuildStep3Progress()
+    {
+        var step3 = new VerticalStackLayout { Spacing = 16, IsVisible = false, StyleId = "Step3Panel" };
+
+        step3.Children.Add(new Label
         {
-            Text = "??? Preview Data",
-            BackgroundColor = Color.FromArgb("#2196F3"),
-            TextColor = Colors.White,
+            Text = "Step 3: Importing Data",
+            FontSize = 20,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#333333")
+        });
+
+        // Progress indicator
+        var progressStack = new VerticalStackLayout { Spacing = 12, HorizontalOptions = LayoutOptions.Center };
+        
+        progressStack.Children.Add(new ActivityIndicator
+        {
+            IsRunning = true,
+            Color = Color.FromArgb("#1976D2"),
+            WidthRequest = 48,
+            HeightRequest = 48,
+            StyleId = "ImportSpinner"
+        });
+
+        progressStack.Children.Add(new Label
+        {
+            Text = "Processing...",
             FontSize = 16,
-            HeightRequest = 54,
-            CornerRadius = 8,
-            IsEnabled = false,
-            StyleId = "PreviewButton",
-            HorizontalOptions = LayoutOptions.FillAndExpand
-        };
-        previewBtn.Clicked += OnPreviewClicked;
-        buttonsLayout.Children.Add(previewBtn);
+            TextColor = Color.FromArgb("#666"),
+            HorizontalOptions = LayoutOptions.Center,
+            StyleId = "ProgressLabel"
+        });
 
-        // Import button (hidden until preview)
-        var importBtn = new Button
+        step3.Children.Add(progressStack);
+
+        // Progress steps
+        var stepsFrame = new Border
         {
-            Text = "? Confirm Import",
-            BackgroundColor = Color.FromArgb("#4CAF50"),
-            TextColor = Colors.White,
-            FontSize = 16,
-            HeightRequest = 54,
-            CornerRadius = 8,
-            IsVisible = false,
-            StyleId = "ImportButton",
-            HorizontalOptions = LayoutOptions.FillAndExpand
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#E0E0E0"),
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(16),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
         };
-        importBtn.Clicked += OnImportClicked;
-        buttonsLayout.Children.Add(importBtn);
 
-        // Rollback button
-        var rollbackBtn = new Button
+        var stepsStack = new VerticalStackLayout { Spacing = 8, StyleId = "ImportStepsStack" };
+        stepsStack.Children.Add(CreateProgressStep("Parsing SQL file...", "ParseStep"));
+        stepsStack.Children.Add(CreateProgressStep("Creating season...", "SeasonStep"));
+        stepsStack.Children.Add(CreateProgressStep("Importing divisions...", "DivisionStep"));
+        stepsStack.Children.Add(CreateProgressStep("Importing teams...", "TeamStep"));
+        stepsStack.Children.Add(CreateProgressStep("Importing players...", "PlayerStep"));
+        stepsStack.Children.Add(CreateProgressStep("Importing fixtures...", "FixtureStep"));
+        stepsStack.Children.Add(CreateProgressStep("Importing results...", "ResultStep"));
+        stepsStack.Children.Add(CreateProgressStep("Saving data...", "SaveStep"));
+
+        stepsFrame.Content = stepsStack;
+        step3.Children.Add(stepsFrame);
+
+        return step3;
+    }
+
+    private View CreateProgressStep(string text, string stepId)
+    {
+        var row = new HorizontalStackLayout { Spacing = 8, StyleId = stepId };
+        row.Children.Add(new Label { Text = "?", TextColor = Color.FromArgb("#E0E0E0"), FontSize = 14, StyleId = $"{stepId}Icon" });
+        row.Children.Add(new Label { Text = text, TextColor = Color.FromArgb("#999"), FontSize = 13, StyleId = $"{stepId}Text" });
+        return row;
+    }
+
+    private View BuildStep4Results()
+    {
+        var step4 = new VerticalStackLayout { Spacing = 16, IsVisible = false, StyleId = "Step4Panel" };
+
+        step4.Children.Add(new Label
         {
-            Text = "?? Rollback",
-            BackgroundColor = Color.FromArgb("#F44336"),
-            TextColor = Colors.White,
-            FontSize = 16,
-            HeightRequest = 54,
-            CornerRadius = 8,
-            IsVisible = false,
-            StyleId = "RollbackButton",
-            WidthRequest = 140
-        };
-        rollbackBtn.Clicked += OnRollbackClicked;
-        buttonsLayout.Children.Add(rollbackBtn);
+            Text = "? Import Complete!",
+            FontSize = 20,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#4CAF50"),
+            StyleId = "ResultsTitle"
+        });
 
-        layout.Children.Add(buttonsLayout);
-
-        // Loading
-        var loading = new ActivityIndicator
-        {
-            IsRunning = false,
-            IsVisible = false,
-            Color = Color.FromArgb("#2196F3"),
-            StyleId = "Loading"
-        };
-        layout.Children.Add(loading);
-
-        // Status
-        var statusLabel = new Label
-        {
-            Text = "Select a SQL file to begin",
-            HorizontalTextAlignment = TextAlignment.Center,
-            TextColor = Colors.Gray,
-            StyleId = "StatusLabel"
-        };
-        layout.Children.Add(statusLabel);
-
-        // Results
+        // Results summary
         var resultsFrame = new Border
         {
             StrokeThickness = 2,
             Stroke = Color.FromArgb("#4CAF50"),
-            Padding = 16,
-            IsVisible = false,
-            StyleId = "ResultsFrame",
-            Margin = new Thickness(0, 16, 0, 0)
+            BackgroundColor = Color.FromArgb("#E8F5E9"),
+            Padding = new Thickness(16),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
         };
 
-        var resultsLayout = new VerticalStackLayout { Spacing = 8 };
-        resultsLayout.Children.Add(new Label
+        var resultsStack = new VerticalStackLayout { Spacing = 8 };
+        resultsStack.Children.Add(new Label
         {
-            Text = "? Import Results",
-            FontSize = 18,
-            FontAttributes = FontAttributes.Bold
+            Text = "Import Summary",
+            FontSize = 16,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#2E7D32")
         });
 
-        var resultsText = new Label
+        resultsStack.Children.Add(new Label
         {
             Text = "",
-            FontFamily = "Courier New",
-            FontSize = 12,
-            StyleId = "ResultsText"
+            FontSize = 13,
+            StyleId = "ResultsSummaryText"
+        });
+
+        resultsFrame.Content = resultsStack;
+        step4.Children.Add(resultsFrame);
+
+        // Skipped items (if any)
+        var skippedFrame = new Border
+        {
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#FF9800"),
+            BackgroundColor = Color.FromArgb("#FFF3E0"),
+            Padding = new Thickness(16),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            IsVisible = false,
+            StyleId = "SkippedFrame"
         };
-        resultsLayout.Children.Add(resultsText);
 
-        resultsFrame.Content = resultsLayout;
-        layout.Children.Add(resultsFrame);
+        var skippedStack = new VerticalStackLayout { Spacing = 4 };
+        skippedStack.Children.Add(new Label
+        {
+            Text = "?? Skipped (Already Existed)",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#E65100")
+        });
+        skippedStack.Children.Add(new Label
+        {
+            Text = "",
+            FontSize = 12,
+            TextColor = Color.FromArgb("#666"),
+            StyleId = "SkippedText"
+        });
 
-        // Warnings/Errors
+        skippedFrame.Content = skippedStack;
+        step4.Children.Add(skippedFrame);
+
+        // Warnings (if any)
         var warningsFrame = new Border
         {
-            StrokeThickness = 2,
-            Stroke = Color.FromArgb("#FF9800"),
-            Padding = 16,
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#F44336"),
+            BackgroundColor = Color.FromArgb("#FFEBEE"),
+            Padding = new Thickness(16),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
             IsVisible = false,
-            StyleId = "WarningsFrame",
-            Margin = new Thickness(0, 16, 0, 0)
+            StyleId = "WarningsFrame"
         };
 
-        var warningsLayout = new VerticalStackLayout { Spacing = 8 };
-        warningsLayout.Children.Add(new Label
+        var warningsStack = new VerticalStackLayout { Spacing = 4 };
+        warningsStack.Children.Add(new Label
         {
-            Text = "?? Import Log",
-            FontSize = 18,
-            FontAttributes = FontAttributes.Bold
+            Text = "?? Warnings",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#C62828")
         });
 
-        var warningsScroll = new ScrollView { HeightRequest = 200 };
-        var warningsText = new Label
+        var warningsScroll = new ScrollView { HeightRequest = 120 };
+        warningsScroll.Content = new Label
         {
             Text = "",
-            FontFamily = "Courier New",
             FontSize = 11,
+            TextColor = Color.FromArgb("#666"),
             StyleId = "WarningsText"
         };
-        warningsScroll.Content = warningsText;
-        warningsLayout.Children.Add(warningsScroll);
+        warningsStack.Children.Add(warningsScroll);
 
-        warningsFrame.Content = warningsLayout;
-        layout.Children.Add(warningsFrame);
+        warningsFrame.Content = warningsStack;
+        step4.Children.Add(warningsFrame);
 
-        Content = new ScrollView { Content = layout };
+        // Next steps
+        var nextStepsFrame = new Border
+        {
+            StrokeThickness = 1,
+            Stroke = Color.FromArgb("#2196F3"),
+            BackgroundColor = Color.FromArgb("#E3F2FD"),
+            Padding = new Thickness(16),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
+        };
+
+        var nextStepsStack = new VerticalStackLayout { Spacing = 4 };
+        nextStepsStack.Children.Add(new Label
+        {
+            Text = "?? Next Steps",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#1565C0")
+        });
+        nextStepsStack.Children.Add(new Label
+        {
+            Text = "1. Go to Seasons page and update team names\n2. Verify player names are correct in Players page\n3. Activate the imported season when ready\n4. Review fixtures and results",
+            FontSize = 12,
+            TextColor = Color.FromArgb("#666")
+        });
+
+        nextStepsFrame.Content = nextStepsStack;
+        step4.Children.Add(nextStepsFrame);
+
+        return step4;
+    }
+
+    private View BuildActionButtons()
+    {
+        var buttonStack = new HorizontalStackLayout
+        {
+            Spacing = 12,
+            HorizontalOptions = LayoutOptions.Fill,
+            Margin = new Thickness(0, 20, 0, 0)
+        };
+
+        // Back button
+        var backBtn = new Button
+        {
+            Text = "? Back",
+            BackgroundColor = Color.FromArgb("#757575"),
+            TextColor = Colors.White,
+            FontSize = 15,
+            HeightRequest = 48,
+            CornerRadius = 8,
+            IsVisible = false,
+            WidthRequest = 100,
+            StyleId = "BackButton"
+        };
+        backBtn.Clicked += OnBackClicked;
+        buttonStack.Children.Add(backBtn);
+
+        // Spacer
+        buttonStack.Children.Add(new BoxView { HorizontalOptions = LayoutOptions.FillAndExpand, Color = Colors.Transparent });
+
+        // Primary action button
+        var primaryBtn = new Button
+        {
+            Text = "Select File",
+            BackgroundColor = Color.FromArgb("#1976D2"),
+            TextColor = Colors.White,
+            FontSize = 15,
+            HeightRequest = 48,
+            CornerRadius = 8,
+            Padding = new Thickness(24, 0),
+            StyleId = "PrimaryButton"
+        };
+        primaryBtn.Clicked += OnPrimaryButtonClicked;
+        buttonStack.Children.Add(primaryBtn);
+
+        // Rollback button (hidden until import complete)
+        var rollbackBtn = new Button
+        {
+            Text = "?? Undo Import",
+            BackgroundColor = Color.FromArgb("#F44336"),
+            TextColor = Colors.White,
+            FontSize = 15,
+            HeightRequest = 48,
+            CornerRadius = 8,
+            IsVisible = false,
+            StyleId = "RollbackButton"
+        };
+        rollbackBtn.Clicked += OnRollbackClicked;
+        buttonStack.Children.Add(rollbackBtn);
+
+        return buttonStack;
+    }
+
+    private void UpdateStepVisibility()
+    {
+        var step1 = FindElement<VerticalStackLayout>("Step1Panel");
+        var step2 = FindElement<VerticalStackLayout>("Step2Panel");
+        var step3 = FindElement<VerticalStackLayout>("Step3Panel");
+        var step4 = FindElement<VerticalStackLayout>("Step4Panel");
+        var backBtn = FindElement<Button>("BackButton");
+        var primaryBtn = FindElement<Button>("PrimaryButton");
+        var rollbackBtn = FindElement<Button>("RollbackButton");
+
+        if (step1 != null) step1.IsVisible = _currentStep == 1;
+        if (step2 != null) step2.IsVisible = _currentStep == 2;
+        if (step3 != null) step3.IsVisible = _currentStep == 3;
+        if (step4 != null) step4.IsVisible = _currentStep == 4;
+
+        if (backBtn != null) backBtn.IsVisible = _currentStep == 2;
+        if (rollbackBtn != null) rollbackBtn.IsVisible = _currentStep == 4 && _lastImportResult != null;
+
+        if (primaryBtn != null)
+        {
+            primaryBtn.IsVisible = _currentStep != 3;
+            switch (_currentStep)
+            {
+                case 1:
+                    primaryBtn.Text = _selectedFilePath != null ? "?? Preview Data" : "Select File";
+                    primaryBtn.IsEnabled = true;
+                    break;
+                case 2:
+                    primaryBtn.Text = "? Start Import";
+                    primaryBtn.IsEnabled = true;
+                    break;
+                case 4:
+                    primaryBtn.Text = "?? Import Another";
+                    primaryBtn.IsEnabled = true;
+                    break;
+            }
+        }
+
+        UpdateStepIndicator();
+    }
+
+    private void UpdateStepIndicator()
+    {
+        for (int i = 1; i <= 4; i++)
+        {
+            var circle = FindElement<Border>($"Step{i}Circle");
+            var label = FindElement<Label>($"Step{i}Label");
+            
+            if (circle != null)
+            {
+                if (i < _currentStep)
+                {
+                    circle.BackgroundColor = Color.FromArgb("#4CAF50"); // Completed
+                }
+                else if (i == _currentStep)
+                {
+                    circle.BackgroundColor = Color.FromArgb("#1976D2"); // Current
+                }
+                else
+                {
+                    circle.BackgroundColor = Color.FromArgb("#E0E0E0"); // Future
+                }
+            }
+
+            if (i < 4)
+            {
+                var line = FindElement<BoxView>($"Line{i}");
+                if (line != null)
+                {
+                    line.BackgroundColor = i < _currentStep ? Color.FromArgb("#4CAF50") : Color.FromArgb("#E0E0E0");
+                }
+            }
+        }
     }
 
     private async void OnSelectFileClicked(object? sender, EventArgs e)
     {
+        if (_isProcessing) return;
+
         try
         {
             var customFileType = new FilePickerFileType(
@@ -320,50 +868,34 @@ public partial class SqlImportPage : ContentPage
                     { DevicePlatform.iOS, new[] { "sql" } }
                 });
 
-            var options = new PickOptions
+            var result = await FilePicker.PickAsync(new PickOptions
             {
                 PickerTitle = "Select WDPL SQL dump file",
                 FileTypes = customFileType
-            };
-
-            var result = await FilePicker.PickAsync(options);
+            });
 
             if (result != null)
             {
                 _selectedFilePath = result.FullPath;
                 _parsedData = null;
-                
+
                 var fileLabel = FindElement<Label>("FileLabel");
+                var fileSubLabel = FindElement<Label>("FileSubLabel");
+                
                 if (fileLabel != null)
                 {
                     var fileInfo = new FileInfo(result.FullPath);
-                    fileLabel.Text = $"?? {Path.GetFileName(result.FullPath)} ({fileInfo.Length / 1024}KB)";
+                    fileLabel.Text = Path.GetFileName(result.FullPath);
+                    fileLabel.TextColor = Color.FromArgb("#4CAF50");
+                }
+                
+                if (fileSubLabel != null)
+                {
+                    var fileInfo = new FileInfo(result.FullPath);
+                    fileSubLabel.Text = $"{fileInfo.Length / 1024} KB • Click to change";
                 }
 
-                var previewBtn = FindElement<Button>("PreviewButton");
-                if (previewBtn != null)
-                    previewBtn.IsEnabled = true;
-
-                var importBtn = FindElement<Button>("ImportButton");
-                if (importBtn != null)
-                    importBtn.IsVisible = false;
-
-                var statusLabel = FindElement<Label>("StatusLabel");
-                if (statusLabel != null)
-                    statusLabel.Text = "Click 'Preview Data' to analyze the SQL file";
-
-                // Hide previous results
-                var resultsFrame = FindElement<Border>("ResultsFrame");
-                if (resultsFrame != null)
-                    resultsFrame.IsVisible = false;
-
-                var warningsFrame = FindElement<Border>("WarningsFrame");
-                if (warningsFrame != null)
-                    warningsFrame.IsVisible = false;
-
-                var previewFrame = FindElement<Border>("PreviewFrame");
-                if (previewFrame != null)
-                    previewFrame.IsVisible = false;
+                UpdateStepVisibility();
             }
         }
         catch (Exception ex)
@@ -372,173 +904,131 @@ public partial class SqlImportPage : ContentPage
         }
     }
 
-    private async void OnPreviewClicked(object? sender, EventArgs e)
+    private async void OnPrimaryButtonClicked(object? sender, EventArgs e)
     {
-        if (string.IsNullOrEmpty(_selectedFilePath))
-        {
-            await DisplayAlert("No File", "Please select a SQL file first", "OK");
-            return;
-        }
+        if (_isProcessing) return;
 
+        switch (_currentStep)
+        {
+            case 1:
+                if (_selectedFilePath == null)
+                {
+                    OnSelectFileClicked(sender, e);
+                }
+                else
+                {
+                    await PreviewDataAsync();
+                }
+                break;
+            case 2:
+                await RunImportAsync();
+                break;
+            case 4:
+                ResetWizard();
+                break;
+        }
+    }
+
+    private void OnBackClicked(object? sender, EventArgs e)
+    {
+        if (_currentStep > 1 && !_isProcessing)
+        {
+            _currentStep = 1;
+            UpdateStepVisibility();
+        }
+    }
+
+    private async Task PreviewDataAsync()
+    {
+        if (string.IsNullOrEmpty(_selectedFilePath)) return;
+
+        _isProcessing = true;
+        
         try
         {
-            var loading = FindElement<ActivityIndicator>("Loading");
-            var statusLabel = FindElement<Label>("StatusLabel");
-            var previewBtn = FindElement<Button>("PreviewButton");
-
-            if (loading != null)
-            {
-                loading.IsRunning = true;
-                loading.IsVisible = true;
-            }
-
-            if (previewBtn != null)
-                previewBtn.IsEnabled = false;
-
-            if (statusLabel != null)
-                statusLabel.Text = "?? Parsing SQL file...";
-
-            // Parse SQL file
             _parsedData = await SqlFileImporter.ParseSqlFileAsync(_selectedFilePath);
-
-            if (statusLabel != null)
-                statusLabel.Text = "? Preview ready - review data before importing";
-
-            // Build preview text
-            var preview = new System.Text.StringBuilder();
-            preview.AppendLine($"SQL Dialect: {_parsedData.DetectedDialect}");
-            preview.AppendLine($"Tables Found: {_parsedData.Tables.Count}");
-            preview.AppendLine();
-
-            foreach (var table in _parsedData.Tables.OrderBy(t => t.Key))
-            {
-                preview.AppendLine($"?? {table.Key}: {table.Value.Count} rows");
-                
-                // Show sample column names if available
-                if (table.Value.Any())
-                {
-                    var sampleRow = table.Value.First();
-                    var columns = string.Join(", ", sampleRow.Keys.Take(5));
-                    if (sampleRow.Keys.Count > 5)
-                        columns += $", ... ({sampleRow.Keys.Count} total)";
-                    preview.AppendLine($"   Columns: {columns}");
-                }
-            }
-
-            preview.AppendLine();
-            preview.AppendLine("Expected Import:");
             
-            // Estimate what will be imported
-            if (_parsedData.Tables.ContainsKey("tblleague"))
+            // Update summary cards
+            UpdateSummaryCard("SeasonCard", _parsedData.Tables.ContainsKey("tblleague") ? "1" : "0");
+            UpdateSummaryCard("PlayersCard", _parsedData.PlayerIdToName.Count.ToString());
+            UpdateSummaryCard("FixturesCard", _parsedData.Tables.ContainsKey("tblfixtures") ? _parsedData.Tables["tblfixtures"].Count.ToString() : "0");
+
+            // Update tables found
+            var tablesText = FindElement<Label>("TablesFoundText");
+            if (tablesText != null)
             {
-                var leagueData = _parsedData.Tables["tblleague"].FirstOrDefault();
-                if (leagueData != null)
+                var sb = new System.Text.StringBuilder();
+                foreach (var table in _parsedData.Tables.OrderBy(t => t.Key))
                 {
-                    var seasonName = leagueData.ContainsKey("SeasonName") ? leagueData["SeasonName"] : "Unknown";
-                    var seasonYear = leagueData.ContainsKey("SeasonYear") ? leagueData["SeasonYear"] : "????";
-                    preview.AppendLine($"• Season: {seasonName} {seasonYear}");
+                    sb.AppendLine($"? {table.Key}: {table.Value.Count} rows");
+                }
+                tablesText.Text = sb.ToString();
+            }
+
+            // Update player preview
+            if (_parsedData.PlayerIdToName.Any())
+            {
+                var playerFrame = FindElement<Border>("PlayerPreviewFrame");
+                var playerText = FindElement<Label>("PlayerPreviewText");
+                
+                if (playerFrame != null && playerText != null)
+                {
+                    playerFrame.IsVisible = true;
+                    
+                    var sb = new System.Text.StringBuilder();
+                    var samples = _parsedData.PlayerIdToName.OrderBy(k => k.Key).Take(15).ToList();
+                    
+                    foreach (var kvp in samples)
+                    {
+                        var teamInfo = _parsedData.PlayerIdToTeamId.TryGetValue(kvp.Key, out var teamId) ? $" [Team {teamId}]" : "";
+                        sb.AppendLine($"ID {kvp.Key,3} ? {kvp.Value}{teamInfo}");
+                    }
+                    
+                    if (_parsedData.PlayerIdToName.Count > 15)
+                    {
+                        sb.AppendLine($"... and {_parsedData.PlayerIdToName.Count - 15} more");
+                    }
+                    
+                    playerText.Text = sb.ToString();
                 }
             }
 
-            if (_parsedData.Tables.ContainsKey("tbldivisions"))
-                preview.AppendLine($"• Divisions: {_parsedData.Tables["tbldivisions"].Count}");
-
-            if (_parsedData.Tables.ContainsKey("tblfixtures"))
-                preview.AppendLine($"• Fixtures: {_parsedData.Tables["tblfixtures"].Count}");
-
-            if (_parsedData.Tables.ContainsKey("tblmatchdetail") || _parsedData.Tables.ContainsKey("tblplayerresult"))
-            {
-                var detailTable = _parsedData.Tables.ContainsKey("tblmatchdetail") ? 
-                    _parsedData.Tables["tblmatchdetail"] : _parsedData.Tables["tblplayerresult"];
-                preview.AppendLine($"• Frame Results: {detailTable.Count}");
-            }
-
-            preview.AppendLine();
-            preview.AppendLine("?? Note: Teams and players will be created");
-            preview.AppendLine("   with placeholder names and must be");
-            preview.AppendLine("   updated manually after import.");
-
-            // Show preview
-            var previewFrame = FindElement<Border>("PreviewFrame");
-            var previewText = FindElement<Label>("PreviewText");
-            if (previewFrame != null && previewText != null)
-            {
-                previewFrame.IsVisible = true;
-                previewText.Text = preview.ToString();
-            }
-
-            // Show import button
-            var importBtn = FindElement<Button>("ImportButton");
-            if (importBtn != null)
-                importBtn.IsVisible = true;
+            _currentStep = 2;
+            UpdateStepVisibility();
         }
         catch (Exception ex)
         {
-            var statusLabel = FindElement<Label>("StatusLabel");
-            if (statusLabel != null)
-                statusLabel.Text = "? Preview failed";
-
             await DisplayAlert("Error", $"Failed to parse SQL file:\n\n{ex.Message}", "OK");
         }
         finally
         {
-            var loading = FindElement<ActivityIndicator>("Loading");
-            var previewBtn = FindElement<Button>("PreviewButton");
-
-            if (loading != null)
-            {
-                loading.IsRunning = false;
-                loading.IsVisible = false;
-            }
-
-            if (previewBtn != null)
-                previewBtn.IsEnabled = true;
+            _isProcessing = false;
         }
     }
 
-    private async void OnImportClicked(object? sender, EventArgs e)
+    private void UpdateSummaryCard(string cardId, string value)
     {
-        if (string.IsNullOrEmpty(_selectedFilePath) || _parsedData == null)
+        var valueLabel = FindElement<Label>($"${cardId}Value");
+        if (valueLabel != null)
         {
-            await DisplayAlert("No Preview", "Please preview the data first", "OK");
-            return;
+            valueLabel.Text = value;
         }
+    }
 
-        var confirm = await DisplayAlert(
-            "Confirm Import",
-            $"Import WDPL data from:\n{Path.GetFileName(_selectedFilePath)}?\n\n" +
-            "This will create:\n" +
-            "• Season (if not exists)\n" +
-            "• Divisions\n" +
-            "• Teams (with placeholder names)\n" +
-            "• Players (with placeholder names)\n" +
-            "• Fixtures\n" +
-            "• Frame results\n\n" +
-            "?? You'll need to update team/player names manually",
-            "Import Now",
-            "Cancel");
+    private async Task RunImportAsync()
+    {
+        if (_selectedFilePath == null || _parsedData == null) return;
 
-        if (!confirm) return;
+        _isProcessing = true;
+        _currentStep = 3;
+        UpdateStepVisibility();
 
         try
         {
-            var loading = FindElement<ActivityIndicator>("Loading");
-            var statusLabel = FindElement<Label>("StatusLabel");
-            var importBtn = FindElement<Button>("ImportButton");
+            // Show progress
+            UpdateProgressStep("ParseStep", true, "Parsing SQL file...");
+            await Task.Delay(100);
 
-            if (loading != null)
-            {
-                loading.IsRunning = true;
-                loading.IsVisible = true;
-            }
-
-            if (importBtn != null)
-                importBtn.IsEnabled = false;
-
-            if (statusLabel != null)
-                statusLabel.Text = "?? Importing data...";
-
-            // Import SQL file
             var (importedData, result) = await SqlFileImporter.ImportFromSqlFileAsync(
                 _selectedFilePath,
                 DataStore.Data,
@@ -546,113 +1036,176 @@ public partial class SqlImportPage : ContentPage
 
             _lastImportResult = result;
 
-            if (statusLabel != null)
-                statusLabel.Text = "? Import completed";
-
-            // Merge imported data
-            DataStore.Data.Divisions.AddRange(importedData.Divisions);
-            DataStore.Data.Teams.AddRange(importedData.Teams);
-            DataStore.Data.Fixtures.AddRange(importedData.Fixtures);
-            // Note: Frames are already part of fixtures, no need to add separately
+            UpdateProgressStep("SeasonStep", true, $"Season: {result.DetectedSeason?.Name ?? "None"}");
+            await Task.Delay(50);
             
-            // Save
-            DataStore.Save();
+            UpdateProgressStep("DivisionStep", true, $"Divisions: {result.ImportedDivisionIds.Count}");
+            await Task.Delay(50);
+            
+            UpdateProgressStep("TeamStep", true, $"Teams: {result.TeamsImported} imported, {result.TeamsSkipped} skipped");
+            await Task.Delay(50);
+            
+            UpdateProgressStep("PlayerStep", true, $"Players: {result.PlayersImported} imported, {result.PlayersSkipped} skipped");
+            await Task.Delay(50);
+            
+            UpdateProgressStep("FixtureStep", true, $"Fixtures: {result.FixturesImported} imported, {result.FixturesSkipped} skipped");
+            await Task.Delay(50);
+            
+            UpdateProgressStep("ResultStep", true, $"Results: {result.ResultsImported} matches, {result.FramesImported} frames");
+            await Task.Delay(50);
 
-            // Show rollback button
-            var rollbackBtn = FindElement<Button>("RollbackButton");
-            if (rollbackBtn != null)
-                rollbackBtn.IsVisible = true;
+            // Save data - ImportFromSqlFileAsync already adds to DataStore.Data
+            DataStore.Save();
+            
+            UpdateProgressStep("SaveStep", true, "Data saved!");
+            await Task.Delay(100);
+
+            // Switch to the imported season so the user can see the data immediately
+            if (result.DetectedSeason != null)
+            {
+                SeasonService.CurrentSeasonId = result.DetectedSeason.Id;
+            }
 
             // Show results
-            var resultsFrame = FindElement<Border>("ResultsFrame");
-            var resultsText = FindElement<Label>("ResultsText");
-            if (resultsFrame != null && resultsText != null)
-            {
-                resultsFrame.IsVisible = true;
-                resultsText.Text = 
-                    $"SQL Dialect: {result.DetectedDialect}\n\n" +
-                    result.Summary;
-            }
-
-            // Show warnings/errors
-            if (result.Warnings.Any() || result.Errors.Any())
-            {
-                var warningsFrame = FindElement<Border>("WarningsFrame");
-                var warningsText = FindElement<Label>("WarningsText");
-                if (warningsFrame != null && warningsText != null)
-                {
-                    warningsFrame.IsVisible = true;
-                    
-                    var combined = new List<string>();
-                    combined.AddRange(result.Warnings.Select(w => $"?? {w}"));
-                    combined.AddRange(result.Errors.Select(e => $"? {e}"));
-                    
-                    warningsText.Text = string.Join("\n\n", combined);
-                }
-            }
-
-            if (result.Success)
-            {
-                await DisplayAlert("Success", 
-                    $"Imported successfully!\n\n{result.Summary}\n\n" +
-                    $"?? Next steps:\n" +
-                    $"1. Update team names in Seasons page\n" +
-                    $"2. Update player names in each team\n" +
-                    $"3. Activate the season when ready", 
-                    "OK");
-            }
-            else
-            {
-                await DisplayAlert("Partial Import",
-                    $"Import completed with errors.\n\nCheck the log below for details.\n\n" +
-                    $"You can use the Rollback button to undo this import.",
-                    "OK");
-            }
+            ShowResults(result);
         }
         catch (Exception ex)
         {
-            var statusLabel = FindElement<Label>("StatusLabel");
-            if (statusLabel != null)
-                statusLabel.Text = "? Import failed";
-
             await DisplayAlert("Error", $"Import failed:\n\n{ex.Message}", "OK");
-            System.Diagnostics.Debug.WriteLine($"SQL Import Error: {ex}");
+            _currentStep = 2;
+            UpdateStepVisibility();
         }
         finally
         {
-            var loading = FindElement<ActivityIndicator>("Loading");
-            var importBtn = FindElement<Button>("ImportButton");
-
-            if (loading != null)
-            {
-                loading.IsRunning = false;
-                loading.IsVisible = false;
-            }
-
-            if (importBtn != null)
-                importBtn.IsEnabled = true;
+            _isProcessing = false;
         }
+    }
+
+    private void UpdateProgressStep(string stepId, bool completed, string text)
+    {
+        var iconLabel = FindElement<Label>($"{stepId}Icon");
+        var textLabel = FindElement<Label>($"{stepId}Text");
+
+        if (iconLabel != null)
+        {
+            iconLabel.Text = completed ? "?" : "?";
+            iconLabel.TextColor = completed ? Color.FromArgb("#4CAF50") : Color.FromArgb("#E0E0E0");
+        }
+
+        if (textLabel != null)
+        {
+            textLabel.Text = text;
+            textLabel.TextColor = completed ? Color.FromArgb("#333") : Color.FromArgb("#999");
+        }
+    }
+
+    private void ShowResults(SqlFileImporter.SqlImportResult result)
+    {
+        _currentStep = 4;
+        UpdateStepVisibility();
+
+        // Update title based on success
+        var title = FindElement<Label>("ResultsTitle");
+        if (title != null)
+        {
+            title.Text = result.Success ? "? Import Complete!" : "?? Import Completed with Issues";
+            title.TextColor = result.Success ? Color.FromArgb("#4CAF50") : Color.FromArgb("#FF9800");
+        }
+
+        // Summary
+        var summaryText = FindElement<Label>("ResultsSummaryText");
+        if (summaryText != null)
+        {
+            summaryText.Text = $"Season: {result.DetectedSeason?.Name ?? "None"}\n" +
+                              $"Teams: {result.TeamsImported} imported\n" +
+                              $"Players: {result.PlayersImported} imported\n" +
+                              $"Fixtures: {result.FixturesImported} imported\n" +
+                              $"Results: {result.ResultsImported} matches\n" +
+                              $"Frames: {result.FramesImported} frame results";
+        }
+
+        // Skipped items
+        var skippedFrame = FindElement<Border>("SkippedFrame");
+        var skippedText = FindElement<Label>("SkippedText");
+        if (skippedFrame != null && skippedText != null)
+        {
+            var hasSkipped = result.TeamsSkipped > 0 || result.PlayersSkipped > 0 || result.FixturesSkipped > 0;
+            skippedFrame.IsVisible = hasSkipped;
+            
+            if (hasSkipped)
+            {
+                var sb = new System.Text.StringBuilder();
+                if (result.TeamsSkipped > 0) sb.AppendLine($"• {result.TeamsSkipped} teams (already existed)");
+                if (result.PlayersSkipped > 0) sb.AppendLine($"• {result.PlayersSkipped} players (already existed)");
+                if (result.FixturesSkipped > 0) sb.AppendLine($"• {result.FixturesSkipped} fixtures (already existed)");
+                skippedText.Text = sb.ToString().TrimEnd();
+            }
+        }
+
+        // Warnings
+        var warningsFrame = FindElement<Border>("WarningsFrame");
+        var warningsText = FindElement<Label>("WarningsText");
+        if (warningsFrame != null && warningsText != null)
+        {
+            warningsFrame.IsVisible = result.Warnings.Any() || result.Errors.Any();
+            
+            if (result.Warnings.Any() || result.Errors.Any())
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (var warning in result.Warnings)
+                {
+                    sb.AppendLine($"?? {warning}");
+                }
+                foreach (var error in result.Errors)
+                {
+                    sb.AppendLine($"? {error}");
+                }
+                warningsText.Text = sb.ToString().TrimEnd();
+            }
+        }
+    }
+
+    private void ResetWizard()
+    {
+        _selectedFilePath = null;
+        _parsedData = null;
+        _lastImportResult = null;
+        _currentStep = 1;
+
+        var fileLabel = FindElement<Label>("FileLabel");
+        var fileSubLabel = FindElement<Label>("FileSubLabel");
+        
+        if (fileLabel != null)
+        {
+            fileLabel.Text = "No file selected";
+            fileLabel.TextColor = Color.FromArgb("#1976D2");
+        }
+        
+        if (fileSubLabel != null)
+        {
+            fileSubLabel.Text = "Click to browse for .sql file";
+        }
+
+        var playerFrame = FindElement<Border>("PlayerPreviewFrame");
+        if (playerFrame != null) playerFrame.IsVisible = false;
+
+        UpdateStepVisibility();
     }
 
     private async void OnRollbackClicked(object? sender, EventArgs e)
     {
-        if (_lastImportResult == null)
-        {
-            await DisplayAlert("No Import", "No recent import to rollback", "OK");
-            return;
-        }
+        if (_lastImportResult == null) return;
 
         var confirm = await DisplayAlert(
             "Confirm Rollback",
-            $"Remove all data from last import:\n\n" +
-            $"• {_lastImportResult.ImportedSeasonIds.Count} Seasons\n" +
-            $"• {_lastImportResult.ImportedDivisionIds.Count} Divisions\n" +
-            $"• {_lastImportResult.TeamsImported} Teams\n" +
-            $"• {_lastImportResult.PlayersImported} Players\n" +
-            $"• {_lastImportResult.FixturesImported} Fixtures\n" +
-            $"• {_lastImportResult.FramesImported} Frames\n\n" +
+            $"This will remove ALL data from the last import:\n\n" +
+            $"• {_lastImportResult.ImportedSeasonIds.Count} Season(s)\n" +
+            $"• {_lastImportResult.ImportedDivisionIds.Count} Division(s)\n" +
+            $"• {_lastImportResult.TeamsImported} Team(s)\n" +
+            $"• {_lastImportResult.PlayersImported} Player(s)\n" +
+            $"• {_lastImportResult.FixturesImported} Fixture(s)\n\n" +
             "This cannot be undone!",
-            "Rollback",
+            "Yes, Rollback",
             "Cancel");
 
         if (!confirm) return;
@@ -662,29 +1215,8 @@ public partial class SqlImportPage : ContentPage
             SqlFileImporter.RollbackImport(DataStore.Data, _lastImportResult);
             DataStore.Save();
 
-            var rollbackBtn = FindElement<Button>("RollbackButton");
-            if (rollbackBtn != null)
-                rollbackBtn.IsVisible = false;
-
-            var resultsFrame = FindElement<Border>("ResultsFrame");
-            if (resultsFrame != null)
-                resultsFrame.IsVisible = false;
-
-            var warningsFrame = FindElement<Border>("WarningsFrame");
-            if (warningsFrame != null)
-                warningsFrame.IsVisible = false;
-
-            _lastImportResult = null;
-
-            var statusLabel = FindElement<Label>("StatusLabel");
-            if (statusLabel != null)
-                statusLabel.Text = "? Import rolled back";
-
-            await DisplayAlert("Success", 
-                "Import has been rolled back successfully.", 
-                "OK");
-
-            await Shell.Current.GoToAsync("//Seasons");
+            await DisplayAlert("Success", "Import has been rolled back successfully.", "OK");
+            ResetWizard();
         }
         catch (Exception ex)
         {
@@ -694,41 +1226,40 @@ public partial class SqlImportPage : ContentPage
 
     private T? FindElement<T>(string styleId) where T : Element
     {
-        if (Content is ScrollView scroll && scroll.Content is VerticalStackLayout layout)
-        {
-            return FindInChildren<T>(layout, styleId);
-        }
-        return null;
+        return FindInElement<T>(Content, styleId);
     }
 
-    private T? FindInChildren<T>(Layout layout, string styleId) where T : Element
+    private T? FindInElement<T>(IView? element, string styleId) where T : Element
     {
-        foreach (var child in layout.Children)
+        if (element == null) return null;
+
+        if (element is T typedElement && typedElement.StyleId == styleId)
+            return typedElement;
+
+        if (element is Layout layout)
         {
-            if (child is T element && element.StyleId == styleId)
-                return element;
-
-            if (child is Layout childLayout)
+            foreach (var child in layout.Children)
             {
-                var found = FindInChildren<T>(childLayout, styleId);
-                if (found != null)
-                    return found;
-            }
-
-            if (child is Border border && border.Content is Layout borderLayout)
-            {
-                var found = FindInChildren<T>(borderLayout, styleId);
-                if (found != null)
-                    return found;
-            }
-
-            if (child is ScrollView scrollView && scrollView.Content is Layout scrollLayout)
-            {
-                var found = FindInChildren<T>(scrollLayout, styleId);
-                if (found != null)
-                    return found;
+                var found = FindInElement<T>(child, styleId);
+                if (found != null) return found;
             }
         }
+
+        if (element is ScrollView scrollView)
+        {
+            return FindInElement<T>(scrollView.Content, styleId);
+        }
+
+        if (element is Border border)
+        {
+            return FindInElement<T>(border.Content, styleId);
+        }
+
+        if (element is ContentView contentView)
+        {
+            return FindInElement<T>(contentView.Content, styleId);
+        }
+
         return null;
     }
 }

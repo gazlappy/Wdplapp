@@ -462,6 +462,9 @@ public partial class LeagueTablesPage : ContentPage
                 {
                     foreach (var frame in fixture.Frames.OrderBy(fr => fr.Number))
                     {
+                        // Get week number from frame if available (VBA import), otherwise use calculated week
+                        var frameWeekNo = frame.WeekNo ?? wkNo;
+                        
                         if (frame.HomePlayerId.HasValue)
                         {
                             var playerId = frame.HomePlayerId.Value;
@@ -473,7 +476,10 @@ public partial class LeagueTablesPage : ContentPage
                                 OpponentId = frame.AwayPlayerId ?? Guid.Empty,
                                 Won = frame.Winner == FrameWinner.Home,
                                 EightBall = frame.EightBall && frame.Winner == FrameWinner.Home,
-                                WeekNo = wkNo
+                                WeekNo = frameWeekNo,
+                                // VBA pre-calculated values (if available from SQL import)
+                                VbaOppRating = frame.HomeOppRating,
+                                VbaPlayerRating = frame.HomePlayerRating
                             });
                         }
                         
@@ -488,7 +494,10 @@ public partial class LeagueTablesPage : ContentPage
                                 OpponentId = frame.HomePlayerId ?? Guid.Empty,
                                 Won = frame.Winner == FrameWinner.Away,
                                 EightBall = frame.EightBall && frame.Winner == FrameWinner.Away,
-                                WeekNo = wkNo
+                                WeekNo = frameWeekNo,
+                                // VBA pre-calculated values (if available from SQL import)
+                                VbaOppRating = frame.AwayOppRating,
+                                VbaPlayerRating = frame.AwayPlayerRating
                             });
                         }
                     }
@@ -511,28 +520,38 @@ public partial class LeagueTablesPage : ContentPage
 
                 foreach (var frameData in framesUpToNow)
                 {
-                    // VBA: Opponent rating lookup uses the rating GOING INTO that frame's week
-                    // For a frame played in Week 1, use opponent's Week 1 rating (1000)
-                    // For a frame played in Week 2, use opponent's Week 2 rating
-                    int oppRating = weeklyRatings.TryGetValue((frameData.OpponentId, frameData.WeekNo), out var r) 
-                        ? r 
-                        : Settings.RatingStartValue;
-
-                    double ratingAttnDouble;
-                    if (frameData.Won)
+                    int ratingAttn;
+                    
+                    // Use VBA pre-calculated PlayerRating if available (exact match with VBA)
+                    // Otherwise calculate from opponent's weekly rating
+                    if (frameData.VbaPlayerRating.HasValue && frameData.VbaPlayerRating.Value > 0)
                     {
-                        if (frameData.EightBall && Settings.UseEightBallFactor)
-                            ratingAttnDouble = oppRating * Settings.EightBallFactor;
-                        else
-                            ratingAttnDouble = oppRating * Settings.WinFactor;
+                        // Use the exact value stored by VBA at time of result entry
+                        ratingAttn = frameData.VbaPlayerRating.Value;
                     }
                     else
                     {
-                        ratingAttnDouble = oppRating * Settings.LossFactor;
-                    }
+                        // Fallback: Calculate using opponent's weekly rating
+                        int oppRating = weeklyRatings.TryGetValue((frameData.OpponentId, frameData.WeekNo), out var r) 
+                            ? r 
+                            : Settings.RatingStartValue;
 
-                    // Use integer truncation (not rounding) as VBA does
-                    int ratingAttn = (int)ratingAttnDouble;
+                        double ratingAttnDouble;
+                        if (frameData.Won)
+                        {
+                            if (frameData.EightBall && Settings.UseEightBallFactor)
+                                ratingAttnDouble = oppRating * Settings.EightBallFactor;
+                            else
+                                ratingAttnDouble = oppRating * Settings.WinFactor;
+                        }
+                        else
+                        {
+                            ratingAttnDouble = oppRating * Settings.LossFactor;
+                        }
+
+                        // Use integer truncation (not rounding) as VBA does
+                        ratingAttn = (int)ratingAttnDouble;
+                    }
                     
                     valueTot += (long)ratingAttn * biasX;
                     weightingTot += biasX;
@@ -631,6 +650,11 @@ public partial class LeagueTablesPage : ContentPage
         public bool Won { get; set; }
         public bool EightBall { get; set; }
         public int WeekNo { get; set; }
+        
+        // VBA pre-calculated values (from SQL import)
+        // If these are set, use them directly instead of recalculating
+        public int? VbaOppRating { get; set; }
+        public int? VbaPlayerRating { get; set; }
     }
 
     private static DataTemplate PlayerRowTemplate()
