@@ -202,19 +202,16 @@ public partial class PlayerProfilePage : ContentPage
             foreach (var frame in fixture.Frames)
             {
                 Guid? opponentId = null;
-                bool isHome = false;
                 bool won = false;
 
                 if (frame.HomePlayerId.HasValue && playerIds.Contains(frame.HomePlayerId.Value) && frame.AwayPlayerId.HasValue)
                 {
                     opponentId = frame.AwayPlayerId.Value;
-                    isHome = true;
                     won = frame.Winner == FrameWinner.Home;
                 }
                 else if (frame.AwayPlayerId.HasValue && playerIds.Contains(frame.AwayPlayerId.Value) && frame.HomePlayerId.HasValue)
                 {
                     opponentId = frame.HomePlayerId.Value;
-                    isHome = false;
                     won = frame.Winner == FrameWinner.Away;
                 }
 

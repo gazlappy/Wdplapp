@@ -3,6 +3,7 @@
     x:Class="Wdpl2.Views.AchievementsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:Wdpl2.Views"
     Title="Achievements">
 
     <ScrollView>
@@ -60,7 +61,7 @@
             <Label Text="All Achievements" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
             <CollectionView x:Name="AchievementsList">
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="local:AchievementDisplay">
                         <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8" Opacity="{Binding Opacity}">
                             <Grid Padding="12" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
                                 <!-- Icon -->

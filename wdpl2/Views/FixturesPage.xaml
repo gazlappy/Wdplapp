@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:Wdpl2.Views"
+    xmlns:models="clr-namespace:Wdpl2.Models"
     Title="Fixtures">
 
     <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,*" Padding="8" ColumnSpacing="8" RowSpacing="8">
@@ -58,19 +59,19 @@
             <ScrollView>
                 <VerticalStackLayout Spacing="8">
                     
-                    <HorizontalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
                         <Label Text="Controls" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
                         <Button 
                             x:Name="CloseFlyoutBtn"
+                            Grid.Column="2"
                             Text="✕"
                             FontSize="16"
                             WidthRequest="36"
                             HeightRequest="36"
                             Padding="0"
-                            HorizontalOptions="EndAndExpand"
                             Style="{StaticResource DangerButtonStyle}"
                             CornerRadius="18" />
-                    </HorizontalStackLayout>
+                    </Grid>
                     
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
 
@@ -121,7 +122,7 @@
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always">
                     <CollectionView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="local:FixturesPage+FixtureListItem">
                             <Border
                                 Padding="6"
                                 Margin="0,0,0,3"
@@ -263,7 +264,7 @@
                                                 SelectionMode="Single"
                                                 SelectionChanged="OnHomePlayerSelected">
                                     <CollectionView.ItemTemplate>
-                                        <DataTemplate>
+                                        <DataTemplate x:DataType="local:FixturesPage+PlayerListItem">
                                             <Border Padding="4,6" 
                                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A237E}"
                                                     Margin="1"
@@ -298,7 +299,7 @@
                                                 SelectionMode="Single"
                                                 SelectionChanged="OnAwayPlayerSelected">
                                     <CollectionView.ItemTemplate>
-                                        <DataTemplate>
+                                        <DataTemplate x:DataType="local:FixturesPage+PlayerListItem">
                                             <Border Padding="4,6" 
                                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#4A1414}"
                                                     Margin="1"

@@ -24,10 +24,12 @@
 		
 		<!-- Suppress warnings -->
 		<!-- MVVMTK: Using backing fields -->
+		<!-- MVVMTK0045: WinRT AOT compatibility (partial property recommendation) -->
 		<!-- CS0618: Obsolete APIs (Frame, LayoutOptions.FillAndExpand) -->
 		<!-- CS8618: Non-nullable field initialization -->
 		<!-- CA1416: Platform-specific APIs -->
-		<NoWarn>$(NoWarn);MVVMTK0034;MVVMTK0035;CS0618;CS8618;CA1416</NoWarn>
+		<!-- XC0022/XC0025: Compiled binding warnings - partially fixed, suppress remaining -->
+		<NoWarn>$(NoWarn);MVVMTK0034;MVVMTK0035;MVVMTK0045;CS0618;CS8618;CA1416;XC0022;XC0025</NoWarn>
 	</PropertyGroup>
 
 	<!-- Keep default MAUI resources so Android icons/splash generate -->
@@ -138,7 +140,7 @@
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
-	  <PackageReference Include="Plugin.LocalNotification" Version="11.1.7" />
+	  <PackageReference Include="Plugin.LocalNotification" Version="12.0.0" />
 	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />
 	</ItemGroup>
 

@@ -497,7 +497,7 @@ public partial class TeamsPage : ContentPage
 
             var teams = _showAllSeasons
                 ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
-                : DataStore.Data.Teams.Where(t => t != null && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
+                : DataStore.Data.Teams.Where(t => t != null && _currentSeasonId.HasValue && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
 
             System.Diagnostics.Debug.WriteLine($"   Found {teams.Count} teams");
 
@@ -574,7 +574,8 @@ public partial class TeamsPage : ContentPage
             sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
             sb.AppendLine("\nTeams by season:");
 
-            var grouped = DataStore.Data.Teams.GroupBy(t => t.SeasonId).Select(g => new { SeasonId = g.Key, Count = g.Count() });
+            var teamsList = DataStore.Data.Teams ?? new System.Collections.Generic.List<Team>();
+            var grouped = teamsList.GroupBy(t => t.SeasonId).Select(g => new { SeasonId = g.Key, Count = g.Count() });
             foreach (var g in grouped)
             {
                 var season = g.SeasonId.HasValue ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == g.SeasonId.Value)?.Name : "No season";

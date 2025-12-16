@@ -542,7 +542,7 @@ public partial class PlayersPage : ContentPage
                     .ThenBy(p => p.FirstName ?? "")
                     .ToList()
                 : DataStore.Data.Players
-                    .Where(p => p != null && p.SeasonId == _currentSeasonId.Value)
+                    .Where(p => p != null && _currentSeasonId.HasValue && p.SeasonId == _currentSeasonId.Value)
                     .OrderBy(p => p.LastName ?? "")
                     .ThenBy(p => p.FirstName ?? "")
                     .ToList();

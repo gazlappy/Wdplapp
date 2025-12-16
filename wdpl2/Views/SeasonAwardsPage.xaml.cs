@@ -66,7 +66,7 @@ public partial class SeasonAwardsPage : ContentPage
             }
 
             // Calculate stats for each player
-            var playerStats = players.Select(p => CalculatePlayerStats(p, fixtures)).Where(ps => ps != null).ToList();
+            var playerStats = players.Select(p => CalculatePlayerStats(p, fixtures)).Where(ps => ps != null).Cast<PlayerSeasonStats>().ToList();
 
             // Most Improved (highest rating gain) - need to track rating changes over time
             var mostImproved = playerStats.OrderByDescending(ps => ps.FinalRating - ps.StartingRating).FirstOrDefault();

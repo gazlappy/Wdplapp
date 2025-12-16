@@ -183,7 +183,7 @@ public partial class DivisionsPage : ContentPage
                     .OrderBy(d => d.Name ?? "")
                     .ToList()
                 : DataStore.Data.Divisions
-                    .Where(d => d != null && d.SeasonId == _currentSeasonId.Value)
+                    .Where(d => d != null && _currentSeasonId.HasValue && d.SeasonId == _currentSeasonId.Value)
                     .OrderBy(d => d.Name ?? "")
                     .ToList();
 

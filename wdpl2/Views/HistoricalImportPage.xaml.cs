@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui.Storage;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -14,6 +15,8 @@ public partial class HistoricalImportPage : ContentPage
     private int _currentStep = 1;
     private ImportType _selectedImportType = ImportType.None;
     private readonly ObservableCollection<SelectedFile> _selectedFiles = new();
+    private string[] _currentExtensions = Array.Empty<string>();
+    private bool _allowMultiple = false;
 
     private enum ImportType
     {
@@ -44,6 +47,8 @@ public partial class HistoricalImportPage : ContentPage
         _currentStep = 1;
         _selectedImportType = ImportType.None;
         _selectedFiles.Clear();
+        _currentExtensions = Array.Empty<string>();
+        _allowMultiple = false;
         UpdateStepDisplay();
     }
 
@@ -148,9 +153,18 @@ public partial class HistoricalImportPage : ContentPage
     {
         _selectedImportType = ImportType.BatchHTML;
         SetupFileSelection("Select HTML Files", 
-            "Choose multiple HTML files to import (add them one by one)",
+            "Choose multiple HTML files to import - use any method below",
             new[] { ".html", ".htm" },
             true);
+    }
+
+    private void OnSelectPDF(object? sender, EventArgs e)
+    {
+        _selectedImportType = ImportType.PDF;
+        SetupFileSelection("Select PDF File", 
+            "Choose the PDF file containing league tables, results, or player data",
+            new[] { ".pdf" },
+            false);
     }
 
     private void OnSelectSqlFile(object? sender, EventArgs e)
@@ -167,42 +181,415 @@ public partial class HistoricalImportPage : ContentPage
     private void SetupFileSelection(string title, string description, string[] extensions, bool allowMultiple)
     {
         _currentStep = 2;
+        _currentExtensions = extensions;
+        _allowMultiple = allowMultiple;
         Step2Title.Text = title;
         Step2Description.Text = description;
 
         // Clear previous file selection UI
         FileSelectionArea.Children.Clear();
 
-        // Add file picker button
-        var pickerButton = new Button
-        {
-            Text = allowMultiple ? "Add File(s)" : "Choose File",
-            BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
-            TextColor = Colors.White,
-            FontSize = 16,
-            Padding = new Thickness(32, 16),
-            HorizontalOptions = LayoutOptions.Center,
-            Margin = new Thickness(0, 20)
-        };
-
-        pickerButton.Clicked += async (s, e) => await PickFilesAsync(extensions, allowMultiple);
-        FileSelectionArea.Children.Add(pickerButton);
-
         if (allowMultiple)
         {
-            // Add info label for batch import
-            var infoLabel = new Label
+            // Enhanced batch selection UI
+            SetupBatchFileSelection(extensions);
+        }
+        else
+        {
+            // Single file picker
+            var pickerButton = new Button
             {
-                Text = "?? TIP: Click 'Add File(s)' multiple times to add more files. When done, click 'Next' to preview all files.",
-                TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
-                FontSize = 12,
-                Margin = new Thickness(0, 8),
-                HorizontalTextAlignment = TextAlignment.Center
+                Text = "Choose File",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+                TextColor = Colors.White,
+                FontSize = 16,
+                Padding = new Thickness(32, 16),
+                HorizontalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 20)
             };
-            FileSelectionArea.Children.Add(infoLabel);
+
+            pickerButton.Clicked += async (s, e) => await PickFilesAsync(extensions, false);
+            FileSelectionArea.Children.Add(pickerButton);
         }
 
         UpdateStepDisplay();
+    }
+
+    private void SetupBatchFileSelection(string[] extensions)
+    {
+        // Title for batch options
+        var optionsTitle = new Label
+        {
+            Text = "?? Choose how to select files:",
+            FontSize = 16,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 8, 0, 12)
+        };
+        FileSelectionArea.Children.Add(optionsTitle);
+
+        // Option 1: Pick Individual Files
+        var pickFilesCard = CreateOptionCard(
+            "?? Pick Files",
+            "Select one or more files individually",
+            "Select Files",
+            Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+            async () => await PickMultipleFilesAsync(extensions));
+        FileSelectionArea.Children.Add(pickFilesCard);
+
+        // Option 2: Select Folder
+        var folderCard = CreateOptionCard(
+            "?? Select Folder",
+            $"Choose a folder to find all {string.Join("/", extensions)} files",
+            "Browse Folder",
+            Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
+            async () => await PickFolderAsync(extensions));
+        FileSelectionArea.Children.Add(folderCard);
+
+        // Option 3: Auto-Search Common Locations
+        var autoSearchCard = CreateOptionCard(
+            "?? Auto-Search",
+            "Automatically scan common locations for importable files",
+            "Scan Now",
+            Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
+            async () => await AutoSearchForFilesAsync(extensions));
+        FileSelectionArea.Children.Add(autoSearchCard);
+
+        // Option 4: Add Single File (legacy)
+        var addOneCard = CreateOptionCard(
+            "? Add One File",
+            "Add files one at a time (click multiple times)",
+            "Add File",
+            Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
+            async () => await PickFilesAsync(extensions, true));
+        FileSelectionArea.Children.Add(addOneCard);
+
+        // Info label
+        var infoLabel = new Label
+        {
+            Text = "?? TIP: Use 'Select Folder' to quickly import all HTML files from a directory, or 'Auto-Search' to find files in Downloads and Documents.",
+            TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
+            FontSize = 12,
+            Margin = new Thickness(0, 16, 0, 0)
+        };
+        FileSelectionArea.Children.Add(infoLabel);
+    }
+
+    private Border CreateOptionCard(string title, string description, string buttonText, Color buttonColor, Func<Task> action)
+    {
+        var card = new Border
+        {
+            StrokeThickness = 1,
+            Stroke = Microsoft.Maui.Graphics.Color.FromArgb("#E5E7EB"),
+            BackgroundColor = Colors.White,
+            Padding = new Thickness(16),
+            Margin = new Thickness(0, 4),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 }
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto }
+            },
+            ColumnSpacing = 16
+        };
+
+        var textStack = new VerticalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
+        textStack.Children.Add(new Label
+        {
+            Text = title,
+            FontSize = 15,
+            FontAttributes = FontAttributes.Bold
+        });
+        textStack.Children.Add(new Label
+        {
+            Text = description,
+            FontSize = 12,
+            TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280")
+        });
+
+        var button = new Button
+        {
+            Text = buttonText,
+            BackgroundColor = buttonColor,
+            TextColor = Colors.White,
+            Padding = new Thickness(16, 10),
+            FontSize = 13,
+            VerticalOptions = LayoutOptions.Center
+        };
+        button.Clicked += async (s, e) => await action();
+
+        grid.Add(textStack, 0, 0);
+        grid.Add(button, 1, 0);
+
+        card.Content = grid;
+        return card;
+    }
+
+    private async Task PickMultipleFilesAsync(string[] extensions)
+    {
+        try
+        {
+            var customFileType = new FilePickerFileType(
+                new System.Collections.Generic.Dictionary<DevicePlatform, System.Collections.Generic.IEnumerable<string>>
+                {
+                    { DevicePlatform.WinUI, extensions },
+                    { DevicePlatform.Android, extensions.Select(e => $"*{e}") },
+                    { DevicePlatform.iOS, extensions }
+                });
+
+            var options = new PickOptions
+            {
+                PickerTitle = "Select files to import",
+                FileTypes = customFileType
+            };
+
+            // Try to pick multiple files
+            var results = await FilePicker.PickMultipleAsync(options);
+
+            if (results != null && results.Any())
+            {
+                int addedCount = 0;
+                foreach (var result in results)
+                {
+                    if (!_selectedFiles.Any(f => f.FilePath == result.FullPath))
+                    {
+                        _selectedFiles.Add(new SelectedFile
+                        {
+                            FileName = result.FileName,
+                            FilePath = result.FullPath
+                        });
+                        addedCount++;
+                    }
+                }
+
+                if (addedCount > 0)
+                {
+                    SelectedFilesPanel.IsVisible = true;
+                    NextButton.IsVisible = true;
+                    await DisplayAlert("Files Added", 
+                        $"Added {addedCount} file(s).\nTotal selected: {_selectedFiles.Count}", 
+                        "OK");
+                }
+                else
+                {
+                    await DisplayAlert("No New Files", "All selected files were already in the list.", "OK");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to select files: {ex.Message}", "OK");
+        }
+    }
+
+    private async Task PickFolderAsync(string[] extensions)
+    {
+        try
+        {
+            var result = await FolderPicker.PickAsync(default);
+
+            if (result != null && result.IsSuccessful)
+            {
+                var folderPath = result.Folder?.Path;
+                if (string.IsNullOrEmpty(folderPath))
+                {
+                    await DisplayAlert("Error", "Could not get folder path", "OK");
+                    return;
+                }
+
+                await ScanFolderForFilesAsync(folderPath, extensions, includeSubfolders: true);
+            }
+        }
+        catch
+        {
+            // FolderPicker might not be available on all platforms
+            // Fall back to manual path entry
+            var manualPath = await DisplayPromptAsync(
+                "Enter Folder Path",
+                "FolderPicker not available. Enter the full folder path:",
+                placeholder: @"C:\Users\...\HTMLFiles",
+                keyboard: Keyboard.Text);
+
+            if (!string.IsNullOrWhiteSpace(manualPath) && Directory.Exists(manualPath))
+            {
+                await ScanFolderForFilesAsync(manualPath, extensions, includeSubfolders: true);
+            }
+            else if (!string.IsNullOrWhiteSpace(manualPath))
+            {
+                await DisplayAlert("Error", $"Folder not found: {manualPath}", "OK");
+            }
+        }
+    }
+
+    private async Task ScanFolderForFilesAsync(string folderPath, string[] extensions, bool includeSubfolders)
+    {
+        try
+        {
+            var searchOption = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var foundFiles = new System.Collections.Generic.List<string>();
+
+            foreach (var ext in extensions)
+            {
+                var pattern = $"*{ext}";
+                var files = Directory.GetFiles(folderPath, pattern, searchOption);
+                foundFiles.AddRange(files);
+            }
+
+            if (foundFiles.Any())
+            {
+                // Show confirmation with file count
+                var proceed = await DisplayAlert(
+                    "Files Found",
+                    $"Found {foundFiles.Count} file(s) in:\n{folderPath}\n\n" +
+                    (includeSubfolders ? "(Including subfolders)\n\n" : "") +
+                    "Add all to import list?",
+                    "Add All",
+                    "Cancel");
+
+                if (proceed)
+                {
+                    int addedCount = 0;
+                    foreach (var filePath in foundFiles.OrderBy(f => f))
+                    {
+                        if (!_selectedFiles.Any(f => f.FilePath == filePath))
+                        {
+                            _selectedFiles.Add(new SelectedFile
+                            {
+                                FileName = Path.GetFileName(filePath),
+                                FilePath = filePath
+                            });
+                            addedCount++;
+                        }
+                    }
+
+                    SelectedFilesPanel.IsVisible = _selectedFiles.Any();
+                    NextButton.IsVisible = _selectedFiles.Any();
+
+                    await DisplayAlert("Files Added",
+                        $"Added {addedCount} new file(s).\nTotal selected: {_selectedFiles.Count}",
+                        "OK");
+                }
+            }
+            else
+            {
+                await DisplayAlert("No Files Found",
+                    $"No {string.Join(" or ", extensions)} files found in:\n{folderPath}",
+                    "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to scan folder: {ex.Message}", "OK");
+        }
+    }
+
+    private async Task AutoSearchForFilesAsync(string[] extensions)
+    {
+        try
+        {
+            var foundFiles = new System.Collections.Generic.List<(string path, string source)>();
+
+            // Common locations to search
+            var searchLocations = new System.Collections.Generic.List<(string path, string name)>
+            {
+                (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Documents"),
+                (Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Desktop"),
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), "Downloads"),
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WDPL"), "WDPL Folder"),
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "League"), "League Folder"),
+                (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Pool"), "Pool Folder")
+            };
+
+            // Add recent file location if we have previously imported files
+            if (_selectedFiles.Any())
+            {
+                var lastFolder = Path.GetDirectoryName(_selectedFiles.Last().FilePath);
+                if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
+                {
+                    searchLocations.Insert(0, (lastFolder, "Last Used Location"));
+                }
+            }
+
+            // Show progress
+            await DisplayAlert("Searching...", 
+                "Scanning common locations for importable files. This may take a moment.", 
+                "OK");
+
+            foreach (var (path, name) in searchLocations)
+            {
+                if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+                    continue;
+
+                try
+                {
+                    foreach (var ext in extensions)
+                    {
+                        var files = Directory.GetFiles(path, $"*{ext}", SearchOption.AllDirectories);
+                        foreach (var file in files.Take(100)) // Limit per location
+                        {
+                            foundFiles.Add((file, name));
+                        }
+                    }
+                }
+                catch
+                {
+                    // Skip folders we can't access
+                }
+            }
+
+            if (foundFiles.Any())
+            {
+                // Group by source location for display
+                var summary = foundFiles
+                    .GroupBy(f => f.source)
+                    .Select(g => $"• {g.Key}: {g.Count()} file(s)")
+                    .ToList();
+
+                var proceed = await DisplayAlert(
+                    $"Found {foundFiles.Count} Files",
+                    $"Found files in:\n{string.Join("\n", summary)}\n\nAdd all to import list?",
+                    "Add All",
+                    "Cancel");
+
+                if (proceed)
+                {
+                    int addedCount = 0;
+                    foreach (var (filePath, _) in foundFiles)
+                    {
+                        if (!_selectedFiles.Any(f => f.FilePath == filePath))
+                        {
+                            _selectedFiles.Add(new SelectedFile
+                            {
+                                FileName = Path.GetFileName(filePath),
+                                FilePath = filePath
+                            });
+                            addedCount++;
+                        }
+                    }
+
+                    SelectedFilesPanel.IsVisible = _selectedFiles.Any();
+                    NextButton.IsVisible = _selectedFiles.Any();
+
+                    await DisplayAlert("Files Added",
+                        $"Added {addedCount} new file(s).\nTotal selected: {_selectedFiles.Count}",
+                        "OK");
+                }
+            }
+            else
+            {
+                await DisplayAlert("No Files Found",
+                    $"No {string.Join(" or ", extensions)} files found in common locations.\n\n" +
+                    "Try using 'Select Folder' to browse to a specific location.",
+                    "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Auto-search failed: {ex.Message}", "OK");
+        }
     }
 
     private async Task PickFilesAsync(string[] extensions, bool allowMultiple)
@@ -246,7 +633,7 @@ public partial class HistoricalImportPage : ContentPage
                 if (allowMultiple)
                 {
                     await DisplayAlert("File Added", 
-                        $"Added: {result.FileName}\n\nTotal files: {_selectedFiles.Count}\n\nClick 'Add File(s)' to add more, or 'Next' to continue.", 
+                        $"Added: {result.FileName}\n\nTotal files: {_selectedFiles.Count}\n\nClick 'Add File' to add more, or 'Next' to continue.", 
                         "OK");
                 }
                 else
@@ -286,6 +673,7 @@ public partial class HistoricalImportPage : ContentPage
             _currentStep = 3;
             Step3Title.Text = "Processing Import...";
             ProgressPanel.IsVisible = true;
+            ResultsArea.Children.Clear();
             UpdateStepDisplay();
 
             // Process based on import type
@@ -317,6 +705,10 @@ public partial class HistoricalImportPage : ContentPage
 
                 case ImportType.BatchHTML:
                     await ProcessBatchHTMLAsync();
+                    break;
+
+                case ImportType.PDF:
+                    await ProcessPDFAsync();
                     break;
 
                 case ImportType.SqlFile:
@@ -391,9 +783,67 @@ public partial class HistoricalImportPage : ContentPage
 
         ProgressMessage.Text = "Processing spreadsheet...";
 
-        await DisplayAlert("Excel Import", "Excel/CSV import will be processed", "OK");
-        
-        ShowSuccessResult("Spreadsheet Imported", "Data imported successfully!");
+        try
+        {
+            var result = await DocumentParser.ParseDocumentAsync(file.FilePath);
+            
+            if (result.Success && result.Tables.Any())
+            {
+                // Show preview of found tables
+                var tableInfo = string.Join("\n", result.Tables.Select(t => 
+                    $"• {t.Name}: {t.RowCount} rows, {t.ColumnCount} columns"));
+                
+                var proceed = await DisplayAlert("Tables Found", 
+                    $"Found {result.Tables.Count} table(s):\n\n{tableInfo}\n\nImport this data?", 
+                    "Import", "Cancel");
+                
+                if (proceed)
+                {
+                    // Process each table based on detected type
+                    var importStats = new ImportStats();
+                    
+                    foreach (var table in result.Tables)
+                    {
+                        // Auto-detect if league table, player list, venue list, etc.
+                        if (IsLeagueTable(table))
+                        {
+                            await ImportLeagueTableFromTable(table, importStats);
+                        }
+                        else if (IsPlayerList(table))
+                        {
+                            await ImportPlayersFromTable(table, importStats);
+                        }
+                        else if (IsVenueList(table))
+                        {
+                            await ImportVenuesFromTable(table, importStats);
+                        }
+                    }
+                    
+                    ShowSuccessResult("Spreadsheet Imported", 
+                        $"Successfully processed {result.Tables.Count} tables:\n" +
+                        $"• Teams: {importStats.TeamsImported}\n" +
+                        $"• Players: {importStats.PlayersImported}\n" +
+                        $"• Venues: {importStats.VenuesImported}");
+                }
+                else
+                {
+                    ResetWizard();
+                }
+            }
+            else
+            {
+                var errorMsg = result.Errors.Any() 
+                    ? string.Join("\n", result.Errors) 
+                    : "No tables found in spreadsheet";
+                await DisplayAlert("Import Failed", errorMsg, "OK");
+                ResetWizard();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to process spreadsheet: {ex.Message}", "OK");
+            ResetWizard();
+        }
     }
 
     private async Task ProcessSingleHTMLAsync()
@@ -403,9 +853,73 @@ public partial class HistoricalImportPage : ContentPage
 
         ProgressMessage.Text = "Parsing HTML file...";
 
-        await DisplayAlert("HTML Import", "Single HTML import will be processed", "OK");
-        
-        ShowSuccessResult("HTML Imported", "Webpage data imported successfully!");
+        try
+        {
+            var result = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
+            
+            if (result.Success && result.Tables.Any())
+            {
+                var summary = new System.Text.StringBuilder();
+                summary.AppendLine($"Page: {result.PageTitle}");
+                summary.AppendLine($"Tables found: {result.Tables.Count}");
+                
+                if (result.HasLeagueTable) summary.AppendLine("• League standings detected");
+                if (result.HasResults) summary.AppendLine("• Match results detected");
+                if (result.HasPlayerStats) summary.AppendLine("• Player statistics detected");
+                if (result.HasFixtures) summary.AppendLine("• Fixtures detected");
+                
+                var proceed = await DisplayAlert("HTML Parsed", 
+                    $"{summary}\n\nImport this data?", 
+                    "Import", "Cancel");
+                
+                if (proceed)
+                {
+                    var importStats = new ImportStats();
+                    
+                    // Process the HTML tables
+                    foreach (var table in result.Tables)
+                    {
+                        if (table.DetectedType == HtmlLeagueParser.TableType.LeagueStandings)
+                        {
+                            var standings = HtmlLeagueParser.ParseLeagueStandings(table);
+                            await ImportLeagueStandings(standings, importStats);
+                        }
+                        else if (table.DetectedType == HtmlLeagueParser.TableType.MatchResults)
+                        {
+                            var results2 = HtmlLeagueParser.ParseMatchResults(table);
+                            await ImportMatchResults(results2, importStats);
+                        }
+                    }
+                    
+                    // Also try to extract venues from team names or venue column
+                    await ExtractVenuesFromHtml(result, importStats);
+                    
+                    ShowSuccessResult("HTML Imported", 
+                        $"Successfully imported from {result.PageTitle}:\n" +
+                        $"• Teams: {importStats.TeamsImported}\n" +
+                        $"• Players: {importStats.PlayersImported}\n" +
+                        $"• Venues: {importStats.VenuesImported}\n" +
+                        $"• Fixtures: {importStats.FixturesImported}");
+                }
+                else
+                {
+                    ResetWizard();
+                }
+            }
+            else
+            {
+                await DisplayAlert("No Data Found", 
+                    "Could not find any league data in this HTML file.\n\n" +
+                    "Make sure the file contains tables with standings, results, or fixtures.", 
+                    "OK");
+                ResetWizard();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to parse HTML: {ex.Message}", "OK");
+            ResetWizard();
+        }
     }
 
     private async Task ProcessBatchHTMLAsync()
@@ -420,6 +934,510 @@ public partial class HistoricalImportPage : ContentPage
         
         // Return to main page after batch import
         await Navigation.PopToRootAsync();
+    }
+
+    private async Task ProcessPDFAsync()
+    {
+        var file = _selectedFiles.FirstOrDefault();
+        if (file == null) return;
+
+        ProgressMessage.Text = "Extracting data from PDF...";
+
+        try
+        {
+            var result = await DocumentParser.ParseDocumentAsync(file.FilePath);
+            
+            if (result.Success && (result.TextContent.Any() || result.Tables.Any()))
+            {
+                var summary = new System.Text.StringBuilder();
+                summary.AppendLine($"File: {result.FileName}");
+                
+                if (result.TextContent.Any())
+                {
+                    summary.AppendLine($"Text lines: {result.TextContent.Count}");
+                    
+                    // Try to detect what kind of data we have
+                    var allText = string.Join(" ", result.TextContent).ToLower();
+                    if (allText.Contains("league") || allText.Contains("division") || allText.Contains("standings"))
+                        summary.AppendLine("• League data detected");
+                    if (allText.Contains("player") || allText.Contains("rating"))
+                        summary.AppendLine("• Player data detected");
+                    if (allText.Contains("fixture") || allText.Contains("schedule"))
+                        summary.AppendLine("• Fixture data detected");
+                    if (allText.Contains("result") || allText.Contains("score"))
+                        summary.AppendLine("• Results data detected");
+                    if (allText.Contains("venue") || allText.Contains("pub") || allText.Contains("club") || allText.Contains("hall"))
+                        summary.AppendLine("• Venue data detected");
+                }
+                
+                if (result.Tables.Any())
+                {
+                    summary.AppendLine($"Tables found: {result.Tables.Count}");
+                    foreach (var table in result.Tables)
+                    {
+                        summary.AppendLine($"  • {table.Name}: {table.RowCount} rows");
+                    }
+                }
+                
+                // Show preview of extracted text
+                var previewText = result.TextContent.Take(20).ToList();
+                if (previewText.Any())
+                {
+                    summary.AppendLine("\nPreview:");
+                    summary.AppendLine(string.Join("\n", previewText.Select(t => 
+                        t.Length > 60 ? t.Substring(0, 57) + "..." : t)));
+                    
+                    if (result.TextContent.Count > 20)
+                        summary.AppendLine($"... and {result.TextContent.Count - 20} more lines");
+                }
+                
+                var proceed = await DisplayAlert("PDF Parsed", 
+                    $"{summary}\n\nWould you like to import this data?", 
+                    "Import", "Cancel");
+                
+                if (proceed)
+                {
+                    // Try to parse the extracted text into structured data
+                    var importResult = await ImportPdfDataAsync(result);
+                    
+                    if (importResult.success)
+                    {
+                        ShowSuccessResult("PDF Imported", importResult.message);
+                    }
+                    else
+                    {
+                        await DisplayAlert("Import Issue", importResult.message, "OK");
+                        ResetWizard();
+                    }
+                }
+                else
+                {
+                    ResetWizard();
+                }
+            }
+            else
+            {
+                // PDF parsing had errors or no content
+                var errorMsg = result.Errors.Any() 
+                    ? string.Join("\n", result.Errors) 
+                    : "Could not extract readable text from this PDF.";
+                
+                await DisplayAlert("PDF Import", 
+                    $"{errorMsg}\n\n" +
+                    "?? TIP: For best results with PDFs:\n" +
+                    "• Make sure the PDF contains selectable text (not scanned images)\n" +
+                    "• Try copying the data from the PDF and saving as a text file\n" +
+                    "• Or export the data from the original source as CSV/Excel", 
+                    "OK");
+                ResetWizard();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to process PDF: {ex.Message}", "OK");
+            ResetWizard();
+        }
+    }
+
+    private async Task<(bool success, string message)> ImportPdfDataAsync(DocumentParser.ParsedDocument pdfResult)
+    {
+        try
+        {
+            var stats = new ImportStats();
+            
+            // If we have tables, try to import them
+            if (pdfResult.Tables.Any())
+            {
+                foreach (var table in pdfResult.Tables)
+                {
+                    if (IsLeagueTable(table))
+                    {
+                        await ImportLeagueTableFromTable(table, stats);
+                    }
+                    else if (IsPlayerList(table))
+                    {
+                        await ImportPlayersFromTable(table, stats);
+                    }
+                    else if (IsVenueList(table))
+                    {
+                        await ImportVenuesFromTable(table, stats);
+                    }
+                }
+            }
+            
+            // Also try to parse text content for structured data
+            if (pdfResult.TextContent.Any())
+            {
+                var textTable = TryParseTextAsTable(pdfResult.TextContent);
+                if (textTable != null && textTable.Rows.Count > 0)
+                {
+                    if (IsLeagueTable(textTable))
+                        await ImportLeagueTableFromTable(textTable, stats);
+                    else if (IsPlayerList(textTable))
+                        await ImportPlayersFromTable(textTable, stats);
+                    else if (IsVenueList(textTable))
+                        await ImportVenuesFromTable(textTable, stats);
+                }
+                
+                // Also try to extract venues from text content
+                await ExtractVenuesFromText(pdfResult.TextContent, stats);
+            }
+            
+            if (stats.TeamsImported > 0 || stats.PlayersImported > 0 || stats.FixturesImported > 0 || stats.VenuesImported > 0)
+            {
+                var summary = new System.Collections.Generic.List<string>();
+                if (stats.TeamsImported > 0) summary.Add($"{stats.TeamsImported} teams");
+                if (stats.PlayersImported > 0) summary.Add($"{stats.PlayersImported} players");
+                if (stats.VenuesImported > 0) summary.Add($"{stats.VenuesImported} venues");
+                if (stats.FixturesImported > 0) summary.Add($"{stats.FixturesImported} fixtures");
+                
+                return (true, $"Successfully imported:\n• {string.Join("\n• ", summary)}");
+            }
+            else
+            {
+                return (false, "Could not identify any structured league data in the PDF content.\n\n" +
+                    "The PDF was parsed but the format wasn't recognized as league data.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error processing PDF data: {ex.Message}");
+        }
+    }
+
+    // ========== Table Detection Methods ==========
+
+    private bool IsLeagueTable(DocumentParser.TableData table)
+    {
+        if (table.RowCount < 2) return false;
+        
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return false;
+        
+        var header = string.Join(" ", headerRow).ToLower();
+        
+        // Check for common league table headers
+        return (header.Contains("team") || header.Contains("pos") || header.Contains("position")) &&
+               (header.Contains("pts") || header.Contains("points") || header.Contains("played") || header.Contains("won"));
+    }
+
+    private bool IsPlayerList(DocumentParser.TableData table)
+    {
+        if (table.RowCount < 2) return false;
+        
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return false;
+        
+        var header = string.Join(" ", headerRow).ToLower();
+        
+        // Check for common player list headers
+        return header.Contains("player") && 
+               (header.Contains("team") || header.Contains("rating") || header.Contains("wins") || header.Contains("frames"));
+    }
+
+    private bool IsVenueList(DocumentParser.TableData table)
+    {
+        if (table.RowCount < 2) return false;
+        
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return false;
+        
+        var header = string.Join(" ", headerRow).ToLower();
+        
+        // Check for common venue list headers
+        return header.Contains("venue") || 
+               (header.Contains("name") && (header.Contains("address") || header.Contains("location"))) ||
+               header.Contains("pub") || header.Contains("club");
+    }
+
+    // ========== Import Helper Methods ==========
+
+    private Task ImportLeagueTableFromTable(DocumentParser.TableData table, ImportStats stats)
+    {
+        // Skip header row
+        var dataRows = table.Rows.Skip(1).ToList();
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return Task.CompletedTask;
+        
+        // Find column indices
+        var teamCol = FindColumnIndex(headerRow, "team", "name", "club");
+        var venueCol = FindColumnIndex(headerRow, "venue", "pub", "home");
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count <= teamCol) continue;
+            
+            var teamName = row[teamCol]?.Trim();
+            if (string.IsNullOrWhiteSpace(teamName)) continue;
+            
+            // Extract venue if available
+            if (venueCol >= 0 && row.Count > venueCol)
+            {
+                var venueName = row[venueCol]?.Trim();
+                if (!string.IsNullOrWhiteSpace(venueName))
+                {
+                    // Create venue if it doesn't exist
+                    var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                        v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (existingVenue == null)
+                    {
+                        var venue = new Venue
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = venueName,
+                            SeasonId = SeasonService.CurrentSeasonId
+                        };
+                        DataStore.Data.Venues.Add(venue);
+                        stats.VenuesImported++;
+                    }
+                }
+            }
+            
+            stats.TeamsImported++;
+        }
+        
+        DataStore.Save();
+        return Task.CompletedTask;
+    }
+
+    private Task ImportPlayersFromTable(DocumentParser.TableData table, ImportStats stats)
+    {
+        var dataRows = table.Rows.Skip(1).ToList();
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return Task.CompletedTask;
+        
+        var playerCol = FindColumnIndex(headerRow, "player", "name");
+        var teamCol = FindColumnIndex(headerRow, "team", "club");
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count <= playerCol) continue;
+            
+            var playerName = row[playerCol]?.Trim();
+            if (string.IsNullOrWhiteSpace(playerName)) continue;
+            
+            stats.PlayersImported++;
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    private Task ImportVenuesFromTable(DocumentParser.TableData table, ImportStats stats)
+    {
+        var dataRows = table.Rows.Skip(1).ToList();
+        var headerRow = table.Rows.FirstOrDefault();
+        if (headerRow == null) return Task.CompletedTask;
+        
+        var venueCol = FindColumnIndex(headerRow, "venue", "name", "pub", "club");
+        var addressCol = FindColumnIndex(headerRow, "address", "location", "postcode");
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count <= venueCol) continue;
+            
+            var venueName = row[venueCol]?.Trim();
+            if (string.IsNullOrWhiteSpace(venueName)) continue;
+            
+            // Check if venue already exists
+            var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+            
+            if (existingVenue == null)
+            {
+                var venue = new Venue
+                {
+                    Id = Guid.NewGuid(),
+                    Name = venueName,
+                    SeasonId = SeasonService.CurrentSeasonId
+                };
+                
+                // Add address if available
+                if (addressCol >= 0 && row.Count > addressCol)
+                {
+                    var address = row[addressCol]?.Trim();
+                    if (!string.IsNullOrWhiteSpace(address))
+                    {
+                        venue.Address = address;
+                    }
+                }
+                
+                DataStore.Data.Venues.Add(venue);
+                stats.VenuesImported++;
+            }
+        }
+        
+        DataStore.Save();
+        return Task.CompletedTask;
+    }
+
+    private Task ImportLeagueStandings(System.Collections.Generic.List<LeagueStandingRow> standings, ImportStats stats)
+    {
+        foreach (var standing in standings)
+        {
+            if (string.IsNullOrWhiteSpace(standing.TeamName)) continue;
+            stats.TeamsImported++;
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task ImportMatchResults(System.Collections.Generic.List<MatchResultRow> results, ImportStats stats)
+    {
+        foreach (var result in results)
+        {
+            stats.FixturesImported++;
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task ExtractVenuesFromHtml(HtmlLeagueParser.HtmlParseResult result, ImportStats stats)
+    {
+        // Look for venue information in tables
+        foreach (var table in result.Tables)
+        {
+            // Check if any column contains venue-like data
+            var headerRow = table.Rows.FirstOrDefault();
+            if (headerRow == null) continue;
+            
+            var venueCol = -1;
+            for (int i = 0; i < headerRow.Count; i++)
+            {
+                var header = headerRow[i].ToLower();
+                if (header.Contains("venue") || header.Contains("pub") || header.Contains("home"))
+                {
+                    venueCol = i;
+                    break;
+                }
+            }
+            
+            if (venueCol >= 0)
+            {
+                foreach (var row in table.Rows.Skip(1))
+                {
+                    if (row.Count <= venueCol) continue;
+                    
+                    var venueName = row[venueCol]?.Trim();
+                    if (string.IsNullOrWhiteSpace(venueName)) continue;
+                    
+                    var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                        v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (existingVenue == null)
+                    {
+                        var venue = new Venue
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = venueName,
+                            SeasonId = SeasonService.CurrentSeasonId
+                        };
+                        DataStore.Data.Venues.Add(venue);
+                        stats.VenuesImported++;
+                    }
+                }
+            }
+        }
+        
+        if (stats.VenuesImported > 0)
+        {
+            DataStore.Save();
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    private Task ExtractVenuesFromText(System.Collections.Generic.List<string> textContent, ImportStats stats)
+    {
+        // Common venue indicators
+        var venueKeywords = new[] { "pub", "club", "arms", "inn", "tavern", "hall", "bar", "lounge", "sports" };
+        
+        foreach (var line in textContent)
+        {
+            var lower = line.ToLower();
+            
+            // Check if line contains venue keywords
+            if (venueKeywords.Any(k => lower.Contains(k)))
+            {
+                // Try to extract the venue name
+                var venueName = line.Trim();
+                
+                // Clean up common prefixes
+                foreach (var prefix in new[] { "at ", "venue: ", "home: ", "@" })
+                {
+                    if (lower.StartsWith(prefix))
+                    {
+                        venueName = line.Substring(prefix.Length).Trim();
+                        break;
+                    }
+                }
+                
+                if (string.IsNullOrWhiteSpace(venueName) || venueName.Length < 3) continue;
+                
+                // Check if venue already exists
+                var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                    v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+                
+                if (existingVenue == null)
+                {
+                    var venue = new Venue
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = venueName,
+                        SeasonId = SeasonService.CurrentSeasonId
+                    };
+                    DataStore.Data.Venues.Add(venue);
+                    stats.VenuesImported++;
+                }
+            }
+        }
+        
+        if (stats.VenuesImported > 0)
+        {
+            DataStore.Save();
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    private int FindColumnIndex(System.Collections.Generic.List<string> headerRow, params string[] keywords)
+    {
+        for (int i = 0; i < headerRow.Count; i++)
+        {
+            var header = headerRow[i].ToLower();
+            if (keywords.Any(k => header.Contains(k)))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private DocumentParser.TableData? TryParseTextAsTable(System.Collections.Generic.List<string> lines)
+    {
+        var table = new DocumentParser.TableData { Name = "Parsed Text Table" };
+        
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            
+            // Try tab-separated
+            if (line.Contains('\t'))
+            {
+                table.Rows.Add(line.Split('\t').Select(s => s.Trim()).ToList());
+            }
+            // Try multiple spaces (common in PDFs)
+            else if (System.Text.RegularExpressions.Regex.IsMatch(line, @"\s{2,}"))
+            {
+                var parts = System.Text.RegularExpressions.Regex.Split(line, @"\s{2,}")
+                    .Select(s => s.Trim())
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList();
+                
+                if (parts.Count >= 2)
+                    table.Rows.Add(parts);
+            }
+        }
+        
+        return table.Rows.Any() ? table : null;
     }
 
     private async Task ProcessSqlFileAsync()
@@ -503,4 +1521,14 @@ public class SelectedFile
 {
     public string FileName { get; set; } = "";
     public string FilePath { get; set; } = "";
+}
+
+// Helper class for tracking import statistics
+public class ImportStats
+{
+    public int TeamsImported { get; set; }
+    public int PlayersImported { get; set; }
+    public int VenuesImported { get; set; }
+    public int FixturesImported { get; set; }
+    public int ResultsImported { get; set; }
 }

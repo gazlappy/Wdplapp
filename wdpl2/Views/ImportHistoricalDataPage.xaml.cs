@@ -97,14 +97,17 @@ public partial class ImportHistoricalDataPage : ContentPage
     private void UpdateTabs()
     {
         // Get styles from Application resources (safer than page-level Resources)
-        var primaryStyle = (Style)Application.Current.Resources["PrimaryButtonStyle"];
-        var secondaryStyle = (Style)Application.Current.Resources["SecondaryButtonStyle"];
+        var primaryStyle = Application.Current?.Resources["PrimaryButtonStyle"] as Style;
+        var secondaryStyle = Application.Current?.Resources["SecondaryButtonStyle"] as Style;
         
-        // Update button styles
-        DivisionsTabBtn.Style = _currentTab == "Divisions" ? primaryStyle : secondaryStyle;
-        VenuesTabBtn.Style = _currentTab == "Venues" ? primaryStyle : secondaryStyle;
-        TeamsTabBtn.Style = _currentTab == "Teams" ? primaryStyle : secondaryStyle;
-        PlayersTabBtn.Style = _currentTab == "Players" ? primaryStyle : secondaryStyle;
+        // Update button styles (only if styles are found)
+        if (primaryStyle != null && secondaryStyle != null)
+        {
+            DivisionsTabBtn.Style = _currentTab == "Divisions" ? primaryStyle : secondaryStyle;
+            VenuesTabBtn.Style = _currentTab == "Venues" ? primaryStyle : secondaryStyle;
+            TeamsTabBtn.Style = _currentTab == "Teams" ? primaryStyle : secondaryStyle;
+            PlayersTabBtn.Style = _currentTab == "Players" ? primaryStyle : secondaryStyle;
+        }
 
         // Show/hide tabs
         DivisionsTab.IsVisible = _currentTab == "Divisions";

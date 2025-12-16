@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Wdpl2.Models;
 
+#pragma warning disable SYSLIB0014 // WebRequest is obsolete - FTP requires it until FluentFTP or similar is added
+
 namespace Wdpl2.Services
 {
     /// <summary>
