@@ -50,24 +50,36 @@ public static class VbaDataFixService
         public string Summary => $"Updated: {FixturesUpdated}, Not Found: {FixturesNotFound}, Errors: {Errors.Count}";
     }
 
-    // VBA Team ID to Name mapping (from tblteams.txt)
-    private static readonly Dictionary<int, string> VbaTeamNames = new()
+    // VBA Team ID to Name mapping - loaded dynamically from tblteams.txt
+    private static Dictionary<int, string> _vbaTeamNames = new();
+
+    /// <summary>
+    /// Load team names from VBA tblteams.txt file
+    /// </summary>
+    private static void LoadVbaTeamNames(string vbaDataFolder)
     {
-        { 1, "HERE 4 THE BEER" },
-        { 2, "TWO TEES" },
-        { 3, "RATTLED BLACKS" },
-        { 4, "THE JETS" },
-        { 5, "MILO'S MINIONS" },
-        { 6, "POCKET ROCKETS" },
-        { 7, "LEGENDS" },
-        { 8, "S.S.SQUAD" },
-        { 9, "SNIPERS" },
-        { 10, "MUTTS NUTTS" },
-        { 11, "ROW REBELS" },
-        { 12, "OLD BLUES" },
-        { 13, "CHANGING LANES" },
-        { 14, "BYE" }
-    };
+        var teamsPath = Path.Combine(vbaDataFolder, "tblteams.txt");
+        if (!File.Exists(teamsPath))
+            return;
+
+        _vbaTeamNames.Clear();
+        var lines = File.ReadAllLines(teamsPath);
+        
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#") || line.Contains("TeamID"))
+                continue;
+
+            var parts = line.Split('\t');
+            if (parts.Length >= 2)
+            {
+                if (int.TryParse(parts[0].Trim(), out var teamId) && !string.IsNullOrWhiteSpace(parts[1]))
+                {
+                    _vbaTeamNames[teamId] = parts[1].Trim().ToUpperInvariant();
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Fix fixture dates based on VBA data files in the VBA_Data folder.
@@ -81,6 +93,16 @@ public static class VbaDataFixService
 
         try
         {
+            // Load VBA team names from file
+            LoadVbaTeamNames(vbaDataFolder);
+            result.Log.Add($"Loaded {_vbaTeamNames.Count} teams from VBA tblteams.txt");
+            
+            // Log VBA teams for debugging
+            if (_vbaTeamNames.Any())
+            {
+                result.Log.Add("VBA Teams: " + string.Join(", ", _vbaTeamNames.Take(5).Select(kvp => $"{kvp.Key}:{kvp.Value}")) + "...");
+            }
+
             // Parse VBA data files
             var matchDatesPath = Path.Combine(vbaDataFolder, "tblmatchdates.txt");
             var matchHeaderPath = Path.Combine(vbaDataFolder, "tblmatchheader.txt");
@@ -127,14 +149,15 @@ public static class VbaDataFixService
 
             // Build mapping from app Team Guid to VBA Team ID
             var teamGuidToVbaId = BuildTeamGuidToVbaIdMapping(teams, result);
-            result.Log.Add($"Mapped {teamGuidToVbaId.Count} teams to VBA IDs");
+            result.Log.Add($"Mapped {teamGuidToVbaId.Count} of {teams.Count} teams to VBA IDs");
 
             // Log the app teams for debugging
             result.Log.Add("=== APP TEAMS ===");
             foreach (var team in teams.OrderBy(t => t.Name))
             {
                 var vbaId = teamGuidToVbaId.TryGetValue(team.Id, out var id) ? id.ToString() : "NOT MAPPED";
-                result.Log.Add($"  {team.Name} -> VBA ID: {vbaId}");
+                var vbaName = teamGuidToVbaId.TryGetValue(team.Id, out var id2) && _vbaTeamNames.TryGetValue(id2, out var n) ? n : "";
+                result.Log.Add($"  {team.Name} -> VBA ID: {vbaId} ({vbaName})");
             }
 
             // Process each fixture
@@ -157,14 +180,14 @@ public static class VbaDataFixService
                 // Get VBA team IDs
                 if (!teamGuidToVbaId.TryGetValue(fixture.HomeTeamId, out var vbaHomeId))
                 {
-                    result.Warnings.Add($"Fixture #{processed}: VBA ID not found for home team '{homeTeam.Name}'");
+                    result.Warnings.Add($"Could not map team '{homeTeam.Name}' to VBA team ID");
                     result.FixturesNotFound++;
                     continue;
                 }
 
                 if (!teamGuidToVbaId.TryGetValue(fixture.AwayTeamId, out var vbaAwayId))
                 {
-                    result.Warnings.Add($"Fixture #{processed}: VBA ID not found for away team '{awayTeam.Name}'");
+                    result.Warnings.Add($"Could not map team '{awayTeam.Name}' to VBA team ID");
                     result.FixturesNotFound++;
                     continue;
                 }
@@ -175,7 +198,7 @@ public static class VbaDataFixService
 
                 if (matchHeader == null)
                 {
-                    result.Warnings.Add($"Fixture #{processed}: No VBA match found for {homeTeam.Name} (VBA:{vbaHomeId}) vs {awayTeam.Name} (VBA:{vbaAwayId})");
+                    result.Warnings.Add($"No VBA match found for {homeTeam.Name} (VBA:{vbaHomeId}) vs {awayTeam.Name} (VBA:{vbaAwayId})");
                     result.FixturesNotFound++;
                     continue;
                 }
@@ -183,7 +206,7 @@ public static class VbaDataFixService
                 // Get the correct date from week number
                 if (!weekToDate.TryGetValue(matchHeader.WeekNo, out var correctDate))
                 {
-                    result.Warnings.Add($"Fixture #{processed}: Week {matchHeader.WeekNo} not found in match dates");
+                    result.Warnings.Add($"Week {matchHeader.WeekNo} not found in match dates");
                     result.FixturesNotFound++;
                     continue;
                 }
@@ -222,11 +245,11 @@ public static class VbaDataFixService
 
         foreach (var team in teams)
         {
-            var teamName = team.Name?.ToUpperInvariant().Trim() ?? "";
+            var teamName = team.Name?.Trim() ?? "";
             int? vbaId = null;
 
-            // Try exact match first
-            foreach (var kvp in VbaTeamNames)
+            // Try exact match first (case-insensitive)
+            foreach (var kvp in _vbaTeamNames)
             {
                 if (kvp.Value.Equals(teamName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -235,7 +258,22 @@ public static class VbaDataFixService
                 }
             }
 
-            // Try fuzzy matching if exact match failed
+            // Try normalized match (remove punctuation and extra spaces)
+            if (!vbaId.HasValue)
+            {
+                var normalizedAppName = NormalizeTeamNameForMatching(teamName);
+                foreach (var kvp in _vbaTeamNames)
+                {
+                    var normalizedVbaName = NormalizeTeamNameForMatching(kvp.Value);
+                    if (normalizedAppName == normalizedVbaName)
+                    {
+                        vbaId = kvp.Key;
+                        break;
+                    }
+                }
+            }
+
+            // Try fuzzy matching if still no match
             if (!vbaId.HasValue)
             {
                 vbaId = FuzzyMatchTeamName(teamName);
@@ -255,6 +293,30 @@ public static class VbaDataFixService
     }
 
     /// <summary>
+    /// Normalize team name for matching - removes punctuation, extra spaces, makes uppercase
+    /// </summary>
+    private static string NormalizeTeamNameForMatching(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+
+        var normalized = name.ToUpperInvariant()
+            .Replace("'", "")
+            .Replace("'", "")
+            .Replace("'", "")
+            .Replace("`", "")
+            .Replace(".", "")
+            .Replace(",", "")
+            .Replace("-", " ")
+            .Replace("&", "AND");
+        
+        // Remove extra spaces
+        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\s+", " ").Trim();
+        
+        return normalized;
+    }
+
+    /// <summary>
     /// Fuzzy match a team name to a VBA team ID.
     /// </summary>
     private static int? FuzzyMatchTeamName(string teamName)
@@ -262,97 +324,68 @@ public static class VbaDataFixService
         if (string.IsNullOrWhiteSpace(teamName))
             return null;
 
-        var normalized = teamName.ToUpperInvariant()
-            .Replace("'", "")
-            .Replace("'", "")
-            .Replace(".", "")
-            .Replace(" ", "")
-            .Trim();
+        var normalized = NormalizeTeamNameForMatching(teamName);
+        var normalizedNoSpace = normalized.Replace(" ", "");
 
-        // Check against normalized VBA names
-        var vbaNameVariants = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        // Check against all VBA team names
+        foreach (var kvp in _vbaTeamNames)
         {
-            // Team 1 - HERE 4 THE BEER
-            { "HERE4THEBEER", 1 },
-            { "HEREFORTHEBEER", 1 },
-            { "HERE FOR THE BEER", 1 },
+            var vbaNormalized = NormalizeTeamNameForMatching(kvp.Value);
+            var vbaNormalizedNoSpace = vbaNormalized.Replace(" ", "");
             
-            // Team 2 - TWO TEES
-            { "TWOTEES", 2 },
-            { "2TEES", 2 },
+            // Exact match after normalization
+            if (normalizedNoSpace == vbaNormalizedNoSpace)
+                return kvp.Key;
             
-            // Team 3 - RATTLED BLACKS
-            { "RATTLEDBLACKS", 3 },
-            
-            // Team 4 - THE JETS
-            { "THEJETS", 4 },
-            { "JETS", 4 },
-            
-            // Team 5 - MILO'S MINIONS
-            { "MILOSMINIONS", 5 },
-            { "MILOS MINIONS", 5 },
-            
-            // Team 6 - POCKET ROCKETS
-            { "POCKETROCKETS", 6 },
-            
-            // Team 7 - LEGENDS
-            { "LEGENDS", 7 },
-            
-            // Team 8 - S.S.SQUAD
-            { "SSSQUAD", 8 },
-            { "SSQUAD", 8 },
-            { "SS SQUAD", 8 },
-            
-            // Team 9 - SNIPERS
-            { "SNIPERS", 9 },
-            
-            // Team 10 - MUTTS NUTTS
-            { "MUTTSNUTTS", 10 },
-            { "MUTT'S NUTTS", 10 },
-            { "MUTTS NUTTS", 10 },
-            
-            // Team 11 - ROW REBELS
-            { "ROWREBELS", 11 },
-            { "ROWS REBELS", 11 },
-            
-            // Team 12 - OLD BLUES
-            { "OLDBLUES", 12 },
-            
-            // Team 13 - CHANGING LANES
-            { "CHANGINGLANES", 13 },
-            
-            // Team 14 - BYE
-            { "BYE", 14 },
-        };
-
-        // Try normalized match
-        if (vbaNameVariants.TryGetValue(normalized, out var id))
-            return id;
-
-        // Try contains match
-        foreach (var kvp in VbaTeamNames)
-        {
-            var vbaNormalized = kvp.Value.Replace("'", "").Replace(".", "").Replace(" ", "").ToUpperInvariant();
-            
-            // Check if either contains the other
-            if (normalized.Contains(vbaNormalized) || vbaNormalized.Contains(normalized))
+            // Contains match (either way)
+            if (normalizedNoSpace.Contains(vbaNormalizedNoSpace) || vbaNormalizedNoSpace.Contains(normalizedNoSpace))
                 return kvp.Key;
         }
 
-        // Try partial word match
-        foreach (var kvp in VbaTeamNames)
+        // Try partial word match (significant words)
+        foreach (var kvp in _vbaTeamNames)
         {
-            var words = kvp.Value.ToUpperInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var vbaWords = kvp.Value.ToUpperInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => w.Length >= 4)  // Only significant words
+                .ToList();
             
-            // If the main word matches (e.g., "LEGENDS", "SNIPERS")
-            foreach (var word in words)
-            {
-                if (word.Length >= 4 && normalized.Contains(word))
-                    return kvp.Key;
-            }
+            var appWords = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => w.Length >= 4)
+                .ToList();
+            
+            // If any significant word matches
+            if (vbaWords.Any(vw => appWords.Any(aw => vw == aw || LevenshteinDistance(vw, aw) <= 2)))
+                return kvp.Key;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Calculate Levenshtein distance between two strings (for fuzzy matching)
+    /// </summary>
+    private static int LevenshteinDistance(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
+        if (string.IsNullOrEmpty(b)) return a.Length;
+
+        var d = new int[a.Length + 1, b.Length + 1];
+
+        for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+
+        for (int i = 1; i <= a.Length; i++)
+        {
+            for (int j = 1; j <= b.Length; j++)
+            {
+                int cost = (b[j - 1] == a[i - 1]) ? 0 : 1;
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
+            }
+        }
+
+        return d[a.Length, b.Length];
     }
 
     /// <summary>
@@ -471,6 +504,9 @@ public static class VbaDataFixService
             };
         }
 
+        // Load VBA team names
+        LoadVbaTeamNames(vbaDataFolder);
+
         return FixFixtureDates(fixtures, teams, vbaDataFolder);
     }
 
@@ -535,6 +571,7 @@ public static class VbaDataFixService
             sb.AppendLine("  ...\n");
 
             // Build and show team mapping
+            LoadVbaTeamNames(vbaDataFolder);
             var result = new FixResult();
             var mapping = BuildTeamGuidToVbaIdMapping(teams, result);
 
@@ -542,7 +579,7 @@ public static class VbaDataFixService
             foreach (var team in teams)
             {
                 var status = mapping.TryGetValue(team.Id, out var vbaId)
-                    ? $"? VBA ID {vbaId,2} ({VbaTeamNames.GetValueOrDefault(vbaId, "?")})"
+                    ? $"? VBA ID {vbaId,2} ({_vbaTeamNames.GetValueOrDefault(vbaId, "?")})"
                     : "? NOT MAPPED";
                 sb.AppendLine($"  {team.Name,-20} -> {status}");
             }
