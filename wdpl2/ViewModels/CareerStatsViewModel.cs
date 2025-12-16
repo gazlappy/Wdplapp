@@ -99,18 +99,20 @@ public partial class CareerStatsViewModel : BaseViewModel
                             {
                                 framesPlayed++;
                                 if (frame.Winner == FrameWinner.Home)
+                                {
                                     framesWon++;
-                                if (frame.EightBall)
-                                    eightBalls++;
+                                    if (frame.EightBall) eightBalls++;
+                                }
                             }
                             // Away player
                             else if (frame.AwayPlayerId == playerInSeason.Id)
                             {
                                 framesPlayed++;
                                 if (frame.Winner == FrameWinner.Away)
+                                {
                                     framesWon++;
-                                if (frame.EightBall)
-                                    eightBalls++;
+                                    if (frame.EightBall) eightBalls++;
+                                }
                             }
                         }
                     }

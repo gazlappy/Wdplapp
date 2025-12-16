@@ -30,7 +30,7 @@ public partial class CareerStatsPage : ContentPage
         // NEW: Export button
         var exportBtn = new Button
         {
-            Text = "?? Export to CSV",
+            Text = "Export to CSV",
             BackgroundColor = Color.FromArgb("#10B981"),
             TextColor = Colors.White,
             Margin = new Thickness(0, 8)
@@ -57,112 +57,57 @@ public partial class CareerStatsPage : ContentPage
 
         System.Diagnostics.Debug.WriteLine("=== CAREER STATS DEBUG ===");
         System.Diagnostics.Debug.WriteLine($"Total players: {allPlayers.Count}");
+        System.Diagnostics.Debug.WriteLine($"Total fixtures: {allFixtures.Count}");
+        System.Diagnostics.Debug.WriteLine($"Total seasons: {allSeasons.Count}");
         System.Diagnostics.Debug.WriteLine($"Players with GlobalPlayerId: {allPlayers.Count(p => p.GlobalPlayerId.HasValue)}");
 
-        // Group players by GlobalPlayerId
+        // Build a comprehensive player list:
+        // 1. Group players WITH GlobalPlayerId by their GlobalPlayerId
+        // 2. Include players WITHOUT GlobalPlayerId individually
+        
+        var processedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // First, process players with GlobalPlayerId (multi-season players)
         var playerGroups = allPlayers
             .Where(p => p.GlobalPlayerId.HasValue)
             .GroupBy(p => p.GlobalPlayerId!.Value)
             .ToList();
 
-        System.Diagnostics.Debug.WriteLine($"Unique global players: {playerGroups.Count}");
+        System.Diagnostics.Debug.WriteLine($"Player groups with GlobalPlayerId: {playerGroups.Count}");
 
         foreach (var group in playerGroups)
         {
             var firstPlayer = group.First();
             var playerName = firstPlayer.FullName;
+            processedNames.Add(playerName);
 
-            // Apply search filter
-            if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
-            {
-                if (!playerName.Contains(SearchEntry.Text, StringComparison.OrdinalIgnoreCase))
-                    continue;
-            }
+            ProcessPlayerGroup(group.Key, playerName, group.Select(p => p.Id).ToList(), allFixtures, allSeasons);
+        }
 
-            // Get all seasons this player participated in
-            var seasonIds = group.Select(p => p.SeasonId).Distinct().ToList();
-            var seasons = allSeasons.Where(s => seasonIds.Contains(s.Id)).OrderByDescending(s => s.StartDate).ToList();
+        // Second, process players WITHOUT GlobalPlayerId (single-season players not yet linked)
+        var singleSeasonPlayers = allPlayers
+            .Where(p => !p.GlobalPlayerId.HasValue && !processedNames.Contains(p.FullName))
+            .ToList();
 
-            // Calculate career totals
-            int totalFramesPlayed = 0;
-            int totalFramesWon = 0;
-            int totalEightBalls = 0;
+        System.Diagnostics.Debug.WriteLine($"Single-season players without GlobalPlayerId: {singleSeasonPlayers.Count}");
 
-            var seasonBreakdown = new System.Collections.Generic.List<SeasonStats>();
+        foreach (var player in singleSeasonPlayers)
+        {
+            if (processedNames.Contains(player.FullName))
+                continue;
+                
+            processedNames.Add(player.FullName);
+            ProcessPlayerGroup(player.Id, player.FullName, new List<Guid> { player.Id }, allFixtures, allSeasons);
+        }
 
-            foreach (var season in seasons)
-            {
-                var playerInSeason = group.FirstOrDefault(p => p.SeasonId == season.Id);
-                if (playerInSeason == null) continue;
-
-                int framesPlayed = 0;
-                int framesWon = 0;
-                int eightBalls = 0;
-
-                // Find all frames for this player in this season
-                var seasonFixtures = allFixtures.Where(f => f.SeasonId == season.Id);
-
-                foreach (var fixture in seasonFixtures)
-                {
-                    foreach (var frame in fixture.Frames)
-                    {
-                        // Home player
-                        if (frame.HomePlayerId == playerInSeason.Id)
-                        {
-                            framesPlayed++;
-                            if (frame.Winner == Models.FrameWinner.Home)
-                                framesWon++;
-                            if (frame.EightBall)
-                                eightBalls++;
-                        }
-                        // Away player
-                        else if (frame.AwayPlayerId == playerInSeason.Id)
-                        {
-                            framesPlayed++;
-                            if (frame.Winner == Models.FrameWinner.Away)
-                                framesWon++;
-                            if (frame.EightBall)
-                                eightBalls++;
-                        }
-                    }
-                }
-
-                if (framesPlayed > 0)
-                {
-                    seasonBreakdown.Add(new SeasonStats
-                    {
-                        SeasonName = season.Name,
-                        SeasonYear = season.StartDate.Year,
-                        FramesPlayed = framesPlayed,
-                        FramesWon = framesWon,
-                        FramesLost = framesPlayed - framesWon,
-                        WinPercentage = (double)framesWon / framesPlayed * 100,
-                        EightBalls = eightBalls
-                    });
-
-                    totalFramesPlayed += framesPlayed;
-                    totalFramesWon += framesWon;
-                    totalEightBalls += eightBalls;
-                }
-            }
-
-            if (totalFramesPlayed > 0)
-            {
-                _players.Add(new PlayerCareerStats
-                {
-                    GlobalPlayerId = group.Key,
-                    PlayerName = playerName,
-                    SeasonsPlayed = seasonBreakdown.Count,
-                    TotalFramesPlayed = totalFramesPlayed,
-                    TotalFramesWon = totalFramesWon,
-                    TotalFramesLost = totalFramesPlayed - totalFramesWon,
-                    CareerWinPercentage = (double)totalFramesWon / totalFramesPlayed * 100,
-                    TotalEightBalls = totalEightBalls,
-                    SeasonBreakdown = seasonBreakdown,
-                    FirstSeasonYear = seasons.Min(s => s.StartDate.Year),
-                    LastSeasonYear = seasons.Max(s => s.StartDate.Year)
-                });
-            }
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
+        {
+            var searchText = SearchEntry.Text;
+            var filtered = _players.Where(p => p.PlayerName.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+            _players.Clear();
+            foreach (var player in filtered)
+                _players.Add(player);
         }
 
         // Sort by total frames played (most active first)
@@ -173,6 +118,104 @@ public partial class CareerStatsPage : ContentPage
 
         StatusLabel.Text = $"{_players.Count} player(s) with career stats";
         System.Diagnostics.Debug.WriteLine($"Displaying {_players.Count} players");
+    }
+
+    private void ProcessPlayerGroup(Guid globalId, string playerName, List<Guid> playerIds, 
+        System.Collections.Generic.List<Models.Fixture> allFixtures, 
+        System.Collections.Generic.List<Models.Season> allSeasons)
+    {
+        var playerIdSet = new HashSet<Guid>(playerIds);
+        
+        // Get all seasons these player IDs belong to
+        var seasonIds = DataStore.Data.Players
+            .Where(p => playerIdSet.Contains(p.Id) && p.SeasonId.HasValue)
+            .Select(p => p.SeasonId!.Value)
+            .Distinct()
+            .ToList();
+            
+        var seasons = allSeasons.Where(s => seasonIds.Contains(s.Id)).OrderByDescending(s => s.StartDate).ToList();
+
+        // Calculate career totals
+        int totalFramesPlayed = 0;
+        int totalFramesWon = 0;
+        int totalEightBalls = 0;
+
+        var seasonBreakdown = new System.Collections.Generic.List<SeasonStats>();
+
+        foreach (var season in seasons)
+        {
+            int framesPlayed = 0;
+            int framesWon = 0;
+            int eightBalls = 0;
+
+            // Find all frames for this player in this season
+            var seasonFixtures = allFixtures.Where(f => f.SeasonId == season.Id);
+
+            foreach (var fixture in seasonFixtures)
+            {
+                foreach (var frame in fixture.Frames)
+                {
+                    // Home player
+                    if (frame.HomePlayerId.HasValue && playerIdSet.Contains(frame.HomePlayerId.Value))
+                    {
+                        framesPlayed++;
+                        if (frame.Winner == Models.FrameWinner.Home)
+                        {
+                            framesWon++;
+                            if (frame.EightBall)
+                                eightBalls++;
+                        }
+                    }
+                    // Away player
+                    else if (frame.AwayPlayerId.HasValue && playerIdSet.Contains(frame.AwayPlayerId.Value))
+                    {
+                        framesPlayed++;
+                        if (frame.Winner == Models.FrameWinner.Away)
+                        {
+                            framesWon++;
+                            if (frame.EightBall)
+                                eightBalls++;
+                        }
+                    }
+                }
+            }
+
+            if (framesPlayed > 0)
+            {
+                seasonBreakdown.Add(new SeasonStats
+                {
+                    SeasonName = season.Name,
+                    SeasonYear = season.StartDate.Year,
+                    FramesPlayed = framesPlayed,
+                    FramesWon = framesWon,
+                    FramesLost = framesPlayed - framesWon,
+                    WinPercentage = (double)framesWon / framesPlayed * 100,
+                    EightBalls = eightBalls
+                });
+
+                totalFramesPlayed += framesPlayed;
+                totalFramesWon += framesWon;
+                totalEightBalls += eightBalls;
+            }
+        }
+
+        if (totalFramesPlayed > 0)
+        {
+            _players.Add(new PlayerCareerStats
+            {
+                GlobalPlayerId = globalId,
+                PlayerName = playerName,
+                SeasonsPlayed = seasonBreakdown.Count,
+                TotalFramesPlayed = totalFramesPlayed,
+                TotalFramesWon = totalFramesWon,
+                TotalFramesLost = totalFramesPlayed - totalFramesWon,
+                CareerWinPercentage = (double)totalFramesWon / totalFramesPlayed * 100,
+                TotalEightBalls = totalEightBalls,
+                SeasonBreakdown = seasonBreakdown,
+                FirstSeasonYear = seasons.Any() ? seasons.Min(s => s.StartDate.Year) : DateTime.Now.Year,
+                LastSeasonYear = seasons.Any() ? seasons.Max(s => s.StartDate.Year) : DateTime.Now.Year
+            });
+        }
     }
 
     private void OnPlayerSelected(object? sender, SelectionChangedEventArgs e)

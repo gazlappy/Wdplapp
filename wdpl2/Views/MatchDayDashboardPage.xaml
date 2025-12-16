@@ -60,7 +60,7 @@
                     Padding="40"
                     IsVisible="False">
                     <Label 
-                        Text="[Calendar]"
+                        Text="📅"
                         FontSize="64"
                         HorizontalTextAlignment="Center" />
                     <Label 

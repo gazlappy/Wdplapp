@@ -49,7 +49,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="📈" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -64,7 +64,7 @@
                             <Label Text="Complete career history, win/loss records, and performance trends"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="?? Trends  ?? Records  ?? History"
+                            <Label Text="✓ Trends  ✓ Records  ✓ History"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -91,7 +91,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="🎱" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -106,7 +106,7 @@
                             <Label Text="Detailed frame-by-frame analysis, 8-ball success, and scoring patterns"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="?? 8-Ball  ?? Patterns  ?? Details"
+                            <Label Text="✓ 8-Ball  ✓ Patterns  ✓ Details"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -133,7 +133,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="🏆" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -148,7 +148,7 @@
                             <Label Text="Unlock badges, milestones, and special accomplishments"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="??? Badges  ? Milestones  ?? Awards"
+                            <Label Text="✓ Badges  ✓ Milestones  ✓ Awards"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -182,7 +182,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="🥇" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -197,7 +197,7 @@
                             <Label Text="Top performers, MVPs, and season champions by division"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="?? Champions  ? MVPs  ?? Top Scorers"
+                            <Label Text="✓ Champions  ✓ MVPs  ✓ Top Scorers"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -224,7 +224,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="📅" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -239,7 +239,7 @@
                             <Label Text="Performance breakdown by day of week and match timing"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="?? Day Analysis  ? Timing  ?? Patterns"
+                            <Label Text="✓ Day Analysis  ✓ Timing  ✓ Patterns"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -273,7 +273,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="👥" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -288,7 +288,7 @@
                             <Label Text="Team performance metrics, player contributions, and comparative analysis"
                                    TextColor="{StaticResource Gray600}"
                                    FontSize="12"/>
-                            <Label Text="?? Metrics  ?? Players  ?? Comparison"
+                            <Label Text="✓ Metrics  ✓ Players  ✓ Comparison"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>
@@ -324,7 +324,7 @@
                                 HeightRequest="60"
                                 WidthRequest="60"
                                 StrokeThickness="0">
-                            <Label Text="??" 
+                            <Label Text="🔮" 
                                    FontSize="32"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"/>
@@ -350,7 +350,7 @@
                                    TextColor="{StaticResource Gray700}"
                                    FontSize="12"
                                    FontAttributes="Bold"/>
-                            <Label Text="?? Simulate  ?? Predict  ?? Analyze"
+                            <Label Text="✓ Simulate  ✓ Predict  ✓ Analyze"
                                    TextColor="{StaticResource SuccessColor}"
                                    FontSize="11"
                                    Margin="0,4,0,0"/>

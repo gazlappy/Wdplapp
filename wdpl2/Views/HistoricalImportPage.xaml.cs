@@ -122,6 +122,15 @@ public partial class HistoricalImportPage : ContentPage
             false);
     }
 
+    /// <summary>
+    /// Opens the Historical Competitions import page for manual entry
+    /// </summary>
+    private async void OnHistoricalCompetitionsClicked(object? sender, EventArgs e)
+    {
+        var importPage = new ImportHistoricalCompetitionsPage();
+        await Navigation.PushModalAsync(new NavigationPage(importPage));
+    }
+
     private void OnSelectWordDocument(object? sender, EventArgs e)
     {
         _selectedImportType = ImportType.WordDocument;
@@ -857,7 +866,7 @@ public partial class HistoricalImportPage : ContentPage
         {
             var result = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
             
-            if (result.Success && result.Tables.Any())
+            if (result.Success && (result.Tables.Any() || result.DetectedCompetitions.Any()))
             {
                 var summary = new System.Text.StringBuilder();
                 summary.AppendLine($"Page: {result.PageTitle}");
@@ -867,6 +876,16 @@ public partial class HistoricalImportPage : ContentPage
                 if (result.HasResults) summary.AppendLine("• Match results detected");
                 if (result.HasPlayerStats) summary.AppendLine("• Player statistics detected");
                 if (result.HasFixtures) summary.AppendLine("• Fixtures detected");
+                if (result.HasCompetitions) 
+                {
+                    summary.AppendLine($"• {result.DetectedCompetitions.Count} competition(s) detected");
+                    foreach (var comp in result.DetectedCompetitions.Take(5))
+                    {
+                        summary.AppendLine($"  - {comp.Name}" + (!string.IsNullOrEmpty(comp.WinnerName) ? $" (Winner: {comp.WinnerName})" : ""));
+                    }
+                    if (result.DetectedCompetitions.Count > 5)
+                        summary.AppendLine($"  ... and {result.DetectedCompetitions.Count - 5} more");
+                }
                 
                 var proceed = await DisplayAlert("HTML Parsed", 
                     $"{summary}\n\nImport this data?", 
@@ -891,15 +910,24 @@ public partial class HistoricalImportPage : ContentPage
                         }
                     }
                     
+                    // Import detected competitions
+                    if (result.DetectedCompetitions.Any())
+                    {
+                        await ImportDetectedCompetitions(result.DetectedCompetitions, importStats);
+                    }
+                    
                     // Also try to extract venues from team names or venue column
                     await ExtractVenuesFromHtml(result, importStats);
                     
-                    ShowSuccessResult("HTML Imported", 
-                        $"Successfully imported from {result.PageTitle}:\n" +
-                        $"• Teams: {importStats.TeamsImported}\n" +
-                        $"• Players: {importStats.PlayersImported}\n" +
-                        $"• Venues: {importStats.VenuesImported}\n" +
-                        $"• Fixtures: {importStats.FixturesImported}");
+                    var resultSummary = new System.Text.StringBuilder();
+                    resultSummary.AppendLine($"Successfully imported from {result.PageTitle}:");
+                    if (importStats.TeamsImported > 0) resultSummary.AppendLine($"• Teams: {importStats.TeamsImported}");
+                    if (importStats.PlayersImported > 0) resultSummary.AppendLine($"• Players: {importStats.PlayersImported}");
+                    if (importStats.VenuesImported > 0) resultSummary.AppendLine($"• Venues: {importStats.VenuesImported}");
+                    if (importStats.FixturesImported > 0) resultSummary.AppendLine($"• Fixtures: {importStats.FixturesImported}");
+                    if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"• Competitions: {importStats.CompetitionsImported}");
+                    
+                    ShowSuccessResult("HTML Imported", resultSummary.ToString());
                 }
                 else
                 {
@@ -930,10 +958,12 @@ public partial class HistoricalImportPage : ContentPage
         var filePaths = _selectedFiles.Select(f => f.FilePath).ToList();
         var batchPreviewPage = new BatchImportPreviewPage();
         await Navigation.PushAsync(batchPreviewPage);
+        
+        // Load the preview - the page will handle its own navigation when import is complete or cancelled
         await batchPreviewPage.LoadBatchPreviewAsync(filePaths);
         
-        // Return to main page after batch import
-        await Navigation.PopToRootAsync();
+        // Note: Don't pop navigation here - let the BatchImportPreviewPage handle its own navigation
+        // when the user completes or cancels the import
     }
 
     private async Task ProcessPDFAsync()
@@ -1290,6 +1320,180 @@ public partial class HistoricalImportPage : ContentPage
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Import detected competitions from HTML or other sources
+    /// </summary>
+    private Task ImportDetectedCompetitions(System.Collections.Generic.List<HtmlLeagueParser.DetectedCompetition> detectedCompetitions, ImportStats stats)
+    {
+        var currentSeasonId = SeasonService.CurrentSeasonId;
+        if (!currentSeasonId.HasValue)
+        {
+            return Task.CompletedTask;
+        }
+
+        DataStore.Data.Competitions ??= new List<Competition>();
+
+        foreach (var detected in detectedCompetitions)
+        {
+            // Check if competition with same name already exists in this season
+            var existing = DataStore.Data.Competitions.FirstOrDefault(c =>
+                c.SeasonId == currentSeasonId &&
+                !string.IsNullOrWhiteSpace(c.Name) &&
+                c.Name.Equals(detected.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                // Skip duplicate
+                continue;
+            }
+
+            // Determine format from type
+            var format = detected.Type?.ToLower() switch
+            {
+                "doubles" => CompetitionFormat.DoublesKnockout,
+                "team" => CompetitionFormat.TeamKnockout,
+                _ => CompetitionFormat.SinglesKnockout
+            };
+
+            // Create the competition
+            var competition = new Competition
+            {
+                Id = Guid.NewGuid(),
+                Name = detected.Name,
+                SeasonId = currentSeasonId,
+                Format = format,
+                Status = CompetitionStatus.Completed,
+                StartDate = detected.Date,
+                CreatedDate = DateTime.Now,
+                Notes = BuildCompetitionNotesFromDetected(detected)
+            };
+
+            // Try to find winner player in database
+            Guid? winnerId = null;
+            Guid? runnerUpId = null;
+
+            if (!string.IsNullOrEmpty(detected.WinnerName))
+            {
+                var winnerPlayer = FindPlayerByName(detected.WinnerName, currentSeasonId.Value);
+                if (winnerPlayer != null)
+                {
+                    winnerId = winnerPlayer.Id;
+                    competition.ParticipantIds.Add(winnerPlayer.Id);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(detected.RunnerUpName))
+            {
+                var runnerUpPlayer = FindPlayerByName(detected.RunnerUpName, currentSeasonId.Value);
+                if (runnerUpPlayer != null)
+                {
+                    runnerUpId = runnerUpPlayer.Id;
+                    competition.ParticipantIds.Add(runnerUpPlayer.Id);
+                }
+            }
+
+            // Create final round with result
+            if (winnerId.HasValue || !string.IsNullOrEmpty(detected.WinnerName))
+            {
+                var finalRound = new CompetitionRound
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Final",
+                    RoundNumber = 1
+                };
+
+                var finalMatch = new CompetitionMatch
+                {
+                    Id = Guid.NewGuid(),
+                    Participant1Id = winnerId,
+                    Participant2Id = runnerUpId,
+                    WinnerId = winnerId,
+                    IsComplete = true,
+                    ScheduledDate = detected.Date
+                };
+
+                // Parse score if available
+                if (!string.IsNullOrEmpty(detected.Score))
+                {
+                    var scoreParts = detected.Score.Split(new[] { '-', ':' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (scoreParts.Length == 2 && 
+                        int.TryParse(scoreParts[0].Trim(), out var score1) &&
+                        int.TryParse(scoreParts[1].Trim(), out var score2))
+                    {
+                        finalMatch.Participant1Score = score1;
+                        finalMatch.Participant2Score = score2;
+                    }
+                }
+
+                finalRound.Matches.Add(finalMatch);
+                competition.Rounds.Add(finalRound);
+            }
+
+            DataStore.Data.Competitions.Add(competition);
+            stats.CompetitionsImported++;
+        }
+
+        if (stats.CompetitionsImported > 0)
+        {
+            DataStore.Save();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Find a player by name in the current season or any season
+    /// </summary>
+    private Player? FindPlayerByName(string name, Guid seasonId)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        var nameParts = name.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var firstName = nameParts.Length > 0 ? nameParts[0] : "";
+        var lastName = nameParts.Length > 1 ? nameParts[1] : "";
+
+        // Try to find in current season first
+        var player = DataStore.Data.Players.FirstOrDefault(p =>
+            p.SeasonId == seasonId &&
+            (p.FullName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+             (p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
+              p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true)));
+
+        // If not found, try any season
+        if (player == null)
+        {
+            player = DataStore.Data.Players.FirstOrDefault(p =>
+                p.FullName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                (p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
+                 p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true));
+        }
+
+        return player;
+    }
+
+    /// <summary>
+    /// Build notes string for detected competition
+    /// </summary>
+    private string BuildCompetitionNotesFromDetected(HtmlLeagueParser.DetectedCompetition detected)
+    {
+        var notes = new System.Text.StringBuilder();
+        notes.AppendLine($"[Auto-detected from HTML import: {DateTime.Now:yyyy-MM-dd HH:mm}]");
+        
+        if (!string.IsNullOrEmpty(detected.WinnerName))
+            notes.AppendLine($"Winner: {detected.WinnerName}");
+        
+        if (!string.IsNullOrEmpty(detected.WinnerTeam))
+            notes.AppendLine($"Team: {detected.WinnerTeam}");
+        
+        if (!string.IsNullOrEmpty(detected.RunnerUpName))
+            notes.AppendLine($"Runner-up: {detected.RunnerUpName}");
+        
+        if (!string.IsNullOrEmpty(detected.Score))
+            notes.AppendLine($"Score: {detected.Score}");
+
+        return notes.ToString().Trim();
+    }
+
     private Task ExtractVenuesFromHtml(HtmlLeagueParser.HtmlParseResult result, ImportStats stats)
     {
         // Look for venue information in tables
@@ -1531,4 +1735,5 @@ public class ImportStats
     public int VenuesImported { get; set; }
     public int FixturesImported { get; set; }
     public int ResultsImported { get; set; }
+    public int CompetitionsImported { get; set; }
 }

@@ -89,6 +89,61 @@
                            FontAttributes="Bold"
                            Margin="0,8,0,16"/>
 
+                    <!-- Historical Competitions (Manual Entry) - NEW! -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#FFF8E1"
+                            Stroke="#FFC107"
+                            StrokeThickness="2">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="#FFC107"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🏆" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="Historical Competitions"
+                                           FontAttributes="Bold"
+                                           FontSize="16"/>
+                                    <Border BackgroundColor="#FFC107"
+                                            Padding="6,2"
+                                            StrokeThickness="0">
+                                        <Label Text="MANUAL"
+                                               TextColor="White"
+                                               FontSize="9"
+                                               FontAttributes="Bold"/>
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="Add past competition winners, finals, and results manually"
+                                       TextColor="{StaticResource Gray700}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Winners  ✓ Runners-Up  ✓ Finals Scores  ✓ All Formats"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Enter"
+                                    Clicked="OnHistoricalCompetitionsClicked"
+                                    BackgroundColor="#FFC107"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"
+                                    FontAttributes="Bold"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Access Database -->
                     <Border Style="{StaticResource CardBorderStyle}"
                             BackgroundColor="{StaticResource Gray50}">

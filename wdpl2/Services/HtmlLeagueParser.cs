@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 namespace Wdpl2.Services;
 
 /// <summary>
-/// Specialized parser for HTML webpages containing league data
+/// Specialized parser for WDPL HTML webpages containing league data
 /// Extracts tables, standings, results, and player information
 /// </summary>
 public static class HtmlLeagueParser
@@ -20,6 +21,9 @@ public static class HtmlLeagueParser
         public bool Success { get; set; }
         public string FileName { get; set; } = "";
         public string PageTitle { get; set; } = "";
+        public string PageHeading { get; set; } = "";
+        public string? DetectedDivision { get; set; }
+        public PageType DetectedPageType { get; set; } = PageType.Unknown;
         public List<HtmlTable> Tables { get; set; } = new();
         public List<string> Errors { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
@@ -29,6 +33,118 @@ public static class HtmlLeagueParser
         public bool HasResults { get; set; }
         public bool HasPlayerStats { get; set; }
         public bool HasFixtures { get; set; }
+        public bool HasCompetitions { get; set; }
+        public bool HasPlayerProfile { get; set; }
+        
+        // Extracted data
+        public List<ExtractedTeam> Teams { get; set; } = new();
+        public List<ExtractedPlayer> Players { get; set; } = new();
+        public List<ExtractedResult> Results { get; set; } = new();
+        public List<DetectedCompetition> DetectedCompetitions { get; set; } = new();
+        public ExtractedPlayerProfile? PlayerProfile { get; set; }
+    }
+
+    public enum PageType
+    {
+        Unknown,
+        LeagueTable,        // tableRed.htm, tableYellow.htm
+        Results,            // results.htm
+        PlayerRatings,      // singleRed.htm, singleYellow.htm
+        DoublesRatings,     // doubleRed.htm
+        PlayerProfile,      // player100.htm
+        Fixtures
+    }
+
+    /// <summary>
+    /// Represents a detected competition from HTML
+    /// </summary>
+    public class DetectedCompetition
+    {
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "Singles";
+        public string? WinnerName { get; set; }
+        public string? RunnerUpName { get; set; }
+        public string? WinnerTeam { get; set; }
+        public string? Score { get; set; }
+        public DateTime? Date { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted team from league table
+    /// </summary>
+    public class ExtractedTeam
+    {
+        public int Position { get; set; }
+        public string Name { get; set; } = "";
+        public string Division { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int FramesFor { get; set; }
+        public int FramesAgainst { get; set; }
+        public int PointsDeducted { get; set; }
+        public int Points { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted player from ratings table
+    /// </summary>
+    public class ExtractedPlayer
+    {
+        public int Position { get; set; }
+        public string Name { get; set; } = "";
+        public string TeamName { get; set; } = "";
+        public string Division { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int EightBalls { get; set; }
+        public int BestRating { get; set; }
+        public int CurrentRating { get; set; }
+        public string? ProfileLink { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted match result
+    /// </summary>
+    public class ExtractedResult
+    {
+        public DateTime Date { get; set; }
+        public string Division { get; set; } = "";
+        public string HomeTeam { get; set; } = "";
+        public int HomeScore { get; set; }
+        public string AwayTeam { get; set; } = "";
+        public int AwayScore { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted player profile
+    /// </summary>
+    public class ExtractedPlayerProfile
+    {
+        public string PlayerName { get; set; } = "";
+        public string TeamName { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int EightBalls { get; set; }
+        public int BestRating { get; set; }
+        public DateTime? BestRatingDate { get; set; }
+        public int CurrentRating { get; set; }
+        public List<PlayerMatchRecord> MatchHistory { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Individual match record from player profile
+    /// </summary>
+    public class PlayerMatchRecord
+    {
+        public DateTime Date { get; set; }
+        public string OpponentName { get; set; } = "";
+        public string OpponentTeam { get; set; } = "";
+        public string Result { get; set; } = ""; // "Won" or "Lost"
+        public int RatingAttained { get; set; }
+        public string? OpponentProfileLink { get; set; }
     }
 
     /// <summary>
@@ -51,9 +167,12 @@ public static class HtmlLeagueParser
         LeagueStandings,
         MatchResults,
         PlayerStatistics,
+        PlayerProfile,
+        PlayerMatchHistory,
         Fixtures,
         TopScorers,
-        Awards
+        Awards,
+        Competitions
     }
 
     /// <summary>
@@ -73,32 +192,43 @@ public static class HtmlLeagueParser
             // Extract page title
             result.PageTitle = ExtractPageTitle(html);
             
+            // Extract page heading (the main <FONT SIZE="6"> heading)
+            result.PageHeading = ExtractPageHeading(html);
+            
+            // Detect page type from heading
+            result.DetectedPageType = DetectPageType(result.PageHeading, result.FileName);
+            
+            // Detect division from heading
+            result.DetectedDivision = ExtractDivision(result.PageHeading);
+            
             // Extract all tables
             result.Tables = ExtractTables(html);
             
-            // Detect table types
-            foreach (var table in result.Tables)
+            // Process based on page type
+            switch (result.DetectedPageType)
             {
-                table.DetectedType = DetectTableType(table);
-                
-                // Set flags based on detected types
-                switch (table.DetectedType)
-                {
-                    case TableType.LeagueStandings:
-                        result.HasLeagueTable = true;
-                        break;
-                    case TableType.MatchResults:
-                        result.HasResults = true;
-                        break;
-                    case TableType.PlayerStatistics:
-                    case TableType.TopScorers:
-                        result.HasPlayerStats = true;
-                        break;
-                    case TableType.Fixtures:
-                        result.HasFixtures = true;
-                        break;
-                }
+                case PageType.LeagueTable:
+                    ProcessLeagueTable(result);
+                    break;
+                    
+                case PageType.Results:
+                    ProcessResults(result);
+                    break;
+                    
+                case PageType.PlayerRatings:
+                    ProcessPlayerRatings(result);
+                    break;
+                    
+                case PageType.PlayerProfile:
+                    ProcessPlayerProfile(result, html);
+                    break;
             }
+            
+            // Set flags based on what was extracted
+            result.HasLeagueTable = result.Teams.Any();
+            result.HasResults = result.Results.Any();
+            result.HasPlayerStats = result.Players.Any();
+            result.HasPlayerProfile = result.PlayerProfile != null;
             
             // Validate
             if (!result.Tables.Any())
@@ -118,25 +248,289 @@ public static class HtmlLeagueParser
     }
 
     /// <summary>
+    /// Detect page type from heading text
+    /// </summary>
+    private static PageType DetectPageType(string heading, string fileName)
+    {
+        var lowerHeading = heading.ToLower();
+        var lowerFileName = fileName.ToLower();
+        
+        // Player profile pages
+        if (lowerHeading.Contains("record of") || lowerFileName.StartsWith("player"))
+            return PageType.PlayerProfile;
+            
+        // League table pages
+        if (lowerHeading.Contains("division table") || lowerFileName.StartsWith("table"))
+            return PageType.LeagueTable;
+            
+        // Results pages
+        if (lowerHeading.Contains("results") || lowerFileName == "results.htm")
+            return PageType.Results;
+            
+        // Player ratings pages
+        if (lowerHeading.Contains("player ratings") || lowerFileName.StartsWith("single"))
+            return PageType.PlayerRatings;
+            
+        // Doubles ratings pages
+        if (lowerHeading.Contains("doubles ratings") || lowerFileName.StartsWith("double"))
+            return PageType.DoublesRatings;
+            
+        // Fixtures pages
+        if (lowerHeading.Contains("fixture"))
+            return PageType.Fixtures;
+            
+        return PageType.Unknown;
+    }
+
+    /// <summary>
+    /// Extract division name from heading
+    /// </summary>
+    private static string? ExtractDivision(string heading)
+    {
+        // Look for division patterns like "Red Division", "Yellow Division"
+        var match = Regex.Match(heading, @"(\w+)\s+Division", RegexOptions.IgnoreCase);
+        if (match.Success)
+        {
+            return match.Groups[1].Value + " Division";
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Process league table page
+    /// </summary>
+    private static void ProcessLeagueTable(HtmlParseResult result)
+    {
+        if (!result.Tables.Any()) return;
+        
+        var table = result.Tables.First();
+        var division = result.DetectedDivision ?? "Unknown Division";
+        
+        // Skip header row
+        var dataRows = table.Rows.Skip(1);
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count < 9) continue;
+            
+            var team = new ExtractedTeam
+            {
+                Division = division,
+                Position = ParseInt(row[0]),
+                Name = CleanText(row[1]),
+                Played = ParseInt(row[2]),
+                Won = ParseInt(row[3]),
+                Lost = ParseInt(row[4]),
+                FramesFor = ParseInt(row[5]),
+                FramesAgainst = ParseInt(row[6]),
+                PointsDeducted = ParseInt(row[7]),
+                Points = ParseInt(row[8])
+            };
+            
+            if (!string.IsNullOrWhiteSpace(team.Name))
+            {
+                result.Teams.Add(team);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Process results page
+    /// </summary>
+    private static void ProcessResults(HtmlParseResult result)
+    {
+        if (!result.Tables.Any()) return;
+        
+        var table = result.Tables.First();
+        
+        // Skip header row
+        var dataRows = table.Rows.Skip(1);
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count < 6) continue;
+            
+            // Parse date (DD/MM/YYYY format)
+            if (!TryParseDate(row[0], out var date))
+                continue;
+                
+            var matchResult = new ExtractedResult
+            {
+                Date = date,
+                Division = CleanText(row[1]),
+                HomeTeam = CleanText(row[2]),
+                HomeScore = ParseInt(row[3]),
+                AwayTeam = CleanText(row[4]),
+                AwayScore = ParseInt(row[5])
+            };
+            
+            if (!string.IsNullOrWhiteSpace(matchResult.HomeTeam) && 
+                !string.IsNullOrWhiteSpace(matchResult.AwayTeam))
+            {
+                result.Results.Add(matchResult);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Process player ratings page
+    /// </summary>
+    private static void ProcessPlayerRatings(HtmlParseResult result)
+    {
+        if (!result.Tables.Any()) return;
+        
+        var table = result.Tables.First();
+        var division = result.DetectedDivision ?? "Unknown Division";
+        
+        // Skip header row
+        var dataRows = table.Rows.Skip(1);
+        
+        foreach (var row in dataRows)
+        {
+            if (row.Count < 9) continue;
+            
+            var player = new ExtractedPlayer
+            {
+                Division = division,
+                Position = ParseInt(row[0]),
+                Name = CleanText(row[1]),
+                TeamName = CleanText(row[2]),
+                Played = ParseInt(row[3]),
+                Won = ParseInt(row[4]),
+                Lost = ParseInt(row[5]),
+                EightBalls = ParseInt(row[6]),
+                BestRating = ParseInt(row[7]),
+                CurrentRating = ParseInt(row[8])
+            };
+            
+            // Extract profile link if present
+            // The raw HTML for player name contains: <A HREF="player123.htm">Name</A>
+            // We need to extract the link separately from the original HTML
+            
+            if (!string.IsNullOrWhiteSpace(player.Name))
+            {
+                result.Players.Add(player);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Process player profile page
+    /// </summary>
+    private static void ProcessPlayerProfile(HtmlParseResult result, string html)
+    {
+        // Extract player name and team from heading
+        // Format: "Record of Chris Cannon (Nice Parking)"
+        var headingMatch = Regex.Match(result.PageHeading, @"Record of\s+(.+?)\s*\((.+?)\)", RegexOptions.IgnoreCase);
+        if (!headingMatch.Success) return;
+        
+        var profile = new ExtractedPlayerProfile
+        {
+            PlayerName = headingMatch.Groups[1].Value.Trim(),
+            TeamName = headingMatch.Groups[2].Value.Trim()
+        };
+        
+        if (result.Tables.Count >= 1)
+        {
+            // First table has summary stats
+            var summaryTable = result.Tables[0];
+            if (summaryTable.Rows.Count >= 2)
+            {
+                var statsRow = summaryTable.Rows[1]; // Second row has the data
+                if (statsRow.Count >= 7)
+                {
+                    profile.Played = ParseInt(statsRow[0]);
+                    profile.Won = ParseInt(statsRow[1]);
+                    profile.Lost = ParseInt(statsRow[2]);
+                    profile.EightBalls = ParseInt(statsRow[3]);
+                    profile.BestRating = ParseInt(statsRow[4]);
+                    TryParseDate(statsRow[5], out var bestDate);
+                    profile.BestRatingDate = bestDate;
+                    profile.CurrentRating = ParseInt(statsRow[6]);
+                }
+            }
+        }
+        
+        if (result.Tables.Count >= 2)
+        {
+            // Second table has match history
+            var historyTable = result.Tables[1];
+            
+            // Skip header row
+            var dataRows = historyTable.Rows.Skip(1);
+            
+            foreach (var row in dataRows)
+            {
+                if (row.Count < 5) continue;
+                
+                // Skip totals row (has "Totals" in one of the cells)
+                if (row.Any(c => c.ToLower().Contains("total")))
+                    continue;
+                
+                // Skip empty rows
+                if (row.All(c => string.IsNullOrWhiteSpace(c)))
+                    continue;
+                    
+                if (!TryParseDate(row[0], out var matchDate))
+                    continue;
+                    
+                var matchRecord = new PlayerMatchRecord
+                {
+                    Date = matchDate,
+                    OpponentName = CleanText(row[1]),
+                    OpponentTeam = CleanText(row[2]),
+                    Result = CleanText(row[3])
+                };
+                
+                if (row.Count > 4)
+                {
+                    matchRecord.RatingAttained = ParseInt(row[4]);
+                }
+                
+                if (!string.IsNullOrWhiteSpace(matchRecord.OpponentName))
+                {
+                    profile.MatchHistory.Add(matchRecord);
+                }
+            }
+        }
+        
+        result.PlayerProfile = profile;
+    }
+
+    /// <summary>
     /// Extract page title from HTML
     /// </summary>
     private static string ExtractPageTitle(string html)
     {
-        // Try <title> tag first
         var titleMatch = Regex.Match(html, @"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         if (titleMatch.Success)
         {
             return CleanText(titleMatch.Groups[1].Value);
         }
+        return "Untitled Page";
+    }
 
-        // Try <h1> tag
+    /// <summary>
+    /// Extract main page heading (SIZE="6" font)
+    /// </summary>
+    private static string ExtractPageHeading(string html)
+    {
+        // Look for <FONT SIZE="6"> heading
+        var headingMatch = Regex.Match(html, @"<FONT[^>]*SIZE\s*=\s*[""']?6[""']?[^>]*>(.*?)</FONT>", 
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (headingMatch.Success)
+        {
+            return CleanText(headingMatch.Groups[1].Value);
+        }
+        
+        // Fall back to <h1>
         var h1Match = Regex.Match(html, @"<h1[^>]*>(.*?)</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         if (h1Match.Success)
         {
             return CleanText(h1Match.Groups[1].Value);
         }
-
-        return "Untitled Page";
+        
+        return "";
     }
 
     /// <summary>
@@ -146,7 +540,6 @@ public static class HtmlLeagueParser
     {
         var tables = new List<HtmlTable>();
         
-        // Find all <table> elements
         var tableMatches = Regex.Matches(html, @"<table[^>]*>.*?</table>", 
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
@@ -155,49 +548,43 @@ public static class HtmlLeagueParser
             var tableHtml = tableMatch.Value;
             var table = new HtmlTable();
 
-            // Extract caption if present
-            var captionMatch = Regex.Match(tableHtml, @"<caption[^>]*>(.*?)</caption>", 
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            if (captionMatch.Success)
-            {
-                table.Caption = CleanText(captionMatch.Groups[1].Value);
-            }
-
-            // Check for header row (<thead> or first row with <th>)
-            var hasTheadOrTh = Regex.IsMatch(tableHtml, @"<thead|<th", RegexOptions.IgnoreCase);
-            table.HasHeaders = hasTheadOrTh;
-
-            // Extract all rows
-            var rowMatches = Regex.Matches(tableHtml, @"<tr[^>]*>.*?</tr>", 
+            // Extract rows
+            var rowMatches = Regex.Matches(tableHtml, @"<tr[^>]*>(.*?)</tr>", 
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
+            bool isFirstRow = true;
             foreach (Match rowMatch in rowMatches)
             {
-                var rowHtml = rowMatch.Value;
+                var rowHtml = rowMatch.Groups[1].Value;
                 var cells = new List<string>();
 
-                // Extract cells (both <td> and <th>)
-                var cellMatches = Regex.Matches(rowHtml, @"<t[dh][^>]*>(.*?)</t[dh]>", 
+                // Extract cells
+                var cellMatches = Regex.Matches(rowHtml, @"<td[^>]*>(.*?)</td>", 
                     RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
                 foreach (Match cellMatch in cellMatches)
                 {
                     var cellContent = cellMatch.Groups[1].Value;
                     
-                    // Handle nested tags (links, spans, etc.)
-                    cellContent = Regex.Replace(cellContent, @"<[^>]+>", " ");
+                    // Strip all HTML tags including FONT, P, A, etc.
+                    cellContent = StripHtmlTags(cellContent);
                     cellContent = CleanText(cellContent);
                     
                     cells.Add(cellContent);
                 }
 
-                if (cells.Any(c => !string.IsNullOrWhiteSpace(c)))
+                if (cells.Any())
                 {
+                    // First row is usually header
+                    if (isFirstRow)
+                    {
+                        table.HasHeaders = true;
+                        isFirstRow = false;
+                    }
                     table.Rows.Add(cells);
                 }
             }
 
-            // Only add tables with content
             if (table.Rows.Count > 0)
             {
                 tables.Add(table);
@@ -208,81 +595,24 @@ public static class HtmlLeagueParser
     }
 
     /// <summary>
-    /// Detect what type of league table this is
+    /// Strip all HTML tags
     /// </summary>
-    private static TableType DetectTableType(HtmlTable table)
+    private static string StripHtmlTags(string html)
     {
-        if (table.Rows.Count < 2)
-            return TableType.Unknown;
-
-        // Get header row (first row or look for th elements)
-        var headerRow = table.HasHeaders && table.Rows.Any() 
-            ? string.Join(" ", table.Rows.First()).ToLower()
-            : "";
-
-        // If no clear headers, check first few rows
-        if (string.IsNullOrWhiteSpace(headerRow))
-        {
-            headerRow = string.Join(" ", table.Rows.Take(3).SelectMany(r => r)).ToLower();
-        }
-
-        // Detect league standings table
-        if ((headerRow.Contains("team") || headerRow.Contains("pos") || headerRow.Contains("position")) &&
-            (headerRow.Contains("points") || headerRow.Contains("pts")) &&
-            (headerRow.Contains("played") || headerRow.Contains("p") || headerRow.Contains("pld")))
-        {
-            return TableType.LeagueStandings;
-        }
-
-        // Detect match results
-        if ((headerRow.Contains("home") && headerRow.Contains("away")) ||
-            (headerRow.Contains("result") && headerRow.Contains("score")) ||
-            headerRow.Contains("fixture"))
-        {
-            return TableType.MatchResults;
-        }
-
-        // Detect fixtures (upcoming matches)
-        if ((headerRow.Contains("fixture") || headerRow.Contains("upcoming")) &&
-            (headerRow.Contains("date") || headerRow.Contains("venue")))
-        {
-            return TableType.Fixtures;
-        }
-
-        // Detect player statistics
-        if (headerRow.Contains("player") && 
-            (headerRow.Contains("goals") || headerRow.Contains("frames") || 
-             headerRow.Contains("wins") || headerRow.Contains("rating")))
-        {
-            return TableType.PlayerStatistics;
-        }
-
-        // Detect top scorers
-        if (headerRow.Contains("player") && 
-            (headerRow.Contains("goals") || headerRow.Contains("frames won")))
-        {
-            return TableType.TopScorers;
-        }
-
-        // Detect awards/trophies
-        if (headerRow.Contains("award") || headerRow.Contains("trophy") || 
-            headerRow.Contains("winner"))
-        {
-            return TableType.Awards;
-        }
-
-        return TableType.Unknown;
+        // Remove all HTML tags
+        html = Regex.Replace(html, @"<[^>]+>", " ", RegexOptions.Singleline);
+        return html;
     }
 
     /// <summary>
-    /// Clean HTML entities and extra whitespace
+    /// Clean text - decode entities and normalize whitespace
     /// </summary>
     private static string CleanText(string text)
     {
         if (string.IsNullOrEmpty(text))
             return "";
 
-        // Decode common HTML entities
+        // Decode HTML entities
         text = text.Replace("&nbsp;", " ")
                    .Replace("&amp;", "&")
                    .Replace("&lt;", "<")
@@ -291,30 +621,100 @@ public static class HtmlLeagueParser
                    .Replace("&#39;", "'")
                    .Replace("&apos;", "'");
 
-        // Remove extra whitespace
+        // Normalize whitespace
         text = Regex.Replace(text, @"\s+", " ");
         
         return text.Trim();
     }
 
     /// <summary>
-    /// Extract structured league standings data
+    /// Parse integer from string, returning 0 if invalid
+    /// </summary>
+    private static int ParseInt(string text)
+    {
+        text = CleanText(text);
+        if (int.TryParse(text, out var result))
+            return result;
+        return 0;
+    }
+
+    /// <summary>
+    /// Try to parse date in DD/MM/YYYY format
+    /// </summary>
+    private static bool TryParseDate(string text, out DateTime date)
+    {
+        text = CleanText(text);
+        
+        // Try UK date format (DD/MM/YYYY)
+        if (DateTime.TryParseExact(text, "dd/MM/yyyy", CultureInfo.InvariantCulture, 
+            DateTimeStyles.None, out date))
+        {
+            return true;
+        }
+        
+        // Try other common formats
+        if (DateTime.TryParse(text, out date))
+        {
+            return true;
+        }
+        
+        date = default;
+        return false;
+    }
+
+    // ===== Legacy methods for compatibility =====
+
+    /// <summary>
+    /// Extract structured league standings data (legacy compatibility)
     /// </summary>
     public static List<LeagueStandingRow> ParseLeagueStandings(HtmlTable table)
     {
         var standings = new List<LeagueStandingRow>();
 
-        if (table.DetectedType != TableType.LeagueStandings || table.Rows.Count < 2)
+        if (table.Rows.Count < 2)
             return standings;
 
-        // Skip header row if present
         var dataRows = table.HasHeaders ? table.Rows.Skip(1) : table.Rows;
 
         foreach (var row in dataRows)
         {
-            // Try to parse common league table formats
-            var standing = TryParseStandingRow(row);
-            if (standing != null)
+            if (row.Count < 4) continue;
+            
+            var standing = new LeagueStandingRow();
+            
+            // Try to identify columns
+            int col = 0;
+            foreach (var cell in row)
+            {
+                var cleanCell = CleanText(cell);
+                
+                if (int.TryParse(cleanCell, out var num))
+                {
+                    // Numeric column
+                    if (standing.Position == 0 && col == 0)
+                        standing.Position = num;
+                    else if (standing.Played == 0)
+                        standing.Played = num;
+                    else if (standing.Won == 0)
+                        standing.Won = num;
+                    else if (standing.Lost == 0)
+                        standing.Lost = num;
+                    else if (standing.FramesFor == 0)
+                        standing.FramesFor = num;
+                    else if (standing.FramesAgainst == 0)
+                        standing.FramesAgainst = num;
+                    else if (standing.Points == 0)
+                        standing.Points = num;
+                }
+                else if (string.IsNullOrWhiteSpace(standing.TeamName) && !string.IsNullOrWhiteSpace(cleanCell))
+                {
+                    standing.TeamName = cleanCell;
+                }
+                
+                col++;
+            }
+
+            if (!string.IsNullOrWhiteSpace(standing.TeamName))
             {
                 standings.Add(standing);
             }
@@ -323,127 +723,60 @@ public static class HtmlLeagueParser
         return standings;
     }
 
-    private static LeagueStandingRow? TryParseStandingRow(List<string> cells)
-    {
-        if (cells.Count < 4)
-            return null;
-
-        var standing = new LeagueStandingRow();
-
-        // Try to find team name (usually the only non-numeric cell)
-        for (int i = 0; i < cells.Count; i++)
-        {
-            var cell = cells[i];
-            
-            // Skip empty cells
-            if (string.IsNullOrWhiteSpace(cell))
-                continue;
-
-            // Try to parse as number
-            if (int.TryParse(cell, out var number))
-            {
-                // Could be position, played, won, etc.
-                if (standing.Position == 0 && i < 3)
-                    standing.Position = number;
-                else if (standing.Played == 0)
-                    standing.Played = number;
-                else if (standing.Won == 0)
-                    standing.Won = number;
-                else if (standing.Drawn == 0)
-                    standing.Drawn = number;
-                else if (standing.Lost == 0)
-                    standing.Lost = number;
-                else if (standing.FramesFor == 0)
-                    standing.FramesFor = number;
-                else if (standing.FramesAgainst == 0)
-                    standing.FramesAgainst = number;
-                else if (standing.Points == 0)
-                    standing.Points = number;
-            }
-            else if (string.IsNullOrWhiteSpace(standing.TeamName))
-            {
-                // Assume this is the team name
-                standing.TeamName = cell;
-            }
-        }
-
-        // Validate we got at least a team name and some data
-        return !string.IsNullOrWhiteSpace(standing.TeamName) && standing.Points > 0 
-            ? standing 
-            : null;
-    }
-
     /// <summary>
-    /// Extract match results
+    /// Extract match results (legacy compatibility)
     /// </summary>
     public static List<MatchResultRow> ParseMatchResults(HtmlTable table)
     {
         var results = new List<MatchResultRow>();
 
-        if (table.DetectedType != TableType.MatchResults || table.Rows.Count < 2)
+        if (table.Rows.Count < 2)
             return results;
 
         var dataRows = table.HasHeaders ? table.Rows.Skip(1) : table.Rows;
 
         foreach (var row in dataRows)
         {
-            var result = TryParseResultRow(row);
-            if (result != null)
+            if (row.Count < 3) continue;
+
+            var result = new MatchResultRow();
+            
+            foreach (var cell in row)
+            {
+                var cleanCell = CleanText(cell);
+                
+                // Try to parse as date
+                if (TryParseDate(cleanCell, out var date) && result.Date == null)
+                {
+                    result.Date = date;
+                    continue;
+                }
+                
+                // Try to parse as score
+                if (int.TryParse(cleanCell, out var score))
+                {
+                    if (result.HomeScore == 0 && !string.IsNullOrWhiteSpace(result.HomeTeam))
+                        result.HomeScore = score;
+                    else if (result.AwayScore == 0 && !string.IsNullOrWhiteSpace(result.AwayTeam))
+                        result.AwayScore = score;
+                    continue;
+                }
+                
+                // Assume team name
+                if (string.IsNullOrWhiteSpace(result.HomeTeam))
+                    result.HomeTeam = cleanCell;
+                else if (string.IsNullOrWhiteSpace(result.AwayTeam))
+                    result.AwayTeam = cleanCell;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.HomeTeam) && 
+                !string.IsNullOrWhiteSpace(result.AwayTeam))
             {
                 results.Add(result);
             }
         }
 
         return results;
-    }
-
-    private static MatchResultRow? TryParseResultRow(List<string> cells)
-    {
-        if (cells.Count < 3)
-            return null;
-
-        var result = new MatchResultRow();
-
-        // Look for team names and scores
-        // Common formats:
-        // - Home Team | Score | Away Team
-        // - Date | Home Team | Away Team | Score
-        // - Home Team vs Away Team | Score
-
-        foreach (var cell in cells)
-        {
-            // Try to parse as score (e.g., "5-3", "6-4")
-            var scoreMatch = Regex.Match(cell, @"(\d+)\s*[-:]\s*(\d+)");
-            if (scoreMatch.Success)
-            {
-                result.HomeScore = int.Parse(scoreMatch.Groups[1].Value);
-                result.AwayScore = int.Parse(scoreMatch.Groups[2].Value);
-                continue;
-            }
-
-            // Try to parse as date
-            if (DateTime.TryParse(cell, out var date))
-            {
-                result.Date = date;
-                continue;
-            }
-
-            // Assume it's a team name
-            if (string.IsNullOrWhiteSpace(result.HomeTeam))
-            {
-                result.HomeTeam = cell;
-            }
-            else if (string.IsNullOrWhiteSpace(result.AwayTeam))
-            {
-                result.AwayTeam = cell;
-            }
-        }
-
-        // Validate we got both teams
-        return !string.IsNullOrWhiteSpace(result.HomeTeam) && 
-               !string.IsNullOrWhiteSpace(result.AwayTeam)
-            ? result
-            : null;
     }
 }
 

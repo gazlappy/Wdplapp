@@ -14,6 +14,18 @@
                 Text="Player Achievements" 
                 Style="{StaticResource PageTitleStyle}" />
 
+            <!-- All Seasons Toggle -->
+            <Border Style="{StaticResource CardBorderStyle}" BackgroundColor="{StaticResource PrimaryColor}">
+                <Grid Padding="12" ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="📊 All Seasons Mode" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="Calculate achievements across entire career" FontSize="12" TextColor="#FFFFFFB0" />
+                    </VerticalStackLayout>
+                    <Switch x:Name="AllSeasonsToggle" IsToggled="True" OnColor="{StaticResource SuccessColor}" 
+                            Toggled="OnAllSeasonsToggled" VerticalOptions="Center" Grid.Column="1" />
+                </Grid>
+            </Border>
+
             <!-- Player Selection -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
@@ -26,7 +38,7 @@
             <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
                 <Border Style="{StaticResource CardBorderStyle}">
                     <VerticalStackLayout Padding="12" Spacing="4">
-                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label Text="🥉" FontSize="24" HorizontalTextAlignment="Center" />
                         <Label x:Name="BronzeCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                         <Label Text="Bronze" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
@@ -34,7 +46,7 @@
 
                 <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
                     <VerticalStackLayout Padding="12" Spacing="4">
-                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label Text="🥈" FontSize="24" HorizontalTextAlignment="Center" />
                         <Label x:Name="SilverCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                         <Label Text="Silver" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
@@ -42,7 +54,7 @@
 
                 <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
                     <VerticalStackLayout Padding="12" Spacing="4">
-                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label Text="🥇" FontSize="24" HorizontalTextAlignment="Center" />
                         <Label x:Name="GoldCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                         <Label Text="Gold" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
@@ -50,7 +62,7 @@
 
                 <Border Grid.Column="3" Style="{StaticResource CardBorderStyle}">
                     <VerticalStackLayout Padding="12" Spacing="4">
-                        <Label Text="??" FontSize="24" HorizontalTextAlignment="Center" />
+                        <Label Text="💎" FontSize="24" HorizontalTextAlignment="Center" />
                         <Label x:Name="PlatinumCountLabel" Text="0" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                         <Label Text="Platinum" Style="{StaticResource CaptionStyle}" HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>

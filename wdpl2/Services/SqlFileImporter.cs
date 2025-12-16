@@ -21,6 +21,7 @@ namespace Wdpl2.Services
             public int ResultsImported { get; set; }
             public int FramesImported { get; set; }
             public int VenuesImported { get; set; }
+            public int CompetitionsImported { get; set; }
             
             // Skipped counts (duplicates)
             public int TeamsSkipped { get; set; }
@@ -28,6 +29,7 @@ namespace Wdpl2.Services
             public int FixturesSkipped { get; set; }
             public int ResultsSkipped { get; set; }
             public int VenuesSkipped { get; set; }
+            public int CompetitionsSkipped { get; set; }
             
             // Updated counts (re-imports)
             public int FixturesUpdated { get; set; }
@@ -38,11 +40,14 @@ namespace Wdpl2.Services
             public List<Guid> ImportedPlayerIds { get; } = new();
             public List<Guid> ImportedFixtureIds { get; } = new();
             public List<Guid> ImportedVenueIds { get; } = new();
+            public List<Guid> ImportedCompetitionIds { get; } = new();
 
             // VBA ID mappings for reference
             public Dictionary<int, Guid> VbaTeamIdToGuid { get; set; } = new();
-            public Dictionary<int, Guid> VbaPlayerIdToGuid { get; set; } = new();
+            public Dictionary<int, Guid> VbaPlayerIdToGuid { get; } = new();
+            public Dictionary<int, Guid> VbaDivisionIdToGuid { get; } = new();
             public Dictionary<string, Guid> VenueNameToGuid { get; set; } = new();
+            public Dictionary<int, Guid> VbaCompetitionIdToGuid { get; } = new();
             
             // Name mappings from SQL data
             public Dictionary<int, string> VbaPlayerIdToName { get; set; } = new();
@@ -56,6 +61,7 @@ namespace Wdpl2.Services
                 $"?? Venues: {VenuesImported} imported" + (VenuesSkipped > 0 ? $", {VenuesSkipped} skipped" : "") + "\n" +
                 $"?? Results: {ResultsImported} matches" + (FixturesUpdated > 0 ? $" ({FixturesUpdated} updated)" : "") + "\n" +
                 $"?? Frames: {FramesImported}\n" +
+                $"?? Competitions: {CompetitionsImported} imported" + (CompetitionsSkipped > 0 ? $", {CompetitionsSkipped} skipped" : "") + "\n" +
                 $"?? Warnings: {Warnings.Count}\n" +
                 $"? Errors: {Errors.Count}";
         }
@@ -159,15 +165,22 @@ namespace Wdpl2.Services
                     data.TeamIdToName[teamId] = teamName.Trim();
                 }
 
-                // Get venue name
+                // Get venue name - try multiple column names
                 var venueName = GetStringValue(row, "VenueName", "");
+                if (string.IsNullOrWhiteSpace(venueName))
+                    venueName = GetStringValue(row, "Venue", "");
                 if (!string.IsNullOrWhiteSpace(venueName))
                 {
                     data.TeamIdToVenue[teamId] = venueName.Trim();
                 }
 
-                // Get division
+                // Get division - try multiple column names
                 var divisionId = GetIntValue(row, "Division", 0);
+                if (divisionId <= 0)
+                    divisionId = GetIntValue(row, "DivisionID", 0);
+                if (divisionId <= 0)
+                    divisionId = GetIntValue(row, "Div", 0);
+                    
                 if (divisionId > 0)
                 {
                     data.TeamIdToDivision[teamId] = divisionId;
@@ -301,6 +314,9 @@ namespace Wdpl2.Services
                     await ImportPlayers(parsed, importedData, existingData, result);
                     await ImportFixtures(parsed.Tables, importedData, existingData, result);
                     await ImportResults(parsed.Tables, importedData, existingData, result);
+                    
+                    // Import competitions (after players/teams are imported so we can link participants)
+                    await ImportCompetitions(parsed.Tables, importedData, existingData, result);
                 }
                 else
                 {
@@ -573,17 +589,30 @@ namespace Wdpl2.Services
             var seasonYear = GetIntValue(leagueRow, "SeasonYear", DateTime.Now.Year);
             var fullSeasonName = $"{seasonName} {seasonYear}";
             
-            // Check if season already exists
+            // Check if season already exists - try multiple matching strategies
             var existingSeason = existingData.Seasons.FirstOrDefault(s => 
                 s.Name.Equals(fullSeasonName, StringComparison.OrdinalIgnoreCase));
-
-            if (existingSeason != null && !replaceExisting)
+            
+            // Also try matching just by year (common pattern for WDPL seasons)
+            if (existingSeason == null)
             {
-                result.Warnings.Add($"Season '{fullSeasonName}' already exists - using existing season");
+                existingSeason = existingData.Seasons.FirstOrDefault(s => 
+                    s.Name.Contains(seasonYear.ToString()) && 
+                    (s.Name.Contains("WDPL", StringComparison.OrdinalIgnoreCase) || 
+                     s.Name.Contains(seasonName, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (existingSeason != null)
+            {
+                // Use existing season - don't create a new one
+                result.Warnings.Add($"Season '{existingSeason.Name}' already exists - adding data to existing season");
                 result.DetectedSeason = existingSeason;
+                
+                // Don't add to importedData.Seasons or ImportedSeasonIds since we're using existing
                 return Task.CompletedTask;
             }
 
+            // Only create new season if it doesn't exist
             var season = new Season
             {
                 Id = Guid.NewGuid(),
@@ -619,9 +648,31 @@ namespace Wdpl2.Services
                 return Task.CompletedTask;
             }
 
+            // Clear and rebuild mapping from VBA division ID to GUID
+            result.VbaDivisionIdToGuid.Clear();
+            
+            // Debug: show columns in tbldivisions
+            if (tableData["tbldivisions"].Any())
+            {
+                var columns = string.Join(", ", tableData["tbldivisions"].First().Keys);
+                result.Warnings.Add($"tbldivisions columns: {columns}");
+                result.Warnings.Add($"Found {tableData["tbldivisions"].Count} divisions in SQL");
+            }
+
             foreach (var divRow in tableData["tbldivisions"])
             {
-                var divisionName = GetStringValue(divRow, "DivisionName", "Unknown Division");
+                // Try multiple column names for division ID
+                var vbaDivisionId = GetIntValue(divRow, "DivisionID", 0);
+                if (vbaDivisionId <= 0)
+                    vbaDivisionId = GetIntValue(divRow, "Division", 0);
+                if (vbaDivisionId <= 0)
+                    vbaDivisionId = GetIntValue(divRow, "ID", 0);
+                    
+                var divisionName = GetStringValue(divRow, "DivisionName", "");
+                if (string.IsNullOrWhiteSpace(divisionName))
+                    divisionName = GetStringValue(divRow, "Name", "Unknown Division");
+                
+                result.Warnings.Add($"Processing division: ID={vbaDivisionId}, Name='{divisionName}'");
                 
                 // Check if division already exists in this season
                 var existingDivision = existingData.Divisions.FirstOrDefault(d =>
@@ -631,7 +682,12 @@ namespace Wdpl2.Services
 
                 if (existingDivision != null)
                 {
-                    // Use existing division - don't create duplicate
+                    // Use existing division - map VBA ID to its GUID
+                    if (vbaDivisionId > 0)
+                    {
+                        result.VbaDivisionIdToGuid[vbaDivisionId] = existingDivision.Id;
+                        result.Warnings.Add($"Mapped existing division: VBA ID {vbaDivisionId} ? '{existingDivision.Name}' ({existingDivision.Id})");
+                    }
                     continue;
                 }
 
@@ -645,7 +701,20 @@ namespace Wdpl2.Services
                 importedData.Divisions.Add(division);
                 existingData.Divisions.Add(division);
                 result.ImportedDivisionIds.Add(division.Id);
+                
+                // Map VBA ID to new GUID
+                if (vbaDivisionId > 0)
+                {
+                    result.VbaDivisionIdToGuid[vbaDivisionId] = division.Id;
+                    result.Warnings.Add($"Created new division: VBA ID {vbaDivisionId} ? '{divisionName}' ({division.Id})");
+                }
+                else
+                {
+                    result.Warnings.Add($"WARNING: Division '{divisionName}' has no VBA ID - teams cannot be mapped to it!");
+                }
             }
+            
+            result.Warnings.Add($"Division mapping complete: {result.VbaDivisionIdToGuid.Count} VBA IDs mapped");
 
             return Task.CompletedTask;
         }
@@ -720,33 +789,98 @@ namespace Wdpl2.Services
         {
             var tableData = parsed.Tables;
             
-            // Get team IDs from fixtures (to know which teams we need)
-            if (!tableData.ContainsKey("tblfixtures"))
+            // Collect team IDs from multiple sources
+            var teamIds = new HashSet<int>();
+            
+            // Source 1: Get teams directly from tblteams (most reliable - has all teams with their divisions)
+            if (tableData.ContainsKey("tblteams"))
             {
-                result.Warnings.Add("No tblfixtures data found - cannot determine teams");
+                foreach (var teamRow in tableData["tblteams"])
+                {
+                    var teamId = GetIntValue(teamRow, "TeamID", 0);
+                    if (teamId > 0) teamIds.Add(teamId);
+                }
+                result.Warnings.Add($"Found {teamIds.Count} teams in tblteams table");
+                
+                // Debug: show columns in tblteams
+                if (tableData["tblteams"].Any())
+                {
+                    var columns = string.Join(", ", tableData["tblteams"].First().Keys);
+                    result.Warnings.Add($"tblteams columns: {columns}");
+                }
+            }
+            
+            // Source 2: Also get team IDs from fixtures (in case tblteams doesn't have all teams)
+            if (tableData.ContainsKey("tblfixtures"))
+            {
+                var fixtureTeamCount = 0;
+                foreach (var fixtureRow in tableData["tblfixtures"])
+                {
+                    var homeTeamId = GetIntValue(fixtureRow, "HomeTeam", 0);
+                    var awayTeamId = GetIntValue(fixtureRow, "AwayTeam", 0);
+                    
+                    if (homeTeamId > 0 && teamIds.Add(homeTeamId)) fixtureTeamCount++;
+                    if (awayTeamId > 0 && teamIds.Add(awayTeamId)) fixtureTeamCount++;
+                }
+                if (fixtureTeamCount > 0)
+                    result.Warnings.Add($"Found {fixtureTeamCount} additional teams from fixtures");
+            }
+            
+            // Source 3: Get team IDs from tblplayers (teams that have players but maybe no fixtures yet)
+            if (tableData.ContainsKey("tblplayers"))
+            {
+                var playerTeamCount = 0;
+                foreach (var playerRow in tableData["tblplayers"])
+                {
+                    var teamId = GetIntValue(playerRow, "Team", 0);
+                    if (teamId > 0 && teamIds.Add(teamId)) playerTeamCount++;
+                }
+                if (playerTeamCount > 0)
+                    result.Warnings.Add($"Found {playerTeamCount} additional teams from players");
+            }
+
+            if (!teamIds.Any())
+            {
+                result.Warnings.Add("No teams found in SQL data");
                 return Task.CompletedTask;
             }
 
-            var teamIds = new HashSet<int>();
-            foreach (var fixtureRow in tableData["tblfixtures"])
+            // Debug: Show TeamIdToDivision mapping
+            if (parsed.TeamIdToDivision.Any())
             {
-                var homeTeamId = GetIntValue(fixtureRow, "HomeTeam", 0);
-                var awayTeamId = GetIntValue(fixtureRow, "AwayTeam", 0);
-                
-                if (homeTeamId > 0) teamIds.Add(homeTeamId);
-                if (awayTeamId > 0) teamIds.Add(awayTeamId);
+                var divMappings = string.Join(", ", parsed.TeamIdToDivision.Select(kvp => $"Team{kvp.Key}?Div{kvp.Value}"));
+                result.Warnings.Add($"Team-Division mappings from SQL: {divMappings}");
+            }
+            else
+            {
+                result.Warnings.Add("WARNING: No team-to-division mappings found in tblteams! All teams will use default division.");
+            }
+            
+            // Debug: Show VbaDivisionIdToGuid mapping
+            if (result.VbaDivisionIdToGuid.Any())
+            {
+                var vbaDivs = string.Join(", ", result.VbaDivisionIdToGuid.Keys.OrderBy(k => k));
+                result.Warnings.Add($"VBA Division IDs mapped: {vbaDivs}");
+            }
+            else
+            {
+                result.Warnings.Add("WARNING: No VBA division ID mappings available!");
             }
 
-            // Use first division if available - check both importedData and existingData for re-imports
-            var divisionId = importedData.Divisions.FirstOrDefault()?.Id 
+            // Get default division (fallback if team doesn't have a division assigned)
+            var defaultDivisionId = importedData.Divisions.FirstOrDefault()?.Id 
                           ?? existingData.Divisions.FirstOrDefault(d => d.SeasonId == result.DetectedSeason?.Id)?.Id 
                           ?? Guid.Empty;
             
-            if (divisionId == Guid.Empty)
+            if (defaultDivisionId == Guid.Empty && !result.VbaDivisionIdToGuid.Any())
             {
                 result.Errors.Add("No division available for teams");
                 return Task.CompletedTask;
             }
+
+            // Track teams per division for reporting
+            var teamsPerDivision = new Dictionary<Guid, int>();
+            var teamsWithoutDivision = 0;
 
             foreach (var vbaTeamId in teamIds.OrderBy(id => id))
             {
@@ -779,11 +913,32 @@ namespace Wdpl2.Services
                     venueId = vGuid;
                 }
 
+                // Get correct division for this team
+                Guid? teamDivisionId = null;
+                if (parsed.TeamIdToDivision.TryGetValue(vbaTeamId, out var vbaDivId))
+                {
+                    if (result.VbaDivisionIdToGuid.TryGetValue(vbaDivId, out var divGuid))
+                    {
+                        teamDivisionId = divGuid;
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Team {teamName} (ID {vbaTeamId}) has division {vbaDivId} but no GUID mapping found");
+                    }
+                }
+                
+                // Fallback to default division if no division found
+                if (!teamDivisionId.HasValue)
+                {
+                    teamDivisionId = defaultDivisionId != Guid.Empty ? defaultDivisionId : null;
+                    teamsWithoutDivision++;
+                }
+
                 var team = new Team
                 {
                     Id = Guid.NewGuid(),
                     Name = teamName,
-                    DivisionId = divisionId,
+                    DivisionId = teamDivisionId,
                     SeasonId = result.DetectedSeason?.Id,
                     VenueId = venueId
                 };
@@ -793,12 +948,38 @@ namespace Wdpl2.Services
                 result.ImportedTeamIds.Add(team.Id);
                 result.VbaTeamIdToGuid[vbaTeamId] = team.Id;
                 result.TeamsImported++;
+                
+                // Track division count
+                if (teamDivisionId.HasValue)
+                {
+                    if (!teamsPerDivision.ContainsKey(teamDivisionId.Value))
+                        teamsPerDivision[teamDivisionId.Value] = 0;
+                    teamsPerDivision[teamDivisionId.Value]++;
+                }
+            }
+
+            // Report teams per division
+            if (teamsPerDivision.Any())
+            {
+                var divisionReport = string.Join(", ", teamsPerDivision.Select(kvp =>
+                {
+                    var divName = importedData.Divisions.FirstOrDefault(d => d.Id == kvp.Key)?.Name
+                               ?? existingData.Divisions.FirstOrDefault(d => d.Id == kvp.Key)?.Name
+                               ?? "Unknown";
+                    return $"{divName}: {kvp.Value}";
+                }));
+                result.Warnings.Add($"Teams by division: {divisionReport}");
+            }
+            
+            if (teamsWithoutDivision > 0)
+            {
+                result.Warnings.Add($"WARNING: {teamsWithoutDivision} teams had no division mapping and used default division");
             }
 
             // Only show warning if we had to use placeholder names
             var placeholderCount = teamIds.Count(id => !parsed.TeamIdToName.ContainsKey(id));
             if (placeholderCount > 0)
-                result.Warnings.Add($"{placeholderCount} teams imported with placeholder names (tblteams not found) - update names manually");
+                result.Warnings.Add($"{placeholderCount} teams imported with placeholder names (tblteams data missing) - update names manually");
 
             return Task.CompletedTask;
         }
@@ -962,79 +1143,233 @@ namespace Wdpl2.Services
             LeagueData existingData,
             SqlImportResult result)
         {
-            if (!tableData.ContainsKey("tblfixtures"))
-            {
-                result.Warnings.Add("No tblfixtures data found");
-                return Task.CompletedTask;
-            }
-
             if (result.DetectedSeason == null)
             {
                 result.Errors.Add("Cannot import fixtures without a season");
                 return Task.CompletedTask;
             }
 
-            // Get first division for fixtures - check existingData too for re-imports
-            var divisionId = importedData.Divisions.FirstOrDefault()?.Id 
-                          ?? existingData.Divisions.FirstOrDefault(d => d.SeasonId == result.DetectedSeason.Id)?.Id;
-
-            foreach (var fixtureRow in tableData["tblfixtures"])
+            // Build a lookup from tblmatchheader for division info (since tblfixtures doesn't have it)
+            var matchHeaderLookup = new Dictionary<int, (int weekNo, int division, int homeTeam, int awayTeam)>();
+            if (tableData.ContainsKey("tblmatchheader"))
             {
-                var vbaHomeTeamId = GetIntValue(fixtureRow, "HomeTeam", 0);
-                var vbaAwayTeamId = GetIntValue(fixtureRow, "AwayTeam", 0);
-                var weekNo = GetIntValue(fixtureRow, "WeekNo", 0);
-                var matchDate = GetDateTimeValue(fixtureRow, "MatchDate", result.DetectedSeason.StartDate);
-
-                if (!result.VbaTeamIdToGuid.ContainsKey(vbaHomeTeamId) || 
-                    !result.VbaTeamIdToGuid.ContainsKey(vbaAwayTeamId))
+                foreach (var header in tableData["tblmatchheader"])
                 {
-                    var homeTeamName = result.VbaTeamIdToName.TryGetValue(vbaHomeTeamId, out var h) ? h : $"Team {vbaHomeTeamId}";
-                    var awayTeamName = result.VbaTeamIdToName.TryGetValue(vbaAwayTeamId, out var a) ? a : $"Team {vbaAwayTeamId}";
-                    result.Warnings.Add($"Skipping fixture with unknown teams: {homeTeamName} vs {awayTeamName}");
-                    continue;
-                }
-
-                var homeTeamId = result.VbaTeamIdToGuid[vbaHomeTeamId];
-                var awayTeamId = result.VbaTeamIdToGuid[vbaAwayTeamId];
-
-                // Check for existing fixture (same date + teams)
-                var existingFixture = existingData.Fixtures.FirstOrDefault(f =>
-                    f.SeasonId == result.DetectedSeason.Id &&
-                    f.Date.Date == matchDate.Date &&
-                    f.HomeTeamId == homeTeamId &&
-                    f.AwayTeamId == awayTeamId);
-
-                if (existingFixture != null)
-                {
-                    // Fixture exists - add to importedData for result processing
-                    // This allows results to be updated on existing fixtures
-                    if (!importedData.Fixtures.Contains(existingFixture))
+                    var matchNo = GetIntValue(header, "MatchNo", 0);
+                    var weekNo = GetIntValue(header, "WeekNo", 0);
+                    var division = GetIntValue(header, "Division", 0);
+                    var homeTeam = GetIntValue(header, "TeamHome", 0);
+                    var awayTeam = GetIntValue(header, "TeamAway", 0);
+                    
+                    if (matchNo > 0)
                     {
-                        importedData.Fixtures.Add(existingFixture);
+                        matchHeaderLookup[matchNo] = (weekNo, division, homeTeam, awayTeam);
                     }
-                    result.FixturesSkipped++;
-                    continue;
                 }
+                result.Warnings.Add($"Found {matchHeaderLookup.Count} match headers with division info");
+            }
 
-                // Get venue from home team
-                var homeTeam = importedData.Teams.FirstOrDefault(t => t.Id == homeTeamId) ??
-                               existingData.Teams.FirstOrDefault(t => t.Id == homeTeamId);
-
-                var fixture = new Fixture
+            // Try tblfixtures first (for scheduled matches)
+            if (tableData.ContainsKey("tblfixtures"))
+            {
+                foreach (var fixtureRow in tableData["tblfixtures"])
                 {
-                    Id = Guid.NewGuid(),
-                    SeasonId = result.DetectedSeason.Id,
-                    DivisionId = divisionId,
-                    HomeTeamId = homeTeamId,
-                    AwayTeamId = awayTeamId,
-                    VenueId = homeTeam?.VenueId,
-                    Date = matchDate
-                };
+                    var fixtureId = GetIntValue(fixtureRow, "FixtureID", 0);
+                    var vbaHomeTeamId = GetIntValue(fixtureRow, "HomeTeam", 0);
+                    var vbaAwayTeamId = GetIntValue(fixtureRow, "AwayTeam", 0);
+                    var weekNo = GetIntValue(fixtureRow, "WeekNo", 0);
+                    var matchNo = GetIntValue(fixtureRow, "MatchNo", fixtureId); // MatchNo often same as FixtureID
+                    var matchDate = GetDateTimeValue(fixtureRow, "MatchDate", result.DetectedSeason.StartDate);
+                    
+                    // Get division from fixture row first (if it has it)
+                    var vbaDivisionId = GetIntValue(fixtureRow, "Division", 0);
+                    
+                    // If no division in fixture, try to find it from tblmatchheader using MatchNo or by team matching
+                    if (vbaDivisionId <= 0)
+                    {
+                        // First try direct MatchNo lookup
+                        if (matchHeaderLookup.TryGetValue(matchNo, out var headerInfo))
+                        {
+                            vbaDivisionId = headerInfo.division;
+                        }
+                        else
+                        {
+                            // Try to find by team matching
+                            var matchingHeader = matchHeaderLookup.Values
+                                .FirstOrDefault(h => h.homeTeam == vbaHomeTeamId && h.awayTeam == vbaAwayTeamId);
+                            if (matchingHeader != default)
+                            {
+                                vbaDivisionId = matchingHeader.division;
+                            }
+                        }
+                    }
 
-                importedData.Fixtures.Add(fixture);
-                existingData.Fixtures.Add(fixture);
-                result.ImportedFixtureIds.Add(fixture.Id);
-                result.FixturesImported++;
+                    if (!result.VbaTeamIdToGuid.ContainsKey(vbaHomeTeamId) || 
+                        !result.VbaTeamIdToGuid.ContainsKey(vbaAwayTeamId))
+                    {
+                        var homeTeamName = result.VbaTeamIdToName.TryGetValue(vbaHomeTeamId, out var h) ? h : $"Team {vbaHomeTeamId}";
+                        var awayTeamName = result.VbaTeamIdToName.TryGetValue(vbaAwayTeamId, out var a) ? a : $"Team {vbaAwayTeamId}";
+                        result.Warnings.Add($"Skipping fixture with unknown teams: {homeTeamName} vs {awayTeamName}");
+                        continue;
+                    }
+
+                    var homeTeamId = result.VbaTeamIdToGuid[vbaHomeTeamId];
+                    var awayTeamId = result.VbaTeamIdToGuid[vbaAwayTeamId];
+
+                    // Get the correct division GUID for this fixture
+                    Guid? divisionId = null;
+                    if (vbaDivisionId > 0 && result.VbaDivisionIdToGuid.TryGetValue(vbaDivisionId, out var divGuid))
+                    {
+                        divisionId = divGuid;
+                    }
+                    else
+                    {
+                        // Fallback: get division from home team
+                        var homeTeam = importedData.Teams.FirstOrDefault(t => t.Id == homeTeamId) ??
+                                       existingData.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+                        divisionId = homeTeam?.DivisionId;
+                    }
+
+                    // Final fallback to first division if still null
+                    if (!divisionId.HasValue)
+                    {
+                        divisionId = importedData.Divisions.FirstOrDefault()?.Id 
+                                  ?? existingData.Divisions.FirstOrDefault(d => d.SeasonId == result.DetectedSeason.Id)?.Id;
+                    }
+
+                    // Check for existing fixture (same date + teams)
+                    var existingFixture = existingData.Fixtures.FirstOrDefault(f =>
+                        f.SeasonId == result.DetectedSeason.Id &&
+                        f.Date.Date == matchDate.Date &&
+                        f.HomeTeamId == homeTeamId &&
+                        f.AwayTeamId == awayTeamId);
+
+                    if (existingFixture != null)
+                    {
+                        // Fixture exists - add to importedData for result processing
+                        if (!importedData.Fixtures.Contains(existingFixture))
+                        {
+                            importedData.Fixtures.Add(existingFixture);
+                        }
+                        result.FixturesSkipped++;
+                        continue;
+                    }
+
+                    // Get venue from home team
+                    var homeTeamForVenue = importedData.Teams.FirstOrDefault(t => t.Id == homeTeamId) ??
+                                   existingData.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+
+                    var fixture = new Fixture
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = result.DetectedSeason.Id,
+                        DivisionId = divisionId,
+                        HomeTeamId = homeTeamId,
+                        AwayTeamId = awayTeamId,
+                        VenueId = homeTeamForVenue?.VenueId,
+                        Date = matchDate
+                    };
+
+                    importedData.Fixtures.Add(fixture);
+                    existingData.Fixtures.Add(fixture);
+                    result.ImportedFixtureIds.Add(fixture.Id);
+                    result.FixturesImported++;
+                }
+            }
+            
+            // Also create fixtures from tblmatchheader if they don't exist yet
+            // This handles cases where tblmatchheader has matches that aren't in tblfixtures
+            if (tableData.ContainsKey("tblmatchheader"))
+            {
+                foreach (var header in tableData["tblmatchheader"])
+                {
+                    var matchNo = GetIntValue(header, "MatchNo", 0);
+                    var weekNo = GetIntValue(header, "WeekNo", 0);
+                    var vbaDivisionId = GetIntValue(header, "Division", 0);
+                    var vbaHomeTeamId = GetIntValue(header, "TeamHome", 0);
+                    var vbaAwayTeamId = GetIntValue(header, "TeamAway", 0);
+                    
+                    if (!result.VbaTeamIdToGuid.ContainsKey(vbaHomeTeamId) || 
+                        !result.VbaTeamIdToGuid.ContainsKey(vbaAwayTeamId))
+                    {
+                        continue; // Skip unknown teams
+                    }
+
+                    var homeTeamId = result.VbaTeamIdToGuid[vbaHomeTeamId];
+                    var awayTeamId = result.VbaTeamIdToGuid[vbaAwayTeamId];
+                    
+                    // Check if fixture already exists (from tblfixtures or previous import)
+                    var existingFixture = existingData.Fixtures.FirstOrDefault(f =>
+                        f.SeasonId == result.DetectedSeason.Id &&
+                        f.HomeTeamId == homeTeamId &&
+                        f.AwayTeamId == awayTeamId);
+                    
+                    if (existingFixture != null)
+                    {
+                        // Make sure it's in importedData for result processing
+                        if (!importedData.Fixtures.Contains(existingFixture))
+                        {
+                            importedData.Fixtures.Add(existingFixture);
+                        }
+                        continue; // Already have this fixture
+                    }
+                    
+                    // Get division GUID
+                    Guid? divisionId = null;
+                    if (vbaDivisionId > 0 && result.VbaDivisionIdToGuid.TryGetValue(vbaDivisionId, out var divGuid))
+                    {
+                        divisionId = divGuid;
+                    }
+                    else
+                    {
+                        var homeTeam = importedData.Teams.FirstOrDefault(t => t.Id == homeTeamId) ??
+                                       existingData.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+                        divisionId = homeTeam?.DivisionId;
+                    }
+                    
+                    if (!divisionId.HasValue)
+                    {
+                        divisionId = importedData.Divisions.FirstOrDefault()?.Id 
+                                  ?? existingData.Divisions.FirstOrDefault(d => d.SeasonId == result.DetectedSeason.Id)?.Id;
+                    }
+                    
+                    // Try to get match date from tblmatchdates by week number
+                    var matchDate = result.DetectedSeason.StartDate;
+                    if (tableData.ContainsKey("tblmatchdates"))
+                    {
+                        var matchDateRow = tableData["tblmatchdates"].FirstOrDefault(md => 
+                            GetIntValue(md, "week", 0) == weekNo || 
+                            GetIntValue(md, "WeekNo", 0) == weekNo);
+                        if (matchDateRow != null)
+                        {
+                            matchDate = GetDateTimeValue(matchDateRow, "MatchDate", matchDate);
+                        }
+                    }
+                    
+                    var homeTeamForVenue = importedData.Teams.FirstOrDefault(t => t.Id == homeTeamId) ??
+                                   existingData.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+
+                    var fixture = new Fixture
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = result.DetectedSeason.Id,
+                        DivisionId = divisionId,
+                        HomeTeamId = homeTeamId,
+                        AwayTeamId = awayTeamId,
+                        VenueId = homeTeamForVenue?.VenueId,
+                        Date = matchDate
+                    };
+
+                    importedData.Fixtures.Add(fixture);
+                    existingData.Fixtures.Add(fixture);
+                    result.ImportedFixtureIds.Add(fixture.Id);
+                    result.FixturesImported++;
+                }
+            }
+
+            if (!tableData.ContainsKey("tblfixtures") && !tableData.ContainsKey("tblmatchheader"))
+            {
+                result.Warnings.Add("No tblfixtures or tblmatchheader data found");
             }
 
             return Task.CompletedTask;
@@ -1161,8 +1496,8 @@ namespace Wdpl2.Services
                     if (frameNo <= 0) continue;
                     
                     // Get player IDs
-                    var vbaPlayer1Id = GetIntValue(frameRow, "Player1", GetIntValue(frameRow, "PlayerID", 0));
-                    var vbaPlayer2Id = GetIntValue(frameRow, "Player2", GetIntValue(frameRow, "Played", 0));
+                    var vbaPlayer1Id = GetIntValue(frameRow, "Player1", 0);
+                    var vbaPlayer2Id = GetIntValue(frameRow, "Player2", 0);
                     
                     // Skip void frames (player ID 0)
                     if (vbaPlayer1Id <= 0 || vbaPlayer2Id <= 0)
@@ -1255,6 +1590,416 @@ namespace Wdpl2.Services
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Import competitions from SQL data
+        /// Looks for tables like: tblcompetitions, competitions, tblcups, cups, tournaments
+        /// </summary>
+        private static Task ImportCompetitions(
+            Dictionary<string, List<Dictionary<string, string>>> tableData,
+            LeagueData importedData,
+            LeagueData existingData,
+            SqlImportResult result)
+        {
+            if (result.DetectedSeason == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            // Try to find competition table (various naming conventions)
+            var competitionTableNames = new[] { "tblcompetitions", "competitions", "tblcups", "cups", "tournaments", "tblcup", "tbltournament" };
+            string? foundTableName = null;
+            
+            foreach (var tableName in competitionTableNames)
+            {
+                if (tableData.ContainsKey(tableName))
+                {
+                    foundTableName = tableName;
+                    break;
+                }
+            }
+
+            if (foundTableName == null)
+            {
+                // Also try to detect competitions from result text patterns
+                DetectCompetitionsFromText(tableData, importedData, existingData, result);
+                return Task.CompletedTask;
+            }
+
+            result.Warnings.Add($"Found competition data in table: {foundTableName}");
+
+            foreach (var compRow in tableData[foundTableName])
+            {
+                try
+                {
+                    // Try to get competition ID
+                    var vbaCompId = GetIntValue(compRow, "CompetitionID", 0);
+                    if (vbaCompId <= 0)
+                        vbaCompId = GetIntValue(compRow, "CupID", 0);
+                    if (vbaCompId <= 0)
+                        vbaCompId = GetIntValue(compRow, "TournamentID", 0);
+                    if (vbaCompId <= 0)
+                        vbaCompId = GetIntValue(compRow, "ID", 0);
+
+                    // Get competition name
+                    var compName = GetStringValue(compRow, "CompetitionName", "");
+                    if (string.IsNullOrWhiteSpace(compName))
+                        compName = GetStringValue(compRow, "CupName", "");
+                    if (string.IsNullOrWhiteSpace(compName))
+                        compName = GetStringValue(compRow, "TournamentName", "");
+                    if (string.IsNullOrWhiteSpace(compName))
+                        compName = GetStringValue(compRow, "Name", "");
+                    if (string.IsNullOrWhiteSpace(compName))
+                        compName = $"Competition {vbaCompId}";
+
+                    // Check if competition already exists
+                    var existingComp = existingData.Competitions?.FirstOrDefault(c =>
+                        c.SeasonId == result.DetectedSeason.Id &&
+                        !string.IsNullOrWhiteSpace(c.Name) &&
+                        c.Name.Equals(compName, StringComparison.OrdinalIgnoreCase));
+
+                    if (existingComp != null)
+                    {
+                        if (vbaCompId > 0)
+                            result.VbaCompetitionIdToGuid[vbaCompId] = existingComp.Id;
+                        result.CompetitionsSkipped++;
+                        continue;
+                    }
+
+                    // Determine competition format
+                    var formatStr = GetStringValue(compRow, "Format", "").ToLower();
+                    var typeStr = GetStringValue(compRow, "Type", "").ToLower();
+                    var competitionFormat = DetermineCompetitionFormat(formatStr, typeStr, compName);
+
+                    // Get competition date
+                    var compDate = GetDateTimeValue(compRow, "Date", DateTime.MinValue);
+                    if (compDate == DateTime.MinValue)
+                        compDate = GetDateTimeValue(compRow, "StartDate", DateTime.MinValue);
+
+                    // Get winner information
+                    var winnerId = GetIntValue(compRow, "WinnerID", 0);
+                    if (winnerId <= 0)
+                        winnerId = GetIntValue(compRow, "Winner", 0);
+                    var winnerName = GetStringValue(compRow, "WinnerName", "");
+                    
+                    var runnerUpId = GetIntValue(compRow, "RunnerUpID", 0);
+                    if (runnerUpId <= 0)
+                        runnerUpId = GetIntValue(compRow, "RunnerUp", 0);
+                    var runnerUpName = GetStringValue(compRow, "RunnerUpName", "");
+
+                    // Create competition
+                    var competition = new Competition
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = compName,
+                        SeasonId = result.DetectedSeason.Id,
+                        Format = competitionFormat,
+                        Status = CompetitionStatus.Completed, // Historical data is always completed
+                        StartDate = compDate != DateTime.MinValue ? compDate : null,
+                        CreatedDate = DateTime.Now,
+                        Notes = BuildCompetitionNotes(compRow, winnerName, runnerUpName)
+                    };
+
+                    // Try to find winner/runner-up GUIDs
+                    Guid? winnerGuid = null;
+                    Guid? runnerUpGuid = null;
+
+                    if (winnerId > 0 && result.VbaPlayerIdToGuid.TryGetValue(winnerId, out var wGuid))
+                    {
+                        winnerGuid = wGuid;
+                        competition.ParticipantIds.Add(wGuid);
+                    }
+
+                    if (runnerUpId > 0 && result.VbaPlayerIdToGuid.TryGetValue(runnerUpId, out var rGuid))
+                    {
+                        runnerUpGuid = rGuid;
+                        competition.ParticipantIds.Add(rGuid);
+                    }
+
+                    // Create final round with result if we have winner info
+                    if (winnerGuid.HasValue || !string.IsNullOrEmpty(winnerName))
+                    {
+                        var finalRound = new CompetitionRound
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = "Final",
+                            RoundNumber = 1
+                        };
+
+                        var finalMatch = new CompetitionMatch
+                        {
+                            Id = Guid.NewGuid(),
+                            Participant1Id = winnerGuid,
+                            Participant2Id = runnerUpGuid,
+                            WinnerId = winnerGuid,
+                            IsComplete = true,
+                            ScheduledDate = compDate != DateTime.MinValue ? compDate : null,
+                            Notes = !string.IsNullOrEmpty(winnerName) ? $"Winner: {winnerName}" : null
+                        };
+
+                        // Try to get final score
+                        var winnerScore = GetIntValue(compRow, "WinnerScore", 0);
+                        var runnerUpScore = GetIntValue(compRow, "RunnerUpScore", 0);
+                        if (winnerScore > 0 || runnerUpScore > 0)
+                        {
+                            finalMatch.Participant1Score = winnerScore;
+                            finalMatch.Participant2Score = runnerUpScore;
+                        }
+
+                        finalRound.Matches.Add(finalMatch);
+                        competition.Rounds.Add(finalRound);
+                    }
+
+                    // Add to data
+                    importedData.Competitions ??= new List<Competition>();
+                    existingData.Competitions ??= new List<Competition>();
+                    
+                    importedData.Competitions.Add(competition);
+                    existingData.Competitions.Add(competition);
+                    result.ImportedCompetitionIds.Add(competition.Id);
+                    
+                    if (vbaCompId > 0)
+                        result.VbaCompetitionIdToGuid[vbaCompId] = competition.Id;
+                    
+                    result.CompetitionsImported++;
+                }
+                catch (Exception ex)
+                {
+                    result.Warnings.Add($"Error importing competition: {ex.Message}");
+                }
+            }
+
+            // Also try to import competition results from separate results table
+            ImportCompetitionResults(tableData, importedData, existingData, result);
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Import competition results from tables like tblcupresults, cupresults, etc.
+        /// </summary>
+        private static void ImportCompetitionResults(
+            Dictionary<string, List<Dictionary<string, string>>> tableData,
+            LeagueData importedData,
+            LeagueData existingData,
+            SqlImportResult result)
+        {
+            var resultTableNames = new[] { "tblcupresults", "cupresults", "tblcompetitionresults", "competitionresults", "tblcupmatch", "cupmatch" };
+            string? foundTableName = null;
+            
+            foreach (var tableName in resultTableNames)
+            {
+                if (tableData.ContainsKey(tableName))
+                {
+                    foundTableName = tableName;
+                    break;
+                }
+            }
+
+            if (foundTableName == null)
+                return;
+
+            result.Warnings.Add($"Found competition results in table: {foundTableName}");
+
+            // Group results by competition
+            var resultsByComp = tableData[foundTableName]
+                .GroupBy(r => GetIntValue(r, "CompetitionID", GetIntValue(r, "CupID", 0)))
+                .Where(g => g.Key > 0)
+                .ToList();
+
+            foreach (var compGroup in resultsByComp)
+            {
+                var vbaCompId = compGroup.Key;
+                
+                // Find the competition
+                Competition? competition = null;
+                if (result.VbaCompetitionIdToGuid.TryGetValue(vbaCompId, out var compGuid))
+                {
+                    competition = existingData.Competitions?.FirstOrDefault(c => c.Id == compGuid);
+                }
+
+                if (competition == null)
+                    continue;
+
+                // Process rounds
+                var roundGroups = compGroup
+                    .GroupBy(r => GetIntValue(r, "Round", GetIntValue(r, "RoundNo", 1)))
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                foreach (var roundGroup in roundGroups)
+                {
+                    var roundNo = roundGroup.Key;
+                    var roundName = GetRoundName(roundNo, roundGroups.Count);
+
+                    var round = new CompetitionRound
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = roundName,
+                        RoundNumber = roundNo
+                    };
+
+                    foreach (var matchRow in roundGroup)
+                    {
+                        var player1VbaId = GetIntValue(matchRow, "Player1", GetIntValue(matchRow, "HomePlayer", 0));
+                        var player2VbaId = GetIntValue(matchRow, "Player2", GetIntValue(matchRow, "AwayPlayer", 0));
+                        var winnerVbaId = GetIntValue(matchRow, "Winner", GetIntValue(matchRow, "WinnerID", 0));
+                        var score1 = GetIntValue(matchRow, "Score1", GetIntValue(matchRow, "HomeScore", 0));
+                        var score2 = GetIntValue(matchRow, "Score2", GetIntValue(matchRow, "AwayScore", 0));
+
+                        Guid? p1Guid = player1VbaId > 0 && result.VbaPlayerIdToGuid.TryGetValue(player1VbaId, out var p1) ? p1 : null;
+                        Guid? p2Guid = player2VbaId > 0 && result.VbaPlayerIdToGuid.TryGetValue(player2VbaId, out var p2) ? p2 : null;
+                        Guid? winnerGuid = winnerVbaId > 0 && result.VbaPlayerIdToGuid.TryGetValue(winnerVbaId, out var w) ? w : null;
+
+                        // If no explicit winner, determine from score
+                        if (!winnerGuid.HasValue && (score1 > 0 || score2 > 0))
+                        {
+                            winnerGuid = score1 > score2 ? p1Guid : (score2 > score1 ? p2Guid : null);
+                        }
+
+                        var match = new CompetitionMatch
+                        {
+                            Id = Guid.NewGuid(),
+                            Participant1Id = p1Guid,
+                            Participant2Id = p2Guid,
+                            WinnerId = winnerGuid,
+                            Participant1Score = score1,
+                            Participant2Score = score2,
+                            IsComplete = winnerGuid.HasValue || score1 > 0 || score2 > 0
+                        };
+
+                        round.Matches.Add(match);
+
+                        // Add participants to competition
+                        if (p1Guid.HasValue && !competition.ParticipantIds.Contains(p1Guid.Value))
+                            competition.ParticipantIds.Add(p1Guid.Value);
+                        if (p2Guid.HasValue && !competition.ParticipantIds.Contains(p2Guid.Value))
+                            competition.ParticipantIds.Add(p2Guid.Value);
+                    }
+
+                    if (round.Matches.Any())
+                    {
+                        competition.Rounds.Add(round);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Try to detect competitions from text patterns in other tables (like tblleague notes)
+        /// </summary>
+        private static void DetectCompetitionsFromText(
+            Dictionary<string, List<Dictionary<string, string>>> tableData,
+            LeagueData importedData,
+            LeagueData existingData,
+            SqlImportResult result)
+        {
+            // Common competition names to look for
+            var competitionPatterns = new Dictionary<string, CompetitionFormat>
+            {
+                { @"singles\s+(champion|knockout|cup|trophy)", CompetitionFormat.SinglesKnockout },
+                { @"doubles\s+(champion|knockout|cup|trophy)", CompetitionFormat.DoublesKnockout },
+                { @"team\s+(knockout|cup)", CompetitionFormat.TeamKnockout },
+                { @"chairman'?s?\s+cup", CompetitionFormat.TeamKnockout },
+                { @"8\s*ball(er)?\s+(trophy|champion)", CompetitionFormat.SinglesKnockout },
+                { @"plate\s+(competition|trophy|cup)", CompetitionFormat.SinglesKnockout },
+                { @"pairs\s+(competition|trophy|cup)", CompetitionFormat.DoublesKnockout }
+            };
+
+            // Look through all text fields in all tables
+            foreach (var table in tableData)
+            {
+                foreach (var row in table.Value)
+                {
+                    foreach (var field in row.Values)
+                    {
+                        if (string.IsNullOrWhiteSpace(field)) continue;
+
+                        foreach (var pattern in competitionPatterns)
+                        {
+                            var match = Regex.Match(field, pattern.Key, RegexOptions.IgnoreCase);
+                            if (match.Success)
+                            {
+                                var compName = match.Value.Trim();
+                                
+                                // Check if we already have this competition
+                                var existing = existingData.Competitions?.Any(c =>
+                                    c.SeasonId == result.DetectedSeason?.Id &&
+                                    c.Name?.Contains(compName, StringComparison.OrdinalIgnoreCase) == true);
+
+                                if (existing != true)
+                                {
+                                    result.Warnings.Add($"Detected competition reference: '{compName}' - consider adding manually via Historical Competitions import");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Determine competition format from string hints
+        /// </summary>
+        private static CompetitionFormat DetermineCompetitionFormat(string formatStr, string typeStr, string name)
+        {
+            var combined = $"{formatStr} {typeStr} {name}".ToLower();
+
+            if (combined.Contains("double") || combined.Contains("pairs"))
+                return CompetitionFormat.DoublesKnockout;
+            
+            if (combined.Contains("team") || combined.Contains("chairman"))
+                return CompetitionFormat.TeamKnockout;
+            
+            if (combined.Contains("round robin") || combined.Contains("league"))
+                return CompetitionFormat.RoundRobin;
+            
+            if (combined.Contains("group"))
+                return CompetitionFormat.SinglesGroupStage;
+            
+            // Default to singles knockout
+            return CompetitionFormat.SinglesKnockout;
+        }
+
+        /// <summary>
+        /// Build notes string for imported competition
+        /// </summary>
+        private static string BuildCompetitionNotes(Dictionary<string, string> row, string winnerName, string runnerUpName)
+        {
+            var notes = new StringBuilder();
+            notes.AppendLine($"[Historical Import: {DateTime.Now:yyyy-MM-dd HH:mm}]");
+            
+            if (!string.IsNullOrEmpty(winnerName))
+                notes.AppendLine($"Winner: {winnerName}");
+            
+            if (!string.IsNullOrEmpty(runnerUpName))
+                notes.AppendLine($"Runner-up: {runnerUpName}");
+
+            // Add any other relevant fields
+            var venue = GetStringValue(row, "Venue", "");
+            if (!string.IsNullOrEmpty(venue))
+                notes.AppendLine($"Venue: {venue}");
+
+            return notes.ToString().Trim();
+        }
+
+        /// <summary>
+        /// Get round name from round number
+        /// </summary>
+        private static string GetRoundName(int roundNo, int totalRounds)
+        {
+            var roundsFromEnd = totalRounds - roundNo + 1;
+            
+            return roundsFromEnd switch
+            {
+                1 => "Final",
+                2 => "Semi-Finals",
+                3 => "Quarter-Finals",
+                4 => "Round of 16",
+                5 => "Round of 32",
+                _ => $"Round {roundNo}"
+            };
+        }
+
         // Helper methods
         private static int GetIntValue(Dictionary<string, string> row, string key, int defaultValue = 0)
         {
@@ -1281,6 +2026,7 @@ namespace Wdpl2.Services
         {
             // Remove in reverse order to maintain referential integrity
             // Note: Frames are part of fixtures, so they're removed when fixtures are removed
+            data.Competitions?.RemoveAll(c => result.ImportedCompetitionIds.Contains(c.Id));
             data.Fixtures.RemoveAll(f => result.ImportedFixtureIds.Contains(f.Id));
             data.Players.RemoveAll(p => result.ImportedPlayerIds.Contains(p.Id));
             data.Teams.RemoveAll(t => result.ImportedTeamIds.Contains(t.Id));

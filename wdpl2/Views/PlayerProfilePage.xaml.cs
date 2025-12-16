@@ -44,8 +44,9 @@ public partial class PlayerProfilePage : ContentPage
             }
 
             // Get all player instances across seasons
+            // Include players where GlobalPlayerId matches OR the ID itself matches (for players without GlobalPlayerId)
             var playerInstances = DataStore.Data.Players
-                .Where(p => p.GlobalPlayerId == _globalPlayerId)
+                .Where(p => p.GlobalPlayerId == _globalPlayerId || p.Id == _globalPlayerId)
                 .ToList();
 
             if (!playerInstances.Any())
@@ -53,6 +54,15 @@ public partial class PlayerProfilePage : ContentPage
                 StatusLabel.Text = "Player data not found";
                 return;
             }
+
+            // Also find players with the same name who might not have GlobalPlayerId set
+            var playerName = playerInstances.First().FullName;
+            var additionalPlayers = DataStore.Data.Players
+                .Where(p => !playerInstances.Any(pi => pi.Id == p.Id) && 
+                           p.FullName.Equals(playerName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            
+            playerInstances.AddRange(additionalPlayers);
 
             // Get all seasons this player played in
             var seasonIds = playerInstances.Select(p => p.SeasonId).Distinct().ToList();
@@ -68,13 +78,16 @@ public partial class PlayerProfilePage : ContentPage
             int total8Balls = 0;
 
             _seasonHistory.Clear();
+            
+            // Collect all player IDs for this person
+            var allPlayerIds = new HashSet<Guid>(playerInstances.Select(p => p.Id));
 
             foreach (var season in seasons)
             {
-                var playerInSeason = playerInstances.FirstOrDefault(p => p.SeasonId == season.Id);
-                if (playerInSeason == null) continue;
+                var playersInSeason = playerInstances.Where(p => p.SeasonId == season.Id).ToList();
+                if (!playersInSeason.Any()) continue;
 
-                var seasonStats = CalculateSeasonStats(playerInSeason, season);
+                var seasonStats = CalculateSeasonStats(playersInSeason, allPlayerIds, season);
                 if (seasonStats != null)
                 {
                     _seasonHistory.Add(seasonStats);
@@ -88,7 +101,7 @@ public partial class PlayerProfilePage : ContentPage
             // Update career summary
             CareerSpanLabel.Text = seasons.Count > 1 
                 ? $"Career: {seasons.Min(s => s.StartDate.Year)}-{seasons.Max(s => s.StartDate.Year)}"
-                : $"Career: {seasons.First().StartDate.Year}";
+                : seasons.Any() ? $"Career: {seasons.First().StartDate.Year}" : "Career: -";
 
             var currentPlayer = playerInstances.OrderByDescending(p => DataStore.Data.Seasons.FirstOrDefault(s => s.Id == p.SeasonId)?.StartDate).FirstOrDefault();
             var currentTeam = currentPlayer?.TeamId.HasValue == true ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == currentPlayer.TeamId) : null;
@@ -106,7 +119,7 @@ public partial class PlayerProfilePage : ContentPage
             var latestStats = _seasonHistory.FirstOrDefault();
             RatingLabel.Text = latestStats?.Rating.ToString() ?? "1000";
 
-            // Calculate head-to-head records
+            // Calculate head-to-head records (using all player IDs)
             CalculateHeadToHead(playerInstances);
 
             // Performance stats
@@ -119,7 +132,7 @@ public partial class PlayerProfilePage : ContentPage
             var mostActive = _seasonHistory.OrderByDescending(s => s.FramesPlayed).FirstOrDefault();
             MostActiveSeasonLabel.Text = mostActive != null ? $"{mostActive.SeasonName} ({mostActive.FramesPlayed} frames)" : "-";
 
-            double eightBallRate = totalFrames > 0 ? (double)total8Balls / totalWins * 100.0 : 0;
+            double eightBallRate = totalWins > 0 ? (double)total8Balls / totalWins * 100.0 : 0;
             EightBallRateLabel.Text = totalWins > 0 ? $"{eightBallRate:F1}% of wins" : "-";
 
             StatusLabel.Text = $"Loaded {seasons.Count} season(s)";
@@ -130,7 +143,7 @@ public partial class PlayerProfilePage : ContentPage
         }
     }
 
-    private SeasonHistory? CalculateSeasonStats(Player player, Season season)
+    private SeasonHistory? CalculateSeasonStats(List<Player> playersInSeason, HashSet<Guid> allPlayerIds, Season season)
     {
         var fixtures = DataStore.Data.Fixtures
             .Where(f => f.SeasonId == season.Id && f.Frames.Any())
@@ -145,7 +158,7 @@ public partial class PlayerProfilePage : ContentPage
         {
             foreach (var frame in fixture.Frames)
             {
-                if (frame.HomePlayerId == player.Id)
+                if (frame.HomePlayerId.HasValue && allPlayerIds.Contains(frame.HomePlayerId.Value))
                 {
                     framesPlayed++;
                     if (frame.Winner == FrameWinner.Home)
@@ -153,9 +166,12 @@ public partial class PlayerProfilePage : ContentPage
                         wins++;
                         if (frame.EightBall) eightBalls++;
                     }
-                    else losses++;
+                    else if (frame.Winner == FrameWinner.Away) 
+                    {
+                        losses++;
+                    }
                 }
-                else if (frame.AwayPlayerId == player.Id)
+                else if (frame.AwayPlayerId.HasValue && allPlayerIds.Contains(frame.AwayPlayerId.Value))
                 {
                     framesPlayed++;
                     if (frame.Winner == FrameWinner.Away)
@@ -163,13 +179,17 @@ public partial class PlayerProfilePage : ContentPage
                         wins++;
                         if (frame.EightBall) eightBalls++;
                     }
-                    else losses++;
+                    else if (frame.Winner == FrameWinner.Home)
+                    {
+                        losses++;
+                    }
                 }
             }
         }
 
         if (framesPlayed == 0) return null;
 
+        var player = playersInSeason.First();
         var team = player.TeamId.HasValue ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId) : null;
         var division = team?.DivisionId.HasValue ?? false ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == team.DivisionId) : null;
 

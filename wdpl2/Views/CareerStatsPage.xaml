@@ -12,7 +12,7 @@
         <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
             <Button 
                 x:Name="BurgerMenuBtn"
-                Text="?"
+                Text="☰"
                 FontSize="24"
                 WidthRequest="50"
                 HeightRequest="50"
@@ -188,7 +188,7 @@
                             VerticalOptions="Center"
                             Padding="20">
                             <Label 
-                                Text="[Stats]"
+                                Text="📊"
                                 FontSize="48"
                                 HorizontalTextAlignment="Center" />
                             <Label 
@@ -234,7 +234,7 @@
                         Padding="40"
                         IsVisible="True">
                         <Label 
-                            Text="[Trophy]"
+                            Text="🏆"
                             FontSize="64"
                             HorizontalTextAlignment="Center" />
                         <Label 

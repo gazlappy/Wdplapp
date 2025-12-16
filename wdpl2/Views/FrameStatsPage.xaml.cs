@@ -11,10 +11,10 @@ namespace Wdpl2.Views;
 
 public partial class FrameStatsPage : ContentPage
 {
-    private readonly ObservableCollection<Player> _players = new();
+    private readonly ObservableCollection<PlayerOption> _players = new();
     private readonly ObservableCollection<DayPerformance> _dayPerformance = new();
-    private Guid? _currentSeasonId;
-    private Player? _selectedPlayer;
+    private PlayerOption? _selectedPlayer;
+    private bool _allSeasonsMode = true;
 
     public FrameStatsPage()
     {
@@ -23,80 +23,159 @@ public partial class FrameStatsPage : ContentPage
         PlayerPicker.ItemsSource = _players;
         DayPerformanceList.ItemsSource = _dayPerformance;
         
-        SeasonService.SeasonChanged += OnSeasonChanged;
-        
         LoadPlayers();
-    }
-
-    ~FrameStatsPage()
-    {
-        SeasonService.SeasonChanged -= OnSeasonChanged;
-    }
-
-    private void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
-    {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            _currentSeasonId = e.NewSeasonId;
-            LoadPlayers();
-        });
     }
 
     private void LoadPlayers()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
-        
-        if (!_currentSeasonId.HasValue)
-        {
-            StatusLabel.Text = "No season selected";
-            return;
-        }
-
         _players.Clear();
-        var players = DataStore.Data.Players
-            .Where(p => p.SeasonId == _currentSeasonId)
-            .OrderBy(p => p.FullName)
-            .ToList();
+        
+        if (_allSeasonsMode)
+        {
+            // Group players - include those WITH GlobalPlayerId grouped together,
+            // AND those WITHOUT GlobalPlayerId individually
+            var playersWithGlobal = DataStore.Data.Players
+                .Where(p => p.GlobalPlayerId.HasValue)
+                .GroupBy(p => p.GlobalPlayerId!.Value)
+                .Select(g => new PlayerOption
+                {
+                    GlobalPlayerId = g.Key,
+                    DisplayName = g.First().FullName,
+                    SubText = $"{g.Count()} season(s)",
+                    PlayerIds = g.Select(p => p.Id).ToList()
+                })
+                .ToList();
 
-        foreach (var player in players)
-            _players.Add(player);
+            // Also include players without GlobalPlayerId (single season players)
+            var playersWithoutGlobal = DataStore.Data.Players
+                .Where(p => !p.GlobalPlayerId.HasValue)
+                .Select(p => new PlayerOption
+                {
+                    GlobalPlayerId = p.Id, // Use their own ID as identifier
+                    DisplayName = p.FullName,
+                    SubText = "1 season",
+                    PlayerIds = new List<Guid> { p.Id }
+                })
+                .ToList();
 
-        StatusLabel.Text = $"{_players.Count} player(s) available";
+            // Combine and sort, deduping by name
+            var allPlayers = playersWithGlobal
+                .Concat(playersWithoutGlobal)
+                .GroupBy(p => p.DisplayName.ToLower())
+                .Select(g => g.OrderByDescending(p => p.PlayerIds.Count).First())
+                .OrderBy(p => p.DisplayName)
+                .ToList();
+
+            foreach (var player in allPlayers)
+                _players.Add(player);
+            
+            StatusLabel.Text = $"{_players.Count} player(s) available (all seasons)";
+        }
+        else
+        {
+            // Current season only
+            var currentSeasonId = SeasonService.CurrentSeasonId;
+            if (!currentSeasonId.HasValue)
+            {
+                StatusLabel.Text = "No season selected";
+                return;
+            }
+
+            var players = DataStore.Data.Players
+                .Where(p => p.SeasonId == currentSeasonId)
+                .OrderBy(p => p.FullName)
+                .ToList();
+
+            foreach (var player in players)
+            {
+                _players.Add(new PlayerOption
+                {
+                    GlobalPlayerId = player.GlobalPlayerId ?? player.Id,
+                    DisplayName = player.FullName,
+                    SubText = "Current season",
+                    PlayerIds = new List<Guid> { player.Id }
+                });
+            }
+
+            StatusLabel.Text = $"{_players.Count} player(s) available";
+        }
     }
 
     private void OnPlayerSelected(object? sender, EventArgs e)
     {
-        _selectedPlayer = PlayerPicker.SelectedItem as Player;
+        _selectedPlayer = PlayerPicker.SelectedItem as PlayerOption;
         if (_selectedPlayer != null)
         {
             CalculateFrameStats();
         }
     }
 
+    private void OnAllSeasonsToggled(object? sender, ToggledEventArgs e)
+    {
+        _allSeasonsMode = e.Value;
+        _selectedPlayer = null;
+        PlayerPicker.SelectedItem = null;
+        _dayPerformance.Clear();
+        ClearStats();
+        LoadPlayers();
+    }
+
+    private void ClearStats()
+    {
+        FirstFrameLabel.Text = "-";
+        FirstFrameStatsLabel.Text = "";
+        LastFrameLabel.Text = "-";
+        LastFrameStatsLabel.Text = "";
+        ComebackLabel.Text = "-";
+        ComebackStatsLabel.Text = "";
+        BestOpponentLabel.Text = "-";
+        BestOpponentStatsLabel.Text = "";
+        BestVenueLabel.Text = "-";
+        BestVenueStatsLabel.Text = "";
+        CurrentStreakLabel.Text = "-";
+        LongestWinStreakLabel.Text = "-";
+        LongestLoseStreakLabel.Text = "-";
+    }
+
     private void CalculateFrameStats()
     {
-        if (_selectedPlayer == null || !_currentSeasonId.HasValue)
+        if (_selectedPlayer == null)
             return;
 
         try
         {
-            var fixtures = DataStore.Data.Fixtures
-                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
-                .OrderBy(f => f.Date)
-                .ToList();
+            var playerIdSet = new HashSet<Guid>(_selectedPlayer.PlayerIds);
+            
+            List<Fixture> fixtures;
+            if (_allSeasonsMode)
+            {
+                // Get ALL fixtures from ALL seasons
+                fixtures = DataStore.Data.Fixtures
+                    .Where(f => f.Frames.Any())
+                    .OrderBy(f => f.Date)
+                    .ToList();
+            }
+            else
+            {
+                var currentSeasonId = SeasonService.CurrentSeasonId;
+                fixtures = DataStore.Data.Fixtures
+                    .Where(f => f.SeasonId == currentSeasonId && f.Frames.Any())
+                    .OrderBy(f => f.Date)
+                    .ToList();
+            }
 
             // Track frames chronologically
-            var playerFrames = new System.Collections.Generic.List<(DateTime date, int frameNum, bool won, Guid? oppId, Guid? venueId)>();
+            var playerFrames = new List<(DateTime date, int frameNum, bool won, Guid? oppId, Guid? venueId)>();
 
             foreach (var fixture in fixtures)
             {
                 foreach (var frame in fixture.Frames.OrderBy(f => f.Number))
                 {
-                    if (frame.HomePlayerId == _selectedPlayer.Id)
+                    if (frame.HomePlayerId.HasValue && playerIdSet.Contains(frame.HomePlayerId.Value))
                     {
                         playerFrames.Add((fixture.Date, frame.Number, frame.Winner == FrameWinner.Home, frame.AwayPlayerId, fixture.VenueId));
                     }
-                    else if (frame.AwayPlayerId == _selectedPlayer.Id)
+                    else if (frame.AwayPlayerId.HasValue && playerIdSet.Contains(frame.AwayPlayerId.Value))
                     {
                         playerFrames.Add((fixture.Date, frame.Number, frame.Winner == FrameWinner.Away, frame.HomePlayerId, fixture.VenueId));
                     }
@@ -106,6 +185,7 @@ public partial class FrameStatsPage : ContentPage
             if (!playerFrames.Any())
             {
                 StatusLabel.Text = "No frame data available";
+                ClearStats();
                 return;
             }
 
@@ -158,6 +238,11 @@ public partial class FrameStatsPage : ContentPage
                 BestOpponentLabel.Text = opponent?.FullName ?? "Unknown";
                 BestOpponentStatsLabel.Text = $"{opponentStats.WinRate * 100:F1}% ({opponentStats.Wins}/{opponentStats.Total})";
             }
+            else
+            {
+                BestOpponentLabel.Text = "-";
+                BestOpponentStatsLabel.Text = "Min 5 frames required";
+            }
 
             // Best venue
             var venueStats = playerFrames
@@ -179,6 +264,11 @@ public partial class FrameStatsPage : ContentPage
                 var venue = DataStore.Data.Venues.FirstOrDefault(v => v.Id == venueStats.VenueId);
                 BestVenueLabel.Text = venue?.Name ?? "Unknown";
                 BestVenueStatsLabel.Text = $"{venueStats.WinRate * 100:F1}% ({venueStats.Wins}/{venueStats.Total})";
+            }
+            else
+            {
+                BestVenueLabel.Text = "-";
+                BestVenueStatsLabel.Text = "Min 3 frames required";
             }
 
             // Performance by day of week
@@ -230,7 +320,8 @@ public partial class FrameStatsPage : ContentPage
             LongestWinStreakLabel.Text = longestWinStreak.ToString();
             LongestLoseStreakLabel.Text = longestLoseStreak.ToString();
 
-            StatusLabel.Text = $"Analyzed {playerFrames.Count} frames";
+            var modeText = _allSeasonsMode ? "(All Seasons)" : "(Current Season)";
+            StatusLabel.Text = $"Analyzed {playerFrames.Count} frames {modeText}";
         }
         catch (Exception ex)
         {
@@ -247,7 +338,8 @@ public partial class FrameStatsPage : ContentPage
         }
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"=== FRAME STATISTICS: {_selectedPlayer.FullName} ===");
+        var modeText = _allSeasonsMode ? "ALL SEASONS" : "CURRENT SEASON";
+        sb.AppendLine($"=== FRAME STATISTICS ({modeText}): {_selectedPlayer.DisplayName} ===");
         sb.AppendLine();
         sb.AppendLine($"First Frame Win %: {FirstFrameLabel.Text}");
         sb.AppendLine($"Last Frame Win %: {LastFrameLabel.Text}");
@@ -261,7 +353,7 @@ public partial class FrameStatsPage : ContentPage
             sb.AppendLine($"{day.DayName},{day.Record},{day.WinRate}");
         }
 
-        var fileName = $"FrameStats_{_selectedPlayer.FullName.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.csv";
+        var fileName = $"FrameStats_{_selectedPlayer.DisplayName.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.csv";
         var path = System.IO.Path.Combine(FileSystem.CacheDirectory, fileName);
         await System.IO.File.WriteAllTextAsync(path, sb.ToString());
 

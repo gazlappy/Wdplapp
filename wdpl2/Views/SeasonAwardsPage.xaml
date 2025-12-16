@@ -22,7 +22,7 @@
             <!-- Most Improved Player -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[Trophy] Most Improved Player" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource SuccessColor}" />
+                    <Label Text="🏆 Most Improved Player" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource SuccessColor}" />
                     <Label x:Name="MostImprovedLabel" Text="-" FontSize="14" />
                     <Label x:Name="MostImprovedStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>
@@ -31,7 +31,7 @@
             <!-- Most 8-Balls -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[8-Ball] Most 8-Balls" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource WarningColor}" />
+                    <Label Text="🎱 Most 8-Balls" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource WarningColor}" />
                     <Label x:Name="Most8BallsLabel" Text="-" FontSize="14" />
                     <Label x:Name="Most8BallsStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>
@@ -40,7 +40,7 @@
             <!-- Highest Win Percentage -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[Star] Highest Win %" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource InfoColor}" />
+                    <Label Text="⭐ Highest Win %" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource InfoColor}" />
                     <Label x:Name="HighestWinPctLabel" Text="-" FontSize="14" />
                     <Label x:Name="HighestWinPctStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>
@@ -49,7 +49,7 @@
             <!-- Most Consistent -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[Target] Most Consistent" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource PrimaryColor}" />
+                    <Label Text="🎯 Most Consistent" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource PrimaryColor}" />
                     <Label x:Name="MostConsistentLabel" Text="-" FontSize="14" />
                     <Label x:Name="MostConsistentStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>
@@ -58,7 +58,7 @@
             <!-- Top Rated Player -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[Crown] Highest Rating" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource PrimaryColor}" />
+                    <Label Text="👑 Highest Rating" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource PrimaryColor}" />
                     <Label x:Name="TopRatedLabel" Text="-" FontSize="14" />
                     <Label x:Name="TopRatedStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>
@@ -67,7 +67,7 @@
             <!-- Most Active Player -->
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Label Text="[Calendar] Most Active Player" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="📅 Most Active Player" FontAttributes="Bold" FontSize="16" />
                     <Label x:Name="MostActiveLabel" Text="-" FontSize="14" />
                     <Label x:Name="MostActiveStatsLabel" Text="" Style="{StaticResource CaptionStyle}" />
                 </VerticalStackLayout>

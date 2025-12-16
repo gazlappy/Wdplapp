@@ -13,7 +13,7 @@
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12">
                     <Label 
                         Grid.RowSpan="3"
-                        Text="[Player]"
+                        Text="👤"
                         FontSize="48"
                         VerticalOptions="Center" />
                     

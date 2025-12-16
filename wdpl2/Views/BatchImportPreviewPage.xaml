@@ -31,6 +31,19 @@
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="12" Spacing="16">
 
+                <!-- Loading Indicator -->
+                <Border x:Name="LoadingBorder"
+                        IsVisible="False"
+                        Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Padding="20" Spacing="12" HorizontalOptions="Center">
+                        <ActivityIndicator IsRunning="True" Color="{StaticResource PrimaryColor}" />
+                        <Label x:Name="LoadingLabel" 
+                               Text="Loading files..." 
+                               HorizontalOptions="Center"
+                               FontSize="14" />
+                    </VerticalStackLayout>
+                </Border>
+
                 <!-- Warnings/Errors -->
                 <Border x:Name="AlertsBorder"
                         IsVisible="False"
@@ -42,13 +55,16 @@
                 </Border>
 
                 <!-- Season Selection -->
-                <Border Style="{StaticResource CardBorderStyle}">
+                <Border x:Name="SeasonSelectionBorder" 
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
                     <VerticalStackLayout Padding="12" Spacing="8">
                         <Label Text="Target Season" FontAttributes="Bold" FontSize="16" />
                         <HorizontalStackLayout Spacing="8">
                             <Picker x:Name="SeasonPicker" 
                                     Title="Select season" 
                                     HorizontalOptions="FillAndExpand"
+                                    ItemDisplayBinding="{Binding Name}"
                                     SelectedIndexChanged="OnSeasonChanged"/>
                             <Button Text="+ New"
                                     Clicked="OnCreateSeasonClicked"
@@ -60,9 +76,11 @@
                 </Border>
 
                 <!-- Batch Actions -->
-                <Border Style="{StaticResource CardBorderStyle}">
+                <Border x:Name="BatchActionsBorder"
+                        Style="{StaticResource CardBorderStyle}"
+                        IsVisible="False">
                     <HorizontalStackLayout Padding="12" Spacing="8">
-                        <Button Text="Select All Files"
+                        <Button Text="Select All"
                                 Clicked="OnSelectAllFilesClicked"
                                 FontSize="12"
                                 Padding="8,4"
@@ -71,185 +89,41 @@
                                 Clicked="OnDeselectAllFilesClicked"
                                 FontSize="12"
                                 Padding="8,4"/>
-                        <Button Text="Expand All"
-                                Clicked="OnExpandAllClicked"
-                                FontSize="12"
-                                Padding="8,4"/>
-                        <Button Text="Collapse All"
-                                Clicked="OnCollapseAllClicked"
-                                FontSize="12"
-                                Padding="8,4"/>
                     </HorizontalStackLayout>
                 </Border>
 
-                <!-- Files List -->
-                <Label Text="Files to Import" FontAttributes="Bold" FontSize="16" />
+                <!-- Files List - Simplified template for performance -->
+                <Label x:Name="FilesListLabel" 
+                       Text="Files to Import" 
+                       FontAttributes="Bold" 
+                       FontSize="16"
+                       IsVisible="False" />
                 
-                <CollectionView x:Name="FilesList" SelectionMode="None">
+                <CollectionView x:Name="FilesList" 
+                                SelectionMode="None"
+                                ItemSizingStrategy="MeasureFirstItem">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,8">
-                                <VerticalStackLayout Padding="12" Spacing="8">
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,4" Padding="8">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                    <CheckBox IsChecked="{Binding Include}" 
+                                              VerticalOptions="Center"/>
                                     
-                                    <!-- File Header -->
-                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
-                                        <CheckBox IsChecked="{Binding Include}" 
-                                                  VerticalOptions="Center"/>
-                                        
-                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                            <Label Text="{Binding FileName}" 
-                                                   FontAttributes="Bold"
-                                                   FontSize="14"/>
-                                            <Label Text="{Binding PageTitle}" 
-                                                   FontSize="12"
-                                                   TextColor="{StaticResource Gray600}"/>
-                                            <Label FontSize="11" TextColor="{StaticResource Gray500}">
-                                                <Label.FormattedText>
-                                                    <FormattedString>
-                                                        <Span Text="{Binding FileSizeFormatted}"/>
-                                                        <Span Text=" - "/>
-                                                        <Span Text="{Binding TablesFound}"/>
-                                                        <Span Text=" tables"/>
-                                                    </FormattedString>
-                                                </Label.FormattedText>
-                                            </Label>
-                                        </VerticalStackLayout>
-                                        
-                                        <Label Grid.Column="2"
-                                               Text="{Binding StatusIcon}"
-                                               FontSize="20"
-                                               VerticalOptions="Center"/>
-                                        
-                                        <Button Grid.Column="3"
-                                                Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}"
-                                                Clicked="OnToggleFileClicked"
-                                                CommandParameter="{Binding .}"
-                                                FontSize="11"
-                                                Padding="8,4"/>
-                                    </Grid>
-
-                                    <!-- Content Summary (Always Visible) -->
-                                    <Border BackgroundColor="{StaticResource Gray100}"
-                                            Padding="8"
-                                            Stroke="{StaticResource Gray300}"
-                                            StrokeThickness="1">
-                                        <Label Text="{Binding ContentSummary}"
-                                               FontSize="12"
-                                               TextColor="{StaticResource Gray700}"/>
-                                    </Border>
-
-                                    <!-- Expanded Details -->
-                                    <VerticalStackLayout IsVisible="{Binding IsExpanded}" Spacing="8">
-                                        
-                                        <BoxView HeightRequest="1" Color="{StaticResource Gray300}"/>
-                                        
-                                        <!-- Divisions -->
-                                        <VerticalStackLayout IsVisible="{Binding Preview.Divisions, Converter={StaticResource IsNotNullOrEmptyConverter}}"
-                                                           Spacing="4">
-                                            <Label Text="Divisions" FontAttributes="Bold" FontSize="13"/>
-                                            <CollectionView ItemsSource="{Binding Preview.Divisions}"
-                                                          SelectionMode="None">
-                                                <CollectionView.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border BackgroundColor="{StaticResource Gray50}"
-                                                              Padding="8"
-                                                              Margin="0,2"
-                                                              Stroke="{StaticResource Gray200}"
-                                                              StrokeThickness="1">
-                                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                                                <CheckBox IsChecked="{Binding Include}"/>
-                                                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                                                    <Label Text="{Binding Name}" FontSize="12" FontAttributes="Bold"/>
-                                                                    <Label FontSize="11" TextColor="{StaticResource Gray600}">
-                                                                        <Label.FormattedText>
-                                                                            <FormattedString>
-                                                                                <Span Text="Winner: "/>
-                                                                                <Span Text="{Binding WinnerTeam}"/>
-                                                                            </FormattedString>
-                                                                        </Label.FormattedText>
-                                                                    </Label>
-                                                                </VerticalStackLayout>
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </CollectionView.ItemTemplate>
-                                            </CollectionView>
-                                        </VerticalStackLayout>
-
-                                        <!-- Teams -->
-                                        <VerticalStackLayout IsVisible="{Binding Preview.Teams, Converter={StaticResource IsNotNullOrEmptyConverter}}"
-                                                           Spacing="4">
-                                            <Label Text="Teams" FontAttributes="Bold" FontSize="13"/>
-                                            <CollectionView ItemsSource="{Binding Preview.Teams}"
-                                                          SelectionMode="None"
-                                                          MaximumHeightRequest="200">
-                                                <CollectionView.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border BackgroundColor="{StaticResource Gray50}"
-                                                              Padding="8"
-                                                              Margin="0,2"
-                                                              Stroke="{StaticResource Gray200}"
-                                                              StrokeThickness="1">
-                                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                                                <CheckBox IsChecked="{Binding Include}"/>
-                                                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                                                    <Label Text="{Binding Name}" FontSize="12" FontAttributes="Bold"/>
-                                                                    <Label Text="{Binding DivisionName}" 
-                                                                           FontSize="11" 
-                                                                           TextColor="{StaticResource Gray600}"/>
-                                                                </VerticalStackLayout>
-                                                                <Label Grid.Column="2"
-                                                                       Text="{Binding Status}"
-                                                                       FontSize="10"
-                                                                       VerticalOptions="Center"/>
-                                                            </Grid>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </CollectionView.ItemTemplate>
-                                            </CollectionView>
-                                        </VerticalStackLayout>
-
-                                        <!-- Players -->
-                                        <VerticalStackLayout IsVisible="{Binding Preview.Players, Converter={StaticResource IsNotNullOrEmptyConverter}}"
-                                                           Spacing="4">
-                                            <Label Text="Players" FontAttributes="Bold" FontSize="13"/>
-                                            <Label Text="{Binding Preview.Players.Count, StringFormat='{0} player(s) will be imported'}"
-                                                   FontSize="11"
-                                                   TextColor="{StaticResource Gray600}"/>
-                                        </VerticalStackLayout>
-
-                                        <!-- Errors/Warnings -->
-                                        <VerticalStackLayout IsVisible="{Binding HasErrors}" Spacing="4">
-                                            <Label Text="Errors:" TextColor="{StaticResource DangerColor}" FontAttributes="Bold" FontSize="12"/>
-                                            <CollectionView ItemsSource="{Binding Errors}" SelectionMode="None">
-                                                <CollectionView.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Label Text="{Binding .}"
-                                                               TextColor="{StaticResource DangerColor}"
-                                                               FontSize="11"
-                                                               Margin="0,2"/>
-                                                    </DataTemplate>
-                                                </CollectionView.ItemTemplate>
-                                            </CollectionView>
-                                        </VerticalStackLayout>
-
-                                        <VerticalStackLayout IsVisible="{Binding HasWarnings}" Spacing="4">
-                                            <Label Text="Warnings:" TextColor="{StaticResource WarningColor}" FontAttributes="Bold" FontSize="12"/>
-                                            <CollectionView ItemsSource="{Binding Warnings}" SelectionMode="None">
-                                                <CollectionView.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Label Text="{Binding .}"
-                                                               TextColor="{StaticResource WarningColor}"
-                                                               FontSize="11"
-                                                               Margin="0,2"/>
-                                                    </DataTemplate>
-                                                </CollectionView.ItemTemplate>
-                                            </CollectionView>
-                                        </VerticalStackLayout>
-
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label Text="{Binding FileName}" 
+                                               FontAttributes="Bold"
+                                               FontSize="13"
+                                               LineBreakMode="TailTruncation"/>
+                                        <Label Text="{Binding ContentSummary}" 
+                                               FontSize="11"
+                                               TextColor="{StaticResource Gray600}"/>
                                     </VerticalStackLayout>
-
-                                </VerticalStackLayout>
+                                    
+                                    <Label Grid.Column="2"
+                                           Text="{Binding StatusIcon}"
+                                           FontSize="16"
+                                           VerticalOptions="Center"/>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
