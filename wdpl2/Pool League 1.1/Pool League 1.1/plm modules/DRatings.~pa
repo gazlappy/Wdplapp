@@ -1,0 +1,113 @@
+unit DRatings;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, Db, DBTables;
+
+type
+  TDoublesReport = class(TQuickRep)
+    ColumnHeaderBand1: TQRBand;
+    DetailBand1: TQRBand;
+    QRLabel4: TQRLabel;
+    QRLabel3: TQRLabel;
+    QRLabel5: TQRLabel;
+    QRLabel8: TQRLabel;
+    QRLabel6: TQRLabel;
+    QRLabel7: TQRLabel;
+    QRLabel9: TQRLabel;
+    QRLabel11: TQRLabel;
+    QRLabel10: TQRLabel;
+    PairQuery: TQuery;
+    LeagueFile: TTable;
+    LeagueSource: TDataSource;
+    Team: TTable;
+    TeamDivision: TStringField;
+    TeamTeamName: TStringField;
+    TeamSource: TDataSource;
+    QRSysData2: TQRSysData;
+    QRDBText3: TQRDBText;
+    QRDBText2: TQRDBText;
+    QRDBText4: TQRDBText;
+    QRDBText6: TQRDBText;
+    QRDBText5: TQRDBText;
+    QRDBText7: TQRDBText;
+    QRDBText8: TQRDBText;
+    QRDBText9: TQRDBText;
+    QRDBText11: TQRDBText;
+    PairQueryPlayerNo1: TFloatField;
+    PairQueryPlayerNo2: TFloatField;
+    PairQueryPlayerName1: TStringField;
+    PairQueryPlayerName2: TStringField;
+    PairQueryPlayerTeam: TStringField;
+    PairQueryPlayed: TIntegerField;
+    PairQueryWins: TIntegerField;
+    PairQueryLosses: TIntegerField;
+    PairQueryBestRating: TIntegerField;
+    PairQueryBestRatingDate: TDateField;
+    PairQueryCurrentRating: TIntegerField;
+    QRDBText12: TQRDBText;
+    QRDBText13: TQRDBText;
+    Division: TTable;
+    DivisionFullDivisionName: TStringField;
+    DivisionAbbreviated: TStringField;
+    DivisionSource: TDataSource;
+    LeagueFileLeagueName: TStringField;
+    LeagueFileShowTop: TIntegerField;
+    TitleBand1: TQRBand;
+    QRDBText14: TQRDBText;
+    DivisionLabel: TQRLabel;
+    QRLabel15: TQRLabel;
+    QRLabel17: TQRLabel;
+    QRSysData3: TQRSysData;
+    PageHeaderBand1: TQRBand;
+    QRLabel14: TQRLabel;
+    QRDBText10: TQRDBText;
+    QRLabel1: TQRLabel;
+    QRLabel2: TQRLabel;
+    QRDBText1: TQRDBText;
+    QRLabel16: TQRLabel;
+    LeagueFileBuffer: TIntegerField;
+    procedure PageHeaderBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+    procedure DetailBand1AfterPrint(Sender: TQRCustomBand;
+      BandPrinted: Boolean);
+  private
+
+  public
+
+  end;
+
+var
+  DoublesReport: TDoublesReport;
+  NoPrinted: Integer;
+
+implementation
+
+{$R *.DFM}
+
+procedure TDoublesReport.PageHeaderBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+begin
+  NoPrinted := 0;
+  PairQuery.Close;
+  PairQuery.Open;
+  PairQuery.First;
+  Team.Open;
+  Team.FindKey([PairQueryPlayerTeam.Value]);
+  Division.Open;
+  Division.FindKey([TeamDivision.Value]);
+  DivisionLabel.Caption := DivisionFullDivisionName.Value;
+  LeagueFile.Open;
+  LeagueFile.First;
+end;
+
+procedure TDoublesReport.DetailBand1AfterPrint(Sender: TQRCustomBand;
+  BandPrinted: Boolean);
+begin
+NoPrinted := NoPrinted + 1;
+if NoPrinted >= LeagueFileShowTop.Value then
+  PairQuery.Last;
+end;
+
+end.

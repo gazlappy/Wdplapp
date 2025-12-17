@@ -1,0 +1,241 @@
+object VenueLblRpt: TVenueLblRpt
+   HelpContext =  660
+  Left = 0
+  Top = 0
+  Width = 794
+  Height = 1123
+  Frame.Color = clBlack
+  Frame.DrawTop = False
+  Frame.DrawBottom = False
+  Frame.DrawLeft = False
+  Frame.DrawRight = False
+  BeforePrint = QuickRepBeforePrint
+  DataSet = Mailshot.VenueQuery
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -13
+  Font.Name = 'Arial'
+  Font.Style = []
+  Functions.Strings = (
+    'PAGENUMBER'
+    'COLUMNNUMBER'
+    'REPORTTITLE')
+  Functions.DATA = (
+    '0'
+    '0'
+    #39#39)
+  Options = [FirstPageHeader, LastPageFooter]
+  Page.Columns = 2
+  Page.Orientation = poPortrait
+  Page.PaperSize = A4
+  Page.Values = (
+    50
+    2970
+    90
+    2100
+    100
+    100
+    80)
+  PrinterSettings.Copies = 1
+  PrinterSettings.Duplex = False
+  PrinterSettings.FirstPage = 0
+  PrinterSettings.LastPage = 0
+  PrinterSettings.OutputBin = Auto
+  PrintIfEmpty = True
+  SnapToGrid = True
+  Units = MM
+  Zoom = 100
+  object DetailBand1: TQRBand
+    Left = 38
+    Top = 61
+    Width = 344
+    Height = 147
+    Frame.Color = clBlack
+    Frame.DrawTop = False
+    Frame.DrawBottom = False
+    Frame.DrawLeft = False
+    Frame.DrawRight = False
+    AlignToBottom = False
+    Color = clWhite
+    ForceNewColumn = False
+    ForceNewPage = False
+    Size.Values = (
+      388.9375
+      910.166666666667)
+    BandType = rbDetail
+    object QRDBText1: TQRDBText
+      Left = 8
+      Top = 8
+      Width = 38
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        21.1666666666667
+        21.1666666666667
+        100.541666666667)
+      Alignment = taLeftJustify
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Color = clWhite
+      DataSet = Mailshot.VenueQuery
+      DataField = 'Venue'
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+    object QRDBText2: TQRDBText
+      Left = 8
+      Top = 29
+      Width = 80
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        21.1666666666667
+        76.7291666666667
+        211.666666666667)
+      Alignment = taLeftJustify
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Color = clWhite
+      DataSet = Mailshot.VenueQuery
+      DataField = 'AddressLine1'
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+    object QRDBText3: TQRDBText
+      Left = 8
+      Top = 47
+      Width = 80
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        21.1666666666667
+        124.354166666667
+        211.666666666667)
+      Alignment = taLeftJustify
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Color = clWhite
+      DataSet = Mailshot.VenueQuery
+      DataField = 'AddressLine2'
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+    object QRDBText4: TQRDBText
+      Left = 8
+      Top = 65
+      Width = 80
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        21.1666666666667
+        171.979166666667
+        211.666666666667)
+      Alignment = taLeftJustify
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Color = clWhite
+      DataSet = Mailshot.VenueQuery
+      DataField = 'AddressLine3'
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+    object QRDBText5: TQRDBText
+      Left = 8
+      Top = 83
+      Width = 80
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        21.1666666666667
+        219.604166666667
+        211.666666666667)
+      Alignment = taLeftJustify
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Color = clWhite
+      DataSet = Mailshot.VenueQuery
+      DataField = 'AddressLine4'
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+  end
+  object PageHeaderBand1: TQRBand
+    Left = 38
+    Top = 34
+    Width = 718
+    Height = 27
+    Frame.Color = clBlack
+    Frame.DrawTop = False
+    Frame.DrawBottom = False
+    Frame.DrawLeft = False
+    Frame.DrawRight = False
+    AlignToBottom = False
+    Color = clWhite
+    ForceNewColumn = False
+    ForceNewPage = True
+    Size.Values = (
+      71.4375
+      1899.70833333333)
+    BandType = rbPageHeader
+    object QRLabel1: TQRLabel
+      Left = 219
+      Top = 1
+      Width = 311
+      Height = 17
+      Frame.Color = clBlack
+      Frame.DrawTop = False
+      Frame.DrawBottom = False
+      Frame.DrawLeft = False
+      Frame.DrawRight = False
+      Size.Values = (
+        44.9791666666667
+        579.4375
+        2.64583333333333
+        822.854166666667)
+      Alignment = taCenter
+      AlignToBand = False
+      AutoSize = True
+      AutoStretch = False
+      Caption = 'Designed for Label  L7163   99.1 x 38.1 mm x 14 only'
+      Color = clWhite
+      Transparent = False
+      WordWrap = True
+      FontSize = 10
+    end
+  end
+end

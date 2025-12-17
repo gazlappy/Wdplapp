@@ -1,0 +1,89 @@
+unit Venins;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, DB, DBTables, ExtCtrls;
+
+type
+  TVenueInsert = class(TForm)
+    OKBtn: TBitBtn;
+    CancelBtn: TBitBtn;
+    Venue: TLabel;
+    Address: TLabel;
+    Edit1: TEdit;
+    Edit2: TEdit;
+    Edit3: TEdit;
+    Edit4: TEdit;
+    Edit5: TEdit;
+    InsertQuery: TQuery;
+    procedure OKBtnClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure CancelBtnClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    { Private declarations }
+  public
+    procedure Clear;
+    { Public declarations }
+  end;
+
+var
+  VenueInsert: TVenueInsert;
+
+implementation
+
+uses Venue, Team, datamodule;
+
+{$R *.DFM}
+
+procedure TVenueInsert.Clear;
+begin
+  ActiveControl := Edit1;
+  Edit1.Clear;
+  Edit2.Clear;
+  Edit3.Clear;
+  Edit4.Clear;
+  Edit5.Clear;
+end;
+
+procedure TVenueInsert.OKBtnClick(Sender: TObject);
+begin
+  InsertQuery.Close;
+  if Edit1.Text <> '' then
+  begin
+    InsertQuery.Params[0].AsString := Edit1.Text;
+    InsertQuery.Params[1].AsString := Edit2.Text;
+    InsertQuery.Params[2].AsString := Edit3.Text;
+    InsertQuery.Params[3].AsString := Edit4.Text;
+    InsertQuery.Params[4].AsString := Edit5.Text;
+    InsertQuery.ExecSQL;
+  end;
+  ModalResult := mrOK;
+end;
+
+procedure TVenueInsert.FormCreate(Sender: TObject);
+begin
+  InsertQuery.Prepare;
+end;
+
+procedure TVenueInsert.CancelBtnClick(Sender: TObject);
+begin
+  ModalResult := mrCancel;
+end;
+
+procedure TVenueInsert.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  try
+    VenuesForm.Enabled := True;
+    DM1.Venue.Refresh;
+  except
+  end;
+  try
+    TeamsForm.Enabled := True;
+  except
+  end;
+end;
+
+end.

@@ -1,0 +1,89 @@
+unit PTable;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, Db, DBTables;
+
+type
+  TTableReport = class(TQuickRep)
+    ColumnHeaderBand1: TQRBand;
+    TitleBand1: TQRBand;
+    DetailBand1: TQRBand;
+    QRDBText1: TQRDBText;
+    QRDBText2: TQRDBText;
+    QRLabel1: TQRLabel;
+    TeamQuery: TQuery;
+    LeagueFile: TTable;
+    LeagueSource: TDataSource;
+    Played: TQRLabel;
+    QRDBText3: TQRDBText;
+    Won: TQRLabel;
+    QRDBText4: TQRDBText;
+    Lost: TQRLabel;
+    QRDBText5: TQRDBText;
+    Drawn: TQRLabel;
+    QRDBText6: TQRDBText;
+    Singles: TQRLabel;
+    SWon: TQRLabel;
+    SLost: TQRLabel;
+    QRDBText7: TQRDBText;
+    Doubles: TQRLabel;
+    DWon: TQRLabel;
+    DLost: TQRLabel;
+    QRDBText8: TQRDBText;
+    Points: TQRLabel;
+    QRDBText9: TQRDBText;
+    QRLabel2: TQRLabel;
+    QRSysData1: TQRSysData;
+    QRSysData2: TQRSysData;
+    QRDBText11: TQRDBText;
+    QRDBText12: TQRDBText;
+    Division: TTable;
+    DivisionSource: TDataSource;
+    QRLabel3: TQRLabel;
+    TeamQueryDivision: TStringField;
+    DivisionFullDivisionName: TStringField;
+    DivisionAbbreviated: TStringField;
+    TeamQueryTeamName: TStringField;
+    TeamQueryVenue: TStringField;
+    TeamQueryContact: TStringField;
+    TeamQueryWins: TIntegerField;
+    TeamQueryLoses: TIntegerField;
+    TeamQueryDraws: TIntegerField;
+    TeamQuerySWins: TIntegerField;
+    TeamQuerySLosses: TIntegerField;
+    TeamQueryDWins: TIntegerField;
+    TeamQueryDLosses: TIntegerField;
+    TeamQueryPoints: TIntegerField;
+    TeamQueryPlayed: TIntegerField;
+    QRLabel4: TQRLabel;
+    LeagueFileLeagueName: TStringField;
+    PageHeaderBand1: TQRBand;
+    QRLabel5: TQRLabel;
+    procedure TitleBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+  private
+
+  public
+
+  end;
+
+var
+  TableReport: TTableReport;
+
+implementation
+
+{$R *.DFM}
+
+procedure TTableReport.TitleBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+begin
+  Division.Open;
+  if Division.FindKey([TeamQueryDivision.Value]) then
+    QRLabel3.Caption := DivisionFullDivisionName.Value;
+  LeagueFile.Open;
+  LeagueFile.First;
+end;
+
+end.

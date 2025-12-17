@@ -1,0 +1,112 @@
+unit PRating;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, Db, DBTables, Dialogs;
+
+type
+  TRatingReport = class(TQuickRep)
+    ColumnHeaderBand1: TQRBand;
+    DetailBand1: TQRBand;
+    TitleBand1: TQRBand;
+    QRDBText1: TQRDBText;
+    PlayerQuery: TQuery;
+    LeagueFile: TTable;
+    LeagueSource: TDataSource;
+    QRLabel2: TQRLabel;
+    QRSysData1: TQRSysData;
+    QRLabel3: TQRLabel;
+    QRDBText2: TQRDBText;
+    QRLabel4: TQRLabel;
+    QRSysData2: TQRSysData;
+    QRDBText3: TQRDBText;
+    QRLabel5: TQRLabel;
+    QRDBText4: TQRDBText;
+    QRLabel6: TQRLabel;
+    QRLabel7: TQRLabel;
+    QRDBText5: TQRDBText;
+    QRLabel8: TQRLabel;
+    QRDBText6: TQRDBText;
+    QRDBText7: TQRDBText;
+    QRLabel9: TQRLabel;
+    QRDBText8: TQRDBText;
+    QRLabel11: TQRLabel;
+    QRDBText9: TQRDBText;
+    QRLabel10: TQRLabel;
+    QRDBText11: TQRDBText;
+    DivisionLabel: TQRLabel;
+    Team: TTable;
+    TeamSource: TDataSource;
+    TeamDivision: TStringField;
+    TeamTeamName: TStringField;
+    PlayerQueryPlayerTeam: TStringField;
+    PlayerQueryPlayerNo: TFloatField;
+    PlayerQueryPlayerName: TStringField;
+    PlayerQueryPlayed: TIntegerField;
+    PlayerQueryWins: TIntegerField;
+    PlayerQueryLosses: TIntegerField;
+    PlayerQueryCurrentRating: TIntegerField;
+    PlayerQueryBestRating: TIntegerField;
+    PlayerQueryBestRatingDate: TDateField;
+    QRLabel12: TQRLabel;
+    QRLabel1: TQRLabel;
+    QRDBText10: TQRDBText;
+    PlayerQueryEightBalls: TIntegerField;
+    Division: TTable;
+    DivisionFullDivisionName: TStringField;
+    DivisionAbbreviated: TStringField;
+    DivisionSource: TDataSource;
+    PageHeaderBand1: TQRBand;
+    QRLabel14: TQRLabel;
+    QRDBText12: TQRDBText;
+    QRLabel15: TQRLabel;
+    QRLabel13: TQRLabel;
+    QRLabel16: TQRLabel;
+    QRDBText13: TQRDBText;
+    LeagueFileBuffer: TIntegerField;
+    LeagueFileLeagueName: TStringField;
+    LeagueFileExplanation: TMemoField;
+    LeagueFileShowTop: TIntegerField;
+    procedure DetailBand1AfterPrint(Sender: TQRCustomBand;
+      BandPrinted: Boolean);
+    procedure PageHeaderBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+  private
+
+  public
+
+  end;
+
+var
+  RatingReport: TRatingReport;
+  NoPrinted: Integer;
+implementation
+
+{$R *.DFM}
+
+procedure TRatingReport.DetailBand1AfterPrint(Sender: TQRCustomBand;
+  BandPrinted: Boolean);
+begin
+NoPrinted := NoPrinted + 1;
+if NoPrinted >= LeagueFileShowTop.Value then
+  PlayerQuery.Last;
+end;
+
+procedure TRatingReport.PageHeaderBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+begin
+  NoPrinted := 0;
+  PlayerQuery.Close;
+  PlayerQuery.Open;
+  PlayerQuery.First;
+  Team.Open;
+  Team.FindKey([PlayerQueryPlayerTeam.Value]);
+  Division.Open;
+  Division.FindKey([TeamDivision.Value]);
+  DivisionLabel.Caption := DivisionFullDivisionName.Value;
+  LeagueFile.Open;
+  LeagueFile.First;
+end;
+
+end.

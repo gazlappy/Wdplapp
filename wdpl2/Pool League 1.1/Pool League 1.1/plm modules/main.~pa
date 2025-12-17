@@ -1,0 +1,238 @@
+unit Main;
+
+interface
+
+uses
+  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+  Forms, Dialogs, Menus, DB, DBTables, quickrpt, qrctrls, ComCtrls,
+  ExtCtrls;
+
+type
+  TForm1 = class(TForm)
+    MainMenu1: TMainMenu;
+    File1: TMenuItem;
+    Properties1: TMenuItem;
+    Database: TDatabase;
+    Hierarchy1: TMenuItem;
+    Divisions1: TMenuItem;
+    Venues1: TMenuItem;
+    Teams1: TMenuItem;
+    Players1: TMenuItem;
+    Results1: TMenuItem;
+    Add1: TMenuItem;
+    Find1: TMenuItem;
+    Stats1: TMenuItem;
+    Update1: TMenuItem;
+    Exit1: TMenuItem;
+    Tables1: TMenuItem;
+    PrinterSetup1: TMenuItem;
+    PrinterSetupDialog1: TPrinterSetupDialog;
+    Ratings1: TMenuItem;
+    StatusBar1: TStatusBar;
+    Image1: TImage;
+    Ratings2: TMenuItem;
+    Results2: TMenuItem;
+    Database1: TMenuItem;
+    OpenDialog1: TOpenDialog;
+    byMatchNo1: TMenuItem;
+    Help1: TMenuItem;
+    About1: TMenuItem;
+    Mailshot1: TMenuItem;
+    LeagueQuery: TQuery;
+    LeagueQueryUpdateRequired: TBooleanField;
+    Contents1: TMenuItem;
+    LeagueQueryLeagueName: TStringField;
+    procedure Properties1Click(Sender: TObject);
+    procedure Divisions1Click(Sender: TObject);
+    procedure Venues1Click(Sender: TObject);
+    procedure Teams1Click(Sender: TObject);
+    procedure Players1Click(Sender: TObject);
+    procedure Add1Click(Sender: TObject);
+    procedure Update1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure Exit1Click(Sender: TObject);
+    procedure Tables1Click(Sender: TObject);
+    procedure PrinterSetup1Click(Sender: TObject);
+    procedure Ratings1Click(Sender: TObject);
+    procedure Ratings2Click(Sender: TObject);
+    procedure Results2Click(Sender: TObject);
+    procedure Database1Click(Sender: TObject);
+    procedure Find1Click(Sender: TObject);
+    procedure About1Click(Sender: TObject);
+    procedure byMatchNo1Click(Sender: TObject);
+    procedure Mailshot1Click(Sender: TObject);
+    procedure Contents1Click(Sender: TObject);
+  private
+    { Private declarations }
+    procedure CheckUpdate;
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+uses prop,division,venue,teaml,player,matchbyt,
+update, PTable, pickleag, PRating, DRatings, resrpt, SetDate, NMatch,
+Team, about, mlist, covlet, covlet2, plmmailshot, datamodule;
+
+{$R *.DFM}
+
+procedure TForm1.Properties1Click(Sender: TObject);
+begin
+  Application.CreateForm(TPropertiesForm, PropertiesForm);
+end;
+
+procedure TForm1.Divisions1Click(Sender: TObject);
+begin
+  Application.CreateForm(TDivisionsForm, DivisionsForm);
+end;
+
+procedure TForm1.Venues1Click(Sender: TObject);
+begin
+  Application.CreateForm(TVenuesForm, VenuesForm);
+end;
+
+procedure TForm1.Teams1Click(Sender: TObject);
+begin
+  Application.CreateForm(TTeamList, TeamList);
+end;
+
+procedure TForm1.Players1Click(Sender: TObject);
+begin
+  Application.CreateForm(TPlayersForm, PlayersForm);
+end;
+
+procedure TForm1.Add1Click(Sender: TObject);
+begin
+  Application.CreateForm(TNMForm, NMForm);
+  NMForm.Enter;
+end;
+
+procedure TForm1.Update1Click(Sender: TObject);
+begin
+  Application.CreateForm(TUpdateForm, UpdateForm);
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  Application.Title := 'Pool League Manager';
+  LeagueQuery.Close;
+  LeagueQuery.Open;
+  LeagueQuery.First;
+  if not LeagueQuery.EOF then
+    StatusBar1.Panels[0].Text := LeagueQueryLeagueName.Value
+  else
+    StatusBar1.Panels[0].Text := 'Unknown';
+  LeagueQuery.Close;
+end;
+
+procedure TForm1.Exit1Click(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TForm1.Tables1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Application.CreateForm(TPickLeague, PickLeague);
+  PickLeague.TablesType;
+end;
+
+procedure TForm1.PrinterSetup1Click(Sender: TObject);
+begin
+  PrinterSetupDialog1.Execute;
+end;
+
+procedure TForm1.Ratings1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Application.CreateForm(TPickLeague, PickLeague);
+  PickLeague.SinglesType;
+end;
+
+procedure TForm1.Ratings2Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Application.CreateForm(TPickLeague, PickLeague);
+  PickLeague.DoublesType;
+end;
+
+procedure TForm1.CheckUpdate;
+begin
+  LeagueQuery.Close;
+  LeagueQuery.Open;
+  LeagueQuery.First;
+  if LeagueQueryUpdateRequired.Value = True then
+  begin
+    Application.CreateForm(TUpdateForm, UpdateForm);
+    UpdateForm.ForceUpdate;
+  end;
+  LeagueQuery.Close;
+end;
+
+procedure TForm1.Results2Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Application.CreateForm(TSelectDt, SelectDt);
+end;
+
+procedure TForm1.Database1Click(Sender: TObject);
+var
+  NewString: string;
+  Delimpos: Integer;
+begin
+  if OpenDialog1.Execute then
+  begin
+    Delimpos := LastDelimiter('\',OpenDialog1.Filename);
+    Delimpos := Delimpos - 1;
+    NewString := Copy(OpenDialog1.Filename,1,Delimpos);
+    Database.Close;
+    Database.AliasName := 'PLMDATA';
+    Database.DriverName := 'STANDARD';
+    Database.Params.Clear;
+    Database.Params.Add('Path=' + NewString);
+    Database.Open;
+    try
+      LeagueQuery.Open;
+      LeagueQuery.First;
+      if not LeagueQuery.EOF then
+        StatusBar1.Panels[0].Text := LeagueQueryLeagueName.Value;
+      except
+      begin
+        StatusBar1.Panels[0].Text := 'Unknown';
+        Database1.Enabled := True;
+      end;
+    end;
+  end;;
+end;
+
+procedure TForm1.Find1Click(Sender: TObject);
+begin
+  Application.CreateForm(TMatchByTeamForm, MatchByTeamForm);
+end;
+
+procedure TForm1.About1Click(Sender: TObject);
+begin
+  Application.CreateForm(TAboutBox, AboutBox);
+end;
+
+procedure TForm1.byMatchNo1Click(Sender: TObject);
+begin
+  Application.CreateForm(TMtDialog, MtDialog);
+end;
+
+procedure TForm1.Mailshot1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Application.CreateForm(TMailshot, Mailshot);
+end;
+
+procedure TForm1.Contents1Click(Sender: TObject);
+begin
+  Application.HelpCommand(HELP_CONTENTS, 0);
+end;
+
+end.

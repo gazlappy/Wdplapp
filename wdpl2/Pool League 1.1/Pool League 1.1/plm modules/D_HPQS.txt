@@ -1,0 +1,93 @@
+object D_HPQSDlg: TD_HPQSDlg
+   HelpContext =  700
+  Left = 260
+  Top = 360
+  BorderStyle = bsDialog
+  Caption = 'Home Players'
+  ClientHeight = 252
+  ClientWidth = 153
+  Color = clBtnFace
+  ParentFont = True
+  FormStyle = fsStayOnTop
+  OldCreateOrder = True
+  PixelsPerInch = 96
+  TextHeight = 13
+  object DBGrid1: TDBGrid
+    Left = 0
+    Top = 24
+    Width = 155
+    Height = 229
+    DataSource = DM1.HPLUS
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -8
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    Options = [dgEditing, dgColumnResize, dgTabs, dgConfirmDelete, dgCancelOnExit]
+    ParentFont = False
+    ReadOnly = True
+    TabOrder = 0
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'MS Sans Serif'
+    TitleFont.Style = []
+    OnDblClick = DBGrid1DblClick
+    Columns = <
+      item
+        Expanded = False
+        FieldName = 'PlayerName'
+        Title.Caption = 'Player Name'
+        Width = 120
+        Visible = True
+      end>
+  end
+  object HomeButton: TBitBtn
+    Left = -2
+    Top = -1
+    Width = 40
+    Height = 25
+    Hint = 'Register the player name against the home team'
+    Caption = 'Home'
+    ParentShowHint = False
+    ShowHint = True
+    TabOrder = 1
+    OnClick = HomeButtonClick
+  end
+  object AwayButton: TBitBtn
+    Left = 37
+    Top = -1
+    Width = 40
+    Height = 25
+    Hint = 'Register the player name against the away team'
+    Caption = 'Away'
+    ParentShowHint = False
+    ShowHint = True
+    TabOrder = 2
+    OnClick = AwayButtonClick
+  end
+  object TrueButton: TBitBtn
+    Left = 76
+    Top = -1
+    Width = 40
+    Height = 25
+    Hint = 'Register the player name against the away team'
+    Caption = 'True'
+    ParentShowHint = False
+    ShowHint = True
+    TabOrder = 3
+    OnClick = TrueButtonClick
+  end
+  object FalseButton: TBitBtn
+    Left = 115
+    Top = -1
+    Width = 40
+    Height = 25
+    Hint = 'Register the player name against the away team'
+    Caption = 'False'
+    ParentShowHint = False
+    ShowHint = True
+    TabOrder = 4
+    OnClick = FalseButtonClick
+  end
+end

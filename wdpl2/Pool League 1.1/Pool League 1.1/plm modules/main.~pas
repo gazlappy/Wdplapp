@@ -1,0 +1,776 @@
+unit Main;
+
+interface
+
+uses
+  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+  Forms, Dialogs, Menus, DB, DBTables, quickrpt, qrctrls, ComCtrls,
+  ExtCtrls, ImgList, DBCGrids, StdCtrls, Mask, DBCtrls, Grids, DBGrids,
+  Buttons, ShellAPI;
+
+type
+  TForm1 = class(TForm)
+    MainMenu1: TMainMenu;
+    File1: TMenuItem;
+    Properties1: TMenuItem;
+    Hierarchy1: TMenuItem;
+    Divisions1: TMenuItem;
+    Venues1: TMenuItem;
+    Teams1: TMenuItem;
+    Players1: TMenuItem;
+    Stats1: TMenuItem;
+    Update1: TMenuItem;
+    Exit1: TMenuItem;
+    Tables1: TMenuItem;
+    PrinterSetup1: TMenuItem;
+    PrinterSetupDialog1: TPrinterSetupDialog;
+    Ratings1: TMenuItem;
+    StatusBar1: TStatusBar;
+    Ratings2: TMenuItem;
+    Results2: TMenuItem;
+    Database1: TMenuItem;
+    OpenDialog1: TOpenDialog;
+    Help1: TMenuItem;
+    About1: TMenuItem;
+    Mailshot1: TMenuItem;
+    Contents1: TMenuItem;
+    WebPages1: TMenuItem;
+    EightBalls1: TMenuItem;
+    ImageList1: TImageList;
+    Panel1: TPanel;
+    StatusBar2: TStatusBar;
+    New1: TMenuItem;
+    PageControl1: TPageControl;
+    Matches: TTabSheet;
+    Singles: TTabSheet;
+    Doubles: TTabSheet;
+    MatchGrid: TDBGrid;
+    SingleGrid: TDBGrid;
+    DoubleGrid: TDBGrid;
+    Button3: TButton;
+    Button2: TButton;
+    Button1: TButton;
+    Label6: TLabel;
+    Edit2: TEdit;
+    Label7: TLabel;
+    BitBtn3: TBitBtn;
+    BitBtn4: TBitBtn;
+    Label8: TLabel;
+    Edit1: TEdit;
+    Label9: TLabel;
+    BitBtn1: TBitBtn;
+    BitBtn2: TBitBtn;
+    Label10: TLabel;
+    Label11: TLabel;
+    GroupBox1: TGroupBox;
+    Label1: TLabel;
+    Label2: TLabel;
+    GroupBox2: TGroupBox;
+    DBText1: TDBText;
+    DBText2: TDBText;
+    DBText3: TDBText;
+    DBText4: TDBText;
+    Label3: TLabel;
+    DBText5: TDBText;
+    Label4: TLabel;
+    Label5: TLabel;
+    DBText6: TDBText;
+    DBText7: TDBText;
+    DBText8: TDBText;
+    DBText9: TDBText;
+    DBText10: TDBText;
+    DBText11: TDBText;
+    DBText12: TDBText;
+    DBText13: TDBText;
+    DBText14: TDBText;
+    Label12: TLabel;
+    Label13: TLabel;
+    Label14: TLabel;
+    Label15: TLabel;
+    Label16: TLabel;
+    Label17: TLabel;
+    Label18: TLabel;
+    DBText15: TDBText;
+    Tools1: TMenuItem;
+    PurgePlayers1: TMenuItem;
+    procedure Properties1Click(Sender: TObject);
+    procedure Divisions1Click(Sender: TObject);
+    procedure Venues1Click(Sender: TObject);
+    procedure Teams1Click(Sender: TObject);
+    procedure Players1Click(Sender: TObject);
+    procedure Update1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure Exit1Click(Sender: TObject);
+    procedure Tables1Click(Sender: TObject);
+    procedure PrinterSetup1Click(Sender: TObject);
+    procedure Ratings1Click(Sender: TObject);
+    procedure Ratings2Click(Sender: TObject);
+    procedure Results2Click(Sender: TObject);
+    procedure Database1Click(Sender: TObject);
+    procedure About1Click(Sender: TObject);
+    procedure Mailshot1Click(Sender: TObject);
+    procedure Contents1Click(Sender: TObject);
+    procedure EightBalls1Click(Sender: TObject);
+    procedure MatchGridEnter(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure MatchGridEditButtonClick(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure SingleGridExit(Sender: TObject);
+    procedure DoubleGridExit(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure WebPages1Click(Sender: TObject);
+    procedure BitBtn1Click(Sender: TObject);
+    procedure BitBtn2Click(Sender: TObject);
+    procedure SingleGridKeyPress(Sender: TObject; var Key: Char);
+    procedure SingleGridColEnter(Sender: TObject);
+    procedure DoubleGridColEnter(Sender: TObject);
+    procedure DoubleGridKeyPress(Sender: TObject; var Key: Char);
+    procedure SingleGridEnter(Sender: TObject);
+    procedure DoubleGridEnter(Sender: TObject);
+    procedure New1Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure BitBtn3Click(Sender: TObject);
+    procedure BitBtn4Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormShow(Sender: TObject);
+    procedure PurgePlayers1Click(Sender: TObject);
+    procedure PageControl1Change(Sender: TObject);
+  private
+    { Private declarations }
+  public
+{ Public declarations }
+    procedure CheckUpdate;
+    procedure PopulateTeams;
+    procedure UpdateDisplayedScore;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+uses prop,division,venue,teaml,player,
+update, PTable, pickleag, PRating, DRatings, resrpt, SetDate,
+Team, about, covlet, covlet2, plmmailshot, datamodule, plreport,
+  eightballrpt, pickdt, filterteam, webpages, S_HPQS, S_APQS, D_HPQS,
+  D_APQS, datamodule2, newleague, openleague, backup, playerpurge, license;
+
+{$R *.DFM}
+
+procedure TForm1.Properties1Click(Sender: TObject);
+begin
+  PropertiesForm.ShowModal;
+end;
+
+procedure TForm1.Divisions1Click(Sender: TObject);
+begin
+  DivisionsForm.ShowModal;
+end;
+
+procedure TForm1.Venues1Click(Sender: TObject);
+begin
+  VenuesForm.ShowModal;
+end;
+
+procedure TForm1.Teams1Click(Sender: TObject);
+begin
+  TeamList.ShowModal;
+end;
+
+procedure TForm1.Players1Click(Sender: TObject);
+begin
+  PlayersForm.ShowModal;
+  DM1.AllPlayerLookUp.Refresh;
+end;
+
+procedure TForm1.Update1Click(Sender: TObject);
+begin
+  UpdateForm.ShowModal;
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var SerialNo: String;
+var DaysLeft: Double;
+begin
+  DaysLeft := 0;
+  LicForm.Enter(SerialNo, DaysLeft);
+  DM1.League.Close;
+  DM1.League.Open;
+  DM1.League.First;
+  if not DM1.League.EOF then
+    begin
+      StatusBar1.Panels[0].Text := DM1.LeagueLeagueName.Value;
+      StatusBar1.Panels[1].Text := DM1.LeagueSeason.Value;
+    end
+  else
+    StatusBar1.Panels[0].Text := 'Unknown';
+  Form1.StatusBar1.Panels[4].Text := 'Serial No ' + SerialNo + ' (' + FloatToStr(DaysLeft) + ' days remaining)';
+
+end;
+
+procedure TForm1.Exit1Click(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TForm1.Tables1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  PickLeague.TablesType;
+end;
+
+procedure TForm1.PrinterSetup1Click(Sender: TObject);
+begin
+  PrinterSetupDialog1.Execute;
+end;
+
+procedure TForm1.Ratings1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  PickLeague.SinglesType;
+end;
+
+procedure TForm1.Ratings2Click(Sender: TObject);
+begin
+  CheckUpdate;
+  PickLeague.DoublesType;
+end;
+
+procedure TForm1.CheckUpdate;
+begin
+  DM1.League.Close;
+  DM1.League.Open;
+  DM1.League.First;
+  if DM1.LeagueUpdateRequired.Value = True then
+  begin
+    UpdateForm.ForceUpdate;
+  end;
+end;
+
+procedure TForm1.Results2Click(Sender: TObject);
+begin
+  CheckUpdate;
+  SelectDt.ShowModal;
+end;
+
+procedure TForm1.Database1Click(Sender: TObject);
+begin
+  OpenLeagueDlg.ShowModal;
+end;
+
+procedure TForm1.About1Click(Sender: TObject);
+begin
+  AboutBox.ShowModal;
+end;
+
+procedure TForm1.Mailshot1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  Mailshot.ShowModal;
+end;
+
+procedure TForm1.Contents1Click(Sender: TObject);
+begin
+  Application.HelpCommand(HELP_CONTENTS, 0);
+end;
+
+
+procedure TForm1.EightBalls1Click(Sender: TObject);
+begin
+  CheckUpdate;
+  EightBallReport.Preview;
+end;
+
+procedure TForm1.MatchGridEnter(Sender: TObject);
+begin
+  PopulateTeams;
+end;
+
+procedure TForm1.PopulateTeams;
+begin
+// Populate pick list for the home and away teams
+MatchGrid.Columns[1].PickList.Clear;
+MatchGrid.Columns[2].PickList.Clear;
+DM1.TeamByName.Close;
+DM1.TeamByName.Open;
+DM1.TeamByName.First;
+while not DM1.TeamByName.EOF do
+begin
+  MatchGrid.Columns[1].PickList.Add(DM1.TeamByNameTeamName.Value);
+  MatchGrid.Columns[2].PickList.Add(DM1.TeamByNameTeamName.Value);
+  DM1.TeamByName.Next;
+end;
+end;
+
+procedure TForm1.FormActivate(Sender: TObject);
+begin
+  DM1.Match.Refresh;
+  DM1.Single.Refresh;
+  DM1.Double.Refresh;
+  if DM1.LeagueNoDoubles.Value = 0 then
+    DoubleGrid.Enabled := False
+  else
+    DoubleGrid.Enabled := True;
+  if DM1.LeagueNoSingles.Value = 0 then
+    SingleGrid.Enabled := False
+  else
+    SingleGrid.Enabled := True;
+end;
+
+procedure TForm1.Button1Click(Sender: TObject);
+begin
+DM1.Match.Delete;
+end;
+
+procedure TForm1.MatchGridEditButtonClick(Sender: TObject);
+begin
+  if PickDate.ShowModal = mrOK then
+  begin
+    DM1.Match.Edit;
+    DM1.MatchMatchDate.Value := PickDate.Calendar1.CalendarDate;
+  end;
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+var filterstr, teamstr: String;
+begin
+  if Button2.Caption = 'Filter Off' then
+  begin
+    DM1.Match.Filter := '';
+    DM1.Match.Filtered := False;
+    Button2.Caption := 'Set Filter';
+  end
+  else
+  begin
+    if FilterDlg.ShowModal = mrOk then
+    begin
+      teamstr := FilterDlg.ListBox2.Items[FilterDlg.ListBox1.ItemIndex];
+      teamstr := StringReplace(teamstr,'''','''''',[ rfReplaceAll ]);
+      filterstr := 'HomeTeam = ''' + teamstr + '''';
+      filterstr := filterstr + ' or AwayTeam = ''' + teamstr + '''';
+      DM1.Match.Filter := filterstr;
+      DM1.Match.Filtered := True;
+      Button2.Caption := 'Filter Off';
+    end;
+  end;
+  Form1.Refresh;
+end;
+
+procedure TForm1.SingleGridExit(Sender: TObject);
+begin
+  Form1.StatusBar2.Panels[1].Text := '';
+  S_HPQSDlg.Close;
+  S_APQSDlg.Close;
+  try
+    DM1.Single.Post;
+  except
+  end;
+end;
+
+procedure TForm1.DoubleGridExit(Sender: TObject);
+begin
+  Form1.StatusBar2.Panels[1].Text := '';
+  D_HPQSDlg.Close;
+  D_APQSDlg.Close;
+  try
+    DM1.Double.Post;
+  except
+  end;
+end;
+
+procedure TForm1.FormDestroy(Sender: TObject);
+begin
+  try
+    DM1.Single.Post
+  except
+  end;
+  try
+    DM1.Double.Post
+  except
+  end;
+  try
+    DM1.Match.Post
+  except
+  end;
+end;
+
+procedure TForm1.WebPages1Click(Sender: TObject);
+begin
+  WebPageDlg.ShowModal;
+end;
+
+procedure TForm1.BitBtn1Click(Sender: TObject);
+var TeamName: Integer;
+var NewString: String;
+begin
+  if Edit1.Text <> '' then
+  begin
+    TeamName := DM1.MatchHomeTeam.Value;
+    NewString := Edit1.Text;
+    PlayersForm.FileNewPlayer(TeamName, NewString);
+    Edit1.Text := '';
+    Form1.ActiveControl := Edit1;
+  end;
+end;
+
+procedure TForm1.BitBtn2Click(Sender: TObject);
+var TeamName: Integer;
+var NewString: String;
+begin
+  if Edit1.Text <> '' then
+  begin
+    TeamName := DM1.MatchAwayTeam.Value;
+    NewString := Edit1.Text;
+    PlayersForm.FileNewPlayer(TeamName, NewString);
+    Edit1.Text := '';
+    Form1.ActiveControl := Edit1;
+  end;
+end;
+
+procedure TForm1.SingleGridKeyPress(Sender: TObject; var Key: Char);
+var inchar: Integer;
+var Failed: Boolean;
+begin
+  DM1.Single.Edit;
+  if (Key = '1') or (Key = '2') or (Key = '3') or (Key = '4') or (Key = '5') or (Key = '6') or (Key = '7') or (Key = '8') or (Key = '9') then
+  begin
+    inchar := StrToInt(Key);
+    if (SingleGrid.SelectedIndex = 1) or (SingleGrid.SelectedIndex = 3) then
+    begin
+      DM1.SingleLookUp.EditKey;
+      DM1.SingleLookUpMatchNo.Value := DM1.MatchMatchNo.Value;
+      DM1.SingleLookUpSingleNo.Value := inchar;
+      DM1.SingleLookUp.GotoKey;
+      SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+      case SingleGrid.SelectedIndex of
+        2: SingleGrid.SelectedField.Value := DM1.SingleLookUpHomePlayerNo.Value;
+        4: SingleGrid.SelectedField.Value := DM1.SingleLookUpAwayPlayerNo.Value;
+      end;
+    end;
+  end;
+  if ((Key = 'H') or (Key = 'h')) and (SingleGrid.SelectedIndex = 5) then
+  begin
+    SingleGrid.SelectedField.Value := 'Home';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'A') or (Key = 'a')) and (SingleGrid.SelectedIndex = 5) then
+  begin
+    SingleGrid.SelectedField.Value := 'Away';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'T') or (Key = 't')) and (SingleGrid.SelectedIndex = 6) then
+  begin
+    SingleGrid.SelectedField.Value := 'True';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'F') or (Key = 'f')) and (SingleGrid.SelectedIndex = 6) then
+  begin
+    SingleGrid.SelectedField.Value := 'False';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if (Key = ' ') and (SingleGrid.SelectedIndex = 6) then
+  begin
+    if SingleGrid.SelectedField.Value = 'True' then
+      SingleGrid.SelectedField.Value := 'False'
+    else
+      SingleGrid.SelectedField.Value := 'True';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if (Key = ' ') and (SingleGrid.SelectedIndex = 5) then
+  begin
+    if SingleGrid.SelectedField.Value = 'Away' then
+      SingleGrid.SelectedField.Value := 'Home'
+    else
+      SingleGrid.SelectedField.Value := 'Away';
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+  end;
+  if (Key = ' ') and (SingleGrid.SelectedIndex = 1) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.HomePlayerLookUp.Next;
+      if DM1.HomePlayerLookUp.EOF then DM1.HomePlayerLookUp.First;
+      DM1.HomeHowManyFrames(Failed, DM1.HomePlayerLookUpPlayerNo.Value);
+    end;
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+    SingleGrid.SelectedField.Value := DM1.HomePlayerLookUpPlayerNo.Value;
+    SingleGrid.SelectedIndex := 1;
+  end;
+  if (Key = ' ') and (SingleGrid.SelectedIndex = 3) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.AwayPlayerLookUp.Next;
+      if DM1.AwayPlayerLookUp.EOF then DM1.AwayPlayerLookUp.First;
+      DM1.AwayHowManyFrames(Failed, DM1.AwayPlayerLookUpPlayerNo.Value);
+    end;
+    SingleGrid.SelectedIndex := SingleGrid.SelectedIndex + 1;
+    SingleGrid.SelectedField.Value := DM1.AwayPlayerLookUpPlayerNo.Value;
+    SingleGrid.SelectedIndex := 3;
+  end;
+  Abort;
+end;
+
+procedure TForm1.SingleGridColEnter(Sender: TObject);
+var dummy: String;
+begin
+  dummy := '';
+  if (SingleGrid.SelectedIndex = 1) or (SingleGrid.SelectedIndex = 3) then
+    dummy := 'Press 1 to 9 for repeat player from frames 1 to 9 or Space Bar to rotate available players, then TAB forward';
+  if (SingleGrid.SelectedIndex = 5) then
+    dummy := 'Space Bar to toggle or H (for Home) or A (for Away)';
+  if (SingleGrid.SelectedIndex = 6) then
+    dummy := 'Space Bar to toggle or T (for True) or F (for False)';
+  Form1.StatusBar2.Panels[1].Text := dummy;
+end;
+
+procedure TForm1.DoubleGridColEnter(Sender: TObject);
+var dummy: String;
+begin
+  dummy := '';
+  if (DoubleGrid.SelectedIndex = 1) or (DoubleGrid.SelectedIndex = 3) or (DoubleGrid.SelectedIndex = 5) or (DoubleGrid.SelectedIndex = 7)then
+    dummy := 'Press 1 to 9 for repeat player from frames 1 to 9 or Space Bar to rotate available players, then TAB forward';
+  if (DoubleGrid.SelectedIndex = 9) then
+    dummy := 'Space Bar to toggle or H (for Home) or A (for Away)';
+  if (DoubleGrid.SelectedIndex = 10) or (DoubleGrid.SelectedIndex = 11) then
+    dummy := 'Space Bar to toggle or T (for True) or F (for False)';
+  Form1.StatusBar2.Panels[1].Text := dummy;
+end;
+
+procedure TForm1.DoubleGridKeyPress(Sender: TObject; var Key: Char);
+var inchar: Integer;
+var Failed: Boolean;
+begin
+  DM1.Double.Edit;
+  if (Key = '1') or (Key = '2') or (Key = '3') or (Key = '4') or (Key = '5') or
+  (Key = '6') or (Key = '7') or (Key = '8') or (Key = '9') then
+  begin
+    inchar := StrToInt(Key);
+    if (DoubleGrid.SelectedIndex = 1) or (DoubleGrid.SelectedIndex = 3) or (DoubleGrid.SelectedIndex = 5) or (DoubleGrid.SelectedIndex = 7)then
+    begin
+      DM1.DoubleLookUp.EditKey;
+      DM1.DoubleLookUpMatchNo.Value := DM1.MatchMatchNo.Value;
+      DM1.DoubleLookUpDoubleNo.Value := inchar;
+      DM1.DoubleLookUp.GotoKey;
+      DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+      case DoubleGrid.SelectedIndex of
+        2: DoubleGrid.SelectedField.Value := DM1.DoubleLookUpHomePlayerNo1.Value;
+        4: DoubleGrid.SelectedField.Value := DM1.DoubleLookUpHomePlayerNo2.Value;
+        6: DoubleGrid.SelectedField.Value := DM1.DoubleLookUpAwayPlayerNo1.Value;
+        8: DoubleGrid.SelectedField.Value := DM1.DoubleLookUpAwayPlayerNo2.Value;
+      end;
+    end;
+  end;
+  if ((Key = 'H') or (Key = 'h')) and (DoubleGrid.SelectedIndex = 9) then
+  begin
+    DoubleGrid.SelectedField.Value := 'Home';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'A') or (Key = 'a')) and (DoubleGrid.SelectedIndex = 9) then
+  begin
+    DoubleGrid.SelectedField.Value := 'Away';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'T') or (Key = 't')) and ((DoubleGrid.SelectedIndex = 10) or (DoubleGrid.SelectedIndex = 11)) then
+  begin
+    DoubleGrid.SelectedField.Value := 'True';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+  if ((Key = 'F') or (Key = 'f')) and ((DoubleGrid.SelectedIndex = 10) or (DoubleGrid.SelectedIndex = 11)) then
+  begin
+    DoubleGrid.SelectedField.Value := 'False';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+  if (Key = ' ') and ((DoubleGrid.SelectedIndex = 10) or (DoubleGrid.SelectedIndex = 11)) then
+  begin
+    if DoubleGrid.SelectedField.Value = 'True' then
+      DoubleGrid.SelectedField.Value := 'False'
+    else
+      DoubleGrid.SelectedField.Value := 'True';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+  if (Key = ' ') and (DoubleGrid.SelectedIndex = 9) then
+  begin
+    if DoubleGrid.SelectedField.Value = 'Away' then
+      DoubleGrid.SelectedField.Value := 'Home'
+    else
+      DoubleGrid.SelectedField.Value := 'Away';
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+  end;
+///////////////
+  if (Key = ' ') and (DoubleGrid.SelectedIndex = 1) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.HomePlayerLookUp.Next;
+      if DM1.HomePlayerLookUp.EOF then DM1.HomePlayerLookUp.First;
+      DM1.HomeMaxDoublesCheck(Failed, DM1.HomePlayerLookUpPlayerNo.Value);
+    end;
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+    DoubleGrid.SelectedField.Value := DM1.HomePlayerLookUpPlayerNo.Value;
+    DoubleGrid.SelectedIndex := 1;
+  end;
+  if (Key = ' ') and (DoubleGrid.SelectedIndex = 3) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.HomePlayerLookUp.Next;
+      if DM1.HomePlayerLookUp.EOF then DM1.HomePlayerLookUp.First;
+      DM1.HomeMaxDoublesCheck(Failed, DM1.HomePlayerLookUpPlayerNo.Value);
+    end;
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+    DoubleGrid.SelectedField.Value := DM1.HomePlayerLookUpPlayerNo.Value;
+    DoubleGrid.SelectedIndex := 3;
+  end;
+  if (Key = ' ') and (DoubleGrid.SelectedIndex = 5) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.AwayPlayerLookUp.Next;
+      if DM1.AwayPlayerLookUp.EOF then DM1.AwayPlayerLookUp.First;
+      DM1.AwayMaxDoublesCheck(Failed, DM1.AwayPlayerLookUpPlayerNo.Value);
+    end;
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+    DoubleGrid.SelectedField.Value := DM1.AwayPlayerLookUpPlayerNo.Value;
+    DoubleGrid.SelectedIndex := 5;
+  end;
+  if (Key = ' ') and (DoubleGrid.SelectedIndex = 7) then
+  begin
+    Failed := True;
+    while Failed do
+    begin
+      DM1.AwayPlayerLookUp.Next;
+      if DM1.AwayPlayerLookUp.EOF then DM1.AwayPlayerLookUp.First;
+      DM1.AwayMaxDoublesCheck(Failed, DM1.AwayPlayerLookUpPlayerNo.Value);
+    end;
+    DoubleGrid.SelectedIndex := DoubleGrid.SelectedIndex + 1;
+    DoubleGrid.SelectedField.Value := DM1.AwayPlayerLookUpPlayerNo.Value;
+    DoubleGrid.SelectedIndex := 7;
+  end;
+////////////////
+  Abort;
+end;
+
+procedure TForm1.UpdateDisplayedScore;
+var homescore, awayscore: Integer;
+begin
+  homescore := 0;
+  awayscore := 0;
+  // Re-calculate score
+  UpdateForm.SingleQuery.Close;
+  UpdateForm.SingleQuery.Params[0].AsFloat := DM1.MatchMatchNo.Value;
+  UpdateForm.SingleQuery.Open;
+  UpdateForm.SingleQuery.First;
+  while not UpdateForm.SingleQuery.EOF do
+  begin
+    if UpdateForm.SingleQueryWinner.Value = 'Home' then
+      homescore := homescore + 1
+    else
+      awayscore := awayscore + 1;
+    UpdateForm.SingleQuery.Next;
+  end;
+  UpdateForm.DoubleQuery.Close;
+  UpdateForm.DoubleQuery.Params[0].AsFloat := DM1.MatchMatchNo.Value;
+  UpdateForm.DoubleQuery.Open;
+  UpdateForm.DoubleQuery.First;
+  while not UpdateForm.DoubleQuery.EOF do
+  begin
+    if UpdateForm.DoubleQueryWinner.Value = 'Home' then
+      homescore := homescore + 1
+    else
+      awayscore := awayscore + 1;
+    UpdateForm.DoubleQuery.Next;
+  end;
+  Form1.Caption := 'Admin4Pool: ' + DM1.MatchHomeTeamName.Value + ' ' + IntToStr(homescore) + ' - ';
+  Form1.Caption := Form1.Caption + IntToStr(awayscore) + ' ' + DM1.MatchAwayTeamName.Value;
+end;
+
+procedure TForm1.SingleGridEnter(Sender: TObject);
+begin
+  S_HPQSDlg.Show;
+  S_APQSDlg.Show;
+  Form1.SetFocus;
+  Form1.SingleGrid.SelectedIndex := 1;
+end;
+
+procedure TForm1.DoubleGridEnter(Sender: TObject);
+begin
+  D_HPQSDlg.Show;
+  D_APQSDlg.Show;
+  Form1.SetFocus;
+  Form1.DoubleGrid.SelectedIndex := 1;
+end;
+
+procedure TForm1.New1Click(Sender: TObject);
+begin
+  NewLeagueDlg.ShowModal;
+end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+begin
+  DM1.Match.Insert;
+//  DM1.Match.Post;
+  ActiveControl := MatchGrid;
+  MatchGrid.SelectedIndex := 1;
+end;
+
+procedure TForm1.BitBtn3Click(Sender: TObject);
+var TeamName: Integer;
+var NewString: String;
+begin
+  if Edit2.Text <> '' then
+  begin
+    TeamName := DM1.MatchHomeTeam.Value;
+    NewString := Edit2.Text;
+    PlayersForm.FileNewPlayer(TeamName, NewString);
+    Edit2.Text := '';
+    Form1.ActiveControl := Edit2;
+  end;
+end;
+
+procedure TForm1.BitBtn4Click(Sender: TObject);
+var TeamName: Integer;
+var NewString: String;
+begin
+  if Edit2.Text <> '' then
+  begin
+    TeamName := DM1.MatchAwayTeam.Value;
+    NewString := Edit2.Text;
+    PlayersForm.FileNewPlayer(TeamName, NewString);
+    Edit2.Text := '';
+    Form1.ActiveControl := Edit2;
+  end;
+end;
+
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  BackUpForm.ShowModal;
+  Application.Terminate;
+end;
+
+procedure TForm1.FormShow(Sender: TObject);
+begin
+  Form1.Update;
+end;
+
+procedure TForm1.PurgePlayers1Click(Sender: TObject);
+begin
+  PPForm.ShowModal;
+end;
+
+procedure TForm1.PageControl1Change(Sender: TObject);
+begin
+  if PageControl1.ActivePageIndex = 1 then
+  begin
+    Form1.ActiveControl := SingleGrid;
+    SingleGrid.SelectedIndex := 1;
+  end;
+end;
+
+end.

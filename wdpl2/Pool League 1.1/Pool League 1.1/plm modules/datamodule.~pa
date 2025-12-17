@@ -1,0 +1,88 @@
+unit datamodule;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  Db, DBTables;
+
+type
+  TDM1 = class(TDataModule)
+    Player: TTable;
+    PlayerPlayerNo: TFloatField;
+    PlayerPlayerName: TStringField;
+    PlayerPlayerTeam: TStringField;
+    PlayerSource: TDataSource;
+    LastPlayerNoQuery: TQuery;
+    Team: TTable;
+    TeamSource: TDataSource;
+    DeleteQuery: TQuery;
+    TeamTeamName: TStringField;
+    TeamVenue: TStringField;
+    TeamDivision: TStringField;
+    TeamContact: TStringField;
+    TeamContactAddress1: TStringField;
+    TeamContactAddress2: TStringField;
+    TeamContactAddress3: TStringField;
+    TeamContactAddress4: TStringField;
+    TeamWins: TIntegerField;
+    TeamLoses: TIntegerField;
+    TeamDraws: TIntegerField;
+    TeamSWins: TIntegerField;
+    TeamSLosses: TIntegerField;
+    TeamDWins: TIntegerField;
+    TeamDLosses: TIntegerField;
+    TeamPoints: TIntegerField;
+    TeamPlayed: TIntegerField;
+    League: TTable;
+    LeagueSource: TDataSource;
+    LeagueLeagueName: TStringField;
+    LeagueSeason: TStringField;
+    LeagueNoSingles: TIntegerField;
+    LeagueNoDoubles: TIntegerField;
+    LeagueSinglesBonus: TIntegerField;
+    LeagueDoublesBonus: TIntegerField;
+    LeagueWinBonus: TIntegerField;
+    LeagueDrawBonus: TIntegerField;
+    LeagueLossBonus: TIntegerField;
+    LeagueWinFactor: TFloatField;
+    LeagueLossFactor: TFloatField;
+    LeagueEightBallFactor: TFloatField;
+    LeagueUpdateRequired: TBooleanField;
+    LeagueMaxSingles: TIntegerField;
+    LeagueMaxDoubles: TIntegerField;
+    LeagueBuffer: TIntegerField;
+    LeagueLetterhead: TMemoField;
+    LeagueShowTop: TIntegerField;
+    LeagueLatestFrameWeight: TIntegerField;
+    LeagueWeightDrop: TIntegerField;
+    LeagueWeightGames: TIntegerField;
+    procedure PlayerBeforePost(DataSet: TDataSet);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  DM1: TDM1;
+
+implementation
+{used within Player Table so that Singles and Doubles may call
+ for player additions}
+{$R *.DFM}
+
+procedure TDM1.PlayerBeforePost(DataSet: TDataSet);
+begin
+  if DM1.Player.State = dsInsert then              { fetch new ItemNo for the key }
+  begin
+    DM1.LastPlayerNoQuery.Close;
+    DM1.LastPlayerNoQuery.Open;
+    { SQL servers return Null for some aggregates if no items are present }
+    with DM1.LastPlayerNoQuery.Fields[0] do
+      if IsNull then DM1.PlayerPlayerNo.Value := 1
+      else DM1.PlayerPlayerNo.Value := AsFloat + 1;
+  end;
+end;
+
+end.

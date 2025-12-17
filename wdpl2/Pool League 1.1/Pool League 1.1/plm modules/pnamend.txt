@@ -1,0 +1,92 @@
+object PlayerAmend: TPlayerAmend
+   HelpContext =  460
+  Left = 256
+  Top = 132
+  ActiveControl = OKBtn
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'Amend Player Name'
+  ClientHeight = 83
+  ClientWidth = 296
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clBlack
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = [fsBold]
+  OldCreateOrder = True
+  Position = poScreenCenter
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Label1: TLabel
+    Left = 8
+    Top = 12
+    Width = 60
+    Height = 13
+    Caption = 'Player Name'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+  end
+  object OKBtn: TBitBtn
+    Left = 60
+    Top = 44
+    Width = 70
+    Height = 31
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 1
+    OnClick = OKBtnClick
+    Kind = bkOK
+    Margin = 2
+    Spacing = -1
+    IsControl = True
+  end
+  object CancelBtn: TBitBtn
+    Left = 172
+    Top = 44
+    Width = 70
+    Height = 31
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 2
+    OnClick = CancelBtnClick
+    Kind = bkCancel
+    Margin = 2
+    Spacing = -1
+    IsControl = True
+  end
+  object DBEdit1: TDBEdit
+    Left = 80
+    Top = 8
+    Width = 209
+    Height = 21
+    DataField = 'PlayerName'
+    DataSource = DM1.PlayerSource
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 0
+  end
+  object LastPlayerNoQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select max(PlayerNo) from Player')
+    Left = 120
+    Top = 200
+  end
+end

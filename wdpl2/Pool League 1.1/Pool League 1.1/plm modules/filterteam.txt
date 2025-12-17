@@ -1,0 +1,56 @@
+object FilterDlg: TFilterDlg
+   HelpContext =  620
+  Left = 245
+  Top = 108
+  ActiveControl = ListBox1
+  BorderStyle = bsDialog
+  Caption = 'Select Team'
+  ClientHeight = 214
+  ClientWidth = 285
+  Color = clBtnFace
+  ParentFont = True
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object OKBtn: TButton
+    Left = 205
+    Top = 12
+    Width = 70
+    Height = 31
+    Caption = 'OK'
+    Default = True
+    ModalResult = 1
+    TabOrder = 0
+  end
+  object CancelBtn: TButton
+    Left = 205
+    Top = 51
+    Width = 70
+    Height = 31
+    Cancel = True
+    Caption = 'Cancel'
+    ModalResult = 2
+    TabOrder = 1
+  end
+  object ListBox1: TListBox
+    Left = 8
+    Top = 6
+    Width = 185
+    Height = 201
+    ItemHeight = 13
+    TabOrder = 2
+    OnDblClick = ListBox1DblClick
+  end
+  object ListBox2: TListBox
+    Left = 208
+    Top = 93
+    Width = 57
+    Height = 108
+    ItemHeight = 13
+    TabOrder = 3
+    Visible = False
+    OnDblClick = ListBox1DblClick
+  end
+end

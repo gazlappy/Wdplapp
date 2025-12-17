@@ -1,0 +1,1057 @@
+object UpdateForm: TUpdateForm
+   HelpContext =  500
+  Left = 214
+  Top = 104
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'Update'
+  ClientHeight = 199
+  ClientWidth = 460
+  Color = clActiveBorder
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clBlack
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = [fsBold]
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnClose = FormClose
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Label1: TLabel
+    Left = 8
+    Top = 9
+    Width = 102
+    Height = 13
+    Caption = '1/6: Team Downdate'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+  end
+  object OKBtn: TBitBtn
+    Left = 379
+    Top = 161
+    Width = 70
+    Height = 31
+    Caption = 'Start'
+    Default = True
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 0
+    OnClick = OKBtnClick
+    Glyph.Data = {
+      76010000424D7601000000000000760000002800000020000000100000000100
+      04000000000000010000130B0000130B00001000000000000000000000000000
+      800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+      FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00333333333333
+      33333333333333333333EEEEEEEEEEEEEEE333FFFFFFFFFFFFF3E00000000000
+      00E337777777777777F3E0F77777777770E337F33333333337F3E0F333333333
+      70E337F3333F333337F3E0F33303333370E337F3337FF33337F3E0F333003333
+      70E337F33377FF3337F3E0F33300033370E337F333777FF337F3E0F333000033
+      70E337F33377773337F3E0F33300033370E337F33377733337F3E0F333003333
+      70E337F33377333337F3E0F33303333370E337F33373333337F3E0F333333333
+      70E337F33333333337F3E0FFFFFFFFFFF0E337FFFFFFFFFFF7F3E00000000000
+      00E33777777777777733EEEEEEEEEEEEEEE33333333333333333}
+    Margin = 2
+    NumGlyphs = 2
+    Spacing = -1
+    IsControl = True
+  end
+  object ProgressBar1: TProgressBar
+    Left = 8
+    Top = 33
+    Width = 354
+    Height = 17
+    Min = 0
+    Max = 100
+    TabOrder = 1
+  end
+  object Memo1: TMemo
+    Left = 8
+    Top = 54
+    Width = 355
+    Height = 140
+    Hint = 'Lists errors from the update process'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    Lines.Strings = (
+      '')
+    ParentFont = False
+    ParentShowHint = False
+    ScrollBars = ssBoth
+    ShowHint = True
+    TabOrder = 2
+  end
+  object Edit1: TEdit
+    Left = 146
+    Top = 9
+    Width = 303
+    Height = 19
+    BorderStyle = bsNone
+    Color = clBtnFace
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 3
+    Text = 'Processing Match...'
+  end
+  object MatchQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    RequestLive = True
+    SQL.Strings = (
+      'Select * from Match')
+    Left = 24
+    Top = 120
+    object MatchQueryMatchNo: TFloatField
+      FieldName = 'MatchNo'
+    end
+    object MatchQueryMatchDate: TDateField
+      FieldName = 'MatchDate'
+    end
+    object MatchQueryHSWins: TIntegerField
+      FieldName = 'HSWins'
+    end
+    object MatchQueryASWins: TIntegerField
+      FieldName = 'ASWins'
+    end
+    object MatchQueryHDWins: TIntegerField
+      FieldName = 'HDWins'
+    end
+    object MatchQueryADWins: TIntegerField
+      FieldName = 'ADWins'
+    end
+    object MatchQueryHomeTeam: TIntegerField
+      FieldName = 'HomeTeam'
+      Origin = 'PLMDATA."MATCH.DB".HomeTeam'
+    end
+    object MatchQueryAwayTeam: TIntegerField
+      FieldName = 'AwayTeam'
+      Origin = 'PLMDATA."MATCH.DB".AwayTeam'
+    end
+    object MatchQueryHomeTeamName: TStringField
+      FieldKind = fkLookup
+      FieldName = 'HomeTeamName'
+      LookupDataSet = DM1.Team
+      LookupKeyFields = 'Item_id'
+      LookupResultField = 'TeamName'
+      KeyFields = 'HomeTeam'
+      Size = 30
+      Lookup = True
+    end
+    object MatchQueryAwayTeamName: TStringField
+      FieldKind = fkLookup
+      FieldName = 'AwayTeamName'
+      LookupDataSet = DM1.Team
+      LookupKeyFields = 'Item_id'
+      LookupResultField = 'TeamName'
+      KeyFields = 'AwayTeam'
+      Size = 30
+      Lookup = True
+    end
+  end
+  object TeamQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    RequestLive = True
+    SQL.Strings = (
+      'Select * from Team')
+    Left = 144
+    Top = 152
+    object TeamQueryTeamName: TStringField
+      FieldName = 'TeamName'
+      Size = 30
+    end
+    object TeamQueryWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object TeamQueryLoses: TIntegerField
+      FieldName = 'Loses'
+    end
+    object TeamQueryDraws: TIntegerField
+      FieldName = 'Draws'
+    end
+    object TeamQuerySWins: TIntegerField
+      FieldName = 'SWins'
+    end
+    object TeamQueryDWins: TIntegerField
+      FieldName = 'DWins'
+    end
+    object TeamQueryPoints: TIntegerField
+      FieldName = 'Points'
+    end
+    object TeamQueryPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object TeamQuerySLosses: TIntegerField
+      FieldName = 'SLosses'
+      Origin = '"Team.DB".SLosses'
+    end
+    object TeamQueryDLosses: TIntegerField
+      FieldName = 'DLosses'
+      Origin = '"Team.DB".DLosses'
+    end
+    object TeamQueryItem_id: TIntegerField
+      FieldName = 'Item_id'
+      Origin = 'PLMDATA."TEAM.DB".Item_id'
+    end
+    object TeamQueryVenue: TIntegerField
+      FieldName = 'Venue'
+      Origin = 'PLMDATA."TEAM.DB".Venue'
+    end
+    object TeamQueryDivision: TIntegerField
+      FieldName = 'Division'
+      Origin = 'PLMDATA."TEAM.DB".Division'
+    end
+  end
+  object SingleQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'Select * from Single'
+      '  where MatchNo = :Subs1')
+    Left = 48
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end>
+    object SingleQueryMatchNo: TFloatField
+      FieldName = 'MatchNo'
+      Origin = 'PLMDATA."SINGLE.DB".MatchNo'
+    end
+    object SingleQuerySingleNo: TFloatField
+      FieldName = 'SingleNo'
+      Origin = 'PLMDATA."SINGLE.DB".SingleNo'
+    end
+    object SingleQueryHomePlayerNo: TFloatField
+      FieldName = 'HomePlayerNo'
+      Origin = 'PLMDATA."SINGLE.DB".HomePlayerNo'
+    end
+    object SingleQueryAwayPlayerNo: TFloatField
+      FieldName = 'AwayPlayerNo'
+      Origin = 'PLMDATA."SINGLE.DB".AwayPlayerNo'
+    end
+    object SingleQueryWinner: TStringField
+      FieldName = 'Winner'
+      Origin = 'PLMDATA."SINGLE.DB".Winner'
+      Size = 4
+    end
+    object SingleQueryEightBall: TBooleanField
+      FieldName = 'EightBall'
+      Origin = 'PLMDATA."SINGLE.DB".EightBall'
+    end
+  end
+  object ClearDateRateQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'delete from Daterate')
+    Left = 96
+    Top = 120
+  end
+  object PlayerResetQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'update Player'
+      
+        '  set Played = 0, Wins = 0, Losses = 0, CurrentRating = 1000, Be' +
+        'stRating = 0, BestRatingDate = "01/01/90", EightBalls = 0')
+    Left = 216
+    Top = 152
+  end
+  object MUQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    RequestLive = True
+    SQL.Strings = (
+      'select * from Match'
+      '  order by MatchDate'
+      '  ')
+    Left = 24
+    Top = 152
+    object MUQueryMatchNo: TFloatField
+      FieldName = 'MatchNo'
+    end
+    object MUQueryMatchDate: TDateField
+      FieldName = 'MatchDate'
+    end
+    object MUQueryHSWins: TIntegerField
+      FieldName = 'HSWins'
+    end
+    object MUQueryASWins: TIntegerField
+      FieldName = 'ASWins'
+    end
+    object MUQueryHDWins: TIntegerField
+      FieldName = 'HDWins'
+    end
+    object MUQueryADWins: TIntegerField
+      FieldName = 'ADWins'
+    end
+    object MUQueryHT_Ignore: TBooleanField
+      FieldKind = fkLookup
+      FieldName = 'HT_Ignore'
+      LookupDataSet = Team
+      LookupKeyFields = 'TeamName'
+      LookupResultField = 'RemoveResults'
+      KeyFields = 'HomeTeam'
+      Lookup = True
+    end
+    object MUQueryAT_Ignore: TBooleanField
+      FieldKind = fkLookup
+      FieldName = 'AT_Ignore'
+      LookupDataSet = Team
+      LookupKeyFields = 'TeamName'
+      LookupResultField = 'RemoveResults'
+      KeyFields = 'AwayTeam'
+      Lookup = True
+    end
+    object MUQueryHomeTeam: TIntegerField
+      FieldName = 'HomeTeam'
+      Origin = 'PLMDATA."MATCH.DB".HomeTeam'
+    end
+    object MUQueryAwayTeam: TIntegerField
+      FieldName = 'AwayTeam'
+      Origin = 'PLMDATA."MATCH.DB".AwayTeam'
+    end
+    object MUQueryHomeTeamName: TStringField
+      FieldKind = fkLookup
+      FieldName = 'HomeTeamName'
+      LookupDataSet = DM1.Team
+      LookupKeyFields = 'Item_id'
+      LookupResultField = 'TeamName'
+      KeyFields = 'HomeTeam'
+      Size = 30
+      Lookup = True
+    end
+    object MUQueryAwayTeamName: TStringField
+      FieldKind = fkLookup
+      FieldName = 'AwayTeamName'
+      LookupDataSet = DM1.Team
+      LookupKeyFields = 'Item_id'
+      LookupResultField = 'TeamName'
+      KeyFields = 'AwayTeam'
+      Lookup = True
+    end
+  end
+  object PQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    RequestLive = True
+    SQL.Strings = (
+      'select * from Player'
+      '  where PlayerName = :Subs1 and PlayerTeam = :Subs2'
+      '')
+    Left = 48
+    Top = 152
+    ParamData = <
+      item
+        DataType = ftString
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftInteger
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end>
+    object PQueryPlayerNo: TFloatField
+      FieldName = 'PlayerNo'
+    end
+    object PQueryPlayerName: TStringField
+      FieldName = 'PlayerName'
+      Size = 30
+    end
+    object PQueryPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object PQueryWins: TIntegerField
+      FieldName = 'Wins'
+      MaxValue = 999
+    end
+    object PQueryLosses: TIntegerField
+      FieldName = 'Losses'
+    end
+    object PQueryCurrentRating: TIntegerField
+      FieldName = 'CurrentRating'
+    end
+    object PQueryBestRating: TIntegerField
+      FieldName = 'BestRating'
+    end
+    object PQueryBestRatingDate: TDateField
+      FieldName = 'BestRatingDate'
+    end
+    object PQueryPlayerTeam: TIntegerField
+      FieldName = 'PlayerTeam'
+      Origin = 'PLMDATA."PLAYER.DB".PlayerTeam'
+    end
+  end
+  object DateRate: TTable
+    DatabaseName = 'PLMDATA'
+    Exclusive = True
+    TableName = 'DATERATE.DB'
+    Left = 112
+    Top = 56
+    object DateRateDateRateKey: TIntegerField
+      FieldName = 'DateRateKey'
+    end
+    object DateRatePlayerNo: TFloatField
+      FieldName = 'PlayerNo'
+    end
+    object DateRateRating: TIntegerField
+      FieldName = 'Rating'
+    end
+    object DateRateRatingDate: TDateField
+      FieldName = 'RatingDate'
+    end
+    object DateRateWon: TBooleanField
+      FieldName = 'Won'
+    end
+    object DateRateAgainst: TFloatField
+      FieldName = 'Against'
+    end
+  end
+  object DateRateSource: TDataSource
+    DataSet = DateRate
+    Left = 136
+    Top = 56
+  end
+  object SingleReCalcQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Daterate'
+      
+        '  order by PlayerNo, RatingDate DESCENDING, DateRateKey DESCENDI' +
+        'NG')
+    Left = 96
+    Top = 152
+    object SingleReCalcQueryDateRateKey: TIntegerField
+      FieldName = 'DateRateKey'
+    end
+    object SingleReCalcQueryPlayerNo: TFloatField
+      FieldName = 'PlayerNo'
+    end
+    object SingleReCalcQueryRatingDate: TDateField
+      FieldName = 'RatingDate'
+    end
+    object SingleReCalcQueryRating: TIntegerField
+      FieldName = 'Rating'
+    end
+  end
+  object AP: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'PLAYER.DB'
+    Left = 280
+    Top = 56
+    object APPlayerNo: TFloatField
+      FieldName = 'PlayerNo'
+    end
+    object APPlayerName: TStringField
+      FieldName = 'PlayerName'
+      Size = 30
+    end
+    object APPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object APWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object APLosses: TIntegerField
+      FieldName = 'Losses'
+    end
+    object APCurrentRating: TIntegerField
+      FieldName = 'CurrentRating'
+    end
+    object APBestRating: TIntegerField
+      FieldName = 'BestRating'
+    end
+    object APBestRatingDate: TDateField
+      FieldName = 'BestRatingDate'
+    end
+    object APEightBalls: TIntegerField
+      FieldName = 'EightBalls'
+    end
+    object APPlayerTeam: TIntegerField
+      FieldName = 'PlayerTeam'
+    end
+  end
+  object APlayerSource: TDataSource
+    DataSet = AP
+    Left = 304
+    Top = 56
+  end
+  object Match: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'MATCH.DB'
+    Left = 56
+    Top = 56
+    object MatchMatchNo: TFloatField
+      FieldName = 'MatchNo'
+    end
+    object MatchMatchDate: TDateField
+      FieldName = 'MatchDate'
+    end
+    object MatchHSWins: TIntegerField
+      FieldName = 'HSWins'
+    end
+    object MatchASWins: TIntegerField
+      FieldName = 'ASWins'
+    end
+    object MatchHDWins: TIntegerField
+      FieldName = 'HDWins'
+    end
+    object MatchADWins: TIntegerField
+      FieldName = 'ADWins'
+    end
+    object MatchHomeTeam: TIntegerField
+      FieldName = 'HomeTeam'
+    end
+    object MatchAwayTeam: TIntegerField
+      FieldName = 'AwayTeam'
+    end
+  end
+  object MatchSource: TDataSource
+    DataSet = Match
+    Left = 80
+    Top = 56
+  end
+  object Team: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'TEAM.DB'
+    Left = 224
+    Top = 56
+    object TeamTeamName: TStringField
+      FieldName = 'TeamName'
+      Size = 30
+    end
+    object TeamWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object TeamLoses: TIntegerField
+      FieldName = 'Loses'
+    end
+    object TeamDraws: TIntegerField
+      FieldName = 'Draws'
+    end
+    object TeamSWins: TIntegerField
+      FieldName = 'SWins'
+    end
+    object TeamDWins: TIntegerField
+      FieldName = 'DWins'
+    end
+    object TeamPoints: TIntegerField
+      FieldName = 'Points'
+    end
+    object TeamPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object TeamSLosses: TIntegerField
+      FieldName = 'SLosses'
+    end
+    object TeamDLosses: TIntegerField
+      FieldName = 'DLosses'
+    end
+    object TeamRemoveResults: TBooleanField
+      FieldName = 'RemoveResults'
+    end
+    object TeamItem_id: TIntegerField
+      FieldName = 'Item_id'
+    end
+    object TeamDivision: TIntegerField
+      FieldName = 'Division'
+    end
+  end
+  object TeamSource: TDataSource
+    DataSet = Team
+    Left = 248
+    Top = 56
+  end
+  object ClearDblRateQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'delete from Dblrate')
+    Left = 192
+    Top = 152
+  end
+  object PairResetQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'delete from Pair')
+    Left = 168
+    Top = 152
+  end
+  object DoubleQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'Select * from Dbls'
+      '  where MatchNo = :Subs1'
+      '')
+    Left = 72
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end>
+    object DoubleQueryMatchNo: TFloatField
+      FieldName = 'MatchNo'
+      Origin = 'PLMDATA."Dbls.DB".MatchNo'
+    end
+    object DoubleQueryDoubleNo: TFloatField
+      FieldName = 'DoubleNo'
+      Origin = 'PLMDATA."Dbls.DB".DoubleNo'
+    end
+    object DoubleQueryHomePlayerNo1: TFloatField
+      FieldName = 'HomePlayerNo1'
+      Origin = 'PLMDATA."Dbls.DB".HomePlayerNo1'
+    end
+    object DoubleQueryHomePlayerNo2: TFloatField
+      FieldName = 'HomePlayerNo2'
+      Origin = 'PLMDATA."Dbls.DB".HomePlayerNo2'
+    end
+    object DoubleQueryAwayPlayerNo1: TFloatField
+      FieldName = 'AwayPlayerNo1'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo1'
+    end
+    object DoubleQueryAwayPlayerNo2: TFloatField
+      FieldName = 'AwayPlayerNo2'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo2'
+    end
+    object DoubleQueryWinner: TStringField
+      FieldName = 'Winner'
+      Origin = 'PLMDATA."Dbls.DB".Winner'
+      Size = 4
+    end
+    object DoubleQueryEightBall1: TBooleanField
+      FieldName = 'EightBall1'
+      Origin = 'PLMDATA."Dbls.DB".EightBall1'
+    end
+    object DoubleQueryEightBall2: TBooleanField
+      FieldName = 'EightBall2'
+      Origin = 'PLMDATA."Dbls.DB".EightBall2'
+    end
+  end
+  object DblRate: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'Dblrate.DB'
+    Left = 168
+    Top = 56
+    object DblRateDateRateKey: TAutoIncField
+      FieldName = 'DateRateKey'
+    end
+    object DblRatePlayerNo1: TFloatField
+      FieldName = 'PlayerNo1'
+    end
+    object DblRatePlayerNo2: TFloatField
+      FieldName = 'PlayerNo2'
+    end
+    object DblRateRating: TIntegerField
+      FieldName = 'Rating'
+    end
+    object DblRateRatingDate: TDateField
+      FieldName = 'RatingDate'
+    end
+  end
+  object DblRateSource: TDataSource
+    DataSet = DblRate
+    Left = 192
+    Top = 56
+  end
+  object APair: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'Pair.DB'
+    Left = 168
+    Top = 88
+    object APairPlayerNo1: TFloatField
+      FieldName = 'PlayerNo1'
+    end
+    object APairPlayerNo2: TFloatField
+      FieldName = 'PlayerNo2'
+    end
+    object APairPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object APairWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object APairLosses: TIntegerField
+      FieldName = 'Losses'
+    end
+    object APairBestRating: TIntegerField
+      FieldName = 'BestRating'
+    end
+    object APairBestRatingDate: TDateField
+      FieldName = 'BestRatingDate'
+    end
+    object APairCurrentRating: TIntegerField
+      FieldName = 'CurrentRating'
+    end
+    object APairPlayerTeam: TIntegerField
+      FieldName = 'PlayerTeam'
+    end
+    object APairPlayerName1: TStringField
+      FieldKind = fkLookup
+      FieldName = 'PlayerName1'
+      LookupDataSet = DM1.Player
+      LookupKeyFields = 'PlayerNo'
+      LookupResultField = 'PlayerName'
+      KeyFields = 'PlayerNo1'
+      Size = 30
+      Lookup = True
+    end
+    object APairPlayerName2: TStringField
+      FieldKind = fkLookup
+      FieldName = 'PlayerName2'
+      LookupDataSet = DM1.Player
+      LookupKeyFields = 'PlayerNo'
+      LookupResultField = 'PlayerName'
+      KeyFields = 'PlayerNo2'
+      Size = 30
+      Lookup = True
+    end
+  end
+  object APairSource: TDataSource
+    DataSet = APair
+    Left = 192
+    Top = 88
+  end
+  object DoubleReCalcQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Dblrate'
+      
+        '  order by PlayerNo1, PlayerNo2, RatingDate DESCENDING, DateRate' +
+        'Key DESCENDING')
+    Left = 120
+    Top = 152
+    object DoubleReCalcQueryDateRateKey: TIntegerField
+      FieldName = 'DateRateKey'
+      Origin = '"Dblrate.DB".DateRateKey'
+    end
+    object DoubleReCalcQueryPlayerNo1: TFloatField
+      FieldName = 'PlayerNo1'
+      Origin = '"Dblrate.DB".PlayerNo1'
+    end
+    object DoubleReCalcQueryPlayerNo2: TFloatField
+      FieldName = 'PlayerNo2'
+      Origin = '"Dblrate.DB".PlayerNo2'
+    end
+    object DoubleReCalcQueryRating: TIntegerField
+      FieldName = 'Rating'
+      Origin = '"Dblrate.DB".Rating'
+    end
+    object DoubleReCalcQueryRatingDate: TDateField
+      FieldName = 'RatingDate'
+      Origin = '"Dblrate.DB".RatingDate'
+    end
+  end
+  object HP: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'PLAYER.DB'
+    Left = 56
+    Top = 88
+    object HPPlayerNo: TFloatField
+      FieldName = 'PlayerNo'
+    end
+    object HPPlayerName: TStringField
+      FieldName = 'PlayerName'
+      Size = 30
+    end
+    object HPPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object HPWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object HPLosses: TIntegerField
+      FieldName = 'Losses'
+    end
+    object HPCurrentRating: TIntegerField
+      FieldName = 'CurrentRating'
+    end
+    object HPBestRating: TIntegerField
+      FieldName = 'BestRating'
+    end
+    object HPBestRatingDate: TDateField
+      FieldName = 'BestRatingDate'
+    end
+    object HPEightBalls: TIntegerField
+      FieldName = 'EightBalls'
+    end
+    object HPPlayerTeam: TIntegerField
+      FieldName = 'PlayerTeam'
+    end
+  end
+  object HPlayerSource: TDataSource
+    DataSet = HP
+    Left = 80
+    Top = 88
+  end
+  object HPair: TTable
+    DatabaseName = 'PLMDATA'
+    TableName = 'Pair.DB'
+    Left = 112
+    Top = 88
+    object HPairPlayerNo1: TFloatField
+      FieldName = 'PlayerNo1'
+    end
+    object HPairPlayerNo2: TFloatField
+      FieldName = 'PlayerNo2'
+    end
+    object HPairPlayed: TIntegerField
+      FieldName = 'Played'
+    end
+    object HPairWins: TIntegerField
+      FieldName = 'Wins'
+    end
+    object HPairLosses: TIntegerField
+      FieldName = 'Losses'
+    end
+    object HPairBestRating: TIntegerField
+      FieldName = 'BestRating'
+    end
+    object HPairBestRatingDate: TDateField
+      FieldName = 'BestRatingDate'
+    end
+    object HPairCurrentRating: TIntegerField
+      FieldName = 'CurrentRating'
+    end
+    object HPairPlayerTeam: TIntegerField
+      FieldName = 'PlayerTeam'
+    end
+    object HPairPlayerName1: TStringField
+      FieldKind = fkLookup
+      FieldName = 'PlayerName1'
+      LookupDataSet = DM1.Player
+      LookupKeyFields = 'PlayerNo'
+      LookupResultField = 'PlayerName'
+      KeyFields = 'PlayerNo1'
+      Size = 30
+      Lookup = True
+    end
+    object HPairPlayerName2: TStringField
+      FieldKind = fkLookup
+      FieldName = 'PlayerName2'
+      LookupDataSet = DM1.Player
+      LookupKeyFields = 'PlayerNo'
+      LookupResultField = 'PlayerName'
+      KeyFields = 'PlayerNo2'
+      Size = 30
+      Lookup = True
+    end
+  end
+  object HPairSource: TDataSource
+    DataSet = HPair
+    Left = 136
+    Top = 88
+  end
+  object HomeMaxSingles: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'select Winner from Single'
+      '  where MatchNo = :Subs1 and HomePlayerNo = :Subs2')
+    Left = 184
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end>
+    object HomeMaxSinglesWinner: TStringField
+      FieldName = 'Winner'
+      Origin = 'PLMDATA."SINGLE.DB".Winner'
+      Size = 4
+    end
+  end
+  object AwayMaxSingles: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'select Winner from Single'
+      '  where MatchNo = :Subs1 and AwayPlayerNo = :Subs2')
+    Left = 160
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end>
+    object StringField1: TStringField
+      FieldName = 'Winner'
+      Origin = 'PLMDATA."SINGLE.DB".Winner'
+      Size = 4
+    end
+  end
+  object AwayDoubleCheck: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'select * from Dbls'
+      '  where (AwayPlayerNo1 = :Subs2 or AwayPlayerNo2 = :Subs2)'
+      '  and  MatchNo = :Subs1  and DoubleNo <> :Subs3'
+      '  ')
+    Left = 256
+    Top = 152
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs3'
+        ParamType = ptUnknown
+      end>
+    object AwayDoubleCheckMatchNo: TFloatField
+      FieldName = 'MatchNo'
+      Origin = 'PLMDATA."Dbls.DB".MatchNo'
+    end
+    object AwayDoubleCheckDoubleNo: TFloatField
+      FieldName = 'DoubleNo'
+      Origin = 'PLMDATA."Dbls.DB".DoubleNo'
+    end
+    object AwayDoubleCheckAwayPlayerNo1: TFloatField
+      FieldName = 'AwayPlayerNo1'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo1'
+    end
+    object AwayDoubleCheckAwayPlayerNo2: TFloatField
+      FieldName = 'AwayPlayerNo2'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo2'
+    end
+  end
+  object Query1: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'select * from Dbls'
+      '  where (AwayPlayerNo1 = :Subs2 or AwayPlayerNo2 = :Subs2)'
+      '  and  MatchNo = :Subs1  and DoubleNo <> :Subs3'
+      '  ')
+    Left = 280
+    Top = 152
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs3'
+        ParamType = ptUnknown
+      end>
+    object FloatField1: TFloatField
+      FieldName = 'MatchNo'
+      Origin = 'PLMDATA."Dbls.DB".MatchNo'
+    end
+    object FloatField2: TFloatField
+      FieldName = 'DoubleNo'
+      Origin = 'PLMDATA."Dbls.DB".DoubleNo'
+    end
+    object FloatField3: TFloatField
+      FieldName = 'AwayPlayerNo1'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo1'
+    end
+    object FloatField4: TFloatField
+      FieldName = 'AwayPlayerNo2'
+      Origin = 'PLMDATA."Dbls.DB".AwayPlayerNo2'
+    end
+  end
+  object HomeMaxDoubles: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'Select Winner from Dbls'
+      '  where (HomePlayerNo1 = :Subs2 or HomePlayerNo2 = :Subs2)'
+      '  and MatchNo = :Subs1')
+    Left = 224
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftFloat
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end>
+    object HomeMaxDoublesWinner: TStringField
+      FieldName = 'Winner'
+      Origin = 'PLMDATA."Dbls.DB".Winner'
+      Size = 4
+    end
+  end
+  object AwayMaxDoubles: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'Select Winner from Dbls'
+      '  where (AwayPlayerNo1 = :Subs2 or AwayPlayerNo2 = :Subs2)'
+      '  and MatchNo = :Subs1'
+      '')
+    Left = 256
+    Top = 120
+    ParamData = <
+      item
+        DataType = ftUnknown
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Subs2'
+        ParamType = ptUnknown
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Subs1'
+        ParamType = ptUnknown
+      end>
+  end
+end

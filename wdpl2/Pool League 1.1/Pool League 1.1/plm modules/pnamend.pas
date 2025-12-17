@@ -1,0 +1,82 @@
+unit Pnamend;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, DB, DBTables, ExtCtrls, Mask, DBCtrls, Dialogs;
+
+type
+  TPlayerAmend = class(TForm)
+    OKBtn: TBitBtn;
+    CancelBtn: TBitBtn;
+    Label1: TLabel;
+    DBEdit1: TDBEdit;
+    LastPlayerNoQuery: TQuery;
+    procedure OKBtnClick(Sender: TObject);
+    procedure PlayerBeforePost(DataSet: TDataset);
+    procedure CancelBtnClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    procedure Edit(PlayerNo: Double);
+    procedure Insert(var TeamName: String);
+    { Public declarations }
+  end;
+
+var
+  PlayerAmend: TPlayerAmend;
+
+implementation
+
+uses datamodule;
+
+{$R *.DFM}
+
+procedure TPlayerAmend.Edit(PlayerNo: Double);
+begin
+  DM1.Player.FindKey([PlayerNo]);
+  DM1.Player.Edit;
+  ActiveControl := DBEdit1;
+end;
+
+procedure TPlayerAmend.Insert(var TeamName: String);
+begin
+  PlayerAmend.Caption := 'Add Player for ' + TeamName;
+  DM1.Player.Insert;
+  DM1.PlayerPlayerTeam.AsString := TeamName;
+  ActiveControl := DBEdit1;
+  // var TeamName gets the new Player Name so that, when
+  // called from Singles/Doubles form, player list boxes
+  // can be updated with the new player name.
+  TeamName := DM1.PlayerPlayerName.Value;
+  Close;
+end;
+
+procedure TPlayerAmend.OKBtnClick(Sender: TObject);
+begin
+  DM1.PlayerPlayerName.Value := DBEdit1.Text;
+  if DM1.PlayerPlayerName.Value <> '' then
+    DM1.Player.Post;
+  ModalResult := mrOK;
+end;
+
+procedure TPlayerAmend.PlayerBeforePost(DataSet: TDataset);
+begin
+  if DM1.Player.State = dsInsert then              { fetch new ItemNo for the key }
+  begin
+    LastPlayerNoQuery.Close;
+    LastPlayerNoQuery.Open;
+    { SQL servers return Null for some aggregates if no items are present }
+    with LastPlayerNoQuery.Fields[0] do
+      if IsNull then DM1.PlayerPlayerNo.Value := 1
+      else DM1.PlayerPlayerNo.Value := AsFloat + 1;
+  end;
+end;
+
+
+procedure TPlayerAmend.CancelBtnClick(Sender: TObject);
+begin
+  ModalResult := mrCancel;
+end;
+
+end.

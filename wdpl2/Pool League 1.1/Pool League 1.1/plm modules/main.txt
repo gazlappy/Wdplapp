@@ -1,0 +1,1152 @@
+object Form1: TForm1
+   HelpContext =  30
+  Left = 147
+  Top = 109
+  Width = 838
+  Height = 601
+  Caption = 'Admin4Pool'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -13
+  Font.Name = 'System'
+  Font.Style = []
+  Menu = MainMenu1
+  OldCreateOrder = True
+  Position = poScreenCenter
+  Visible = True
+  OnActivate = FormActivate
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  PixelsPerInch = 96
+  TextHeight = 16
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 536
+    Width = 830
+    Height = 19
+    Panels = <
+      item
+        Width = 200
+      end
+      item
+        Width = 100
+      end
+      item
+        Text = 'Systems4Sport  (c) 2000      info@systems4sport.co.uk'
+        Width = 270
+      end
+      item
+        Text = '1.1'
+        Width = 30
+      end
+      item
+        Width = 50
+      end>
+    SimplePanel = False
+  end
+  object Panel1: TPanel
+    Left = 2
+    Top = 0
+    Width = 823
+    Height = 2
+    TabOrder = 1
+  end
+  object StatusBar2: TStatusBar
+    Left = 0
+    Top = 517
+    Width = 830
+    Height = 19
+    Panels = <
+      item
+        Text = 'Keyboard Shortcuts'
+        Width = 100
+      end
+      item
+        Width = 50
+      end>
+    SimplePanel = False
+  end
+  object PageControl1: TPageControl
+    Left = 0
+    Top = 3
+    Width = 829
+    Height = 513
+    ActivePage = Matches
+    TabOrder = 3
+    object Matches: TTabSheet
+      Caption = 'Matches'
+      object MatchGrid: TDBGrid
+        Left = 1
+        Top = 7
+        Width = 336
+        Height = 474
+        Hint = 'Record matches in this grid'
+        DataSource = DM1.MatchSource
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        Options = [dgEditing, dgAlwaysShowEditor, dgTitles, dgIndicator, dgColumnResize, dgRowLines, dgTabs, dgCancelOnExit]
+        ParentFont = False
+        TabOrder = 0
+        TitleFont.Charset = DEFAULT_CHARSET
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -13
+        TitleFont.Name = 'System'
+        TitleFont.Style = []
+        OnEditButtonClick = MatchGridEditButtonClick
+        OnEnter = MatchGridEnter
+        Columns = <
+          item
+            Expanded = False
+            FieldName = 'MatchNo'
+            ReadOnly = True
+            Title.Caption = 'No.'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 30
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'HomeTeamName'
+            Title.Caption = 'Home Team'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 104
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'AwayTeamName'
+            Title.Caption = 'Away Team'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 102
+            Visible = True
+          end
+          item
+            ButtonStyle = cbsEllipsis
+            Expanded = False
+            FieldName = 'MatchDate'
+            Title.Caption = 'Date'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 67
+            Visible = True
+          end>
+      end
+      object Button3: TButton
+        Left = 359
+        Top = 12
+        Width = 75
+        Height = 25
+        Hint = 'Add a match'
+        Caption = 'Add'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 1
+        OnClick = Button3Click
+      end
+      object Button2: TButton
+        Left = 447
+        Top = 12
+        Width = 75
+        Height = 25
+        Hint = 'Reduce the match list to show entries for one team only'
+        Caption = 'Set Filter'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 2
+        OnClick = Button2Click
+      end
+      object Button1: TButton
+        Left = 728
+        Top = 12
+        Width = 75
+        Height = 25
+        Hint = 'Delete a match, including singles and doubles frames'
+        Caption = 'Delete'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 3
+        OnClick = Button1Click
+      end
+      object GroupBox1: TGroupBox
+        Left = 352
+        Top = 240
+        Width = 457
+        Height = 165
+        Caption = 'Summary'
+        TabOrder = 4
+        object Label1: TLabel
+          Left = 166
+          Top = 62
+          Width = 6
+          Height = 13
+          Caption = '0'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label2: TLabel
+          Left = 9
+          Top = 62
+          Width = 93
+          Height = 13
+          Caption = 'Number of Matches'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label3: TLabel
+          Left = 9
+          Top = 22
+          Width = 36
+          Height = 13
+          Caption = 'League'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText5: TDBText
+          Left = 166
+          Top = 22
+          Width = 283
+          Height = 17
+          DataField = 'LeagueName'
+          DataSource = DM1.LeagueSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label4: TLabel
+          Left = 9
+          Top = 82
+          Width = 94
+          Height = 13
+          Caption = 'Number of Divisions'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label5: TLabel
+          Left = 166
+          Top = 82
+          Width = 6
+          Height = 13
+          Caption = '0'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label12: TLabel
+          Left = 9
+          Top = 102
+          Width = 88
+          Height = 13
+          Caption = 'Number of Venues'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label13: TLabel
+          Left = 166
+          Top = 102
+          Width = 6
+          Height = 13
+          Caption = '0'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label14: TLabel
+          Left = 9
+          Top = 122
+          Width = 84
+          Height = 13
+          Caption = 'Number of Teams'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label15: TLabel
+          Left = 166
+          Top = 122
+          Width = 6
+          Height = 13
+          Caption = '0'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label16: TLabel
+          Left = 9
+          Top = 142
+          Width = 86
+          Height = 13
+          Caption = 'Number of Players'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label17: TLabel
+          Left = 166
+          Top = 142
+          Width = 6
+          Height = 13
+          Caption = '0'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label18: TLabel
+          Left = 9
+          Top = 42
+          Width = 36
+          Height = 13
+          Caption = 'Season'
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText15: TDBText
+          Left = 166
+          Top = 42
+          Width = 283
+          Height = 17
+          DataField = 'Season'
+          DataSource = DM1.LeagueSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+      end
+      object GroupBox2: TGroupBox
+        Left = 352
+        Top = 56
+        Width = 457
+        Height = 68
+        Caption = 'Match'
+        TabOrder = 5
+        object DBText1: TDBText
+          Left = 144
+          Top = 16
+          Width = 145
+          Height = 17
+          DataField = 'HomeTeamName'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText2: TDBText
+          Left = 8
+          Top = 16
+          Width = 25
+          Height = 17
+          DataField = 'MatchNo'
+          DataSource = DM1.MatchSource
+        end
+        object DBText3: TDBText
+          Left = 144
+          Top = 32
+          Width = 145
+          Height = 17
+          DataField = 'AwayTeamName'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText4: TDBText
+          Left = 8
+          Top = 32
+          Width = 57
+          Height = 17
+          DataField = 'MatchDate'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText6: TDBText
+          Left = 296
+          Top = 16
+          Width = 153
+          Height = 17
+          DataField = 'HomeTeamVenueName'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText7: TDBText
+          Left = 296
+          Top = 32
+          Width = 153
+          Height = 17
+          DataField = 'AwayTeamVenueName'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText8: TDBText
+          Left = 80
+          Top = 16
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'HSWins'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText9: TDBText
+          Left = 99
+          Top = 16
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'HDWins'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText10: TDBText
+          Left = 120
+          Top = 16
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'HomeTeamPoints'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText11: TDBText
+          Left = 80
+          Top = 32
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'ASWins'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText12: TDBText
+          Left = 99
+          Top = 32
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'ADWins'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText13: TDBText
+          Left = 120
+          Top = 32
+          Width = 17
+          Height = 17
+          Alignment = taRightJustify
+          DataField = 'AwayTeamPoints'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object DBText14: TDBText
+          Left = 8
+          Top = 48
+          Width = 121
+          Height = 17
+          DataField = 'DivName'
+          DataSource = DM1.MatchSource
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+      end
+    end
+    object Singles: TTabSheet
+      Caption = 'Singles'
+      ImageIndex = 1
+      object Label6: TLabel
+        Left = 7
+        Top = 12
+        Width = 24
+        Height = 16
+        Alignment = taRightJustify
+        Caption = 'Add'
+      end
+      object Label7: TLabel
+        Left = 200
+        Top = 12
+        Width = 12
+        Height = 16
+        Caption = 'to'
+      end
+      object Label11: TLabel
+        Left = 324
+        Top = 12
+        Width = 13
+        Height = 16
+        Caption = 'or'
+      end
+      object SingleGrid: TDBGrid
+        Left = 7
+        Top = 39
+        Width = 482
+        Height = 291
+        Hint = 
+          'Enter the results of the singles frames (Keyboard shortcuts avai' +
+          'lable)'
+        DataSource = DM1.SingleSource
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        Options = [dgEditing, dgAlwaysShowEditor, dgTitles, dgIndicator, dgRowLines, dgTabs, dgCancelOnExit]
+        ParentFont = False
+        TabOrder = 0
+        TitleFont.Charset = DEFAULT_CHARSET
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -13
+        TitleFont.Name = 'System'
+        TitleFont.Style = []
+        OnColEnter = SingleGridColEnter
+        OnEnter = SingleGridEnter
+        OnExit = SingleGridExit
+        OnKeyPress = SingleGridKeyPress
+        Columns = <
+          item
+            Expanded = False
+            FieldName = 'SingleNo'
+            ReadOnly = True
+            Title.Caption = 'No.'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 26
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'HPN'
+            Title.Caption = 'Home Player'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 120
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'HomePlayerNo'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Caption = '(Player#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 47
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'APN'
+            Title.Caption = 'Away Player'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 115
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'AwayPlayerNo'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Caption = '(Player#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 46
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'Winner'
+            PickList.Strings = (
+              'Home'
+              'Away')
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 48
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'EightBall'
+            PickList.Strings = (
+              'False'
+              'True')
+            Title.Caption = '8 Ball?'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 47
+            Visible = True
+          end>
+      end
+      object Edit2: TEdit
+        Left = 42
+        Top = 6
+        Width = 145
+        Height = 21
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 1
+      end
+      object BitBtn3: TBitBtn
+        Left = 223
+        Top = 4
+        Width = 90
+        Height = 25
+        Hint = 'Register the player name against the home team'
+        Caption = 'Home Team'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 2
+        OnClick = BitBtn3Click
+      end
+      object BitBtn4: TBitBtn
+        Left = 351
+        Top = 4
+        Width = 90
+        Height = 25
+        Hint = 'Register the player name against the away team'
+        Caption = 'Away Team'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 3
+        OnClick = BitBtn4Click
+      end
+    end
+    object Doubles: TTabSheet
+      Caption = 'Doubles'
+      ImageIndex = 2
+      object Label8: TLabel
+        Left = 7
+        Top = 12
+        Width = 24
+        Height = 16
+        Alignment = taRightJustify
+        Caption = 'Add'
+      end
+      object Label9: TLabel
+        Left = 200
+        Top = 12
+        Width = 12
+        Height = 16
+        Caption = 'to'
+      end
+      object Label10: TLabel
+        Left = 324
+        Top = 12
+        Width = 13
+        Height = 16
+        Caption = 'or'
+      end
+      object DoubleGrid: TDBGrid
+        Left = 0
+        Top = 39
+        Width = 821
+        Height = 162
+        Hint = 
+          'Enter the results of the doubles frames (Keyboard shortcuts avai' +
+          'lable)'
+        DataSource = DM1.DoubleSource
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        Options = [dgEditing, dgAlwaysShowEditor, dgTitles, dgIndicator, dgRowLines, dgTabs, dgCancelOnExit]
+        ParentFont = False
+        TabOrder = 0
+        TitleFont.Charset = DEFAULT_CHARSET
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -13
+        TitleFont.Name = 'System'
+        TitleFont.Style = []
+        OnColEnter = DoubleGridColEnter
+        OnEnter = DoubleGridEnter
+        OnExit = DoubleGridExit
+        OnKeyPress = DoubleGridKeyPress
+        Columns = <
+          item
+            Expanded = False
+            FieldName = 'DoubleNo'
+            ReadOnly = True
+            Title.Caption = 'No.'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 26
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'HPN1'
+            Title.Caption = 'Home Player 1'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 125
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'HomePlayerNo1'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Alignment = taRightJustify
+            Title.Caption = '(Plr#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 30
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'HPN2'
+            Title.Caption = 'Home Player 2'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 125
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'HomePlayerNo2'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Alignment = taRightJustify
+            Title.Caption = '(Plr#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 30
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'APN1'
+            Title.Caption = 'Away Player 1'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 125
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'AwayPlayerNo1'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Alignment = taRightJustify
+            Title.Caption = '(Plr#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 30
+            Visible = True
+          end
+          item
+            DropDownRows = 13
+            Expanded = False
+            FieldName = 'APN2'
+            Title.Caption = 'Away Player 2'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 125
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'AwayPlayerNo2'
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ReadOnly = True
+            Title.Alignment = taRightJustify
+            Title.Caption = '(Plr#)'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = []
+            Width = 30
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'Winner'
+            PickList.Strings = (
+              'Home'
+              'Away')
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 48
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'EightBall1'
+            PickList.Strings = (
+              'False'
+              'True')
+            Title.Caption = 'P1 8B?'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Width = 47
+            Visible = True
+          end
+          item
+            Expanded = False
+            FieldName = 'EightBall2'
+            PickList.Strings = (
+              'True'
+              'False')
+            Title.Caption = 'P2 8B?'
+            Title.Font.Charset = ANSI_CHARSET
+            Title.Font.Color = clWindowText
+            Title.Font.Height = -11
+            Title.Font.Name = 'MS Sans Serif'
+            Title.Font.Style = [fsBold]
+            Visible = True
+          end>
+      end
+      object Edit1: TEdit
+        Left = 42
+        Top = 6
+        Width = 145
+        Height = 21
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 1
+      end
+      object BitBtn1: TBitBtn
+        Left = 223
+        Top = 4
+        Width = 90
+        Height = 25
+        Hint = 'Register the player name against the home team'
+        Caption = 'Home Team'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 2
+        OnClick = BitBtn1Click
+      end
+      object BitBtn2: TBitBtn
+        Left = 351
+        Top = 4
+        Width = 90
+        Height = 25
+        Hint = 'Register the player name against the away team'
+        Caption = 'Away Team'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 3
+        OnClick = BitBtn2Click
+      end
+    end
+  end
+  object MainMenu1: TMainMenu
+    Left = 688
+    Top = 472
+    object File1: TMenuItem
+      Caption = '&File'
+      object Database1: TMenuItem
+        Caption = '&Open'
+        OnClick = Database1Click
+      end
+      object New1: TMenuItem
+         HelpContext =  410
+        Caption = '&New'
+        OnClick = New1Click
+      end
+      object Properties1: TMenuItem
+        Caption = '&Properties'
+        OnClick = Properties1Click
+      end
+      object Update1: TMenuItem
+        Caption = '&Update...'
+        OnClick = Update1Click
+      end
+      object PrinterSetup1: TMenuItem
+        Caption = 'Printer &Setup'
+        OnClick = PrinterSetup1Click
+      end
+      object Exit1: TMenuItem
+        Caption = 'E&xit'
+        OnClick = Exit1Click
+      end
+    end
+    object Hierarchy1: TMenuItem
+      Caption = '&Hierarchy'
+      object Divisions1: TMenuItem
+        Caption = '&Divisions'
+        OnClick = Divisions1Click
+      end
+      object Venues1: TMenuItem
+        Caption = '&Venues'
+        OnClick = Venues1Click
+      end
+      object Teams1: TMenuItem
+        Caption = '&Teams'
+        OnClick = Teams1Click
+      end
+      object Players1: TMenuItem
+        Caption = '&Players'
+        OnClick = Players1Click
+      end
+    end
+    object Stats1: TMenuItem
+      Caption = '&Statistics'
+      object Tables1: TMenuItem
+        Caption = '&Tables'
+        OnClick = Tables1Click
+      end
+      object Results2: TMenuItem
+        Caption = '&Results'
+        OnClick = Results2Click
+      end
+      object Ratings1: TMenuItem
+        Caption = '&Singles'
+        OnClick = Ratings1Click
+      end
+      object Ratings2: TMenuItem
+        Caption = '&Doubles'
+        OnClick = Ratings2Click
+      end
+      object Mailshot1: TMenuItem
+        Caption = '&Mailshot'
+        OnClick = Mailshot1Click
+      end
+      object EightBalls1: TMenuItem
+        Caption = '&Eight Balls'
+        OnClick = EightBalls1Click
+      end
+      object WebPages1: TMenuItem
+        Caption = '&Web Pages'
+        OnClick = WebPages1Click
+      end
+    end
+    object Help1: TMenuItem
+      Caption = '&Help'
+      object Contents1: TMenuItem
+        Caption = 'Contents'
+        OnClick = Contents1Click
+      end
+      object About1: TMenuItem
+        Caption = '&About'
+        OnClick = About1Click
+      end
+    end
+  end
+  object PrinterSetupDialog1: TPrinterSetupDialog
+    Left = 784
+    Top = 472
+  end
+  object OpenDialog1: TOpenDialog
+    Filter = 'PLM League File|League.DB'
+    Left = 720
+    Top = 472
+  end
+  object ImageList1: TImageList
+    Left = 752
+    Top = 472
+  end
+end

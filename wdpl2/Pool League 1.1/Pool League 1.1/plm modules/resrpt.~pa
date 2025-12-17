@@ -1,0 +1,149 @@
+unit resrpt;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, Db, DBTables;
+
+type
+  TResultReport = class(TQuickRep)
+    ColumnHeaderBand1: TQRBand;
+    DetailBand1: TQRBand;
+    TitleBand1: TQRBand;
+    MatchQuery: TQuery;
+    MatchQueryMatchNo: TFloatField;
+    MatchQueryHomeTeam: TStringField;
+    MatchQueryAwayTeam: TStringField;
+    MatchQueryMatchDate: TDateField;
+    MatchQueryHSWins: TIntegerField;
+    MatchQueryASWins: TIntegerField;
+    MatchQueryHDWins: TIntegerField;
+    MatchQueryADWins: TIntegerField;
+    QRDBText1: TQRDBText;
+    QRDBText2: TQRDBText;
+    LeagueQuery: TQuery;
+    LeagueQueryLeagueName: TStringField;
+    LeagueQuerySinglesBonus: TIntegerField;
+    LeagueQueryDoublesBonus: TIntegerField;
+    LeagueQueryWinBonus: TIntegerField;
+    LeagueQueryDrawBonus: TIntegerField;
+    LeagueQueryLossBonus: TIntegerField;
+    QRLabel1: TQRLabel;
+    QRLabel2: TQRLabel;
+    QRLabel3: TQRLabel;
+    QRLabel4: TQRLabel;
+    QRLabel5: TQRLabel;
+    QRLabel6: TQRLabel;
+    QRLabel7: TQRLabel;
+    QRLabel8: TQRLabel;
+    QRLabel9: TQRLabel;
+    QRLabel10: TQRLabel;
+    QRLabel11: TQRLabel;
+    QRLabel12: TQRLabel;
+    QRLabel13: TQRLabel;
+    QRLabel14: TQRLabel;
+    QRLabel15: TQRLabel;
+    QRLabel16: TQRLabel;
+    QRLabel18: TQRLabel;
+    QRDBText4: TQRDBText;
+    QRLabel19: TQRLabel;
+    QRLabel20: TQRLabel;
+    QRLabel21: TQRLabel;
+    QRLabel22: TQRLabel;
+    MatchQueryDivName: TStringField;
+    QRDBText3: TQRDBText;
+    PageHeaderBand1: TQRBand;
+    QRLabel17: TQRLabel;
+    procedure DetailBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+    procedure ResultReportStartPage(Sender: TQuickRep);
+    procedure ResultReportAfterPrint(Sender: TObject);
+    procedure MatchQueryBeforeEdit(DataSet: TDataSet);
+    procedure ResultReportBeforePrint(Sender: TQuickRep;
+      var PrintReport: Boolean);
+  private
+
+  public
+    holddate: String;
+    holddiv: String;
+  end;
+
+var
+  ResultReport: TResultReport;
+
+implementation
+
+{$R *.DFM}
+
+procedure TResultReport.DetailBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+var hometotal, awaytotal: Double;
+begin
+  QRLabel1.Caption := FloatToStr(MatchQueryHSWins.Value);
+  QRLabel2.Caption := FloatToStr(MatchQueryHDWins.Value);
+  hometotal := MatchQueryHSWins.Value * LeagueQuerySinglesBonus.Value;
+  hometotal := hometotal + (MatchQueryHDWins.Value * LeagueQueryDoublesBonus.Value);
+  QRLabel4.Caption := FloatToStr(MatchQueryASWins.Value);
+  QRLabel5.Caption := FloatToStr(MatchQueryADWins.Value);
+  awaytotal := MatchQueryASWins.Value * LeagueQuerySinglesBonus.Value;
+  awaytotal := awaytotal + (MatchQueryADWins.Value * LeagueQueryDoublesBonus.Value);
+  if hometotal > awaytotal then
+  begin
+    hometotal := hometotal + LeagueQueryWinBonus.Value;
+    awaytotal := awaytotal + LeagueQueryLossBonus.Value;
+    QRLabel7.Caption := 'beat'
+    end;
+  if hometotal = awaytotal then
+  begin
+    hometotal := hometotal + LeagueQueryDrawBonus.Value;
+    awaytotal := awaytotal + LeagueQueryDrawBonus.Value;
+    QRLabel7.Caption := 'drew with'
+  end;
+  if hometotal < awaytotal then
+  begin
+    hometotal := hometotal + LeagueQueryLossBonus.Value;
+    awaytotal := awaytotal + LeagueQueryWinBonus.Value;
+    QRLabel7.Caption := 'lost to'
+  end;
+  QRLabel3.Caption := FloatToStr(hometotal);
+  QRLabel6.Caption := FloatToStr(awaytotal);
+  if DateToStr(MatchQueryMatchDate.Value) <> holddate then
+  begin
+    holddate := DateToStr(MatchQueryMatchDate.Value);
+    QRLabel21.Caption := DateToStr(MatchQueryMatchDate.Value);
+    holddiv := '';
+    end;
+  if MatchQueryDivName.Value <> holddiv then
+  begin
+    holddiv := MatchQueryDivName.Value;
+    QRLabel22.Caption := MatchQueryDivName.Value;
+    end;
+end;
+
+procedure TResultReport.ResultReportStartPage(Sender: TQuickRep);
+begin
+  holddate := '';
+  holddiv := '';
+end;
+
+procedure TResultReport.ResultReportAfterPrint(Sender: TObject);
+begin
+  QRLabel21.Caption := '';
+  QRLabel22.Caption := '';
+end;
+
+procedure TResultReport.MatchQueryBeforeEdit(DataSet: TDataSet);
+begin
+QRLabel21.Caption := '';
+QRLabel22.Caption := '';
+end;
+
+procedure TResultReport.ResultReportBeforePrint(Sender: TQuickRep;
+  var PrintReport: Boolean);
+begin
+  LeagueQuery.Close;
+  LeagueQuery.Open;
+  LeagueQuery.First;
+end;
+
+end.

@@ -1,0 +1,175 @@
+object TeamList: TTeamList
+   HelpContext =  490
+  Left = 245
+  Top = 112
+  ActiveControl = OKBtn
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'Team List'
+  ClientHeight = 205
+  ClientWidth = 617
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clBlack
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = [fsBold]
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnActivate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object OKBtn: TBitBtn
+    Left = 135
+    Top = 168
+    Width = 70
+    Height = 31
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 0
+    OnClick = OKBtnClick
+    Kind = bkClose
+    Margin = 2
+    Spacing = -1
+    IsControl = True
+  end
+  object DBGrid1: TDBGrid
+    Left = 8
+    Top = 8
+    Width = 601
+    Height = 145
+    DataSource = DM1.TeamSource
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    Options = [dgEditing, dgTitles, dgIndicator, dgColumnResize, dgRowLines, dgTabs, dgConfirmDelete, dgCancelOnExit]
+    ParentFont = False
+    ReadOnly = True
+    TabOrder = 1
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clBlack
+    TitleFont.Height = -11
+    TitleFont.Name = 'MS Sans Serif'
+    TitleFont.Style = [fsBold]
+    OnDblClick = AmendClick
+    Columns = <
+      item
+        Expanded = False
+        FieldName = 'TeamName'
+        Title.Caption = 'Team Name'
+        Width = 100
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'DivisionName'
+        Title.Caption = 'Division'
+        Width = 100
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'VenueName'
+        Width = 100
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'Contact'
+        Width = 100
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'ContactAddress1'
+        Title.Caption = 'Contact Address 1'
+        Width = 150
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'ContactAddress2'
+        Title.Caption = 'Contact Address 2'
+        Width = 150
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'ContactAddress3'
+        Title.Caption = 'Contact Address 3'
+        Width = 150
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'ContactAddress4'
+        Title.Caption = 'Contact Address 4'
+        Width = 150
+        Visible = True
+      end>
+  end
+  object Button1: TButton
+    Left = 229
+    Top = 168
+    Width = 70
+    Height = 31
+    Caption = 'Insert'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 2
+    OnClick = Button1Click
+  end
+  object Delete: TButton
+    Left = 323
+    Top = 168
+    Width = 70
+    Height = 31
+    Caption = 'Delete'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 3
+    OnClick = DeleteClick
+  end
+  object Amend: TButton
+    Left = 419
+    Top = 168
+    Width = 70
+    Height = 31
+    Caption = 'Amend'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 4
+    OnClick = AmendClick
+  end
+  object DeleteQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'delete from Team where TeamName = :TeamName')
+    Left = 8
+    Top = 176
+    ParamData = <
+      item
+        DataType = ftString
+        Name = 'TeamName'
+        ParamType = ptUnknown
+      end>
+  end
+end

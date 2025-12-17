@@ -1,0 +1,25 @@
+unit licdialog;
+
+interface
+
+uses Windows, SysUtils, Classes, Graphics, Forms, Controls, StdCtrls,
+  Buttons, ExtCtrls;
+
+type
+  TLicInfo = class(TForm)
+    OKBtn: TButton;
+    Memo1: TMemo;
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  LicInfo: TLicInfo;
+
+implementation
+
+{$R *.DFM}
+
+end.

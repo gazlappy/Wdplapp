@@ -1,0 +1,224 @@
+object Mailshot: TMailshot
+   HelpContext =  610
+  Left = 303
+  Top = 256
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'Mailshot'
+  ClientHeight = 240
+  ClientWidth = 219
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Label1: TLabel
+    Left = 22
+    Top = 16
+    Width = 99
+    Height = 13
+    Caption = 'Include results since:'
+  end
+  object SpeedButton1: TSpeedButton
+    Left = 176
+    Top = 10
+    Width = 23
+    Height = 22
+    Hint = 'Change Date'
+    Glyph.Data = {
+      76010000424D7601000000000000760000002800000020000000100000000100
+      04000000000000010000120B0000120B00001000000000000000000000000000
+      800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+      FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00333333333333
+      33333FFFFFFFFFFFFFFF000000000000000077777777777777770FF7FF7FF7FF
+      7FF07FF7FF7FF7F37F3709F79F79F7FF7FF077F77F77F7FF7FF7077777777777
+      777077777777777777770FF7FF7FF7FF7FF07FF7FF7FF7FF7FF709F79F79F79F
+      79F077F77F77F77F77F7077777777777777077777777777777770FF7FF7FF7FF
+      7FF07FF7FF7FF7FF7FF709F79F79F79F79F077F77F77F77F77F7077777777777
+      777077777777777777770FFFFF7FF7FF7FF07F33337FF7FF7FF70FFFFF79F79F
+      79F07FFFFF77F77F77F700000000000000007777777777777777CCCCCC8888CC
+      CCCC777777FFFF777777CCCCCCCCCCCCCCCC7777777777777777}
+    NumGlyphs = 2
+    ParentShowHint = False
+    ShowHint = True
+    OnClick = SpeedButton1Click
+  end
+  object Label2: TLabel
+    Left = 126
+    Top = 16
+    Width = 32
+    Height = 13
+    Caption = 'Label2'
+  end
+  object BitBtn1: TBitBtn
+    Left = 18
+    Top = 205
+    Width = 77
+    Height = 27
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 0
+    OnClick = OKBtnClick
+    Kind = bkOK
+    Margin = 2
+    Spacing = -1
+  end
+  object BitBtn2: TBitBtn
+    Left = 122
+    Top = 205
+    Width = 77
+    Height = 27
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 1
+    OnClick = CancelBtnClick
+    Kind = bkCancel
+    Margin = 2
+    Spacing = -1
+  end
+  object RadioGroup1: TRadioGroup
+    Left = 16
+    Top = 40
+    Width = 185
+    Height = 73
+    Caption = 'Produce ...'
+    Items.Strings = (
+      'Covering letter only'
+      'Address labels only'
+      'Complete set')
+    TabOrder = 2
+  end
+  object RadioGroup2: TRadioGroup
+    Left = 16
+    Top = 120
+    Width = 185
+    Height = 73
+    Caption = '... for ...'
+    Items.Strings = (
+      'Captains and venues'
+      'Just captains'
+      'Just venues')
+    TabOrder = 3
+  end
+  object VenueQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Venue')
+    Left = 168
+    Top = 64
+    object VenueQueryVenue: TStringField
+      FieldName = 'Venue'
+      Origin = '"Venue.DB".Venue'
+      Size = 30
+    end
+    object VenueQueryAddressLine1: TStringField
+      FieldName = 'AddressLine1'
+      Origin = '"Venue.DB".AddressLine1'
+      Size = 30
+    end
+    object VenueQueryAddressLine2: TStringField
+      FieldName = 'AddressLine2'
+      Origin = '"Venue.DB".AddressLine2'
+      Size = 30
+    end
+    object VenueQueryAddressLine3: TStringField
+      FieldName = 'AddressLine3'
+      Origin = '"Venue.DB".AddressLine3'
+      Size = 30
+    end
+    object VenueQueryAddressLine4: TStringField
+      FieldName = 'AddressLine4'
+      Origin = '"Venue.DB".AddressLine4'
+      Size = 30
+    end
+    object VenueQueryItem_id: TIntegerField
+      FieldName = 'Item_id'
+      Origin = 'PLMDATA."VENUE.DB".Item_id'
+    end
+  end
+  object TeamQuery1: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Team'
+      '  where Venue = :Venue and Withdrawn = '#39'False'#39)
+    Left = 168
+    Top = 128
+    ParamData = <
+      item
+        DataType = ftInteger
+        Name = 'Venue'
+        ParamType = ptUnknown
+      end>
+    object TeamQuery1Withdrawn: TBooleanField
+      FieldName = 'Withdrawn'
+      Origin = 'PLMDATA."TEAM.DB".Withdrawn'
+    end
+    object TeamQuery1Venue: TIntegerField
+      FieldName = 'Venue'
+      Origin = 'PLMDATA."TEAM.DB".Venue'
+    end
+    object TeamQuery1Division: TIntegerField
+      FieldName = 'Division'
+      Origin = 'PLMDATA."TEAM.DB".Division'
+    end
+  end
+  object TeamQuery2: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Team'
+      '  where Withdrawn = '#39'False'#39)
+    Left = 168
+    Top = 96
+    object TeamQuery2Contact: TStringField
+      FieldName = 'Contact'
+      Origin = '"Team.DB".Contact'
+      Size = 30
+    end
+    object TeamQuery2ContactAddress1: TStringField
+      FieldName = 'ContactAddress1'
+      Origin = '"Team.DB".ContactAddress1'
+      Size = 30
+    end
+    object TeamQuery2ContactAddress2: TStringField
+      FieldName = 'ContactAddress2'
+      Origin = '"Team.DB".ContactAddress2'
+      Size = 30
+    end
+    object TeamQuery2ContactAddress3: TStringField
+      FieldName = 'ContactAddress3'
+      Origin = '"Team.DB".ContactAddress3'
+      Size = 30
+    end
+    object TeamQuery2ContactAddress4: TStringField
+      FieldName = 'ContactAddress4'
+      Origin = '"Team.DB".ContactAddress4'
+      Size = 30
+    end
+    object TeamQuery2Withdrawn: TBooleanField
+      FieldName = 'Withdrawn'
+      Origin = 'PLMDATA."TEAM.DB".Withdrawn'
+    end
+    object TeamQuery2Venue: TIntegerField
+      FieldName = 'Venue'
+      Origin = 'PLMDATA."TEAM.DB".Venue'
+    end
+    object TeamQuery2Division: TIntegerField
+      FieldName = 'Division'
+      Origin = 'PLMDATA."TEAM.DB".Division'
+    end
+  end
+end

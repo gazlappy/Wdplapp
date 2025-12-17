@@ -1,0 +1,43 @@
+Microsoft (R) Help Compiler
+HCRTF 4.03.0002
+Copyright (c) Microsoft Corp 1990 - 1995. All rights reserved.
+plm.hpj
+    HC3071: Warning: topic #11 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #11 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #14 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #15 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #17 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #18 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #20 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #25 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #33 of C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.p01 : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #36 of  : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #36 of  : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #36 of  : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC3071: Warning: topic #36 of  : 
+	One or more browse sequences set, but browse buttons are not enabled in any window.
+    HC1010: Note: 
+	The following mapped Topic IDs were not used in any topic:
+	GLOSSARY
+34	Topics
+2	Jumps
+42	Keywords
+5	Bitmaps
+
+
+Created c:\data\my documents\personal\projects\pool league 1.1\plm\plm.hlp, 230,548 bytes
+Bitmaps: 164,571 bytes
+Compile time: 0 minutes, 0 seconds
+1 note, 13 warnings

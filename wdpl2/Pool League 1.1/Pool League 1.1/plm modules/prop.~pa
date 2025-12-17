@@ -1,0 +1,157 @@
+unit Prop;
+
+interface
+
+uses
+  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+  Forms, Dialogs, TabNotBk, StdCtrls, Buttons, DB, DBTables, Mask, DBCtrls,
+  ExtCtrls, ComCtrls;
+
+type
+  TPropertiesForm = class(TForm)
+    LeagueProperties: TTabbedNotebook;
+    OKBtn: TBitBtn;
+    CancelBtn: TBitBtn;
+    League: TTable;
+    LeagueSource: TDataSource;
+    Panel1: TPanel;
+    Label2: TLabel;
+    Label1: TLabel;
+    DBEdit1: TDBEdit;
+    DBEdit2: TDBEdit;
+    GroupBox1: TGroupBox;
+    GroupBox2: TGroupBox;
+    GroupBox3: TGroupBox;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    DBEdit3: TDBEdit;
+    DBEdit4: TDBEdit;
+    DBEdit5: TDBEdit;
+    DBEdit6: TDBEdit;
+    DBEdit7: TDBEdit;
+    DBEdit8: TDBEdit;
+    DBEdit9: TDBEdit;
+    GroupBox4: TGroupBox;
+    Label14: TLabel;
+    DBEdit10: TDBEdit;
+    Label11: TLabel;
+    DBEdit11: TDBEdit;
+    GroupBox5: TGroupBox;
+    Label12: TLabel;
+    Label13: TLabel;
+    DBEdit12: TDBEdit;
+    DBEdit13: TDBEdit;
+    Label10: TLabel;
+    DBEdit14: TDBEdit;
+    Label16: TLabel;
+    DBMemo1: TDBMemo;
+    DBEdit16: TDBEdit;
+    Label17: TLabel;
+    Label19: TLabel;
+    Label15: TLabel;
+    DBEdit15: TDBEdit;
+    Label18: TLabel;
+    DBEdit17: TDBEdit;
+    DBEdit18: TDBEdit;
+    DBEdit19: TDBEdit;
+    Label21: TLabel;
+    Label22: TLabel;
+    Label23: TLabel;
+    Label24: TLabel;
+    DBMemo2: TDBMemo;
+    Label20: TLabel;
+    LeagueNoSingles: TIntegerField;
+    LeagueNoDoubles: TIntegerField;
+    LeagueSinglesBonus: TIntegerField;
+    LeagueDoublesBonus: TIntegerField;
+    LeagueWinBonus: TIntegerField;
+    LeagueDrawBonus: TIntegerField;
+    LeagueLossBonus: TIntegerField;
+    LeagueWinFactor: TFloatField;
+    LeagueLossFactor: TFloatField;
+    LeagueEightBallFactor: TFloatField;
+    LeagueUpdateRequired: TBooleanField;
+    LeagueMaxSingles: TIntegerField;
+    LeagueMaxDoubles: TIntegerField;
+    LeagueBuffer: TIntegerField;
+    LeagueLetterhead: TMemoField;
+    LeagueShowTop: TIntegerField;
+    LeagueLatestFrameWeight: TIntegerField;
+    LeagueWeightDrop: TIntegerField;
+    LeagueWeightGames: TIntegerField;
+    LeagueExplanation: TMemoField;
+    LeagueLeagueName: TStringField;
+    LeagueSeason: TStringField;
+    procedure LeagueBeforeOpen(DataSet: TDataset);
+    procedure LeagueNewRecord(DataSet: TDataset);
+    procedure FormCreate(Sender: TObject);
+    procedure OKBtnClick(Sender: TObject);
+    procedure CancelBtnClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure LeagueBeforePost(DataSet: TDataSet);
+    procedure LeagueAfterPost(DataSet: TDataSet);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  PropertiesForm: TPropertiesForm;
+
+implementation
+
+uses Main;
+
+{$R *.DFM}
+
+procedure TPropertiesForm.LeagueBeforeOpen(DataSet: TDataset);
+begin
+  League.Open;
+end;
+
+procedure TPropertiesForm.LeagueNewRecord(DataSet: TDataset);
+begin
+  League.Edit;
+end;
+
+procedure TPropertiesForm.FormCreate(Sender: TObject);
+begin
+  League.Open;
+end;
+
+procedure TPropertiesForm.OKBtnClick(Sender: TObject);
+begin
+  if League.State in [dsEdit, dsInsert] then League.Post;
+  Close;
+end;
+
+procedure TPropertiesForm.CancelBtnClick(Sender: TObject);
+begin
+  League.Cancel;
+  Close;
+end;
+
+
+procedure TPropertiesForm.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  Action := caFree;
+end;
+
+procedure TPropertiesForm.LeagueBeforePost(DataSet: TDataSet);
+begin
+  LeagueUpdateRequired.Value := True;
+end;
+
+procedure TPropertiesForm.LeagueAfterPost(DataSet: TDataSet);
+begin
+  League.Close;
+end;
+
+end.

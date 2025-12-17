@@ -1743,6 +1743,22 @@ public partial class HistoricalImportPage : ContentPage
                 };
                 ResultsArea.Children.Add(errorLabel);
                 
+                // Show diagnostic report button
+                var diagButton = new Button
+                {
+                    Text = "?? View Diagnostic Report",
+                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(24, 12),
+                    HorizontalOptions = LayoutOptions.Fill,
+                    Margin = new Thickness(0, 8)
+                };
+                diagButton.Clicked += async (s, e) =>
+                {
+                    await DisplayAlert("Paradox Binary Analysis", parseResult.DiagnosticReport, "OK");
+                };
+                ResultsArea.Children.Add(diagButton);
+                
                 var retryButton = new Button
                 {
                     Text = "Start Over",
@@ -1757,6 +1773,8 @@ public partial class HistoricalImportPage : ContentPage
                 return;
             }
 
+            ProgressPanel.IsVisible = false;
+
             // Show preview of what was found
             var summary = new System.Text.StringBuilder();
             summary.AppendLine($"?? Folder: {Path.GetFileName(folderPath)}");
@@ -1766,31 +1784,52 @@ public partial class HistoricalImportPage : ContentPage
             summary.AppendLine($"  • Teams: {parseResult.Teams.Count}");
             summary.AppendLine($"  • Players: {parseResult.Players.Count}");
             summary.AppendLine($"  • Matches: {parseResult.Matches.Count}");
+            summary.AppendLine($"  • Singles Frames: {parseResult.Singles.Count}");
+            summary.AppendLine($"  • Doubles Frames: {parseResult.Doubles.Count}");
             summary.AppendLine($"  • Venues: {parseResult.Venues.Count}");
             
             if (parseResult.Warnings.Any())
             {
                 summary.AppendLine();
-                summary.AppendLine("?? Warnings:");
-                foreach (var warning in parseResult.Warnings.Take(5))
+                summary.AppendLine("?? Parse Info:");
+                foreach (var warning in parseResult.Warnings.Take(8))
                 {
-                    summary.AppendLine($"  • {warning}");
+                    summary.AppendLine($"  {warning}");
                 }
-                if (parseResult.Warnings.Count > 5)
+                if (parseResult.Warnings.Count > 8)
                 {
-                    summary.AppendLine($"  ... and {parseResult.Warnings.Count - 5} more");
+                    summary.AppendLine($"  ... and {parseResult.Warnings.Count - 8} more");
                 }
             }
 
-            var proceed = await DisplayAlert("Paradox Database Parsed",
-                $"{summary}\n\nImport this data?",
-                "Import", "Cancel");
-
-            if (proceed)
+            // Show options
+            Step3Title.Text = "Paradox Data Found";
+            
+            var summaryLabel = new Label
             {
+                Text = summary.ToString(),
+                FontSize = 13,
+                Margin = new Thickness(0, 8)
+            };
+            ResultsArea.Children.Add(summaryLabel);
+
+            // Option 1: Import directly to current season
+            var importButton = new Button
+            {
+                Text = "?? Import to Season",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Fill,
+                Margin = new Thickness(0, 12, 0, 6),
+                FontAttributes = FontAttributes.Bold
+            };
+            importButton.Clicked += async (s, e) =>
+            {
+                ProgressPanel.IsVisible = true;
                 ProgressMessage.Text = "Importing data...";
+                ResultsArea.Children.Clear();
                 
-                // Import the parsed data
                 var importStats = await ImportParadoxDataAsync(parseResult);
                 
                 var resultSummary = new System.Text.StringBuilder();
@@ -1800,13 +1839,171 @@ public partial class HistoricalImportPage : ContentPage
                 if (importStats.PlayersImported > 0) resultSummary.AppendLine($"  • Players: {importStats.PlayersImported}");
                 if (importStats.VenuesImported > 0) resultSummary.AppendLine($"  • Venues: {importStats.VenuesImported}");
                 if (importStats.FixturesImported > 0) resultSummary.AppendLine($"  • Fixtures: {importStats.FixturesImported}");
+                if (importStats.FramesImported > 0) resultSummary.AppendLine($"  • Frame Results: {importStats.FramesImported}");
                 
                 ShowSuccessResult("Paradox Database Imported", resultSummary.ToString());
-            }
-            else
+            };
+            ResultsArea.Children.Add(importButton);
+
+            // Option 2: View Diagnostic Report
+            var diagnosticButton = new Button
             {
-                ResetWizard();
-            }
+                Text = "?? View Diagnostic Report",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Fill,
+                Margin = new Thickness(0, 6)
+            };
+            diagnosticButton.Clicked += async (s, e) =>
+            {
+                // Show in a scrollable alert or navigate to detail page
+                var diagPage = new ContentPage
+                {
+                    Title = "Paradox Binary Analysis",
+                    Content = new ScrollView
+                    {
+                        Content = new VerticalStackLayout
+                        {
+                            Padding = 16,
+                            Children =
+                            {
+                                new Label
+                                {
+                                    Text = parseResult.DiagnosticReport,
+                                    FontFamily = "Consolas",
+                                    FontSize = 11
+                                },
+                                new Button
+                                {
+                                    Text = "Close",
+                                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+                                    TextColor = Colors.White,
+                                    Margin = new Thickness(0, 16),
+                                    Command = new Command(async () => await Navigation.PopModalAsync())
+                                }
+                            }
+                        }
+                    }
+                };
+                await Navigation.PushModalAsync(new NavigationPage(diagPage));
+            };
+            ResultsArea.Children.Add(diagnosticButton);
+
+            // Option 2b: Deep Dive Analysis
+            var deepDiveButton = new Button
+            {
+                Text = "?? Deep Dive Analysis",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#8B5CF6"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Fill,
+                Margin = new Thickness(0, 6)
+            };
+            deepDiveButton.Clicked += async (s, e) =>
+            {
+                ProgressPanel.IsVisible = true;
+                ProgressMessage.Text = "Running deep analysis...";
+                
+                var deepDiveReport = await Task.Run(() => ParadoxDeepDive.AnalyzeAll(folderPath));
+                
+                ProgressPanel.IsVisible = false;
+                
+                var diagPage = new ContentPage
+                {
+                    Title = "Paradox Deep Dive Analysis",
+                    Content = new ScrollView
+                    {
+                        Content = new VerticalStackLayout
+                        {
+                            Padding = 16,
+                            Children =
+                            {
+                                new Label
+                                {
+                                    Text = deepDiveReport,
+                                    FontFamily = "Consolas",
+                                    FontSize = 10
+                                },
+                                new Button
+                                {
+                                    Text = "Close",
+                                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+                                    TextColor = Colors.White,
+                                    Margin = new Thickness(0, 16),
+                                    Command = new Command(async () => await Navigation.PopModalAsync())
+                                }
+                            }
+                        }
+                    }
+                };
+                await Navigation.PushModalAsync(new NavigationPage(diagPage));
+            };
+            ResultsArea.Children.Add(deepDiveButton);
+
+            // Option 3: Export to CSV files
+            var exportButton = new Button
+            {
+                Text = "?? Export to CSV Files",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Fill,
+                Margin = new Thickness(0, 6)
+            };
+            exportButton.Clicked += async (s, e) =>
+            {
+                try
+                {
+                    // Ask where to save CSV files
+                    var result = await FolderPicker.PickAsync(default);
+                    string outputFolder;
+                    
+                    if (result != null && result.IsSuccessful && result.Folder?.Path != null)
+                    {
+                        outputFolder = result.Folder.Path;
+                    }
+                    else
+                    {
+                        // Fall back to same folder as source
+                        outputFolder = folderPath;
+                    }
+
+                    var exportResult = ParadoxDatabaseParser.ExportToCsv(parseResult, outputFolder);
+                    
+                    await DisplayAlert("CSV Export Complete", 
+                        $"{exportResult}\n\nFolder: {outputFolder}\n\n" +
+                        "?? TIP: You can now place these CSV files in the Paradox folder and re-import for more reliable data loading.", 
+                        "OK");
+                }
+                catch (Exception ex)
+                {
+                    await DisplayAlert("Export Failed", $"Error: {ex.Message}", "OK");
+                }
+            };
+            ResultsArea.Children.Add(exportButton);
+
+            // Description
+            var exportNote = new Label
+            {
+                Text = "?? Export to CSV creates reliable backup files that can be edited in Excel and re-imported later.",
+                TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
+                FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 16)
+            };
+            ResultsArea.Children.Add(exportNote);
+
+            // Cancel button
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 12),
+                HorizontalOptions = LayoutOptions.Fill
+            };
+            cancelButton.Clicked += (s, e) => ResetWizard();
+            ResultsArea.Children.Add(cancelButton);
         }
         catch (Exception ex)
         {
@@ -1866,10 +2063,13 @@ public partial class HistoricalImportPage : ContentPage
 
         var seasonId = currentSeasonId.Value;
 
-        // Maps for linking entities
+        // Maps for linking entities (Paradox ID -> App GUID)
         var divisionMap = new System.Collections.Generic.Dictionary<int, Guid>();
         var divisionNameMap = new System.Collections.Generic.Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         var teamMap = new System.Collections.Generic.Dictionary<int, Guid>();
+        var playerMap = new System.Collections.Generic.Dictionary<int, Guid>();
+        var venueMap = new System.Collections.Generic.Dictionary<int, Guid>();
+        var fixtureMap = new System.Collections.Generic.Dictionary<int, Guid>(); // MatchNo -> Fixture GUID
 
         // 1. Import Divisions
         foreach (var div in parseResult.Divisions)
@@ -1933,7 +2133,34 @@ public partial class HistoricalImportPage : ContentPage
             }
         }
 
-        // 2. Import Teams
+        // 2. Import Venues
+        foreach (var venue in parseResult.Venues)
+        {
+            var existing = DataStore.Data.Venues.FirstOrDefault(v =>
+                v.SeasonId == seasonId &&
+                v.Name != null &&
+                v.Name.Equals(venue.VenueName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                venueMap[venue.ItemId] = existing.Id;
+            }
+            else
+            {
+                var newVenue = new Venue
+                {
+                    Id = Guid.NewGuid(),
+                    SeasonId = seasonId,
+                    Name = venue.VenueName,
+                    Address = venue.Address
+                };
+                DataStore.Data.Venues.Add(newVenue);
+                venueMap[venue.ItemId] = newVenue.Id;
+                stats.VenuesImported++;
+            }
+        }
+
+        // 3. Import Teams (need venue map first)
         foreach (var team in parseResult.Teams)
         {
             var normalizedName = team.TeamName.ToUpperInvariant();
@@ -1954,12 +2181,20 @@ public partial class HistoricalImportPage : ContentPage
                     divisionId = divId;
                 }
 
+                Guid? venueId = null;
+                if (team.VenueId.HasValue && venueMap.TryGetValue(team.VenueId.Value, out var vId))
+                {
+                    venueId = vId;
+                }
+
                 var newTeam = new Team
                 {
                     Id = Guid.NewGuid(),
                     SeasonId = seasonId,
                     Name = normalizedName,
-                    DivisionId = divisionId
+                    DivisionId = divisionId,
+                    VenueId = venueId,
+                    Captain = team.Contact
                 };
                 DataStore.Data.Teams.Add(newTeam);
                 teamMap[team.ItemId] = newTeam.Id;
@@ -1967,7 +2202,7 @@ public partial class HistoricalImportPage : ContentPage
             }
         }
 
-        // 3. Import Players
+        // 4. Import Players (need team map first)
         foreach (var player in parseResult.Players)
         {
             var normalizedFirst = player.FirstName.ToUpperInvariant();
@@ -1978,7 +2213,11 @@ public partial class HistoricalImportPage : ContentPage
                 p.FirstName?.Equals(normalizedFirst, StringComparison.OrdinalIgnoreCase) == true &&
                 p.LastName?.Equals(normalizedLast, StringComparison.OrdinalIgnoreCase) == true);
 
-            if (existing == null)
+            if (existing != null)
+            {
+                playerMap[player.PlayerNo] = existing.Id;
+            }
+            else
             {
                 Guid? teamId = null;
                 if (player.PlayerTeam.HasValue && teamMap.TryGetValue(player.PlayerTeam.Value, out var tId))
@@ -1995,29 +2234,8 @@ public partial class HistoricalImportPage : ContentPage
                     TeamId = teamId
                 };
                 DataStore.Data.Players.Add(newPlayer);
+                playerMap[player.PlayerNo] = newPlayer.Id;
                 stats.PlayersImported++;
-            }
-        }
-
-        // 4. Import Venues
-        foreach (var venue in parseResult.Venues)
-        {
-            var existing = DataStore.Data.Venues.FirstOrDefault(v =>
-                v.SeasonId == seasonId &&
-                v.Name != null &&
-                v.Name.Equals(venue.VenueName, StringComparison.OrdinalIgnoreCase));
-
-            if (existing == null)
-            {
-                var newVenue = new Venue
-                {
-                    Id = Guid.NewGuid(),
-                    SeasonId = seasonId,
-                    Name = venue.VenueName,
-                    Address = venue.Address
-                };
-                DataStore.Data.Venues.Add(newVenue);
-                stats.VenuesImported++;
             }
         }
 
@@ -2040,25 +2258,42 @@ public partial class HistoricalImportPage : ContentPage
                 divisionId = divId;
             }
             
+            // Find the home team's venue
+            Guid? venueId = null;
+            var homeTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+            if (homeTeam?.VenueId.HasValue == true)
+            {
+                venueId = homeTeam.VenueId;
+            }
+            
             var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
                 f.SeasonId == seasonId &&
                 f.Date.Date == match.MatchDate.Date &&
                 f.HomeTeamId == homeTeamId &&
                 f.AwayTeamId == awayTeamId);
             
-            if (existingFixture == null)
+            Guid fixtureId;
+            if (existingFixture != null)
             {
+                fixtureId = existingFixture.Id;
+                fixtureMap[match.MatchNo] = fixtureId;
+            }
+            else
+            {
+                fixtureId = Guid.NewGuid();
                 var fixture = new Fixture
                 {
-                    Id = Guid.NewGuid(),
+                    Id = fixtureId,
                     SeasonId = seasonId,
                     DivisionId = divisionId,
                     Date = match.MatchDate,
                     HomeTeamId = homeTeamId,
-                    AwayTeamId = awayTeamId
+                    AwayTeamId = awayTeamId,
+                    VenueId = venueId
                 };
                 
                 DataStore.Data.Fixtures.Add(fixture);
+                fixtureMap[match.MatchNo] = fixtureId;
                 stats.FixturesImported++;
                 
                 if (!minDate.HasValue || match.MatchDate < minDate) minDate = match.MatchDate;
@@ -2066,7 +2301,55 @@ public partial class HistoricalImportPage : ContentPage
             }
         }
 
-        // 6. Update season dates
+        // 6. Import Frame Results (Singles)
+        foreach (var single in parseResult.Singles)
+        {
+            if (!fixtureMap.TryGetValue(single.MatchNo, out var fixtureId))
+                continue;
+            
+            var fixture = DataStore.Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
+            if (fixture == null)
+                continue;
+            
+            // Check if frame already exists
+            if (fixture.Frames.Any(f => f.Number == single.SingleNo))
+                continue;
+            
+            // Get player GUIDs
+            Guid? homePlayerId = null;
+            Guid? awayPlayerId = null;
+            
+            if (single.HomePlayerNo > 0 && playerMap.TryGetValue(single.HomePlayerNo, out var hpId))
+                homePlayerId = hpId;
+            if (single.AwayPlayerNo > 0 && playerMap.TryGetValue(single.AwayPlayerNo, out var apId))
+                awayPlayerId = apId;
+            
+            // Determine winner
+            var winner = single.Winner.ToLowerInvariant() switch
+            {
+                "home" => FrameWinner.Home,
+                "away" => FrameWinner.Away,
+                _ => FrameWinner.None
+            };
+            
+            var frame = new FrameResult
+            {
+                Number = single.SingleNo,
+                HomePlayerId = homePlayerId,
+                AwayPlayerId = awayPlayerId,
+                Winner = winner,
+                EightBall = single.EightBall
+            };
+            
+            fixture.Frames.Add(frame);
+            stats.FramesImported++;
+        }
+
+        // 7. Note: Doubles frames from parseResult.Doubles are not imported as separate records
+        // because the current Fixture model only supports singles frames.
+        // The doubles results are already captured in the match totals (HomeDoublesWins/AwayDoublesWins).
+
+        // 8. Update season dates
         if (minDate.HasValue || maxDate.HasValue)
         {
             var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonId);
@@ -2175,4 +2458,5 @@ public class ParadoxImportStats
     public int PlayersImported { get; set; }
     public int VenuesImported { get; set; }
     public int FixturesImported { get; set; }
+    public int FramesImported { get; set; }
 }

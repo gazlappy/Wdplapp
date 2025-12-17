@@ -1,0 +1,170 @@
+unit pickleag;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  StdCtrls, Buttons, Db, DBTables, DBCtrls;
+
+type
+  TPickLeague = class(TForm)
+    CancelButton: TBitBtn;
+    PrintButton: TButton;
+    PreviewButton: TButton;
+    ListBox1: TListBox;
+    DivQuery: TQuery;
+    DivQueryAbbreviated: TStringField;
+    DivQueryItem_id: TIntegerField;
+    DivQueryFullDivisionName: TStringField;
+    procedure PreviewButtonClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure PrintButtonClick(Sender: TObject);
+    procedure CancelButtonClick(Sender: TObject);
+    procedure ListBox1Exit(Sender: TObject);
+    procedure SinglesType;
+    procedure DoublesType;
+    procedure TablesType;
+    procedure OutputRatingReport(Preview: Boolean);
+    procedure OutputDoublesReport(Preview: Boolean);
+    procedure OutputTableReport(Preview: Boolean);
+  private
+    { Private declarations }
+  public
+    Preview: Boolean;
+    DivisionItem_id: Array of Integer;
+    { Public declarations }
+  end;
+
+var
+  PickLeague: TPickLeague;
+  RatingType: Integer;
+
+implementation
+
+uses PRating, Main, DRatings, PTable, datamodule;
+
+{$R *.DFM}
+procedure TPickLeague.SinglesType;
+begin
+  RatingType := 1;
+  ShowModal;
+end;
+
+procedure TPickLeague.DoublesType;
+begin
+  RatingType := 2;
+  ShowModal;
+end;
+
+procedure TPickLeague.TablesType;
+begin
+  RatingType := 3;
+  ShowModal;
+end;
+
+procedure TPickLeague.PreviewButtonClick(Sender: TObject);
+begin
+  Preview := True;
+  case RatingType of
+  1:  OutputRatingReport( Preview );
+  2:  OutputDoublesReport( Preview );
+  3:  OutputTableReport( Preview );
+  end;
+end;
+
+procedure TPickLeague.FormShow(Sender: TObject);
+var dummy: Integer;
+begin
+  SetLength(DivisionItem_id,99);
+  ListBox1.Clear;
+  DivQuery.Close;
+  DivQuery.Open;
+  DivQuery.First;
+  dummy := 0;
+  while not DivQuery.EOF do
+  begin
+    ListBox1.Items.Add(DivQueryFullDivisionName.Value);
+    DivisionItem_id[dummy] := DivQueryItem_id.Value;
+    DivQuery.Next;
+    dummy := dummy + 1;
+  end;
+  ListBox1.ItemIndex := 0;
+  DM1.PlayerQuery.Close;
+  DM1.PlayerQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.PlayerQuery.Open;
+  DM1.PairQuery.Close;
+  DM1.PairQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.PairQuery.Open;
+  DM1.TeamQuery.Close;
+  DM1.TeamQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.TeamQuery.Open;
+end;
+
+procedure TPickLeague.PrintButtonClick(Sender: TObject);
+begin
+  Preview := False;
+  case RatingType of
+  1:  OutputRatingReport( Preview );
+  2:  OutputDoublesReport( Preview );
+  3:  OutputTableReport( Preview );
+  end;
+end;
+
+procedure TPickLeague.CancelButtonClick(Sender: TObject);
+begin
+  ModalResult := mrCancel;
+end;
+
+procedure TPickLeague.ListBox1Exit(Sender: TObject);
+begin
+  DM1.PlayerQuery.Close;
+  DM1.PlayerQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.PlayerQuery.Open;
+  DM1.PairQuery.Close;
+  DM1.PairQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.PairQuery.Open;
+  DM1.TeamQuery.Close;
+  DM1.TeamQuery.Params.ParamByName('SelectedDiv').AsInteger := DivisionItem_id[ListBox1.ItemIndex];
+  DM1.TeamQuery.Open;
+end;
+
+procedure TPickLeague.OutputRatingReport(Preview: Boolean);
+begin
+  with DM1.PlayerQuery do
+  begin
+    Open;
+    if Preview then
+       RatingReport.Preview
+    else
+       RatingReport.Print;
+    Close;
+  end;
+end;
+
+procedure TPickLeague.OutputDoublesReport(Preview: Boolean);
+begin
+  with DM1.PairQuery do
+  begin
+    Open;
+    if Preview then
+       DoublesReport.Preview
+    else
+       DoublesReport.Print;
+    Close;
+  end;
+end;
+
+procedure TPickLeague.OutputTableReport(Preview: Boolean);
+begin
+  with DM1.TeamQuery do
+  begin
+    Open;
+    if Preview then
+       TableReport.Preview
+    else
+       TableReport.Print;
+    Close;
+  end;
+end;
+
+end.

@@ -1,0 +1,171 @@
+unit Prop;
+
+interface
+
+uses
+  SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
+  Forms, Dialogs, TabNotBk, StdCtrls, Buttons, DB, DBTables, Mask, DBCtrls,
+  ExtCtrls, ComCtrls;
+
+type
+  TPropertiesForm = class(TForm)
+    LeagueProperties: TTabbedNotebook;
+    OKBtn: TBitBtn;
+    CancelBtn: TBitBtn;
+    Panel1: TPanel;
+    Label2: TLabel;
+    Label1: TLabel;
+    DBEdit1: TDBEdit;
+    DBEdit2: TDBEdit;
+    GroupBox1: TGroupBox;
+    GroupBox2: TGroupBox;
+    GroupBox3: TGroupBox;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    DBEdit3: TDBEdit;
+    DBEdit4: TDBEdit;
+    DBEdit5: TDBEdit;
+    DBEdit6: TDBEdit;
+    DBEdit7: TDBEdit;
+    DBEdit8: TDBEdit;
+    DBEdit9: TDBEdit;
+    Label16: TLabel;
+    DBMemo1: TDBMemo;
+    DBEdit16: TDBEdit;
+    Label17: TLabel;
+    Label19: TLabel;
+    DBMemo2: TDBMemo;
+    Label20: TLabel;
+    Label25: TLabel;
+    Label26: TLabel;
+    Label27: TLabel;
+    DBMemo3: TDBMemo;
+    GroupBox5: TGroupBox;
+    Label12: TLabel;
+    Label13: TLabel;
+    DBEdit12: TDBEdit;
+    DBEdit13: TDBEdit;
+    Label10: TLabel;
+    DBEdit10: TDBEdit;
+    Label11: TLabel;
+    Label14: TLabel;
+    DBCheckBox1: TDBCheckBox;
+    DBCheckBox2: TDBCheckBox;
+    DBCheckBox3: TDBCheckBox;
+    DBCheckBox4: TDBCheckBox;
+    procedure OKBtnClick(Sender: TObject);
+    procedure CancelBtnClick(Sender: TObject);
+    procedure LeagueBeforePost(DataSet: TDataSet);
+    procedure LeagueAfterPost(DataSet: TDataSet);
+    procedure CheckBoxSlightlyClick(Sender: TObject);
+    procedure CheckBoxModeratelyClick(Sender: TObject);
+    procedure CheckBoxHeavilyClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  PropertiesForm: TPropertiesForm;
+
+implementation
+
+uses Main, datamodule;
+
+{$R *.DFM}
+
+procedure TPropertiesForm.OKBtnClick(Sender: TObject);
+begin
+  Form1.StatusBar1.Panels[0].Text := DM1.LeagueLeagueName.Value;
+  Form1.StatusBar1.Panels[1].Text := DM1.LeagueSeason.Value;
+//Caclulate settings from CheckBoxes
+  DM1.League.Edit;
+  DM1.LeagueLatestFrameWeight.Value := 1;
+  DM1.LeagueWeightDrop.Value := 0;
+  DM1.LeagueWeightGames.Value := 999;
+  if DM1.LeagueSlightly.Value then
+  begin
+    DM1.LeagueLatestFrameWeight.Value := 150;
+    DM1.LeagueWeightDrop.Value := 2;
+    DM1.LeagueWeightGames.Value := 75;
+  end;
+  if DM1.LeagueModerately.Value then
+  begin
+    DM1.LeagueLatestFrameWeight.Value := 160;
+    DM1.LeagueWeightDrop.Value := 4;
+    DM1.LeagueWeightGames.Value := 40;
+  end;
+  if DM1.LeagueHighly.Value then
+  begin
+    DM1.LeagueLatestFrameWeight.Value := 180;
+    DM1.LeagueWeightDrop.Value := 6;
+    DM1.LeagueWeightGames.Value := 30;
+  end;
+  DM1.LeagueWinFactor.Value := 1.25;
+  DM1.LeagueLossFactor.Value := 0.75;
+  if DM1.LeagueEightBallHigh.Value then
+    DM1.LeagueEightBallFactor.Value := 1.35
+  else
+    DM1.LeagueEightBallFactor.Value := 1.25;
+  DM1.League.Post;
+  ModalResult := mrOK;
+end;
+
+procedure TPropertiesForm.CancelBtnClick(Sender: TObject);
+begin
+  DM1.League.Cancel;
+  ModalResult := mrCancel;
+end;
+
+
+procedure TPropertiesForm.LeagueBeforePost(DataSet: TDataSet);
+begin
+  DM1.LeagueUpdateRequired.Value := True;
+end;
+
+procedure TPropertiesForm.LeagueAfterPost(DataSet: TDataSet);
+begin
+  DM1.League.Close;
+end;
+
+procedure TPropertiesForm.CheckBoxSlightlyClick(Sender: TObject);
+begin
+  try
+    DM1.LeagueModerately.Value := False;
+    DM1.LeagueHighly.Value := False;
+  except
+  end;
+end;
+
+procedure TPropertiesForm.CheckBoxModeratelyClick(Sender: TObject);
+begin
+  try
+    DM1.LeagueSlightly.Value := False;
+    DM1.LeagueHighly.Value := False;
+  except
+  end;
+end;
+
+procedure TPropertiesForm.CheckBoxHeavilyClick(Sender: TObject);
+begin
+  try
+    DM1.LeagueModerately.Value := False;
+    DM1.LeagueSlightly.Value := False;
+  except
+  end;
+end;
+
+procedure TPropertiesForm.FormShow(Sender: TObject);
+begin
+  DM1.League.First;
+  DM1.League.Edit;
+end;
+
+end.

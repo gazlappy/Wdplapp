@@ -1,0 +1,55 @@
+unit covlet2;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, Db, DBTables;
+
+type
+  TCovletCaptain = class(TQuickRep)
+    QRBand1: TQRBand;
+    QRLabel1: TQRLabel;
+    QRLabel2: TQRLabel;
+    QRLabel3: TQRLabel;
+    QRLabel4: TQRLabel;
+    QRLabel5: TQRLabel;
+    QRMemo2: TQRMemo;
+    QRSysData1: TQRSysData;
+    LeagueQuery: TQuery;
+    LeagueQueryLetterhead: TMemoField;
+    QRDBText1: TQRDBText;
+    QRLabel6: TQRLabel;
+    QRLabel7: TQRLabel;
+    LeagueQueryLeagueName: TStringField;
+    procedure CovletCaptainBeforePrint(Sender: TQuickRep;
+      var PrintReport: Boolean);
+  private
+
+  public
+
+  end;
+
+var
+  CovletCaptain: TCovletCaptain;
+
+implementation
+
+uses Main, plmmailshot;
+
+{$R *.DFM}
+
+procedure TCovletCaptain.CovletCaptainBeforePrint(Sender: TQuickRep;
+  var PrintReport: Boolean);
+begin
+LeagueQuery.Close;
+LeagueQuery.Open;
+LeagueQuery.First;
+QRLabel1.Caption := Mailshot.TeamQuery2Contact.Value;
+QRLabel2.Caption := Mailshot.TeamQuery2ContactAddress1.Value;
+QRLabel3.Caption := Mailshot.TeamQuery2ContactAddress2.Value;
+QRLabel4.Caption := Mailshot.TeamQuery2ContactAddress3.Value;
+QRLabel5.Caption := Mailshot.TeamQuery2ContactAddress4.Value;
+QRLabel7.Caption := 'Re: ' + LeagueQueryLeagueName.Value;
+end;
+
+end.

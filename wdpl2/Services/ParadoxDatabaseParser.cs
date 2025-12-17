@@ -8,10 +8,22 @@ namespace Wdpl2.Services;
 
 /// <summary>
 /// Parser for Paradox database files (.DB format)
-/// Used to import legacy pool league data from old Paradox-based systems
+/// Used to import legacy pool league data from old Paradox-based systems (Delphi application)
+/// 
+/// Based on deep analysis of actual Paradox 7.x files:
+/// - Header in block 0 (2048 bytes)
+/// - Field types at offset 78
+/// - Field sizes at offset 78 + numFields  
+/// - Field names as null-terminated strings after offset ~200
+/// - Data starts at block 1 (offset 2048)
+/// - Each block has 6-byte header before records
 /// </summary>
 public static class ParadoxDatabaseParser
 {
+    private const int BLOCK_SIZE = 2048;
+    private const int DATA_START = 2048; // Block 1
+    private const int BLOCK_HEADER_SIZE = 6;
+
     /// <summary>
     /// Result of parsing a Paradox database folder
     /// </summary>
@@ -27,7 +39,11 @@ public static class ParadoxDatabaseParser
         public List<ParadoxPlayer> Players { get; set; } = new();
         public List<ParadoxMatch> Matches { get; set; } = new();
         public List<ParadoxSingle> Singles { get; set; } = new();
+        public List<ParadoxDouble> Doubles { get; set; } = new();
         public List<ParadoxVenue> Venues { get; set; } = new();
+        
+        // Raw diagnostic data
+        public string DiagnosticReport { get; set; } = "";
     }
 
     public class ParadoxDivision
@@ -90,6 +106,7 @@ public static class ParadoxDatabaseParser
         public int HomeDoublesWins { get; set; }
         public int AwayDoublesWins { get; set; }
         public string DivisionName { get; set; } = "";
+        public bool IsComplete { get; set; }
     }
 
     public class ParadoxSingle
@@ -102,11 +119,26 @@ public static class ParadoxDatabaseParser
         public bool EightBall { get; set; }
     }
 
+    public class ParadoxDouble
+    {
+        public int MatchNo { get; set; }
+        public int DoubleNo { get; set; }
+        public int HomePlayer1No { get; set; }
+        public int HomePlayer2No { get; set; }
+        public int AwayPlayer1No { get; set; }
+        public int AwayPlayer2No { get; set; }
+        public string Winner { get; set; } = ""; // "Home" or "Away"
+    }
+
     public class ParadoxVenue
     {
         public int ItemId { get; set; }
         public string VenueName { get; set; } = "";
         public string Address { get; set; } = "";
+        public string AddressLine1 { get; set; } = "";
+        public string AddressLine2 { get; set; } = "";
+        public string AddressLine3 { get; set; } = "";
+        public string AddressLine4 { get; set; } = "";
     }
 
     /// <summary>
@@ -124,21 +156,36 @@ public static class ParadoxDatabaseParser
                 return result;
             }
 
-            // Look for the main .DB files
-            var files = Directory.GetFiles(folderPath, "*.DB", SearchOption.TopDirectoryOnly)
-                .Select(f => Path.GetFileName(f).ToUpperInvariant())
-                .ToHashSet();
+            // Generate diagnostic report
+            result.DiagnosticReport = ParadoxDeepDive.AnalyzeAll(folderPath);
+
+            // FIRST: Try to load from CSV files if they exist (more reliable)
+            var csvLoaded = TryLoadFromCsvFiles(folderPath, result);
+            
+            if (csvLoaded)
+            {
+                result.Success = true;
+                result.Warnings.Insert(0, "? Loaded from CSV files (preferred method)");
+                return result;
+            }
+
+            // Parse binary .DB files
+            result.Warnings.Add("Parsing binary .DB files...");
 
             // Parse Division.DB
             var divisionPath = FindFile(folderPath, "Division.DB");
             if (divisionPath != null)
             {
                 result.Divisions = ParseDivisionDb(divisionPath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Divisions.Count} divisions");
+                result.Warnings.Add($"? Divisions: {result.Divisions.Count} parsed");
             }
-            else
+
+            // Parse Venue.DB (need before Team.DB)
+            var venuePath = FindFile(folderPath, "Venue.DB");
+            if (venuePath != null)
             {
-                result.Warnings.Add("Division.DB not found");
+                result.Venues = ParseVenueDb(venuePath, result);
+                result.Warnings.Add($"? Venues: {result.Venues.Count} parsed");
             }
 
             // Parse Team.DB
@@ -146,11 +193,7 @@ public static class ParadoxDatabaseParser
             if (teamPath != null)
             {
                 result.Teams = ParseTeamDb(teamPath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Teams.Count} teams");
-            }
-            else
-            {
-                result.Warnings.Add("Team.DB not found");
+                result.Warnings.Add($"? Teams: {result.Teams.Count} parsed");
             }
 
             // Parse Player.DB
@@ -158,11 +201,7 @@ public static class ParadoxDatabaseParser
             if (playerPath != null)
             {
                 result.Players = ParsePlayerDb(playerPath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Players.Count} players");
-            }
-            else
-            {
-                result.Warnings.Add("Player.DB not found");
+                result.Warnings.Add($"? Players: {result.Players.Count} parsed");
             }
 
             // Parse Match.DB
@@ -170,35 +209,32 @@ public static class ParadoxDatabaseParser
             if (matchPath != null)
             {
                 result.Matches = ParseMatchDb(matchPath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Matches.Count} matches");
-            }
-            else
-            {
-                result.Warnings.Add("Match.DB not found");
+                result.Warnings.Add($"? Matches: {result.Matches.Count} parsed");
             }
 
-            // Parse Single.DB (individual frame results)
+            // Parse Single.DB
             var singlePath = FindFile(folderPath, "Single.DB");
             if (singlePath != null)
             {
                 result.Singles = ParseSingleDb(singlePath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Singles.Count} singles frames");
-            }
-            else
-            {
-                result.Warnings.Add("Single.DB not found");
+                result.Warnings.Add($"? Singles: {result.Singles.Count} frames parsed");
             }
 
-            // Parse Venue.DB if exists
-            var venuePath = FindFile(folderPath, "Venue.DB");
-            if (venuePath != null)
+            // Parse Dbls.DB
+            var dblsPath = FindFile(folderPath, "Dbls.DB");
+            if (dblsPath != null)
             {
-                result.Venues = ParseVenueDb(venuePath, result);
-                System.Diagnostics.Debug.WriteLine($"Parsed {result.Venues.Count} venues");
+                result.Doubles = ParseDoublesDb(dblsPath, result);
+                result.Warnings.Add($"? Doubles: {result.Doubles.Count} frames parsed");
             }
 
             result.Success = result.Divisions.Count > 0 || result.Teams.Count > 0 || 
                            result.Players.Count > 0 || result.Matches.Count > 0;
+                          
+            if (!result.Success)
+            {
+                result.Errors.Add("No data could be parsed from the .DB files.");
+            }
         }
         catch (Exception ex)
         {
@@ -208,13 +244,549 @@ public static class ParadoxDatabaseParser
         return result;
     }
 
+    #region Binary Parsing
+
+    /// <summary>
+    /// Read header info from a Paradox file
+    /// </summary>
+    private static (int recordSize, int numRecords, int numFields, List<byte> fieldTypes, List<byte> fieldSizes, List<string> fieldNames) 
+        ReadParadoxHeader(byte[] bytes)
+    {
+        var recordSize = BitConverter.ToInt16(bytes, 0);
+        var numRecords = BitConverter.ToInt32(bytes, 6);
+        var numFields = bytes[33];
+
+        var fieldTypes = new List<byte>();
+        var fieldSizes = new List<byte>();
+        var fieldNames = new List<string>();
+
+        // Read field types (at offset 78)
+        // Note: Based on analysis, types might be at different offset in some files
+        // Let's scan for them based on field count
+        int typeOffset = 78;
+        
+        // Some files have field info at different location - scan for it
+        for (int i = 0; i < numFields; i++)
+        {
+            if (typeOffset + i < bytes.Length)
+                fieldTypes.Add(bytes[typeOffset + i]);
+        }
+
+        // Field sizes follow types
+        for (int i = 0; i < numFields; i++)
+        {
+            if (typeOffset + numFields + i < bytes.Length)
+                fieldSizes.Add(bytes[typeOffset + numFields + i]);
+        }
+
+        // Find field names in header (usually after offset 200)
+        // Scan for readable ASCII text patterns
+        var nameBytes = new StringBuilder();
+        for (int i = 200; i < Math.Min(bytes.Length, DATA_START); i++)
+        {
+            if (bytes[i] >= 32 && bytes[i] < 127)
+            {
+                nameBytes.Append((char)bytes[i]);
+            }
+            else if (nameBytes.Length > 0)
+            {
+                nameBytes.Append('\0');
+            }
+        }
+
+        // Split on nulls and filter
+        var allText = nameBytes.ToString();
+        var parts = allText.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Where(s => s.Length >= 2 && s.Length <= 30 && !s.Contains("ascii") && !s.All(char.IsDigit))
+            .ToList();
+
+        // Skip table name (usually first) and take field names
+        if (parts.Count > 1)
+        {
+            var skipFirst = parts.First().EndsWith(".DB", StringComparison.OrdinalIgnoreCase);
+            fieldNames = (skipFirst ? parts.Skip(1) : parts).Take(numFields).ToList();
+        }
+
+        return (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames);
+    }
+
+    /// <summary>
+    /// Read records from a Paradox file
+    /// </summary>
+    private static List<Dictionary<string, object?>> ReadRecords(byte[] bytes, int recordSize, int numRecords, 
+        List<byte> fieldTypes, List<byte> fieldSizes, List<string> fieldNames)
+    {
+        var records = new List<Dictionary<string, object?>>();
+        
+        if (recordSize <= 0 || numRecords <= 0)
+            return records;
+
+        // Data starts at block 1 (offset 2048)
+        // Each block has a 6-byte header
+        int blockSize = BLOCK_SIZE;
+        int dataStart = DATA_START + BLOCK_HEADER_SIZE;
+        
+        // Calculate records per block
+        int recordsPerBlock = (blockSize - BLOCK_HEADER_SIZE) / recordSize;
+        if (recordsPerBlock <= 0) recordsPerBlock = 1;
+
+        for (int rec = 0; rec < numRecords; rec++)
+        {
+            // Calculate which block this record is in
+            int blockNum = rec / recordsPerBlock;
+            int recInBlock = rec % recordsPerBlock;
+            
+            // Calculate offset
+            int blockStart = DATA_START + (blockNum * blockSize);
+            int recOffset = blockStart + BLOCK_HEADER_SIZE + (recInBlock * recordSize);
+            
+            if (recOffset + recordSize > bytes.Length)
+                break;
+
+            var record = new Dictionary<string, object?>();
+            int fieldOffset = recOffset;
+
+            for (int f = 0; f < fieldTypes.Count && f < fieldSizes.Count; f++)
+            {
+                var fType = fieldTypes[f];
+                var fSize = fieldSizes[f];
+                var fName = f < fieldNames.Count ? fieldNames[f] : $"Field{f + 1}";
+
+                if (fieldOffset + fSize > bytes.Length)
+                    break;
+
+                var fieldBytes = new byte[fSize];
+                Array.Copy(bytes, fieldOffset, fieldBytes, 0, fSize);
+
+                record[fName] = DecodeField(fieldBytes, fType);
+                fieldOffset += fSize;
+            }
+
+            records.Add(record);
+        }
+
+        return records;
+    }
+
+    /// <summary>
+    /// Decode a field value based on Paradox type
+    /// </summary>
+    private static object? DecodeField(byte[] bytes, byte fieldType)
+    {
+        if (bytes.All(b => b == 0))
+            return null;
+
+        switch (fieldType)
+        {
+            case 0x01: // Alpha (string)
+                int len = Array.IndexOf(bytes, (byte)0);
+                if (len < 0) len = bytes.Length;
+                return Encoding.ASCII.GetString(bytes, 0, len).Trim();
+
+            case 0x02: // Date
+                if ((bytes[0] & 0x80) == 0x80)
+                {
+                    int days = ((bytes[0] & 0x7F) << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                    if (days > 0 && days < 3000000)
+                    {
+                        try { return new DateTime(1, 1, 1).AddDays(days - 1); }
+                        catch { return null; }
+                    }
+                }
+                return null;
+
+            case 0x03: // Short
+                if ((bytes[0] & 0x80) == 0x80)
+                    return (short)(((bytes[0] & 0x7F) << 8) | bytes[1]);
+                else if (bytes[0] != 0 || bytes[1] != 0)
+                    return (short)-(((bytes[0] ^ 0x7F) << 8) | (bytes[1] ^ 0xFF));
+                return (short)0;
+
+            case 0x04: // Long
+            case 0x16: // AutoInc
+                if ((bytes[0] & 0x80) == 0x80)
+                    return ((bytes[0] & 0x7F) << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                else if (bytes.Any(b => b != 0))
+                    return -(((bytes[0] ^ 0x7F) << 24) | ((bytes[1] ^ 0xFF) << 16) | ((bytes[2] ^ 0xFF) << 8) | (bytes[3] ^ 0xFF));
+                return 0;
+
+            case 0x06: // Number (double)
+                var modBytes = new byte[8];
+                if ((bytes[0] & 0x80) == 0x80)
+                {
+                    modBytes[0] = (byte)(bytes[0] ^ 0x80);
+                    Array.Copy(bytes, 1, modBytes, 1, 7);
+                }
+                else
+                {
+                    for (int i = 0; i < 8; i++)
+                        modBytes[i] = (byte)(bytes[i] ^ 0xFF);
+                }
+                Array.Reverse(modBytes);
+                return BitConverter.ToDouble(modBytes, 0);
+
+            case 0x09: // Logical
+                return bytes[0] == 0x81;
+
+            default:
+                // Try as string
+                int strLen = Array.IndexOf(bytes, (byte)0);
+                if (strLen < 0) strLen = bytes.Length;
+                var str = Encoding.ASCII.GetString(bytes, 0, strLen).Trim();
+                return string.IsNullOrEmpty(str) ? null : str;
+        }
+    }
+
+    private static List<ParadoxDivision> ParseDivisionDb(string filePath, ParadoxParseResult result)
+    {
+        var divisions = new List<ParadoxDivision>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var div = new ParadoxDivision
+                {
+                    ItemId = GetInt(rec, "Item_id", "ItemId") ?? divisions.Count + 1,
+                    Abbreviated = GetString(rec, "Abbreviated", "Abbrev") ?? "",
+                    FullDivisionName = GetString(rec, "FullDivisionName", "DivisionName", "Name") ?? ""
+                };
+
+                if (string.IsNullOrWhiteSpace(div.FullDivisionName) && !string.IsNullOrWhiteSpace(div.Abbreviated))
+                    div.FullDivisionName = div.Abbreviated;
+
+                // Filter out placeholder entries
+                if (!string.IsNullOrWhiteSpace(div.FullDivisionName) && 
+                    !div.FullDivisionName.Equals("test", StringComparison.OrdinalIgnoreCase))
+                    divisions.Add(div);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Division.DB: {ex.Message}");
+        }
+        return divisions;
+    }
+
+    private static List<ParadoxVenue> ParseVenueDb(string filePath, ParadoxParseResult result)
+    {
+        var venues = new List<ParadoxVenue>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var venue = new ParadoxVenue
+                {
+                    ItemId = GetInt(rec, "Item_id", "ItemId") ?? venues.Count + 1,
+                    VenueName = GetString(rec, "Venue", "VenueName", "Name") ?? "",
+                    AddressLine1 = GetString(rec, "AddressLine1", "Address1") ?? "",
+                    AddressLine2 = GetString(rec, "AddressLine2", "Address2") ?? "",
+                    AddressLine3 = GetString(rec, "AddressLine3", "Address3") ?? "",
+                    AddressLine4 = GetString(rec, "AddressLine4", "Address4") ?? ""
+                };
+
+                // Combine address
+                var addressParts = new[] { venue.AddressLine1, venue.AddressLine2, venue.AddressLine3, venue.AddressLine4 }
+                    .Where(a => !string.IsNullOrWhiteSpace(a));
+                venue.Address = string.Join(", ", addressParts);
+
+                if (!string.IsNullOrWhiteSpace(venue.VenueName))
+                    venues.Add(venue);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Venue.DB: {ex.Message}");
+        }
+        return venues;
+    }
+
+    private static List<ParadoxTeam> ParseTeamDb(string filePath, ParadoxParseResult result)
+    {
+        var teams = new List<ParadoxTeam>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var team = new ParadoxTeam
+                {
+                    ItemId = GetInt(rec, "Item_id", "ItemId") ?? teams.Count + 1,
+                    TeamName = (GetString(rec, "TeamName", "Name") ?? "").ToUpperInvariant(),
+                    VenueId = GetInt(rec, "Venue", "VenueId"),
+                    DivisionId = GetInt(rec, "Division", "DivisionId"),
+                    Contact = GetString(rec, "Contact") ?? "",
+                    ContactAddress1 = GetString(rec, "ContactAddress1") ?? "",
+                    ContactAddress2 = GetString(rec, "ContactAddress2") ?? "",
+                    ContactAddress3 = GetString(rec, "ContactAddress3") ?? "",
+                    ContactAddress4 = GetString(rec, "ContactAddress4") ?? "",
+                    Wins = GetInt(rec, "Wins") ?? 0,
+                    Losses = GetInt(rec, "Loses", "Losses") ?? 0,
+                    Draws = GetInt(rec, "Draws") ?? 0,
+                    SinglesWins = GetInt(rec, "SWins", "SinglesWins") ?? 0,
+                    SinglesLosses = GetInt(rec, "SLosses", "SinglesLosses") ?? 0,
+                    DoublesWins = GetInt(rec, "DWins", "DoublesWins") ?? 0,
+                    DoublesLosses = GetInt(rec, "DLosses", "DoublesLosses") ?? 0,
+                    Points = GetInt(rec, "Points") ?? 0,
+                    Played = GetInt(rec, "Played") ?? 0,
+                    Withdrawn = GetBool(rec, "Withdrawn"),
+                    RemoveResults = GetBool(rec, "RemoveResults")
+                };
+
+                if (!string.IsNullOrWhiteSpace(team.TeamName))
+                    teams.Add(team);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Team.DB: {ex.Message}");
+        }
+        return teams;
+    }
+
+    private static List<ParadoxPlayer> ParsePlayerDb(string filePath, ParadoxParseResult result)
+    {
+        var players = new List<ParadoxPlayer>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var name = GetString(rec, "PlayerName", "Name") ?? "";
+                
+                // Skip void/placeholder entries
+                if (string.IsNullOrWhiteSpace(name) || 
+                    name.Equals("Void Frame", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var nameParts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                var player = new ParadoxPlayer
+                {
+                    PlayerNo = GetInt(rec, "PlayerNo", "Id") ?? players.Count + 1,
+                    PlayerName = name.ToUpperInvariant(),
+                    FirstName = nameParts.FirstOrDefault()?.ToUpperInvariant() ?? "",
+                    LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)).ToUpperInvariant() : "",
+                    PlayerTeam = GetInt(rec, "PlayerTeam", "Team", "TeamId"),
+                    Played = GetInt(rec, "Played") ?? 0,
+                    Wins = GetInt(rec, "Wins") ?? 0,
+                    Losses = GetInt(rec, "Losses") ?? 0,
+                    CurrentRating = GetInt(rec, "CurrentRating", "Rating"),
+                    BestRating = GetInt(rec, "BestRating"),
+                    BestRatingDate = GetDate(rec, "BestRatingDate"),
+                    EightBalls = GetInt(rec, "EightBalls", "8Balls") ?? 0
+                };
+
+                players.Add(player);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Player.DB: {ex.Message}");
+        }
+        return players;
+    }
+
+    private static List<ParadoxMatch> ParseMatchDb(string filePath, ParadoxParseResult result)
+    {
+        var matches = new List<ParadoxMatch>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var homeTeam = GetInt(rec, "HomeTeam", "Home") ?? 0;
+                var awayTeam = GetInt(rec, "AwayTeam", "Away") ?? 0;
+                
+                if (homeTeam == 0 || awayTeam == 0)
+                    continue;
+
+                var match = new ParadoxMatch
+                {
+                    MatchNo = GetInt(rec, "MatchNo", "Id") ?? matches.Count + 1,
+                    HomeTeam = homeTeam,
+                    AwayTeam = awayTeam,
+                    MatchDate = GetDate(rec, "MatchDate", "Date") ?? DateTime.MinValue,
+                    HomeSinglesWins = GetInt(rec, "HSWins", "HomeSinglesWins") ?? 0,
+                    AwaySinglesWins = GetInt(rec, "ASWins", "AwaySinglesWins") ?? 0,
+                    HomeDoublesWins = GetInt(rec, "HDWins", "HomeDoublesWins") ?? 0,
+                    AwayDoublesWins = GetInt(rec, "ADWins", "AwayDoublesWins") ?? 0,
+                    DivisionName = GetString(rec, "DivName", "Division") ?? ""
+                };
+
+                match.IsComplete = match.HomeSinglesWins > 0 || match.AwaySinglesWins > 0;
+                matches.Add(match);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Match.DB: {ex.Message}");
+        }
+        return matches;
+    }
+
+    private static List<ParadoxSingle> ParseSingleDb(string filePath, ParadoxParseResult result)
+    {
+        var singles = new List<ParadoxSingle>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var matchNo = GetInt(rec, "MatchNo", "Match") ?? 0;
+                var winner = GetString(rec, "Winner") ?? "";
+                
+                if (matchNo == 0 || string.IsNullOrWhiteSpace(winner))
+                    continue;
+
+                var single = new ParadoxSingle
+                {
+                    MatchNo = matchNo,
+                    SingleNo = GetInt(rec, "SingleNo", "FrameNo", "Frame") ?? singles.Count + 1,
+                    HomePlayerNo = GetInt(rec, "HomePlayerNo", "HomePlayer") ?? 0,
+                    AwayPlayerNo = GetInt(rec, "AwayPlayerNo", "AwayPlayer") ?? 0,
+                    Winner = winner,
+                    EightBall = GetBool(rec, "EightBall", "8Ball")
+                };
+
+                singles.Add(single);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Single.DB: {ex.Message}");
+        }
+        return singles;
+    }
+
+    private static List<ParadoxDouble> ParseDoublesDb(string filePath, ParadoxParseResult result)
+    {
+        var doubles = new List<ParadoxDouble>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var matchNo = GetInt(rec, "MatchNo", "Match") ?? 0;
+                var winner = GetString(rec, "Winner") ?? "";
+                
+                if (matchNo == 0 || string.IsNullOrWhiteSpace(winner))
+                    continue;
+
+                var dbl = new ParadoxDouble
+                {
+                    MatchNo = matchNo,
+                    DoubleNo = GetInt(rec, "DblNo", "DoubleNo", "FrameNo") ?? doubles.Count + 1,
+                    HomePlayer1No = GetInt(rec, "HomePlayer1No", "HP1") ?? 0,
+                    HomePlayer2No = GetInt(rec, "HomePlayer2No", "HP2") ?? 0,
+                    AwayPlayer1No = GetInt(rec, "AwayPlayer1No", "AP1") ?? 0,
+                    AwayPlayer2No = GetInt(rec, "AwayPlayer2No", "AP2") ?? 0,
+                    Winner = winner
+                };
+
+                doubles.Add(dbl);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Dbls.DB: {ex.Message}");
+        }
+        return doubles;
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static int? GetInt(Dictionary<string, object?> rec, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var match = rec.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match != null && rec[match] != null)
+            {
+                var val = rec[match];
+                if (val is int i) return i;
+                if (val is short s) return s;
+                if (val is long l) return (int)l;
+                if (val is double d) return (int)d;
+                if (int.TryParse(val?.ToString(), out var parsed)) return parsed;
+            }
+        }
+        return null;
+    }
+
+    private static string? GetString(Dictionary<string, object?> rec, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var match = rec.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match != null && rec[match] != null)
+            {
+                var str = rec[match]?.ToString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(str))
+                    return str;
+            }
+        }
+        return null;
+    }
+
+    private static DateTime? GetDate(Dictionary<string, object?> rec, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var match = rec.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match != null && rec[match] != null)
+            {
+                if (rec[match] is DateTime dt) return dt;
+                if (DateTime.TryParse(rec[match]?.ToString(), out var parsed)) return parsed;
+            }
+        }
+        return null;
+    }
+
+    private static bool GetBool(Dictionary<string, object?> rec, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var match = rec.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (match != null && rec[match] != null)
+            {
+                if (rec[match] is bool b) return b;
+                var str = rec[match]?.ToString()?.Trim().ToLowerInvariant();
+                if (str == "1" || str == "true" || str == "yes") return true;
+            }
+        }
+        return false;
+    }
+
     private static string? FindFile(string folderPath, string fileName)
     {
-        // Try exact case first
         var path = Path.Combine(folderPath, fileName);
         if (File.Exists(path)) return path;
 
-        // Try case-insensitive search
         var files = Directory.GetFiles(folderPath, "*.DB", SearchOption.TopDirectoryOnly);
         foreach (var file in files)
         {
@@ -222,739 +794,299 @@ public static class ParadoxDatabaseParser
                 return file;
         }
 
-        // Also check for a_ prefixed versions (archive copies)
-        var aPath = Path.Combine(folderPath, "a_" + fileName);
-        if (File.Exists(aPath)) return aPath;
-
         return null;
     }
 
-    /// <summary>
-    /// Parse Division.DB file
-    /// Schema: Item_id, Abbreviated, FullDivisionName
-    /// </summary>
-    private static List<ParadoxDivision> ParseDivisionDb(string filePath, ParadoxParseResult result)
+    #endregion
+
+    #region CSV Loading
+
+    private static bool TryLoadFromCsvFiles(string folderPath, ParadoxParseResult result)
     {
-        var divisions = new List<ParadoxDivision>();
+        bool foundAny = false;
 
-        try
+        var csvFiles = Directory.GetFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.GetFiles(folderPath, "*.CSV", SearchOption.TopDirectoryOnly))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!csvFiles.Any())
+            return false;
+
+        foreach (var csvFile in csvFiles)
         {
-            var content = File.ReadAllBytes(filePath);
-            var records = ExtractParadoxRecords(content);
-
-            foreach (var record in records)
+            var fileName = Path.GetFileNameWithoutExtension(csvFile).ToUpperInvariant();
+            
+            try
             {
-                // Parse record fields - Division has simple structure
-                var fields = ParseRecordFields(record, new[] { "int", "string", "string" });
-                if (fields.Count >= 3)
+                if (fileName.Contains("DIVISION"))
                 {
-                    var div = new ParadoxDivision
-                    {
-                        ItemId = Convert.ToInt32(fields[0]),
-                        Abbreviated = CleanString(fields[1]?.ToString() ?? ""),
-                        FullDivisionName = CleanString(fields[2]?.ToString() ?? "")
-                    };
-                    
-                    if (!string.IsNullOrWhiteSpace(div.FullDivisionName) && 
-                        !div.FullDivisionName.StartsWith("test", StringComparison.OrdinalIgnoreCase))
-                    {
-                        divisions.Add(div);
-                    }
+                    result.Divisions = LoadDivisionsFromCsv(csvFile);
+                    if (result.Divisions.Any()) foundAny = true;
+                }
+                else if (fileName.Contains("TEAM") && !fileName.Contains("PLAYER"))
+                {
+                    result.Teams = LoadTeamsFromCsv(csvFile);
+                    if (result.Teams.Any()) foundAny = true;
+                }
+                else if (fileName.Contains("PLAYER"))
+                {
+                    result.Players = LoadPlayersFromCsv(csvFile);
+                    if (result.Players.Any()) foundAny = true;
+                }
+                else if (fileName.Contains("MATCH"))
+                {
+                    result.Matches = LoadMatchesFromCsv(csvFile);
+                    if (result.Matches.Any()) foundAny = true;
+                }
+                else if (fileName.Contains("SINGLE"))
+                {
+                    result.Singles = LoadSinglesFromCsv(csvFile);
+                    if (result.Singles.Any()) foundAny = true;
+                }
+                else if (fileName.Contains("VENUE"))
+                {
+                    result.Venues = LoadVenuesFromCsv(csvFile);
+                    if (result.Venues.Any()) foundAny = true;
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Division.DB: {ex.Message}");
+            catch { }
         }
 
+        return foundAny;
+    }
+
+    private static List<ParadoxDivision> LoadDivisionsFromCsv(string filePath)
+    {
+        var divisions = new List<ParadoxDivision>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return divisions;
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 2)
+            {
+                divisions.Add(new ParadoxDivision
+                {
+                    ItemId = i,
+                    Abbreviated = fields.Count > 1 ? fields[1] : "",
+                    FullDivisionName = fields.Count > 2 ? fields[2] : fields[1]
+                });
+            }
+        }
         return divisions;
     }
 
-    /// <summary>
-    /// Parse Team.DB file
-    /// Schema: Item_id, TeamName, Venue, Division, Contact, ContactAddress1-4, stats...
-    /// Team names are typically ALL CAPS, contact names are Title Case, addresses have location words
-    /// </summary>
-    private static List<ParadoxTeam> ParseTeamDb(string filePath, ParadoxParseResult result)
+    private static List<ParadoxTeam> LoadTeamsFromCsv(string filePath)
     {
         var teams = new List<ParadoxTeam>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return teams;
 
-        try
+        for (int i = 1; i < lines.Length; i++)
         {
-            var content = File.ReadAllBytes(filePath);
-            // Extract text strings that look like team names
-            var textSegments = ExtractTextSegments(content, 4, 50);
-            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // Common address words to filter out
-            var addressWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 2)
             {
-                "road", "rd", "street", "st", "lane", "ln", "close", "cl", "way", "drive", "dr",
-                "avenue", "ave", "court", "ct", "place", "pl", "terrace", "ter", "gardens", "gdns",
-                "crescent", "cres", "park", "grove", "hill", "view", "farm", "house", "cottage",
-                "somerset", "devon", "wellington", "taunton", "bristol", "exeter", "england",
-                "nr", "north", "south", "east", "west", "lower", "upper", "milverton", "rockwell",
-                "tonedale", "clifford", "quantock", "burrough", "foxmoor", "shillingford", "bampton",
-                "lawne", "wood", "pyles", "thorne", "stedham", "quartley"
-            };
-
-            // Words that indicate this is likely a person name (Title Case pattern)
-            bool LooksLikePersonName(string text)
-            {
-                var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2 || parts.Length > 3) return false;
-                
-                // Check if it's Title Case (first letter capital, rest lower)
-                foreach (var part in parts)
+                teams.Add(new ParadoxTeam
                 {
-                    if (part.Length < 2) continue;
-                    if (char.IsUpper(part[0]) && part.Skip(1).All(c => char.IsLower(c) || c == '\''))
-                    {
-                        // Looks like Title Case - could be a person name
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            // Check if text looks like an address
-            bool LooksLikeAddress(string text)
-            {
-                var lower = text.ToLowerInvariant();
-                var parts = lower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                // Contains address words
-                if (parts.Any(p => addressWords.Contains(p)))
-                    return true;
-                
-                // Starts with a number (house number)
-                if (char.IsDigit(text.FirstOrDefault()))
-                    return true;
-                
-                // Contains postcode pattern
-                if (System.Text.RegularExpressions.Regex.IsMatch(text, @"\b[A-Z]{1,2}\d{1,2}\s?\d[A-Z]{2}\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                    return true;
-                
-                return false;
-            }
-
-            // Check if text looks like a valid team name
-            bool LooksLikeTeamName(string text)
-            {
-                // Team names are typically:
-                // 1. ALL CAPS or mostly uppercase
-                // 2. May contain apostrophes (e.g., "ROW'S REBELS")
-                // 3. Often have fun/creative names
-                // 4. Don't look like person names or addresses
-                
-                if (string.IsNullOrWhiteSpace(text)) return false;
-                if (text.Length < 4) return false;
-                
-                // Filter out addresses
-                if (LooksLikeAddress(text)) return false;
-                
-                // Filter out person names (Title Case with 2-3 parts)
-                if (LooksLikePersonName(text)) return false;
-                
-                // Count uppercase vs lowercase letters
-                int upperCount = text.Count(c => char.IsUpper(c));
-                int lowerCount = text.Count(c => char.IsLower(c));
-                int letterCount = upperCount + lowerCount;
-                
-                if (letterCount == 0) return false;
-                
-                // If mostly uppercase (>70%), likely a team name
-                double upperRatio = (double)upperCount / letterCount;
-                if (upperRatio >= 0.7)
-                    return true;
-                
-                // If it's Title Case with creative words, might be a team name
-                // but filter out common person name patterns
-                var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                // Team names often have words like: Rebels, Rockets, Bears, Stars, Crew, etc.
-                var teamWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    "rebels", "rockets", "bears", "stars", "crew", "army", "blacks", "nutts",
-                    "champions", "legends", "jesters", "snipers", "giants", "squad", "tribe",
-                    "premier", "pool", "cc", "fc", "inn", "arms", "bar", "pub", "club",
-                    "annihalation", "annihilation", "operation", "opperation", "all", "cued", "up"
-                };
-                
-                if (words.Any(w => teamWords.Contains(w.ToLowerInvariant())))
-                    return true;
-                
-                return false;
-            }
-
-            foreach (var segment in textSegments)
-            {
-                var name = CleanString(segment);
-                
-                // Basic filters
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                if (name.Length < 4) continue;
-                if (name.StartsWith("Team", StringComparison.OrdinalIgnoreCase) && name.Contains(".")) continue;
-                if (name.Contains("resttemp")) continue;
-                if (name.Equals("ascii", StringComparison.OrdinalIgnoreCase)) continue;
-                if (name.All(c => char.IsDigit(c) || char.IsWhiteSpace(c))) continue;
-                
-                // Apply team name detection
-                if (!LooksLikeTeamName(name)) continue;
-                
-                // Normalize to uppercase
-                var upperName = name.ToUpperInvariant();
-                if (!seenNames.Contains(upperName))
-                {
-                    seenNames.Add(upperName);
-                    teams.Add(new ParadoxTeam
-                    {
-                        ItemId = teams.Count + 1,
-                        TeamName = upperName
-                    });
-                    System.Diagnostics.Debug.WriteLine($"Found team: {upperName}");
-                }
+                    ItemId = int.TryParse(fields[0], out var id) ? id : i,
+                    TeamName = fields.Count > 1 ? fields[1].ToUpperInvariant() : ""
+                });
             }
         }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Team.DB: {ex.Message}");
-        }
-
         return teams;
     }
 
-    /// <summary>
-    /// Parse Player.DB file
-    /// Schema: PlayerNo, PlayerName, PlayerTeam, Played, Wins, Losses, CurrentRating, BestRating, BestRatingDate, EightBalls
-    /// Player names are typically "FirstName LastName" in various cases
-    /// </summary>
-    private static List<ParadoxPlayer> ParsePlayerDb(string filePath, ParadoxParseResult result)
+    private static List<ParadoxPlayer> LoadPlayersFromCsv(string filePath)
     {
         var players = new List<ParadoxPlayer>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return players;
 
-        try
+        for (int i = 1; i < lines.Length; i++)
         {
-            var content = File.ReadAllBytes(filePath);
-            // Extract text strings that look like player names
-            var textSegments = ExtractTextSegments(content, 3, 40);
-            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int playerNo = 1;
-
-            // Common non-name words to filter out
-            var excludePatterns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 2)
             {
-                "void frame", "resttemp", "ascii", "player", "team", "rating", "played",
-                "wins", "losses", "eight", "balls", "best", "current", "date"
-            };
-
-            // Words that suggest this is an address, not a name
-            var addressWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "road", "rd", "street", "st", "lane", "close", "way", "drive", "avenue",
-                "somerset", "devon", "wellington", "taunton", "bristol"
-            };
-
-            bool LooksLikePlayerName(string text)
-            {
-                if (string.IsNullOrWhiteSpace(text)) return false;
+                var name = fields.Count > 1 ? fields[1] : "";
+                var nameParts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 
-                var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                // Should have 2-3 parts (First Last or First Middle Last)
-                if (parts.Length < 2 || parts.Length > 4) return false;
-                
-                // Should not contain address words
-                if (parts.Any(p => addressWords.Contains(p))) return false;
-                
-                // Each part should start with a letter
-                if (!parts.All(p => p.Length > 0 && char.IsLetter(p[0]))) return false;
-                
-                // First name should be reasonable length (2-15 chars)
-                if (parts[0].Length < 2 || parts[0].Length > 15) return false;
-                
-                // Last name should be reasonable length (2-20 chars)
-                var lastName = string.Join(" ", parts.Skip(1));
-                if (lastName.Length < 2 || lastName.Length > 25) return false;
-                
-                // Should not be all the same letter repeated
-                if (parts[0].Distinct().Count() == 1) return false;
-                
-                return true;
-            }
-
-            foreach (var segment in textSegments)
-            {
-                var name = CleanString(segment);
-                
-                // Basic filters
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                if (name.Length < 4) continue;
-                if (excludePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase))) continue;
-                if (name.All(c => char.IsDigit(c) || char.IsWhiteSpace(c))) continue;
-                
-                // Apply player name detection
-                if (!LooksLikePlayerName(name)) continue;
-                
-                // Normalize
-                var normalizedName = NormalizeNameCasing(name);
-                var upperName = normalizedName.ToUpperInvariant();
-                
-                if (!seenNames.Contains(upperName))
+                players.Add(new ParadoxPlayer
                 {
-                    seenNames.Add(upperName);
-                    
-                    var parts = normalizedName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    var player = new ParadoxPlayer
-                    {
-                        PlayerNo = playerNo++,
-                        PlayerName = upperName,
-                        FirstName = parts[0].ToUpperInvariant(),
-                        LastName = string.Join(" ", parts.Skip(1)).ToUpperInvariant()
-                    };
-                    
-                    players.Add(player);
-                    System.Diagnostics.Debug.WriteLine($"Found player: {player.FirstName} {player.LastName}");
-                }
+                    PlayerNo = int.TryParse(fields[0], out var id) ? id : i,
+                    PlayerName = name.ToUpperInvariant(),
+                    FirstName = nameParts.FirstOrDefault()?.ToUpperInvariant() ?? "",
+                    LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)).ToUpperInvariant() : ""
+                });
             }
         }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Player.DB: {ex.Message}");
-        }
-
         return players;
     }
 
-    /// <summary>
-    /// Normalize name casing (Title Case)
-    /// </summary>
-    private static string NormalizeNameCasing(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "";
-        
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if (parts[i].Length > 0)
-            {
-                parts[i] = char.ToUpperInvariant(parts[i][0]) + 
-                          (parts[i].Length > 1 ? parts[i].Substring(1).ToLowerInvariant() : "");
-            }
-        }
-        return string.Join(" ", parts);
-    }
-
-    /// <summary>
-    /// Parse Match.DB file
-    /// Schema: MatchNo, HomeTeam, AwayTeam, MatchDate, HSWins, ASWins, HDWins, ADWins, DivName
-    /// Record structure: The date appears to be stored as 2 bytes (days since epoch), team IDs as bytes
-    /// </summary>
-    private static List<ParadoxMatch> ParseMatchDb(string filePath, ParadoxParseResult result)
+    private static List<ParadoxMatch> LoadMatchesFromCsv(string filePath)
     {
         var matches = new List<ParadoxMatch>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return matches;
 
-        try
+        for (int i = 1; i < lines.Length; i++)
         {
-            var content = File.ReadAllBytes(filePath);
-            
-            // Find all occurrences of division names which mark the end of records
-            var divisionMarkers = new[] { "Premier", "One", "Two" };
-            var recordPositions = new List<(int position, string division)>();
-            
-            foreach (var div in divisionMarkers)
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 4)
             {
-                var divBytes = Encoding.ASCII.GetBytes(div);
-                for (int i = 0; i <= content.Length - divBytes.Length; i++)
+                matches.Add(new ParadoxMatch
                 {
-                    bool match = true;
-                    for (int j = 0; j < divBytes.Length; j++)
-                    {
-                        if (content[i + j] != divBytes[j])
-                        {
-                            match = false;
-                            break;
-                        }
-                    }
-                    if (match)
-                    {
-                        recordPositions.Add((i, div));
-                    }
-                }
-            }
-            
-            // Sort by position
-            recordPositions = recordPositions.OrderBy(r => r.position).ToList();
-            
-            // Parse each record - look backwards from division name for match data
-            // Record structure appears to be: MatchNo(2), HomeTeam(2), AwayTeam(2), Date(4), HSWins(2), ASWins(2), HDWins(2), ADWins(2), DivName
-            int matchNo = 1;
-            var seenMatches = new HashSet<string>();
-            
-            foreach (var (pos, div) in recordPositions)
-            {
-                try
-                {
-                    // Look back from division name position to find the record data
-                    // Skip any padding/whitespace
-                    int dataStart = pos - 30; // Approximate record size before division name
-                    if (dataStart < 0) continue;
-                    
-                    // Try to extract team IDs and scores from the bytes before the division name
-                    // The structure varies, so we'll look for valid byte patterns
-                    
-                    // Look for the score pattern (small integers 0-15 typically)
-                    int scoreOffset = pos - 20;
-                    if (scoreOffset < 10) continue;
-                    
-                    // Extract what appears to be date (4 bytes before scores area)
-                    int dateOffset = pos - 28;
-                    if (dateOffset < 0) continue;
-                    
-                    // Read potential date value (Paradox dates are days since Dec 31, 1899)
-                    int dateValue = 0;
-                    if (dateOffset + 3 < content.Length)
-                    {
-                        // Try reading as little-endian int32
-                        dateValue = content[dateOffset] | 
-                                   (content[dateOffset + 1] << 8) |
-                                   (content[dateOffset + 2] << 16) |
-                                   (content[dateOffset + 3] << 24);
-                    }
-                    
-                    // Convert Paradox date to DateTime (days since Dec 31, 1899)
-                    DateTime matchDate = DateTime.MinValue;
-                    if (dateValue > 30000 && dateValue < 50000) // Reasonable date range (1982-2036)
-                    {
-                        try
-                        {
-                            matchDate = new DateTime(1899, 12, 31).AddDays(dateValue);
-                        }
-                        catch
-                        {
-                            // Invalid date, skip
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        // Try reading as 2-byte value
-                        if (dateOffset + 1 < content.Length)
-                        {
-                            int dateValue2 = content[dateOffset] | (content[dateOffset + 1] << 8);
-                            if (dateValue2 > 30000 && dateValue2 < 50000)
-                            {
-                                try
-                                {
-                                    matchDate = new DateTime(1899, 12, 31).AddDays(dateValue2);
-                                }
-                                catch
-                                {
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Skip if we couldn't parse a valid date
-                    if (matchDate == DateTime.MinValue || matchDate.Year < 2000 || matchDate.Year > 2030)
-                        continue;
-                    
-                    // Try to extract team IDs (bytes further back)
-                    int teamOffset = dateOffset - 6;
-                    if (teamOffset < 0) continue;
-                    
-                    int homeTeam = content[teamOffset];
-                    int awayTeam = content[teamOffset + 2];
-                    
-                    // Validate team IDs (should be small positive integers, 1-50 typically)
-                    if (homeTeam < 1 || homeTeam > 50 || awayTeam < 1 || awayTeam > 50)
-                        continue;
-                    if (homeTeam == awayTeam)
-                        continue;
-                    
-                    // Try to extract scores
-                    int homeWins = 0, awayWins = 0;
-                    int scorePos = pos - 12;
-                    if (scorePos > 0 && scorePos + 4 < content.Length)
-                    {
-                        homeWins = content[scorePos];
-                        awayWins = content[scorePos + 2];
-                        
-                        // Validate scores (0-15 range typically)
-                        if (homeWins > 15) homeWins = 0;
-                        if (awayWins > 15) awayWins = 0;
-                    }
-                    
-                    // Create unique key for deduplication
-                    var matchKey = $"{matchDate:yyyyMMdd}|{homeTeam}|{awayTeam}";
-                    if (seenMatches.Contains(matchKey))
-                        continue;
-                    seenMatches.Add(matchKey);
-                    
-                    var paradoxMatch = new ParadoxMatch
-                    {
-                        MatchNo = matchNo++,
-                        HomeTeam = homeTeam,
-                        AwayTeam = awayTeam,
-                        MatchDate = matchDate,
-                        HomeSinglesWins = homeWins,
-                        AwaySinglesWins = awayWins,
-                        DivisionName = div
-                    };
-                    
-                    matches.Add(paradoxMatch);
-                    System.Diagnostics.Debug.WriteLine($"Found match: {matchDate:dd/MM/yyyy} Team {homeTeam} vs Team {awayTeam} ({div})");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error parsing match record at pos {pos}: {ex.Message}");
-                }
-            }
-            
-            result.Warnings.Add($"Parsed {matches.Count} matches from Match.DB");
-            
-            // If we couldn't parse structured data, at least report what we found
-            if (matches.Count == 0)
-            {
-                result.Warnings.Add($"Found {recordPositions.Count} division markers but couldn't parse match records");
-                result.Warnings.Add($"Division breakdown: Premier={recordPositions.Count(r => r.division == "Premier")}, " +
-                                   $"One={recordPositions.Count(r => r.division == "One")}, " +
-                                   $"Two={recordPositions.Count(r => r.division == "Two")}");
+                    MatchNo = int.TryParse(fields[0], out var id) ? id : i,
+                    HomeTeam = int.TryParse(fields[1], out var h) ? h : 0,
+                    AwayTeam = int.TryParse(fields[2], out var a) ? a : 0,
+                    MatchDate = DateTime.TryParse(fields[3], out var d) ? d : DateTime.MinValue
+                });
             }
         }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Match.DB: {ex.Message}");
-        }
-
         return matches;
     }
 
-    /// <summary>
-    /// Parse Single.DB file (individual frame results)
-    /// Schema: MatchNo, SingleNo, HomePlayerNo, AwayPlayerNo, Winner, EightBall
-    /// </summary>
-    private static List<ParadoxSingle> ParseSingleDb(string filePath, ParadoxParseResult result)
+    private static List<ParadoxSingle> LoadSinglesFromCsv(string filePath)
     {
         var singles = new List<ParadoxSingle>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return singles;
 
-        try
+        for (int i = 1; i < lines.Length; i++)
         {
-            var content = File.ReadAllBytes(filePath);
-            
-            // Count "Home" and "Away" occurrences to estimate frame count
-            var homeCount = CountOccurrences(content, "Home");
-            var awayCount = CountOccurrences(content, "Away");
-            
-            result.Warnings.Add($"Single.DB contains approximately {homeCount + awayCount} frame results (Home: {homeCount}, Away: {awayCount})");
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 5)
+            {
+                singles.Add(new ParadoxSingle
+                {
+                    MatchNo = int.TryParse(fields[0], out var m) ? m : 0,
+                    SingleNo = int.TryParse(fields[1], out var s) ? s : i,
+                    HomePlayerNo = int.TryParse(fields[2], out var h) ? h : 0,
+                    AwayPlayerNo = int.TryParse(fields[3], out var a) ? a : 0,
+                    Winner = fields[4]
+                });
+            }
         }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Single.DB: {ex.Message}");
-        }
-
         return singles;
     }
 
-    /// <summary>
-    /// Parse Venue.DB file
-    /// Venues are pubs/clubs - they typically start with "The" or end with common venue words
-    /// </summary>
-    private static List<ParadoxVenue> ParseVenueDb(string filePath, ParadoxParseResult result)
+    private static List<ParadoxVenue> LoadVenuesFromCsv(string filePath)
     {
         var venues = new List<ParadoxVenue>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return venues;
 
-        try
+        for (int i = 1; i < lines.Length; i++)
         {
-            var content = File.ReadAllBytes(filePath);
-            var textSegments = ExtractTextSegments(content, 5, 50);
-            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // Common venue name patterns (pubs, clubs, etc.)
-            var venueWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count >= 2)
             {
-                "arms", "inn", "hotel", "club", "tavern", "bar", "pub", "house",
-                "mow", "ball", "bell", "wheel", "hart", "lion", "bear", "globe",
-                "dolphin", "ship", "cottage", "vintage", "victoria", "prince",
-                "weavers", "sportsmans", "sanford", "ayshford", "cups"
-            };
-
-            // Address indicators to exclude
-            var addressWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "road", "rd", "street", "st", "lane", "ln", "close", "way", "drive",
-                "avenue", "ave", "terrace", "moor", "somerset", "devon", "wellington",
-                "taunton", "bristol", "exeter", "nr", "ta21", "ta4"
-            };
-
-            bool LooksLikeVenueName(string text)
-            {
-                if (string.IsNullOrWhiteSpace(text)) return false;
-                if (text.Length < 5) return false;
-                
-                var lower = text.ToLowerInvariant();
-                var words = lower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                // Exclude if it looks like an address
-                if (words.Any(w => addressWords.Contains(w))) return false;
-                if (char.IsDigit(text[0])) return false;
-                
-                // Must start with "The" or "R" (R.G.W.M) or contain venue words
-                if (text.StartsWith("The ", StringComparison.OrdinalIgnoreCase))
-                    return true;
-                
-                if (text.StartsWith("R.") || text.StartsWith("R "))
-                    return true;
-                
-                // Contains common venue words
-                if (words.Any(w => venueWords.Contains(w)))
-                    return true;
-                
-                // Ends with common venue suffixes
-                if (lower.EndsWith(" cc") || lower.EndsWith(" c.c") || 
-                    lower.EndsWith(" club") || lower.EndsWith(" inn") ||
-                    lower.EndsWith(" arms") || lower.EndsWith(" mow"))
-                    return true;
-                
-                return false;
-            }
-
-            foreach (var segment in textSegments)
-            {
-                var name = CleanString(segment);
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                if (name.Contains("resttemp")) continue;
-                if (name.Contains("a_Venue")) continue;
-                if (name.Contains("ascii")) continue;
-                if (name.Contains("Item_id")) continue;
-                if (name.Contains("AddressLine")) continue;
-                if (name.Contains("UniRef")) continue;
-                
-                if (!LooksLikeVenueName(name)) continue;
-                
-                // Normalize venue name
-                var normalizedName = NormalizeNameCasing(name);
-                
-                if (!seenNames.Contains(normalizedName))
+                venues.Add(new ParadoxVenue
                 {
-                    seenNames.Add(normalizedName);
-                    venues.Add(new ParadoxVenue
-                    {
-                        ItemId = venues.Count + 1,
-                        VenueName = normalizedName
-                    });
-                    System.Diagnostics.Debug.WriteLine($"Found venue: {normalizedName}");
-                }
+                    ItemId = int.TryParse(fields[0], out var id) ? id : i,
+                    VenueName = fields.Count > 1 ? fields[1] : ""
+                });
             }
         }
-        catch (Exception ex)
-        {
-            result.Warnings.Add($"Error parsing Venue.DB: {ex.Message}");
-        }
-
         return venues;
     }
 
-    /// <summary>
-    /// Extract text segments from binary Paradox data
-    /// </summary>
-    private static List<string> ExtractTextSegments(byte[] data, int minLength, int maxLength)
+    private static List<string> ParseCsvLine(string line)
     {
-        var segments = new List<string>();
-        var currentSegment = new StringBuilder();
+        var fields = new List<string>();
+        var current = new StringBuilder();
+        bool inQuotes = false;
 
-        foreach (var b in data)
+        for (int i = 0; i < line.Length; i++)
         {
-            // Printable ASCII range
-            if (b >= 32 && b < 127)
-            {
-                currentSegment.Append((char)b);
-            }
-            else
-            {
-                if (currentSegment.Length >= minLength && currentSegment.Length <= maxLength)
-                {
-                    segments.Add(currentSegment.ToString());
-                }
-                currentSegment.Clear();
-            }
+            char c = line[i];
+            if (c == '"') inQuotes = !inQuotes;
+            else if (c == ',' && !inQuotes) { fields.Add(current.ToString().Trim()); current.Clear(); }
+            else current.Append(c);
         }
-
-        // Don't forget the last segment
-        if (currentSegment.Length >= minLength && currentSegment.Length <= maxLength)
-        {
-            segments.Add(currentSegment.ToString());
-        }
-
-        return segments;
-    }
-
-    /// <summary>
-    /// Count occurrences of a string in binary data
-    /// </summary>
-    private static int CountOccurrences(byte[] data, string search)
-    {
-        var searchBytes = Encoding.ASCII.GetBytes(search);
-        int count = 0;
-        
-        for (int i = 0; i <= data.Length - searchBytes.Length; i++)
-        {
-            bool match = true;
-            for (int j = 0; j < searchBytes.Length; j++)
-            {
-                if (data[i + j] != searchBytes[j])
-                {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) count++;
-        }
-
-        return count;
-    }
-
-    /// <summary>
-    /// Extract Paradox records from binary data (simplified)
-    /// </summary>
-    private static List<byte[]> ExtractParadoxRecords(byte[] data)
-    {
-        // Simplified record extraction - Paradox files have a header followed by fixed-size records
-        var records = new List<byte[]>();
-        // This is a simplified implementation - full Paradox parsing would require understanding the complete file format
-        return records;
-    }
-
-    /// <summary>
-    /// Parse fields from a record
-    /// </summary>
-    private static List<object?> ParseRecordFields(byte[] record, string[] fieldTypes)
-    {
-        var fields = new List<object?>();
-        // Simplified field parsing
+        fields.Add(current.ToString().Trim());
         return fields;
     }
 
-    /// <summary>
-    /// Clean a string extracted from binary data
-    /// </summary>
-    private static string CleanString(string s)
+    #endregion
+
+    #region CSV Export
+
+    public static string ExportToCsv(ParadoxParseResult parseResult, string outputFolder)
     {
-        if (string.IsNullOrEmpty(s)) return "";
-        
-        // Remove null bytes and trim
-        s = s.Replace("\0", "").Trim();
-        
-        // Remove any non-printable characters
-        var sb = new StringBuilder();
-        foreach (var c in s)
+        var exportedFiles = new List<string>();
+        Directory.CreateDirectory(outputFolder);
+
+        if (parseResult.Divisions.Any())
         {
-            if (c >= 32 && c < 127)
-                sb.Append(c);
+            var file = Path.Combine(outputFolder, "Division_Export.csv");
+            var sb = new StringBuilder("Id,Abbreviated,FullDivisionName\n");
+            foreach (var d in parseResult.Divisions)
+                sb.AppendLine($"{d.ItemId},{Esc(d.Abbreviated)},{Esc(d.FullDivisionName)}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Division_Export.csv");
         }
-        
-        return sb.ToString().Trim();
+
+        if (parseResult.Teams.Any())
+        {
+            var file = Path.Combine(outputFolder, "Team_Export.csv");
+            var sb = new StringBuilder("Id,TeamName,VenueId,DivisionId,Contact,Wins,Losses,Points\n");
+            foreach (var t in parseResult.Teams)
+                sb.AppendLine($"{t.ItemId},{Esc(t.TeamName)},{t.VenueId},{t.DivisionId},{Esc(t.Contact)},{t.Wins},{t.Losses},{t.Points}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Team_Export.csv");
+        }
+
+        if (parseResult.Players.Any())
+        {
+            var file = Path.Combine(outputFolder, "Player_Export.csv");
+            var sb = new StringBuilder("Id,PlayerName,TeamId,Wins,Losses,Rating\n");
+            foreach (var p in parseResult.Players)
+                sb.AppendLine($"{p.PlayerNo},{Esc(p.PlayerName)},{p.PlayerTeam},{p.Wins},{p.Losses},{p.CurrentRating}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Player_Export.csv");
+        }
+
+        if (parseResult.Matches.Any())
+        {
+            var file = Path.Combine(outputFolder, "Match_Export.csv");
+            var sb = new StringBuilder("Id,HomeTeam,AwayTeam,Date,HSWins,ASWins,HDWins,ADWins,Division\n");
+            foreach (var m in parseResult.Matches)
+                sb.AppendLine($"{m.MatchNo},{m.HomeTeam},{m.AwayTeam},{m.MatchDate:yyyy-MM-dd},{m.HomeSinglesWins},{m.AwaySinglesWins},{m.HomeDoublesWins},{m.AwayDoublesWins},{Esc(m.DivisionName)}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Match_Export.csv");
+        }
+
+        if (parseResult.Singles.Any())
+        {
+            var file = Path.Combine(outputFolder, "Single_Export.csv");
+            var sb = new StringBuilder("MatchNo,FrameNo,HomePlayer,AwayPlayer,Winner,EightBall\n");
+            foreach (var s in parseResult.Singles)
+                sb.AppendLine($"{s.MatchNo},{s.SingleNo},{s.HomePlayerNo},{s.AwayPlayerNo},{s.Winner},{(s.EightBall ? 1 : 0)}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Single_Export.csv");
+        }
+
+        if (parseResult.Venues.Any())
+        {
+            var file = Path.Combine(outputFolder, "Venue_Export.csv");
+            var sb = new StringBuilder("Id,VenueName,Address\n");
+            foreach (var v in parseResult.Venues)
+                sb.AppendLine($"{v.ItemId},{Esc(v.VenueName)},{Esc(v.Address)}");
+            File.WriteAllText(file, sb.ToString());
+            exportedFiles.Add("Venue_Export.csv");
+        }
+
+        return exportedFiles.Any() 
+            ? $"Exported {exportedFiles.Count} files:\n• {string.Join("\n• ", exportedFiles)}"
+            : "No data to export";
     }
+
+    private static string Esc(string? s) => 
+        string.IsNullOrEmpty(s) ? "" : 
+        s.Contains(',') || s.Contains('"') ? $"\"{s.Replace("\"", "\"\"")}\"" : s;
+
+    #endregion
 }

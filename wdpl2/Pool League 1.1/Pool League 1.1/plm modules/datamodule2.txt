@@ -1,0 +1,176 @@
+object DM2: TDM2
+   HelpContext =  720
+  OldCreateOrder = True
+  Left = 192
+  Top = 116
+  Height = 479
+  Width = 741
+  object a_League: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_League.DB'
+    Left = 24
+    Top = 16
+    object a_LeagueUniRef: TAutoIncField
+      FieldName = 'UniRef'
+      ReadOnly = True
+    end
+    object a_LeagueLeagueName: TStringField
+      FieldName = 'LeagueName'
+      Required = True
+      Size = 40
+    end
+    object a_LeagueSeason: TStringField
+      FieldName = 'Season'
+      Required = True
+    end
+  end
+  object BM_Files: TBatchMove
+    Destination = a_Division
+    Source = DM1.Division
+    Left = 88
+    Top = 184
+  end
+  object a_Division: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Division.DB'
+    Left = 80
+    Top = 16
+    object a_DivisionUniRef: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object BM_League: TBatchMove
+    Destination = a_League
+    Source = DM1.League
+    Left = 24
+    Top = 184
+  end
+  object MaxUniRef: TQuery
+    DatabaseName = 'plmdata'
+    SQL.Strings = (
+      'select max(UniRef) from a_League')
+    Left = 24
+    Top = 128
+  end
+  object CopySource: TQuery
+    DatabaseName = 'plmdata'
+    RequestLive = True
+    SQL.Strings = (
+      'select * from a_Division'
+      '')
+    Left = 88
+    Top = 128
+    object CopySourceUniRef: TIntegerField
+      FieldName = 'UniRef'
+      Origin = 'PLMDATA."a_Division.DB".UniRef'
+    end
+  end
+  object DeleteStandingData: TQuery
+    DatabaseName = 'plmdata'
+    RequestLive = True
+    SQL.Strings = (
+      'delete from Division'
+      '')
+    Left = 376
+    Top = 152
+    object IntegerField1: TIntegerField
+      FieldName = 'UniRef'
+      Origin = 'PLMDATA."a_Division.DB".UniRef'
+    end
+  end
+  object a_Team: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Team.DB'
+    Left = 192
+    Top = 16
+    object IntegerField2: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Single: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Single.DB'
+    Left = 352
+    Top = 72
+    object IntegerField3: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Venue: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Venue.DB'
+    Left = 136
+    Top = 16
+    object IntegerField4: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Team_1: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Team_1.DB'
+    Left = 248
+    Top = 16
+    object IntegerField5: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Pair: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Pair.DB'
+    Left = 352
+    Top = 16
+    object IntegerField6: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Player: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Player.DB'
+    Left = 304
+    Top = 16
+    object IntegerField7: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Dbls: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Dbls.DB'
+    Left = 400
+    Top = 72
+    object IntegerField8: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object a_Match: TTable
+    Active = True
+    DatabaseName = 'plmdata'
+    TableName = 'a_Match.DB'
+    Left = 400
+    Top = 16
+    object IntegerField9: TIntegerField
+      FieldName = 'UniRef'
+    end
+  end
+  object DeleteArchiveData: TQuery
+    DatabaseName = 'plmdata'
+    RequestLive = True
+    SQL.Strings = (
+      'delete from Division'
+      '')
+    Left = 376
+    Top = 200
+    object IntegerField10: TIntegerField
+      FieldName = 'UniRef'
+      Origin = 'PLMDATA."a_Division.DB".UniRef'
+    end
+  end
+end

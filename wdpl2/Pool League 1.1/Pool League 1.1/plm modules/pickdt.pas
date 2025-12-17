@@ -1,0 +1,53 @@
+unit pickdt;
+
+interface
+
+uses Windows, SysUtils, Classes, Graphics, Forms, Controls, StdCtrls, 
+  Buttons, ExtCtrls, Grids, Calendar;
+
+type
+  TPickDate = class(TForm)
+    Calendar1: TCalendar;
+    Previous: TBitBtn;
+    BitBtn1: TBitBtn;
+    TitleLabel: TLabel;
+    OKBtn: TBitBtn;
+    CancelBtn: TBitBtn;
+    procedure PreviousClick(Sender: TObject);
+    procedure BitBtn1Click(Sender: TObject);
+    procedure Calendar1Change(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  PickDate: TPickDate;
+
+implementation
+
+{$R *.DFM}
+
+procedure TPickDate.PreviousClick(Sender: TObject);
+begin
+  Calendar1.PrevMonth;
+end;
+
+procedure TPickDate.BitBtn1Click(Sender: TObject);
+begin
+  Calendar1.NextMonth;
+end;
+
+procedure TPickDate.Calendar1Change(Sender: TObject);
+begin
+  TitleLabel.Caption := FormatDateTime('MMMM, YYYY', Calendar1.CalendarDate);
+end;
+
+procedure TPickDate.FormShow(Sender: TObject);
+begin
+  TitleLabel.Caption := FormatDateTime('MMMM, YYYY', Calendar1.CalendarDate);
+end;
+
+end.

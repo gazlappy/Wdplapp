@@ -1,0 +1,106 @@
+object NewLeagueDlg: TNewLeagueDlg
+   HelpContext =  730
+  Left = 245
+  Top = 108
+  ActiveControl = BitBtn1
+  BorderIcons = []
+  BorderStyle = bsDialog
+  Caption = 'New League'
+  ClientHeight = 277
+  ClientWidth = 313
+  Color = clBtnFace
+  ParentFont = True
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Label1: TLabel
+    Left = 8
+    Top = 14
+    Width = 70
+    Height = 13
+    Caption = 'League Name '
+  end
+  object Label3: TLabel
+    Left = 8
+    Top = 38
+    Width = 36
+    Height = 13
+    Caption = 'Season'
+  end
+  object Edit1: TEdit
+    Left = 104
+    Top = 8
+    Width = 201
+    Height = 21
+    MaxLength = 40
+    TabOrder = 0
+    Text = 'My New League'
+  end
+  object GroupBox1: TGroupBox
+    Left = 8
+    Top = 64
+    Width = 297
+    Height = 169
+    Caption = 'Import Data '
+    TabOrder = 1
+    object Label2: TLabel
+      Left = 8
+      Top = 20
+      Width = 263
+      Height = 26
+      Caption = 'Copy Properties, Divisions, Venues, Teams and Players from'
+      WordWrap = True
+    end
+    object ListBox1: TListBox
+      Left = 8
+      Top = 48
+      Width = 281
+      Height = 113
+      ItemHeight = 13
+      TabOrder = 0
+    end
+  end
+  object Edit2: TEdit
+    Left = 104
+    Top = 32
+    Width = 137
+    Height = 21
+    MaxLength = 20
+    TabOrder = 2
+  end
+  object BitBtn1: TBitBtn
+    Left = 83
+    Top = 240
+    Width = 70
+    Height = 31
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 3
+    OnClick = OKBtnClick
+    Kind = bkOK
+    Margin = 2
+    Spacing = -1
+    IsControl = True
+  end
+  object BitBtn2: TBitBtn
+    Left = 163
+    Top = 240
+    Width = 70
+    Height = 31
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 4
+    OnClick = CancelBtnClick
+    Kind = bkCancel
+  end
+end

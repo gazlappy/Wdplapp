@@ -1,0 +1,1201 @@
+unit Update;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, DB, DBTables, Gauges, SysUtils, Dialogs, ComCtrls, ExtCtrls;
+
+type
+  TUpdateForm = class(TForm)
+    OKBtn: TBitBtn;
+    MatchQuery: TQuery;
+    Label1: TLabel;
+    TeamQuery: TQuery;
+    MatchQueryMatchNo: TFloatField;
+    MatchQueryMatchDate: TDateField;
+    SingleQuery: TQuery;
+    ClearDateRateQuery: TQuery;
+    PlayerResetQuery: TQuery;
+    MUQuery: TQuery;
+    MUQueryMatchNo: TFloatField;
+    MUQueryMatchDate: TDateField;
+    PQuery: TQuery;
+    DateRate: TTable;
+    DateRateSource: TDataSource;
+    SingleReCalcQuery: TQuery;
+    SingleReCalcQueryDateRateKey: TIntegerField;
+    SingleReCalcQueryPlayerNo: TFloatField;
+    SingleReCalcQueryRatingDate: TDateField;
+    AP: TTable;
+    APlayerSource: TDataSource;
+    SingleReCalcQueryRating: TIntegerField;
+    DateRateDateRateKey: TIntegerField;
+    DateRatePlayerNo: TFloatField;
+    DateRateRating: TIntegerField;
+    DateRateRatingDate: TDateField;
+    PQueryPlayerNo: TFloatField;
+    PQueryPlayerName: TStringField;
+    PQueryPlayed: TIntegerField;
+    PQueryWins: TIntegerField;
+    PQueryLosses: TIntegerField;
+    PQueryCurrentRating: TIntegerField;
+    PQueryBestRating: TIntegerField;
+    PQueryBestRatingDate: TDateField;
+    MatchQueryHSWins: TIntegerField;
+    MatchQueryASWins: TIntegerField;
+    MatchQueryHDWins: TIntegerField;
+    MatchQueryADWins: TIntegerField;
+    TeamQueryTeamName: TStringField;
+    TeamQueryWins: TIntegerField;
+    TeamQueryLoses: TIntegerField;
+    TeamQueryDraws: TIntegerField;
+    TeamQuerySWins: TIntegerField;
+    TeamQueryDWins: TIntegerField;
+    TeamQueryPoints: TIntegerField;
+    TeamQueryPlayed: TIntegerField;
+    MUQueryHSWins: TIntegerField;
+    MUQueryASWins: TIntegerField;
+    MUQueryHDWins: TIntegerField;
+    MUQueryADWins: TIntegerField;
+    Match: TTable;
+    MatchSource: TDataSource;
+    Team: TTable;
+    TeamSource: TDataSource;
+    TeamTeamName: TStringField;
+    TeamWins: TIntegerField;
+    TeamLoses: TIntegerField;
+    TeamDraws: TIntegerField;
+    TeamSWins: TIntegerField;
+    TeamDWins: TIntegerField;
+    TeamPoints: TIntegerField;
+    TeamPlayed: TIntegerField;
+    ProgressBar1: TProgressBar;
+    TeamQuerySLosses: TIntegerField;
+    TeamQueryDLosses: TIntegerField;
+    TeamSLosses: TIntegerField;
+    TeamDLosses: TIntegerField;
+    ClearDblRateQuery: TQuery;
+    PairResetQuery: TQuery;
+    DoubleQuery: TQuery;
+    DblRate: TTable;
+    DblRateSource: TDataSource;
+    DblRateDateRateKey: TAutoIncField;
+    DblRatePlayerNo1: TFloatField;
+    DblRatePlayerNo2: TFloatField;
+    DblRateRating: TIntegerField;
+    DblRateRatingDate: TDateField;
+    APair: TTable;
+    APairSource: TDataSource;
+    DoubleReCalcQuery: TQuery;
+    DoubleReCalcQueryDateRateKey: TIntegerField;
+    DoubleReCalcQueryPlayerNo1: TFloatField;
+    DoubleReCalcQueryPlayerNo2: TFloatField;
+    DoubleReCalcQueryRating: TIntegerField;
+    DoubleReCalcQueryRatingDate: TDateField;
+    HP: TTable;
+    HPlayerSource: TDataSource;
+    HPPlayerNo: TFloatField;
+    HPPlayerName: TStringField;
+    HPPlayed: TIntegerField;
+    HPWins: TIntegerField;
+    HPLosses: TIntegerField;
+    HPCurrentRating: TIntegerField;
+    HPBestRating: TIntegerField;
+    HPBestRatingDate: TDateField;
+    APPlayerNo: TFloatField;
+    APPlayerName: TStringField;
+    APPlayed: TIntegerField;
+    APWins: TIntegerField;
+    APLosses: TIntegerField;
+    APCurrentRating: TIntegerField;
+    APBestRating: TIntegerField;
+    APBestRatingDate: TDateField;
+    HPair: TTable;
+    HPairSource: TDataSource;
+    APairPlayerNo1: TFloatField;
+    APairPlayerNo2: TFloatField;
+    APairPlayed: TIntegerField;
+    APairWins: TIntegerField;
+    APairLosses: TIntegerField;
+    APairBestRating: TIntegerField;
+    APairBestRatingDate: TDateField;
+    APairCurrentRating: TIntegerField;
+    HPairPlayerNo1: TFloatField;
+    HPairPlayerNo2: TFloatField;
+    HPairPlayed: TIntegerField;
+    HPairWins: TIntegerField;
+    HPairLosses: TIntegerField;
+    HPairBestRating: TIntegerField;
+    HPairBestRatingDate: TDateField;
+    HPairCurrentRating: TIntegerField;
+    APEightBalls: TIntegerField;
+    HPEightBalls: TIntegerField;
+    MatchMatchNo: TFloatField;
+    MatchMatchDate: TDateField;
+    MatchHSWins: TIntegerField;
+    MatchASWins: TIntegerField;
+    MatchHDWins: TIntegerField;
+    MatchADWins: TIntegerField;
+    DateRateWon: TBooleanField;
+    DateRateAgainst: TFloatField;
+    SingleQueryMatchNo: TFloatField;
+    SingleQuerySingleNo: TFloatField;
+    SingleQueryHomePlayerNo: TFloatField;
+    SingleQueryAwayPlayerNo: TFloatField;
+    SingleQueryWinner: TStringField;
+    SingleQueryEightBall: TBooleanField;
+    DoubleQueryMatchNo: TFloatField;
+    DoubleQueryDoubleNo: TFloatField;
+    DoubleQueryHomePlayerNo1: TFloatField;
+    DoubleQueryHomePlayerNo2: TFloatField;
+    DoubleQueryAwayPlayerNo1: TFloatField;
+    DoubleQueryAwayPlayerNo2: TFloatField;
+    DoubleQueryWinner: TStringField;
+    DoubleQueryEightBall1: TBooleanField;
+    DoubleQueryEightBall2: TBooleanField;
+    Memo1: TMemo;
+    HomeMaxSingles: TQuery;
+    HomeMaxSinglesWinner: TStringField;
+    AwayMaxSingles: TQuery;
+    StringField1: TStringField;
+    AwayDoubleCheckMatchNo: TFloatField;
+    AwayDoubleCheckDoubleNo: TFloatField;
+    AwayDoubleCheckAwayPlayerNo1: TFloatField;
+    AwayDoubleCheckAwayPlayerNo2: TFloatField;
+    FloatField1: TFloatField;
+    FloatField2: TFloatField;
+    FloatField3: TFloatField;
+    FloatField4: TFloatField;
+    HomeMaxDoubles: TQuery;
+    HomeMaxDoublesWinner: TStringField;
+    AwayMaxDoubles: TQuery;
+    Edit1: TEdit;
+    TeamRemoveResults: TBooleanField;
+    TeamQueryItem_id: TIntegerField;
+    TeamQueryVenue: TIntegerField;
+    MatchHomeTeam: TIntegerField;
+    MatchAwayTeam: TIntegerField;
+    MatchQueryHomeTeam: TIntegerField;
+    MatchQueryAwayTeam: TIntegerField;
+    MUQueryHomeTeam: TIntegerField;
+    MUQueryAwayTeam: TIntegerField;
+    MUQueryHomeTeamName: TStringField;
+    MUQueryAwayTeamName: TStringField;
+    MatchQueryHomeTeamName: TStringField;
+    MatchQueryAwayTeamName: TStringField;
+    TeamQueryDivision: TIntegerField;
+    HPPlayerTeam: TIntegerField;
+    APPlayerTeam: TIntegerField;
+    PQueryPlayerTeam: TIntegerField;
+    TeamItem_id: TIntegerField;
+    TeamDivision: TIntegerField;
+    HPairPlayerTeam: TIntegerField;
+    HPairPlayerName1: TStringField;
+    HPairPlayerName2: TStringField;
+    APairPlayerTeam: TIntegerField;
+    APairPlayerName1: TStringField;
+    APairPlayerName2: TStringField;
+    MUQueryHT_Ignore: TBooleanField;
+    MUQueryAT_Ignore: TBooleanField;
+    procedure OKBtnClick(Sender: TObject);
+    procedure CancelBtnClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    { Private declarations }
+  public
+    F: TextFile;
+    finalphase: Boolean;
+    ok_to_update: Boolean;
+    procedure TeamReset;
+    procedure MatchIntegrity;
+    procedure CheckSingles(MatchNo: Double);
+    procedure CheckDoubles(MatchNo: Double);
+    procedure UpdateSingles(MatchNo: Double);
+    procedure UpdateDoubles(MatchNo: Double);
+    procedure CheckParams;
+    procedure MatchUpdate;
+    procedure SingleTotalReCalc;
+    procedure DoubleTotalReCalc;
+    procedure ClearDateRate;
+    procedure ResetPlayerRatings;
+    procedure UpdateTeams;
+    procedure ForceUpdate;
+    function GetPlayerNo(RequiredName, RequiredTeam: String): Double;
+{ Public declarations }
+  end;
+
+var
+  UpdateForm: TUpdateForm;
+
+implementation
+
+uses Main, datamodule;
+
+{$R *.DFM}
+
+function TUpdateForm.GetPlayerNo(RequiredName, RequiredTeam: String): Double;
+begin
+PQuery.Close;
+PQuery.Params[0].AsString := RequiredName;
+PQuery.Params[1].AsString := RequiredTeam;
+PQuery.Open;
+if PQuery.EOF then
+  Result := 0
+  else
+  begin
+  PQuery.First;
+  Result := PQueryPlayerNo.Value;
+  end;
+end;
+
+procedure TUpdateForm.ForceUpdate;
+begin
+  OKBtnClick(nil);
+end;
+
+procedure TUpdateForm.OKBtnClick(Sender: TObject);
+begin
+  if OKBtn.Caption = 'Exit' then
+  begin
+    ModalResult := mrOK;
+    OKBtn.Caption := 'Start';
+    Abort;
+    Close;
+  end;
+  try
+    DM1.Single.Post;
+  except
+  end;
+  try
+    DM1.Double.Post;
+  except
+  end;
+  finalphase := False;
+  ok_to_update := true;
+  Memo1.Lines.Clear;
+  {PlayerResetQuery.ExecSQL;}
+  {all updates starts here}
+  {proc to set no singles, doubles, bonuses etc}
+  CheckParams;
+  {proc to clear wins, loses etc}
+  TeamReset;
+  {proc to check no. of singles, doubles etc}
+  MatchIntegrity;  //check this
+  if ok_to_update then
+  begin
+    MatchQuery.Close;
+    MatchQuery.ExecSQL;
+    MatchUpdate;
+    Edit1.Text := '';
+    Edit1.Refresh;
+    //Final run through for ratings update
+    finalphase := True;
+    SingleTotalReCalc;
+    DoubleTotalReCalc;
+    DM1.League.Edit;
+    DM1.LeagueUpdateRequired.Value := False;
+    DM1.League.Post;
+    MessageDlg('Update Complete', mtInformation, [mbOK], 0);
+    ModalResult := mrOK;
+  end
+  else
+  begin
+    OKBtn.Caption := 'Exit';
+    Memo1.Lines.Add('Update postponed - correct the above errors');
+    MessageDlg('Update postponed', mtWarning, [mbOK], 0);
+  end;
+end;
+
+procedure TUpdateForm.MatchUpdate;
+var holdmatchdate: string;
+begin
+{clear Daterate file}
+  ClearDateRate;
+{Reset all players & pairings to rate = 1000, no wins, no loses}
+  ResetPlayerRatings;
+{Select all matches by date}
+  MUQuery.Close;
+  MUQuery.Open;
+  MUQuery.First;
+  Match.Open;
+  Label1.Caption := '4/6: Match Processing';
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := MUQuery.RecordCount;
+  ProgressBar1.Position := 0;
+  ProgressBar1.Step := 1;
+  UpdateForm.Refresh;
+  while not MUQuery.EOF do
+  begin
+    ProgressBar1.Stepit;
+    if (MUQueryHT_Ignore.Value = False) and (MUQueryAT_Ignore.Value = False) then
+    begin
+      Edit1.Text := FloatToStr(MUQuery.RecNo) + '/' + IntToStr(MUQuery.RecordCount) + ' ';
+      Edit1.Text := Edit1.Text + MUQueryHomeTeamName.Value + ' v ' + MUQueryAwayTeamName.Value;
+      Edit1.Refresh;
+      Match.FindKey([MUQueryMatchNo.Value]);
+      Match.Edit;
+      UpdateSingles(MUQueryMatchNo.Value);
+      UpdateDoubles(MUQueryMatchNo.Value);
+      holdmatchdate := DateToStr(MUQueryMatchDate.Value);
+      UpdateTeams;
+      Match.Post;
+    end;
+    MUQuery.Next;
+    if MUQueryMatchDate.Value <> StrToDate(holdmatchdate) then
+    begin
+      //On change of match date, recalc all ratings
+      Writeln(F, 'Date change. Recalcs follow...');
+      SingleTotalReCalc;
+      DoubleTotalReCalc;
+    end;
+  end;
+end;
+
+procedure TUpdateForm.UpdateTeams;
+var homecount: Integer;
+var awaycount: Integer;
+var temp: Integer;
+begin
+  homecount := MatchHSWins.Value + MatchHDWins.Value;
+  awaycount := MatchASWins.Value + MatchADWins.Value;
+  Team.Open;
+  {Update Home Team}
+  Team.FindKey([MatchHomeTeam.Value]);
+  Team.Edit;
+  TeamSWins.Value := TeamSWins.Value + MatchHSWins.Value;
+  TeamDWins.Value := TeamDWins.Value + MatchHDWins.Value;
+  TeamSLosses.Value := TeamSLosses.Value + MatchASWins.Value;
+  TeamDLosses.Value := TeamDLosses.Value + MatchADWins.Value;
+  TeamPlayed.Value := TeamPlayed.Value + 1;
+  temp := MatchHSWins.Value * DM1.LeagueSinglesBonus.Value;
+  TeamPoints.Value := TeamPoints.Value + temp;
+  temp := MatchHDWins.Value * DM1.LeagueDoublesBonus.Value;
+  TeamPoints.Value := TeamPoints.Value + temp;
+  if homecount > awaycount then
+  begin
+    TeamWins.Value := TeamWins.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueWinBonus.Value;
+    end;
+  if homecount = awaycount then
+  begin
+    TeamDraws.Value := TeamDraws.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueDrawBonus.Value;
+    end;
+  if homecount < awaycount then
+  begin
+    TeamLoses.Value := TeamLoses.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueLossBonus.Value;
+    end;
+  Team.Post;
+  {Update Away Team}
+  Team.FindKey([MatchAwayTeam.Value]);
+  Team.Edit;
+  TeamSWins.Value := TeamSWins.Value + MatchASWins.Value;
+  TeamDWins.Value := TeamDWins.Value + MatchADWins.Value;
+  TeamSLosses.Value := TeamSLosses.Value + MatchHSWins.Value;
+  TeamDLosses.Value := TeamDLosses.Value + MatchHDWins.Value;
+  TeamPlayed.Value := TeamPlayed.Value + 1;
+  temp := MatchASWins.Value * DM1.LeagueSinglesBonus.Value;
+  TeamPoints.Value := TeamPoints.Value + temp;
+  temp := MatchADWins.Value * DM1.LeagueDoublesBonus.Value;
+  TeamPoints.Value := TeamPoints.Value + temp;
+  if awaycount > homecount then
+  begin
+    TeamWins.Value := TeamWins.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueWinBonus.Value;
+    end;
+  if homecount = awaycount then
+  begin
+    TeamDraws.Value := TeamDraws.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueDrawBonus.Value;
+    end;
+  if awaycount < homecount then
+  begin
+    TeamLoses.Value := TeamLoses.Value + 1;
+    TeamPoints.Value := TeamPoints.Value + DM1.LeagueLossBonus.Value;
+    end;
+  Team.Post;
+end;
+
+procedure TUpdateForm.UpdateSingles(MatchNo: Double);
+var dummy: string;
+var homerate: Integer;
+var awayrate: Integer;
+var homewin: Integer;
+var awaywin: Integer;
+begin
+  SingleQuery.Close;
+  SingleQuery.Params[0].AsFloat := MatchNo;
+  SingleQuery.Open;
+  SingleQuery.First;
+  Writeln(F, 'Processing singles of match no. '+FloatToStr(MatchNo));
+  while not SingleQuery.EOF do
+  begin
+  {Get the Home Players Record}
+    HP.EditKey;
+    HPPlayerNo.Value := SingleQueryHomePlayerNo.Value;
+    HP.GotoKey;
+  {Get the Away Players Record}
+    AP.EditKey;
+    APPlayerNo.Value := SingleQueryAwayPlayerNo.Value;
+    AP.GotoKey;
+  {Calculate New Rating}
+    Writeln(F, SingleQueryWinner.Value);
+    if SingleQueryWinner.Value = 'Home' then
+    begin
+      if SingleQueryEightBall.Value = True then
+        homerate := Round(DM1.LeagueEightBallFactor.Value * APCurrentRating.Value)
+      else
+        homerate := Round(DM1.LeagueWinFactor.Value * APCurrentRating.Value);
+      awayrate := Round(DM1.LeagueLossFactor.Value * HPCurrentRating.Value);
+      {set Boolean for player file update}
+      homewin := 1;
+      awaywin := 0;
+//if game conceeded, maintain current rating
+      if APPlayerName.Value = 'Void Frame' then
+        homerate := HPCurrentRating.Value;
+    end
+    else
+    begin
+      homerate := Round(DM1.LeagueLossFactor.Value * APCurrentRating.Value);
+      if SingleQueryEightBall.Value = True then
+        awayrate := Round(DM1.LeagueEightBallFactor.Value * HPCurrentRating.Value)
+      else
+        awayrate := Round(DM1.LeagueWinFactor.Value * HPCurrentRating.Value);
+      awaywin := 1;
+      homewin := 0;
+//if game conceeded, maintain current rating
+      if HPPlayerName.Value = 'Void Frame' then
+        awayrate := Round(APCurrentRating.Value);
+    end;
+  {Update Match Points}
+    MatchASWins.Value := MatchASWins.Value + awaywin;
+    MatchHSWins.Value := MatchHSWins.Value + homewin;
+  {Post New Ratings to holding file}
+    DateRate.Open;
+    DateRate.Insert;
+    DateRatePlayerNo.Value := HPPlayerNo.Value;
+    DateRateAgainst.Value := APPlayerNo.Value;
+    DateRateWon.Value := (homewin = 1);
+    DateRateRating.Value := homerate;
+    DateRateRatingDate.Value := MUQueryMatchDate.Value;
+    dummy := 'on '+DateToStr(MUQueryMatchDate.Value)+', player '+FloatToStr(HPPlayerNo.Value);
+    dummy := dummy+' gets '+IntToStr(homerate);
+    Writeln(F, dummy);
+    DateRate.Post;
+    DateRate.Insert;
+    DateRatePlayerNo.Value := APPlayerNo.Value;
+    DateRateAgainst.Value := HPPlayerNo.Value;
+    DateRateWon.Value := (awaywin = 1);
+    DateRateRating.Value := awayrate;
+    DateRateRatingDate.Value := MUQueryMatchDate.Value;
+    dummy := 'on '+DateToStr(MUQueryMatchDate.Value)+', player '+FloatToStr(APPlayerNo.Value);
+    dummy := dummy+' gets '+IntToStr(awayrate);
+    Writeln(F, dummy);
+    DateRate.Post;
+  {update played, wins and losses on Home and Away Player file}
+    AP.Edit;
+    APWins.Value := APWins.Value + awaywin;
+    APLosses.Value := APLosses.Value + homewin;
+    if SingleQueryEightBall.Value = True then
+      if awaywin = 1 then
+        APEightBalls.Value := APEightBalls.Value + 1;
+    APPlayed.Value := APPlayed.Value + 1;
+    AP.Post;
+    HP.Edit;
+    HPWins.Value := HPWins.Value + homewin;
+    HPLosses.Value := HPLosses.Value + awaywin;
+    if SingleQueryEightBall.Value = True then
+      if homewin = 1 then
+        HPEightBalls.Value := HPEightBalls.Value + 1;
+    HPPlayed.Value := HPPlayed.Value + 1;
+    HP.Post;
+    SingleQuery.Next;
+  end;
+end;
+
+procedure TUpdateForm.SingleTotalReCalc;
+var prevplayerno: Double;
+var weight, drop: LongInt;
+var processed: LongInt;
+var totalrate: LongInt;
+var totalweight: LongInt;
+var temprate: LongInt;
+var dummy: String;
+var playerchange: Boolean;
+var holddate: TDate;
+begin
+holddate := 0;
+processed := 0;
+totalrate := 0;
+totalweight := 0;
+Writeln(F, 'Singles');
+{select daterate file by player no by date}
+prevplayerno := 0;
+SingleReCalcQuery.Close;
+SingleReCalcQuery.Open;
+if finalphase then
+begin
+  Label1.Caption := '5/6: Update Singles Ratings';
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := SingleReCalcQuery.RecordCount;
+  ProgressBar1.Step := 1;
+  ProgressBar1.Position := 0;
+  UpdateForm.Refresh;
+end;
+SingleReCalcQuery.First;
+while not SingleReCalcQuery.EOF do
+  begin
+  if finalphase then
+  begin
+    ProgressBar1.Stepit;
+  end;
+  if prevplayerno <> SingleReCalcQueryPlayerNo.Value then
+  begin
+    {access new player record}
+    HP.Open;
+    HP.FindKey([SingleReCalcQueryPlayerNo.Value]);
+    prevplayerno := SingleReCalcQueryPlayerNo.Value;
+    holddate := SingleReCalcQueryRatingDate.Value;
+    processed := 0;
+    totalrate := 0;
+    totalweight := 0;
+  end;
+  processed := processed + 1;
+  if DM1.LeagueWeightGames.Value >= processed then
+  begin
+    drop := processed * DM1.LeagueWeightDrop.Value;
+    weight := DM1.LeagueLatestFrameWeight.Value + 1 - drop;
+    temprate := (SingleReCalcQueryRating.Value * weight);
+    totalrate := totalrate + temprate;
+    totalweight := totalweight + weight;
+    dummy := IntToStr(totalrate)+' '+IntToStr(totalweight);
+    dummy := FloatToStr(prevplayerno)+' '+dummy;
+    Writeln(F, dummy);
+    {for each record, read player record, update current rating,
+    {set best rating and date if appropriate}
+  end;
+  SingleReCalcQuery.Next;
+  playerchange := false;
+  if SingleReCalcQuery.EOF then playerchange := true;
+  if prevplayerno <> SingleReCalcQueryPlayerNo.Value then playerchange := true;
+  if playerchange then
+  begin
+    {post player details}
+    HP.Open;
+    HP.FindKey([prevplayerno]);
+    HP.Edit;
+    if HPPlayerName.Value = 'Void Frame' then
+      HPCurrentRating.Value := 1000
+    else
+      HPCurrentRating.Value := totalrate div totalweight;
+    dummy := IntToStr(HPCurrentRating.Value);
+    if HPPlayed.Value >= DM1.LeagueBuffer.Value then
+    begin
+      if HPCurrentRating.Value > HPBestRating.Value then
+      begin
+        HPBestRating.Value := HPCurrentRating.Value;
+        dummy := IntToStr(HPBestRating.Value);
+        dummy := 'New Best ' + dummy + ' ' + DateToStr(holddate) + ' ' + IntToStr(SingleReCalcQueryDateRateKey.Value);
+        HPBestRatingDate.Value := holddate;
+        dummy := 'New best rating ' + IntToStr(HPBestRating.Value);
+      end;
+    end;
+    HP.Post;
+    end;
+  end;
+end;
+
+procedure TUpdateForm.CancelBtnClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TUpdateForm.CheckParams;
+var Complete: Boolean;
+begin
+  Complete := True;
+  if DM1.LeagueLatestFrameWeight.Value = 0 then
+    Complete := False;
+  if DM1.LeagueWeightGames.Value = 0 then
+    Complete := False;
+  if DM1.LeagueBuffer.Value = 0 then
+    Complete := False;
+  if not Complete then
+  begin
+    Memo1.Lines.Add('Calculation parameters are not complete.  See File | Properties.');
+    ok_to_update := False;
+  end;
+end;
+
+procedure TUpdateForm.TeamReset;
+begin
+  // Unlike player reset, pair reset deletes all records
+  // Pairings are reconstructed in CheckDoubles
+  PairResetQuery.Close;
+  PairResetQuery.ExecSQL;
+  TeamQuery.Close;
+  TeamQuery.Open;
+  TeamQuery.First;
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := TeamQuery.RecordCount;
+  ProgressBar1.Position := 0;
+  ProgressBar1.Step := 1;
+  while not TeamQuery.EOF do
+  begin
+    ProgressBar1.Stepit;
+    TeamQuery.Edit;
+    Edit1.Text := TeamQueryTeamName.Value;
+    Edit1.Refresh;
+    TeamQueryWins.AsInteger := 0;
+    TeamQueryLoses.AsInteger := 0;
+    TeamQueryDraws.AsInteger := 0;
+    TeamQuerySWins.AsInteger := 0;
+    TeamQueryDWins.AsInteger := 0;
+    TeamQuerySLosses.AsInteger := 0;
+    TeamQueryDLosses.AsInteger := 0;
+    TeamQueryPoints.AsInteger := 0;
+    TeamQueryPlayed.AsInteger := 0;
+    TeamQuery.Next;
+end;
+end;
+
+procedure TUpdateForm.MatchIntegrity;
+begin
+  MatchQuery.Close;
+  MatchQuery.Open;
+  MatchQuery.First;
+  Label1.Caption := '2/6: Match Integrity';
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := MatchQuery.RecordCount;
+  ProgressBar1.Position := 0;
+  ProgressBar1.Step := 1;
+  UpdateForm.Refresh;
+  while not MatchQuery.EOF do
+  begin
+    ProgressBar1.Stepit;
+    Edit1.Text := FloatToStr(MatchQuery.RecNo) + '/' + IntToStr(MatchQuery.RecordCount) + ' ';
+    Edit1.Text := Edit1.Text + MatchQueryHomeTeamName.Value + ' v ' + MatchQueryAwayTeamName.Value;
+    Edit1.Refresh;
+    {Cleardown Match Wins}
+    MatchQuery.Edit;
+    MatchQueryASWins.Value := 0;
+    MatchQueryHSWins.Value := 0;
+    MatchQueryADWins.Value := 0;
+    MatchQueryHDWins.Value := 0;
+    MatchQuery.Post;
+    CheckSingles(MatchQueryMatchNo.Value);
+    CheckDoubles(MatchQueryMatchNo.Value);
+    MatchQuery.Next;
+end;
+end;
+
+procedure TUpdateForm.CheckSingles(MatchNo: Double);
+var nosingles: Double;
+var diff: Double;
+var messtext: string;
+begin
+  SingleQuery.Close;
+  SingleQuery.Params[0].AsFloat := MatchNo;
+  SingleQuery.Open;
+  nosingles := SingleQuery.RecordCount;
+  diff := DM1.LeagueNoSingles.Value - nosingles;
+  if diff <> 0 then
+    begin
+    messtext := Format('Match "%.0f" has "%.0f" singles.',[MatchNo,nosingles]);
+    Memo1.Lines.Add(messtext);
+    ok_to_update := False;
+  end;
+  while not SingleQuery.EOF do
+  begin
+    HP.Open;
+    HP.EditKey;
+    HPPlayerNo.Value := SingleQueryHomePlayerNo.Value;
+    if not HP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,SingleQueryHomePlayerNo.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+    end;
+    AP.Open;
+    AP.EditKey;
+    APPlayerNo.Value := SingleQueryAwayPlayerNo.Value;
+    if not AP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,SingleQueryAwayPlayerNo.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+    end;
+    SingleQuery.Next;
+    end;
+end;
+
+procedure TUpdateForm.CheckDoubles(MatchNo: Double);
+var nodoubles: Double;
+var diff: Double;
+var pno1,pno2: Double;
+var pname1,pname2: String;
+var messtext: String;
+begin
+// Check for the correct number of double matches
+  DoubleQuery.Close;
+  DoubleQuery.Params[0].AsFloat := MatchNo;
+//  DoubleQuery.Params[1].AsInteger := DM1.LeagueNoDoubles.Value;
+  DoubleQuery.Open;
+  nodoubles := DoubleQuery.RecordCount;
+  diff := DM1.LeagueNoDoubles.Value - nodoubles;
+  if diff > 0 then
+    begin
+    messtext := Format('Match "%.0f" has "%.0f" doubles.',[MatchNo,nodoubles]);
+    Memo1.Lines.Add(messtext);
+    ok_to_update := False;
+  end;
+// Check all pairings in the Doubles and add any
+// new pairing to the pair file
+  while not DoubleQuery.EOF do
+  begin
+// First deal with the home pairing
+// Uses the AP and HP Querys to save duplication
+// Also checks for player existance as with singles
+// Player 1 of Home Pair
+    HP.Open;
+    HP.EditKey;
+    HPPlayerNo.Value := DoubleQueryHomePlayerNo1.Value;
+    if not HP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,DoubleQueryHomePlayerNo1.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+//----
+    end
+    else
+    if HPPlayerName.Value <> 'Void Frame' then
+    begin
+// Check away player has not played more frames in this match than permitted
+      HomeMaxDoubles.Close;
+      HomeMaxDoubles.Params[0].AsFloat := HPPlayerNo.Value;
+      HomeMaxDoubles.Params[1].AsFloat := HPPlayerNo.Value;
+      HomeMaxDoubles.Params[2].AsFloat := MatchNo;
+      HomeMaxDoubles.Open;
+      if HomeMaxDoubles.RecordCount > DM1.LeagueMaxDoubles.Value then
+      begin
+        messtext := Format('Match "%.0f", player "%s", played too many double frames. ',[MatchNo,HPPlayerName.Value]);
+        Memo1.Lines.Add(messtext);
+        ok_to_update := False;
+      end;
+//----
+    end;
+// Player 2 of Home Pair
+    AP.Open;
+    AP.EditKey;
+    APPlayerNo.Value := DoubleQueryHomePlayerNo2.Value;
+    if not AP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,DoubleQueryHomePlayerNo2.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+//----
+    end
+    else
+    if APPlayerName.Value <> 'Void Frame' then
+    begin
+// Check away player has not played more frames in this match than permitted
+      HomeMaxDoubles.Close;
+      HomeMaxDoubles.Params[0].AsFloat := APPlayerNo.Value;
+      HomeMaxDoubles.Params[1].AsFloat := APPlayerNo.Value;
+      HomeMaxDoubles.Params[2].AsFloat := MatchNo;
+      HomeMaxDoubles.Open;
+      if HomeMaxDoubles.RecordCount > DM1.LeagueMaxDoubles.Value then
+      begin
+        messtext := Format('Match "%.0f", player "%s", played too many double frames. ',[MatchNo,APPlayerName.Value]);
+        Memo1.Lines.Add(messtext);
+        ok_to_update := False;
+      end;
+//----
+    end;
+    HPair.Open;
+    pno1 := HPPlayerNo.Value;
+    pno2 := APPlayerNo.Value;
+    pname1 := HPPlayerName.Value;
+    pname2 := APPlayerName.Value;
+    if APPlayerNo.Value < HPPlayerNo.Value then
+    begin
+      pno1 := APPlayerNo.Value;
+      pno2 := HPPlayerNo.Value;
+      pname1 := APPlayerName.Value;
+      pname2 := HPPlayerName.Value;
+    end;
+// Find Pair, add if new
+    if not HPair.FindKey([pno1,pno2]) then
+    begin
+      Writeln(F, 'not found - adding');
+      HPair.Insert;
+      HPairPlayerNo1.Value := pno1;
+      HPairPlayerNo2.Value := pno2;
+      HPairPlayerName1.Value := pname1;
+      HPairPlayerName2.Value := pname2;
+      HPairPlayerTeam.Value := MatchQueryHomeTeam.Value;
+      HPairPlayed.Value := 0;
+      HPairWins.Value := 0;
+      HPairLosses.Value := 0;
+      HPairBestRating.Value := 0;
+      HPairBestRatingDate.Value := StrToDate('01/01/1990');
+      HPairCurrentRating.Value := 1000;
+      HPair.Post;
+      end;
+// Now deal with the away pairing
+// Player 1 of away pair
+    HP.Open;
+    HP.EditKey;
+    HPPlayerNo.Value := DoubleQueryAwayPlayerNo1.Value;
+    if not HP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,DoubleQueryAwayPlayerNo1.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+//----
+    end
+    else
+    if HPPlayerName.Value <> 'Void Frame' then
+    begin
+// Check away player has not played more frames in this match than permitted
+      AwayMaxDoubles.Close;
+      AwayMaxDoubles.Params[0].AsFloat := HPPlayerNo.Value;
+      AwayMaxDoubles.Params[1].AsFloat := HPPlayerNo.Value;
+      AwayMaxDoubles.Params[2].AsFloat := MatchNo;
+      AwayMaxDoubles.Open;
+      if AwayMaxDoubles.RecordCount > DM1.LeagueMaxDoubles.Value then
+      begin
+        messtext := Format('Match "%.0f", player "%s", played too many double frames. ',[MatchNo,HPPlayerName.Value]);
+        Memo1.Lines.Add(messtext);
+        ok_to_update := False;
+      end;
+//----
+    end;
+// Player 2 of away pair
+    AP.Open;
+    AP.EditKey;
+    APPlayerNo.Value := DoubleQueryAwayPlayerNo2.Value;
+    if not AP.GotoKey then
+    begin
+      messtext := Format('Match "%.0f", invalid player "%.0f". ',[MatchNo,DoubleQueryAwayPlayerNo2.Value]);
+      Memo1.Lines.Add(messtext);
+      ok_to_update := False;
+//----
+    end
+    else
+    if APPlayerName.Value <> 'Void Frame' then
+    begin
+// Check away player has not played more frames in this match than permitted
+      AwayMaxDoubles.Close;
+      AwayMaxDoubles.Params[0].AsFloat := APPlayerNo.Value;
+      AwayMaxDoubles.Params[1].AsFloat := APPlayerNo.Value;
+      AwayMaxDoubles.Params[2].AsFloat := MatchNo;
+      AwayMaxDoubles.Open;
+      if AwayMaxDoubles.RecordCount > DM1.LeagueMaxDoubles.Value then
+      begin
+        messtext := Format('Match "%.0f", player "%s", played too many double frames. ',[MatchNo,APPlayerName.Value]);
+        Memo1.Lines.Add(messtext);
+        ok_to_update := False;
+      end;
+//----
+    end;
+    APair.Open;
+    pno1 := HPPlayerNo.Value;
+    pno2 := APPlayerNo.Value;
+    pname1 := HPPlayerName.Value;
+    pname2 := APPlayerName.Value;
+    if APPlayerNo.Value < HPPlayerNo.Value then
+    begin
+      pno1 := APPlayerNo.Value;
+      pno2 := HPPlayerNo.Value;
+      pname1 := APPlayerName.Value;
+      pname2 := HPPlayerName.Value;
+    end;
+// Find Pair, add if new
+    if not APair.FindKey([pno1,pno2]) then
+    begin
+      Writeln(F, 'not found - adding');
+      APair.Insert;
+      APairPlayerNo1.Value := pno1;
+      APairPlayerNo2.Value := pno2;
+      APairPlayerName1.Value := pname1;
+      APairPlayerName2.Value := pname2;
+      APairPlayerTeam.Value := MatchQueryAwayTeam.Value;
+      APairPlayed.Value := 0;
+      APairWins.Value := 0;
+      APairLosses.Value := 0;
+      APairBestRating.Value := 0;
+      APairBestRatingDate.Value := StrToDate('01/01/1990');
+      APairCurrentRating.Value := 1000;
+      APair.Post;
+      end;
+    DoubleQuery.Next;
+  end;
+end;
+
+procedure TUpdateForm.ClearDateRate;
+begin
+  ClearDateRateQuery.Close;
+  ClearDateRateQuery.ExecSQL;
+  ClearDblRateQuery.Close;
+  ClearDblRateQuery.ExecSQL;
+end;
+
+procedure TUpdateForm.ResetPlayerRatings;
+begin
+  PlayerResetQuery.Close;
+  Label1.Caption := '3/6: Reset Players';
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := 2;
+  ProgressBar1.Position := 0;
+  ProgressBar1.Step := 1;
+  UpdateForm.Refresh;
+  PlayerResetQuery.ExecSQL;
+  ProgressBar1.Stepit;
+  ProgressBar1.Stepit;
+end;
+
+procedure TUpdateForm.FormShow(Sender: TObject);
+begin
+  ProgressBar1.Position := 0;
+  AssignFile(F, 'PLMDIAG.PLM');
+  Rewrite(F);
+end;
+
+procedure TUpdateForm.UpdateDoubles(MatchNo: Double);
+var dummy: string;
+var homerate: Integer;
+var awayrate: Integer;
+var homewin: Integer;
+var awaywin: Integer;
+var factor: Double;
+var pno1, pno2, pno3: Double;
+begin
+  DoubleQuery.Close;
+  DoubleQuery.Params[0].AsFloat := MatchNo;
+  DoubleQuery.Open;
+  DoubleQuery.First;
+  Writeln(F, 'Processing doubles of match no. '+FloatToStr(MatchNo));
+  while not DoubleQuery.EOF do
+  begin
+  {Get the Home Pairs Record}
+    pno1 := DoubleQueryHomePlayerNo1.Value;
+    pno2 := DoubleQueryHomePlayerNo2.Value;
+    if pno2 < pno1 then
+    begin
+      pno3 := pno2;
+      pno2 := pno1;
+      pno1 := pno3;
+      end;
+    HPair.Findkey([pno1,pno2]);
+  {Get the Away Players Record}
+    pno1 := DoubleQueryAwayPlayerNo1.Value;
+    pno2 := DoubleQueryAwayPlayerNo2.Value;
+    if pno2 < pno1 then
+    begin
+      pno3 := pno2;
+      pno2 := pno1;
+      pno1 := pno3;
+      end;
+    APair.Findkey([pno1,pno2]);
+  {Calculate New Rating}
+    Writeln(F, DoubleQueryWinner.Value);
+    if DoubleQueryWinner.Value = 'Home' then
+    begin
+      factor := DM1.LeagueWinFactor.Value;
+      if DoubleQueryEightBall1.Value = True then
+        factor := DM1.LeagueEightBallFactor.Value;
+      if DoubleQueryEightBall2.Value = True then
+        factor := DM1.LeagueEightBallFactor.Value;
+      homerate := Round(factor * APairCurrentRating.Value);
+      awayrate := Round(DM1.LeagueLossFactor.Value * HPairCurrentRating.Value);
+//only instance no1 = no2 is if 'void frame' therefore game conceeded
+//maintain current rating
+      if APairPlayerNo1.Value = APairPlayerNo2.Value then
+        homerate := HPairCurrentRating.Value;
+//set Boolean for pair file update
+      homewin := 1;
+      awaywin := 0;
+    end
+    else
+    begin
+      homerate := Round(DM1.LeagueLossFactor.Value * APairCurrentRating.Value);
+      factor := DM1.LeagueWinFactor.Value;
+      if DoubleQueryEightBall1.Value = True then
+        factor := DM1.LeagueEightBallFactor.Value;
+      if DoubleQueryEightBall2.Value = True then
+        factor := DM1.LeagueEightBallFactor.Value;
+      awayrate := Round(factor * HPairCurrentRating.Value);
+//only instance no1 = no2 is if 'void frame' therefore game conceeded
+//maintain current rating
+      if HPairPlayerNo1.Value = HPairPlayerNo2.Value then
+        homerate := APairCurrentRating.Value;
+      awaywin := 1;
+      homewin := 0;
+    end;
+  {Update Match Points}
+    MatchADWins.Value := MatchADWins.Value + awaywin;
+    MatchHDWins.Value := MatchHDWins.Value + homewin;
+  {Post New Ratings to holding file}
+    DblRate.Open;
+    DblRate.Insert;
+    DblRatePlayerNo1.Value := HPairPlayerNo1.Value;
+    DblRatePlayerNo2.Value := HPairPlayerNo2.Value;
+    DblRateRating.Value := homerate;
+    DblRateRatingDate.Value := MUQueryMatchDate.Value;
+    dummy := 'on '+DateToStr(MUQueryMatchDate.Value)+', pair '+FloatToStr(HPairPlayerNo1.Value);
+    dummy := dummy+' & '+FloatToStr(HPairPlayerNo2.Value);
+    dummy := dummy+' gets '+IntToStr(homerate);
+    Writeln(F, dummy);
+    DblRate.Post;
+    DblRate.Insert;
+    DblRatePlayerNo1.Value := APairPlayerNo1.Value;
+    DblRatePlayerNo2.Value := APairPlayerNo2.Value;
+    DblRateRating.Value := awayrate;
+    DblRateRatingDate.Value := MUQueryMatchDate.Value;
+    dummy := 'on '+DateToStr(MUQueryMatchDate.Value)+', pair '+FloatToStr(APairPlayerNo1.Value);
+    dummy := dummy+' & '+FloatToStr(APairPlayerNo2.Value);
+    dummy := dummy+' gets '+IntToStr(awayrate);
+    Writeln(F, dummy);
+    DblRate.Post;
+  {update played, wins and losses on Home and Away Player file}
+    APair.Edit;
+    APairWins.Value := APairWins.Value + awaywin;
+    APairLosses.Value := APairLosses.Value + homewin;
+    APairPlayed.Value := APairPlayed.Value + 1;
+    APair.Post;
+    HPair.Edit;
+    HPairWins.Value := HPairWins.Value + homewin;
+    HPairLosses.Value := HPairLosses.Value + awaywin;
+    HPairPlayed.Value := HPairPlayed.Value + 1;
+    HPair.Post;
+  {update individual player file with any registered eightball from doubles}
+    dummy := '';
+    if DoubleQueryEightBall1.Value = True then
+    begin
+      if homewin = 1 then
+        dummy := FloatToStr(DoubleQueryHomePlayerNo1.Value);
+      if awaywin = 1 then
+        dummy := FloatToStr(DoubleQueryAwayPlayerNo1.Value);
+    end;
+    if DoubleQueryEightBall2.Value = True then
+    begin
+      if homewin = 1 then
+        dummy := FloatToStr(DoubleQueryHomePlayerNo2.Value);
+      if awaywin = 1 then
+        dummy := FloatToStr(DoubleQueryAwayPlayerNo2.Value);
+    end;
+    if dummy <> '' then
+    begin
+      HP.FindKey([dummy]);
+      HP.Edit;
+      HPEightBalls.Value := HPEightBalls.Value + 1;
+      HP.Post;
+    end;
+    DoubleQuery.Next;
+  end;
+end;
+
+procedure TUpdateForm.DoubleTotalReCalc;
+var prevplayerno1: Double;
+var prevplayerno2: Double;
+var weight: LongInt;
+var processed: LongInt;
+var totalrate: LongInt;
+var totalweight: LongInt;
+var temprate: LongInt;
+var drop: Integer;
+var dummy: String;
+var playerchange: Boolean;
+begin
+processed := 0;
+totalrate := 0;
+totalweight := 0;
+Writeln(F, 'Doubles Update');
+{select dblrate file by player no 1 by player no 2 by date}
+prevplayerno1 := 0;
+prevplayerno2 := 0;
+DoubleReCalcQuery.Close;
+DoubleReCalcQuery.Open;
+if finalphase then
+begin
+  Label1.Caption := '6/6: Update Doubles Ratings';
+  ProgressBar1.Min := 0;
+  ProgressBar1.Max := DoubleReCalcQuery.RecordCount;
+  ProgressBar1.Step := 1;
+  ProgressBar1.Position := 0;
+  UpdateForm.Refresh;
+end;
+DoubleReCalcQuery.First;
+while not DoubleReCalcQuery.EOF do
+  begin
+  if finalphase then
+  begin
+    ProgressBar1.Stepit;
+  end;
+  playerchange := false;
+  if prevplayerno1 <> DoubleReCalcQueryPlayerNo1.Value then playerchange := true;
+  if prevplayerno2 <> DoubleReCalcQueryPlayerNo2.Value then playerchange := true;
+  if playerchange then
+  begin
+    {access new player record}
+    HPair.Open;
+    HPair.FindKey([DoubleReCalcQueryPlayerNo1.Value,DoubleReCalcQueryPlayerNo2.Value]);
+    prevplayerno1 := DoubleReCalcQueryPlayerNo1.Value;
+    prevplayerno2 := DoubleReCalcQueryPlayerNo2.Value;
+    processed := 0;
+    totalrate := 0;
+    totalweight := 0;
+  end;
+  processed := processed + 1;
+  drop := processed * DM1.LeagueWeightDrop.Value;
+  weight := DM1.LeagueLatestFrameWeight.Value + 1 - drop;
+  temprate := (DoubleReCalcQueryRating.Value * weight);
+  totalrate := totalrate + temprate;
+  totalweight := totalweight + weight;
+  dummy := IntToStr(totalrate)+' '+IntToStr(totalweight);
+  dummy := FloatToStr(prevplayerno1)+' & '+FloatToStr(prevplayerno2)+' '+dummy;
+  Writeln(F, dummy);
+  {MessageDlg(dummy, mtWarning, [mbYes, mbNo], 0);
+  {for each record, read player record, update current rating,
+  {set best rating and date if appropriate}
+  DoubleReCalcQuery.Next;
+  playerchange := false;
+  if DoubleReCalcQuery.EOF then playerchange := true;
+  if prevplayerno1 <> DoubleReCalcQueryPlayerNo1.Value then playerchange := true;
+  if prevplayerno2 <> DoubleReCalcQueryPlayerNo2.Value then playerchange := true;
+  if playerchange then
+  begin
+    {post player details}
+    HPair.Open;
+    HPair.FindKey([prevplayerno1,prevplayerno2]);
+    HPair.Edit;
+    HPairCurrentRating.Value := totalrate div totalweight;
+    dummy := IntToStr(HPairCurrentRating.Value);
+    {MessageDlg(dummy, mtWarning, [mbYes, mbNo], 0);}
+    if HPairPlayed.Value >= DM1.LeagueBuffer.Value then
+    begin
+      if HPairCurrentRating.Value > HPairBestRating.Value then
+      begin
+        HPairBestRating.Value := HPairCurrentRating.Value;
+        HPairBestRatingDate.Value := DoubleReCalcQueryRatingDate.Value;
+        dummy := 'New best rating ' + IntToStr(HPairBestRating.Value);
+        {MessageDlg(dummy, mtWarning, [mbYes, mbNo], 0); }
+      end;
+    end;
+    HPair.Post;
+    end;
+  end;
+end;
+
+procedure TUpdateForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  try
+  CloseFile(F);
+  except
+  end;
+end;
+
+end.

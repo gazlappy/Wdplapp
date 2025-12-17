@@ -1,0 +1,273 @@
+unit backup;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  BDE, DBTables, StdCtrls, WinTypes, WinProcs, Menus, DB, quickrpt, qrctrls, ComCtrls,
+  ExtCtrls, ImgList, DBCGrids, Mask, DBCtrls, Grids, DBGrids,
+  Buttons, Registry, ShellAPI;
+
+type
+  TBackUpForm = class(TForm)
+    Label1: TLabel;
+    Button1: TButton;
+    Button2: TButton;
+    Button3: TButton;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    procedure Button2Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    Floppy_drive: Boolean;
+    procedure MassBackUp(To_Floppy: Boolean);
+    procedure MassBackUp_To_A;
+    procedure MassBackUp_To_C;
+    procedure CopyPdoxTable(SrcTbl, DstTbl: String; Overwrite, To_Floppy: Boolean);
+    { Public declarations }
+  end;
+
+var
+  BackUpForm: TBackUpForm;
+
+implementation
+
+uses datamodule, splash;
+
+{$R *.DFM}
+
+procedure TBackUpForm.MassBackUp(To_Floppy: Boolean);
+var SrcTbl, DstTbl, dtstr: string;
+    F: textfile;
+    backupfilename: String;
+begin
+dtstr := DateTimeToStr(Now);
+dtstr := StringReplace(dtstr, '/' , '-',[ rfReplaceAll ]);
+dtstr := StringReplace(dtstr, ':' , '-',[ rfReplaceAll ]);
+dtstr := StringReplace(dtstr, ' ' , '_',[ rfReplaceAll ]);
+//
+// Get files to backup from 'backup.s4s'
+//
+backupfilename := DM1.Database.Directory + '\backup.s4s';
+AssignFile(F, backupfilename);
+try
+  Reset(F);
+except
+  ShowMessage('Backup.s4s not present, no back up of data will take place.  If you wish to correct this, see documentation and seek support.');
+  Exit;
+end;
+try
+  Readln(F, backupfilename);
+except
+  backupfilename := '';
+end;
+while not (backupfilename = '') do
+begin
+  SrcTbl := backupfilename;
+  DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+  CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+  try
+    Readln(F, backupfilename);
+  except
+    backupfilename := '';
+  end;
+end;
+{SrcTbl := 'Daterate.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Dblrate.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Dbls.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Division.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'League.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Match.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Pair.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Player.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Single.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Team.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Team_1.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'Venue.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+// Now the archive files
+SrcTbl := 'a_Dbls.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Division.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_League.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Match.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Pair.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Player.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Single.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Team.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Team_1.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);
+SrcTbl := 'a_Venue.DB';
+DstTbl := 'backup_' + dtstr + '\' + SrcTbl;
+CopyPdoxTable(SrcTbl , DstTbl , True, To_Floppy);  }
+end;
+
+procedure TBackUpForm.CopyPdoxTable(SrcTbl, DstTbl: String; Overwrite, To_Floppy: Boolean);
+var
+  STbl,  DTbl, new_directory    : String;
+  EMode: Word;
+  floppy_in: Boolean;
+  f: file of Byte;
+  size : Longint;
+  AmtFree: Int64;
+begin
+  {Since we're using path names and not BDE aliases, we have to do
+   some checking of the paths to see if they're blank; that is, the
+   user passed just the file name to the procedure, and not the
+   FULLY QUALIFIED file name. In that case, we merely set the source
+   and destination to the application's EXEName directory}
+  STbl := DM1.Database.Directory + SrcTbl;
+  AssignFile(f, STbl);
+  Reset(f);
+  size := FileSize(f);
+  DTbl := DM1.Database.Directory + DstTbl;
+  SplashForm.Label2.Caption := 'Backing up to ' + DTbl;
+  if Length(DTbl) > 79 then
+  begin
+    SplashForm.Label2.Caption := 'Pathname too long: Backup to a:\ only';
+    To_Floppy := True
+  end;
+  if To_Floppy then
+  begin
+    DTbl := 'A:\' + SrcTbl;
+    EMode := SetErrorMode(SEM_FAILCRITICALERRORS);
+    floppy_in := false;
+    while not floppy_in do
+    begin
+      try
+        if DiskSize(Ord('A')-$40) <> -1 then
+          begin
+            AmtFree := DiskFree(Ord('A')-$40);
+            if BackUpForm.Visible then
+            begin
+              Label5.Caption := Dtbl;
+              Label6.Caption := IntToStr(size);
+              Label7.Caption := IntToStr(AmtFree);
+              BackUpForm.Update;
+            end;
+            if AmtFree < size then
+              ShowMessage('Disk is full. Insert a new disk into drive a:\')
+            else
+              floppy_in := true;
+          end
+        else
+          ShowMessage('Insert a disk into drive a:\');
+      finally
+         SetErrorMode(EMode);
+      end;
+    end;
+  end;
+  if SplashForm.Visible then
+    SplashForm.Update;
+  new_directory := ExtractFilePath(DTbl);
+  try
+    MkDir(new_directory)
+  except
+  end;
+  {First, check to see if the source file actually exists. If it does
+  create a TDatabase that points to the source file's directory.
+  This can actually point anywhere using the method we're using because
+  we're specifying fully qualified file names as entries as opposed to. The important thing though, is to
+  set it to a valid directory}
+  if FileExists(STbl) then 
+    begin
+    {Do the table copy from source to dest. Notice the PChar typecast of STbl
+     and DTbl. The BDE function actually calls for a DBITBLNAME type. But this
+     is just a null-terminated string - a PChar - so we can save ourselves a
+     lot of time by just typecasting the strings.}
+      Check(DBICopyTable(DM1.Database.Handle, Overwrite, PChar(STbl), nil, PChar(DTbl)));
+    end
+  else
+    ShowMessage('Could not copy the table. It is not in the location specified.');
+end;
+
+procedure TBackUpForm.Button2Click(Sender: TObject);
+begin
+  Button1.Enabled := False;
+  Button2.Enabled := False;
+  Button3.Enabled := False;
+  Label5.Caption := '';
+  MassBackUp_To_C;
+  Label5.Caption := 'Complete';
+  Button1.Enabled := True;
+  Button2.Enabled := True;
+  Button3.Enabled := True;
+  BackUpForm.Refresh;
+end;
+
+procedure TBackUpForm.Button1Click(Sender: TObject);
+begin
+  Button1.Enabled := False;
+  Button2.Enabled := False;
+  Button3.Enabled := False;
+  Label5.Caption := '';
+  MassBackUp_To_A;
+  Label5.Caption := 'Complete';
+  Button1.Enabled := True;
+  Button2.Enabled := True;
+  Button3.Enabled := True;
+  BackUpForm.Refresh;
+end;
+
+procedure TBackUpForm.Button3Click(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TBackUpForm.MassBackUp_To_A;
+begin
+  MassBackUp(True);
+end;
+
+procedure TBackUpForm.MassBackUp_To_C;
+begin
+  MassBackUp(False);
+end;
+
+end.

@@ -1,0 +1,80 @@
+object PickLeague: TPickLeague
+   HelpContext =  440
+  Left = 246
+  Top = 226
+  Width = 266
+  Height = 143
+  ActiveControl = ListBox1
+  BorderIcons = []
+  Caption = 'Select League'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object CancelButton: TBitBtn
+    Left = 176
+    Top = 80
+    Width = 75
+    Height = 25
+    TabOrder = 3
+    OnClick = CancelButtonClick
+    Kind = bkClose
+  end
+  object PrintButton: TButton
+    Left = 176
+    Top = 8
+    Width = 75
+    Height = 25
+    Caption = 'Print'
+    ModalResult = 1
+    TabOrder = 1
+    OnClick = PrintButtonClick
+  end
+  object PreviewButton: TButton
+    Left = 176
+    Top = 44
+    Width = 75
+    Height = 25
+    Caption = 'Preview'
+    ModalResult = 1
+    TabOrder = 2
+    OnClick = PreviewButtonClick
+  end
+  object ListBox1: TListBox
+    Left = 8
+    Top = 8
+    Width = 161
+    Height = 97
+    ItemHeight = 13
+    TabOrder = 0
+    OnExit = ListBox1Exit
+  end
+  object DivQuery: TQuery
+    DatabaseName = 'PLMDATA'
+    SQL.Strings = (
+      'select * from Division')
+    Left = 16
+    Top = 72
+    object DivQueryAbbreviated: TStringField
+      FieldName = 'Abbreviated'
+      Origin = '"DIVISION.DB".Abbreviated'
+      Size = 7
+    end
+    object DivQueryItem_id: TIntegerField
+      FieldName = 'Item_id'
+      Origin = 'PLMDATA."DIVISION.DB".Item_id'
+    end
+    object DivQueryFullDivisionName: TStringField
+      FieldName = 'FullDivisionName'
+      Origin = 'PLMDATA."DIVISION.DB".FullDivisionName'
+      Size = 30
+    end
+  end
+end

@@ -1,0 +1,58 @@
+unit mlist;
+
+interface
+
+uses Windows, SysUtils, Classes, Graphics, Forms, Controls, StdCtrls,
+  Buttons, ExtCtrls, Db, Grids, DBGrids, DBTables, Dialogs;
+
+type
+  TMtDialog = class(TForm)
+    MatchList: TQuery;
+    MatchSource: TDataSource;
+    BitBtn1: TBitBtn;
+    CancelBtn: TBitBtn;
+    GroupBox2: TGroupBox;
+    DBGrid1: TDBGrid;
+    MatchListMatchNo: TFloatField;
+    MatchListHomeTeam: TStringField;
+    MatchListAwayTeam: TStringField;
+    MatchListMatchDate: TDateField;
+    procedure BitBtn1Click(Sender: TObject);
+    procedure CancelBtnClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  MtDialog: TMtDialog;
+
+implementation
+
+uses Matchbyt, NMatch, Main, Single, Dble;
+
+{$R *.DFM}
+
+procedure TMtDialog.BitBtn1Click(Sender: TObject);
+begin
+  MtDialog.Enabled := False;
+  Application.CreateForm(TNMForm, NMForm);
+  NMForm.Edit(DBGrid1.Fields[0].Value);
+  MatchList.Close;
+  MatchList.Open;
+end;
+
+procedure TMtDialog.CancelBtnClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TMtDialog.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  MatchList.Close;
+  Action := caFree;
+end;
+
+end.

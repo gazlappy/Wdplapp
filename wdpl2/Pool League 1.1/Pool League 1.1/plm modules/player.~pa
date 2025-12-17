@@ -1,0 +1,136 @@
+unit Player;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, DB, DBTables, ExtCtrls, Grids, DBGrids, DBCtrls,
+  Dialogs, SysUtils;
+
+type
+  TPlayersForm = class(TForm)
+    GroupBox1: TGroupBox;
+    DBGrid1: TDBGrid;
+    GroupBox2: TGroupBox;
+    DBGrid2: TDBGrid;
+    Button1: TButton;
+    Delete: TButton;
+    OKBtn: TBitBtn;
+    Button2: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure PlayerBeforeEdit(DataSet: TDataset);
+    procedure DeleteClick(Sender: TObject);
+    procedure AmendClick(Sender: TObject);
+    procedure OKBtnClick(Sender: TObject);
+    procedure InsertClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure InsertNewPlayer(var TeamName: String);
+    procedure DBGrid2Exit(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  PlayersForm: TPlayersForm;
+
+implementation
+
+uses Main, datamodule, plreport;
+
+{$R *.DFM}
+
+procedure TPlayersForm.FormCreate(Sender: TObject);
+begin
+  DM1.Team.Open;
+  DM1.Player.Open;
+end;
+
+
+procedure TPlayersForm.PlayerBeforeEdit(DataSet: TDataset);
+begin
+  DBGrid2.SetFocus;
+end;
+
+
+procedure TPlayersForm.DeleteClick(Sender: TObject);
+var
+  Key1: string;
+  Key2: double;
+begin
+  Key1 := DBGrid2.Fields[1].AsString;
+  Key2 := DBGrid2.Fields[0].AsFloat;
+  if MessageDlg(Format('Delete "%S" from the Player table?', [Key1]),
+    mtConfirmation, mbOKCancel, 0) = mrOK then
+  begin
+    DM1.DeleteQuery.Prepare;
+    DM1.DeleteQuery.Params[0].AsFloat := Key2;
+    DM1.DeleteQuery.ExecSQL;
+    DM1.Player.Refresh;
+  end;
+end;
+
+procedure TPlayersForm.AmendClick(Sender: TObject);
+begin
+//  PlayerAmend.Edit(DM1.PlayerPlayerNo.Value);
+  DM1.Player.Refresh;
+end;
+
+procedure TPlayersForm.InsertClick(Sender: TObject);
+var sendstring: String;
+begin
+  sendstring := DM1.TeamTeamName.Value;
+  InsertNewPlayer(sendstring);
+end;
+
+procedure TPlayersForm.InsertNewPlayer(var TeamName: String);
+var NewString: String;
+var ClickedOK: Boolean;
+begin
+  ClickedOk := InputQuery('Add Player to '+TeamName,'Player Name',NewString);
+  if ClickedOk then
+    if NewString <> '' then
+    begin
+      DM1.Player.Open;
+      DM1.Player.Insert;
+      DM1.PlayerPlayerName.Value := NewString;
+      DM1.PlayerPlayerTeam.Value := TeamName;
+      DM1.Player.Post;
+      DM1.Player.Refresh;
+      try
+        DBGrid2.Refresh
+      except
+      end;
+    end;
+// Return new player name to Singles and Doubles form
+    TeamName := NewString;
+end;
+
+procedure TPlayersForm.OKBtnClick(Sender: TObject);
+begin
+  DM1.Player.Close;
+  Close;
+end;
+
+procedure TPlayersForm.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  Action := caFree;
+end;
+
+procedure TPlayersForm.DBGrid2Exit(Sender: TObject);
+begin
+if DM1.Player.State in [dsEdit,dsInsert] then
+  DM1.Player.Post;
+end;
+
+procedure TPlayersForm.Button2Click(Sender: TObject);
+begin
+  PlayerReport.DateRateQuery.Close;
+  PlayerReport.DateRateQuery.Params.ParamByName('SubPlayerNo').AsFloat := DBGrid2.Fields[0].AsFloat;
+  PlayerReport.DateRateQuery.Open;
+  PlayerReport.Preview;
+end;
+
+end.

@@ -1,0 +1,149 @@
+unit plreport;
+
+interface
+
+uses Windows, SysUtils, Messages, Classes, Graphics, Controls,
+  StdCtrls, ExtCtrls, Forms, Quickrpt, QRCtrls, DBTables, Db;
+
+type
+  TPlayerReport = class(TQuickRep)
+    ColumnHeaderBand1: TQRBand;
+    DetailBand1: TQRBand;
+    PageFooterBand1: TQRBand;
+    TitleBand1: TQRBand;
+    QRDBText1: TQRDBText;
+    QRLabel2: TQRLabel;
+    QRSysData1: TQRSysData;
+    LeagueFile: TTable;
+    LeagueFileLeagueName: TStringField;
+    LeagueFileShowTop: TIntegerField;
+    LeagueSource: TDataSource;
+    DateRateQuery: TQuery;
+    Player: TTable;
+    PlayerSource: TDataSource;
+    PlayerPlayerNo: TFloatField;
+    PlayerPlayerName: TStringField;
+    PlayerPlayerTeam: TStringField;
+    PlayerPlayed: TIntegerField;
+    PlayerWins: TIntegerField;
+    PlayerLosses: TIntegerField;
+    PlayerCurrentRating: TIntegerField;
+    PlayerBestRating: TIntegerField;
+    PlayerBestRatingDate: TDateField;
+    PlayerEightBalls: TIntegerField;
+    SummaryBand1: TQRBand;
+    DateRateQueryDateRateKey: TIntegerField;
+    DateRateQueryPlayerNo: TFloatField;
+    DateRateQueryWon: TBooleanField;
+    DateRateQueryAgainst: TFloatField;
+    DateRateQueryRating: TIntegerField;
+    DateRateQueryRatingDate: TDateField;
+    QRLabel1: TQRLabel;
+    QRLabel3: TQRLabel;
+    QRLabel4: TQRLabel;
+    QRLabel5: TQRLabel;
+    QRDBText2: TQRDBText;
+    QRLabel6: TQRLabel;
+    QRLabel7: TQRLabel;
+    QRDBText3: TQRDBText;
+    QRLabel8: TQRLabel;
+    QRDBText4: TQRDBText;
+    QRLabel9: TQRLabel;
+    QRLabel10: TQRLabel;
+    QRLabel11: TQRLabel;
+    QRLabel12: TQRLabel;
+    QRLabel13: TQRLabel;
+    QRLabel14: TQRLabel;
+    QRDBText5: TQRDBText;
+    QRShape1: TQRShape;
+    QRLabel15: TQRLabel;
+    QRLabel16: TQRLabel;
+    QRLabel17: TQRLabel;
+    QRLabel18: TQRLabel;
+    QRLabel19: TQRLabel;
+    QRLabel20: TQRLabel;
+    QRLabel21: TQRLabel;
+    QRDBText6: TQRDBText;
+    QRDBText7: TQRDBText;
+    QRDBText8: TQRDBText;
+    QRDBText9: TQRDBText;
+    QRDBText10: TQRDBText;
+    QRDBText11: TQRDBText;
+    QRLabel22: TQRLabel;
+    QRDBText12: TQRDBText;
+    LeagueFileExplanation: TMemoField;
+    LeagueFileLatestFrameWeight: TIntegerField;
+    LeagueFileWeightDrop: TIntegerField;
+    LeagueFileWeightGames: TIntegerField;
+    QRLabel23: TQRLabel;
+    QRMemo1: TQRMemo;
+    procedure TitleBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+    procedure DetailBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+    procedure SummaryBand1BeforePrint(Sender: TQRCustomBand;
+      var PrintBand: Boolean);
+  private
+
+  public
+
+  end;
+
+var
+  PlayerReport: TPlayerReport;
+  Weighting, TotalWeight, TotalValue: Integer;
+
+implementation
+
+{$R *.DFM}
+
+procedure TPlayerReport.TitleBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+begin
+  TotalWeight := 0;
+  TotalValue := 0;
+  DateRateQuery.Close;
+  DateRateQuery.Open;
+  DateRateQuery.First;
+  Player.Open;
+  Player.EditKey;
+  PlayerPlayerNo.Value := DateRateQueryPlayerNo.Value;
+  Player.GotoKey;
+  LeagueFile.Open;
+  LeagueFile.First;
+  Weighting := LeagueFileLatestFrameWeight.Value + 1;
+  QRLabel23.Caption := LeagueFileExplanation.Value;
+end;
+
+procedure TPlayerReport.DetailBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+var Value: Integer;
+begin
+Weighting := Weighting - LeagueFileWeightDrop.Value;
+Player.Open;
+Player.EditKey;
+PlayerPlayerNo.Value := DateRateQueryAgainst.Value;
+Player.GotoKey;
+QRLabel6.Caption := PlayerPlayerName.Value;
+if DateRateQueryWon.Value = true then
+  QRLabel7.Caption := 'Won'
+else
+  QRLabel7.Caption := 'Lost';
+QRLabel9.Caption := IntToStr(Weighting);
+Value := Weighting * DateRateQueryRating.Value;
+QRLabel12.Caption := IntToStr(Value);
+TotalWeight := TotalWeight + Weighting;
+TotalValue := TotalValue + Value;
+end;
+
+procedure TPlayerReport.SummaryBand1BeforePrint(Sender: TQRCustomBand;
+  var PrintBand: Boolean);
+begin
+Player.EditKey;
+PlayerPlayerNo.Value := DateRateQueryPlayerNo.Value;
+Player.GotoKey;
+QRLabel13.Caption := IntToStr(TotalWeight);
+QRLabel14.Caption := IntToStr(TotalValue);
+end;
+
+end.

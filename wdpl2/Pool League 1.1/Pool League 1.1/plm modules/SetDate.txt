@@ -1,0 +1,82 @@
+object SelectDt: TSelectDt
+   HelpContext =  530
+  Left = 247
+  Top = 323
+  Width = 226
+  Height = 137
+  ActiveControl = MaskEdit1
+  BorderIcons = []
+  Caption = 'Select Date'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poScreenCenter
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object SpeedButton1: TSpeedButton
+    Left = 104
+    Top = 10
+    Width = 23
+    Height = 22
+    Glyph.Data = {
+      76010000424D7601000000000000760000002800000020000000100000000100
+      04000000000000010000120B0000120B00001000000000000000000000000000
+      800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+      FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00333333333333
+      33333FFFFFFFFFFFFFFF000000000000000077777777777777770FF7FF7FF7FF
+      7FF07FF7FF7FF7F37F3709F79F79F7FF7FF077F77F77F7FF7FF7077777777777
+      777077777777777777770FF7FF7FF7FF7FF07FF7FF7FF7FF7FF709F79F79F79F
+      79F077F77F77F77F77F7077777777777777077777777777777770FF7FF7FF7FF
+      7FF07FF7FF7FF7FF7FF709F79F79F79F79F077F77F77F77F77F7077777777777
+      777077777777777777770FFFFF7FF7FF7FF07F33337FF7FF7FF70FFFFF79F79F
+      79F07FFFFF77F77F77F700000000000000007777777777777777CCCCCC8888CC
+      CCCC777777FFFF777777CCCCCCCCCCCCCCCC7777777777777777}
+    NumGlyphs = 2
+    OnClick = SpeedButton1Click
+  end
+  object PrintButton: TButton
+    Left = 136
+    Top = 8
+    Width = 75
+    Height = 25
+    Caption = 'Print'
+    ModalResult = 1
+    TabOrder = 0
+    OnClick = PrintButtonClick
+  end
+  object PreviewButton: TButton
+    Left = 136
+    Top = 44
+    Width = 75
+    Height = 25
+    Caption = 'Preview'
+    ModalResult = 1
+    TabOrder = 1
+    OnClick = PreviewButtonClick
+  end
+  object CancelButton: TBitBtn
+    Left = 136
+    Top = 80
+    Width = 75
+    Height = 25
+    TabOrder = 2
+    OnClick = CancelButtonClick
+    Kind = bkClose
+  end
+  object MaskEdit1: TMaskEdit
+    Left = 8
+    Top = 10
+    Width = 97
+    Height = 21
+    EditMask = '!99/99/00;1;_'
+    MaxLength = 8
+    TabOrder = 3
+    Text = '  /  /  '
+    OnExit = MaskEdit1Exit
+  end
+end

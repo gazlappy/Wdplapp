@@ -1,0 +1,488 @@
+10/10/01 
+10:02:05 
+Original File name: C:\Data\My Documents\Personal\Projects\Pool League 1.1\plm\plm.dpr
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\ABOUT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\DATAMODULE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\MAIN.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\DIVINS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\DIVISION.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PICKLEAG.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PLAYER.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PNAMEND.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PROP.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\TEAM.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\TEAML.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\UPDATE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\VENINS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\VENUE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\SETDATE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PICKDT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PRATING.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PTABLE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\DRATINGS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PLREPORT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\EIGHTBALLRPT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\RESRPT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\PLMMAILSHOT.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\FILTERTEAM.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\COVLET.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\COVLET2.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\WEBPAGES.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\VENUELABEL.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\CAPTAINLABEL.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\S_APQS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\S_HPQS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\D_HPQS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\D_APQS.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\DATAMODULE2.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\NEWLEAGUE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\OPENLEAGUE.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\SPLASH.DFM
+----------------------------------------------------
+  Input  string  : ..\PLM MODULES\BACKUP.DFM
+---------------------------------------------------
+Raw filenames in selection list
+..\PLM MODULES\ABOUT.DFM
+..\PLM MODULES\DATAMODULE.DFM
+..\PLM MODULES\MAIN.DFM
+..\PLM MODULES\DIVINS.DFM
+..\PLM MODULES\DIVISION.DFM
+..\PLM MODULES\PICKLEAG.DFM
+..\PLM MODULES\PLAYER.DFM
+..\PLM MODULES\PNAMEND.DFM
+..\PLM MODULES\PROP.DFM
+..\PLM MODULES\TEAM.DFM
+..\PLM MODULES\TEAML.DFM
+..\PLM MODULES\UPDATE.DFM
+..\PLM MODULES\VENINS.DFM
+..\PLM MODULES\VENUE.DFM
+..\PLM MODULES\SETDATE.DFM
+..\PLM MODULES\PICKDT.DFM
+..\PLM MODULES\PRATING.DFM
+..\PLM MODULES\PTABLE.DFM
+..\PLM MODULES\DRATINGS.DFM
+..\PLM MODULES\PLREPORT.DFM
+..\PLM MODULES\EIGHTBALLRPT.DFM
+..\PLM MODULES\RESRPT.DFM
+..\PLM MODULES\PLMMAILSHOT.DFM
+..\PLM MODULES\FILTERTEAM.DFM
+..\PLM MODULES\COVLET.DFM
+..\PLM MODULES\COVLET2.DFM
+..\PLM MODULES\WEBPAGES.DFM
+..\PLM MODULES\VENUELABEL.DFM
+..\PLM MODULES\CAPTAINLABEL.DFM
+..\PLM MODULES\S_APQS.DFM
+..\PLM MODULES\S_HPQS.DFM
+..\PLM MODULES\D_HPQS.DFM
+..\PLM MODULES\D_APQS.DFM
+..\PLM MODULES\DATAMODULE2.DFM
+..\PLM MODULES\NEWLEAGUE.DFM
+..\PLM MODULES\OPENLEAGUE.DFM
+..\PLM MODULES\SPLASH.DFM
+..\PLM MODULES\BACKUP.DFM
+---------------------------------------------------
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\ABOUT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\ABOUT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\ABOUT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\ABOUT.DFM
+       TextFileName:..\PLM MODULES\ABOUT.TXT
+ Final TextFileName:..\PLM MODULES\ABOUT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\ABOUT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\DATAMODULE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\DATAMODULE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\DATAMODULE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\DATAMODULE.DFM
+       TextFileName:..\PLM MODULES\DATAMODULE.TXT
+ Final TextFileName:..\PLM MODULES\DATAMODULE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\DATAMODULE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\MAIN.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\MAIN.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\MAIN.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\MAIN.DFM
+       TextFileName:..\PLM MODULES\MAIN.TXT
+ Final TextFileName:..\PLM MODULES\MAIN.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\MAIN.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\DIVINS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\DIVINS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\DIVINS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\DIVINS.DFM
+       TextFileName:..\PLM MODULES\DIVINS.TXT
+ Final TextFileName:..\PLM MODULES\DIVINS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\DIVINS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\DIVISION.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\DIVISION.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\DIVISION.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\DIVISION.DFM
+       TextFileName:..\PLM MODULES\DIVISION.TXT
+ Final TextFileName:..\PLM MODULES\DIVISION.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\DIVISION.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PICKLEAG.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PICKLEAG.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PICKLEAG.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PICKLEAG.DFM
+       TextFileName:..\PLM MODULES\PICKLEAG.TXT
+ Final TextFileName:..\PLM MODULES\PICKLEAG.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PICKLEAG.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PLAYER.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PLAYER.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PLAYER.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PLAYER.DFM
+       TextFileName:..\PLM MODULES\PLAYER.TXT
+ Final TextFileName:..\PLM MODULES\PLAYER.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PLAYER.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PNAMEND.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PNAMEND.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PNAMEND.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PNAMEND.DFM
+       TextFileName:..\PLM MODULES\PNAMEND.TXT
+ Final TextFileName:..\PLM MODULES\PNAMEND.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PNAMEND.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PROP.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PROP.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PROP.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PROP.DFM
+       TextFileName:..\PLM MODULES\PROP.TXT
+ Final TextFileName:..\PLM MODULES\PROP.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PROP.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\TEAM.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\TEAM.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\TEAM.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\TEAM.DFM
+       TextFileName:..\PLM MODULES\TEAM.TXT
+ Final TextFileName:..\PLM MODULES\TEAM.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\TEAM.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\TEAML.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\TEAML.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\TEAML.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\TEAML.DFM
+       TextFileName:..\PLM MODULES\TEAML.TXT
+ Final TextFileName:..\PLM MODULES\TEAML.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\TEAML.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\UPDATE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\UPDATE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\UPDATE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\UPDATE.DFM
+       TextFileName:..\PLM MODULES\UPDATE.TXT
+ Final TextFileName:..\PLM MODULES\UPDATE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\UPDATE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\VENINS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\VENINS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\VENINS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\VENINS.DFM
+       TextFileName:..\PLM MODULES\VENINS.TXT
+ Final TextFileName:..\PLM MODULES\VENINS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\VENINS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\VENUE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\VENUE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\VENUE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\VENUE.DFM
+       TextFileName:..\PLM MODULES\VENUE.TXT
+ Final TextFileName:..\PLM MODULES\VENUE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\VENUE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\SETDATE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\SETDATE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\SETDATE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\SETDATE.DFM
+       TextFileName:..\PLM MODULES\SETDATE.TXT
+ Final TextFileName:..\PLM MODULES\SETDATE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\SETDATE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PICKDT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PICKDT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PICKDT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PICKDT.DFM
+       TextFileName:..\PLM MODULES\PICKDT.TXT
+ Final TextFileName:..\PLM MODULES\PICKDT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PICKDT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PRATING.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PRATING.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PRATING.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PRATING.DFM
+       TextFileName:..\PLM MODULES\PRATING.TXT
+ Final TextFileName:..\PLM MODULES\PRATING.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PRATING.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PTABLE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PTABLE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PTABLE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PTABLE.DFM
+       TextFileName:..\PLM MODULES\PTABLE.TXT
+ Final TextFileName:..\PLM MODULES\PTABLE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PTABLE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\DRATINGS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\DRATINGS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\DRATINGS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\DRATINGS.DFM
+       TextFileName:..\PLM MODULES\DRATINGS.TXT
+ Final TextFileName:..\PLM MODULES\DRATINGS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\DRATINGS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PLREPORT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PLREPORT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PLREPORT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PLREPORT.DFM
+       TextFileName:..\PLM MODULES\PLREPORT.TXT
+ Final TextFileName:..\PLM MODULES\PLREPORT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PLREPORT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\EIGHTBALLRPT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\EIGHTBALLRPT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\EIGHTBALLRPT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\EIGHTBALLRPT.DFM
+       TextFileName:..\PLM MODULES\EIGHTBALLRPT.TXT
+ Final TextFileName:..\PLM MODULES\EIGHTBALLRPT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\EIGHTBALLRPT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\RESRPT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\RESRPT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\RESRPT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\RESRPT.DFM
+       TextFileName:..\PLM MODULES\RESRPT.TXT
+ Final TextFileName:..\PLM MODULES\RESRPT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\RESRPT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\PLMMAILSHOT.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\PLMMAILSHOT.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\PLMMAILSHOT.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\PLMMAILSHOT.DFM
+       TextFileName:..\PLM MODULES\PLMMAILSHOT.TXT
+ Final TextFileName:..\PLM MODULES\PLMMAILSHOT.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\PLMMAILSHOT.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\FILTERTEAM.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\FILTERTEAM.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\FILTERTEAM.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\FILTERTEAM.DFM
+       TextFileName:..\PLM MODULES\FILTERTEAM.TXT
+ Final TextFileName:..\PLM MODULES\FILTERTEAM.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\FILTERTEAM.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\COVLET.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\COVLET.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\COVLET.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\COVLET.DFM
+       TextFileName:..\PLM MODULES\COVLET.TXT
+ Final TextFileName:..\PLM MODULES\COVLET.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\COVLET.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\COVLET2.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\COVLET2.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\COVLET2.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\COVLET2.DFM
+       TextFileName:..\PLM MODULES\COVLET2.TXT
+ Final TextFileName:..\PLM MODULES\COVLET2.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\COVLET2.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\WEBPAGES.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\WEBPAGES.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\WEBPAGES.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\WEBPAGES.DFM
+       TextFileName:..\PLM MODULES\WEBPAGES.TXT
+ Final TextFileName:..\PLM MODULES\WEBPAGES.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\WEBPAGES.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\VENUELABEL.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\VENUELABEL.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\VENUELABEL.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\VENUELABEL.DFM
+       TextFileName:..\PLM MODULES\VENUELABEL.TXT
+ Final TextFileName:..\PLM MODULES\VENUELABEL.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\VENUELABEL.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\CAPTAINLABEL.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\CAPTAINLABEL.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\CAPTAINLABEL.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\CAPTAINLABEL.DFM
+       TextFileName:..\PLM MODULES\CAPTAINLABEL.TXT
+ Final TextFileName:..\PLM MODULES\CAPTAINLABEL.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\CAPTAINLABEL.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\S_APQS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\S_APQS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\S_APQS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\S_APQS.DFM
+       TextFileName:..\PLM MODULES\S_APQS.TXT
+ Final TextFileName:..\PLM MODULES\S_APQS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\S_APQS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\S_HPQS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\S_HPQS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\S_HPQS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\S_HPQS.DFM
+       TextFileName:..\PLM MODULES\S_HPQS.TXT
+ Final TextFileName:..\PLM MODULES\S_HPQS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\S_HPQS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\D_HPQS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\D_HPQS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\D_HPQS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\D_HPQS.DFM
+       TextFileName:..\PLM MODULES\D_HPQS.TXT
+ Final TextFileName:..\PLM MODULES\D_HPQS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\D_HPQS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\D_APQS.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\D_APQS.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\D_APQS.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\D_APQS.DFM
+       TextFileName:..\PLM MODULES\D_APQS.TXT
+ Final TextFileName:..\PLM MODULES\D_APQS.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\D_APQS.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\DATAMODULE2.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\DATAMODULE2.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\DATAMODULE2.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\DATAMODULE2.DFM
+       TextFileName:..\PLM MODULES\DATAMODULE2.TXT
+ Final TextFileName:..\PLM MODULES\DATAMODULE2.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\DATAMODULE2.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\NEWLEAGUE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\NEWLEAGUE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\NEWLEAGUE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\NEWLEAGUE.DFM
+       TextFileName:..\PLM MODULES\NEWLEAGUE.TXT
+ Final TextFileName:..\PLM MODULES\NEWLEAGUE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\NEWLEAGUE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\OPENLEAGUE.DFM
+Filename passed back to ConvertDRM_to_TXT :..\PLM MODULES\OPENLEAGUE.DFM
+Command string = 'COMMAND.COM /C C:\PROGRA~1\BORLAND\DELPHI5\BIN\CONVERT.EXE ..\PLM MODULES\OPENLEAGUE.DFM'
+File conversion in ConvertDRM_to_TXT ...
+   Filename$       :..\PLM MODULES\OPENLEAGUE.DFM
+       TextFileName:..\PLM MODULES\OPENLEAGUE.TXT
+ Final TextFileName:..\PLM MODULES\OPENLEAGUE.TXT
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\OPENLEAGUE.TXT
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\SPLASH.DFM
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\SPLASH.DFM
+
+---------------------------------------------------------
+Filename passed to ProcessDelphiForm :..\PLM MODULES\BACKUP.DFM
+Filename passed back to ProcessDelphiForm :..\PLM MODULES\BACKUP.DFM

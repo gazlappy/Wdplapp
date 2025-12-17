@@ -1,0 +1,70 @@
+unit Division;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, ExtCtrls, DBCtrls, Mask, DB, DBTables, Grids, DBGrids,
+  Dialogs, SysUtils;
+
+type
+  TDivisionsForm = class(TForm)
+    Bevel1: TBevel;
+    DBGrid1: TDBGrid;
+    Close: TBitBtn;
+    Button1: TButton;
+    Delete: TButton;
+    DeleteQuery: TQuery;
+    procedure CloseClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure DeleteClick(Sender: TObject);
+    procedure DBGrid1Exit(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    oldabb: String; // old abbreviated name
+    { Public declarations }
+  end;
+
+var
+  DivisionsForm: TDivisionsForm;
+
+implementation
+
+uses Divins, Main, datamodule;
+
+{$R *.DFM}
+
+procedure TDivisionsForm.CloseClick(Sender: TObject);
+begin
+  DM1.Division.Post;
+  DM1.Division.Refresh;
+  ModalResult := mrOK;
+end;
+
+procedure TDivisionsForm.Button1Click(Sender: TObject);
+begin
+  DivisionInsert.ShowModal;
+end;
+
+procedure TDivisionsForm.DeleteClick(Sender: TObject);
+var
+  Key: string;
+begin
+  Key := DBGrid1.Fields[0].AsString;
+  if MessageDlg(Format('Delete "%S" from the Division table?', [Key]),
+    mtConfirmation, mbOKCancel, 0) = mrOK then
+  begin
+    DeleteQuery.Prepare;
+    DeleteQuery.Params[0].AsString := Key;
+    DeleteQuery.ExecSQL;
+    DM1.Division.Refresh;
+  end;
+end;
+
+procedure TDivisionsForm.DBGrid1Exit(Sender: TObject);
+begin
+if DM1.Division.State in [dsEdit,dsInsert] then
+  DM1.Division.Post;
+end;
+
+end.

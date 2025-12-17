@@ -1,0 +1,177 @@
+unit Player;
+
+interface
+
+uses WinTypes, WinProcs, Classes, Graphics, Forms, Controls, Buttons,
+  StdCtrls, DB, DBTables, ExtCtrls, Grids, DBGrids, DBCtrls,
+  Dialogs, SysUtils;
+
+type
+  TPlayersForm = class(TForm)
+    GroupBox1: TGroupBox;
+    DBGrid1: TDBGrid;
+    GroupBox2: TGroupBox;
+    DBGrid2: TDBGrid;
+    Button1: TButton;
+    Delete: TButton;
+    OKBtn: TBitBtn;
+    Button2: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure PlayerBeforeEdit(DataSet: TDataset);
+    procedure DeleteClick(Sender: TObject);
+    procedure AmendClick(Sender: TObject);
+    procedure OKBtnClick(Sender: TObject);
+    procedure InsertClick(Sender: TObject);
+    procedure InsertNewPlayer(var TeamName: Integer);
+    procedure FileNewPlayer(var TeamName: Integer; NewString: String);
+    procedure DBGrid2Exit(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure DBGrid1CellClick(Column: TColumn);
+    procedure DBGrid1DblClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  PlayersForm: TPlayersForm;
+
+implementation
+
+uses Main, datamodule, plreport;
+
+{$R *.DFM}
+
+procedure TPlayersForm.FormCreate(Sender: TObject);
+begin
+  DM1.Team.Open;
+  DM1.Player.Open;
+end;
+
+
+procedure TPlayersForm.PlayerBeforeEdit(DataSet: TDataset);
+begin
+  DBGrid2.SetFocus;
+end;
+
+procedure TPlayersForm.DeleteClick(Sender: TObject);
+var
+  Key1: string;
+  Key2: double;
+begin
+  Key1 := DBGrid2.Fields[1].AsString;
+// Void Frame CANNOT be deleted
+  if Key1 = 'Void Frame' then
+   raise Exception.Create('Deletion of `Void Frame` is not permitted.');
+  Key2 := DBGrid2.Fields[0].AsFloat;
+  Form1.CheckUpdate;
+// Check the player has not featured in a singles frame
+  DM1.DateRateQuery.Close;
+  DM1.DateRateQuery.Params.ParamByName('SubPlayerNo').AsFloat := Key2;
+  DM1.DateRateQuery.Open;
+  if DM1.DateRateQuery.RecordCount > 0 then
+  begin
+    ShowMessage('Unable to delete a player that has competed in a frame');
+    Abort;
+  end;
+// Check the player has not featured in a doubles frame
+  DM1.DblrateQuery.Close;
+  DM1.DblrateQuery.Params.ParamByName('SubPlayerNo').AsFloat := Key2;
+  DM1.DblrateQuery.Open;
+  if DM1.DblrateQuery.RecordCount > 0 then
+  begin
+    ShowMessage('Unable to delete a player that has competed in a frame');
+    Abort;
+  end;
+// It's OK to delete - player has not featured
+  if MessageDlg(Format('Delete "%S" from the Player table?', [Key1]),
+    mtConfirmation, mbOKCancel, 0) = mrOK then
+  begin
+    DM1.DeleteQuery.Prepare;
+    DM1.DeleteQuery.Params[0].AsFloat := Key2;
+    DM1.DeleteQuery.ExecSQL;
+    DM1.Player.Refresh;
+    PlayersForm.Caption := 'Players (' + IntToStr(DM1.Player.RecordCount) + ')';
+  end;
+end;
+
+procedure TPlayersForm.AmendClick(Sender: TObject);
+begin
+//  PlayerAmend.Edit(DM1.PlayerPlayerNo.Value);
+  DM1.Player.Refresh;
+end;
+
+procedure TPlayersForm.InsertClick(Sender: TObject);
+var sendval: Integer;
+begin
+  sendval := DM1.TeamItem_id.Value;
+  InsertNewPlayer(sendval);
+  PlayersForm.Caption := 'Players (' + IntToStr(DM1.Player.RecordCount) + ')';
+end;
+
+procedure TPlayersForm.InsertNewPlayer(var TeamName: Integer);
+var NewString: String;
+var ClickedOK: Boolean;
+begin
+  ClickedOk := InputQuery('Add Player','Player Name',NewString);
+  if ClickedOk then FileNewPlayer(TeamName, NewString);
+end;
+
+procedure  TPlayersForm.FileNewPlayer(var TeamName: Integer; NewString: String);
+begin
+  if NewString <> '' then
+  begin
+    DM1.Player.Open;
+    DM1.Player.Insert;
+    DM1.PlayerPlayerName.Value := NewString;
+    DM1.PlayerPlayerTeam.Value := TeamName;
+    DM1.Player.Post;
+    DM1.Player.Refresh;
+    DM1.HomePlayerLookUp.Refresh;
+    DM1.AwayPlayerLookUp.Refresh;
+    try
+      DBGrid2.Refresh
+    except
+    end;
+  end;
+// Return new player name to Singles and Doubles form
+//    TeamName := NewString;
+end;
+
+procedure TPlayersForm.OKBtnClick(Sender: TObject);
+begin
+  ModalResult := mrOK;
+end;
+
+procedure TPlayersForm.DBGrid2Exit(Sender: TObject);
+begin
+  if DM1.Player.State in [dsEdit,dsInsert] then
+    DM1.Player.Post;
+end;
+
+procedure TPlayersForm.Button2Click(Sender: TObject);
+begin
+  DM1.DateRateQuery.Close;
+  DM1.DateRateQuery.Params.ParamByName('SubPlayerNo').AsFloat := DBGrid2.Fields[0].AsFloat;
+  DM1.DateRateQuery.Open;
+  PlayerReport.Preview;
+end;
+
+procedure TPlayersForm.FormActivate(Sender: TObject);
+begin
+  PlayersForm.Caption := 'Players (' + IntToStr(DM1.Player.RecordCount) + ')';
+end;
+
+procedure TPlayersForm.DBGrid1CellClick(Column: TColumn);
+begin
+  PlayersForm.Caption := 'Players (' + IntToStr(DM1.Player.RecordCount) + ')';
+end;
+
+procedure TPlayersForm.DBGrid1DblClick(Sender: TObject);
+begin
+  PlayersForm.Caption := 'Players (' + IntToStr(DM1.Player.RecordCount) + ')';
+end;
+
+end.

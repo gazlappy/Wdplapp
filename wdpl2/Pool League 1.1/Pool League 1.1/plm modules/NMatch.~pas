@@ -1,0 +1,195 @@
+unit NMatch;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  DBTables, Db, DBLookup, StdCtrls, Mask, DBCtrls, Buttons, ComCtrls;
+
+type
+  TNMForm = class(TForm)
+    Label3: TLabel;
+    Label1: TLabel;
+    Label2: TLabel;
+    HTCombo: TDBLookupCombo;
+    ATCombo: TDBLookupCombo;
+    Match: TTable;
+    MatchMatchNo: TFloatField;
+    MatchHomeTeam: TStringField;
+    MatchAwayTeam: TStringField;
+    MatchMatchDate: TDateField;
+    MatchSource: TDataSource;
+    Team: TTable;
+    TeamSource: TDataSource;
+    LastMatchNoQuery: TQuery;
+    TeamTeamName: TStringField;
+    OKBtn: TBitBtn;
+    DeleteSingles: TQuery;
+    DeleteDoubles: TQuery;
+    SpeedButton3: TSpeedButton;
+    DeleteQuery: TQuery;
+    DateTimePicker1: TDateTimePicker;
+    procedure FormCreate(Sender: TObject);
+    procedure OKBtnClick(Sender: TObject);
+    procedure MatchNewRecord(DataSet: TDataSet);
+    procedure AnyComboChange(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure SpeedButton3Click(Sender: TObject);
+    procedure MatchBeforePost(DataSet: TDataSet);
+    procedure MatchAfterEdit(DataSet: TDataSet);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    procedure Enter;
+    procedure Edit(MatchNo: Double);
+    procedure ValidateTeams;
+    { Public declarations }
+  end;
+
+var
+  NMForm: TNMForm;
+  insertmode: Boolean;
+
+implementation
+
+uses Main, Matchbyt, mlist, datamodule;
+
+{$R *.DFM}
+
+procedure TNMForm.FormCreate(Sender: TObject);
+begin
+  Match.Open;
+  Team.Open;
+end;
+
+procedure TNMForm.OKBtnClick(Sender: TObject);
+begin
+  ValidateTeams;
+  Match.Post;
+  Match.Close;
+  Form1.MatchGrid.Refresh;
+  Close;
+end;
+
+procedure TNMForm.Enter;
+begin
+  Match.Open;
+  Match.Insert;
+  insertmode:= True;
+end;
+
+procedure TNMForm.Edit(MatchNo: Double);
+begin
+  Match.Open;
+  Match.FindKey([MatchNo]);
+  Match.Edit;
+  NMForm.Caption := 'Match No. ' + MatchMatchNo.AsString;
+  insertmode := False;
+end;
+
+procedure TNMForm.MatchNewRecord(DataSet: TDataSet);
+begin
+  LastMatchNoQuery.Close;
+  LastMatchNoQuery.Open;
+  { SQL servers return Null for some aggregates if no items are present }
+  with LastMatchNoQuery.Fields[0] do
+    if IsNull then MatchMatchNo.Value := 1
+    else MatchMatchNo.Value := AsFloat + 1;
+  NMForm.Caption := 'Match No. ' + MatchMatchNo.AsString;
+end;
+
+procedure TNMForm.AnyComboChange(Sender: TObject);
+var messtext: String;
+var Button: integer;
+begin
+if Match.State = (dsEdit) then
+  begin
+    messtext := 'Changing the team will remove all single and doubles.  Continue?';
+    Button := MessageDlg(messtext, mtWarning, [mbYes, mbNo], 0);
+    if Button = mrYes then
+    begin
+      DeleteSingles.Params[0].AsFloat := MatchMatchNo.Value;
+      DeleteSingles.Close;
+      DeleteSingles.ExecSQL;
+      DeleteDoubles.Params[0].AsFloat := MatchMatchNo.Value;
+      DeleteDoubles.Close;
+      DeleteDoubles.ExecSQL;
+    end
+    else
+    begin
+      Match.Cancel;
+      Match.Edit;
+    end;
+  end;
+end;
+
+procedure TNMForm.ValidateTeams;
+var messtext: String;
+begin
+  if HTCombo.Value = ATCombo.Value then
+  begin
+    messtext := 'Duplicate team for home and away!';
+    MessageDlg(messtext, mtError, [mbOK], 0);
+    Abort;
+  end;
+end;
+
+procedure TNMForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  if not insertmode then
+  begin
+    try
+      MatchByTeamForm.Enabled := True;
+      MatchByTeamForm.MatchList.Refresh;
+    except
+    end;
+    try
+      MtDialog.Enabled := True;
+      MtDialog.MatchList.Refresh;
+    except
+    end;
+  end;
+end;
+
+procedure TNMForm.SpeedButton3Click(Sender: TObject);
+begin
+  if MessageDlg(Format('Delete Match Number "%.0F"?', [MatchMatchNo.Value]),
+    mtConfirmation, mbOKCancel, 0) = mrOK then
+  begin
+    DeleteQuery.Prepare;
+    DeleteQuery.Params[0].AsFloat := MatchMatchNo.Value;
+    DeleteQuery.ExecSQL;
+    DeleteSingles.Params[0].AsFloat := MatchMatchNo.Value;
+    DeleteSingles.Close;
+    DeleteSingles.ExecSQL;
+    DeleteDoubles.Params[0].AsFloat := MatchMatchNo.Value;
+    DeleteDoubles.Close;
+    DeleteDoubles.ExecSQL;
+    Close;
+  end;
+end;
+
+procedure TNMForm.MatchBeforePost(DataSet: TDataSet);
+begin
+  MatchMatchDate.Value := DateTimePicker1.Date;
+  DM1.League.Open;
+  DM1.League.First;
+  DM1.League.Edit;
+  DM1.LeagueUpdateRequired.Value := True;
+  DM1.League.Post;
+  DM1.League.Close;
+end;
+
+procedure TNMForm.MatchAfterEdit(DataSet: TDataSet);
+begin
+  DateTimePicker1.Date := MatchMatchDate.Value;
+end;
+
+procedure TNMForm.FormShow(Sender: TObject);
+begin
+  DateTimePicker1.Date := date;  
+end;
+
+end.
