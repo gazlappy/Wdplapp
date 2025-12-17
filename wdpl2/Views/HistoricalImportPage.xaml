@@ -186,6 +186,61 @@
                         </Grid>
                     </Border>
 
+                    <!-- Paradox Database Folder -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#E0F2FE"
+                            Stroke="#0EA5E9"
+                            StrokeThickness="2">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="#0EA5E9"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="📁" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+                            
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="Paradox Database (.DB)"
+                                           FontAttributes="Bold"
+                                           FontSize="16"/>
+                                    <Border BackgroundColor="#0EA5E9"
+                                            Padding="6,2"
+                                            StrokeThickness="0">
+                                        <Label Text="LEGACY"
+                                               TextColor="White"
+                                               FontSize="9"
+                                               FontAttributes="Bold"/>
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="Import from old Paradox/VBA pool league databases"
+                                       TextColor="{StaticResource Gray700}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Teams  ✓ Players  ✓ Divisions  ✓ Venues  ✓ Matches"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+                            
+                            <Button Grid.Column="2"
+                                    Text="Browse"
+                                    Clicked="OnSelectParadoxFolder"
+                                    BackgroundColor="#0EA5E9"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"
+                                    FontAttributes="Bold"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Word Document -->
                     <Border Style="{StaticResource CardBorderStyle}"
                             BackgroundColor="{StaticResource Gray50}">
