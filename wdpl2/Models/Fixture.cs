@@ -46,6 +46,9 @@ namespace Wdpl2.Models
         /// <summary>Ticked when the winning visit included an 8-ball (or 'dish').</summary>
         public bool EightBall { get; set; }
 
+        /// <summary>True if this is a doubles frame (imported from Paradox Dbls.DB).</summary>
+        public bool IsDoubles { get; set; }
+
         // VBA Rating Data - pre-calculated values from tblplayerresult
         // These are stored at the time results are entered and should be used for rating calculations
         // to match VBA exactly. If null, ratings are calculated from scratch.

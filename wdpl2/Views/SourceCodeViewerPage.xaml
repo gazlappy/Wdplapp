@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.SourceCodeViewerPage"
+             Title="?? Original Delphi Source"
+             BackgroundColor="#1e1e1e">
+    
+    <Grid RowDefinitions="Auto,*">
+        
+        <!-- File Selector -->
+        <Border Grid.Row="0" 
+                BackgroundColor="#2d2d2d" 
+                Padding="12">
+            <HorizontalStackLayout Spacing="12">
+                <Label Text="?? File:" 
+                       TextColor="#808080"
+                       VerticalTextAlignment="Center"/>
+                <Picker x:Name="FilePicker"
+                        WidthRequest="300"
+                        TextColor="#00d4ff"
+                        BackgroundColor="#3d3d3d"
+                        SelectedIndexChanged="OnFileSelected"/>
+            </HorizontalStackLayout>
+        </Border>
+        
+        <!-- Code Display -->
+        <ScrollView Grid.Row="1">
+            <Border BackgroundColor="#1e1e1e" 
+                    Padding="16"
+                    Margin="8">
+                <Label x:Name="SourceCodeLabel"
+                       Text="Select a file to view its source code..."
+                       FontFamily="Consolas"
+                       FontSize="12"
+                       TextColor="#d4d4d4"
+                       LineHeight="1.3"/>
+            </Border>
+        </ScrollView>
+        
+    </Grid>
+    
+</ContentPage>

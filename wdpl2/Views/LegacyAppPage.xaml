@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.LegacyAppPage"
+             Title="Legacy Mode"
+             BackgroundColor="#1a1a2e">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="20">
+            
+            <!-- Retro Header -->
+            <Border BackgroundColor="#16213e" 
+                    StrokeThickness="2" 
+                    Stroke="#e94560"
+                    Padding="20"
+                    StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                    <Label Text="EASTER EGG UNLOCKED!"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="#e94560"
+                           HorizontalTextAlignment="Center"/>
+                    <Label Text="You found the secret entrance to the past..."
+                           FontSize="14"
+                           TextColor="#a0a0a0"
+                           HorizontalTextAlignment="Center"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- App Logo/Title -->
+            <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                <Label x:Name="AppNameLabel"
+                       Text="Admin4Pool"
+                       FontSize="32"
+                       FontAttributes="Bold"
+                       TextColor="#00d4ff"
+                       HorizontalTextAlignment="Center"/>
+                <Label x:Name="VersionLabel"
+                       Text="Pool League Manager v1.1"
+                       FontSize="18"
+                       TextColor="#ff6b6b"
+                       HorizontalTextAlignment="Center"/>
+                <Label x:Name="YearLabel"
+                       Text="circa 2001"
+                       FontSize="14"
+                       TextColor="#888"
+                       HorizontalTextAlignment="Center"
+                       FontAttributes="Italic"/>
+            </VerticalStackLayout>
+
+            <!-- Technology Badge -->
+            <Border BackgroundColor="#0f3460" 
+                    Padding="12,8"
+                    StrokeThickness="0"
+                    HorizontalOptions="Center"
+                    StrokeShape="RoundRectangle 16">
+                <HorizontalStackLayout Spacing="12">
+                    <Label x:Name="TechLabel"
+                           Text="Built with Borland Delphi"
+                           FontSize="14"
+                           TextColor="#00d4ff"
+                           VerticalTextAlignment="Center"/>
+                </HorizontalStackLayout>
+            </Border>
+
+            <!-- Description -->
+            <Border BackgroundColor="#16213e" 
+                    Padding="16"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 8">
+                <Label x:Name="DescriptionLabel"
+                       Text="Loading..."
+                       FontSize="14"
+                       TextColor="#c0c0c0"
+                       LineHeight="1.4"/>
+            </Border>
+
+            <!-- Compatibility Warning -->
+            <Border BackgroundColor="#4a1515" 
+                    Padding="16"
+                    StrokeThickness="1"
+                    Stroke="#ff6b6b"
+                    StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Windows 10/11 Compatibility Warning"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#ff6b6b"/>
+                    <Label Text="The original application requires the Borland Database Engine (BDE) which was discontinued and is not compatible with modern Windows without special configuration."
+                           FontSize="13"
+                           TextColor="#ffaaaa"
+                           LineHeight="1.3"/>
+                    <Label Text="Error: Exception EDBEngineError - Cannot initialize BDE (error $2108)"
+                           FontSize="11"
+                           TextColor="#ff8888"
+                           FontFamily="Consolas"
+                           FontAttributes="Italic"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Features List -->
+            <Label Text="Original Features"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="#ffd93d"
+                   Margin="0,8,0,0"/>
+            
+            <Border BackgroundColor="#16213e" 
+                    Padding="16"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout x:Name="FeaturesStack" Spacing="8">
+                    <!-- Populated in code-behind -->
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Source Files -->
+            <Label Text="Original Source Files (Delphi Pascal)"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="#ffd93d"
+                   Margin="0,8,0,0"/>
+            
+            <Border BackgroundColor="#16213e" 
+                    Padding="16"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout x:Name="SourceFilesStack" Spacing="6">
+                    <!-- Populated in code-behind -->
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Launch Button (Windows only) -->
+            <Button x:Name="LaunchButton"
+                    Text="Try Launch Original (May Fail)"
+                    BackgroundColor="#664400"
+                    TextColor="White"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    Padding="24,16"
+                    CornerRadius="8"
+                    Margin="0,16,0,0"
+                    Clicked="OnLaunchClicked"/>
+            
+            <Label x:Name="LaunchNote"
+                   Text="Requires Borland Database Engine (BDE) - may not work on Windows 10/11"
+                   FontSize="12"
+                   TextColor="#ff8888"
+                   HorizontalTextAlignment="Center"/>
+
+            <!-- View Source Button -->
+            <Button x:Name="ViewSourceButton"
+                    Text="View Original Delphi Source Code"
+                    BackgroundColor="#0f3460"
+                    TextColor="#00d4ff"
+                    FontSize="14"
+                    Padding="20,12"
+                    CornerRadius="8"
+                    Clicked="OnViewSourceClicked"/>
+
+            <!-- Why WDPL2 Exists -->
+            <Border BackgroundColor="#0f3d0f" 
+                    Padding="16"
+                    StrokeThickness="1"
+                    Stroke="#10B981"
+                    StrokeShape="RoundRectangle 8"
+                    Margin="0,8,0,0">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Why WDPL2 Was Created"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#10B981"/>
+                    <Label x:Name="WhyCreatedLabel"
+                           Text="Loading..."
+                           FontSize="13"
+                           TextColor="#a0ffa0"
+                           LineHeight="1.4"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Close Button -->
+            <Button Text="Back to WDPL2"
+                    BackgroundColor="#333"
+                    TextColor="#888"
+                    FontSize="14"
+                    Padding="20,12"
+                    CornerRadius="8"
+                    Margin="0,8,0,24"
+                    Clicked="OnCloseClicked"/>
+
+            <!-- Footer -->
+            <Label Text="WDPL2 - The Next Generation"
+                   FontSize="12"
+                   TextColor="#444"
+                   HorizontalTextAlignment="Center"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

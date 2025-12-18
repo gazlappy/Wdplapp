@@ -1419,6 +1419,39 @@ namespace Wdpl2.Views
         {
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
+            // Version label with easter egg
+            var versionLabel = new Label
+            {
+                Text = "WDPL2 v2.0.0",
+                FontSize = 24,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Color.FromArgb("#3B82F6"),
+                HorizontalTextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            
+            // Add tap gesture for easter egg (triple-tap)
+            var tapGesture = new TapGestureRecognizer();
+            tapGesture.Tapped += async (s, e) =>
+            {
+                if (LegacyEasterEggService.RegisterTap())
+                {
+                    // Easter egg triggered!
+                    var legacyPage = new LegacyAppPage();
+                    await Navigation.PushModalAsync(new NavigationPage(legacyPage));
+                }
+            };
+            versionLabel.GestureRecognizers.Add(tapGesture);
+
+            var subtitleLabel = new Label
+            {
+                Text = "The Next Generation Pool League Manager",
+                FontSize = 14,
+                TextColor = Color.FromArgb("#666"),
+                HorizontalTextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+
             var infoFrame = new Border
             {
                 Padding = 12,
@@ -1447,14 +1480,57 @@ namespace Wdpl2.Views
                 }
             };
 
+            var techStack = new Border
+            {
+                Padding = 12,
+                BackgroundColor = Color.FromArgb("#F0FDF4"),
+                Stroke = Color.FromArgb("#10B981"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 12, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new Label { Text = "Technology Stack", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
+                        new Label
+                        {
+                            FontSize = 12,
+                            LineHeight = 1.4,
+                            TextColor = Colors.Black,
+                            Text = "• .NET 9 MAUI (Multi-platform App UI)\n" +
+                                   "• C# 13\n" +
+                                   "• Cross-platform: Windows, macOS, iOS, Android\n" +
+                                   "• JSON local storage\n" +
+                                   "• VBA-compatible rating algorithm"
+                        }
+                    }
+                }
+            };
+
+            // Hidden hint for easter egg
+            var hintLabel = new Label
+            {
+                Text = "?? Tip: Some secrets are hidden in plain sight...",
+                FontSize = 11,
+                TextColor = Color.FromArgb("#999"),
+                HorizontalTextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 24, 0, 0),
+                FontAttributes = FontAttributes.Italic
+            };
+
             return new VerticalStackLayout
             {
                 Spacing = 12,
                 Children =
                 {
-                    new Label { Text = "About Settings", FontSize = 20, FontAttributes = FontAttributes.Bold },
+                    versionLabel,
+                    subtitleLabel,
+                    new Label { Text = "About This App", FontSize = 20, FontAttributes = FontAttributes.Bold },
                     new Label { Text = "Information about league settings and data management", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
                     infoFrame,
+                    techStack,
+                    hintLabel,
                     _statusLabel
                 }
             };
