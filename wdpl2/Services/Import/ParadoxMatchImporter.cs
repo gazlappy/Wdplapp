@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Import;
 
 /// <summary>
 /// Imports Match/Fixture data from Paradox Match.DB file.
+/// Uses proven binary parsing logic from ParadoxDeepDive.
 /// 
 /// Delphi schema (from datamodule.pas):
 /// - MatchNo: Float (used as Integer PK)
@@ -18,11 +20,7 @@ namespace Wdpl2.Services.Import;
 /// - ASWins: Integer (Away Singles Wins)
 /// - HDWins: Integer (Home Doubles Wins)
 /// - ADWins: Integer (Away Doubles Wins)
-/// - DivName: String (lookup from Division table, but stored as calculated field)
-/// 
-/// The Delphi code also calculates points based on league settings:
-/// - HomeTeamPoints = (HSWins * SinglesBonus) + (HDWins * DoublesBonus) + WinBonus/DrawBonus/LossBonus
-/// - AwayTeamPoints = (ASWins * SinglesBonus) + (ADWins * DoublesBonus) + WinBonus/DrawBonus/LossBonus
+/// - DivName: String (lookup from Division table)
 /// </summary>
 public static class ParadoxMatchImporter
 {
@@ -64,6 +62,7 @@ public static class ParadoxMatchImporter
 
     /// <summary>
     /// Parse Match.DB file and return raw match data
+    /// Uses proven binary parsing logic from ParadoxDeepDive
     /// </summary>
     public static MatchImportResult ParseMatchDb(string filePath)
     {
@@ -78,42 +77,144 @@ public static class ParadoxMatchImporter
             }
 
             var bytes = File.ReadAllBytes(filePath);
-            var header = ParadoxBinaryReader.ReadHeader(bytes);
+            
+            if (bytes.Length < 88)
+            {
+                result.Errors.Add("File too small for Paradox header");
+                return result;
+            }
 
-            if (header.RecordCount == 0)
+            // Read header - using exact same method as ParadoxDeepDive
+            var recordSize = BitConverter.ToInt16(bytes, 0);
+            var headerSize = BitConverter.ToInt16(bytes, 2);
+            var maxTableSize = bytes[5];
+            var numRecords = BitConverter.ToInt32(bytes, 6);
+            var numFields = bytes[33];
+            
+            result.Warnings.Add($"Match.DB header: {numRecords} records, {numFields} fields, record size {recordSize}");
+
+            if (numRecords == 0)
             {
                 result.Warnings.Add("Match.DB contains no records");
                 result.Success = true;
                 return result;
             }
 
-            var records = ParadoxBinaryReader.ReadRecords(bytes, header);
-
-            foreach (var rec in records)
+            // Field types at offset 78
+            var fieldTypes = new List<byte>();
+            for (int i = 0; i < numFields; i++)
             {
-                var homeTeam = GetInt(rec, "HomeTeam", "Home") ?? 0;
-                var awayTeam = GetInt(rec, "AwayTeam", "Away") ?? 0;
+                if (78 + i < bytes.Length)
+                    fieldTypes.Add(bytes[78 + i]);
+            }
+            
+            // Field sizes immediately follow types
+            var fieldSizes = new List<byte>();
+            for (int i = 0; i < numFields; i++)
+            {
+                if (78 + numFields + i < bytes.Length)
+                    fieldSizes.Add(bytes[78 + numFields + i]);
+            }
+
+            // Field names - using exact same method as ParadoxDeepDive
+            var fieldNames = new List<string>();
+            int nameStart = 78 + numFields * 2;
+            
+            // Skip table name first
+            while (nameStart < bytes.Length && bytes[nameStart] != 0)
+                nameStart++;
+            nameStart++; // Skip null
+            
+            // Calculate header end
+            int blockSize = maxTableSize * 0x400;
+            if (blockSize == 0) blockSize = 2048;
+            int headerEnd = headerSize * blockSize;
+            if (headerEnd == 0) headerEnd = blockSize;
+            
+            // Read field names
+            var currentName = new StringBuilder();
+            for (int i = nameStart; i < Math.Min(bytes.Length, headerEnd) && fieldNames.Count < numFields; i++)
+            {
+                if (bytes[i] == 0)
+                {
+                    if (currentName.Length > 0)
+                    {
+                        fieldNames.Add(currentName.ToString());
+                        currentName.Clear();
+                    }
+                }
+                else if (bytes[i] >= 32 && bytes[i] < 127)
+                {
+                    currentName.Append((char)bytes[i]);
+                }
+            }
+
+            result.Warnings.Add($"Field names found: {string.Join(", ", fieldNames)}");
+
+            // Calculate data start
+            int dataStart = headerEnd;
+            if (dataStart == 0) dataStart = blockSize;
+
+            result.Warnings.Add($"Data starts at offset {dataStart}, block size {blockSize}");
+
+            // Read records - using exact same block calculation as ParadoxDeepDive
+            int recordsRead = 0;
+            for (int rec = 0; rec < numRecords; rec++)
+            {
+                // Calculate position accounting for block headers
+                int blockNum = (rec * recordSize) / (blockSize - 6);
+                int posInBlock = (rec * recordSize) % (blockSize - 6);
+                int actualOffset = dataStart + (blockNum * blockSize) + 6 + posInBlock;
+                
+                if (actualOffset + recordSize > bytes.Length)
+                {
+                    result.Warnings.Add($"Record {rec} beyond file end at offset {actualOffset}");
+                    break;
+                }
+
+                var record = new Dictionary<string, object?>();
+                int fieldOffset = actualOffset;
+                
+                for (int f = 0; f < numFields && f < fieldTypes.Count && f < fieldSizes.Count; f++)
+                {
+                    var fType = fieldTypes[f];
+                    var fSize = fieldSizes[f];
+                    var fName = f < fieldNames.Count ? fieldNames[f] : $"Field{f + 1}";
+                    
+                    if (fieldOffset + fSize > bytes.Length)
+                        break;
+
+                    var fieldBytes = new byte[fSize];
+                    Array.Copy(bytes, fieldOffset, fieldBytes, 0, fSize);
+                    record[fName] = DecodeField(fieldBytes, fType);
+                    fieldOffset += fSize;
+                }
+
+                // Extract match data
+                var homeTeam = GetInt(record, "HomeTeam", "Home") ?? 0;
+                var awayTeam = GetInt(record, "AwayTeam", "Away") ?? 0;
 
                 // Skip invalid matches
                 if (homeTeam == 0 || awayTeam == 0)
                     continue;
 
-                var matchDate = GetDate(rec, "MatchDate", "Date") ?? DateTime.MinValue;
+                var matchDate = GetDate(record, "MatchDate", "Date") ?? DateTime.MinValue;
 
                 var match = new ImportedMatch
                 {
-                    ParadoxId = GetInt(rec, "MatchNo", "Id") ?? result.Matches.Count + 1,
+                    ParadoxId = GetInt(record, "MatchNo", "Id") ?? result.Matches.Count + 1,
                     HomeTeamId = homeTeam,
                     AwayTeamId = awayTeam,
                     MatchDate = matchDate,
-                    HomeSinglesWins = GetInt(rec, "HSWins", "HomeSinglesWins") ?? 0,
-                    AwaySinglesWins = GetInt(rec, "ASWins", "AwaySinglesWins") ?? 0,
-                    HomeDoublesWins = GetInt(rec, "HDWins", "HomeDoublesWins") ?? 0,
-                    AwayDoublesWins = GetInt(rec, "ADWins", "AwayDoublesWins") ?? 0,
-                    DivisionName = GetString(rec, "DivName", "Division") ?? ""
+                    HomeSinglesWins = GetInt(record, "HSWins", "HomeSinglesWins") ?? 0,
+                    AwaySinglesWins = GetInt(record, "ASWins", "AwaySinglesWins") ?? 0,
+                    HomeDoublesWins = GetInt(record, "HDWins", "HomeDoublesWins") ?? 0,
+                    AwayDoublesWins = GetInt(record, "ADWins", "AwayDoublesWins") ?? 0,
+                    DivisionName = GetString(record, "DivName", "Division") ?? ""
                 };
 
                 result.Matches.Add(match);
+                recordsRead++;
 
                 // Track date range
                 if (matchDate > DateTime.MinValue)
@@ -123,10 +224,16 @@ public static class ParadoxMatchImporter
                     if (!result.MaxDate.HasValue || matchDate > result.MaxDate)
                         result.MaxDate = matchDate;
                 }
+
+                // Log first few records for debugging
+                if (recordsRead <= 3)
+                {
+                    result.Warnings.Add($"  Match {recordsRead}: Home={homeTeam}, Away={awayTeam}, Date={matchDate:yyyy-MM-dd}");
+                }
             }
 
             result.Success = true;
-            result.Warnings.Add($"Parsed {result.Matches.Count} matches from Match.DB");
+            result.Warnings.Add($"? Parsed {result.Matches.Count} valid matches from {numRecords} records");
             if (result.MinDate.HasValue && result.MaxDate.HasValue)
             {
                 result.Warnings.Add($"Date range: {result.MinDate.Value:dd/MM/yyyy} to {result.MaxDate.Value:dd/MM/yyyy}");
@@ -243,6 +350,95 @@ public static class ParadoxMatchImporter
 
         return result;
     }
+
+    #region Paradox Field Decoding (from ParadoxDeepDive)
+
+    private static object? DecodeField(byte[] bytes, byte fieldType)
+    {
+        if (bytes.All(b => b == 0))
+            return null;
+
+        try
+        {
+            switch (fieldType)
+            {
+                case 0x01: // Alpha (string)
+                    int len = Array.IndexOf(bytes, (byte)0);
+                    if (len < 0) len = bytes.Length;
+                    return Encoding.ASCII.GetString(bytes, 0, len).Trim();
+
+                case 0x02: // Date
+                    if (bytes.Length >= 4 && (bytes[0] & 0x80) == 0x80)
+                    {
+                        int days = ((bytes[0] & 0x7F) << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                        if (days > 0 && days < 3000000)
+                        {
+                            try { return new DateTime(1, 1, 1).AddDays(days - 1); }
+                            catch { return null; }
+                        }
+                    }
+                    return null;
+
+                case 0x03: // Short (2 bytes)
+                    if (bytes.Length >= 2)
+                    {
+                        if ((bytes[0] & 0x80) == 0x80)
+                            return (short)(((bytes[0] & 0x7F) << 8) | bytes[1]);
+                        else if (bytes[0] != 0 || bytes[1] != 0)
+                            return (short)-(((bytes[0] ^ 0x7F) << 8) | (bytes[1] ^ 0xFF));
+                        return (short)0;
+                    }
+                    return null;
+
+                case 0x04: // Long (4 bytes)
+                case 0x16: // AutoInc
+                    if (bytes.Length >= 4)
+                    {
+                        if ((bytes[0] & 0x80) == 0x80)
+                            return ((bytes[0] & 0x7F) << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+                        else if (bytes.Any(b => b != 0))
+                            return -(((bytes[0] ^ 0x7F) << 24) | ((bytes[1] ^ 0xFF) << 16) | ((bytes[2] ^ 0xFF) << 8) | (bytes[3] ^ 0xFF));
+                        return 0;
+                    }
+                    return null;
+
+                case 0x06: // Number (double, 8 bytes)
+                    if (bytes.Length >= 8)
+                    {
+                        var modBytes = new byte[8];
+                        if ((bytes[0] & 0x80) == 0x80)
+                        {
+                            modBytes[0] = (byte)(bytes[0] ^ 0x80);
+                            Array.Copy(bytes, 1, modBytes, 1, 7);
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 8; i++)
+                                modBytes[i] = (byte)(bytes[i] ^ 0xFF);
+                        }
+                        Array.Reverse(modBytes);
+                        return BitConverter.ToDouble(modBytes, 0);
+                    }
+                    return null;
+
+                case 0x09: // Logical
+                    return bytes[0] == 0x81;
+
+                default:
+                    // Try as string
+                    int strLen = Array.IndexOf(bytes, (byte)0);
+                    if (strLen < 0) strLen = bytes.Length;
+                    var str = Encoding.ASCII.GetString(bytes, 0, strLen).Trim();
+                    return string.IsNullOrEmpty(str) ? null : str;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    #endregion
 
     #region Helper Methods
 
