@@ -167,8 +167,8 @@ namespace Wdpl2.Services
                 using var cmd = new OleDbCommand("SELECT * FROM tblTeams WHERE Withdrawn = False OR Withdrawn IS NULL", conn);
                 using var reader = cmd.ExecuteReader();
 
-                // Track venues we create on the fly
-                var venuesByName = new Dictionary<string, Venue>();
+                // Track venues we create on the fly using VenueTableParser
+                var venuesByBaseName = new Dictionary<string, Venue>(StringComparer.OrdinalIgnoreCase);
 
                 while (reader.Read())
                 {
@@ -195,77 +195,57 @@ namespace Wdpl2.Services
                     var captain = reader["CaptainName"]?.ToString();
                     var contact = reader["ContactNo"]?.ToString();
 
-                    // Create venue on the fly if needed
+                    // Create venue on the fly if needed using VenueTableParser
                     Guid? assignedVenueId = null;
                     Guid? assignedTableId = null;
                     
                     if (!string.IsNullOrEmpty(fullVenueName))
                     {
-                        // Parse venue name to extract base and table
-                        string baseName;
-                        string? tableLabel = null;
-                        
-                        var parts = fullVenueName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        
-                        if (parts.Length > 1)
-                        {
-                            var lastPart = parts.Last().ToUpper();
-                            
-                            if (lastPart.StartsWith("TB") || lastPart == "BAR" || lastPart.Length <= 3)
-                            {
-                                baseName = string.Join(" ", parts.Take(parts.Length - 1));
-                                tableLabel = lastPart;
-                            }
-                            else
-                            {
-                                baseName = fullVenueName;
-                            }
-                        }
-                        else
-                        {
-                            baseName = fullVenueName;
-                        }
+                        // Use VenueTableParser for consistent parsing
+                        var parsed = VenueTableParser.Parse(fullVenueName);
 
-                        // Get or create venue
-                        if (!venuesByName.ContainsKey(baseName))
+                        // Get or create venue by base name
+                        if (!venuesByBaseName.TryGetValue(parsed.BaseName, out var venue))
                         {
-                            var newVenue = new Venue
+                            venue = new Venue
                             {
                                 Id = Guid.NewGuid(),
                                 SeasonId = _seasonId,
-                                Name = baseName,
+                                Name = parsed.BaseName,
                                 Address = null,
                                 Notes = "[IMPORTED FROM TEAM DATA]",
                                 Tables = new List<VenueTable>()
                             };
                             
-                            venuesByName[baseName] = newVenue;
-                            data.Venues.Add(newVenue);
+                            venuesByBaseName[parsed.BaseName] = venue;
+                            data.Venues.Add(venue);
+                            summary.Errors.Add($"  Venue: {parsed.BaseName}");
                         }
                         
-                        var targetVenue = venuesByName[baseName];
-                        assignedVenueId = targetVenue.Id;
+                        assignedVenueId = venue.Id;
                         
-                        // Add table if needed
-                        if (tableLabel != null)
+                        // Add table if detected
+                        if (parsed.HasTable)
                         {
-                            var table = targetVenue.Tables.FirstOrDefault(t => t.Label == tableLabel);
+                            var table = venue.Tables.FirstOrDefault(t => 
+                                t.Label.Equals(parsed.TableLabel, StringComparison.OrdinalIgnoreCase));
                             if (table == null)
                             {
                                 table = new VenueTable
                                 {
                                     Id = Guid.NewGuid(),
-                                    Label = tableLabel,
+                                    Label = parsed.TableLabel!,
                                     MaxTeams = 2
                                 };
-                                targetVenue.Tables.Add(table);
+                                venue.Tables.Add(table);
+                                summary.Errors.Add($"    + Table: {parsed.TableLabel}");
                             }
                             assignedTableId = table.Id;
                         }
                         else
                         {
-                            // Single table venue
-                            if (!targetVenue.Tables.Any())
+                            // Single table venue - create default "Main" table
+                            if (!venue.Tables.Any())
                             {
                                 var table = new VenueTable
                                 {
@@ -273,9 +253,9 @@ namespace Wdpl2.Services
                                     Label = "Main",
                                     MaxTeams = 2
                                 };
-                                targetVenue.Tables.Add(table);
+                                venue.Tables.Add(table);
                             }
-                            assignedTableId = targetVenue.Tables.First().Id;
+                            assignedTableId = venue.Tables.First().Id;
                         }
                     }
 
@@ -298,10 +278,11 @@ namespace Wdpl2.Services
                 }
 
                 // Update venues imported count
-                summary.VenuesImported = venuesByName.Count;
-                if (venuesByName.Count > 0)
+                summary.VenuesImported = venuesByBaseName.Count;
+                var totalTables = data.Venues.Sum(v => v.Tables.Count);
+                if (venuesByBaseName.Count > 0)
                 {
-                    summary.Errors.Add($"✓ Created {venuesByName.Count} venues from team data with {data.Venues.Sum(v => v.Tables.Count)} tables");
+                    summary.Errors.Add($"✓ Created {venuesByBaseName.Count} venues from team data with {totalTables} tables");
                 }
                 
                 summary.Errors.Add($"✓ Imported {summary.TeamsImported} teams");

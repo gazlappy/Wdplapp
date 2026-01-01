@@ -245,8 +245,7 @@ namespace Wdpl2.Services
             }
         }
 
-        private void ImportVenues(OleDbConnection conn, LeagueData data, ImportSummary summary
-)
+        private void ImportVenues(OleDbConnection conn, LeagueData data, ImportSummary summary)
         {
             try
             {
@@ -255,6 +254,9 @@ namespace Wdpl2.Services
 
                 using var cmd = new OleDbCommand(query, conn);
                 using var reader = cmd.ExecuteReader();
+
+                // Collect raw venue names for consolidation
+                var rawVenues = new List<(string oldId, string name, string? address, string? notes)>();
 
                 while (reader.Read())
                 {
@@ -269,20 +271,74 @@ namespace Wdpl2.Services
                         continue;
                     }
 
-                    var venue = new Venue
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = name,
-                        Address = address,
-                        Notes = notes
-                    };
-
-                    data.Venues.Add(venue);
-                    _venueMap[oldId] = venue.Id;
-                    summary.VenuesImported++;
+                    rawVenues.Add((oldId, name, address, notes));
                 }
 
-                summary.Errors.Add($"✓ Imported {summary.VenuesImported} venues");
+                // Use VenueTableParser to consolidate venues with table suffixes
+                var venuesByBaseName = new Dictionary<string, Venue>(StringComparer.OrdinalIgnoreCase);
+                
+                foreach (var (oldId, rawName, address, notes) in rawVenues)
+                {
+                    var parsed = VenueTableParser.Parse(rawName);
+                    
+                    // Get or create venue by base name
+                    if (!venuesByBaseName.TryGetValue(parsed.BaseName, out var venue))
+                    {
+                        venue = new Venue
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = parsed.BaseName,
+                            Address = address,
+                            Notes = notes,
+                            Tables = new List<VenueTable>()
+                        };
+                        venuesByBaseName[parsed.BaseName] = venue;
+                        data.Venues.Add(venue);
+                        summary.VenuesImported++;
+                        summary.Errors.Add($"  Venue: {parsed.BaseName}");
+                    }
+                    
+                    // Add table if detected
+                    if (parsed.HasTable)
+                    {
+                        var existingTable = venue.Tables.FirstOrDefault(t => 
+                            t.Label.Equals(parsed.TableLabel, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (existingTable == null)
+                        {
+                            var newTable = new VenueTable
+                            {
+                                Id = Guid.NewGuid(),
+                                Label = parsed.TableLabel!,
+                                MaxTeams = 2
+                            };
+                            venue.Tables.Add(newTable);
+                            summary.Errors.Add($"    + Table: {parsed.TableLabel}");
+                        }
+                    }
+                    
+                    // Map the raw ID to the venue GUID
+                    _venueMap[oldId] = venue.Id;
+                }
+
+                // After processing all venues, add default table to venues without any tables
+                foreach (var venue in venuesByBaseName.Values)
+                {
+                    if (!venue.Tables.Any())
+                    {
+                        var defaultTable = new VenueTable
+                        {
+                            Id = Guid.NewGuid(),
+                            Label = VenueTableParser.DefaultTableLabel,
+                            MaxTeams = 2
+                        };
+                        venue.Tables.Add(defaultTable);
+                        summary.Errors.Add($"    + Default table '{VenueTableParser.DefaultTableLabel}' for '{venue.Name}'");
+                    }
+                }
+
+                var totalTables = data.Venues.Sum(v => v.Tables.Count);
+                summary.Errors.Add($"✓ Imported {summary.VenuesImported} venues with {totalTables} tables");
             }
             catch (Exception ex)
             {
@@ -660,11 +716,19 @@ namespace Wdpl2.Services
         {
             try
             {
-                var ordinal = reader.GetOrdinal(columnName);
-                if (reader.IsDBNull(ordinal))
-                    return null;
+// Skip to next column on error
+                try
+                {
+                    var ordinal = reader.GetOrdinal(columnName);
+                    if (reader.IsDBNull(ordinal))
+                        return null;
 
-                return Convert.ToInt32(reader.GetValue(ordinal));
+                    return Convert.ToInt32(reader.GetValue(ordinal));
+                }
+                catch
+                {
+                    return null;
+                }
             }
             catch
             {

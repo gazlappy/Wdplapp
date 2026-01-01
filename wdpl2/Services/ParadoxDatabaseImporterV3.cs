@@ -164,30 +164,80 @@ public class ParadoxDatabaseImporterV3
             int dataStart = 2048;
             var foundVenues = ScanForTextRecords(bytes, dataStart, recordSize, numRecords);
             
-            int id = 1;
+            // Track venues we've created (by base name) so we can add tables to them
+            var venuesByBaseName = new Dictionary<string, Venue>(StringComparer.OrdinalIgnoreCase);
+            
+            int rawId = 1;
             foreach (var venueName in foundVenues)
             {
-                if (string.IsNullOrWhiteSpace(venueName)) continue;
-                if (venueName.Length < 3 || venueName.Length > 100) continue;
-                if (venueName.Any(c => c < 32 || c > 126)) continue;
+                if (string.IsNullOrWhiteSpace(venueName)) { rawId++; continue; }
+                if (venueName.Length < 3 || venueName.Length > 100) { rawId++; continue; }
+                if (venueName.Any(c => c < 32 || c > 126)) { rawId++; continue; }
 
-                var venue = new Venue 
-                { 
-                    Id = Guid.NewGuid(), 
-                    SeasonId = _seasonId, 
-                    Name = venueName.Trim(), 
-                    Notes = "[IMPORTED]" 
-                };
-                data.Venues.Add(venue);
-                _venueMap[id] = venue.Id;
-                summary.VenuesImported++;
-                id++;
+                // Use VenueTableParser for consistent parsing
+                var parsed = VenueTableParser.Parse(venueName);
                 
-                if (summary.VenuesImported <= 3)
-                    summary.Errors.Add($"  Venue: {venueName}");
+                // Check if we already have a venue with this base name
+                if (!venuesByBaseName.TryGetValue(parsed.BaseName, out var venue))
+                {
+                    // Create new venue
+                    venue = new Venue 
+                    { 
+                        Id = Guid.NewGuid(), 
+                        SeasonId = _seasonId, 
+                        Name = parsed.BaseName.ToUpperInvariant(), 
+                        Notes = "[IMPORTED]",
+                        Tables = new List<VenueTable>()
+                    };
+                    data.Venues.Add(venue);
+                    venuesByBaseName[parsed.BaseName] = venue;
+                    summary.VenuesImported++;
+                    
+                    summary.Errors.Add($"  Venue: {parsed.BaseName}");
+                }
+                
+                // If we detected a table label, add it to the venue
+                if (parsed.HasTable)
+                {
+                    // Check if table already exists
+                    if (!venue.Tables.Any(t => t.Label.Equals(parsed.TableLabel, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var table = new VenueTable
+                        {
+                            Id = Guid.NewGuid(),
+                            Label = parsed.TableLabel!,
+                            MaxTeams = 2
+                        };
+                        venue.Tables.Add(table);
+                        summary.Errors.Add($"    + Table: {parsed.TableLabel}");
+                    }
+                }
+                
+                // Map the raw venue ID to the venue GUID
+                // This is important so teams can find their venue
+                _venueMap[rawId] = venue.Id;
+                rawId++;
             }
             
-            summary.Errors.Add($"✓ Imported {summary.VenuesImported} venues");
+            // After processing all venues, add default table to venues without any tables
+            foreach (var venue in venuesByBaseName.Values)
+            {
+                if (!venue.Tables.Any())
+                {
+                    var defaultTable = new VenueTable
+                    {
+                        Id = Guid.NewGuid(),
+                        Label = VenueTableParser.DefaultTableLabel,
+                        MaxTeams = 2
+                    };
+                    venue.Tables.Add(defaultTable);
+                    summary.Errors.Add($"    + Default table '{VenueTableParser.DefaultTableLabel}' for '{venue.Name}'");
+                }
+            }
+            
+            // Log summary
+            var totalTables = data.Venues.Sum(v => v.Tables.Count);
+            summary.Errors.Add($"✓ Imported {summary.VenuesImported} venues with {totalTables} tables");
         }
         catch (Exception ex) { summary.Errors.Add($"❌ Venue error: {ex.Message}"); }
     }

@@ -720,7 +720,7 @@ namespace Wdpl2.Services
         }
 
         /// <summary>
-        /// Import venues extracted from tblteams data
+        /// Import venues extracted from tblteams data - consolidates venues with table suffixes
         /// </summary>
         private static Task ImportVenues(
             ParsedSqlData parsed,
@@ -735,45 +735,130 @@ namespace Wdpl2.Services
             }
 
             // Extract unique venue names from tblteams
-            var venueNames = parsed.TeamIdToVenue.Values
+            var rawVenueNames = parsed.TeamIdToVenue.Values
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (!venueNames.Any())
+            if (!rawVenueNames.Any())
             {
                 result.Warnings.Add("No venue data found in tblteams");
                 return Task.CompletedTask;
             }
 
-            foreach (var venueName in venueNames)
+            result.Warnings.Add($"[Venue Import] Found {rawVenueNames.Count} raw venue names in tblteams");
+
+            // Use VenueTableParser to consolidate venues with table suffixes
+            var venuesByBaseName = new Dictionary<string, Venue>(StringComparer.OrdinalIgnoreCase);
+            
+            foreach (var rawVenueName in rawVenueNames)
             {
-                // Check if venue already exists
+                var parsed2 = VenueTableParser.Parse(rawVenueName);
+                
+                result.Warnings.Add($"  Parsing '{rawVenueName}' -> Base='{parsed2.BaseName}', Table='{parsed2.TableLabel ?? "none"}'");
+                
+                // Check if venue already exists by BASE name (not raw name)
                 var existingVenue = existingData.Venues.FirstOrDefault(v =>
                     v.SeasonId == result.DetectedSeason.Id &&
                     !string.IsNullOrWhiteSpace(v.Name) &&
-                    v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+                    v.Name.Equals(parsed2.BaseName, StringComparison.OrdinalIgnoreCase));
 
                 if (existingVenue != null)
                 {
-                    result.VenueNameToGuid[venueName.ToLower()] = existingVenue.Id;
+                    // Use existing venue
+                    if (!venuesByBaseName.ContainsKey(parsed2.BaseName))
+                    {
+                        venuesByBaseName[parsed2.BaseName] = existingVenue;
+                    }
+                    
+                    // Add table if needed
+                    if (parsed2.HasTable)
+                    {
+                        var existingTable = existingVenue.Tables.FirstOrDefault(t =>
+                            t.Label.Equals(parsed2.TableLabel, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (existingTable == null)
+                        {
+                            var newTable = new VenueTable
+                            {
+                                Id = Guid.NewGuid(),
+                                Label = parsed2.TableLabel!,
+                                MaxTeams = 2
+                            };
+                            existingVenue.Tables.Add(newTable);
+                            result.Warnings.Add($"    + Added table '{parsed2.TableLabel}' to existing venue '{parsed2.BaseName}'");
+                        }
+                    }
+                    
+                    // Map raw name to venue
+                    result.VenueNameToGuid[rawVenueName.ToLower()] = existingVenue.Id;
+                    // Also map base name
+                    result.VenueNameToGuid[parsed2.BaseName.ToLower()] = existingVenue.Id;
                     result.VenuesSkipped++;
                     continue;
                 }
 
-                var venue = new Venue
+                // Get or create venue by base name
+                if (!venuesByBaseName.TryGetValue(parsed2.BaseName, out var venue))
                 {
-                    Id = Guid.NewGuid(),
-                    Name = venueName,
-                    SeasonId = result.DetectedSeason.Id
-                };
-
-                importedData.Venues.Add(venue);
-                existingData.Venues.Add(venue);
-                result.ImportedVenueIds.Add(venue.Id);
-                result.VenueNameToGuid[venueName.ToLower()] = venue.Id;
-                result.VenuesImported++;
+                    venue = new Venue
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = parsed2.BaseName,
+                        SeasonId = result.DetectedSeason.Id,
+                        Notes = "[IMPORTED]",
+                        Tables = new List<VenueTable>()
+                    };
+                    venuesByBaseName[parsed2.BaseName] = venue;
+                    importedData.Venues.Add(venue);
+                    existingData.Venues.Add(venue);
+                    result.ImportedVenueIds.Add(venue.Id);
+                    result.VenuesImported++;
+                    result.Warnings.Add($"  Venue: {parsed2.BaseName}");
+                }
+                
+                // Add table if detected
+                if (parsed2.HasTable)
+                {
+                    var existingTable = venue.Tables.FirstOrDefault(t =>
+                        t.Label.Equals(parsed2.TableLabel, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (existingTable == null)
+                    {
+                        var newTable = new VenueTable
+                        {
+                            Id = Guid.NewGuid(),
+                            Label = parsed2.TableLabel!,
+                            MaxTeams = 2
+                        };
+                        venue.Tables.Add(newTable);
+                        result.Warnings.Add($"    + Table: {parsed2.TableLabel}");
+                    }
+                }
+                
+                // Map both the raw name AND the base name to the venue GUID
+                result.VenueNameToGuid[rawVenueName.ToLower()] = venue.Id;
+                result.VenueNameToGuid[parsed2.BaseName.ToLower()] = venue.Id;
             }
+
+            // After processing all venues, add default table to venues without any tables
+            foreach (var venue in venuesByBaseName.Values)
+            {
+                if (!venue.Tables.Any())
+                {
+                    var defaultTable = new VenueTable
+                    {
+                        Id = Guid.NewGuid(),
+                        Label = VenueTableParser.DefaultTableLabel,
+                        MaxTeams = 2
+                    };
+                    venue.Tables.Add(defaultTable);
+                    result.Warnings.Add($"    + Default table '{VenueTableParser.DefaultTableLabel}' for '{venue.Name}'");
+                }
+            }
+
+            var totalTables = importedData.Venues.Sum(v => v.Tables.Count);
+            result.Warnings.Add($"? Imported {result.VenuesImported} venues with {totalTables} tables");
 
             return Task.CompletedTask;
         }

@@ -550,8 +550,42 @@ public partial class VenuesPage : ContentPage
         VenueInfoPanel.IsVisible = true;
 
         SelectedVenueName.Text = venue.Name;
-        SelectedVenueAddress.Text = venue.Address ?? "";
-        SelectedVenueStats.Text = $"{venue.Tables.Count} table(s)";
+        SelectedVenueAddress.Text = venue.Address ?? "No address";
+        SelectedVenueTableCount.Text = $"{venue.Tables.Count} table(s)";
+        
+        // Stats
+        VenueTableCountStat.Text = venue.Tables.Count.ToString();
+        VenueCapacity.Text = venue.Tables.Sum(t => t.MaxTeams).ToString();
+        
+        // Get teams at this venue
+        var teamsAtVenue = DataStore.Data?.Teams?
+            .Where(t => t.VenueId == venue.Id && t.SeasonId == _currentSeasonId)
+            .OrderBy(t => t.Name)
+            .ToList() ?? new List<Team>();
+        
+        VenueTeamCount.Text = teamsAtVenue.Count.ToString();
+        VenueTeamsDisplay.ItemsSource = teamsAtVenue;
+        
+        // Get fixtures at this venue
+        var fixturesAtVenue = DataStore.Data?.Fixtures?
+            .Where(f => f.VenueId == venue.Id && f.SeasonId == _currentSeasonId)
+            .Count() ?? 0;
+        
+        VenueFixtureCount.Text = fixturesAtVenue.ToString();
+        
+        // Show tables
+        VenueTablesDisplay.ItemsSource = venue.Tables;
+        
+        // Notes section
+        if (!string.IsNullOrWhiteSpace(venue.Notes))
+        {
+            NotesSection.IsVisible = true;
+            SelectedVenueNotes.Text = venue.Notes;
+        }
+        else
+        {
+            NotesSection.IsVisible = false;
+        }
     }
 
     private void HideVenueInfo()
