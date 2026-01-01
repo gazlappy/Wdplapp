@@ -20,11 +20,13 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '9.0.100'  # Pin to stable .NET 9 release
     
-    - name: Install MAUI workloads
+    - name: Install MAUI workloads with compatible iOS SDK
       run: |
-        dotnet workload install maui-ios maui-maccatalyst
+        # Install workloads with version compatible with Xcode 15.4 (iOS SDK 17.x)
+        dotnet workload install maui-ios --version 9.0.100 --skip-manifest-update || dotnet workload install maui-ios
+        dotnet workload install maui-maccatalyst --version 9.0.100 --skip-manifest-update || dotnet workload install maui-maccatalyst
     
     - name: Select Xcode version
       run: |
