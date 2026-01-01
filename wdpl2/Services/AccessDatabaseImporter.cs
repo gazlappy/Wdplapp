@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
+using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Threading.Tasks;
+using CommunityToolkit.Maui.Storage;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services
@@ -750,5 +753,79 @@ namespace Wdpl2.Services
             $"Frames: {FramesImported}";
 
         public string DiagnosticLog => string.Join("\n", Errors);
+        
+        /// <summary>
+        /// Generate a complete import log for export/saving
+        /// </summary>
+        public string GenerateFullLog(string? sourcePath = null)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════════════════════════");
+            sb.AppendLine("                    IMPORT LOG REPORT");
+            sb.AppendLine("═══════════════════════════════════════════════════════════════");
+            sb.AppendLine();
+            sb.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            if (!string.IsNullOrEmpty(sourcePath))
+                sb.AppendLine($"Source: {sourcePath}");
+            sb.AppendLine($"Status: {(Success ? "✓ SUCCESS" : "✗ FAILED")}");
+            sb.AppendLine();
+
+            sb.AppendLine("───────────────────────────────────────────────────────────────");
+            sb.AppendLine("                        SUMMARY");
+            sb.AppendLine("───────────────────────────────────────────────────────────────");
+            sb.AppendLine();
+            sb.AppendLine($"  Seasons:   {SeasonsImported}");
+            sb.AppendLine($"  Divisions: {DivisionsImported}");
+            sb.AppendLine($"  Venues:    {VenuesImported}");
+            sb.AppendLine($"  Teams:     {TeamsImported}");
+            sb.AppendLine($"  Players:   {PlayersImported}");
+            sb.AppendLine($"  Fixtures:  {FixturesImported}");
+            sb.AppendLine($"  Frames:    {FramesImported}");
+            sb.AppendLine();
+            sb.AppendLine("───────────────────────────────────────────────────────────────");
+            sb.AppendLine("                     DETAILED LOG");
+            sb.AppendLine("───────────────────────────────────────────────────────────────");
+            sb.AppendLine();
+            foreach (var line in Errors)
+            {
+                sb.AppendLine(line);
+            }
+            sb.AppendLine();
+            sb.AppendLine("═══════════════════════════════════════════════════════════════");
+            sb.AppendLine("                      END OF LOG");
+            sb.AppendLine("═══════════════════════════════════════════════════════════════");
+            
+            return sb.ToString();
+        }
+        
+        /// <summary>
+        /// Save the import log to a file
+        /// </summary>
+        public async Task<(bool success, string message)> SaveLogToFileAsync(string? sourcePath = null)
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = $"import_log_{timestamp}.txt";
+                
+                // Use file saver to let user choose location
+                var result = await FileSaver.Default.SaveAsync(fileName, 
+                    new MemoryStream(Encoding.UTF8.GetBytes(GenerateFullLog(sourcePath))), 
+                    CancellationToken.None);
+                
+                if (result.IsSuccessful)
+                {
+                    return (true, $"Log saved to: {result.FilePath}");
+                }
+                else
+                {
+                    return (false, result.Exception?.Message ?? "Save cancelled");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Failed to save log: {ex.Message}");
+            }
+        }
     }
 }

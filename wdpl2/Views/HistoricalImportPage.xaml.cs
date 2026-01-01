@@ -2009,6 +2009,23 @@ public partial class HistoricalImportPage : ContentPage
                 }
             }
 
+            // Save Log button - always show after import
+            var saveLogButton = new Button
+            {
+                Text = "?? Save Log",
+                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#6366F1"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 12),
+                HorizontalOptions = LayoutOptions.Fill,
+                Margin = new Thickness(0, 16, 0, 8)
+            };
+            saveLogButton.Clicked += async (s, e) =>
+            {
+                var (success, message) = await summary.SaveLogToFileAsync(folderPath);
+                await DisplayAlert(success ? "Log Saved" : "Save Failed", message, "OK");
+            };
+            ResultsArea.Children.Add(saveLogButton);
+
             // Done button
             var doneButton = new Button
             {
@@ -2017,7 +2034,7 @@ public partial class HistoricalImportPage : ContentPage
                 TextColor = Colors.White,
                 Padding = new Thickness(32, 16),
                 HorizontalOptions = LayoutOptions.Fill,
-                Margin = new Thickness(0, 16, 0, 8)
+                Margin = new Thickness(0, 8, 0, 8)
             };
             doneButton.Clicked += async (s, e) => await Navigation.PopAsync();
             ResultsArea.Children.Add(doneButton);
