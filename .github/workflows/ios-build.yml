@@ -33,26 +33,28 @@ jobs:
         sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
         xcodebuild -version
     
-    - name: Restore dependencies
+    - name: Restore iOS dependencies
       run: |
         cd wdpl2
-        dotnet restore -p:EnableWindowsTargeting=true
+        # Only restore iOS and Mac Catalyst frameworks (skip Android/Windows)
+        dotnet restore -p:TargetFramework=net9.0-ios
+        dotnet restore -p:TargetFramework=net9.0-maccatalyst
     
     - name: Build iOS (Simulator - Debug)
       run: |
         cd wdpl2
-        dotnet build -f net9.0-ios -c Debug -p:EnableWindowsTargeting=true
+        dotnet build -f net9.0-ios -c Debug --no-restore
     
     - name: Build iOS (Release)
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
         cd wdpl2
-        dotnet publish -f net9.0-ios -c Release -p:EnableWindowsTargeting=true -p:ArchiveOnBuild=false
+        dotnet publish -f net9.0-ios -c Release --no-restore -p:ArchiveOnBuild=false
     
     - name: Build Mac Catalyst
       run: |
         cd wdpl2
-        dotnet build -f net9.0-maccatalyst -c Debug -p:EnableWindowsTargeting=true
+        dotnet build -f net9.0-maccatalyst -c Debug --no-restore
     
     - name: Upload iOS Build Artifacts
       uses: actions/upload-artifact@v4
