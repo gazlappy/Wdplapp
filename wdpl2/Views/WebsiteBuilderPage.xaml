@@ -173,10 +173,145 @@
                 </VerticalStackLayout>
             </Frame>
             
-            <!-- FTP Settings -->
-            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+            <!-- Deployment Method Selection -->
+            <Frame BorderColor="#3B82F6" Padding="15" CornerRadius="8" BackgroundColor="#EFF6FF">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="FTP Upload Settings" FontAttributes="Bold" FontSize="16"/>
+                    <Label Text="🚀 Deployment Method" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Choose how you want to publish your website"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                    
+                    <Picker x:Name="DeploymentMethodPicker" 
+                            Title="Select Deployment Method"
+                            SelectedIndexChanged="OnDeploymentMethodChanged">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>📁 Local Export (Save to folder)</x:String>
+                                <x:String>🐙 GitHub Pages (Free hosting)</x:String>
+                                <x:String>📤 FTP Upload (Traditional hosting)</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Local Export Settings -->
+            <Frame x:Name="LocalExportFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="📁 Local Export" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Export your website files to a folder on your device. You can then upload them manually to any web host, or open them directly in a browser."
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                    
+                    <Frame BackgroundColor="#F0FDF4" BorderColor="#86EFAC" Padding="10" CornerRadius="6">
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="✓ No account required" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Works offline" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Full control over files" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Upload anywhere you want" FontSize="12" TextColor="#166534"/>
+                        </VerticalStackLayout>
+                    </Frame>
+                    
+                    <Button x:Name="ExportToFolderBtn"
+                            Text="📁 Export to Folder"
+                            Clicked="OnExportToFolderClicked"
+                            BackgroundColor="#10B981"/>
+                    
+                    <Button x:Name="ExportAsZipBtn"
+                            Text="📦 Export as ZIP"
+                            Clicked="OnExportAsZipClicked"
+                            BackgroundColor="#6B7280"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- GitHub Pages Settings -->
+            <Frame x:Name="GitHubFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="🐙 GitHub Pages" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Host your website for free on GitHub Pages. Your site will be available at username.github.io/repository-name"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                    
+                    <Frame BackgroundColor="#F0FDF4" BorderColor="#86EFAC" Padding="10" CornerRadius="6">
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="✓ 100% Free hosting" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Automatic HTTPS" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Global CDN" FontSize="12" TextColor="#166534"/>
+                            <Label Text="✓ Custom domain support" FontSize="12" TextColor="#166534"/>
+                        </VerticalStackLayout>
+                    </Frame>
+                    
+                    <Label Text="GitHub Personal Access Token" FontSize="14" Margin="0,10,0,0"/>
+                    <Entry x:Name="GitHubTokenEntry" 
+                           Placeholder="ghp_xxxxxxxxxxxx" 
+                           IsPassword="True"/>
+                    <Label Text="Create a token at github.com/settings/tokens with 'repo' scope"
+                           FontSize="11"
+                           TextColor="#9CA3AF"/>
+                    
+                    <Label Text="Repository Name" FontSize="14"/>
+                    <Entry x:Name="GitHubRepoEntry" Placeholder="my-pool-league"/>
+                    
+                    <Label Text="GitHub Username" FontSize="14"/>
+                    <Entry x:Name="GitHubUsernameEntry" Placeholder="your-username"/>
+                    
+                    <HorizontalStackLayout Spacing="10" Margin="0,5,0,0">
+                        <CheckBox x:Name="GitHubCreateRepoCheck" IsChecked="True"/>
+                        <Label Text="Create repository if it doesn't exist" VerticalOptions="Center" FontSize="12"/>
+                    </HorizontalStackLayout>
+                    
+                    <Label x:Name="GitHubUrlPreview" 
+                           Text="Your site will be at: https://username.github.io/repo"
+                           FontSize="12"
+                           TextColor="#3B82F6"
+                           FontAttributes="Italic"/>
+                    
+                    <!-- GitHub Pages Status -->
+                    <Frame x:Name="GitHubStatusFrame" 
+                           BackgroundColor="#FEF3C7" 
+                           BorderColor="#F59E0B" 
+                           Padding="10" 
+                           CornerRadius="6"
+                           IsVisible="False">
+                        <VerticalStackLayout Spacing="5">
+                            <Label x:Name="GitHubStatusLabel" 
+                                   Text="⏳ Status: Checking..." 
+                                   FontSize="12" 
+                                   TextColor="#92400E"/>
+                            <Label Text="Note: GitHub Pages can take 1-5 minutes to build after deployment"
+                                   FontSize="11"
+                                   TextColor="#B45309"/>
+                        </VerticalStackLayout>
+                    </Frame>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Button Grid.Column="0"
+                                x:Name="DeployToGitHubBtn"
+                                Text="🚀 Deploy to GitHub Pages"
+                                Clicked="OnDeployToGitHubClicked"
+                                BackgroundColor="#238636"/>
+                        
+                        <Button Grid.Column="1"
+                                x:Name="CheckGitHubStatusBtn"
+                                Text="📊 Check Status"
+                                Clicked="OnCheckGitHubStatusClicked"
+                                BackgroundColor="#6B7280"
+                                WidthRequest="120"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- FTP Settings -->
+            <Frame x:Name="FtpFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="📤 FTP Upload Settings" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Upload directly to your web hosting via FTP"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
                     
                     <Label Text="FTP Host" FontSize="14"/>
                     <Entry x:Name="FtpHostEntry" Placeholder="ftp.yourwebsite.com"/>
@@ -197,7 +332,10 @@
                     <Entry x:Name="FtpPasswordEntry" Placeholder="password" IsPassword="True"/>
                     
                     <Label Text="Remote Path" FontSize="14"/>
-                    <Entry x:Name="FtpPathEntry" Placeholder="/public_html/"/>
+                    <Entry x:Name="FtpPathEntry" Placeholder="/domains/yourdomain.com/public_html/"/>
+                    <Label Text="For addon domains, use: /domains/yourdomain.com/public_html/"
+                           FontSize="11"
+                           TextColor="#9CA3AF"/>
                     
                     <Button x:Name="TestConnectionBtn" 
                             Text="Test Connection" 
@@ -242,7 +380,7 @@
                                 SelectedIndexChanged="OnPreviewPageChanged"/>
                         
                         <Button Grid.Column="2"
-                                Text="? Close"
+                                Text="✕ Close"
                                 Clicked="OnClosePreviewClicked"
                                 BackgroundColor="#EF4444"
                                 TextColor="White"
@@ -261,24 +399,24 @@
             <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                 <Button Grid.Column="0"
                         x:Name="PreviewBtn"
-                        Text="Preview Website"
+                        Text="👁 Preview Website"
                         Clicked="OnPreviewClicked"
                         BackgroundColor="#3B82F6"/>
                 
                 <Button Grid.Column="1"
                         x:Name="GenerateBtn"
-                        Text="Generate &amp; Upload"
-                        Clicked="OnGenerateAndUploadClicked"
+                        Text="🚀 Deploy"
+                        Clicked="OnDeployClicked"
                         BackgroundColor="#10B981"/>
             </Grid>
             
             <Button x:Name="SaveSettingsBtn"
-                    Text="Save Settings"
+                    Text="💾 Save Settings"
                     Clicked="OnSaveSettingsClicked"
                     BackgroundColor="#6B7280"/>
             
             <!-- Info -->
-            <Label Text="The website will be generated based on your selected season data and uploaded to your FTP server."
+            <Label Text="The website will be generated based on your selected season data and deployed using your chosen method."
                    FontSize="12"
                    TextColor="#9CA3AF"
                    HorizontalTextAlignment="Center"

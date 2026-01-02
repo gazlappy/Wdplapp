@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Wdpl2.Models
 {
     /// <summary>
-    /// Website configuration and FTP upload settings
+    /// Website configuration and deployment settings
     /// </summary>
     public sealed class WebsiteSettings
     {
@@ -12,7 +12,7 @@ namespace Wdpl2.Models
         public string LeagueName { get; set; } = "My Pool League";
         public string LeagueSubtitle { get; set; } = "Weekly 8-Ball Pool Competition";
         public string? LogoPath { get; set; }
-        public byte[]? LogoImageData { get; set; }  // NEW: Store logo as byte array
+        public byte[]? LogoImageData { get; set; }
         
         // Theme Colors
         public string PrimaryColor { get; set; } = "#3B82F6"; // Blue
@@ -31,9 +31,14 @@ namespace Wdpl2.Models
         public string FtpHost { get; set; } = "";
         public int FtpPort { get; set; } = 21;
         public string FtpUsername { get; set; } = "";
-        public string FtpPassword { get; set; } = ""; // Should be encrypted in production
+        public string FtpPassword { get; set; } = "";
         public bool UseSftp { get; set; } = false;
-        public string RemotePath { get; set; } = "/public_html/";
+        public string RemotePath { get; set; } = "/";
+        
+        // GitHub Pages Settings
+        public string GitHubToken { get; set; } = "";
+        public string GitHubUsername { get; set; } = "";
+        public string GitHubRepoName { get; set; } = "";
         
         // Generation Settings
         public Guid? SelectedSeasonId { get; set; }
@@ -41,11 +46,11 @@ namespace Wdpl2.Models
         public DateTime LastGenerated { get; set; }
         public DateTime LastUploaded { get; set; }
         
-        // Image Settings (NEW)
+        // Image Settings
         public bool UseCustomLogo { get; set; } = false;
         public int LogoMaxWidth { get; set; } = 300;
         public int LogoMaxHeight { get; set; } = 150;
-        public int ImageQuality { get; set; } = 85; // 1-100
+        public int ImageQuality { get; set; } = 85;
         
         // Gallery Settings
         public List<GalleryImage> GalleryImages { get; set; } = new();
@@ -84,6 +89,11 @@ namespace Wdpl2.Models
             GalleryImages.Clear();
             GalleryThumbnailSize = 300;
             GalleryFullSize = 1200;
+            
+            // Reset GitHub settings
+            GitHubToken = "";
+            GitHubUsername = "";
+            GitHubRepoName = "";
         }
     }
     
@@ -95,7 +105,7 @@ namespace Wdpl2.Models
         public Guid Id { get; set; } = Guid.NewGuid();
         public string FileName { get; set; } = "";
         public string Caption { get; set; } = "";
-        public string Category { get; set; } = "General"; // Team Photos, Match Photos, Events
+        public string Category { get; set; } = "General";
         public byte[] ImageData { get; set; } = Array.Empty<byte>();
         public DateTime DateAdded { get; set; } = DateTime.Now;
         public int Width { get; set; }

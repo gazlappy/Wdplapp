@@ -15,17 +15,21 @@ namespace Wdpl2.Views;
 public partial class DivisionsPage : ContentPage
 {
     private readonly ObservableCollection<Division> _divisions = new();
+    private readonly ObservableCollection<DivisionTeamItem> _divisionTeams = new();
+    private readonly ObservableCollection<DivisionFixtureItem> _divisionFixtures = new();
     private Division? _selected;
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _isFlyoutOpen = false;
-    private bool _showAllSeasons = false; // NEW: Track show all seasons state
+    private bool _showAllSeasons = false;
 
     public DivisionsPage()
     {
         InitializeComponent();
 
         DivisionsList.ItemsSource = _divisions;
+        DivisionTeamsDisplay.ItemsSource = _divisionTeams;
+        DivisionFixturesDisplay.ItemsSource = _divisionFixtures;
 
         // Wire up burger menu and flyout
         BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
@@ -35,7 +39,7 @@ public partial class DivisionsPage : ContentPage
         SearchEntry.TextChanged += (_, __) => RefreshDivisions(SearchEntry.Text);
         DivisionsList.SelectionChanged += OnSelectionChanged;
         
-        // NEW: Wire up show all seasons toggle
+        // Wire up show all seasons toggle
         ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
         {
             _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
@@ -65,7 +69,6 @@ public partial class DivisionsPage : ContentPage
         ExportBtn.Clicked += async (_, __) => await ExportDivisionsAsync();
         DivisionsImport.ImportRequested += async (stream, fileName) => await ImportDivisionsCsvAsync(stream, fileName);
 
-        // NEW: Debug button
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
         // SUBSCRIBE to global season changes
@@ -85,7 +88,6 @@ public partial class DivisionsPage : ContentPage
 
         try
         {
-            // Refresh data when page appears to ensure we have latest season
             RefreshAll();
         }
         catch (Exception ex)
@@ -120,10 +122,8 @@ public partial class DivisionsPage : ContentPage
     {
         try
         {
-            // Use global season from SeasonService
             _currentSeasonId = SeasonService.CurrentSeasonId;
 
-            // If no season is set, try to use the active season
             if (!_currentSeasonId.HasValue)
             {
                 var activeSeason = DataStore.Data?.Seasons?.FirstOrDefault(s => s.IsActive);
@@ -148,7 +148,6 @@ public partial class DivisionsPage : ContentPage
         {
             _divisions.Clear();
 
-            // ALWAYS show debug info first
             System.Diagnostics.Debug.WriteLine($"=== DIVISIONS DEBUG ===");
             System.Diagnostics.Debug.WriteLine($"Current Season ID: {_currentSeasonId}");
             System.Diagnostics.Debug.WriteLine($"Show All Seasons: {_showAllSeasons}");
@@ -176,7 +175,6 @@ public partial class DivisionsPage : ContentPage
                 return;
             }
 
-            // Filter divisions based on show all seasons toggle
             var divisions = _showAllSeasons
                 ? DataStore.Data.Divisions
                     .Where(d => d != null)
@@ -208,7 +206,6 @@ public partial class DivisionsPage : ContentPage
 
             System.Diagnostics.Debug.WriteLine($"Added {_divisions.Count} items to ObservableCollection");
 
-            // Update status message
             if (_showAllSeasons)
             {
                 var seasonGroups = divisions.GroupBy(d => d.SeasonId).Count();
@@ -220,7 +217,6 @@ public partial class DivisionsPage : ContentPage
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
                 var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
                 
-                // SHOW HELPFUL MESSAGE if no divisions found
                 if (_divisions.Count == 0 && DataStore.Data.Divisions.Count > 0)
                 {
                     var otherSeasons = DataStore.Data.Divisions
@@ -251,7 +247,6 @@ public partial class DivisionsPage : ContentPage
         }
     }
     
-    // NEW: Tap handler for label
     private void OnShowAllSeasonsTapped(object? sender, EventArgs e)
     {
         ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
@@ -326,6 +321,7 @@ public partial class DivisionsPage : ContentPage
         _selected.Notes = NotesEntry.Text?.Trim();
 
         RefreshDivisions(SearchEntry.Text);
+        ShowDivisionInfo(_selected); // Refresh the info panel
         SetStatus($"Updated: {_selected.Name}");
     }
 
@@ -344,6 +340,7 @@ public partial class DivisionsPage : ContentPage
         _selected = null;
         RefreshDivisions(SearchEntry.Text);
         ClearEditor();
+        HideDivisionInfo();
         SetStatus("Deleted");
     }
 
@@ -403,6 +400,7 @@ public partial class DivisionsPage : ContentPage
         }
 
         RefreshDivisions(SearchEntry.Text);
+        HideDivisionInfo();
         SetStatus($"Deleted {deleted} division(s)");
     }
 
@@ -503,14 +501,12 @@ public partial class DivisionsPage : ContentPage
         FlyoutOverlay.IsVisible = true;
         FlyoutPanel.IsVisible = true;
 
-        // Animate flyout sliding in
         FlyoutPanel.TranslationX = -400;
         await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
     }
 
     private async void CloseFlyout()
     {
-        // Animate flyout sliding out
         await FlyoutPanel.TranslateTo(-400, 0, 250, Easing.CubicIn);
         
         FlyoutOverlay.IsVisible = false;
@@ -523,17 +519,115 @@ public partial class DivisionsPage : ContentPage
         EmptyStatePanel.IsVisible = false;
         DivisionInfoPanel.IsVisible = true;
 
+        // Header info
         SelectedDivisionName.Text = division.Name;
-        SelectedDivisionNotes.Text = division.Notes ?? "No notes";
+        
+        // Get season name
+        var season = DataStore.Data?.Seasons?.FirstOrDefault(s => s.Id == division.SeasonId);
+        SelectedDivisionSeason.Text = season != null ? $"Season: {season.Name}" : "Season: Unknown";
+        
+        // Get teams in this division
+        var teamsInDivision = DataStore.Data?.Teams?
+            .Where(t => t.DivisionId == division.Id)
+            .OrderBy(t => t.Name)
+            .ToList() ?? new();
+        
+        SelectedDivisionTeamCount.Text = $"{teamsInDivision.Count} teams";
+        DivisionTeamCountStat.Text = teamsInDivision.Count.ToString();
+        
+        // Get players from teams in this division
+        var teamIds = teamsInDivision.Select(t => t.Id).ToHashSet();
+        var playersInDivision = DataStore.Data?.Players?
+            .Where(p => p.TeamId.HasValue && teamIds.Contains(p.TeamId.Value))
+            .ToList() ?? new();
+        DivisionPlayerCountStat.Text = playersInDivision.Count.ToString();
+        
+        // Get fixtures for this division
+        var fixtures = DataStore.Data?.Fixtures?
+            .Where(f => f.DivisionId == division.Id)
+            .OrderByDescending(f => f.Date)
+            .ToList() ?? new();
+        
+        DivisionFixtureCountStat.Text = fixtures.Count.ToString();
+        
+        // Count completed fixtures (those with frame results)
+        var completedFixtures = fixtures.Count(f => f.Frames != null && f.Frames.Any());
+        DivisionCompletedStat.Text = completedFixtures.ToString();
+        
+        // Populate teams list
+        _divisionTeams.Clear();
+        foreach (var team in teamsInDivision)
+        {
+            var venue = DataStore.Data?.Venues?.FirstOrDefault(v => v.Id == team.VenueId);
+            var playerCount = DataStore.Data?.Players?.Count(p => p.TeamId == team.Id) ?? 0;
+            
+            _divisionTeams.Add(new DivisionTeamItem
+            {
+                Id = team.Id,
+                Name = team.Name ?? "Unknown",
+                VenueName = venue?.Name ?? "No venue",
+                PlayerCount = playerCount
+            });
+        }
+        
+        // Populate recent fixtures (last 10)
+        _divisionFixtures.Clear();
+        foreach (var fixture in fixtures.Take(10))
+        {
+            var homeTeam = DataStore.Data?.Teams?.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+            var awayTeam = DataStore.Data?.Teams?.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+            
+            var homeScore = fixture.Frames?.Count(f => f.Winner == FrameWinner.Home) ?? 0;
+            var awayScore = fixture.Frames?.Count(f => f.Winner == FrameWinner.Away) ?? 0;
+            var hasResults = fixture.Frames != null && fixture.Frames.Any();
+            
+            _divisionFixtures.Add(new DivisionFixtureItem
+            {
+                Id = fixture.Id,
+                Date = fixture.Date,
+                MatchTitle = $"{homeTeam?.Name ?? "?"} vs {awayTeam?.Name ?? "?"}",
+                ScoreText = hasResults ? $"{homeScore}-{awayScore}" : "TBD"
+            });
+        }
+        
+        // Notes section
+        if (!string.IsNullOrWhiteSpace(division.Notes))
+        {
+            NotesSection.IsVisible = true;
+            SelectedDivisionNotes.Text = division.Notes;
+        }
+        else
+        {
+            NotesSection.IsVisible = false;
+        }
     }
 
     private void HideDivisionInfo()
     {
         EmptyStatePanel.IsVisible = true;
         DivisionInfoPanel.IsVisible = false;
+        _divisionTeams.Clear();
+        _divisionFixtures.Clear();
     }
     
-    // NEW: Comprehensive database check
+    // Helper classes for display
+    public class DivisionTeamItem
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string VenueName { get; set; } = "";
+        public int PlayerCount { get; set; }
+    }
+    
+    public class DivisionFixtureItem
+    {
+        public Guid Id { get; set; }
+        public DateTime Date { get; set; }
+        public string MatchTitle { get; set; } = "";
+        public string ScoreText { get; set; } = "";
+    }
+    
+    // Comprehensive database check
     private async System.Threading.Tasks.Task CheckDatabaseAsync()
     {
         try
@@ -542,7 +636,6 @@ public partial class DivisionsPage : ContentPage
             sb.AppendLine("🔍 DATABASE DIAGNOSTIC CHECK\n");
             sb.AppendLine("================================\n");
             
-            // Check DataStore
             sb.AppendLine($"DataStore.Data is null: {DataStore.Data == null}");
             if (DataStore.Data == null)
             {
@@ -550,7 +643,6 @@ public partial class DivisionsPage : ContentPage
                 return;
             }
             
-            // Check Seasons
             sb.AppendLine($"\n📅 SEASONS:");
             sb.AppendLine($"Total Seasons: {DataStore.Data.Seasons?.Count ?? 0}");
             sb.AppendLine($"Active Season ID: {DataStore.Data.ActiveSeasonId?.ToString() ?? "NOT SET"}");
@@ -568,7 +660,6 @@ public partial class DivisionsPage : ContentPage
                 }
             }
             
-            // Check Divisions
             sb.AppendLine($"\n🏆 DIVISIONS:");
             sb.AppendLine($"Total Divisions: {DataStore.Data.Divisions?.Count ?? 0}");
             
@@ -593,7 +684,6 @@ public partial class DivisionsPage : ContentPage
                     sb.AppendLine($"    SeasonId: {div.SeasonId?.ToString() ?? "NULL"}");
                 }
                 
-                // Group by season
                 var grouped = DataStore.Data.Divisions
                     .GroupBy(d => d.SeasonId)
                     .Select(g => new { 
@@ -618,23 +708,18 @@ public partial class DivisionsPage : ContentPage
                 sb.AppendLine("  ❌ NO DIVISIONS FOUND IN DATABASE!");
             }
             
-            // Check Teams
             sb.AppendLine($"\n👥 TEAMS:");
             sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
             
-            // Check Players  
             sb.AppendLine($"\n🎱 PLAYERS:");
             sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
             
-            // Check Venues
             sb.AppendLine($"\n🏠 VENUES:");
             sb.AppendLine($"Total Venues: {DataStore.Data.Venues?.Count ?? 0}");
             
-            // Check Fixtures
             sb.AppendLine($"\n📋 FIXTURES:");
             sb.AppendLine($"Total Fixtures: {DataStore.Data.Fixtures?.Count ?? 0}");
             
-            // Check UI State
             sb.AppendLine($"\n🖥️ UI STATE:");
             sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
             sb.AppendLine($"Items in ObservableCollection: {_divisions.Count}");

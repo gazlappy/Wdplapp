@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
-    Title="Teams">
+    Title="Teams"
+    AutomationProperties.Name="Teams management page">
 
     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
         
@@ -19,14 +20,17 @@
                 Padding="0"
                 Margin="0,0,12,0"
                 BackgroundColor="{AppThemeBinding Light=#3B82F6, Dark=#2563EB}"
-                TextColor="White" />
+                TextColor="White"
+                AutomationProperties.Name="Open menu"
+                AutomationProperties.HelpText="Opens the team controls menu" />
             
             <Label 
                 Grid.Column="1"
                 Text="Manage Teams" 
                 FontSize="20" 
                 FontAttributes="Bold"
-                VerticalOptions="Center" />
+                VerticalOptions="Center"
+                AutomationProperties.Name="Manage Teams" />
         </Grid>
 
         <!-- Flyout Menu Overlay -->
@@ -36,7 +40,8 @@
             Grid.ColumnSpan="2"
             IsVisible="False"
             BackgroundColor="#80000000"
-            ZIndex="100">
+            ZIndex="100"
+            AutomationProperties.Name="Menu overlay">
             <Border.GestureRecognizers>
                 <TapGestureRecognizer x:Name="OverlayTap" />
             </Border.GestureRecognizers>
@@ -55,7 +60,8 @@
             StrokeThickness="1"
             StrokeShape="RoundRectangle 0,12,12,0"
             Padding="16"
-            ZIndex="101">
+            ZIndex="101"
+            AutomationProperties.Name="Team controls menu">
             <ScrollView>
                 <VerticalStackLayout Spacing="12">
                     
@@ -70,7 +76,8 @@
                             Padding="0"
                             HorizontalOptions="EndAndExpand"
                             BackgroundColor="{AppThemeBinding Light=#EF4444, Dark=#DC2626}"
-                            TextColor="White" />
+                            TextColor="White"
+                            AutomationProperties.Name="Close menu" />
                     </HorizontalStackLayout>
                     
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
@@ -79,62 +86,61 @@
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Team Name" FontSize="12" />
-                        <Entry x:Name="TeamNameEntry" />
+                        <Entry x:Name="TeamNameEntry" AutomationProperties.Name="Team name" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Division" FontSize="12" />
-                        <Picker x:Name="DivisionPicker" ItemDisplayBinding="{Binding Name}" />
+                        <Picker x:Name="DivisionPicker" ItemDisplayBinding="{Binding Name}" AutomationProperties.Name="Team division" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Venue" FontSize="12" />
-                        <Picker x:Name="VenuePicker" ItemDisplayBinding="{Binding Name}" />
+                        <Picker x:Name="VenuePicker" ItemDisplayBinding="{Binding Name}" AutomationProperties.Name="Team venue" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Table" FontSize="12" />
-                        <Picker x:Name="TablePicker" ItemDisplayBinding="{Binding Label}" />
+                        <Picker x:Name="TablePicker" ItemDisplayBinding="{Binding Label}" AutomationProperties.Name="Team table" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Captain (Player)" FontSize="12" />
-                        <Picker x:Name="CaptainPicker" ItemDisplayBinding="{Binding FullName}" />
+                        <Picker x:Name="CaptainPicker" ItemDisplayBinding="{Binding FullName}" AutomationProperties.Name="Team captain" />
                     </VerticalStackLayout>
 
                     <Grid ColumnDefinitions="Auto,*" Padding="0,8,0,0">
                         <Label Text="Serves Food" VerticalOptions="Center" FontSize="12" />
-                        <Switch x:Name="FoodSwitch" Grid.Column="1" />
+                        <Switch x:Name="FoodSwitch" Grid.Column="1" AutomationProperties.Name="Team provides food" />
                     </Grid>
 
                     <Label Text="Actions" FontSize="16" FontAttributes="Bold" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="AddBtn" Text="+ Add" />
-                        <Button x:Name="UpdateBtn" Text="Update" />
-                        <Button x:Name="DeleteBtn" Text="Delete" BackgroundColor="#EF4444" TextColor="White" />
+                        <Button x:Name="AddBtn" Text="+ Add" AutomationProperties.Name="Add new team" />
+                        <Button x:Name="UpdateBtn" Text="Update" AutomationProperties.Name="Update team" />
+                        <Button x:Name="DeleteBtn" Text="Delete" BackgroundColor="#EF4444" TextColor="White" AutomationProperties.Name="Delete team" />
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" />
-                        <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" />
+                        <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" AutomationProperties.Name="Toggle multi-select mode" />
+                        <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" AutomationProperties.Name="Delete selected teams" />
                     </HorizontalStackLayout>
 
                     <Label Text="Data Management" FontSize="16" FontAttributes="Bold" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="SaveBtn" Text="💾 Save" />
-                        <Button x:Name="ReloadBtn" Text="🔄 Reload" />
+                        <Button x:Name="SaveBtn" Text="💾 Save" AutomationProperties.Name="Save changes" />
+                        <Button x:Name="ReloadBtn" Text="🔄 Reload" AutomationProperties.Name="Reload data" />
                     </HorizontalStackLayout>
 
-                    <Button x:Name="ExportBtn" Text="📤 Export CSV" />
+                    <Button x:Name="ExportBtn" Text="📤 Export CSV" AutomationProperties.Name="Export teams to CSV" />
 
-                    <ctrls:CsvImportBox x:Name="TeamsImport" Title="Import Teams (.csv)" />
+                    <ctrls:CsvImportBox x:Name="TeamsImport" Title="Import Teams (.csv)" AutomationProperties.Name="Import teams from CSV" />
 
-                    <!-- DEBUG BUTTON -->
-                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" />
+                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" AutomationProperties.Name="Check database integrity" />
 
-                    <Label x:Name="StatusLbl" Text="" FontAttributes="Italic" FontSize="12" TextColor="#666" />
+                    <Label x:Name="StatusLbl" Text="" FontAttributes="Italic" FontSize="12" TextColor="#666" AutomationProperties.Name="Status message" />
                     
                 </VerticalStackLayout>
             </ScrollView>
@@ -147,13 +153,14 @@
             Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
-            StrokeThickness="1">
+            StrokeThickness="1"
+            AutomationProperties.Name="Teams list panel">
             <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
-                <Entry x:Name="SearchEntry" Placeholder="Search teams..." />
+                <Entry x:Name="SearchEntry" Placeholder="Search teams..." AutomationProperties.Name="Search teams" />
 
                 <!-- SHOW ALL SEASONS -->
                 <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
-                    <CheckBox x:Name="ShowAllSeasonsCheck" />
+                    <CheckBox x:Name="ShowAllSeasonsCheck" AutomationProperties.Name="Show teams from all seasons" />
                     <Label Text="Show all seasons" VerticalOptions="Center" FontSize="14">
                         <Label.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnShowAllSeasonsTapped" />
@@ -165,7 +172,8 @@
                     x:Name="TeamsList" 
                     Grid.Row="2"
                     SelectionMode="Single"
-                    VerticalScrollBarVisibility="Always">
+                    VerticalScrollBarVisibility="Always"
+                    AutomationProperties.Name="Teams list">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border
@@ -208,11 +216,12 @@
             Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
-            StrokeThickness="1">
+            StrokeThickness="1"
+            AutomationProperties.Name="Team details and head-to-head panel">
             <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
                 
                 <!-- Team Info Header -->
-                <VerticalStackLayout x:Name="TeamInfoPanel" IsVisible="False" Spacing="4">
+                <VerticalStackLayout x:Name="TeamInfoPanel" IsVisible="False" Spacing="4" AutomationProperties.Name="Selected team info">
                     <Label x:Name="SelectedTeamName" FontSize="18" FontAttributes="Bold" />
                     <Label x:Name="SelectedTeamDivision" FontSize="14" TextColor="#666" />
                     <Label x:Name="SelectedTeamStats" FontSize="12" TextColor="#666" />
@@ -224,7 +233,8 @@
                     <Picker x:Name="H2HSeasonPicker" 
                             WidthRequest="150" 
                             FontSize="12"
-                            ItemDisplayBinding="{Binding Name}" />
+                            ItemDisplayBinding="{Binding Name}"
+                            AutomationProperties.Name="Filter by season" />
                 </HorizontalStackLayout>
 
                 <!-- Head-to-Head List -->
@@ -237,7 +247,8 @@
                             Spacing="12"
                             HorizontalOptions="Center"
                             VerticalOptions="Center"
-                            Padding="20">
+                            Padding="20"
+                            AutomationProperties.Name="No team selected">
                             <Label 
                                 Text="👈 Select a team"
                                 FontSize="16"
@@ -254,7 +265,8 @@
                         <CollectionView 
                             x:Name="H2HList"
                             IsVisible="False"
-                            SelectionMode="None">
+                            SelectionMode="None"
+                            AutomationProperties.Name="Head-to-head results">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <Border

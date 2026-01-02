@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
     xmlns:models="clr-namespace:Wdpl2.Models"
-    Title="Divisions">
+    Title="Divisions"
+    AutomationProperties.Name="Divisions management page">
 
     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
         
@@ -20,13 +21,16 @@
                 Padding="0"
                 Margin="0,0,12,0"
                 BackgroundColor="{StaticResource PrimaryColor}"
-                TextColor="White" />
+                TextColor="White"
+                AutomationProperties.Name="Open menu"
+                AutomationProperties.HelpText="Opens the division controls menu" />
             
             <Label 
                 Grid.Column="1"
                 Text="Manage Divisions" 
                 Style="{StaticResource PageTitleStyle}"
-                VerticalOptions="Center" />
+                VerticalOptions="Center"
+                AutomationProperties.Name="Manage Divisions" />
         </Grid>
 
         <!-- Flyout Menu Overlay -->
@@ -36,7 +40,8 @@
             Grid.ColumnSpan="2"
             IsVisible="False"
             BackgroundColor="#80000000"
-            ZIndex="100">
+            ZIndex="100"
+            AutomationProperties.Name="Menu overlay">
             <Border.GestureRecognizers>
                 <TapGestureRecognizer x:Name="OverlayTap" />
             </Border.GestureRecognizers>
@@ -55,7 +60,8 @@
             StrokeThickness="1"
             StrokeShape="RoundRectangle 0,12,12,0"
             Padding="{StaticResource LargePadding}"
-            ZIndex="101">
+            ZIndex="101"
+            AutomationProperties.Name="Division controls menu">
             <ScrollView>
                 <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
                     
@@ -70,7 +76,8 @@
                             HeightRequest="40"
                             Padding="0"
                             Style="{StaticResource DangerButtonStyle}"
-                            CornerRadius="20" />
+                            CornerRadius="20"
+                            AutomationProperties.Name="Close menu" />
                     </Grid>
                     
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
@@ -79,42 +86,41 @@
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Division Name" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="NameEntry" />
+                        <Entry x:Name="NameEntry" AutomationProperties.Name="Division name" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Notes" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Editor x:Name="NotesEntry" HeightRequest="80" />
+                        <Editor x:Name="NotesEntry" HeightRequest="80" AutomationProperties.Name="Division notes" />
                     </VerticalStackLayout>
 
                     <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="AddBtn" Text="+ Add" />
-                        <Button x:Name="UpdateBtn" Text="Update" />
-                        <Button x:Name="DeleteBtn" Text="Delete" Style="{StaticResource DangerButtonStyle}" />
+                        <Button x:Name="AddBtn" Text="+ Add" AutomationProperties.Name="Add new division" />
+                        <Button x:Name="UpdateBtn" Text="Update" AutomationProperties.Name="Update division" />
+                        <Button x:Name="DeleteBtn" Text="Delete" Style="{StaticResource DangerButtonStyle}" AutomationProperties.Name="Delete division" />
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="MultiSelectBtn" Text="Multi-Select OFF" BackgroundColor="{StaticResource Gray500}" TextColor="White" />
-                        <Button x:Name="BulkDeleteBtn" Text="Delete Selected" Style="{StaticResource DangerButtonStyle}" IsVisible="False" />
+                        <Button x:Name="MultiSelectBtn" Text="Multi-Select OFF" BackgroundColor="{StaticResource Gray500}" TextColor="White" AutomationProperties.Name="Toggle multi-select mode" />
+                        <Button x:Name="BulkDeleteBtn" Text="Delete Selected" Style="{StaticResource DangerButtonStyle}" IsVisible="False" AutomationProperties.Name="Delete selected divisions" />
                     </HorizontalStackLayout>
 
                     <Label Text="Data Management" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SaveBtn" Text="Save" />
-                        <Button x:Name="ReloadBtn" Text="Reload" />
+                        <Button x:Name="SaveBtn" Text="Save" AutomationProperties.Name="Save changes" />
+                        <Button x:Name="ReloadBtn" Text="Reload" AutomationProperties.Name="Reload data" />
                     </HorizontalStackLayout>
 
-                    <Button x:Name="ExportBtn" Text="Export CSV" />
+                    <Button x:Name="ExportBtn" Text="Export CSV" AutomationProperties.Name="Export divisions to CSV" />
 
-                    <ctrls:CsvImportBox x:Name="DivisionsImport" Title="Import Divisions (.csv)" />
+                    <ctrls:CsvImportBox x:Name="DivisionsImport" Title="Import Divisions (.csv)" AutomationProperties.Name="Import divisions from CSV" />
                     
-                    <!-- NEW: Debug button to check database -->
-                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" />
+                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" AutomationProperties.Name="Check database integrity" />
 
-                    <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" />
+                    <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Status message" />
                     
                 </VerticalStackLayout>
             </ScrollView>
@@ -127,13 +133,13 @@
             Padding="{StaticResource MediumPadding}"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
-            StrokeThickness="1">
+            StrokeThickness="1"
+            AutomationProperties.Name="Divisions list panel">
             <Grid RowDefinitions="Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
-                <Entry x:Name="SearchEntry" Placeholder="Search divisions..." />
+                <Entry x:Name="SearchEntry" Placeholder="Search divisions..." AutomationProperties.Name="Search divisions" />
                 
-                <!-- NEW: Show All Seasons Toggle -->
                 <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
-                    <CheckBox x:Name="ShowAllSeasonsCheck" />
+                    <CheckBox x:Name="ShowAllSeasonsCheck" AutomationProperties.Name="Show divisions from all seasons" />
                     <Label 
                         Text="Show all seasons" 
                         VerticalOptions="Center"
@@ -148,7 +154,8 @@
                     x:Name="DivisionsList" 
                     Grid.Row="2"
                     SelectionMode="Single"
-                    VerticalScrollBarVisibility="Always">
+                    VerticalScrollBarVisibility="Always"
+                    AutomationProperties.Name="Divisions list">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:Division">
                             <Border
@@ -178,7 +185,7 @@
             </Grid>
         </Border>
 
-        <!-- Right: Division Details -->
+        <!-- Right: Division Details Panel - Enhanced -->
         <Border 
             Grid.Row="1" 
             Grid.Column="1"
@@ -186,33 +193,226 @@
             Padding="{StaticResource MediumPadding}"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
-            StrokeThickness="1">
+            StrokeThickness="1"
+            AutomationProperties.Name="Division details panel">
             <ScrollView>
                 <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
                     
                     <!-- Empty State -->
                     <VerticalStackLayout 
                         x:Name="EmptyStatePanel"
-                        Spacing="{StaticResource MediumSpacing}"
+                        Spacing="16"
                         HorizontalOptions="Center"
                         VerticalOptions="Center"
-                        Padding="20"
-                        IsVisible="True">
+                        Padding="40"
+                        IsVisible="True"
+                        AutomationProperties.Name="No division selected">
+                        <Label 
+                            Text="📊"
+                            FontSize="48"
+                            HorizontalOptions="Center" />
                         <Label 
                             Text="Select a division"
-                            FontSize="16"
-                            TextColor="{StaticResource Gray400}"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource Gray500}"
                             HorizontalOptions="Center" />
                         <Label 
-                            Text="Click a division from the list to view and edit details"
+                            Text="Click a division from the list to view details, statistics, and manage teams"
                             Style="{StaticResource CaptionStyle}"
-                            HorizontalOptions="Center" />
+                            HorizontalOptions="Center"
+                            HorizontalTextAlignment="Center"
+                            MaximumWidthRequest="300" />
                     </VerticalStackLayout>
 
                     <!-- Division Info Panel (initially hidden) -->
-                    <VerticalStackLayout x:Name="DivisionInfoPanel" IsVisible="False" Spacing="4">
-                        <Label x:Name="SelectedDivisionName" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
-                        <Label x:Name="SelectedDivisionNotes" Style="{StaticResource BodyTextStyle}" />
+                    <VerticalStackLayout x:Name="DivisionInfoPanel" IsVisible="False" Spacing="16" AutomationProperties.Name="Selected division details">
+                        
+                        <!-- Header with division name -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Spacing="4">
+                                <Label x:Name="SelectedDivisionName" FontSize="22" FontAttributes="Bold" />
+                                <Label x:Name="SelectedDivisionSeason" Style="{StaticResource CaptionStyle}" />
+                            </VerticalStackLayout>
+                            <Border
+                                Grid.Column="1"
+                                BackgroundColor="{StaticResource PrimaryColor}"
+                                StrokeThickness="0"
+                                Padding="12,6"
+                                StrokeShape="RoundRectangle 16"
+                                VerticalOptions="Start">
+                                <Label 
+                                    x:Name="SelectedDivisionTeamCount"
+                                    FontSize="13"
+                                    FontAttributes="Bold"
+                                    TextColor="White" />
+                            </Border>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+                        
+                        <!-- Stats Cards -->
+                        <Label Text="STATISTICS" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+                            
+                            <!-- Teams Card -->
+                            <Border 
+                                BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#1E3A5F}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="16">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="🏆" FontSize="24" />
+                                    <Label x:Name="DivisionTeamCountStat" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
+                                    <Label Text="Teams" Style="{StaticResource CaptionStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+                            
+                            <!-- Players Card -->
+                            <Border 
+                                Grid.Column="1"
+                                BackgroundColor="{AppThemeBinding Light=#F0FDF4, Dark=#14532D}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="16">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="🎱" FontSize="24" />
+                                    <Label x:Name="DivisionPlayerCountStat" FontSize="28" FontAttributes="Bold" TextColor="#16A34A" />
+                                    <Label Text="Players" Style="{StaticResource CaptionStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+                            
+                            <!-- Fixtures Card -->
+                            <Border 
+                                Grid.Row="1"
+                                BackgroundColor="{AppThemeBinding Light=#FEF3C7, Dark=#713F12}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="16">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="📅" FontSize="24" />
+                                    <Label x:Name="DivisionFixtureCountStat" FontSize="28" FontAttributes="Bold" TextColor="#CA8A04" />
+                                    <Label Text="Fixtures" Style="{StaticResource CaptionStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+                            
+                            <!-- Completed Card -->
+                            <Border 
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                BackgroundColor="{AppThemeBinding Light=#FCE7F3, Dark=#831843}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="16">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="✓" FontSize="24" />
+                                    <Label x:Name="DivisionCompletedStat" FontSize="28" FontAttributes="Bold" TextColor="#DB2777" />
+                                    <Label Text="Completed" Style="{StaticResource CaptionStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                        
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+                        
+                        <!-- Teams List -->
+                        <Label Text="TEAMS IN THIS DIVISION" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                        <Border
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                            StrokeThickness="1"
+                            BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                            HeightRequest="180">
+                            <CollectionView x:Name="DivisionTeamsDisplay" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Teams in this division">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Border
+                                                BackgroundColor="{StaticResource PrimaryColor}"
+                                                WidthRequest="36"
+                                                HeightRequest="36"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 18">
+                                                <Label 
+                                                    Text="🏆" 
+                                                    FontSize="16"
+                                                    HorizontalOptions="Center"
+                                                    VerticalOptions="Center" />
+                                            </Border>
+                                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                                <Label Text="{Binding Name}" FontSize="14" FontAttributes="Bold" />
+                                                <Label Text="{Binding VenueName}" Style="{StaticResource CaptionStyle}" />
+                                            </VerticalStackLayout>
+                                            <Label 
+                                                Grid.Column="2" 
+                                                Text="{Binding PlayerCount, StringFormat='{0} players'}" 
+                                                Style="{StaticResource CaptionStyle}"
+                                                VerticalOptions="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                                <CollectionView.EmptyView>
+                                    <VerticalStackLayout Padding="20" HorizontalOptions="Center">
+                                        <Label Text="No teams in this division" Style="{StaticResource CaptionStyle}" HorizontalOptions="Center" />
+                                        <Label Text="Add teams via the Teams page" Style="{StaticResource CaptionStyle}" HorizontalOptions="Center" />
+                                    </VerticalStackLayout>
+                                </CollectionView.EmptyView>
+                            </CollectionView>
+                        </Border>
+                        
+                        <!-- Recent Fixtures -->
+                        <Label Text="RECENT FIXTURES" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" Margin="0,8,0,0" />
+                        <Border
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                            StrokeThickness="1"
+                            BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                            HeightRequest="120">
+                            <CollectionView x:Name="DivisionFixturesDisplay" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Recent fixtures in this division">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Label 
+                                                Text="{Binding Date, StringFormat='{0:dd MMM}'}" 
+                                                FontSize="11"
+                                                FontAttributes="Bold"
+                                                TextColor="{StaticResource Gray500}"
+                                                VerticalOptions="Center"
+                                                WidthRequest="50" />
+                                            <Label 
+                                                Grid.Column="1" 
+                                                Text="{Binding MatchTitle}" 
+                                                FontSize="13" 
+                                                VerticalOptions="Center"
+                                                LineBreakMode="TailTruncation" />
+                                            <Label 
+                                                Grid.Column="2" 
+                                                Text="{Binding ScoreText}" 
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                TextColor="{StaticResource PrimaryColor}"
+                                                VerticalOptions="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                                <CollectionView.EmptyView>
+                                    <Label Text="No fixtures scheduled" Style="{StaticResource CaptionStyle}" Padding="20" HorizontalOptions="Center" />
+                                </CollectionView.EmptyView>
+                            </CollectionView>
+                        </Border>
+                        
+                        <!-- Notes Section -->
+                        <VerticalStackLayout x:Name="NotesSection" IsVisible="False" Spacing="4">
+                            <Label Text="NOTES" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                            <Border
+                                StrokeShape="RoundRectangle 8"
+                                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                                StrokeThickness="1"
+                                BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                                Padding="12">
+                                <Label x:Name="SelectedDivisionNotes" Style="{StaticResource CaptionStyle}" />
+                            </Border>
+                        </VerticalStackLayout>
+
                     </VerticalStackLayout>
 
                 </VerticalStackLayout>
