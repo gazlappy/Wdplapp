@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.ContactSettingsPage"
+             Title="Contact and Social">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Contact and Social" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Add your contact details and social media links" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Welcome Message" FontSize="14" FontAttributes="Bold"/>
+                    <Editor x:Name="WelcomeMessageEditor" 
+                            Placeholder="Welcome to our pool league..."
+                            HeightRequest="80"
+                            AutoSize="TextChanges"/>
+                    
+                    <Label Text="About Text" FontSize="14" FontAttributes="Bold"/>
+                    <Editor x:Name="AboutTextEditor" 
+                            Placeholder="About the league, history, mission..."
+                            HeightRequest="100"
+                            AutoSize="TextChanges"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Contact Details" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Email" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="ContactEmailEntry" Placeholder="contact@yourleague.com" Keyboard="Email"/>
+                    
+                    <Label Text="Phone" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="ContactPhoneEntry" Placeholder="+44 123 456 7890" Keyboard="Telephone"/>
+                    
+                    <Label Text="Address" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="ContactAddressEntry" Placeholder="123 Pool Hall Lane, City"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Social Media Links" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Add your social media profile URLs" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <Label Text="Facebook" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="FacebookUrlEntry" Placeholder="https://facebook.com/yourpage"/>
+                    
+                    <Label Text="Twitter / X" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="TwitterUrlEntry" Placeholder="https://twitter.com/yourhandle"/>
+                    
+                    <Label Text="Instagram" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="InstagramUrlEntry" Placeholder="https://instagram.com/yourpage"/>
+                    
+                    <Label Text="YouTube" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="YouTubeUrlEntry" Placeholder="https://youtube.com/channel"/>
+                    
+                    <Label Text="TikTok" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="TikTokUrlEntry" Placeholder="https://tiktok.com/@yourpage"/>
+                    
+                    <Label Text="Website" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="WebsiteUrlEntry" Placeholder="https://yourwebsite.com"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.ColorsSettingsPage"
+             Title="Colors and Theme">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Colors and Theme" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Customize your website color scheme" FontSize="14" TextColor="#6B7280"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Quick Color Scheme" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Select a preset to quickly apply colors" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="ColorSchemePicker" 
+                            Title="Select a preset..."
+                            SelectedIndexChanged="OnColorSchemeChanged"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Primary Colors" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Primary - Main brand color" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="PrimaryColorEntry" Placeholder="#3B82F6"/>
+                    
+                    <Label Text="Secondary - Success, positive actions" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="SecondaryColorEntry" Placeholder="#10B981"/>
+                    
+                    <Label Text="Accent - Highlights, warnings" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="AccentColorEntry" Placeholder="#F59E0B"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Background Colors" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Page Background" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="BackgroundColorEntry" Placeholder="#F8FAFC"/>
+                    
+                    <Label Text="Card Background" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CardBackgroundColorEntry" Placeholder="#FFFFFF"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Text Colors" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Primary Text" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="TextColorEntry" Placeholder="#0F172A"/>
+                    
+                    <Label Text="Secondary Text" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="TextSecondaryColorEntry" Placeholder="#64748B"/>
+                    
+                    <Label Text="Header Text" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="HeaderTextColorEntry" Placeholder="#FFFFFF"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

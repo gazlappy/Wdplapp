@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.LayoutSettingsPage"
+             Title="Layout and Styling">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Layout and Styling" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Configure header, navigation, footer, and styling" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Theme Effects" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="EnableAnimationsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Animations" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="EnableGradientsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Gradients" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="EnableShadowsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Shadows" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="EnableRoundedCornersCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Rounded Corners" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowLastUpdatedCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Last Updated" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Typography" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Body Font" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="FontFamilyPicker" Title="Select Font">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Inter</x:String>
+                                <x:String>Roboto</x:String>
+                                <x:String>Open Sans</x:String>
+                                <x:String>Poppins</x:String>
+                                <x:String>Lato</x:String>
+                                <x:String>Montserrat</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Header Font" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="HeaderFontFamilyPicker" Title="Select Font">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Inter</x:String>
+                                <x:String>Roboto</x:String>
+                                <x:String>Open Sans</x:String>
+                                <x:String>Poppins</x:String>
+                                <x:String>Lato</x:String>
+                                <x:String>Montserrat</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Base Font Size" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="BaseFontSizeEntry" Placeholder="16" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                    
+                    <Label Text="Border Radius" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="BorderRadiusEntry" Placeholder="12" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Header" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="HeaderStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>gradient</x:String>
+                                <x:String>solid</x:String>
+                                <x:String>image</x:String>
+                                <x:String>minimal</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Alignment" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="HeaderAlignmentPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>left</x:String>
+                                <x:String>center</x:String>
+                                <x:String>right</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowHeaderPatternCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Pattern" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowSeasonBadgeCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Season Badge" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Navigation" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="NavStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>pills</x:String>
+                                <x:String>underline</x:String>
+                                <x:String>buttons</x:String>
+                                <x:String>minimal</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Position" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="NavPositionPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>left</x:String>
+                                <x:String>center</x:String>
+                                <x:String>right</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="NavStickyCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Sticky Nav" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowNavIconsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Icons" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Footer" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="FooterStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>dark</x:String>
+                                <x:String>light</x:String>
+                                <x:String>gradient</x:String>
+                                <x:String>minimal</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFooterSocialLinksCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Social Links" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFooterContactCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Contact Info" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPoweredByCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Powered By" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                    
+                    <Label Text="Custom Footer Text" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CustomFooterTextEntry" Placeholder="Additional footer text..."/>
+                    
+                    <Label Text="Copyright Text" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CopyrightTextEntry" Placeholder="2024 Your League"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Table and Card Styling" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="TableStripedCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Striped Rows" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="TableHoverableCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Hoverable" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="TableBorderedCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Bordered" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="TableCompactCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Compact" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                    
+                    <Label Text="Table Header Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="TableHeaderStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>gradient</x:String>
+                                <x:String>solid</x:String>
+                                <x:String>minimal</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Card Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="CardStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>elevated</x:String>
+                                <x:String>flat</x:String>
+                                <x:String>bordered</x:String>
+                                <x:String>glass</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Accent Position" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="CardAccentPositionPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>top</x:String>
+                                <x:String>left</x:String>
+                                <x:String>none</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="CardShowTopAccentCheck" IsChecked="True" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show Card Accent" VerticalOptions="Center"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

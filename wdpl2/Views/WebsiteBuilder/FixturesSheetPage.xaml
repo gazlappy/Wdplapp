@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.FixturesSheetPage"
+             Title="Fixtures Sheet Generator">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Fixtures Sheet Generator" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Create printable fixtures sheets for distribution" FontSize="14" TextColor="#6B7280"/>
+            
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                <Button Grid.Column="0" Text="Preview" Clicked="OnPreviewClicked" BackgroundColor="#3B82F6"/>
+                <Button Grid.Column="1" Text="Export HTML" Clicked="OnExportClicked" BackgroundColor="#10B981"/>
+                <Button Grid.Column="2" Text="Print" Clicked="OnPrintClicked" BackgroundColor="#6B7280"/>
+            </Grid>
+            
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
+            
+            <!-- Season and Division Selection -->
+            <Frame BorderColor="#3B82F6" Padding="15" CornerRadius="8" BackgroundColor="#EFF6FF">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Season and Divisions" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Picker x:Name="SeasonPicker" Title="Select Season"/>
+                    
+                    <Label Text="Select Divisions to Include:" FontSize="12" TextColor="#6B7280"/>
+                    <CollectionView x:Name="DivisionsCollection" 
+                                    SelectionMode="Multiple"
+                                    HeightRequest="120">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="5" ColumnDefinitions="Auto,*">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" CheckedChanged="OnDivisionCheckedChanged"/>
+                                    <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" Margin="5,0,0,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Header Settings -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Header Information" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="League Name" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="LeagueNameEntry" Placeholder="Wellington District Pool League"/>
+                    
+                    <Label Text="Season Title (e.g. Winter 2023-2024)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="SeasonTitleEntry" Placeholder="Winter 2023-2024"/>
+                    
+                    <Label Text="Subtitle (optional)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="SubtitleEntry" Placeholder="Premier and First Division Fixtures"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Display Options -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Display Options" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <!-- Page Orientation -->
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="Page Orientation:" VerticalOptions="Center"/>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="15">
+                            <HorizontalStackLayout Spacing="5">
+                                <RadioButton x:Name="PortraitRadio" Content="Portrait" IsChecked="True" GroupName="Orientation"/>
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="5">
+                                <RadioButton x:Name="LandscapeRadio" Content="Landscape" GroupName="Orientation"/>
+                            </HorizontalStackLayout>
+                        </HorizontalStackLayout>
+                    </Grid>
+                    
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,5"/>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="ShowTeamNumbersCheck" IsChecked="True"/>
+                        <Label Text="Show team numbers (1 v 2) instead of names" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="ShowVenueInfoCheck" IsChecked="True"/>
+                        <Label Text="Show venue telephone numbers" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="ShowDivisionListsCheck" IsChecked="True"/>
+                        <Label Text="Show division team lists with venues" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Special Events -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Special Events / Knockout Rounds" FontAttributes="Bold" FontSize="16"/>
+                        <Button Grid.Column="1" Text="+ Add" Clicked="OnAddEventClicked" 
+                                BackgroundColor="#3B82F6" FontSize="12" Padding="10,5"/>
+                    </Grid>
+                    
+                    <CollectionView x:Name="EventsCollection" HeightRequest="150">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="8" Margin="0,2" BorderColor="#E5E7EB" CornerRadius="4">
+                                    <Grid ColumnDefinitions="80,*,Auto">
+                                        <Label Text="{Binding DateDisplay}" FontSize="11"/>
+                                        <Label Grid.Column="1" Text="{Binding Description}" FontSize="11" Margin="10,0"/>
+                                        <Button Grid.Column="2" Text="X" Clicked="OnRemoveEventClicked" 
+                                                CommandParameter="{Binding .}"
+                                                BackgroundColor="#EF4444" TextColor="White" 
+                                                FontSize="10" WidthRequest="30" HeightRequest="25"/>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Venue Phone Numbers -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Venue Telephone Numbers" FontAttributes="Bold" FontSize="16"/>
+                        <Button Grid.Column="1" Text="+ Add" Clicked="OnAddVenuePhoneClicked" 
+                                BackgroundColor="#3B82F6" FontSize="12" Padding="10,5"/>
+                    </Grid>
+                    
+                    <CollectionView x:Name="VenuePhonesCollection" HeightRequest="120">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="8" Margin="0,2" BorderColor="#E5E7EB" CornerRadius="4">
+                                    <Grid ColumnDefinitions="*,*,Auto">
+                                        <Label Text="{Binding VenueName}" FontSize="11" FontAttributes="Bold"/>
+                                        <Label Grid.Column="1" Text="{Binding PhoneNumber}" FontSize="11"/>
+                                        <Button Grid.Column="2" Text="X" Clicked="OnRemoveVenuePhoneClicked" 
+                                                CommandParameter="{Binding .}"
+                                                BackgroundColor="#EF4444" TextColor="White" 
+                                                FontSize="10" WidthRequest="30" HeightRequest="25"/>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Footer Notes -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Footer Information" FontAttributes="Bold" FontSize="16"/>
+                    
+                    <Label Text="Website URL" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="WebsiteUrlEntry" Placeholder="http://www.example.co.uk"/>
+                    
+                    <Label Text="Email Address" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="EmailEntry" Placeholder="info@example.co.uk"/>
+                    
+                    <Label Text="Cancelled Match Contact" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CancelledMatchContactEntry" Placeholder="Name on phone number"/>
+                    
+                    <Label Text="Cancelled Competition Contact" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CancelledCompContactEntry" Placeholder="Name on phone number"/>
+                    
+                    <Label Text="Additional Footer Notes (one per line)" FontSize="12" TextColor="#6B7280"/>
+                    <Editor x:Name="FooterNotesEditor" HeightRequest="80" Placeholder="Result Card image to be posted on Facebook..."/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Preview -->
+            <Frame x:Name="PreviewFrame" BorderColor="#E5E7EB" Padding="0" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="0">
+                    <Grid BackgroundColor="#F3F4F6" Padding="15" ColumnDefinitions="*,Auto">
+                        <Label Text="Preview" FontAttributes="Bold" FontSize="16" VerticalOptions="Center"/>
+                        <Button Grid.Column="1" Text="X" Clicked="OnClosePreviewClicked" 
+                                BackgroundColor="#EF4444" TextColor="White" WidthRequest="40"/>
+                    </Grid>
+                    <WebView x:Name="PreviewWebView" HeightRequest="600" HorizontalOptions="Fill"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

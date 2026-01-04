@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.ContentSettingsPage"
+             Title="Pages and Content">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Pages and Content" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Choose pages and configure their settings" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <!-- Pages to Include -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Pages to Include" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Toggle pages on/off and tap Settings to customize" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="8">
+                        <!-- Standings -->
+                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowStandingsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="League Standings" VerticalOptions="Center"/>
+                            <Button Grid.Column="2" Text="Settings" Clicked="OnStandingsSettingsClicked" 
+                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
+                        </Grid>
+                        
+                        <!-- Fixtures -->
+                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFixturesCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Fixtures" VerticalOptions="Center"/>
+                            <Button Grid.Column="2" Text="Settings" Clicked="OnFixturesSettingsClicked" 
+                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
+                        </Grid>
+                        
+                        <!-- Results -->
+                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowResultsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Results" VerticalOptions="Center"/>
+                            <Button Grid.Column="2" Text="Settings" Clicked="OnResultsSettingsClicked" 
+                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
+                        </Grid>
+                        
+                        <!-- Player Stats -->
+                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPlayerStatsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Player Stats" VerticalOptions="Center"/>
+                            <Button Grid.Column="2" Text="Settings" Clicked="OnPlayersSettingsClicked" 
+                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
+                        </Grid>
+                        
+                        <!-- Divisions -->
+                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDivisionsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Divisions" VerticalOptions="Center"/>
+                            <Button Grid.Column="2" Text="Settings" Clicked="OnDivisionsSettingsClicked" 
+                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                    
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,5"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowGalleryCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Photo Gallery" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowTopScorersCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Top Scorers on Home" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowRecentFormCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Recent Form in Tables" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowNewsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="News Page" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowSponsorsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Sponsors Page" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowRulesCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Rules Page" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowContactPageCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Contact Page" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Home Page Layout -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Home Page Layout" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Picker x:Name="HomeLayoutPicker" Title="Select Layout">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>standard</x:String>
+                                <x:String>magazine</x:String>
+                                <x:String>minimal</x:String>
+                                <x:String>dashboard</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Home Page Sections -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Home Page Sections" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Choose what to show on the home page" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowWelcomeSectionCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Welcome Section" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowQuickStatsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Quick Stats Cards" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowRecentResultsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Recent Results" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowUpcomingFixturesCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Upcoming Fixtures" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowLeagueLeadersCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="League Leaders" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowLatestNewsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Latest News" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HomeShowSponsorsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Sponsors Banner" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Display Counts -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Home Page Item Counts" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="How many items to show in each section" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <Grid ColumnDefinitions="*,100" RowSpacing="10" ColumnSpacing="10">
+                        <Label Text="Recent Results" VerticalOptions="Center"/>
+                        <Entry Grid.Column="1" x:Name="HomeRecentResultsCountEntry" Placeholder="5" Keyboard="Numeric"/>
+                        
+                        <Label Grid.Row="1" Text="Upcoming Fixtures" VerticalOptions="Center"/>
+                        <Entry Grid.Row="1" Grid.Column="1" x:Name="HomeUpcomingFixturesCountEntry" Placeholder="5" Keyboard="Numeric"/>
+                        
+                        <Label Grid.Row="2" Text="League Leaders" VerticalOptions="Center"/>
+                        <Entry Grid.Row="2" Grid.Column="1" x:Name="HomeLeagueLeadersCountEntry" Placeholder="5" Keyboard="Numeric"/>
+                        
+                        <Label Grid.Row="3" Text="Stats Columns" VerticalOptions="Center"/>
+                        <Entry Grid.Row="3" Grid.Column="1" x:Name="StatsColumnsEntry" Placeholder="4" Keyboard="Numeric"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

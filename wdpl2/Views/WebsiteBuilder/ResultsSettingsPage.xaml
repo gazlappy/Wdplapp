@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.ResultsSettingsPage"
+             Title="Results Page Settings">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Results Page" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Customize how match results are displayed" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <!-- Display Options -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Display Options" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Choose what information to show for each result" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowScoreCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Score" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDateCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Date" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowTimeCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Time" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowVenueCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Venue" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDivisionCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Division Badge" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="HighlightWinnerCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Highlight Winning Team" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFrameDetailsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Frame Details (expandable)" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Grouping Options -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Grouping" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="How to group results" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="GroupByDateCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Group by Date" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="GroupByWeekCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Group by Week" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Date Format -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Date Format" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Choose how dates are displayed" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <Picker x:Name="DateFormatPicker" Title="Select Format">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>ddd dd MMM</x:String>
+                                <x:String>dd/MM/yyyy</x:String>
+                                <x:String>MM/dd/yyyy</x:String>
+                                <x:String>dd MMM yyyy</x:String>
+                                <x:String>dddd, dd MMMM</x:String>
+                                <x:String>d MMMM yyyy</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Pagination -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Pagination" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Results per page" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="ResultsPerPageEntry" Text="20" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

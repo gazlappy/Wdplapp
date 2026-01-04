@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.DeploymentSettingsPage"
+             Title="Deployment">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Deployment" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Export or publish your website" FontSize="14" TextColor="#6B7280"/>
+            
+            <Label x:Name="StatusLabel" 
+                   FontSize="14"
+                   TextColor="#10B981"
+                   IsVisible="False"/>
+            
+            <ProgressBar x:Name="ProgressBar" 
+                         IsVisible="False" 
+                         ProgressColor="#3B82F6"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Deployment Method" FontSize="14" FontAttributes="Bold"/>
+                    <Picker x:Name="DeploymentMethodPicker" 
+                            Title="Select Method"
+                            SelectedIndexChanged="OnDeploymentMethodChanged">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Local Export</x:String>
+                                <x:String>GitHub Pages</x:String>
+                                <x:String>FTP Upload</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame x:Name="LocalExportFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Local Export" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Export website files to your device" FontSize="12" TextColor="#6B7280"/>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0" 
+                                x:Name="ExportToFolderBtn" 
+                                Text="Export to Folder" 
+                                Clicked="OnExportToFolderClicked" 
+                                BackgroundColor="#10B981"/>
+                        <Button Grid.Column="1" 
+                                x:Name="ExportAsZipBtn" 
+                                Text="Export as ZIP" 
+                                Clicked="OnExportAsZipClicked" 
+                                BackgroundColor="#6B7280"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame x:Name="GitHubFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="GitHub Pages" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Free hosting via GitHub Pages" FontSize="12" TextColor="#6B7280"/>
+                    
+                    <Label Text="Personal Access Token" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="GitHubTokenEntry" Placeholder="ghp_..." IsPassword="True"/>
+                    <Label Text="Generate at github.com/settings/tokens" FontSize="11" TextColor="#9CA3AF"/>
+                    
+                    <Label Text="Username" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="GitHubUsernameEntry" Placeholder="your-username"/>
+                    
+                    <Label Text="Repository" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="GitHubRepoEntry" Placeholder="league-website"/>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="GitHubCreateRepoCheck" IsChecked="True"/>
+                        <Label Text="Create repository if it does not exist" VerticalOptions="Center" FontSize="12"/>
+                    </HorizontalStackLayout>
+                    
+                    <Label x:Name="GitHubUrlPreview" Text="Your site: https://username.github.io/repo/" FontSize="12" TextColor="#3B82F6"/>
+                    
+                    <Frame x:Name="GitHubStatusFrame" BackgroundColor="#FEF3C7" BorderColor="#F59E0B" Padding="8" CornerRadius="6" IsVisible="False">
+                        <Label x:Name="GitHubStatusLabel" Text="Checking..." FontSize="12" TextColor="#92400E"/>
+                    </Frame>
+                    
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Button Grid.Column="0" 
+                                x:Name="DeployToGitHubBtn" 
+                                Text="Deploy to GitHub" 
+                                Clicked="OnDeployToGitHubClicked" 
+                                BackgroundColor="#238636"/>
+                        <Button Grid.Column="1" 
+                                x:Name="CheckGitHubStatusBtn" 
+                                Text="Status" 
+                                Clicked="OnCheckGitHubStatusClicked" 
+                                BackgroundColor="#6B7280" 
+                                WidthRequest="80"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame x:Name="FtpFrame" BorderColor="#E5E7EB" Padding="15" CornerRadius="8" IsVisible="False">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="FTP Upload" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Upload directly to your web server" FontSize="12" TextColor="#6B7280"/>
+                    
+                    <Label Text="FTP Host" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="FtpHostEntry" Placeholder="ftp.yoursite.com"/>
+                    
+                    <Grid ColumnDefinitions="*,80" ColumnSpacing="10">
+                        <Entry Grid.Column="0" x:Name="FtpUsernameEntry" Placeholder="Username"/>
+                        <Entry Grid.Column="1" x:Name="FtpPortEntry" Placeholder="21" Keyboard="Numeric"/>
+                    </Grid>
+                    
+                    <Label Text="Password" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="FtpPasswordEntry" Placeholder="Password" IsPassword="True"/>
+                    
+                    <Label Text="Remote Path" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="FtpPathEntry" Placeholder="/public_html/"/>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0" 
+                                x:Name="TestConnectionBtn" 
+                                Text="Test Connection" 
+                                Clicked="OnTestConnectionClicked" 
+                                BackgroundColor="#6B7280"/>
+                        <Button Grid.Column="1" 
+                                x:Name="UploadFtpBtn" 
+                                Text="Upload" 
+                                Clicked="OnUploadFtpClicked" 
+                                BackgroundColor="#10B981"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

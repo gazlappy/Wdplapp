@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.WebsiteBuilderHub"
+             Title="Website Builder">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Website Builder"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="#3B82F6"/>
+            
+            <Label Text="Design and publish your league website"
+                   FontSize="14"
+                   TextColor="#6B7280"/>
+            
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                <Button Grid.Column="0"
+                        x:Name="PreviewBtn"
+                        Text="Preview"
+                        Clicked="OnPreviewClicked"
+                        BackgroundColor="#3B82F6"
+                        FontSize="13"/>
+                
+                <Button Grid.Column="1"
+                        x:Name="DeployBtn"
+                        Text="Deploy"
+                        Clicked="OnDeployClicked"
+                        BackgroundColor="#10B981"
+                        FontSize="13"/>
+                
+                <Button Grid.Column="2"
+                        x:Name="SaveBtn"
+                        Text="Save"
+                        Clicked="OnSaveClicked"
+                        BackgroundColor="#6B7280"
+                        FontSize="13"/>
+            </Grid>
+            
+            <Label x:Name="StatusLabel" 
+                   FontSize="14"
+                   TextColor="#10B981"
+                   IsVisible="False"/>
+            
+            <ProgressBar x:Name="ProgressBar" 
+                         IsVisible="False" 
+                         ProgressColor="#3B82F6"/>
+            
+            <!-- Season and Template Selection -->
+            <Frame BorderColor="#3B82F6" Padding="15" CornerRadius="8" BackgroundColor="#EFF6FF">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Season and Template" FontAttributes="Bold" FontSize="16"/>
+                    <Picker x:Name="SeasonPicker" Title="Select Season"/>
+                    <Picker x:Name="TemplatePicker" Title="Select Template"/>
+                    <Label x:Name="TemplateDescription" 
+                           FontSize="12" 
+                           TextColor="#6B7280"
+                           IsVisible="False"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Branding Section -->
+            <Label Text="Branding" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBrandingTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[B]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Site Branding" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="League name, logo, subtitle" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnContactTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[C]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Contact and Social" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Email, phone, social media links" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <!-- Design Section -->
+            <Label Text="Design" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnColorsTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[T]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Colors and Theme" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Color schemes, presets" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnLayoutTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[L]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Layout and Styling" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Header, nav, footer, fonts, tables" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <!-- Content Section -->
+            <Label Text="Content" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnContentTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[P]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Pages and Content" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Choose pages, home layout, page settings" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnGalleryTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[G]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Photo Gallery" FontAttributes="Bold" FontSize="16"/>
+                        <Label x:Name="GalleryCountLabel" Text="Manage photos (0 images)" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <!-- Print/Export Section -->
+            <Label Text="Print and Export" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
+            
+            <Frame BorderColor="#10B981" Padding="0" CornerRadius="8" BackgroundColor="#ECFDF5">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFixturesSheetTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[F]" FontSize="20" VerticalOptions="Center" TextColor="#10B981"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Fixtures Sheet" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Printable fixtures grid for distribution" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <!-- Advanced Section -->
+            <Label Text="Advanced" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
+            
+            <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSeoTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[S]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="SEO and Advanced" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Meta tags, custom CSS, sitemap" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <Frame BorderColor="#3B82F6" Padding="0" CornerRadius="8" BackgroundColor="#EFF6FF">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnDeploymentTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="[D]" FontSize="20" VerticalOptions="Center" TextColor="#3B82F6"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Deployment" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Export, GitHub Pages, FTP" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
+            <!-- Preview Frame -->
+            <Frame x:Name="PreviewFrame" 
+                   BorderColor="#E5E7EB" 
+                   Padding="0" 
+                   CornerRadius="8"
+                   IsVisible="False">
+                <VerticalStackLayout Spacing="0">
+                    <Grid BackgroundColor="#F3F4F6" Padding="15" ColumnDefinitions="*,Auto,Auto">
+                        <Label Grid.Column="0" Text="Live Preview" FontAttributes="Bold" FontSize="16" VerticalOptions="Center"/>
+                        <Picker Grid.Column="1" x:Name="PreviewPagePicker" Title="Page" WidthRequest="120" Margin="0,0,10,0" SelectedIndexChanged="OnPreviewPageChanged"/>
+                        <Button Grid.Column="2" Text="X" Clicked="OnClosePreviewClicked" BackgroundColor="#EF4444" TextColor="White" WidthRequest="40"/>
+                    </Grid>
+                    <WebView x:Name="PreviewWebView" HeightRequest="500" HorizontalOptions="Fill"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

@@ -155,9 +155,12 @@ namespace Wdpl2.Models
         public bool PlayersShowAverage { get; set; } = false;
         public bool PlayersShowForm { get; set; } = false;
         public bool PlayersShowPhoto { get; set; } = false;
+        public bool PlayersShowRating { get; set; } = true;
         public int PlayersMinGames { get; set; } = 0;
+        public int PlayersMinFramesPercentage { get; set; } = 0;
+        public bool PlayersUsePercentageFilter { get; set; } = false;
         public int PlayersPerPage { get; set; } = 50;
-        public string PlayersSortBy { get; set; } = "winpercentage"; // winpercentage, won, played, eightballs
+        public string PlayersSortBy { get; set; } = "winpercentage"; // winpercentage, won, played, eightballs, rating
         
         // Divisions Page Options
         public bool DivisionsShowTeamCount { get; set; } = true;
@@ -450,7 +453,10 @@ namespace Wdpl2.Models
             PlayersShowEightBalls = true;
             PlayersShowAverage = false;
             PlayersShowForm = false;
+            PlayersShowRating = true;
             PlayersMinGames = 0;
+            PlayersMinFramesPercentage = 0;
+            PlayersUsePercentageFilter = false;
             PlayersPerPage = 50;
             
             // Divisions

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.PlayersSettingsPage"
+             Title="Players Page Settings">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Players Page" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Customize the player statistics table" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <!-- Columns to Display -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Table Columns" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Choose which columns appear in the players table" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <!-- Use single column layout to avoid overlap -->
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPositionCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Position" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowTeamCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Team" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPlayedCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Games Played" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowWonCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Games Won" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowLostCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Games Lost" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowWinPercentageCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Win %" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowEightBallsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="8-Ball Wins" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowRatingCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Rating" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowAverageCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Average" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFormCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Recent Form" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPhotoCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Player Photo" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Sorting -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Default Sort Order" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="How players are sorted by default" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <Picker x:Name="SortByPicker" Title="Sort by...">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>winpercentage</x:String>
+                                <x:String>rating</x:String>
+                                <x:String>won</x:String>
+                                <x:String>played</x:String>
+                                <x:String>eightballs</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Filtering -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Player Filtering" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Control which players appear in the ratings table" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <!-- Filter Type Selection -->
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="UsePercentageFilterCheck" IsChecked="False" CheckedChanged="OnFilterTypeChanged" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Use percentage-based filter (% of available frames)" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                    
+                    <!-- Fixed Number Filter -->
+                    <VerticalStackLayout x:Name="FixedFilterSection" Spacing="8">
+                        <Label Text="Minimum games played" FontSize="12" TextColor="#6B7280"/>
+                        <Entry x:Name="MinGamesEntry" Text="0" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                        <Label Text="Set to 0 to show all players" FontSize="11" TextColor="#9CA3AF" LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                    
+                    <!-- Percentage Filter -->
+                    <VerticalStackLayout x:Name="PercentageFilterSection" Spacing="8" IsVisible="False">
+                        <Label Text="Minimum % of available frames" FontSize="12" TextColor="#6B7280"/>
+                        <Grid ColumnDefinitions="*,60" ColumnSpacing="10">
+                            <Slider x:Name="MinFramesPercentageSlider" Minimum="0" Maximum="100" Value="60" ValueChanged="OnPercentageSliderChanged"/>
+                            <Label x:Name="PercentageValueLabel" Grid.Column="1" Text="60%" FontAttributes="Bold" VerticalOptions="Center" HorizontalOptions="End"/>
+                        </Grid>
+                        <Label Text="Players must have played at least this % of the maximum frames in the season" FontSize="11" TextColor="#9CA3AF" LineBreakMode="WordWrap"/>
+                        <Label Text="Example: If max is 30 frames and this is 60%, players need 18 frames to appear" FontSize="11" TextColor="#9CA3AF" FontAttributes="Italic" LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Pagination -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Pagination" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Players per page" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="PlayersPerPageEntry" Text="50" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

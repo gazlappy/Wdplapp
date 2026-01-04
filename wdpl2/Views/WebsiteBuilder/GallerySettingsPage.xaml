@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.GallerySettingsPage"
+             Title="Photo Gallery">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Photo Gallery" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Manage photos for your website gallery" FontSize="14" TextColor="#6B7280"/>
+            
+            <Frame BorderColor="#3B82F6" Padding="15" CornerRadius="8" BackgroundColor="#EFF6FF">
+                <HorizontalStackLayout Spacing="20">
+                    <VerticalStackLayout>
+                        <Label x:Name="ImageCountLabel" Text="0" FontSize="32" FontAttributes="Bold" TextColor="#3B82F6"/>
+                        <Label Text="Images" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Manage Photos" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0"
+                                x:Name="AddPhotosBtn"
+                                Text="Add Photos"
+                                Clicked="OnAddPhotosClicked"
+                                BackgroundColor="#3B82F6"/>
+                        <Button Grid.Column="1"
+                                x:Name="ClearAllBtn"
+                                Text="Clear All"
+                                Clicked="OnClearAllClicked"
+                                BackgroundColor="#EF4444"/>
+                    </Grid>
+                    
+                    <Label x:Name="StatusLabel" 
+                           FontSize="12" 
+                           TextColor="#6B7280"
+                           IsVisible="False"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Gallery Options" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Layout" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="GalleryLayoutPicker" Title="Select Layout">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>grid</x:String>
+                                <x:String>masonry</x:String>
+                                <x:String>carousel</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Columns" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="GalleryColumnsEntry" Placeholder="3" Keyboard="Numeric"/>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="GalleryShowCaptionsCheck" IsChecked="True"/>
+                        <Label Text="Show Captions" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="GalleryShowCategoriesCheck" IsChecked="True"/>
+                        <Label Text="Show Categories" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="GalleryEnableLightboxCheck" IsChecked="True"/>
+                        <Label Text="Enable Lightbox" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Current Images" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <CollectionView x:Name="ImageList" 
+                                    HeightRequest="200"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="10" Margin="0,0,0,5" BorderColor="#E5E7EB" CornerRadius="6">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                        <Label Grid.Column="0" Text="[IMG]" FontSize="14" VerticalOptions="Center" TextColor="#6B7280"/>
+                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                            <Label Text="{Binding FileName}" FontAttributes="Bold" LineBreakMode="TailTruncation"/>
+                                            <Label Text="{Binding Dimensions}" FontSize="11" TextColor="#6B7280"/>
+                                        </VerticalStackLayout>
+                                        <Button Grid.Column="2" 
+                                                Text="X" 
+                                                BackgroundColor="#EF4444" 
+                                                TextColor="White"
+                                                WidthRequest="35"
+                                                HeightRequest="35"
+                                                Padding="0"
+                                                CommandParameter="{Binding Id}"
+                                                Clicked="OnDeleteImageClicked"/>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                        <CollectionView.EmptyView>
+                            <VerticalStackLayout Padding="20">
+                                <Label Text="No images yet" HorizontalOptions="Center" TextColor="#6B7280"/>
+                                <Label Text="Click Add Photos to get started" HorizontalOptions="Center" FontSize="12" TextColor="#9CA3AF"/>
+                            </VerticalStackLayout>
+                        </CollectionView.EmptyView>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.StandingsSettingsPage"
+             Title="Standings Page Settings">
+    
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="Standings Page" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Customize the league standings table" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            
+            <!-- Columns to Display -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Table Columns" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Choose which columns appear in the standings table" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPositionCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Position" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPlayedCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Played" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowWonCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Won" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDrawnCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Drawn" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowLostCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Lost" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFramesForCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Frames For" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFramesAgainstCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Frames Against" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFramesDiffCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Frame Difference" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPointsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Points" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFormCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Recent Form" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Visual Options -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Visual Options" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="ShowMedalsCheck" IsChecked="True" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show medals for top 3 positions" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Highlight Zones -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Highlight Zones" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Highlight promotion/relegation zones" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="HighlightTopCheck" IsChecked="True" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Highlight top positions" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                    
+                    <VerticalStackLayout x:Name="TopHighlightOptions" Spacing="8" Margin="40,0,0,0">
+                        <Label Text="Number of top positions to highlight" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        <Entry x:Name="HighlightTopCountEntry" Text="3" Keyboard="Numeric" WidthRequest="80" HorizontalOptions="Start"/>
+                        
+                        <Label Text="Top highlight color" FontSize="12" TextColor="#6B7280"/>
+                        <Entry x:Name="TopHighlightColorEntry" Text="#22C55E" Placeholder="#22C55E" WidthRequest="150" HorizontalOptions="Start"/>
+                    </VerticalStackLayout>
+                    
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,5"/>
+                    
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="HighlightBottomCheck" IsChecked="False" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Highlight bottom positions" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                    
+                    <VerticalStackLayout x:Name="BottomHighlightOptions" Spacing="8" Margin="40,0,0,0">
+                        <Label Text="Number of bottom positions to highlight" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        <Entry x:Name="HighlightBottomCountEntry" Text="2" Keyboard="Numeric" WidthRequest="80" HorizontalOptions="Start"/>
+                        
+                        <Label Text="Bottom highlight color" FontSize="12" TextColor="#6B7280"/>
+                        <Entry x:Name="BottomHighlightColorEntry" Text="#EF4444" Placeholder="#EF4444" WidthRequest="150" HorizontalOptions="Start"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <Button Text="Save Changes" 
+                    Clicked="OnSaveClicked" 
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+    
+</ContentPage>
