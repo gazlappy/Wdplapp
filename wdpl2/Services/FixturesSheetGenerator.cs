@@ -16,6 +16,43 @@ namespace Wdpl2.Services
     }
     
     /// <summary>
+    /// Logo position options for fixtures sheet
+    /// </summary>
+    public enum LogoPosition
+    {
+        AboveTitle,
+        BelowTitle,
+        LeftOfTitle,
+        RightOfTitle,
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight
+    }
+    
+    /// <summary>
+    /// Predefined logo from the catalog
+    /// </summary>
+    public sealed class LogoCatalogItem
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public byte[] ImageData { get; set; } = Array.Empty<byte>();
+        public string Category { get; set; } = "General";
+        
+        public LogoCatalogItem() { }
+        
+        public LogoCatalogItem(string id, string name, string description, string category = "General")
+        {
+            Id = id;
+            Name = name;
+            Description = description;
+            Category = category;
+        }
+    }
+    
+    /// <summary>
     /// Settings for the fixtures sheet generator
     /// </summary>
     public sealed class FixturesSheetSettings
@@ -57,8 +94,88 @@ namespace Wdpl2.Services
         public bool ShowVenueInfo { get; set; } = true;
         public bool ShowDivisionTeamLists { get; set; } = true;
         public bool ShowSpecialEvents { get; set; } = true;
+        
+        // Logo options
         public bool ShowLeagueLogo { get; set; } = false;
         public byte[]? LogoImageData { get; set; }
+        public LogoPosition LogoPosition { get; set; } = LogoPosition.AboveTitle;
+        public int LogoWidth { get; set; } = 100; // pixels
+        public int LogoHeight { get; set; } = 60; // pixels (0 = auto/aspect ratio)
+        public bool LogoMaintainAspectRatio { get; set; } = true;
+        public string? SelectedCatalogLogoId { get; set; }
+        
+        // Logo catalog - stored logos that can be reused
+        public List<LogoCatalogItem> LogoCatalog { get; set; } = new();
+        
+        /// <summary>
+        /// Get the effective logo data (either custom uploaded or from catalog)
+        /// </summary>
+        public byte[]? GetEffectiveLogoData()
+        {
+            // If custom logo data is set, use that
+            if (LogoImageData != null && LogoImageData.Length > 0)
+                return LogoImageData;
+            
+            // Otherwise, check if a catalog logo is selected
+            if (!string.IsNullOrEmpty(SelectedCatalogLogoId))
+            {
+                var catalogItem = LogoCatalog.FirstOrDefault(l => l.Id == SelectedCatalogLogoId);
+                if (catalogItem != null && catalogItem.ImageData.Length > 0)
+                    return catalogItem.ImageData;
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Add a logo to the catalog
+        /// </summary>
+        public void AddLogoCatalogItem(string name, byte[] imageData, string description = "", string category = "General")
+        {
+            LogoCatalog.Add(new LogoCatalogItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = name,
+                Description = description,
+                ImageData = imageData,
+                Category = category
+            });
+        }
+        
+        /// <summary>
+        /// Remove a logo from the catalog
+        /// </summary>
+        public bool RemoveLogoCatalogItem(string id)
+        {
+            var item = LogoCatalog.FirstOrDefault(l => l.Id == id);
+            if (item != null)
+            {
+                LogoCatalog.Remove(item);
+                if (SelectedCatalogLogoId == id)
+                    SelectedCatalogLogoId = null;
+                return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Select a logo from the catalog
+        /// </summary>
+        public void SelectCatalogLogo(string id)
+        {
+            SelectedCatalogLogoId = id;
+            // Clear custom logo when selecting from catalog
+            LogoImageData = null;
+        }
+        
+        /// <summary>
+        /// Use a custom uploaded logo (clears catalog selection)
+        /// </summary>
+        public void UseCustomLogo(byte[] imageData)
+        {
+            LogoImageData = imageData;
+            SelectedCatalogLogoId = null;
+        }
     }
     
     /// <summary>
@@ -162,27 +279,14 @@ namespace Wdpl2.Services
         private string GenerateSheetContent(List<Division> divisions, List<Venue> venues, List<Team> teams, List<Fixture> fixtures, Season season)
         {
             var html = new StringBuilder();
+            var effectiveLogoData = _settings.GetEffectiveLogoData();
+            var hasLogo = _settings.ShowLeagueLogo && effectiveLogoData != null;
             
             // Header
             html.AppendLine("<div class=\"fixtures-sheet\">");
-            html.AppendLine($"    <h1 class=\"sheet-title\">{_settings.LeagueName} {_settings.SeasonName}</h1>");
-            html.AppendLine("    <div class=\"sheet-header\">");
-            if (_settings.ShowLeagueLogo && _settings.LogoImageData != null)
-            {
-                var logoBase64 = Convert.ToBase64String(_settings.LogoImageData);
-                html.AppendLine($"        <img src=\"data:image/png;base64,{logoBase64}\" class=\"league-logo\" alt=\"{_settings.LeagueName} Logo\">");
-            }
-            if (!string.IsNullOrWhiteSpace(_settings.Subtitle))
-            {
-                html.AppendLine($"        <h2 class=\"sheet-subtitle\">{_settings.Subtitle}</h2>");
-            }
-            else
-            {
-                var divNames = string.Join(" & ", divisions.Select(d => d.Name).Where(n => !string.IsNullOrEmpty(n)));
-                if (!string.IsNullOrWhiteSpace(divNames))
-                    html.AppendLine($"        <h2 class=\"sheet-subtitle\">{divNames.ToUpper()} FIXTURES</h2>");
-            }
-            html.AppendLine("    </div>");
+            
+            // Generate header based on logo position
+            GenerateHeader(html, divisions, hasLogo, effectiveLogoData);
             
             // Generate fixtures grid
             GenerateFixturesGrid(html, fixtures, teams, divisions, season);
@@ -208,9 +312,106 @@ namespace Wdpl2.Services
             // Footer notes
             GenerateFooter(html);
             
+            // Corner positioned logos
+            if (hasLogo && (_settings.LogoPosition == LogoPosition.BottomLeft || _settings.LogoPosition == LogoPosition.BottomRight))
+            {
+                GenerateCornerLogo(html, effectiveLogoData!, _settings.LogoPosition);
+            }
+            
             html.AppendLine("</div>");
             
             return html.ToString();
+        }
+        
+        private void GenerateHeader(StringBuilder html, List<Division> divisions, bool hasLogo, byte[]? logoData)
+        {
+            var logoBase64 = hasLogo && logoData != null ? Convert.ToBase64String(logoData) : "";
+            var logoHtml = hasLogo ? GenerateLogoImgTag(logoBase64) : "";
+            
+            // Determine layout class based on logo position
+            var headerClass = "sheet-header";
+            if (hasLogo)
+            {
+                headerClass += _settings.LogoPosition switch
+                {
+                    LogoPosition.LeftOfTitle => " header-logo-left",
+                    LogoPosition.RightOfTitle => " header-logo-right",
+                    LogoPosition.TopLeft or LogoPosition.TopRight => " header-logo-corner",
+                    _ => ""
+                };
+            }
+            
+            // Top corner logos
+            if (hasLogo && (_settings.LogoPosition == LogoPosition.TopLeft || _settings.LogoPosition == LogoPosition.TopRight))
+            {
+                var cornerClass = _settings.LogoPosition == LogoPosition.TopLeft ? "corner-logo-top-left" : "corner-logo-top-right";
+                html.AppendLine($"    <div class=\"{cornerClass}\">{logoHtml}</div>");
+            }
+            
+            html.AppendLine($"    <div class=\"{headerClass}\">");
+            
+            // Logo above title
+            if (hasLogo && _settings.LogoPosition == LogoPosition.AboveTitle)
+            {
+                html.AppendLine($"        <div class=\"logo-container logo-above\">{logoHtml}</div>");
+            }
+            
+            // Logo left of title
+            if (hasLogo && _settings.LogoPosition == LogoPosition.LeftOfTitle)
+            {
+                html.AppendLine($"        <div class=\"logo-container logo-left\">{logoHtml}</div>");
+            }
+            
+            // Title section
+            html.AppendLine("        <div class=\"title-section\">");
+            html.AppendLine($"            <h1 class=\"sheet-title\">{_settings.LeagueName} {_settings.SeasonName}</h1>");
+            
+            if (!string.IsNullOrWhiteSpace(_settings.Subtitle))
+            {
+                html.AppendLine($"            <h2 class=\"sheet-subtitle\">{_settings.Subtitle}</h2>");
+            }
+            else
+            {
+                var divNames = string.Join(" & ", divisions.Select(d => d.Name).Where(n => !string.IsNullOrEmpty(n)));
+                if (!string.IsNullOrWhiteSpace(divNames))
+                    html.AppendLine($"            <h2 class=\"sheet-subtitle\">{divNames.ToUpper()} FIXTURES</h2>");
+            }
+            html.AppendLine("        </div>");
+            
+            // Logo right of title
+            if (hasLogo && _settings.LogoPosition == LogoPosition.RightOfTitle)
+            {
+                html.AppendLine($"        <div class=\"logo-container logo-right\">{logoHtml}</div>");
+            }
+            
+            // Logo below title
+            if (hasLogo && _settings.LogoPosition == LogoPosition.BelowTitle)
+            {
+                html.AppendLine($"        <div class=\"logo-container logo-below\">{logoHtml}</div>");
+            }
+            
+            html.AppendLine("    </div>");
+        }
+        
+        private string GenerateLogoImgTag(string base64Data)
+        {
+            var widthStyle = $"width: {_settings.LogoWidth}px;";
+            var heightStyle = _settings.LogoMaintainAspectRatio 
+                ? "height: auto;" 
+                : $"height: {_settings.LogoHeight}px;";
+            var maxHeightStyle = _settings.LogoMaintainAspectRatio && _settings.LogoHeight > 0
+                ? $"max-height: {_settings.LogoHeight}px;"
+                : "";
+            
+            return $"<img src=\"data:image/png;base64,{base64Data}\" class=\"league-logo\" alt=\"{_settings.LeagueName} Logo\" style=\"{widthStyle} {heightStyle} {maxHeightStyle}\">";
+        }
+        
+        private void GenerateCornerLogo(StringBuilder html, byte[] logoData, LogoPosition position)
+        {
+            var logoBase64 = Convert.ToBase64String(logoData);
+            var logoHtml = GenerateLogoImgTag(logoBase64);
+            var cornerClass = position == LogoPosition.BottomLeft ? "corner-logo-bottom-left" : "corner-logo-bottom-right";
+            html.AppendLine($"    <div class=\"{cornerClass}\">{logoHtml}</div>");
         }
         
         private void GenerateFixturesGrid(StringBuilder html, List<Fixture> fixtures, List<Team> teams, List<Division> divisions, Season season)
@@ -577,6 +778,10 @@ namespace Wdpl2.Services
             var printGridFixtureSize = isLandscape ? "7pt" : "6pt";
             var printTeamSize = isLandscape ? "7pt" : "6.5pt";
             var printTeamVenueSize = isLandscape ? "6pt" : "5.5pt";
+            
+            // Logo dimensions from settings
+            var logoWidth = $"{_settings.LogoWidth}px";
+            var logoMaxHeight = _settings.LogoHeight > 0 ? $"{_settings.LogoHeight}px" : "80px";
 
             var css = new StringBuilder();
             
@@ -596,9 +801,111 @@ html, body {{
     width: {sheetWidth}; max-width: {sheetWidth}; min-height: {sheetMinHeight};
     margin: 0 auto; padding: 2mm; background: white;
     display: flex; flex-direction: column;
+    position: relative;
 }}
 
-.fixtures-sheet .sheet-header {{ margin-bottom: 1mm; }}
+/* Header Layout Styles */
+.sheet-header {{
+    margin-bottom: 1mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}}
+
+.sheet-header.header-logo-left {{
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}}
+
+.sheet-header.header-logo-right {{
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}}
+
+.sheet-header.header-logo-right .title-section {{
+    order: 1;
+    flex: 1;
+}}
+
+.sheet-header.header-logo-right .logo-container {{
+    order: 2;
+}}
+
+.title-section {{
+    text-align: center;
+    flex: 1;
+}}
+
+/* Logo Container Styles */
+.logo-container {{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}}
+
+.logo-container.logo-above {{
+    margin-bottom: 2mm;
+}}
+
+.logo-container.logo-below {{
+    margin-top: 2mm;
+}}
+
+.logo-container.logo-left {{
+    margin-right: 10px;
+}}
+
+.logo-container.logo-right {{
+    margin-left: 10px;
+}}
+
+/* League Logo */
+.league-logo {{
+    max-width: {logoWidth};
+    max-height: {logoMaxHeight};
+    object-fit: contain;
+}}
+
+/* Corner Logo Positions */
+.corner-logo-top-left,
+.corner-logo-top-right,
+.corner-logo-bottom-left,
+.corner-logo-bottom-right {{
+    position: absolute;
+    z-index: 10;
+}}
+
+.corner-logo-top-left {{
+    top: 2mm;
+    left: 2mm;
+}}
+
+.corner-logo-top-right {{
+    top: 2mm;
+    right: 2mm;
+}}
+
+.corner-logo-bottom-left {{
+    bottom: 2mm;
+    left: 2mm;
+}}
+
+.corner-logo-bottom-right {{
+    bottom: 2mm;
+    right: 2mm;
+}}
+
+.corner-logo-top-left .league-logo,
+.corner-logo-top-right .league-logo,
+.corner-logo-bottom-left .league-logo,
+.corner-logo-bottom-right .league-logo {{
+    max-width: {logoWidth};
+    max-height: {logoMaxHeight};
+}}
 
 .fixtures-sheet .sheet-title {{
     text-align: center; font-size: {titleSize}; font-weight: bold;
@@ -610,8 +917,6 @@ html, body {{
     text-align: center; font-size: {subtitleSize}; font-weight: bold;
     margin: 0 0 2mm 0; background: #333; color: white; padding: 4px 8px;
 }}
-
-.league-logo {{ max-height: 40px; max-width: 100px; display: block; margin: 0 auto 1mm auto; }}
 
 /* Fixtures Grid - each table is a portion of the season */
 .fixtures-grid {{
@@ -853,6 +1158,14 @@ html, body {{
         color: #000;
         text-decoration: none;
     }}
+    
+    /* Ensure corner logos print correctly */
+    .corner-logo-top-left,
+    .corner-logo-top-right,
+    .corner-logo-bottom-left,
+    .corner-logo-bottom-right {{
+        position: absolute;
+    }}
 }}
 
 /* Screen Preview */
@@ -890,6 +1203,11 @@ html, body {{
     .division-box {{
         max-width: none;
         min-width: auto;
+    }}
+    
+    .sheet-header.header-logo-left,
+    .sheet-header.header-logo-right {{
+        flex-direction: column;
     }}
 }}
 ");

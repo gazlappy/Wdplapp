@@ -10,6 +10,7 @@
             <Label Text="Site Branding" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
             <Label Text="Configure your league name, logo, and identity" FontSize="14" TextColor="#6B7280"/>
             
+            <!-- League Name and Subtitle -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="League Name" FontSize="14" FontAttributes="Bold"/>
@@ -20,51 +21,129 @@
                 </VerticalStackLayout>
             </Frame>
             
+            <!-- Logo Upload -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="League Logo" FontSize="14" FontAttributes="Bold"/>
                     <Label Text="Upload an image to display on your website header" FontSize="12" TextColor="#6B7280"/>
                     
-                    <HorizontalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <Button x:Name="UploadLogoBtn" 
-                                Text="Upload Logo" 
+                                Text="Upload New Logo" 
                                 Clicked="OnUploadLogoClicked"
                                 BackgroundColor="#3B82F6"/>
-                        <Button x:Name="RemoveLogoBtn" 
-                                Text="Remove" 
-                                Clicked="OnRemoveLogoClicked"
-                                BackgroundColor="#EF4444"
-                                IsVisible="False"/>
-                    </HorizontalStackLayout>
+                        <Button Grid.Column="1" x:Name="SelectCatalogBtn" 
+                                Text="Select from Catalog" 
+                                Clicked="OnSelectFromCatalogClicked"
+                                BackgroundColor="#6B7280"/>
+                    </Grid>
                     
-                    <Label x:Name="LogoStatusLabel" 
-                           Text="No logo selected"
-                           FontSize="12"
-                           TextColor="#6B7280"/>
-                    
-                    <Image x:Name="LogoPreviewImage" 
-                           HeightRequest="100" 
-                           Aspect="AspectFit"
-                           IsVisible="False"
-                           Margin="0,10,0,0"/>
+                    <!-- Current Logo Preview -->
+                    <Frame x:Name="LogoPreviewFrame" BorderColor="#E5E7EB" Padding="10" CornerRadius="4" IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Current Logo:" FontSize="12" TextColor="#6B7280"/>
+                            <Image x:Name="LogoPreviewImage" 
+                                   HeightRequest="80" 
+                                   Aspect="AspectFit"
+                                   HorizontalOptions="Start"/>
+                            <Label x:Name="LogoStatusLabel" 
+                                   Text="Logo loaded"
+                                   FontSize="11"
+                                   TextColor="#10B981"/>
+                            <Button x:Name="RemoveLogoBtn" 
+                                    Text="Remove Logo" 
+                                    Clicked="OnRemoveLogoClicked"
+                                    BackgroundColor="#EF4444"
+                                    FontSize="12"
+                                    HeightRequest="32"
+                                    HorizontalOptions="Start"/>
+                        </VerticalStackLayout>
+                    </Frame>
                 </VerticalStackLayout>
             </Frame>
             
+            <!-- Logo Position and Size -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Logo Position" FontSize="14" FontAttributes="Bold"/>
-                    <Label Text="Where to display the logo relative to the title" FontSize="12" TextColor="#6B7280"/>
+                    <Label Text="Where to display the logo relative to the header title" FontSize="12" TextColor="#6B7280"/>
                     
                     <Picker x:Name="LogoPositionPicker" Title="Select Position">
                         <Picker.ItemsSource>
                             <x:Array Type="{x:Type x:String}">
-                                <x:String>above</x:String>
-                                <x:String>left</x:String>
-                                <x:String>right</x:String>
-                                <x:String>hidden</x:String>
+                                <x:String>Above Title</x:String>
+                                <x:String>Below Title</x:String>
+                                <x:String>Left of Title</x:String>
+                                <x:String>Right of Title</x:String>
+                                <x:String>Top Left Corner</x:String>
+                                <x:String>Top Right Corner</x:String>
+                                <x:String>Bottom Left Corner</x:String>
+                                <x:String>Bottom Right Corner</x:String>
+                                <x:String>Hidden</x:String>
                             </x:Array>
                         </Picker.ItemsSource>
                     </Picker>
+                    
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,5"/>
+                    
+                    <Label Text="Logo Size" FontSize="14" FontAttributes="Bold"/>
+                    <Grid ColumnDefinitions="Auto,100,Auto,100" ColumnSpacing="10" RowDefinitions="Auto">
+                        <Label Text="Max Width:" VerticalOptions="Center"/>
+                        <Entry Grid.Column="1" x:Name="LogoWidthEntry" Text="300" Keyboard="Numeric"/>
+                        <Label Grid.Column="2" Text="Max Height:" VerticalOptions="Center"/>
+                        <Entry Grid.Column="3" x:Name="LogoHeightEntry" Text="150" Keyboard="Numeric"/>
+                    </Grid>
+                    <Label Text="Size in pixels" FontSize="11" TextColor="#9CA3AF"/>
+                    
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="MaintainAspectRatioCheck" IsChecked="True"/>
+                        <Label Text="Maintain aspect ratio" VerticalOptions="Center" FontSize="13"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Logo Catalog -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Logo Catalog" FontSize="14" FontAttributes="Bold"/>
+                        <Button Grid.Column="1" x:Name="SaveToCatalogBtn" 
+                                Text="+ Save Current to Catalog" 
+                                Clicked="OnSaveToCatalogClicked" 
+                                BackgroundColor="#10B981" 
+                                FontSize="11" 
+                                Padding="10,5"
+                                IsEnabled="False"/>
+                    </Grid>
+                    <Label Text="Save logos to reuse across your website" FontSize="12" TextColor="#6B7280"/>
+                    
+                    <CollectionView x:Name="LogoCatalogCollection" HeightRequest="120">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="8" Margin="0,2" BorderColor="#E5E7EB" CornerRadius="4">
+                                    <Grid ColumnDefinitions="50,*,Auto,Auto" ColumnSpacing="10">
+                                        <Image Source="{Binding ImageSource}" HeightRequest="40" Aspect="AspectFit"/>
+                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                            <Label Text="{Binding Name}" FontSize="12" FontAttributes="Bold"/>
+                                            <Label Text="{Binding Category}" FontSize="10" TextColor="#6B7280"/>
+                                        </VerticalStackLayout>
+                                        <Button Grid.Column="2" Text="Use" Clicked="OnUseCatalogLogoClicked" 
+                                                CommandParameter="{Binding .}"
+                                                BackgroundColor="#3B82F6" TextColor="White" 
+                                                FontSize="10" Padding="8,4" HeightRequest="28"/>
+                                        <Button Grid.Column="3" Text="X" Clicked="OnDeleteCatalogLogoClicked" 
+                                                CommandParameter="{Binding .}"
+                                                BackgroundColor="#EF4444" TextColor="White" 
+                                                FontSize="10" WidthRequest="28" HeightRequest="28"/>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                        <CollectionView.EmptyView>
+                            <Label Text="No logos saved in catalog. Upload a logo and save it to the catalog to reuse it." 
+                                   FontSize="11" TextColor="#9CA3AF" HorizontalOptions="Center" Margin="0,15"/>
+                        </CollectionView.EmptyView>
+                    </CollectionView>
                 </VerticalStackLayout>
             </Frame>
             

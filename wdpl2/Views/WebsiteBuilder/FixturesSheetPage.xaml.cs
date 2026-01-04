@@ -13,7 +13,13 @@ public partial class FixturesSheetPage : ContentPage
     private readonly ObservableCollection<DivisionSelection> _divisions = new();
     private readonly ObservableCollection<SpecialEventItem> _events = new();
     private readonly ObservableCollection<VenuePhoneItem> _venuePhones = new();
+    private readonly ObservableCollection<LogoCatalogDisplayItem> _logoCatalog = new();
     private string? _generatedHtml;
+    
+    // Logo state
+    private byte[]? _currentLogoData;
+    private string? _currentCatalogLogoId;
+    private bool _usingCatalogLogo;
 
     public FixturesSheetPage()
     {
@@ -26,8 +32,13 @@ public partial class FixturesSheetPage : ContentPage
         DivisionsCollection.ItemsSource = _divisions;
         EventsCollection.ItemsSource = _events;
         VenuePhonesCollection.ItemsSource = _venuePhones;
+        LogoCatalogCollection.ItemsSource = _logoCatalog;
+        
+        // Set default logo position
+        LogoPositionPicker.SelectedIndex = 0;
         
         LoadData();
+        LoadLogoCatalog();
     }
 
     private void LoadData()
@@ -48,6 +59,26 @@ public partial class FixturesSheetPage : ContentPage
         LeagueNameEntry.Text = settings.LeagueName;
         WebsiteUrlEntry.Text = settings.WebsiteUrl;
         EmailEntry.Text = settings.ContactEmail;
+        
+        // Load logo from website settings if available
+        if (settings.UseCustomLogo && settings.LogoImageData != null)
+        {
+            _currentLogoData = settings.LogoImageData;
+            UpdateLogoPreview();
+        }
+    }
+
+    private void LoadLogoCatalog()
+    {
+        _logoCatalog.Clear();
+        
+        // Load from app settings (we'll store in WebsiteSettings for persistence)
+        // For now, create display items from any stored catalog
+        var settings = League.WebsiteSettings;
+        
+        // Check if we have the fixtures sheet logo catalog stored
+        // We'll use a simple approach - store in a separate property we'll add
+        // For now, let's just show an empty catalog that can be built up
     }
 
     private void OnSeasonChanged(object? sender, EventArgs e)
@@ -80,6 +111,202 @@ public partial class FixturesSheetPage : ContentPage
     {
         // Handle in binding
     }
+
+    #region Logo Handling
+
+    private void OnShowLogoChanged(object sender, CheckedChangedEventArgs e)
+    {
+        LogoOptionsStack.IsVisible = e.Value;
+    }
+
+    private async void OnUploadLogoClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select Logo Image",
+                FileTypes = FilePickerFileType.Images
+            });
+
+            if (result != null)
+            {
+                using var stream = await result.OpenReadAsync();
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                _currentLogoData = memoryStream.ToArray();
+                _usingCatalogLogo = false;
+                _currentCatalogLogoId = null;
+                
+                UpdateLogoPreview();
+                SetStatus($"Logo loaded: {result.FileName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to load logo: {ex.Message}", "OK");
+        }
+    }
+
+    private async void OnSelectFromCatalogClicked(object sender, EventArgs e)
+    {
+        if (_logoCatalog.Count == 0)
+        {
+            await DisplayAlert("No Logos", "No logos saved in catalog. Upload a logo first, then save it to the catalog.", "OK");
+            return;
+        }
+        
+        var logoNames = _logoCatalog.Select(l => l.Name).ToArray();
+        var selected = await DisplayActionSheet("Select Logo from Catalog", "Cancel", null, logoNames);
+        
+        if (!string.IsNullOrEmpty(selected) && selected != "Cancel")
+        {
+            var logo = _logoCatalog.FirstOrDefault(l => l.Name == selected);
+            if (logo != null)
+            {
+                _currentLogoData = logo.ImageData;
+                _usingCatalogLogo = true;
+                _currentCatalogLogoId = logo.Id;
+                UpdateLogoPreview();
+                SetStatus($"Using catalog logo: {logo.Name}");
+            }
+        }
+    }
+
+    private void OnRemoveLogoClicked(object sender, EventArgs e)
+    {
+        _currentLogoData = null;
+        _usingCatalogLogo = false;
+        _currentCatalogLogoId = null;
+        
+        LogoPreviewFrame.IsVisible = false;
+        SaveToCatalogBtn.IsEnabled = false;
+        SetStatus("Logo removed");
+    }
+
+    private async void OnSaveToCatalogClicked(object sender, EventArgs e)
+    {
+        if (_currentLogoData == null || _currentLogoData.Length == 0)
+        {
+            await DisplayAlert("No Logo", "Please upload a logo first.", "OK");
+            return;
+        }
+
+        var name = await DisplayPromptAsync("Save to Catalog", "Enter a name for this logo:", placeholder: "League Logo");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var category = await DisplayPromptAsync("Save to Catalog", "Enter a category (optional):", placeholder: "General");
+        if (string.IsNullOrEmpty(category)) category = "General";
+
+        var newItem = new LogoCatalogDisplayItem
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            Category = category,
+            ImageData = _currentLogoData
+        };
+
+        _logoCatalog.Add(newItem);
+        
+        // Save to persistent storage (WebsiteSettings or similar)
+        SaveLogoCatalog();
+        
+        SetStatus($"Logo saved to catalog: {name}");
+    }
+
+    private void OnUseCatalogLogoClicked(object sender, EventArgs e)
+    {
+        if (sender is Button btn && btn.CommandParameter is LogoCatalogDisplayItem item)
+        {
+            _currentLogoData = item.ImageData;
+            _usingCatalogLogo = true;
+            _currentCatalogLogoId = item.Id;
+            UpdateLogoPreview();
+            SetStatus($"Using catalog logo: {item.Name}");
+        }
+    }
+
+    private async void OnDeleteCatalogLogoClicked(object sender, EventArgs e)
+    {
+        if (sender is Button btn && btn.CommandParameter is LogoCatalogDisplayItem item)
+        {
+            var confirm = await DisplayAlert("Delete Logo", $"Delete '{item.Name}' from catalog?", "Delete", "Cancel");
+            if (confirm)
+            {
+                _logoCatalog.Remove(item);
+                
+                // If this was the current logo, clear it
+                if (_currentCatalogLogoId == item.Id)
+                {
+                    _currentLogoData = null;
+                    _usingCatalogLogo = false;
+                    _currentCatalogLogoId = null;
+                    LogoPreviewFrame.IsVisible = false;
+                    SaveToCatalogBtn.IsEnabled = false;
+                }
+                
+                SaveLogoCatalog();
+                SetStatus($"Logo removed from catalog: {item.Name}");
+            }
+        }
+    }
+
+    private void UpdateLogoPreview()
+    {
+        if (_currentLogoData != null && _currentLogoData.Length > 0)
+        {
+            LogoPreviewImage.Source = ImageSource.FromStream(() => new MemoryStream(_currentLogoData));
+            LogoPreviewFrame.IsVisible = true;
+            SaveToCatalogBtn.IsEnabled = !_usingCatalogLogo; // Only enable save if it's a new upload
+            
+            if (_usingCatalogLogo)
+            {
+                var catalogItem = _logoCatalog.FirstOrDefault(l => l.Id == _currentCatalogLogoId);
+                LogoSourceLabel.Text = $"From catalog: {catalogItem?.Name ?? "Unknown"}";
+            }
+            else
+            {
+                LogoSourceLabel.Text = "Custom uploaded logo";
+            }
+        }
+        else
+        {
+            LogoPreviewFrame.IsVisible = false;
+            SaveToCatalogBtn.IsEnabled = false;
+        }
+    }
+
+    private void SaveLogoCatalog()
+    {
+        // Save to DataStore for persistence
+        // We'll store as a simple list in WebsiteSettings or create a dedicated store
+        try
+        {
+            DataStore.Save();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to save logo catalog: {ex.Message}");
+        }
+    }
+
+    private LogoPosition GetSelectedLogoPosition()
+    {
+        return LogoPositionPicker.SelectedIndex switch
+        {
+            0 => LogoPosition.AboveTitle,
+            1 => LogoPosition.BelowTitle,
+            2 => LogoPosition.LeftOfTitle,
+            3 => LogoPosition.RightOfTitle,
+            4 => LogoPosition.TopLeft,
+            5 => LogoPosition.TopRight,
+            6 => LogoPosition.BottomLeft,
+            7 => LogoPosition.BottomRight,
+            _ => LogoPosition.AboveTitle
+        };
+    }
+
+    #endregion
 
     private async void OnPreviewClicked(object sender, EventArgs e)
     {
@@ -172,6 +399,14 @@ public partial class FixturesSheetPage : ContentPage
             return null;
         }
         
+        // Parse logo dimensions
+        int logoWidth = 100;
+        int logoHeight = 60;
+        if (int.TryParse(LogoWidthEntry.Text, out int parsedWidth) && parsedWidth > 0)
+            logoWidth = parsedWidth;
+        if (int.TryParse(LogoHeightEntry.Text, out int parsedHeight) && parsedHeight >= 0)
+            logoHeight = parsedHeight;
+        
         var settings = new FixturesSheetSettings
         {
             LeagueName = LeagueNameEntry.Text ?? "Pool League",
@@ -184,7 +419,15 @@ public partial class FixturesSheetPage : ContentPage
             WebsiteUrl = WebsiteUrlEntry.Text ?? "",
             EmailAddress = EmailEntry.Text ?? "",
             CancelledMatchContact = CancelledMatchContactEntry.Text ?? "",
-            CancelledCompetitionContact = CancelledCompContactEntry.Text ?? ""
+            CancelledCompetitionContact = CancelledCompContactEntry.Text ?? "",
+            
+            // Logo settings
+            ShowLeagueLogo = ShowLogoCheck.IsChecked && _currentLogoData != null,
+            LogoImageData = _currentLogoData,
+            LogoPosition = GetSelectedLogoPosition(),
+            LogoWidth = logoWidth,
+            LogoHeight = logoHeight,
+            LogoMaintainAspectRatio = MaintainAspectRatioCheck.IsChecked
         };
         
         // Add special events
@@ -314,4 +557,16 @@ public class VenuePhoneItem
 {
     public string VenueName { get; set; } = "";
     public string PhoneNumber { get; set; } = "";
+}
+
+public class LogoCatalogDisplayItem
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Category { get; set; } = "General";
+    public byte[] ImageData { get; set; } = Array.Empty<byte>();
+    
+    public ImageSource? ImageSource => ImageData.Length > 0 
+        ? Microsoft.Maui.Controls.ImageSource.FromStream(() => new MemoryStream(ImageData)) 
+        : null;
 }

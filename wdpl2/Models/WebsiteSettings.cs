@@ -133,6 +133,12 @@ namespace Wdpl2.Models
         public int ResultsPerPage { get; set; } = 20;
         public string ResultsDateFormat { get; set; } = "ddd dd MMM";
         
+        // Results/Fixtures Layout Alignment
+        public string ResultsHomeTeamAlign { get; set; } = "right";   // right, left, center
+        public string ResultsAwayTeamAlign { get; set; } = "left";    // right, left, center
+        public string ResultsScoreAlign { get; set; } = "center";     // center, left, right
+        public string ResultsMobileTeamAlign { get; set; } = "center"; // center, left, right (mobile view)
+        
         // Fixtures Page Options
         public bool FixturesShowVenue { get; set; } = true;
         public bool FixturesShowDivision { get; set; } = true;
@@ -143,6 +149,9 @@ namespace Wdpl2.Models
         public bool FixturesShowCountdown { get; set; } = false;
         public int FixturesPerPage { get; set; } = 20;
         public string FixturesDateFormat { get; set; } = "ddd dd MMM";
+        public string FixturesHomeTeamAlign { get; set; } = "right";  // right, left, center
+        public string FixturesAwayTeamAlign { get; set; } = "left";   // right, left, center
+        public string FixturesVsAlign { get; set; } = "center";       // center, left, right
         
         // Players Page Options
         public bool PlayersShowPosition { get; set; } = true;
@@ -222,12 +231,104 @@ namespace Wdpl2.Models
         public DateTime LastGenerated { get; set; }
         public DateTime LastUploaded { get; set; }
         
-        // Image Settings
+        // Image Settings - Extended Logo Options
         public bool UseCustomLogo { get; set; } = false;
         public int LogoMaxWidth { get; set; } = 300;
         public int LogoMaxHeight { get; set; } = 150;
         public int ImageQuality { get; set; } = 85;
-        public string LogoPosition { get; set; } = "above"; // above, left, right, hidden
+        public string LogoPosition { get; set; } = "above"; // above, below, left, right, top-left, top-right, bottom-left, bottom-right, hidden
+        public bool LogoMaintainAspectRatio { get; set; } = true;
+        public string? SelectedCatalogLogoId { get; set; }
+        
+        // Logo Catalog - stored logos that can be reused across website and fixtures sheets
+        public List<WebsiteLogoCatalogItem> LogoCatalog { get; set; } = new();
+        
+        /// <summary>
+        /// Get the effective logo data (either custom uploaded or from catalog)
+        /// </summary>
+        public byte[]? GetEffectiveLogoData()
+        {
+            // If custom logo data is set, use that
+            if (LogoImageData != null && LogoImageData.Length > 0)
+                return LogoImageData;
+            
+            // Otherwise, check if a catalog logo is selected
+            if (!string.IsNullOrEmpty(SelectedCatalogLogoId))
+            {
+                var catalogItem = LogoCatalog.Find(l => l.Id == SelectedCatalogLogoId);
+                if (catalogItem != null && catalogItem.ImageData.Length > 0)
+                    return catalogItem.ImageData;
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Add a logo to the catalog
+        /// </summary>
+        public void AddLogoCatalogItem(string name, byte[] imageData, string description = "", string category = "General")
+        {
+            LogoCatalog.Add(new WebsiteLogoCatalogItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = name,
+                Description = description,
+                ImageData = imageData,
+                Category = category
+            });
+        }
+        
+        /// <summary>
+        /// Remove a logo from the catalog
+        /// </summary>
+        public bool RemoveLogoCatalogItem(string id)
+        {
+            var item = LogoCatalog.Find(l => l.Id == id);
+            if (item != null)
+            {
+                LogoCatalog.Remove(item);
+                if (SelectedCatalogLogoId == id)
+                    SelectedCatalogLogoId = null;
+                return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Select a logo from the catalog
+        /// </summary>
+        public void SelectCatalogLogo(string id)
+        {
+            SelectedCatalogLogoId = id;
+            // Clear custom logo when selecting from catalog
+            LogoImageData = null;
+        }
+        
+        /// <summary>
+        /// Use a custom uploaded logo (clears catalog selection)
+        /// </summary>
+        public void UseCustomLogoData(byte[] imageData)
+        {
+            LogoImageData = imageData;
+            SelectedCatalogLogoId = null;
+            UseCustomLogo = true;
+        }
+        
+        /// <summary>
+        /// Available logo position options
+        /// </summary>
+        public static readonly Dictionary<string, string> LogoPositions = new()
+        {
+            ["above"] = "Above Title",
+            ["below"] = "Below Title",
+            ["left"] = "Left of Title",
+            ["right"] = "Right of Title",
+            ["top-left"] = "Top Left Corner",
+            ["top-right"] = "Top Right Corner",
+            ["bottom-left"] = "Bottom Left Corner",
+            ["bottom-right"] = "Bottom Right Corner",
+            ["hidden"] = "Hidden"
+        };
         
         // Gallery Settings
         public List<GalleryImage> GalleryImages { get; set; } = new();
@@ -433,6 +534,10 @@ namespace Wdpl2.Models
             ResultsGroupByDate = true;
             ResultsShowFrameDetails = false;
             ResultsPerPage = 20;
+            ResultsHomeTeamAlign = "right";
+            ResultsAwayTeamAlign = "left";
+            ResultsScoreAlign = "center";
+            ResultsMobileTeamAlign = "center";
             
             // Fixtures
             FixturesShowVenue = true;
@@ -442,6 +547,9 @@ namespace Wdpl2.Models
             FixturesGroupByDate = true;
             FixturesShowCountdown = false;
             FixturesPerPage = 20;
+            FixturesHomeTeamAlign = "right";
+            FixturesAwayTeamAlign = "left";
+            FixturesVsAlign = "center";
             
             // Players
             PlayersShowPosition = true;
@@ -502,12 +610,15 @@ namespace Wdpl2.Models
             // Template
             SelectedTemplate = "modern";
             
-            // Images
+            // Images - Extended Logo Options
             UseCustomLogo = false;
             LogoMaxWidth = 300;
             LogoMaxHeight = 150;
             ImageQuality = 85;
             LogoPosition = "above";
+            LogoMaintainAspectRatio = true;
+            SelectedCatalogLogoId = null;
+            // Note: Don't clear LogoCatalog on reset - keep saved logos
             
             // Gallery
             GalleryImages.Clear();
@@ -557,6 +668,19 @@ namespace Wdpl2.Models
             !string.IsNullOrWhiteSpace(ContactEmail) || 
             !string.IsNullOrWhiteSpace(ContactPhone) ||
             !string.IsNullOrWhiteSpace(ContactAddress);
+    }
+    
+    /// <summary>
+    /// Logo catalog item for website (separate from fixtures sheet to allow independent catalogs)
+    /// </summary>
+    public sealed class WebsiteLogoCatalogItem
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public byte[] ImageData { get; set; } = Array.Empty<byte>();
+        public string Category { get; set; } = "General";
+        public DateTime DateAdded { get; set; } = DateTime.Now;
     }
     
     /// <summary>
