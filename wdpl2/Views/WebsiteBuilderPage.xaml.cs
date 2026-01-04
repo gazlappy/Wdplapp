@@ -37,6 +37,9 @@ namespace Wdpl2.Views
                 "Home", "Standings", "Fixtures", "Results", "Players", "Divisions" 
             };
             
+            // Setup color scheme picker
+            ColorSchemePicker.ItemsSource = WebsiteSettings.ColorSchemes.Select(cs => cs.Value.Name).ToList();
+            
             // Wire up GitHub URL preview updates
             GitHubUsernameEntry.TextChanged += (_, _) => UpdateGitHubUrlPreview();
             GitHubRepoEntry.TextChanged += (_, _) => UpdateGitHubUrlPreview();
@@ -46,6 +49,40 @@ namespace Wdpl2.Views
             // Default to Local Export
             DeploymentMethodPicker.SelectedIndex = 0;
         }
+        
+        #region Collapsible Section Toggles
+        
+        private void ToggleSection(VerticalStackLayout content, Label expandIcon)
+        {
+            content.IsVisible = !content.IsVisible;
+            expandIcon.Text = content.IsVisible ? "?" : "?";
+        }
+        
+        private void OnBrandingSectionTapped(object sender, EventArgs e)
+            => ToggleSection(BrandingContent, BrandingExpandIcon);
+        
+        private void OnContactSectionTapped(object sender, EventArgs e)
+            => ToggleSection(ContactContent, ContactExpandIcon);
+        
+        private void OnColorsSectionTapped(object sender, EventArgs e)
+            => ToggleSection(ColorsContent, ColorsExpandIcon);
+        
+        private void OnLayoutSectionTapped(object sender, EventArgs e)
+            => ToggleSection(LayoutContent, LayoutExpandIcon);
+        
+        private void OnContentSectionTapped(object sender, EventArgs e)
+            => ToggleSection(ContentContent, ContentExpandIcon);
+        
+        private void OnGallerySectionTapped(object sender, EventArgs e)
+            => ToggleSection(GalleryContent, GalleryExpandIcon);
+        
+        private void OnSeoSectionTapped(object sender, EventArgs e)
+            => ToggleSection(SeoContent, SeoExpandIcon);
+        
+        private void OnDeploymentSectionTapped(object sender, EventArgs e)
+            => ToggleSection(DeploymentContent, DeploymentExpandIcon);
+        
+        #endregion
         
         private void LoadSettings()
         {
@@ -66,19 +103,118 @@ namespace Wdpl2.Views
             // Load saved settings
             var settings = League.WebsiteSettings;
             
+            // Site Branding
             LeagueNameEntry.Text = settings.LeagueName;
             SubtitleEntry.Text = settings.LeagueSubtitle;
+            SetPickerValue(LogoPositionPicker, settings.LogoPosition);
             
+            // Contact & About
+            WelcomeMessageEditor.Text = settings.WelcomeMessage;
+            AboutTextEditor.Text = settings.AboutText;
+            ContactEmailEntry.Text = settings.ContactEmail;
+            ContactPhoneEntry.Text = settings.ContactPhone;
+            ContactAddressEntry.Text = settings.ContactAddress;
+            
+            // Social Media
+            FacebookUrlEntry.Text = settings.FacebookUrl;
+            TwitterUrlEntry.Text = settings.TwitterUrl;
+            InstagramUrlEntry.Text = settings.InstagramUrl;
+            YouTubeUrlEntry.Text = settings.YouTubeUrl;
+            TikTokUrlEntry.Text = settings.TikTokUrl;
+            WebsiteUrlEntry.Text = settings.WebsiteUrl;
+            
+            // Colors
             PrimaryColorEntry.Text = settings.PrimaryColor;
             SecondaryColorEntry.Text = settings.SecondaryColor;
             AccentColorEntry.Text = settings.AccentColor;
+            BackgroundColorEntry.Text = settings.BackgroundColor;
+            CardBackgroundColorEntry.Text = settings.CardBackgroundColor;
+            TextColorEntry.Text = settings.TextColor;
+            TextSecondaryColorEntry.Text = settings.TextSecondaryColor;
+            HeaderTextColorEntry.Text = settings.HeaderTextColor;
             
+            // Theme Options
+            EnableAnimationsCheck.IsChecked = settings.EnableAnimations;
+            EnableGradientsCheck.IsChecked = settings.EnableGradients;
+            EnableShadowsCheck.IsChecked = settings.EnableShadows;
+            EnableRoundedCornersCheck.IsChecked = settings.EnableRoundedCorners;
+            ShowLastUpdatedCheck.IsChecked = settings.ShowLastUpdated;
+            SetPickerValue(FontFamilyPicker, settings.FontFamily);
+            SetPickerValue(HeaderFontFamilyPicker, settings.HeaderFontFamily);
+            BaseFontSizeEntry.Text = settings.BaseFontSize.ToString();
+            BorderRadiusEntry.Text = settings.BorderRadius.ToString();
+            
+            // Header Options
+            SetPickerValue(HeaderStylePicker, settings.HeaderStyle);
+            SetPickerValue(HeaderAlignmentPicker, settings.HeaderAlignment);
+            ShowHeaderPatternCheck.IsChecked = settings.ShowHeaderPattern;
+            ShowSeasonBadgeCheck.IsChecked = settings.ShowSeasonBadge;
+            
+            // Navigation Options
+            SetPickerValue(NavStylePicker, settings.NavStyle);
+            SetPickerValue(NavPositionPicker, settings.NavPosition);
+            NavStickyCheck.IsChecked = settings.NavSticky;
+            ShowNavIconsCheck.IsChecked = settings.ShowNavIcons;
+            
+            // Footer Options
+            SetPickerValue(FooterStylePicker, settings.FooterStyle);
+            ShowFooterSocialLinksCheck.IsChecked = settings.ShowFooterSocialLinks;
+            ShowFooterContactCheck.IsChecked = settings.ShowFooterContact;
+            ShowPoweredByCheck.IsChecked = settings.ShowPoweredBy;
+            CustomFooterTextEntry.Text = settings.CustomFooterText;
+            CopyrightTextEntry.Text = settings.CopyrightText;
+            
+            // Content Toggles
             ShowStandingsCheck.IsChecked = settings.ShowStandings;
             ShowFixturesCheck.IsChecked = settings.ShowFixtures;
             ShowResultsCheck.IsChecked = settings.ShowResults;
             ShowPlayerStatsCheck.IsChecked = settings.ShowPlayerStats;
             ShowDivisionsCheck.IsChecked = settings.ShowDivisions;
             ShowGalleryCheck.IsChecked = settings.ShowGallery;
+            ShowTopScorersCheck.IsChecked = settings.ShowTopScorers;
+            ShowRecentFormCheck.IsChecked = settings.ShowRecentForm;
+            ShowNewsCheck.IsChecked = settings.ShowNews;
+            ShowSponsorsCheck.IsChecked = settings.ShowSponsors;
+            ShowRulesCheck.IsChecked = settings.ShowRules;
+            ShowContactPageCheck.IsChecked = settings.ShowContactPage;
+            
+            // Home Page Options
+            SetPickerValue(HomeLayoutPicker, settings.HomeLayout);
+            HomeShowWelcomeSectionCheck.IsChecked = settings.HomeShowWelcomeSection;
+            HomeShowQuickStatsCheck.IsChecked = settings.HomeShowQuickStats;
+            HomeShowRecentResultsCheck.IsChecked = settings.HomeShowRecentResults;
+            HomeShowUpcomingFixturesCheck.IsChecked = settings.HomeShowUpcomingFixtures;
+            HomeShowLeagueLeadersCheck.IsChecked = settings.HomeShowLeagueLeaders;
+            HomeShowLatestNewsCheck.IsChecked = settings.HomeShowLatestNews;
+            HomeShowSponsorsCheck.IsChecked = settings.HomeShowSponsors;
+            HomeRecentResultsCountEntry.Text = settings.HomeRecentResultsCount.ToString();
+            HomeUpcomingFixturesCountEntry.Text = settings.HomeUpcomingFixturesCount.ToString();
+            HomeLeagueLeadersCountEntry.Text = settings.HomeLeagueLeadersCount.ToString();
+            
+            // Table & Card Styling
+            TableStripedCheck.IsChecked = settings.TableStriped;
+            TableHoverableCheck.IsChecked = settings.TableHoverable;
+            TableBorderedCheck.IsChecked = settings.TableBordered;
+            TableCompactCheck.IsChecked = settings.TableCompact;
+            SetPickerValue(TableHeaderStylePicker, settings.TableHeaderStyle);
+            SetPickerValue(CardStylePicker, settings.CardStyle);
+            SetPickerValue(CardAccentPositionPicker, settings.CardAccentPosition);
+            CardShowTopAccentCheck.IsChecked = settings.CardShowTopAccent;
+            
+            // SEO Options
+            MetaDescriptionEditor.Text = settings.MetaDescription;
+            MetaKeywordsEntry.Text = settings.MetaKeywords;
+            GenerateSitemapCheck.IsChecked = settings.GenerateSitemap;
+            
+            // Gallery Options
+            SetPickerValue(GalleryLayoutPicker, settings.GalleryLayout);
+            GalleryColumnsEntry.Text = settings.GalleryColumns.ToString();
+            GalleryShowCaptionsCheck.IsChecked = settings.GalleryShowCaptions;
+            GalleryShowCategoriesCheck.IsChecked = settings.GalleryShowCategories;
+            GalleryEnableLightboxCheck.IsChecked = settings.GalleryEnableLightbox;
+            
+            // Custom CSS
+            CustomCssEditor.Text = settings.CustomCss;
             
             // Update gallery count
             UpdateGalleryCount();
@@ -135,23 +271,145 @@ namespace Wdpl2.Views
             }
         }
         
+        private void SetPickerValue(Picker picker, string value)
+        {
+            if (picker.ItemsSource is IList<string> items)
+            {
+                var index = items.IndexOf(value);
+                if (index >= 0)
+                {
+                    picker.SelectedIndex = index;
+                }
+            }
+        }
+        
+        private string GetPickerValue(Picker picker, string defaultValue)
+        {
+            return picker.SelectedItem?.ToString() ?? defaultValue;
+        }
+        
         private void SaveCurrentSettings()
         {
             var settings = League.WebsiteSettings;
             
+            // Site Branding
             settings.LeagueName = LeagueNameEntry.Text?.Trim() ?? "My Pool League";
             settings.LeagueSubtitle = SubtitleEntry.Text?.Trim() ?? "Weekly 8-Ball Competition";
+            settings.LogoPosition = GetPickerValue(LogoPositionPicker, "above");
             
+            // Contact & About
+            settings.WelcomeMessage = WelcomeMessageEditor.Text?.Trim() ?? "";
+            settings.AboutText = AboutTextEditor.Text?.Trim() ?? "";
+            settings.ContactEmail = ContactEmailEntry.Text?.Trim() ?? "";
+            settings.ContactPhone = ContactPhoneEntry.Text?.Trim() ?? "";
+            settings.ContactAddress = ContactAddressEntry.Text?.Trim() ?? "";
+            
+            // Social Media
+            settings.FacebookUrl = FacebookUrlEntry.Text?.Trim() ?? "";
+            settings.TwitterUrl = TwitterUrlEntry.Text?.Trim() ?? "";
+            settings.InstagramUrl = InstagramUrlEntry.Text?.Trim() ?? "";
+            settings.YouTubeUrl = YouTubeUrlEntry.Text?.Trim() ?? "";
+            settings.TikTokUrl = TikTokUrlEntry.Text?.Trim() ?? "";
+            settings.WebsiteUrl = WebsiteUrlEntry.Text?.Trim() ?? "";
+            
+            // Colors
             settings.PrimaryColor = PrimaryColorEntry.Text?.Trim() ?? "#3B82F6";
             settings.SecondaryColor = SecondaryColorEntry.Text?.Trim() ?? "#10B981";
             settings.AccentColor = AccentColorEntry.Text?.Trim() ?? "#F59E0B";
+            settings.BackgroundColor = BackgroundColorEntry.Text?.Trim() ?? "#F8FAFC";
+            settings.CardBackgroundColor = CardBackgroundColorEntry.Text?.Trim() ?? "#FFFFFF";
+            settings.TextColor = TextColorEntry.Text?.Trim() ?? "#0F172A";
+            settings.TextSecondaryColor = TextSecondaryColorEntry.Text?.Trim() ?? "#64748B";
+            settings.HeaderTextColor = HeaderTextColorEntry.Text?.Trim() ?? "#FFFFFF";
             
+            // Theme Options
+            settings.EnableAnimations = EnableAnimationsCheck.IsChecked;
+            settings.EnableGradients = EnableGradientsCheck.IsChecked;
+            settings.EnableShadows = EnableShadowsCheck.IsChecked;
+            settings.EnableRoundedCorners = EnableRoundedCornersCheck.IsChecked;
+            settings.ShowLastUpdated = ShowLastUpdatedCheck.IsChecked;
+            settings.FontFamily = GetPickerValue(FontFamilyPicker, "Inter");
+            settings.HeaderFontFamily = GetPickerValue(HeaderFontFamilyPicker, "Inter");
+            if (int.TryParse(BaseFontSizeEntry.Text, out int fontSize))
+                settings.BaseFontSize = fontSize;
+            if (int.TryParse(BorderRadiusEntry.Text, out int borderRadius))
+                settings.BorderRadius = borderRadius;
+            
+            // Header Options
+            settings.HeaderStyle = GetPickerValue(HeaderStylePicker, "gradient");
+            settings.HeaderAlignment = GetPickerValue(HeaderAlignmentPicker, "center");
+            settings.ShowHeaderPattern = ShowHeaderPatternCheck.IsChecked;
+            settings.ShowSeasonBadge = ShowSeasonBadgeCheck.IsChecked;
+            
+            // Navigation Options
+            settings.NavStyle = GetPickerValue(NavStylePicker, "pills");
+            settings.NavPosition = GetPickerValue(NavPositionPicker, "center");
+            settings.NavSticky = NavStickyCheck.IsChecked;
+            settings.ShowNavIcons = ShowNavIconsCheck.IsChecked;
+            
+            // Footer Options
+            settings.FooterStyle = GetPickerValue(FooterStylePicker, "dark");
+            settings.ShowFooterSocialLinks = ShowFooterSocialLinksCheck.IsChecked;
+            settings.ShowFooterContact = ShowFooterContactCheck.IsChecked;
+            settings.ShowPoweredBy = ShowPoweredByCheck.IsChecked;
+            settings.CustomFooterText = CustomFooterTextEntry.Text?.Trim() ?? "";
+            settings.CopyrightText = CopyrightTextEntry.Text?.Trim() ?? "";
+            
+            // Content Toggles
             settings.ShowStandings = ShowStandingsCheck.IsChecked;
             settings.ShowFixtures = ShowFixturesCheck.IsChecked;
             settings.ShowResults = ShowResultsCheck.IsChecked;
             settings.ShowPlayerStats = ShowPlayerStatsCheck.IsChecked;
             settings.ShowDivisions = ShowDivisionsCheck.IsChecked;
             settings.ShowGallery = ShowGalleryCheck.IsChecked;
+            settings.ShowTopScorers = ShowTopScorersCheck.IsChecked;
+            settings.ShowRecentForm = ShowRecentFormCheck.IsChecked;
+            settings.ShowNews = ShowNewsCheck.IsChecked;
+            settings.ShowSponsors = ShowSponsorsCheck.IsChecked;
+            settings.ShowRules = ShowRulesCheck.IsChecked;
+            settings.ShowContactPage = ShowContactPageCheck.IsChecked;
+            
+            // Home Page Options
+            settings.HomeLayout = GetPickerValue(HomeLayoutPicker, "standard");
+            settings.HomeShowWelcomeSection = HomeShowWelcomeSectionCheck.IsChecked;
+            settings.HomeShowQuickStats = HomeShowQuickStatsCheck.IsChecked;
+            settings.HomeShowRecentResults = HomeShowRecentResultsCheck.IsChecked;
+            settings.HomeShowUpcomingFixtures = HomeShowUpcomingFixturesCheck.IsChecked;
+            settings.HomeShowLeagueLeaders = HomeShowLeagueLeadersCheck.IsChecked;
+            settings.HomeShowLatestNews = HomeShowLatestNewsCheck.IsChecked;
+            settings.HomeShowSponsors = HomeShowSponsorsCheck.IsChecked;
+            if (int.TryParse(HomeRecentResultsCountEntry.Text, out int recentResultsCount))
+                settings.HomeRecentResultsCount = recentResultsCount;
+            if (int.TryParse(HomeUpcomingFixturesCountEntry.Text, out int upcomingFixturesCount))
+                settings.HomeUpcomingFixturesCount = upcomingFixturesCount;
+            if (int.TryParse(HomeLeagueLeadersCountEntry.Text, out int leagueLeadersCount))
+                settings.HomeLeagueLeadersCount = leagueLeadersCount;
+            
+            // Table & Card Styling
+            settings.TableStriped = TableStripedCheck.IsChecked;
+            settings.TableHoverable = TableHoverableCheck.IsChecked;
+            settings.TableBordered = TableBorderedCheck.IsChecked;
+            settings.TableCompact = TableCompactCheck.IsChecked;
+            settings.TableHeaderStyle = GetPickerValue(TableHeaderStylePicker, "gradient");
+            settings.CardStyle = GetPickerValue(CardStylePicker, "elevated");
+            settings.CardAccentPosition = GetPickerValue(CardAccentPositionPicker, "top");
+            settings.CardShowTopAccent = CardShowTopAccentCheck.IsChecked;
+            
+            // SEO Options
+            settings.MetaDescription = MetaDescriptionEditor.Text?.Trim() ?? "";
+            settings.MetaKeywords = MetaKeywordsEntry.Text?.Trim() ?? "";
+            settings.GenerateSitemap = GenerateSitemapCheck.IsChecked;
+            
+            // Gallery Options
+            settings.GalleryLayout = GetPickerValue(GalleryLayoutPicker, "grid");
+            if (int.TryParse(GalleryColumnsEntry.Text, out int galleryColumns))
+                settings.GalleryColumns = galleryColumns;
+            settings.GalleryShowCaptions = GalleryShowCaptionsCheck.IsChecked;
+            settings.GalleryShowCategories = GalleryShowCategoriesCheck.IsChecked;
+            settings.GalleryEnableLightbox = GalleryEnableLightboxCheck.IsChecked;
+            
+            // Custom CSS
+            settings.CustomCss = CustomCssEditor.Text?.Trim() ?? "";
             
             // FTP Settings
             settings.FtpHost = FtpHostEntry.Text?.Trim() ?? "";
@@ -179,6 +437,24 @@ namespace Wdpl2.Views
             {
                 settings.LogoImageData = _uploadedLogoData;
                 settings.UseCustomLogo = true;
+            }
+        }
+        
+        private void OnColorSchemeChanged(object sender, EventArgs e)
+        {
+            if (ColorSchemePicker.SelectedIndex < 0) return;
+            
+            var selectedName = ColorSchemePicker.SelectedItem?.ToString();
+            var scheme = WebsiteSettings.ColorSchemes.FirstOrDefault(cs => cs.Value.Name == selectedName);
+            
+            if (scheme.Value != null)
+            {
+                PrimaryColorEntry.Text = scheme.Value.Primary;
+                SecondaryColorEntry.Text = scheme.Value.Secondary;
+                AccentColorEntry.Text = scheme.Value.Accent;
+                BackgroundColorEntry.Text = scheme.Value.Background;
+                CardBackgroundColorEntry.Text = scheme.Value.CardBackground;
+                TextColorEntry.Text = scheme.Value.Text;
             }
         }
         
@@ -218,7 +494,7 @@ namespace Wdpl2.Views
             if (string.IsNullOrWhiteSpace(username)) username = "username";
             if (string.IsNullOrWhiteSpace(repo)) repo = "repo";
             
-            GitHubUrlPreview.Text = $"Your site will be at: https://{username}.github.io/{repo}/";
+            GitHubUrlPreview.Text = $"Your site: https://{username}.github.io/{repo}/";
         }
         
         #region Local Export
@@ -262,9 +538,7 @@ namespace Wdpl2.Views
                 if (success)
                 {
                     await DisplayAlert("? Export Complete", 
-                        $"Website exported successfully!\n\nLocation: {outputPath}\n\n" +
-                        $"Files: {files.Count}\n\n" +
-                        "You can now upload these files to any web host, or open index.html in a browser to preview.",
+                        $"Website exported!\n\nLocation: {outputPath}\nFiles: {files.Count}",
                         "OK");
                 }
                 else
@@ -400,8 +674,8 @@ namespace Wdpl2.Views
                 
                 var confirm = await DisplayAlert(
                     "Deploy to GitHub Pages",
-                    $"This will deploy your website to:\n\nhttps://{username}.github.io/{repoName}/\n\nContinue?",
-                    "Yes, Deploy",
+                    $"Deploy to:\nhttps://{username}.github.io/{repoName}/",
+                    "Deploy",
                     "Cancel");
                 
                 if (!confirm) return;
@@ -439,7 +713,6 @@ namespace Wdpl2.Views
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         StatusLabel.Text = msg;
-                        // Increment progress gradually
                         if (UploadProgress.Progress < 0.9)
                             UploadProgress.Progress += 0.05;
                     });
@@ -460,11 +733,8 @@ namespace Wdpl2.Views
                     DataStore.Save();
                     
                     await DisplayAlert(
-                        "?? Deployment Complete!",
-                        $"Your website has been deployed to GitHub Pages!\n\n" +
-                        $"Files: {files.Count}\n" +
-                        $"URL: {siteUrl}\n\n" +
-                        "Note: It may take a few minutes for GitHub Pages to build and publish your site.",
+                        "? Deployed!",
+                        $"Files: {files.Count}\nURL: {siteUrl}\n\nNote: May take a few minutes to go live.",
                         "OK");
                 }
                 else
@@ -495,66 +765,55 @@ namespace Wdpl2.Views
                 
                 if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(repoName))
                 {
-                    await DisplayAlert("Missing Information", "Please enter your GitHub token, username, and repository name first.", "OK");
+                    await DisplayAlert("Missing Info", "Enter token, username, and repository first.", "OK");
                     return;
                 }
                 
-                StatusLabel.Text = "Checking GitHub Pages status...";
+                StatusLabel.Text = "Checking status...";
                 StatusLabel.TextColor = Color.FromArgb("#3B82F6");
                 StatusLabel.IsVisible = true;
                 CheckGitHubStatusBtn.IsEnabled = false;
                 GitHubStatusFrame.IsVisible = true;
-                GitHubStatusLabel.Text = "? Checking status...";
+                GitHubStatusLabel.Text = "? Checking...";
                 
                 var gitHubService = new GitHubPagesService(token, username, repoName);
                 var (enabled, url, status, buildError) = await gitHubService.GetPagesStatusAsync();
                 
                 if (!enabled)
                 {
-                    if (status == "not_enabled")
-                    {
-                        GitHubStatusLabel.Text = "? GitHub Pages is not enabled for this repository.\n\nGo to repository Settings > Pages to enable it.";
-                        GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
-                        StatusLabel.Text = "GitHub Pages not enabled";
-                        StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                    }
-                    else
-                    {
-                        GitHubStatusLabel.Text = $"? Error checking status: {buildError ?? status}";
-                        GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
-                        StatusLabel.Text = "Error checking status";
-                        StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                    }
+                    GitHubStatusLabel.Text = status == "not_enabled" 
+                        ? "? GitHub Pages not enabled" 
+                        : $"? Error: {buildError ?? status}";
+                    GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
+                    StatusLabel.Text = "Not enabled";
+                    StatusLabel.TextColor = Color.FromArgb("#EF4444");
                 }
                 else
                 {
                     switch (status?.ToLowerInvariant())
                     {
                         case "built":
-                            GitHubStatusLabel.Text = $"? Site is LIVE!\n\n?? {url ?? $"https://{username}.github.io/{repoName}/"}";
+                            GitHubStatusLabel.Text = $"? LIVE: {url}";
                             GitHubStatusFrame.BackgroundColor = Color.FromArgb("#D1FAE5");
                             StatusLabel.Text = "? Site is live!";
                             StatusLabel.TextColor = Color.FromArgb("#10B981");
                             break;
-                            
                         case "building":
-                            GitHubStatusLabel.Text = "?? Site is currently building...\n\nPlease wait 1-2 minutes and check again.";
+                            GitHubStatusLabel.Text = "? Building...";
                             GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEF3C7");
-                            StatusLabel.Text = "Site is building...";
+                            StatusLabel.Text = "Building...";
                             StatusLabel.TextColor = Color.FromArgb("#F59E0B");
                             break;
-                            
                         case "errored":
-                            GitHubStatusLabel.Text = $"? Build failed!\n\nError: {buildError ?? "Unknown error"}";
+                            GitHubStatusLabel.Text = $"? Build failed: {buildError}";
                             GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
                             StatusLabel.Text = "Build failed";
                             StatusLabel.TextColor = Color.FromArgb("#EF4444");
                             break;
-                            
                         default:
-                            GitHubStatusLabel.Text = $"?? Status: {status}\n\nURL: {url ?? "Not available yet"}";
+                            GitHubStatusLabel.Text = $"Status: {status}";
                             GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEF3C7");
-                            StatusLabel.Text = $"Status: {status}";
+                            StatusLabel.Text = status ?? "Unknown";
                             StatusLabel.TextColor = Color.FromArgb("#3B82F6");
                             break;
                     }
@@ -564,7 +823,7 @@ namespace Wdpl2.Views
             {
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                GitHubStatusLabel.Text = $"? Error: {ex.Message}";
+                GitHubStatusLabel.Text = $"? {ex.Message}";
                 GitHubStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
             }
             finally
@@ -595,22 +854,13 @@ namespace Wdpl2.Views
                 StatusLabel.Text = message;
                 StatusLabel.TextColor = success ? Color.FromArgb("#10B981") : Color.FromArgb("#EF4444");
                 
-                if (success)
-                {
-                    await DisplayAlert("? Success", message, "OK");
-                }
-                else
-                {
-                    await DisplayAlert("? Connection Failed", message, "OK");
-                }
+                await DisplayAlert(success ? "? Success" : "? Failed", message, "OK");
             }
             catch (Exception ex)
             {
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                StatusLabel.IsVisible = true;
-                
-                await DisplayAlert("Error", $"Failed to test connection:\n\n{ex.Message}", "OK");
+                await DisplayAlert("Error", $"Connection test failed:\n\n{ex.Message}", "OK");
             }
             finally
             {
@@ -624,7 +874,6 @@ namespace Wdpl2.Views
         
         private async void OnDeployClicked(object sender, EventArgs e)
         {
-            // Route to appropriate deployment method
             switch (_selectedDeploymentMethod)
             {
                 case DeploymentMethod.LocalExport:
@@ -664,12 +913,8 @@ namespace Wdpl2.Views
                 
                 var confirm = await DisplayAlert(
                     "Upload Website",
-                    $"This will generate and upload your website files to:\n\n" +
-                    $"Host: {League.WebsiteSettings.FtpHost}\n" +
-                    $"Path: {remotePath}\n\n" +
-                    $"Files will include: index.html, style.css, and other pages.\n\n" +
-                    "Continue?",
-                    "Yes, Upload",
+                    $"Upload to:\n{League.WebsiteSettings.FtpHost}{remotePath}",
+                    "Upload",
                     "Cancel");
                 
                 if (!confirm) return;
@@ -678,31 +923,21 @@ namespace Wdpl2.Views
                 UploadProgress.IsVisible = true;
                 GenerateBtn.IsEnabled = false;
                 
-                // Generate website
                 StatusLabel.Text = "Generating website...";
                 StatusLabel.TextColor = Color.FromArgb("#3B82F6");
                 
                 var generator = new WebsiteGenerator(League, League.WebsiteSettings);
                 var files = generator.GenerateWebsite();
                 
-                // Log which files are being generated
-                System.Diagnostics.Debug.WriteLine($"Generated {files.Count} files:");
-                foreach (var f in files.Keys)
-                {
-                    System.Diagnostics.Debug.WriteLine($"  - {f}");
-                }
-                
-                // Verify index.html is in the files
                 if (!files.ContainsKey("index.html"))
                 {
                     StatusLabel.Text = "Error: index.html was not generated!";
                     StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                    await DisplayAlert("Generation Error", "The website generator did not create index.html. Please check your settings.", "OK");
+                    await DisplayAlert("Error", "index.html was not generated.", "OK");
                     return;
                 }
                 
-                // Upload
-                StatusLabel.Text = $"Uploading to {League.WebsiteSettings.FtpHost}{remotePath}...";
+                StatusLabel.Text = "Uploading...";
                 
                 var ftpService = new FtpUploadService(League.WebsiteSettings);
                 var progress = new Progress<UploadProgress>(p =>
@@ -724,41 +959,12 @@ namespace Wdpl2.Views
                     League.WebsiteSettings.LastUploaded = DateTime.Now;
                     DataStore.Save();
                     
-                    // Verify the upload
-                    StatusLabel.Text = "Verifying upload...";
-                    var (verified, foundFiles, verifyMessage) = await ftpService.VerifyUploadAsync();
+                    var (verified, _, _) = await ftpService.VerifyUploadAsync();
                     
-                    var resultMessage = new System.Text.StringBuilder();
-                    resultMessage.AppendLine($"? Upload completed successfully!");
-                    resultMessage.AppendLine();
-                    resultMessage.AppendLine($"Files uploaded: {files.Count}");
-                    resultMessage.AppendLine($"Location: {League.WebsiteSettings.FtpHost}{remotePath}");
-                    resultMessage.AppendLine();
-                    
-                    if (verified)
-                    {
-                        resultMessage.AppendLine("? Verification: index.html found on server!");
-                        resultMessage.AppendLine();
-                        resultMessage.AppendLine("Your website should now be live at:");
-                        resultMessage.AppendLine($"http://your-domain.com{(remotePath == "/" ? "" : remotePath)}");
-                        resultMessage.AppendLine();
-                        resultMessage.AppendLine("(Replace 'your-domain.com' with your actual domain)");
-                    }
-                    else
-                    {
-                        resultMessage.AppendLine("?? Warning: Could not verify index.html on server");
-                        resultMessage.AppendLine();
-                        resultMessage.AppendLine("This might mean:");
-                        resultMessage.AppendLine("• Files uploaded to wrong directory");
-                        resultMessage.AppendLine("• Need to adjust Remote Path setting");
-                        resultMessage.AppendLine();
-                        resultMessage.AppendLine("Try 'Test Connection' to see what's in the folder.");
-                    }
-                    
-                    await DisplayAlert("Upload Result", resultMessage.ToString(), "OK");
-                    
-                    StatusLabel.Text = verified ? "? Upload verified!" : "? Uploaded (verification failed)";
-                    StatusLabel.TextColor = Color.FromArgb("#10B981");
+                    await DisplayAlert(
+                        "? Uploaded",
+                        $"Files: {files.Count}\n{(verified ? "? Verified on server" : "? Verification failed")}",
+                        "OK");
                 }
                 else
                 {
@@ -769,9 +975,7 @@ namespace Wdpl2.Views
             {
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                StatusLabel.IsVisible = true;
-                
-                await DisplayAlert("Error", $"Failed to upload website:\n\n{ex.Message}", "OK");
+                await DisplayAlert("Error", $"Upload failed:\n\n{ex.Message}", "OK");
             }
             finally
             {
@@ -792,31 +996,27 @@ namespace Wdpl2.Views
                 
                 if (result != null)
                 {
-                    // Read the file
                     using var stream = await result.OpenReadAsync();
                     using var memoryStream = new System.IO.MemoryStream();
                     await stream.CopyToAsync(memoryStream);
                     _uploadedLogoData = memoryStream.ToArray();
                     
-                    // Update UI
                     LogoStatusLabel.Text = $"? {result.FileName}";
                     LogoStatusLabel.TextColor = Color.FromArgb("#10B981");
                     
-                    // Show preview
                     LogoPreviewImage.Source = ImageSource.FromStream(() => new System.IO.MemoryStream(_uploadedLogoData));
                     LogoPreviewImage.IsVisible = true;
                     
-                    StatusLabel.Text = "Logo uploaded successfully";
+                    StatusLabel.Text = "Logo uploaded";
                     StatusLabel.TextColor = Color.FromArgb("#10B981");
                     StatusLabel.IsVisible = true;
                 }
             }
             catch (Exception ex)
             {
-                StatusLabel.Text = $"Error uploading logo: {ex.Message}";
+                StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
                 StatusLabel.IsVisible = true;
-                
                 await DisplayAlert("Error", $"Failed to upload logo:\n\n{ex.Message}", "OK");
             }
         }
@@ -840,26 +1040,22 @@ namespace Wdpl2.Views
                 
                 PreviewBtn.IsEnabled = false;
                 
-                // Generate website files
                 var generator = new WebsiteGenerator(League, League.WebsiteSettings);
                 _generatedFiles = generator.GenerateWebsite();
                 
-                // Show preview frame
                 PreviewFrame.IsVisible = true;
-                PreviewPagePicker.SelectedIndex = 0; // Select "Home"
+                PreviewPagePicker.SelectedIndex = 0;
                 
-                // Load home page in WebView
                 LoadPreviewPage("index.html");
                 
-                StatusLabel.Text = $"? Preview ready - {_generatedFiles.Count} file(s) generated";
+                StatusLabel.Text = $"? Preview ready ({_generatedFiles.Count} files)";
                 StatusLabel.TextColor = Color.FromArgb("#10B981");
             }
             catch (Exception ex)
             {
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
-                
-                await DisplayAlert("Error", $"Failed to generate preview:\n\n{ex.Message}", "OK");
+                await DisplayAlert("Error", $"Preview failed:\n\n{ex.Message}", "OK");
             }
             finally
             {
@@ -905,11 +1101,9 @@ namespace Wdpl2.Views
             
             var html = _generatedFiles[fileName];
             
-            // Replace relative CSS references with inline styles or embedded data
             if (fileName != "style.css" && _generatedFiles.ContainsKey("style.css"))
             {
                 var css = _generatedFiles["style.css"];
-                // Inject CSS into the HTML
                 html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", 
                                    $"<style>{css}</style>");
             }
@@ -924,19 +1118,18 @@ namespace Wdpl2.Views
                 SaveCurrentSettings();
                 DataStore.Save();
                 
-                StatusLabel.Text = "? Settings saved successfully";
+                StatusLabel.Text = "? Settings saved";
                 StatusLabel.TextColor = Color.FromArgb("#10B981");
                 StatusLabel.IsVisible = true;
                 
-                await DisplayAlert("? Saved", "Website settings saved successfully.", "OK");
+                await DisplayAlert("? Saved", "Website settings saved.", "OK");
             }
             catch (Exception ex)
             {
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
                 StatusLabel.IsVisible = true;
-                
-                await DisplayAlert("Error", $"Failed to save settings:\n\n{ex.Message}", "OK");
+                await DisplayAlert("Error", $"Failed to save:\n\n{ex.Message}", "OK");
             }
         }
 
@@ -946,20 +1139,14 @@ namespace Wdpl2.Views
             {
                 TemplateDescription.Text = template.Description;
                 TemplateDescription.IsVisible = true;
-                TemplateFeatures.Text = $"Features: {string.Join(", ", template.Features)}";
-                TemplateFeatures.IsVisible = true;
             }
         }
         
         private void UpdateGalleryCount()
         {
             var count = League.WebsiteSettings.GalleryImages.Count;
-            GalleryCountLabel.Text = count == 0 
-                ? "No images in gallery" 
-                : $"{count} image{(count == 1 ? "" : "s")} in gallery";
-            GalleryCountLabel.TextColor = count > 0 
-                ? Color.FromArgb("#10B981") 
-                : Color.FromArgb("#6B7280");
+            GalleryCountLabel.Text = count == 0 ? "(0 images)" : $"({count} image{(count == 1 ? "" : "s")})";
+            GalleryCountLabel.TextColor = count > 0 ? Color.FromArgb("#10B981") : Color.FromArgb("#6B7280");
         }
         
         private async void OnAddGalleryImagesClicked(object sender, EventArgs e)
@@ -994,7 +1181,6 @@ namespace Wdpl2.Views
                         await stream.CopyToAsync(memoryStream);
                         var imageData = memoryStream.ToArray();
                         
-                        // Get image dimensions
                         var (width, height) = await optimizer.GetImageDimensionsAsync(imageData);
                         
                         var galleryImage = new GalleryImage
@@ -1021,14 +1207,13 @@ namespace Wdpl2.Views
                 {
                     DataStore.Save();
                     UpdateGalleryCount();
-                    StatusLabel.Text = $"? Added {addedCount} image(s) to gallery";
+                    StatusLabel.Text = $"? Added {addedCount} image(s)";
                     StatusLabel.TextColor = Color.FromArgb("#10B981");
-                    
-                    await DisplayAlert("Success", $"Added {addedCount} image(s) to the gallery.", "OK");
+                    await DisplayAlert("Success", $"Added {addedCount} image(s).", "OK");
                 }
                 else
                 {
-                    StatusLabel.Text = "No images were added";
+                    StatusLabel.Text = "No images added";
                     StatusLabel.TextColor = Color.FromArgb("#EF4444");
                 }
             }
@@ -1037,7 +1222,6 @@ namespace Wdpl2.Views
                 StatusLabel.Text = $"Error: {ex.Message}";
                 StatusLabel.TextColor = Color.FromArgb("#EF4444");
                 StatusLabel.IsVisible = true;
-                
                 await DisplayAlert("Error", $"Failed to add photos:\n\n{ex.Message}", "OK");
             }
             finally
@@ -1050,24 +1234,22 @@ namespace Wdpl2.Views
         {
             if (League.WebsiteSettings.GalleryImages.Count == 0)
             {
-                await DisplayAlert("Empty Gallery", "No images in gallery yet. Click 'Add Photos' to upload images.", "OK");
+                await DisplayAlert("Empty", "No images yet. Click 'Add Photos' first.", "OK");
                 return;
             }
             
-            // Show action sheet with options
             var action = await DisplayActionSheet(
-                $"Manage Gallery ({League.WebsiteSettings.GalleryImages.Count} images)",
+                $"Gallery ({League.WebsiteSettings.GalleryImages.Count} images)",
                 "Cancel",
                 "Clear All",
-                "View Images",
-                "Set Captions");
+                "View List");
             
             if (action == "Clear All")
             {
                 var confirm = await DisplayAlert(
                     "Clear Gallery",
-                    $"Remove all {League.WebsiteSettings.GalleryImages.Count} images from gallery?",
-                    "Yes, Clear",
+                    $"Remove all {League.WebsiteSettings.GalleryImages.Count} images?",
+                    "Clear",
                     "Cancel");
                 
                 if (confirm)
@@ -1081,16 +1263,12 @@ namespace Wdpl2.Views
                     StatusLabel.IsVisible = true;
                 }
             }
-            else if (action == "View Images")
+            else if (action == "View List")
             {
                 var imageList = string.Join("\n", League.WebsiteSettings.GalleryImages.Select((img, i) => 
-                    $"{i + 1}. {img.FileName} ({img.Width}x{img.Height}) - {img.Category}"));
+                    $"{i + 1}. {img.FileName} ({img.Width}x{img.Height})"));
                 
                 await DisplayAlert("Gallery Images", imageList, "OK");
-            }
-            else if (action == "Set Captions")
-            {
-                await DisplayAlert("Set Captions", "Caption editing will be available in the full gallery manager.", "OK");
             }
         }
         
