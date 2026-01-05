@@ -149,8 +149,22 @@ namespace Wdpl2.Services
             if (_settings.HomeShowLeagueLeaders && _settings.ShowTopScorers)
             {
                 var playerStats = CalculatePlayerStats(players, teams, fixtures);
+                
+                // Apply filter based on settings
+                int minFramesRequired = 0;
+                if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
+                {
+                    // Calculate max frames available in the season
+                    var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                    minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
+                }
+                else
+                {
+                    minFramesRequired = _settings.PlayersMinGames;
+                }
+                
                 var topPlayers = playerStats
-                    .Where(p => p.Played >= _settings.PlayersMinGames)
+                    .Where(p => p.Played >= minFramesRequired)
                     .OrderByDescending(s => s.WinPercentage)
                     .ThenByDescending(s => s.Won)
                     .Take(_settings.HomeLeagueLeadersCount)
@@ -671,8 +685,23 @@ namespace Wdpl2.Services
             html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
             html.AppendLine("            </div>");
             
-            var playerStats = CalculatePlayerStats(players, teams, fixtures)
-                .Where(p => p.Played >= _settings.PlayersMinGames)
+            var playerStats = CalculatePlayerStats(players, teams, fixtures);
+            
+            // Apply filter based on settings
+            int minFramesRequired = 0;
+            if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
+            {
+                // Calculate max frames available in the season
+                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
+            }
+            else
+            {
+                minFramesRequired = _settings.PlayersMinGames;
+            }
+            
+            playerStats = playerStats
+                .Where(p => p.Played >= minFramesRequired)
                 .ToList();
             
             // Sort based on settings
@@ -681,6 +710,7 @@ namespace Wdpl2.Services
                 "won" => playerStats.OrderByDescending(s => s.Won).ThenByDescending(s => s.WinPercentage).ToList(),
                 "played" => playerStats.OrderByDescending(s => s.Played).ThenByDescending(s => s.WinPercentage).ToList(),
                 "eightballs" => playerStats.OrderByDescending(s => s.EightBalls).ThenByDescending(s => s.WinPercentage).ToList(),
+                "rating" => playerStats.OrderByDescending(s => s.Rating).ThenByDescending(s => s.WinPercentage).ToList(),
                 _ => playerStats.OrderByDescending(s => s.WinPercentage).ThenByDescending(s => s.Won).ToList()
             };
             
@@ -702,6 +732,7 @@ namespace Wdpl2.Services
                 if (_settings.PlayersShowLost) html.AppendLine("                            <th>Lost</th>");
                 if (_settings.PlayersShowWinPercentage) html.AppendLine("                            <th>Win %</th>");
                 if (_settings.PlayersShowEightBalls) html.AppendLine("                            <th>8-Balls</th>");
+                if (_settings.PlayersShowRating) html.AppendLine("                            <th>Rating</th>");
                 html.AppendLine("                        </tr>");
                 html.AppendLine("                    </thead>");
                 html.AppendLine("                    <tbody>");
@@ -724,6 +755,7 @@ namespace Wdpl2.Services
                     if (_settings.PlayersShowLost) html.AppendLine($"                            <td>{stat.Lost}</td>");
                     if (_settings.PlayersShowWinPercentage) html.AppendLine($"                            <td><strong>{stat.WinPercentage:F1}%</strong></td>");
                     if (_settings.PlayersShowEightBalls) html.AppendLine($"                            <td>{stat.EightBalls}</td>");
+                    if (_settings.PlayersShowRating) html.AppendLine($"                            <td>{stat.Rating}</td>");
                     html.AppendLine("                        </tr>");
                     position++;
                 }
@@ -732,7 +764,9 @@ namespace Wdpl2.Services
                 html.AppendLine("                </table>");
                 html.AppendLine("                </div>");
                 
-                if (_settings.PlayersMinGames > 0)
+                if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
+                    html.AppendLine($"                <p class=\"table-note\">* Minimum {_settings.PlayersMinFramesPercentage}% of available frames required to qualify ({minFramesRequired} frames)</p>");
+                else if (_settings.PlayersMinGames > 0)
                     html.AppendLine($"                <p class=\"table-note\">* Minimum {_settings.PlayersMinGames} games played to qualify</p>");
                 
                 html.AppendLine("            </div>");
@@ -1552,7 +1586,7 @@ main {{
 .result-item,
 .fixture-item {{
     display: grid;
-    grid-template-columns: 100px 1fr auto 1fr auto;
+    grid-template-columns: 100px 1fr auto 1fr 120px;
     gap: 16px;
     padding: 20px 24px;
     background: var(--bg-alt);
@@ -1569,29 +1603,44 @@ main {{
     box-shadow: var(--shadow-sm);
 }}
 
-.fixture-item {{
-    grid-template-columns: 100px 1fr auto 1fr auto auto;
-}}
-
 .date {{
     color: var(--text-muted);
     font-size: 0.875rem;
     font-weight: 600;
     background: var(--card-bg);
-    padding: 6px 12px;
+    padding: 8px 12px;
     border-radius: var(--radius-sm);
     text-align: center;
     border: 1px solid var(--border-color);
+    line-height: 1.3;
 }}
 
 .team {{
     font-weight: 600;
     font-size: 0.95rem;
     color: var(--text-color);
+    text-transform: uppercase;
+    text-align: center;
+}}
+
+.home-team {{
+    text-align: center;
+    justify-self: center;
+}}
+
+.away-team {{
+    text-align: center;
+    justify-self: center;
 }}
 
 .team:first-of-type {{
-    text-align: right;
+    text-align: center;
+    justify-self: center;
+}}
+
+.team:last-of-type {{
+    text-align: center;
+    justify-self: center;
 }}
 
 .score {{
@@ -1726,9 +1775,8 @@ tbody tr:nth-child(3) td:first-child::before {{
 .venue {{
     color: var(--text-muted);
     font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    text-align: right;
+    justify-self: end;
 }}
 
 .venue::before {{
@@ -1813,7 +1861,16 @@ footer p {{
         justify-self: center;
     }}
     
-    .team:first-of-type {{
+    .team:first-of-type,
+    .team:last-of-type,
+    .home-team,
+    .away-team {{
+        text-align: center;
+        justify-self: center;
+    }}
+    
+    .venue {{
+        justify-self: center;
         text-align: center;
     }}
     
@@ -2106,50 +2163,39 @@ footer p {{
         private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
         {
             var stats = new List<PlayerStat>();
+            var settings = _league.Settings;
             
-            foreach (var player in players)
+            // Get season start date for rating calculation
+            var seasonId = _settings.SelectedSeasonId;
+            var season = seasonId.HasValue 
+                ? _league.Seasons.FirstOrDefault(s => s.Id == seasonId.Value)
+                : _league.Seasons.FirstOrDefault(s => s.IsActive);
+            var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
+            
+            // Use the shared RatingCalculator to get all player ratings
+            // This ensures website ratings match the app exactly
+            var allRatings = RatingCalculator.CalculateAllRatings(
+                fixtures,
+                players,
+                teams,
+                settings,
+                seasonStartDate);
+            
+            // Convert to PlayerStat format
+            foreach (var kvp in allRatings)
             {
-                var team = teams.FirstOrDefault(t => t.Id == player.TeamId);
-                var stat = new PlayerStat
+                var ratingStats = kvp.Value;
+                stats.Add(new PlayerStat
                 {
-                    PlayerId = player.Id,
-                    PlayerName = player.Name ?? "Unknown",
-                    TeamName = team?.Name ?? "Unknown"
-                };
-                
-                // Count frames for this player
-                foreach (var fixture in fixtures)
-                {
-                    foreach (var frame in fixture.Frames)
-                    {
-                        if (frame.HomePlayerId == player.Id)
-                        {
-                            stat.Played++;
-                            if (frame.Winner == FrameWinner.Home)
-                            {
-                                stat.Won++;
-                                if (frame.EightBall)
-                                    stat.EightBalls++;
-                            }
-                            else if (frame.Winner == FrameWinner.Away)
-                                stat.Lost++;
-                        }
-                        else if (frame.AwayPlayerId == player.Id)
-                        {
-                            stat.Played++;
-                            if (frame.Winner == FrameWinner.Away)
-                            {
-                                stat.Won++;
-                                if (frame.EightBall)
-                                    stat.EightBalls++;
-                            }
-                            else if (frame.Winner == FrameWinner.Home)
-                                stat.Lost++;
-                        }
-                    }
-                }
-                
-                stats.Add(stat);
+                    PlayerId = ratingStats.PlayerId,
+                    PlayerName = ratingStats.PlayerName,
+                    TeamName = ratingStats.TeamName,
+                    Played = ratingStats.Played,
+                    Won = ratingStats.Wins,
+                    Lost = ratingStats.Losses,
+                    EightBalls = ratingStats.EightBalls,
+                    Rating = ratingStats.Rating
+                });
             }
             
             return stats;
@@ -2164,6 +2210,7 @@ footer p {{
             public int Won { get; set; }
             public int Lost { get; set; }
             public int EightBalls { get; set; }
+            public int Rating { get; set; } = 1000;
             public double WinPercentage => Played > 0 ? (Won * 100.0 / Played) : 0;
         }
         
@@ -2195,10 +2242,15 @@ footer p {{
             
             foreach (var team in teams)
             {
-                var standing = new TeamStanding { TeamName = team.Name ?? "Unknown", TeamId = team.Id };
+                var standing = new TeamStanding
+                {
+                    TeamId = team.Id,
+                    TeamName = team.Name ?? "Unknown"
+                };
                 
+                // Get all completed fixtures for this team
                 var teamFixtures = fixtures
-                    .Where(f => (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id) && f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                    .Where(f => f.Frames.Any() && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                     .OrderByDescending(f => f.Date)
                     .ToList();
                 
@@ -2218,17 +2270,17 @@ footer p {{
                         standing.Points += teamScore + settings.MatchWinBonus;
                         standing.RecentForm.Add('W');
                     }
-                    else if (teamScore == oppScore)
-                    {
-                        standing.Drawn++;
-                        standing.Points += teamScore + settings.MatchDrawBonus;
-                        standing.RecentForm.Add('D');
-                    }
-                    else
+                    else if (teamScore < oppScore)
                     {
                         standing.Lost++;
                         standing.Points += teamScore;
                         standing.RecentForm.Add('L');
+                    }
+                    else
+                    {
+                        standing.Drawn++;
+                        standing.Points += teamScore + settings.MatchDrawBonus;
+                        standing.RecentForm.Add('D');
                     }
                 }
                 
