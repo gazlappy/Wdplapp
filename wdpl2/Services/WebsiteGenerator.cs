@@ -55,7 +55,23 @@ namespace Wdpl2.Services
                 files["results.html"] = GenerateResultsPage(season, template);
             
             if (_settings.ShowPlayerStats)
+            {
                 files["players.html"] = GeneratePlayersPage(season, template);
+                
+                // Generate individual player pages
+                var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
+                var playerStats = CalculatePlayerStats(players, teams, fixtures);
+                var statsById = playerStats.ToDictionary(s => s.PlayerId, s => s);
+                
+                foreach (var player in players)
+                {
+                    if (statsById.TryGetValue(player.Id, out var stats) && stats.Played > 0)
+                    {
+                        var pageFileName = GetPlayerPageFileName(player.Id);
+                        files[pageFileName] = GeneratePlayerPage(season, template, player, teams, fixtures, players, stats);
+                    }
+                }
+            }
             
             if (_settings.ShowDivisions)
                 files["divisions.html"] = GenerateDivisionsPage(season, template);
@@ -748,7 +764,9 @@ namespace Wdpl2.Services
                             : position.ToString();
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
-                    html.AppendLine($"                            <td><strong>{stat.PlayerName}</strong></td>");
+                    // Make player name a clickable link to their individual page
+                    var playerPageName = GetPlayerPageFileName(stat.PlayerId);
+                    html.AppendLine($"                            <td><strong><a href=\"{playerPageName}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
                     if (_settings.PlayersShowTeam) html.AppendLine($"                            <td>{stat.TeamName}</td>");
                     if (_settings.PlayersShowPlayed) html.AppendLine($"                            <td>{stat.Played}</td>");
                     if (_settings.PlayersShowWon) html.AppendLine($"                            <td>{stat.Won}</td>");
@@ -1203,6 +1221,201 @@ namespace Wdpl2.Services
             
             xml.AppendLine("</urlset>");
             return xml.ToString();
+        }
+        
+        private string GetPlayerPageFileName(Guid playerId)
+        {
+            return $"player-{playerId:N}.html";
+        }
+        
+        private string GeneratePlayerPage(Season season, WebsiteTemplate template, Player player, List<Team> teams, List<Fixture> fixtures, List<Player> allPlayers, PlayerStat stats)
+        {
+            var html = new StringBuilder();
+            var team = player.TeamId.HasValue ? teams.FirstOrDefault(t => t.Id == player.TeamId.Value) : null;
+            
+            AppendDocumentHead(html, $"{stats.PlayerName} - {_settings.LeagueName}", season);
+            html.AppendLine("<body>");
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+            
+            AppendHeader(html, season);
+            AppendNavigation(html, "Players");
+            
+            html.AppendLine("    <main>");
+            html.AppendLine("        <div class=\"container\">");
+            
+            // Player header
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine($"                <h2>?? {stats.PlayerName}</h2>");
+            html.AppendLine($"                <p class=\"hero-dates\">{team?.Name ?? "No Team"}</p>");
+            html.AppendLine("            </div>");
+            
+            // Player stats summary
+            html.AppendLine("            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));\">");
+            
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{stats.Played}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Played</div>");
+            html.AppendLine("                </div>");
+            
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{stats.Won}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Won</div>");
+            html.AppendLine("                </div>");
+            
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{stats.Lost}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Lost</div>");
+            html.AppendLine("                </div>");
+            
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{stats.WinPercentage:F1}%</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Win %</div>");
+            html.AppendLine("                </div>");
+            
+            if (stats.EightBalls > 0)
+            {
+                html.AppendLine("                <div class=\"stat-card\">");
+                html.AppendLine($"                    <div class=\"stat-number\">{stats.EightBalls}</div>");
+                html.AppendLine("                    <div class=\"stat-label\">8-Balls</div>");
+                html.AppendLine("                </div>");
+            }
+            
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{stats.Rating}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Rating</div>");
+            html.AppendLine("                </div>");
+            
+            html.AppendLine("            </div>");
+            
+            // Match history
+            var playerHistory = GetPlayerMatchHistory(player.Id, fixtures, teams, allPlayers);
+            
+            if (playerHistory.Any())
+            {
+                html.AppendLine("            <div class=\"section\">");
+                html.AppendLine("                <h3>?? Full Record</h3>");
+                html.AppendLine("                <div class=\"table-responsive\">");
+                html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
+                html.AppendLine("                    <thead>");
+                html.AppendLine("                        <tr>");
+                html.AppendLine("                            <th>Date</th>");
+                html.AppendLine("                            <th>Opponent</th>");
+                html.AppendLine("                            <th>Team</th>");
+                html.AppendLine("                            <th>Result</th>");
+                html.AppendLine("                        </tr>");
+                html.AppendLine("                    </thead>");
+                html.AppendLine("                    <tbody>");
+                
+                foreach (var record in playerHistory.OrderByDescending(r => r.Date))
+                {
+                    var resultClass = record.Won ? "text-positive" : "text-negative";
+                    var resultText = record.Won ? "Won" : "Lost";
+                    if (record.EightBall)
+                        resultText += " (8-ball)";
+                    
+                    // Make opponent name clickable
+                    var opponentLink = record.OpponentId != Guid.Empty
+                        ? $"<a href=\"{GetPlayerPageFileName(record.OpponentId)}\" class=\"player-link\">{record.OpponentName}</a>"
+                        : record.OpponentName;
+                    
+                    html.AppendLine("                        <tr>");
+                    html.AppendLine($"                            <td>{record.Date:dd MMM yyyy}</td>");
+                    html.AppendLine($"                            <td>{opponentLink}</td>");
+                    html.AppendLine($"                            <td>{record.OpponentTeamName}</td>");
+                    html.AppendLine($"                            <td class=\"{resultClass}\"><strong>{resultText}</strong></td>");
+                    html.AppendLine("                        </tr>");
+                }
+                
+                html.AppendLine("                    </tbody>");
+                html.AppendLine("                </table>");
+                html.AppendLine("                </div>");
+                html.AppendLine("            </div>");
+            }
+            
+            // Back to players link
+            html.AppendLine("            <div class=\"section\" style=\"text-align: center;\">");
+            html.AppendLine("                <a href=\"players.html\" class=\"back-link\">? Back to All Players</a>");
+            html.AppendLine("            </div>");
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </main>");
+            
+            AppendFooter(html);
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
+                html.AppendLine(_settings.CustomBodyEndHtml);
+            
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+            
+            return html.ToString();
+        }
+        
+        private List<PlayerMatchRecord> GetPlayerMatchHistory(Guid playerId, List<Fixture> fixtures, List<Team> teams, List<Player> allPlayers)
+        {
+            var records = new List<PlayerMatchRecord>();
+            var teamById = teams.ToDictionary(t => t.Id, t => t);
+            var playerById = allPlayers.ToDictionary(p => p.Id, p => p);
+            
+            foreach (var fixture in fixtures.Where(f => f.Frames.Any() && f.Frames.Any(fr => fr.Winner != FrameWinner.None)))
+            {
+                foreach (var frame in fixture.Frames.Where(f => f.Winner != FrameWinner.None))
+                {
+                    Guid? opponentId = null;
+                    bool isPlayer = false;
+                    bool won = false;
+                    bool eightBall = false;
+                    
+                    if (frame.HomePlayerId == playerId)
+                    {
+                        isPlayer = true;
+                        opponentId = frame.AwayPlayerId;
+                        won = frame.Winner == FrameWinner.Home;
+                        eightBall = frame.EightBall && won;
+                    }
+                    else if (frame.AwayPlayerId == playerId)
+                    {
+                        isPlayer = true;
+                        opponentId = frame.HomePlayerId;
+                        won = frame.Winner == FrameWinner.Away;
+                        eightBall = frame.EightBall && won;
+                    }
+                    
+                    if (isPlayer && opponentId.HasValue)
+                    {
+                        var opponent = playerById.GetValueOrDefault(opponentId.Value);
+                        var opponentTeam = opponent?.TeamId.HasValue == true 
+                            ? teamById.GetValueOrDefault(opponent.TeamId.Value) 
+                            : null;
+                        
+                        records.Add(new PlayerMatchRecord
+                        {
+                            Date = fixture.Date,
+                            OpponentId = opponentId.Value,
+                            OpponentName = opponent != null 
+                                ? (opponent.FullName ?? $"{opponent.FirstName} {opponent.LastName}".Trim())
+                                : "Unknown",
+                            OpponentTeamName = opponentTeam?.Name ?? "",
+                            Won = won,
+                            EightBall = eightBall
+                        });
+                    }
+                }
+            }
+            
+            return records;
+        }
+        
+        private sealed class PlayerMatchRecord
+        {
+            public DateTime Date { get; set; }
+            public Guid OpponentId { get; set; }
+            public string OpponentName { get; set; } = "";
+            public string OpponentTeamName { get; set; } = "";
+            public bool Won { get; set; }
+            public bool EightBall { get; set; }
         }
         
         private void AppendSponsorsSection(StringBuilder html)
@@ -1816,6 +2029,44 @@ tbody tr:nth-child(3) td:first-child::before {{
 .team-list li:hover {{
     border-color: var(--primary-color);
     transform: translateX(4px);
+}}
+
+/* Player Links */
+.player-link {{
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}}
+
+.player-link:hover {{
+    color: var(--secondary-color);
+    text-decoration: underline;
+}}
+
+.back-link {{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    background: var(--primary-light);
+    transition: all var(--transition-fast);
+}}
+
+.back-link:hover {{
+    background: var(--primary-color);
+    color: white;
+}}
+
+.text-positive {{
+    color: #10B981;
+}}
+
+.text-negative {{
+    color: #EF4444;
 }}
 
 /* Footer */
