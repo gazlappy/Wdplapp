@@ -58,23 +58,39 @@ namespace Wdpl2.Services
             {
                 files["players.html"] = GeneratePlayersPage(season, template);
                 
-                // Generate individual player pages
+                // Generate JSON data file and single template page (instead of individual HTML files per player)
                 var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-                var playerStats = CalculatePlayerStats(players, teams, fixtures);
-                var statsById = playerStats.ToDictionary(s => s.PlayerId, s => s);
+                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings);
+                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
                 
-                foreach (var player in players)
-                {
-                    if (statsById.TryGetValue(player.Id, out var stats) && stats.Played > 0)
-                    {
-                        var pageFileName = GetPlayerPageFileName(player.Id);
-                        files[pageFileName] = GeneratePlayerPage(season, template, player, teams, fixtures, players, stats);
-                    }
-                }
+                files["players-data.json"] = jsonGenerator.GeneratePlayersJson(players, teams, fixtures);
+                files["player.html"] = templateGenerator.GeneratePlayerTemplatePage(
+                    season,
+                    AppendDocumentHead,
+                    AppendHeader,
+                    AppendNavigation,
+                    AppendFooter,
+                    GetTableClasses());
             }
             
             if (_settings.ShowDivisions)
+            {
                 files["divisions.html"] = GenerateDivisionsPage(season, template);
+                
+                // Generate JSON data file and single template page for teams
+                var (divisions2, venues2, teams2, players2, fixtures2) = _league.GetSeasonData(season.Id);
+                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings);
+                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
+                
+                files["teams-data.json"] = jsonGenerator.GenerateTeamsJson(teams2, divisions2, venues2, players2, fixtures2);
+                files["team.html"] = templateGenerator.GenerateTeamTemplatePage(
+                    season,
+                    AppendDocumentHead,
+                    AppendHeader,
+                    AppendNavigation,
+                    AppendFooter,
+                    GetTableClasses());
+            }
             
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 files["gallery.html"] = GenerateGalleryPage(season, template);
@@ -764,9 +780,8 @@ namespace Wdpl2.Services
                             : position.ToString();
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
-                    // Make player name a clickable link to their individual page
-                    var playerPageName = GetPlayerPageFileName(stat.PlayerId);
-                    html.AppendLine($"                            <td><strong><a href=\"{playerPageName}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
+                    // Make player name a clickable link to the single template page with query parameter
+                    html.AppendLine($"                            <td><strong><a href=\"player.html?id={stat.PlayerId:N}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
                     if (_settings.PlayersShowTeam) html.AppendLine($"                            <td>{stat.TeamName}</td>");
                     if (_settings.PlayersShowPlayed) html.AppendLine($"                            <td>{stat.Played}</td>");
                     if (_settings.PlayersShowWon) html.AppendLine($"                            <td>{stat.Won}</td>");
@@ -900,7 +915,7 @@ namespace Wdpl2.Services
                     foreach (var team in divisionTeams.OrderBy(t => t.Name))
                     {
                         var teamPlayers = players.Where(p => p.TeamId == team.Id).ToList();
-                        html.AppendLine($"                    <li><strong>{team.Name}</strong> <span class=\"player-count\">({teamPlayers.Count} players)</span></li>");
+                        html.AppendLine($"                    <li><strong><a href=\"team.html?id={team.Id:N}\" class=\"player-link\">{team.Name}</a></strong> <span class=\"player-count\">({teamPlayers.Count} players)</span></li>");
                     }
                     html.AppendLine("                </ul>");
                 }
@@ -1079,7 +1094,10 @@ namespace Wdpl2.Services
                     {
                         var mimeType = imageOptimizer.GetMimeType(sponsor.LogoFileName);
                         var dataUrl = imageOptimizer.ToDataUrl(sponsor.LogoData, mimeType);
-                        html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                        if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
+                            html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                        else
+                            html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
                     }
                     html.AppendLine($"                        <h4>{sponsor.Name}</h4>");
                     if (!string.IsNullOrWhiteSpace(sponsor.Description))
@@ -1577,7 +1595,7 @@ header::before {{
     left: 0;
     right: 0;
     bottom: 0;
-    background: url(""data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"");
+    background: url(""data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 0V0h-2v4h-4v2h4v4h2V2h4V0h-4zM0 34v-4H2v4h4v2H2v4H0v-4H0zM0 0V0h2v4h4v2H2v4H0V2H0z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"");
     pointer-events: none;
 }}
 
