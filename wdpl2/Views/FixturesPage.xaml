@@ -101,6 +101,7 @@
 
                     <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,4,0,0" FontSize="13" />
 
+                    <Button x:Name="ScanScoreCardBtn" Text="📷 Scan Score Card" BackgroundColor="{StaticResource PrimaryColor}" TextColor="White" FontSize="12" HeightRequest="32" AutomationProperties.Name="Scan score card from photo" />
                     <Button x:Name="ManageNotificationsBtn" Text="🔔 Reminders" BackgroundColor="{StaticResource InfoColor}" TextColor="White" FontSize="12" HeightRequest="32" AutomationProperties.Name="Manage reminders" />
                     <Button x:Name="DiagnosticsBtn" Text="🔍 Diagnostics" BackgroundColor="{StaticResource Gray600}" TextColor="White" FontSize="12" HeightRequest="32" AutomationProperties.Name="View diagnostics" />
                     <Button x:Name="GenerateFixturesBtn" Text="Generate Fixtures" Style="{StaticResource SuccessButtonStyle}" FontSize="12" HeightRequest="32" AutomationProperties.Name="Generate fixtures" />

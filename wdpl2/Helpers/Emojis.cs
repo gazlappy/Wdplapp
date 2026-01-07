@@ -96,6 +96,11 @@ public static class Emojis
     public const string Bell = "\U0001F514";       // ?? Bell
     public const string Phone = "\U0001F4F1";      // ?? Mobile phone
     
+    // ========== CAMERA & MEDIA ==========
+    public const string Camera = "\U0001F4F7";     // ?? Camera
+    public const string Processing = "\u23F3";     // ? Hourglass not done
+    public const string Image = "\U0001F5BC";      // ??? Framed picture
+    
     /// <summary>
     /// Get the appropriate font family for emoji rendering based on platform
     /// Returns "Segoe UI Emoji" on Windows, null on other platforms

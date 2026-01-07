@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Maui;
 using Plugin.LocalNotification;
+using Plugin.Maui.OCR;
 using Wdpl2.Data;
 using Wdpl2.Services;
 using Wdpl2.ViewModels;
@@ -18,7 +19,8 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseMauiCommunityToolkit()  // Add Community Toolkit
-            .UseLocalNotification()     // Add Local Notifications (NEW)
+            .UseLocalNotification()     // Add Local Notifications
+            .UseOcr()                   // Add OCR support for score card scanning
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

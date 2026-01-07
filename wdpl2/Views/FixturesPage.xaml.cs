@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Storage;
+using Microsoft.Maui.Media;
 using Wdpl2;
 using Wdpl2.Helpers;
 using Wdpl2.Models;
@@ -109,6 +111,11 @@ public partial class FixturesPage : ContentPage
         if (ManageNotificationsBtn != null)
         {
             ManageNotificationsBtn.Clicked += async (_, __) => await OnManageNotificationsAsync();
+        }
+
+        if (ScanScoreCardBtn != null)
+        {
+            ScanScoreCardBtn.Clicked += async (_, __) => await OnScanScoreCardAsync();
         }
 
         // Subscribe to global season changes
@@ -379,6 +386,281 @@ public partial class FixturesPage : ContentPage
         }
         
         await DisplayAlert("Diagnostics", sb.ToString(), "OK");
+    }
+
+    // ========== SCORE CARD RECOGNITION ==========
+
+    private async System.Threading.Tasks.Task OnScanScoreCardAsync()
+    {
+        CloseFlyout();
+
+        if (_selectedFixture == null)
+        {
+            await DisplayAlert($"{Emojis.Warning} No Fixture Selected",
+                "Please select a fixture first before scanning a score card.", "OK");
+            return;
+        }
+
+        // Ask user whether to take photo or pick from gallery
+        var choice = await DisplayActionSheet(
+            "?? Scan Score Card",
+            "Cancel",
+            null,
+            "?? Take Photo",
+            "??? Pick from Gallery");
+
+        if (choice == "Cancel" || string.IsNullOrEmpty(choice))
+            return;
+
+        try
+        {
+            FileResult? photo = null;
+
+            if (choice == "?? Take Photo")
+            {
+                // Check camera availability
+                if (!MediaPicker.Default.IsCaptureSupported)
+                {
+                    await DisplayAlert($"{Emojis.Error} Not Supported",
+                        "Camera capture is not supported on this device.", "OK");
+                    return;
+                }
+
+                photo = await MediaPicker.Default.CapturePhotoAsync(new MediaPickerOptions
+                {
+                    Title = "Take a photo of the score card"
+                });
+            }
+            else if (choice == "??? Pick from Gallery")
+            {
+                photo = await MediaPicker.Default.PickPhotoAsync(new MediaPickerOptions
+                {
+                    Title = "Select a score card photo"
+                });
+            }
+
+            if (photo == null)
+                return;
+
+            // Show processing indicator
+            await DisplayAlert($"{Emojis.Hourglass} Processing",
+                "Analyzing score card image...\nThis may take a moment.", "OK");
+
+            // Read the image
+            using var stream = await photo.OpenReadAsync();
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var imageData = memoryStream.ToArray();
+
+            // Perform recognition
+            var recognitionService = new ScoreCardRecognitionService();
+            var result = await recognitionService.RecognizeFromImageAsync(imageData);
+
+            if (result.Success && result.Frames.Any())
+            {
+                // Show preview of recognized data and ask for confirmation
+                await ShowRecognitionResultsAsync(result);
+            }
+            else
+            {
+                // Recognition failed or no OCR - offer manual entry mode
+                var message = result.Message;
+                if (result.Errors.Any())
+                    message += "\n\n" + string.Join("\n", result.Errors);
+                if (result.Warnings.Any())
+                    message += "\n\n" + string.Join("\n", result.Warnings);
+
+                var manualEntry = await DisplayAlert(
+                    $"{Emojis.Warning} Recognition Limited",
+                    message + "\n\nWould you like to enter data manually with the image as reference?",
+                    "Manual Entry", "Cancel");
+
+                if (manualEntry)
+                {
+                    await ShowManualEntryModeAsync(imageData);
+                }
+            }
+        }
+        catch (PermissionException)
+        {
+            await DisplayAlert($"{Emojis.Error} Permission Required",
+                "Please grant camera/photo access permission in your device settings.", "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Error",
+                $"Failed to process score card: {ex.Message}", "OK");
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowRecognitionResultsAsync(ScoreCardRecognitionService.RecognitionResult result)
+    {
+        // Build preview string
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Confidence: {result.Confidence:P0}");
+        sb.AppendLine($"Score: {result.HomeScore} - {result.AwayScore}");
+        sb.AppendLine();
+        sb.AppendLine("Recognized Frames:");
+        
+        foreach (var frame in result.Frames.Take(5))
+        {
+            var homePlayer = frame.HomePlayerName ?? "?";
+            var awayPlayer = frame.AwayPlayerName ?? "?";
+            var winner = frame.Winner == FrameWinner.Home ? "H" : frame.Winner == FrameWinner.Away ? "A" : "-";
+            var eightBall = frame.EightBall ? "??" : "";
+            sb.AppendLine($"  {frame.FrameNumber}. {homePlayer} vs {awayPlayer} [{winner}] {eightBall}");
+        }
+
+        if (result.Frames.Count > 5)
+        {
+            sb.AppendLine($"  ... and {result.Frames.Count - 5} more frames");
+        }
+
+        if (result.Warnings.Any())
+        {
+            sb.AppendLine();
+            sb.AppendLine("?? Warnings:");
+            foreach (var warning in result.Warnings.Take(3))
+            {
+                sb.AppendLine($"  • {warning}");
+            }
+        }
+
+        var applyResults = await DisplayAlert(
+            $"{Emojis.Success} Score Card Recognized",
+            sb.ToString() + "\n\nApply these results to the scorecard?",
+            "Apply", "Cancel");
+
+        if (applyResults)
+        {
+            ApplyRecognitionResults(result);
+        }
+    }
+
+    private void ApplyRecognitionResults(ScoreCardRecognitionService.RecognitionResult result)
+    {
+        if (_selectedFixture == null)
+            return;
+
+        // Apply each recognized frame to the UI
+        foreach (var recognized in result.Frames)
+        {
+            if (recognized.FrameNumber < 1 || recognized.FrameNumber > _frameRows.Count)
+                continue;
+
+            var frameRow = _frameRows[recognized.FrameNumber - 1];
+
+            // Apply home player if matched
+            if (recognized.MatchedHomePlayerId.HasValue)
+            {
+                frameRow.HomePlayerId = recognized.MatchedHomePlayerId;
+                frameRow.HomePlayerName = recognized.HomePlayerName ?? "";
+                if (frameRow.HomePlayerLabel != null)
+                {
+                    frameRow.HomePlayerLabel.Text = recognized.HomePlayerName ?? "Unknown";
+                    frameRow.HomePlayerLabel.TextColor = Colors.Black;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(recognized.HomePlayerName))
+            {
+                // Name recognized but not matched - show it anyway
+                frameRow.HomePlayerName = recognized.HomePlayerName;
+                if (frameRow.HomePlayerLabel != null)
+                {
+                    frameRow.HomePlayerLabel.Text = recognized.HomePlayerName + " (?)";
+                    frameRow.HomePlayerLabel.TextColor = Color.FromArgb("#FF9800"); // Orange for unmatched
+                }
+            }
+
+            // Apply away player if matched
+            if (recognized.MatchedAwayPlayerId.HasValue)
+            {
+                frameRow.AwayPlayerId = recognized.MatchedAwayPlayerId;
+                frameRow.AwayPlayerName = recognized.AwayPlayerName ?? "";
+                if (frameRow.AwayPlayerLabel != null)
+                {
+                    frameRow.AwayPlayerLabel.Text = recognized.AwayPlayerName ?? "Unknown";
+                    frameRow.AwayPlayerLabel.TextColor = Colors.Black;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(recognized.AwayPlayerName))
+            {
+                frameRow.AwayPlayerName = recognized.AwayPlayerName;
+                if (frameRow.AwayPlayerLabel != null)
+                {
+                    frameRow.AwayPlayerLabel.Text = recognized.AwayPlayerName + " (?)";
+                    frameRow.AwayPlayerLabel.TextColor = Color.FromArgb("#FF9800");
+                }
+            }
+
+            // Apply winner
+            frameRow.Winner = recognized.Winner;
+            UpdateFrameScoreButtons(frameRow);
+
+            // Apply 8-ball
+            frameRow.EightBall = recognized.EightBall;
+            if (frameRow.EightBallCheck != null)
+            {
+                frameRow.EightBallCheck.IsChecked = recognized.EightBall;
+            }
+        }
+
+        UpdatePlayerFrameCounts();
+        UpdateScoreDisplay();
+        
+        // Show confirmation
+        _ = DisplayAlert($"{Emojis.Success} Applied",
+            $"Applied {result.Frames.Count} frames from score card.\n\nPlease review and correct any errors before saving.",
+            "OK");
+    }
+
+    private void UpdateFrameScoreButtons(FrameRowData frameRow)
+    {
+        if (frameRow.HomeScoreBtn == null || frameRow.AwayScoreBtn == null)
+            return;
+
+        if (frameRow.Winner == FrameWinner.Home)
+        {
+            frameRow.HomeScoreBtn.Text = "1";
+            frameRow.HomeScoreBtn.BackgroundColor = Color.FromArgb("#4CAF50");
+            frameRow.HomeScoreBtn.TextColor = Colors.White;
+            frameRow.AwayScoreBtn.Text = "0";
+            frameRow.AwayScoreBtn.BackgroundColor = Color.FromArgb("#E0E0E0");
+            frameRow.AwayScoreBtn.TextColor = Color.FromArgb("#757575");
+        }
+        else if (frameRow.Winner == FrameWinner.Away)
+        {
+            frameRow.HomeScoreBtn.Text = "0";
+            frameRow.HomeScoreBtn.BackgroundColor = Color.FromArgb("#E0E0E0");
+            frameRow.HomeScoreBtn.TextColor = Color.FromArgb("#757575");
+            frameRow.AwayScoreBtn.Text = "1";
+            frameRow.AwayScoreBtn.BackgroundColor = Color.FromArgb("#F44336");
+            frameRow.AwayScoreBtn.TextColor = Colors.White;
+        }
+        else
+        {
+            frameRow.HomeScoreBtn.Text = "0";
+            frameRow.HomeScoreBtn.BackgroundColor = Color.FromArgb("#E0E0E0");
+            frameRow.HomeScoreBtn.TextColor = Color.FromArgb("#757575");
+            frameRow.AwayScoreBtn.Text = "0";
+            frameRow.AwayScoreBtn.BackgroundColor = Color.FromArgb("#E0E0E0");
+            frameRow.AwayScoreBtn.TextColor = Color.FromArgb("#757575");
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowManualEntryModeAsync(byte[] imageData)
+    {
+        // For manual entry mode, we could show the image in a popup
+        // For now, just inform the user the image was captured
+        
+        await DisplayAlert($"{Emojis.Info} Manual Entry Mode",
+            "The score card image has been captured.\n\n" +
+            "Please manually enter the player names and scores using the controls on this page.\n\n" +
+            "Tip: Tap on a player name slot, then tap a player from the side list to assign them.",
+            "OK");
+        
+        // Future enhancement: Show the image in a floating window or split view
+        // so the user can reference it while entering data
     }
 
     // ========== LEFT LIST DATA ==========
