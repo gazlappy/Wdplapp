@@ -434,7 +434,7 @@ namespace Wdpl2.Services
                     else if (_settings.StandingsHighlightBottom && position > totalTeams - _settings.StandingsHighlightBottomCount)
                         rowClass = "highlight-bottom";
                     
-                    html.AppendLine($"                        <tr{(string.IsNullOrEmpty(rowClass) ? "" : $" class=\"{rowClass}\"")}>");
+                    html.AppendLine($"                        <tr{(string.IsNullOrEmpty(rowClass) ? "" : $" class=\"{rowClass}\"")} >");
                     
                     if (_settings.StandingsShowPosition)
                     {
@@ -446,7 +446,7 @@ namespace Wdpl2.Services
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
                     
-                    html.AppendLine($"                            <td><strong>{standing.TeamName}</strong></td>");
+                    html.AppendLine($"                            <td><strong><a href=\"team.html?id={standing.TeamId:N}\" class=\"team-link\">{standing.TeamName}</a></strong></td>");
                     if (_settings.StandingsShowPlayed) html.AppendLine($"                            <td>{standing.Played}</td>");
                     if (_settings.StandingsShowWon) html.AppendLine($"                            <td>{standing.Won}</td>");
                     if (_settings.StandingsShowDrawn) html.AppendLine($"                            <td>{standing.Drawn}</td>");
@@ -1019,7 +1019,7 @@ namespace Wdpl2.Services
                         var pos = 1;
                         foreach (var standing in standings)
                         {
-                            html.AppendLine($"                    <div class=\"mini-standing-row\"><span class=\"pos\">{pos++}</span> <span class=\"team-name\">{standing.TeamName}</span> <span class=\"pts\">{standing.Points} pts</span></div>");
+                            html.AppendLine($"                    <div class=\"mini-standing-row\"><span class=\"pos\">{pos++}</span> <a href=\"team.html?id={standing.TeamId:N}\" class=\"team-link\"><span class=\"team-name\">{standing.TeamName}</span></a> <span class=\"pts\">{standing.Points} pts</span></div>");
                         }
                         html.AppendLine("                </div>");
                     }
@@ -1212,9 +1212,9 @@ namespace Wdpl2.Services
                         var mimeType = imageOptimizer.GetMimeType(sponsor.LogoFileName);
                         var dataUrl = imageOptimizer.ToDataUrl(sponsor.LogoData, mimeType);
                         if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
-                            html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                            html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\"></a>");
                         else
-                            html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                            html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
                     }
                     html.AppendLine($"                        <h4>{sponsor.Name}</h4>");
                     if (!string.IsNullOrWhiteSpace(sponsor.Description))
@@ -1433,6 +1433,7 @@ namespace Wdpl2.Services
                 html.AppendLine("                <h3>?? Full Record</h3>");
                 html.AppendLine("                <div class=\"table-responsive\">");
                 html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
+
                 html.AppendLine("                    <thead>");
                 html.AppendLine("                        <tr>");
                 html.AppendLine("                            <th>Date</th>");
@@ -1553,1053 +1554,6 @@ namespace Wdpl2.Services
             public bool EightBall { get; set; }
         }
         
-        private void AppendSponsorsSection(StringBuilder html)
-        {
-            var imageOptimizer = new ImageOptimizationService();
-            var activeSponsors = _settings.Sponsors.Where(s => s.IsActive).OrderBy(s => s.SortOrder).Take(6).ToList();
-            
-            if (!activeSponsors.Any()) return;
-            
-            html.AppendLine("            <section class=\"section sponsors-section\">");
-            html.AppendLine("                <h3>?? Our Sponsors</h3>");
-            html.AppendLine("                <div class=\"sponsors-grid\">");
-            
-            foreach (var sponsor in activeSponsors)
-            {
-                html.AppendLine("                    <div class=\"sponsor-mini\">");
-                if (sponsor.LogoData.Length > 0)
-                {
-                    var mimeType = imageOptimizer.GetMimeType(sponsor.LogoFileName);
-                    var dataUrl = imageOptimizer.ToDataUrl(sponsor.LogoData, mimeType);
-                    if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
-                        html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo-mini\"></a>");
-                    else
-                        html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" class=\"sponsor-logo-mini\">");
-                }
-                else
-                {
-                    html.AppendLine($"                        <span class=\"sponsor-name\">{sponsor.Name}</span>");
-                }
-                html.AppendLine("                    </div>");
-            }
-            
-            html.AppendLine("                </div>");
-            if (_settings.ShowSponsors)
-                html.AppendLine("                <p class=\"view-all\"><a href=\"sponsors.html\">View All Sponsors ?</a></p>");
-            html.AppendLine("            </section>");
-        }
-        
-        private string GenerateModernCSS()
-        {
-            var fontUrl = _settings.FontFamily switch
-            {
-                "Roboto" => "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap",
-                "Open Sans" => "https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap",
-                "Poppins" => "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap",
-                _ => "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-            };
-            
-            var fontFamily = _settings.FontFamily switch
-            {
-                "Roboto" => "'Roboto', -apple-system, BlinkMacSystemFont, sans-serif",
-                "Open Sans" => "'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-                "Poppins" => "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
-                _ => "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-            };
-            
-            var animationStyles = _settings.EnableAnimations ? @"
-/* Animations */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-.stat-card, .section, .result-item, .fixture-item {
-    animation: fadeInUp 0.5s ease-out;
-}
-
-.stat-card:hover {
-    animation: pulse 0.3s ease-in-out;
-}
-" : "";
-
-            var gradientBg = _settings.EnableGradients 
-                ? $"background: linear-gradient(135deg, {_settings.PrimaryColor} 0%, {_settings.SecondaryColor} 50%, {_settings.PrimaryColor} 100%); background-size: 200% 200%;"
-                : $"background: {_settings.PrimaryColor};";
-
-            return $@"/* {_settings.LeagueName} - Professional Modern Template */
-@import url('{fontUrl}');
-
-:root {{
-    --primary-color: {_settings.PrimaryColor};
-    --primary-light: {_settings.PrimaryColor}22;
-    --primary-dark: {_settings.SecondaryColor};
-    --secondary-color: {_settings.SecondaryColor};
-    --accent-color: {_settings.AccentColor};
-    --bg-color: #F8FAFC;
-    --bg-alt: #F1F5F9;
-    --card-bg: #FFFFFF;
-    --text-color: #0F172A;
-    --text-secondary: #64748B;
-    --text-muted: #94A3B8;
-    --border-color: #E2E8F0;
-    --border-light: #F1F5F9;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-{animationStyles}
-
-* {{
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}}
-
-html {{
-    scroll-behavior: smooth;
-}}
-
-body {{
-    font-family: {fontFamily};
-    line-height: 1.7;
-    color: var(--text-color);
-    background: var(--bg-color);
-    font-size: 16px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}}
-
-.container {{
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 0 24px;
-}}
-
-/* Header Styles */
-header {{
-    {gradientBg}
-    color: white;
-    padding: 60px 0 50px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}}
-
-header::before {{
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url(""data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 0V0h-2v4h-4v2h4v4h2V2h4V0h-4zM0 34v-4H2v4h4v2H2v4H0v-4H0zM0 0V0h2v4h4v2H2v4H0V2H0z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"");
-    pointer-events: none;
-}}
-
-header .container {{
-    position: relative;
-    z-index: 1;
-}}
-
-header h1 {{
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 800;
-    margin-bottom: 12px;
-    letter-spacing: -0.02em;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}}
-
-header .subtitle {{
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    opacity: 0.92;
-    font-weight: 400;
-    max-width: 600px;
-    margin: 0 auto;
-}}
-
-.season-badge {{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 24px;
-    padding: 12px 28px;
-    background: rgba(255,255,255,0.18);
-    backdrop-filter: blur(10px);
-    border-radius: 50px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: 1px solid rgba(255,255,255,0.2);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}}
-
-/* Navigation */
-nav {{
-    background: var(--card-bg);
-    box-shadow: var(--shadow-md);
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    border-bottom: 1px solid var(--border-color);
-}}
-
-nav ul {{
-    list-style: none;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px 0;
-}}
-
-nav a {{
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 12px 20px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-    position: relative;
-}}
-
-nav a:hover {{
-    color: var(--primary-color);
-    background: var(--primary-light);
-}}
-
-nav a.active {{
-    color: var(--primary-color);
-    background: var(--primary-light);
-    font-weight: 600;
-}}
-
-nav a.active::after {{
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 24px;
-    height: 3px;
-    background: var(--primary-color);
-    border-radius: 3px;
-}}
-
-/* Main Content */
-main {{
-    padding: 48px 0 60px;
-    min-height: calc(100vh - 350px);
-}}
-
-.hero {{
-    text-align: center;
-    margin-bottom: 48px;
-    padding: 20px;
-}}
-
-.hero h2 {{
-    font-size: clamp(1.5rem, 3vw, 2.25rem);
-    font-weight: 700;
-    color: var(--text-color);
-    margin-bottom: 12px;
-}}
-
-.hero h2::after {{
-    content: '';
-    display: block;
-    width: 60px;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    margin: 16px auto 0;
-    border-radius: 2px;
-}}
-
-.hero-dates {{
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-    font-weight: 400;
-}}
-
-/* Stats Grid */
-.stats-grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 24px;
-    margin-bottom: 48px;
-}}
-
-.stat-card {{
-    background: var(--card-bg);
-    padding: 32px 24px;
-    border-radius: var(--radius-lg);
-    text-align: center;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-normal);
-    position: relative;
-    overflow: hidden;
-}}
-
-.stat-card:hover {{
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-}}
-
-.stat-number {{
-    font-size: clamp(2.5rem, 4vw, 3.5rem);
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 8px;
-    line-height: 1.1;
-}}
-
-.stat-label {{
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-weight: 600;
-}}
-
-/* Section Cards */
-.section {{
-    background: var(--card-bg);
-    padding: 32px;
-    border-radius: var(--radius-lg);
-    margin-bottom: 32px;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-}}
-
-.section h3 {{
-    color: var(--text-color);
-    margin-bottom: 24px;
-    font-size: 1.375rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}}
-
-.section h3::before {{
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(to bottom, var(--primary-color), var(--accent-color));
-    border-radius: 2px;
-}}
-
-.section h4 {{
-    color: var(--text-color);
-    margin: 24px 0 16px;
-    font-size: 1.1rem;
-    font-weight: 600;
-}}
-
-/* Results & Fixtures Lists */
-.results-list,
-.fixtures-list {{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}}
-
-.result-item,
-.fixture-item {{
-    display: grid;
-    grid-template-columns: 100px 1fr auto 1fr 120px;
-    gap: 16px;
-    padding: 20px 24px;
-    background: var(--bg-alt);
-    border-radius: var(--radius-md);
-    align-items: center;
-    transition: all var(--transition-fast);
-    border: 1px solid transparent;
-}}
-
-.result-item:hover,
-.fixture-item:hover {{
-    background: var(--card-bg);
-    border-color: var(--border-color);
-    box-shadow: var(--shadow-sm);
-}}
-
-.date {{
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    font-weight: 600;
-    background: var(--card-bg);
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    text-align: center;
-    border: 1px solid var(--border-color);
-    line-height: 1.3;
-}}
-
-.team {{
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: var(--text-color);
-    text-transform: uppercase;
-    text-align: center;
-}}
-
-.home-team {{
-    text-align: center;
-    justify-self: center;
-}}
-
-.away-team {{
-    text-align: center;
-    justify-self: center;
-}}
-
-.team:first-of-type {{
-    text-align: center;
-    justify-self: center;
-}}
-
-.team:last-of-type {{
-    text-align: center;
-    justify-self: center;
-}}
-
-.score {{
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--card-bg);
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    padding: 8px 20px;
-    border-radius: var(--radius-md);
-    text-align: center;
-    min-width: 90px;
-    box-shadow: var(--shadow-sm);
-}}
-
-.vs {{
-    color: var(--text-muted);
-    text-align: center;
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    background: var(--bg-color);
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-}}
-
-.view-all {{
-    text-align: center;
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
-}}
-
-.view-all a {{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 600;
-    padding: 12px 24px;
-    border-radius: var(--radius-md);
-    background: var(--primary-light);
-    transition: all var(--transition-fast);
-}}
-
-.view-all a:hover {{
-    background: var(--primary-color);
-    color: white;
-    transform: translateX(4px);
-}}
-
-/* Tables */
-table {{
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-}}
-
-thead {{
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-}}
-
-th {{
-    padding: 16px 18px;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 1px;
-    text-align: left;
-}}
-
-td {{
-    padding: 16px 18px;
-    text-align: left;
-    font-size: 0.95rem;
-}}
-
-tbody tr {{
-    border-bottom: 1px solid var(--border-color);
-    transition: background var(--transition-fast);
-}}
-
-tbody tr:last-child {{
-    border-bottom: none;
-}}
-
-tbody tr:hover {{
-    background: var(--bg-color);
-}}
-
-tbody tr:nth-child(1) td:first-child::before {{
-    content: '??';
-    margin-right: 4px;
-}}
-
-tbody tr:nth-child(2) td:first-child::before {{
-    content: '??';
-    margin-right: 4px;
-}}
-
-tbody tr:nth-child(3) td:first-child::before {{
-    content: '??';
-    margin-right: 4px;
-}}
-
-.winner {{
-    color: var(--primary-color);
-    font-weight: 700;
-}}
-
-/* Badges */
-.division-badge {{
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 14px;
-    background: var(--accent-color);
-    color: white;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}}
-
-.venue {{
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    text-align: right;
-    justify-self: end;
-}}
-
-.venue::before {{
-    content: '??';
-    margin-right: 4px;
-}}
-
-.division-notes {{
-    color: var(--text-secondary);
-    font-style: italic;
-    margin-bottom: 24px;
-    padding: 16px;
-    background: var(--bg-color);
-    border-radius: var(--radius-md);
-    border-left: 4px solid var(--primary-color);
-}}
-
-/* Team List */
-.team-list {{
-    list-style: none;
-    padding: 0;
-    display: grid;
-    gap: 10px;
-}}
-
-.team-list li {{
-    padding: 16px 20px;
-    background: var(--bg-color);
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid var(--border-color);
-}}
-
-.team-list li:hover {{
-    border-color: var(--primary-color);
-    transform: translateX(4px);
-}}
-
-/* Player Links */
-.player-link {{
-    color: var(--primary-color);
-    text-decoration: none;
-    transition: all var(--transition-fast);
-}}
-
-.player-link:hover {{
-    color: var(--secondary-color);
-    text-decoration: underline;
-}}
-
-.back-link {{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 600;
-    padding: 12px 24px;
-    border-radius: var(--radius-md);
-    background: var(--primary-light);
-    transition: all var(--transition-fast);
-}}
-
-.back-link:hover {{
-    background: var(--primary-color);
-    color: white;
-}}
-
-.text-positive {{
-    color: #10B981;
-}}
-
-.text-negative {{
-    color: #EF4444;
-}}
-
-/* Footer */
-footer {{
-    background: #020617;
-    color: white;
-    padding: 40px 0;
-    text-align: center;
-    margin-top: 60px;
-    border-top: 1px solid var(--border-color);
-}}
-
-footer p {{
-    opacity: 0.7;
-    font-size: 0.9rem;
-}}
-
-@media (max-width: 768px) {{
-    header {{
-        padding: 40px 0 35px;
-    }}
-    
-    .stats-grid {{
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }}
-    
-    .stat-card {{
-        padding: 24px 16px;
-    }}
-    
-    .result-item,
-    .fixture-item {{
-        grid-template-columns: 1fr;
-        gap: 12px;
-        text-align: center;
-        padding: 20px;
-    }}
-    
-    .result-item .date,
-    .fixture-item .date {{
-        order: -1;
-        justify-self: center;
-    }}
-    
-    .team:first-of-type,
-    .team:last-of-type,
-    .home-team,
-    .away-team {{
-        text-align: center;
-        justify-self: center;
-    }}
-    
-    .venue {{
-        justify-self: center;
-        text-align: center;
-    }}
-    
-    nav ul {{
-        padding: 8px;
-    }}
-    
-    nav a {{
-        padding: 10px 14px;
-        font-size: 0.9rem;
-    }}
-    
-    table {{
-        font-size: 0.85rem;
-        display: block;
-        overflow-x: auto;
-    }}
-    
-    th, td {{
-        padding: 12px 10px;
-        white-space: nowrap;
-    }}
-    
-    .section {{
-        padding: 20px;
-        margin-bottom: 20px;
-    }}
-}}
-
-@media (max-width: 480px) {{
-    .stats-grid {{
-        grid-template-columns: 1fr;
-    }}
-    
-    nav ul {{
-        justify-content: flex-start;
-        overflow-x: auto;
-        flex-wrap: nowrap;
-    }}
-}}
-
-/* Print Styles */
-@media print {{
-    header {{
-        background: var(--primary-color) !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }}
-    
-    nav {{
-        display: none;
-    }}
-    
-    .stat-card, .section {{
-        break-inside: avoid;
-        box-shadow: none;
-        border: 1px solid var(--border-color);
-    }}
-}}
-";
-        }
-        
-        private string GenerateDarkModeCSS()
-        {
-            return GenerateModernCSS().Replace("--bg-color: #F8FAFC;", "--bg-color: #0F172A;")
-                .Replace("--bg-alt: #F1F5F9;", "--bg-alt: #1E293B;")
-                .Replace("--card-bg: #FFFFFF;", "--card-bg: #1E293B;")
-                .Replace("--text-color: #0F172A;", "--text-color: #F1F5F9;")
-                .Replace("--text-secondary: #64748B;", "--text-secondary: #94A3B8;")
-                .Replace("--border-color: #E2E8F0;", "--border-color: #334155;")
-                .Replace("--border-light: #F1F5F9;", "--border-light: #334155;");
-        }
-        
-        private string GenerateSportCSS()
-        {
-            return GenerateModernCSS();
-        }
-        
-        private string GenerateMinimalistCSS()
-        {
-            return GenerateModernCSS();
-        }
-        
-        private void AppendHeader(StringBuilder html, Season season)
-        {
-            var imageOptimizer = new ImageOptimizationService();
-            
-            html.AppendLine("    <header>");
-            html.AppendLine("        <div class=\"container\">");
-            
-            // Logo
-            if (_settings.UseCustomLogo && _settings.LogoImageData != null && _settings.LogoImageData.Length > 0)
-            {
-                var mimeType = imageOptimizer.GetMimeType(_settings.LogoPath ?? "logo.png");
-                var dataUrl = imageOptimizer.ToDataUrl(_settings.LogoImageData, mimeType);
-                html.AppendLine($"            <img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;\">");
-            }
-            
-            html.AppendLine($"            <h1>{_settings.LeagueName}</h1>");
-            html.AppendLine($"            <p class=\"subtitle\">{_settings.LeagueSubtitle}</p>");
-            
-            if (_settings.ShowSeasonBadge)
-            {
-                html.AppendLine($"            <div class=\"season-badge\">?? {season.Name}</div>");
-            }
-            
-            html.AppendLine("        </div>");
-            html.AppendLine("    </header>");
-        }
-        
-        private void AppendNavigation(StringBuilder html, string currentPage)
-        {
-            html.AppendLine("    <nav>");
-            html.AppendLine("        <ul>");
-            
-            html.AppendLine($"            <li><a href=\"index.html\"{(currentPage == "Home" ? " class=\"active\"" : "")}>Home</a></li>");
-            
-            if (_settings.ShowStandings)
-                html.AppendLine($"            <li><a href=\"standings.html\"{(currentPage == "Standings" ? " class=\"active\"" : "")}>Standings</a></li>");
-            
-            if (_settings.ShowFixtures)
-                html.AppendLine($"            <li><a href=\"fixtures.html\"{(currentPage == "Fixtures" ? " class=\"active\"" : "")}>Fixtures</a></li>");
-            
-            if (_settings.ShowResults)
-                html.AppendLine($"            <li><a href=\"results.html\"{(currentPage == "Results" ? " class=\"active\"" : "")}>Results</a></li>");
-            
-            if (_settings.ShowPlayerStats)
-                html.AppendLine($"            <li><a href=\"players.html\"{(currentPage == "Players" ? " class=\"active\"" : "")}>Players</a></li>");
-            
-            if (_settings.ShowDivisions)
-                html.AppendLine($"            <li><a href=\"divisions.html\"{(currentPage == "Divisions" ? " class=\"active\"" : "")}>Divisions</a></li>");
-            
-            if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
-                html.AppendLine($"            <li><a href=\"gallery.html\"{(currentPage == "Gallery" ? " class=\"active\"" : "")}>Gallery</a></li>");
-            
-            if (_settings.ShowRules && !string.IsNullOrWhiteSpace(_settings.RulesContent))
-                html.AppendLine($"            <li><a href=\"rules.html\"{(currentPage == "Rules" ? " class=\"active\"" : "")}>Rules</a></li>");
-            
-            if (_settings.ShowContactPage && _settings.HasContactInfo)
-                html.AppendLine($"            <li><a href=\"contact.html\"{(currentPage == "Contact" ? " class=\"active\"" : "")}>Contact</a></li>");
-            
-            if (_settings.ShowSponsors && _settings.Sponsors.Count > 0)
-                html.AppendLine($"            <li><a href=\"sponsors.html\"{(currentPage == "Sponsors" ? " class=\"active\"" : "")}>Sponsors</a></li>");
-            
-            if (_settings.ShowNews && _settings.NewsItems.Count > 0)
-                html.AppendLine($"            <li><a href=\"news.html\"{(currentPage == "News" ? " class=\"active\"" : "")}>News</a></li>");
-            
-            // Custom pages in nav
-            foreach (var page in _settings.CustomPages.Where(p => p.IsPublished && p.ShowInNav).OrderBy(p => p.NavOrder))
-            {
-                var slug = string.IsNullOrWhiteSpace(page.Slug) ? page.Title.ToLower().Replace(" ", "-") : page.Slug;
-                html.AppendLine($"            <li><a href=\"{slug}.html\"{(currentPage == page.Title ? " class=\"active\"" : "")}>{page.Title}</a></li>");
-            }
-            
-            html.AppendLine("        </ul>");
-            html.AppendLine("    </nav>");
-        }
-        
-        private void AppendFooter(StringBuilder html)
-        {
-            html.AppendLine("    <footer>");
-            html.AppendLine("        <div class=\"container\">");
-            
-            if (_settings.ShowFooterSocialLinks && _settings.HasSocialLinks)
-            {
-                html.AppendLine("            <div class=\"social-links\">");
-                if (!string.IsNullOrWhiteSpace(_settings.FacebookUrl))
-                    html.AppendLine($"                <a href=\"{_settings.FacebookUrl}\" target=\"_blank\">Facebook</a>");
-                if (!string.IsNullOrWhiteSpace(_settings.TwitterUrl))
-                    html.AppendLine($"                <a href=\"{_settings.TwitterUrl}\" target=\"_blank\">Twitter</a>");
-                if (!string.IsNullOrWhiteSpace(_settings.InstagramUrl))
-                    html.AppendLine($"                <a href=\"{_settings.InstagramUrl}\" target=\"_blank\">Instagram</a>");
-                if (!string.IsNullOrWhiteSpace(_settings.YouTubeUrl))
-                    html.AppendLine($"                <a href=\"{_settings.YouTubeUrl}\" target=\"_blank\">YouTube</a>");
-                if (!string.IsNullOrWhiteSpace(_settings.TikTokUrl))
-                    html.AppendLine($"                <a href=\"{_settings.TikTokUrl}\" target=\"_blank\">TikTok</a>");
-                html.AppendLine("            </div>");
-            }
-            
-            if (_settings.ShowFooterContact && _settings.HasContactInfo)
-            {
-                html.AppendLine("            <div class=\"footer-contact\">");
-                if (!string.IsNullOrWhiteSpace(_settings.ContactEmail))
-                    html.AppendLine($"                <p>?? {_settings.ContactEmail}</p>");
-                if (!string.IsNullOrWhiteSpace(_settings.ContactPhone))
-                    html.AppendLine($"                <p>?? {_settings.ContactPhone}</p>");
-                html.AppendLine("            </div>");
-            }
-            
-            if (!string.IsNullOrWhiteSpace(_settings.CustomFooterText))
-            {
-                html.AppendLine($"            <p>{_settings.CustomFooterText}</p>");
-            }
-            
-            var copyrightText = string.IsNullOrWhiteSpace(_settings.CopyrightText)
-                ? $"© {DateTime.Now.Year} {_settings.LeagueName}"
-                : _settings.CopyrightText;
-            html.AppendLine($"            <p>{copyrightText}</p>");
-            
-            if (_settings.ShowLastUpdated)
-            {
-                html.AppendLine($"            <p class=\"last-updated\">Last updated: {DateTime.Now:dd MMMM yyyy HH:mm}</p>");
-            }
-            
-            if (_settings.ShowPoweredBy)
-            {
-                html.AppendLine("            <p class=\"powered-by\">Powered by Pool League Manager</p>");
-            }
-            
-            html.AppendLine("        </div>");
-            html.AppendLine("    </footer>");
-        }
-        
-        private DateTime GetWeekStart(DateTime date)
-        {
-            int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
-            return date.AddDays(-diff).Date;
-        }
-        
-        private string GenerateGalleryPage(Season season, WebsiteTemplate template)
-        {
-            var html = new StringBuilder();
-            var imageOptimizer = new ImageOptimizationService();
-            
-            AppendDocumentHead(html, $"Gallery - {_settings.LeagueName}", season);
-            html.AppendLine("<body>");
-            
-            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
-                html.AppendLine(_settings.CustomBodyStartHtml);
-            
-            AppendHeader(html, season);
-            AppendNavigation(html, "Gallery");
-            
-            html.AppendLine("    <main>");
-            html.AppendLine("        <div class=\"container\">");
-            html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Photo Gallery</h2>");
-            html.AppendLine($"                <p class=\"hero-dates\">{_settings.GalleryImages.Count} Photos</p>");
-            html.AppendLine("            </div>");
-            
-            var categories = _settings.GalleryImages
-                .Select(i => i.Category)
-                .Distinct()
-                .OrderBy(c => c)
-                .ToList();
-            
-            if (_settings.GalleryShowCategories && categories.Count > 1)
-            {
-                html.AppendLine("            <div class=\"gallery-categories\">");
-                html.AppendLine("                <button class=\"category-btn active\" data-category=\"all\">All</button>");
-                foreach (var category in categories)
-                {
-                    html.AppendLine($"                <button class=\"category-btn\" data-category=\"{category.ToLower().Replace(" ", "-")}\">{category}</button>");
-                }
-                html.AppendLine("            </div>");
-            }
-            
-            html.AppendLine($"            <div class=\"gallery-{_settings.GalleryLayout}\" style=\"grid-template-columns: repeat({_settings.GalleryColumns}, 1fr);\">");
-            
-            foreach (var image in _settings.GalleryImages.OrderBy(i => i.SortOrder))
-            {
-                var mimeType = imageOptimizer.GetMimeType(image.FileName);
-                var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
-                var categoryClass = image.Category.ToLower().Replace(" ", "-");
-                
-                html.AppendLine($"                <div class=\"gallery-item\" data-category=\"{categoryClass}\">");
-                html.AppendLine($"                    <img src=\"{dataUrl}\" alt=\"{image.Caption}\" loading=\"lazy\">");
-                if (_settings.GalleryShowCaptions && !string.IsNullOrWhiteSpace(image.Caption))
-                {
-                    html.AppendLine($"                    <div class=\"gallery-caption\">{image.Caption}</div>");
-                }
-                html.AppendLine("                </div>");
-            }
-            
-            html.AppendLine("            </div>");
-            html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
-            
-            AppendFooter(html);
-            
-            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
-                html.AppendLine(_settings.CustomBodyEndHtml);
-            
-            html.AppendLine("</body>");
-            html.AppendLine("</html>");
-            
-            return html.ToString();
-        }
-        
-        private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
-        {
-            var stats = new List<PlayerStat>();
-            var settings = _league.Settings;
-            
-            // Get season start date for rating calculation
-            var seasonId = _settings.SelectedSeasonId;
-            var season = seasonId.HasValue 
-                ? _league.Seasons.FirstOrDefault(s => s.Id == seasonId.Value)
-                : _league.Seasons.FirstOrDefault(s => s.IsActive);
-            var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
-            
-            // Use the shared RatingCalculator to get all player ratings
-            // This ensures website ratings match the app exactly
-            var allRatings = RatingCalculator.CalculateAllRatings(
-                fixtures,
-                players,
-                teams,
-                settings,
-                seasonStartDate);
-            
-            // Convert to PlayerStat format
-            foreach (var kvp in allRatings)
-            {
-                var ratingStats = kvp.Value;
-                stats.Add(new PlayerStat
-                {
-                    PlayerId = ratingStats.PlayerId,
-                    PlayerName = ratingStats.PlayerName,
-                    TeamName = ratingStats.TeamName,
-                    Played = ratingStats.Played,
-                    Won = ratingStats.Wins,
-                    Lost = ratingStats.Losses,
-                    EightBalls = ratingStats.EightBalls,
-                    Rating = ratingStats.Rating
-                });
-            }
-            
-            return stats;
-        }
-        
-        private sealed class PlayerStat
-        {
-            public Guid PlayerId { get; set; }
-            public string PlayerName { get; set; } = "";
-            public string TeamName { get; set; } = "";
-            public int Played { get; set; }
-            public int Won { get; set; }
-            public int Lost { get; set; }
-            public int EightBalls { get; set; }
-            public int Rating { get; set; } = 1000;
-            public double WinPercentage => Played > 0 ? (Won * 100.0 / Played) : 0;
-        }
-        
         private sealed class TeamStanding
         {
             public string TeamName { get; set; } = "";
@@ -2636,7 +1590,7 @@ footer p {{
                 
                 // Get all completed fixtures for this team
                 var teamFixtures = fixtures
-                    .Where(f => f.Frames.Any() && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
+                    .Where(f => f.Frames.Any() && ( f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                     .OrderByDescending(f => f.Date)
                     .ToList();
                 
@@ -2675,6 +1629,936 @@ footer p {{
             
             return standings;
         }
+        
+        #region Missing Methods
+        
+        private void AppendHeader(StringBuilder html, Season season)
+        {
+            var logoData = _settings.GetEffectiveLogoData();
+            var hasLogo = _settings.UseCustomLogo && logoData != null && logoData.Length > 0;
+            
+            html.AppendLine("    <header>");
+            html.AppendLine("        <div class=\"header-content\">");
+            
+            if (hasLogo)
+            {
+                var imageOptimizer = new ImageOptimizationService();
+                var mimeType = imageOptimizer.GetMimeType("logo.png");
+                var dataUrl = imageOptimizer.ToDataUrl(logoData!, mimeType);
+                html.AppendLine($"            <img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;\">");
+            }
+            
+            html.AppendLine($"            <h1>{_settings.LeagueName}</h1>");
+            if (!string.IsNullOrWhiteSpace(_settings.LeagueSubtitle))
+                html.AppendLine($"            <p class=\"subtitle\">{_settings.LeagueSubtitle}</p>");
+            
+            if (_settings.ShowSeasonBadge)
+                html.AppendLine($"            <span class=\"season-badge\">{season.Name}</span>");
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </header>");
+        }
+        
+        private void AppendNavigation(StringBuilder html, string activePage)
+        {
+            html.AppendLine("    <nav>");
+            html.AppendLine("        <div class=\"nav-container\">");
+            
+            void NavLink(string href, string text, string page)
+            {
+                var activeClass = activePage.Equals(page, StringComparison.OrdinalIgnoreCase) ? " class=\"active\"" : "";
+                html.AppendLine($"            <a href=\"{href}\"{activeClass}>{text}</a>");
+            }
+            
+            NavLink("index.html", "Home", "Home");
+            
+            if (_settings.ShowStandings)
+                NavLink("standings.html", "Standings", "Standings");
+            
+            if (_settings.ShowFixtures)
+                NavLink("fixtures.html", "Fixtures", "Fixtures");
+            
+            if (_settings.ShowResults)
+                NavLink("results.html", "Results", "Results");
+            
+            if (_settings.ShowPlayerStats)
+                NavLink("players.html", "Players", "Players");
+            
+            if (_settings.ShowDivisions)
+                NavLink("divisions.html", "Divisions", "Divisions");
+            
+            if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
+                NavLink("gallery.html", "Gallery", "Gallery");
+            
+            if (_settings.ShowNews && _settings.NewsItems.Count > 0)
+                NavLink("news.html", "News", "News");
+            
+            if (_settings.ShowSponsors && _settings.Sponsors.Count > 0)
+                NavLink("sponsors.html", "Sponsors", "Sponsors");
+            
+            if (_settings.ShowRules && !string.IsNullOrWhiteSpace(_settings.RulesContent))
+                NavLink("rules.html", "Rules", "Rules");
+            
+            if (_settings.ShowContactPage && _settings.HasContactInfo)
+                NavLink("contact.html", "Contact", "Contact");
+            
+            // Custom pages in nav
+            foreach (var page in _settings.CustomPages.Where(p => p.IsPublished && p.ShowInNav).OrderBy(p => p.NavOrder))
+            {
+                var slug = string.IsNullOrWhiteSpace(page.Slug) ? page.Title.ToLower().Replace(" ", "-") : page.Slug;
+                NavLink($"{slug}.html", page.Title, page.Title);
+            }
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </nav>");
+        }
+        
+        private void AppendFooter(StringBuilder html)
+        {
+            html.AppendLine("    <footer>");
+            html.AppendLine("        <div class=\"footer-content\">");
+            
+            if (_settings.ShowFooterContact && _settings.HasContactInfo)
+            {
+                html.AppendLine("            <div class=\"footer-contact\">");
+                if (!string.IsNullOrWhiteSpace(_settings.ContactEmail))
+                    html.AppendLine($"                <p>Email: <a href=\"mailto:{_settings.ContactEmail}\">{_settings.ContactEmail}</a></p>");
+                if (!string.IsNullOrWhiteSpace(_settings.ContactPhone))
+                    html.AppendLine($"                <p>Phone: {_settings.ContactPhone}</p>");
+                html.AppendLine("            </div>");
+            }
+            
+            if (_settings.ShowFooterSocialLinks && _settings.HasSocialLinks)
+            {
+                html.AppendLine("            <div class=\"footer-social\">");
+                if (!string.IsNullOrWhiteSpace(_settings.FacebookUrl))
+                    html.AppendLine($"                <a href=\"{_settings.FacebookUrl}\" target=\"_blank\">Facebook</a>");
+                if (!string.IsNullOrWhiteSpace(_settings.TwitterUrl))
+                    html.AppendLine($"                <a href=\"{_settings.TwitterUrl}\" target=\"_blank\">Twitter</a>");
+                if (!string.IsNullOrWhiteSpace(_settings.InstagramUrl))
+                    html.AppendLine($"                <a href=\"{_settings.InstagramUrl}\" target=\"_blank\">Instagram</a>");
+                html.AppendLine("            </div>");
+            }
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomFooterText))
+                html.AppendLine($"            <p class=\"footer-custom\">{_settings.CustomFooterText}</p>");
+            
+            var copyrightText = !string.IsNullOrWhiteSpace(_settings.CopyrightText)
+                ? _settings.CopyrightText
+                : $"© {DateTime.Now.Year} {_settings.LeagueName}";
+            html.AppendLine($"            <p class=\"copyright\">{copyrightText}</p>");
+            
+            if (_settings.ShowPoweredBy)
+                html.AppendLine("            <p class=\"powered-by\">Powered by WDPL League Manager</p>");
+            
+            if (_settings.ShowLastUpdated)
+                html.AppendLine($"            <p class=\"last-updated\">Last updated: {DateTime.Now:dd MMM yyyy HH:mm}</p>");
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </footer>");
+        }
+        
+        private void AppendSponsorsSection(StringBuilder html)
+        {
+            var activeSponsors = _settings.Sponsors.Where(s => s.IsActive).Take(6).ToList();
+            if (!activeSponsors.Any()) return;
+            
+            var imageOptimizer = new ImageOptimizationService();
+            
+            html.AppendLine("            <section class=\"section sponsors-section\">");
+            html.AppendLine("                <h3>Our Sponsors</h3>");
+            html.AppendLine("                <div class=\"sponsors-grid\">");
+            
+            foreach (var sponsor in activeSponsors)
+            {
+                html.AppendLine("                    <div class=\"sponsor-item\">");
+                if (sponsor.LogoData.Length > 0)
+                {
+                    var mimeType = imageOptimizer.GetMimeType(sponsor.LogoFileName);
+                    var dataUrl = imageOptimizer.ToDataUrl(sponsor.LogoData, mimeType);
+                    if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
+                        html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\"></a>");
+                    else
+                        html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                }
+                else
+                {
+                    html.AppendLine($"                        <span class=\"sponsor-name\">{sponsor.Name}</span>");
+                }
+                html.AppendLine("                    </div>");
+            }
+            
+            html.AppendLine("                </div>");
+            if (_settings.Sponsors.Count(s => s.IsActive) > 6)
+                html.AppendLine("                <p class=\"view-all\"><a href=\"sponsors.html\">View All Sponsors ?</a></p>");
+            html.AppendLine("            </section>");
+        }
+        
+        private string GenerateGalleryPage(Season season, WebsiteTemplate template)
+        {
+            var html = new StringBuilder();
+            var imageOptimizer = new ImageOptimizationService();
+            
+            AppendDocumentHead(html, $"Gallery - {_settings.LeagueName}", season);
+            html.AppendLine("<body>");
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+            
+            AppendHeader(html, season);
+            AppendNavigation(html, "Gallery");
+            
+            html.AppendLine("    <main>");
+            html.AppendLine("        <div class=\"container\">");
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine("                <h2>?? Photo Gallery</h2>");
+            html.AppendLine("            </div>");
+            
+            var images = _settings.GalleryImages.OrderBy(i => i.SortOrder).ToList();
+            var categories = images.Select(i => i.Category).Distinct().ToList();
+            
+            if (_settings.GalleryShowCategories && categories.Count > 1)
+            {
+                html.AppendLine("            <div class=\"gallery-categories\">");
+                html.AppendLine("                <button class=\"category-btn active\" data-category=\"all\">All</button>");
+                foreach (var category in categories)
+                {
+                    html.AppendLine($"                <button class=\"category-btn\" data-category=\"{category.ToLower().Replace(" ", "-")}\">{category}</button>");
+                }
+                html.AppendLine("            </div>");
+            }
+            
+            html.AppendLine($"            <div class=\"gallery-grid gallery-{_settings.GalleryLayout}\" style=\"--gallery-columns: {_settings.GalleryColumns};\">");
+            
+            foreach (var image in images)
+            {
+                if (image.ImageData.Length == 0) continue;
+                
+                var mimeType = imageOptimizer.GetMimeType(image.FileName);
+                var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
+                var categoryClass = image.Category.ToLower().Replace(" ", "-");
+                
+                html.AppendLine($"                <div class=\"gallery-item\" data-category=\"{categoryClass}\">");
+                if (_settings.GalleryEnableLightbox)
+                    html.AppendLine($"                    <a href=\"{dataUrl}\" class=\"lightbox-link\">");
+                html.AppendLine($"                    <img src=\"{dataUrl}\" alt=\"{image.Caption}\" loading=\"lazy\">");
+                if (_settings.GalleryEnableLightbox)
+                    html.AppendLine("                    </a>");
+                if (_settings.GalleryShowCaptions && !string.IsNullOrWhiteSpace(image.Caption))
+                    html.AppendLine($"                    <p class=\"caption\">{image.Caption}</p>");
+                html.AppendLine("                </div>");
+            }
+            
+            html.AppendLine("            </div>");
+            html.AppendLine("        </div>");
+            html.AppendLine("    </main>");
+            
+            AppendFooter(html);
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
+                html.AppendLine(_settings.CustomBodyEndHtml);
+            
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+            
+            return html.ToString();
+        }
+        
+        private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
+        {
+            var stats = new List<PlayerStat>();
+            var settings = _league.Settings;
+            var teamById = teams.ToDictionary(t => t.Id, t => t);
+            
+            // Get season start date for rating calculation
+            var seasonId = _settings.SelectedSeasonId;
+            var season = seasonId.HasValue
+                ? _league.Seasons.FirstOrDefault(s => s.Id == seasonId.Value)
+                : _league.Seasons.FirstOrDefault(s => s.IsActive);
+            var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
+            
+            // Use the shared RatingCalculator to get all player ratings
+            var allRatings = RatingCalculator.CalculateAllRatings(
+                fixtures,
+                players,
+                teams,
+                settings,
+                seasonStartDate);
+            
+            // Convert to PlayerStat format
+            foreach (var kvp in allRatings)
+            {
+                var ratingStats = kvp.Value;
+                stats.Add(new PlayerStat
+                {
+                    PlayerId = ratingStats.PlayerId,
+                    PlayerName = ratingStats.PlayerName,
+                    TeamName = ratingStats.TeamName,
+                    Played = ratingStats.Played,
+                    Won = ratingStats.Wins,
+                    Lost = ratingStats.Losses,
+                    EightBalls = ratingStats.EightBalls,
+                    Rating = ratingStats.Rating
+                });
+            }
+            
+            return stats;
+        }
+        
+        private static DateTime GetWeekStart(DateTime date)
+        {
+            var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return date.AddDays(-1 * diff).Date;
+        }
+        
+        private string GenerateModernCSS()
+        {
+            var css = new StringBuilder();
+            
+            css.AppendLine($@"
+:root {{
+    --primary-color: {_settings.PrimaryColor};
+    --secondary-color: {_settings.SecondaryColor};
+    --accent-color: {_settings.AccentColor};
+    --bg-color: {_settings.BackgroundColor};
+    --card-bg: {_settings.CardBackgroundColor};
+    --text-color: {_settings.TextColor};
+    --text-secondary: {_settings.TextSecondaryColor};
+    --header-text: {_settings.HeaderTextColor};
+    --border-radius: {_settings.BorderRadius}px;
+    --spacing: {_settings.CardSpacing}px;
+    --font-family: {WebsiteSettings.FontFamilies.GetValueOrDefault(_settings.FontFamily, "Inter")};
+    --header-font: {WebsiteSettings.FontFamilies.GetValueOrDefault(_settings.HeaderFontFamily, "Inter")};
+}}
+
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+body {{
+    font-family: var(--font-family);
+    font-size: {_settings.BaseFontSize}px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}}
+
+.container {{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}}
+
+header {{
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--header-text);
+    padding: 40px 20px;
+    text-align: center;
+}}
+
+header h1 {{
+    font-family: var(--header-font);
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}}
+
+header .subtitle {{
+    opacity: 0.9;
+    font-size: 1.1rem;
+}}
+
+header .season-badge {{
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}}
+
+header .logo {{
+    max-width: 200px;
+    margin-bottom: 15px;
+}}
+
+nav {{
+    background: var(--card-bg);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    {(_settings.NavSticky ? "position: sticky; top: 0; z-index: 100;" : "")}
+}}
+
+nav .nav-container {{
+    display: flex;
+    justify-content: {_settings.NavPosition};
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 15px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}}
+
+nav a {{
+    color: var(--text-color);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: {(_settings.NavStyle == "pills" ? "20px" : _settings.NavStyle == "buttons" ? "8px" : "0")};
+    transition: all 0.2s;
+    {(_settings.NavStyle == "underline" ? "border-bottom: 2px solid transparent;" : "")}
+}}
+
+nav a:hover, nav a.active {{
+    background: var(--primary-color);
+    color: white;
+    {(_settings.NavStyle == "underline" ? "background: transparent; color: var(--primary-color); border-bottom-color: var(--primary-color);" : "")}
+}}
+
+main {{
+    padding: var(--spacing) 0;
+}}
+
+.hero {{
+    text-align: center;
+    padding: 40px 20px;
+    margin-bottom: var(--spacing);
+}}
+
+.hero h2 {{
+    font-family: var(--header-font);
+    font-size: 2rem;
+    color: var(--text-color);
+    margin-bottom: 10px;
+}}
+
+.hero-dates {{
+    color: var(--text-secondary);
+}}
+
+.section {{
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing);
+    margin-bottom: var(--spacing);
+    {(_settings.EnableShadows ? "box-shadow: 0 4px 6px rgba(0,0,0,0.07);" : "")}
+}}
+
+.section h3 {{
+    font-family: var(--header-font);
+    margin-bottom: 20px;
+    color: var(--text-color);
+}}
+
+.stats-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: var(--spacing);
+}}
+
+.stat-card {{
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 24px;
+    text-align: center;
+    {(_settings.EnableShadows ? "box-shadow: 0 2px 4px rgba(0,0,0,0.05);" : "")}
+    {(_settings.CardShowTopAccent ? "border-top: 3px solid var(--primary-color);" : "")}
+}}
+
+.stat-number {{
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}}
+
+.stat-label {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 5px;
+}}
+
+.data-table {{
+    width: 100%;
+    border-collapse: collapse;
+}}
+
+.data-table th, .data-table td {{
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}}
+
+.data-table th {{
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    font-weight: 600;
+}}
+
+.data-table.striped tbody tr:nth-child(even) {{
+    background: rgba(255,255,255,0.03);
+}}
+
+.data-table.hoverable tbody tr:hover {{
+    background: rgba(255,255,255,0.08);
+}}
+
+.data-table.bordered td, .data-table.bordered th {{
+    border: 1px solid rgba(0,0,0,0.1);
+}}
+
+.data-table.compact th, .data-table.compact td {{
+    padding: 8px;
+}}
+
+.table-responsive {{
+    overflow-x: auto;
+}}
+
+.text-positive {{ color: #10B981; }}
+.text-negative {{ color: #EF4444; }}
+
+.highlight-top {{ background: rgba(34, 197, 94, 0.1); }}
+.highlight-bottom {{ background: rgba(239, 68, 68, 0.1); }}
+
+.results-list, .fixtures-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}}
+
+.result-item, .fixture-item {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: rgba(0,0,0,0.02);
+    border-radius: calc(var(--border-radius) / 2);
+    flex-wrap: wrap;
+    gap: 10px;
+}}
+
+.result-item .team, .fixture-item .team {{
+    font-weight: 600;
+    flex: 1;
+    min-width: 120px;
+}}
+
+.result-item .score {{
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding: 0 15px;
+}}
+
+.result-item .team.winner {{
+    color: var(--primary-color);
+}}
+
+.fixture-item .vs {{
+    color: var(--text-secondary);
+    padding: 0 10px;
+}}
+
+.fixture-item .venue, .result-item .venue {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}}
+
+.date {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    min-width: 80px;
+}}
+
+.view-all {{
+    text-align: center;
+    margin-top: 20px;
+}}
+
+.view-all a {{
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}}
+
+.leaders-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}}
+
+.leader-item {{
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    background: rgba(0,0,0,0.02);
+    border-radius: calc(var(--border-radius) / 2);
+}}
+
+.leader-item .rank {{
+    font-size: 1.5rem;
+    min-width: 40px;
+}}
+
+.leader-item .player-name {{
+    font-weight: 600;
+    flex: 1;
+}}
+
+.leader-item .player-team {{
+    color: var(--text-secondary);
+}}
+
+.leader-item .player-stat {{
+    font-weight: bold;
+    color: var(--primary-color);
+}}
+
+.player-link, .team-link {{
+    color: var(--primary-color);
+    text-decoration: none;
+}}
+
+.player-link:hover, .team-link:hover {{
+    text-decoration: underline;
+}}
+
+.back-link {{
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}}
+
+.form {{ display: flex; gap: 4px; }}
+
+.empty-message {{
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 40px;
+}}
+
+.table-note {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 15px;
+    font-style: italic;
+}}
+
+.gallery-grid {{
+    display: grid;
+    grid-template-columns: repeat(var(--gallery-columns, 3), 1fr);
+    gap: 20px;
+}}
+
+.gallery-item img {{
+    width: 100%;
+    border-radius: var(--border-radius);
+    {(_settings.EnableShadows ? "box-shadow: 0 2px 8px rgba(0,0,0,0.1);" : "")}
+}}
+
+.gallery-item .caption {{
+    text-align: center;
+    margin-top: 8px;
+    color: var(--text-secondary);
+}}
+
+.sponsors-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    align-items: center;
+}}
+
+.sponsor-item {{
+    text-align: center;
+}}
+
+.sponsor-item img {{
+    max-width: 100%;
+}}
+
+.contact-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}}
+
+.contact-item h4 {{
+    margin-bottom: 10px;
+}}
+
+.contact-item a {{
+    color: var(--primary-color);
+    text-decoration: none;
+}}
+
+.social-links {{
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}}
+
+.social-link {{
+    padding: 10px 20px;
+    background: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+}}
+
+.division-card h3 {{
+    margin-bottom: 15px;
+}}
+
+.mini-stats {{
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}}
+
+.mini-stats .stat-card {{
+    padding: 15px;
+}}
+
+.mini-standings {{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}}
+
+.mini-standing-row {{
+    display: flex;
+    gap: 10px;
+    padding: 8px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 4px;
+}}
+
+.mini-standing-row .pos {{
+    font-weight: bold;
+    min-width: 25px;
+}}
+
+.mini-standing-row .pts {{
+    margin-left: auto;
+    color: var(--text-secondary);
+}}
+
+.team-list {{
+    list-style: none;
+}}
+
+.team-list li {{
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}}
+
+.player-count {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}}
+
+.news-article {{
+    position: relative;
+}}
+
+.pinned-badge {{
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: var(--accent-color);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}}
+
+.news-meta {{
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}}
+
+.category-badge {{
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-left: 10px;
+}}
+
+.division-badge {{
+    background: rgba(0,0,0,0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}}
+
+footer {{
+    background: #1E293B;
+    color: #E2E8F0;
+    padding: 40px 20px;
+    margin-top: 40px;
+}}
+
+.footer-content {{
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+}}
+
+footer a {{
+    color: #60A5FA;
+}}
+
+.footer-social {{
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}}
+
+.footer-social a {{
+    color: #E2E8F0;
+}}
+
+.copyright, .powered-by, .last-updated {{
+    font-size: 0.85rem;
+    color: #94A3B8;
+    margin-top: 10px;
+}}
+
+@media (max-width: 768px) {{
+    header h1 {{ font-size: 1.8rem; }}
+    .hero h2 {{ font-size: 1.5rem; }}
+    nav .nav-container {{ justify-content: center; }}
+    .result-item, .fixture-item {{ flex-direction: column; text-align: center; }}
+    .result-item .team, .fixture-item .team {{ min-width: auto; }}
+    .gallery-grid {{ grid-template-columns: repeat(2, 1fr); }}
+}}
+
+{_settings.CustomCss}
+");
+            
+            return css.ToString();
+        }
+        
+        private string GenerateDarkModeCSS()
+        {
+            var baseCSS = GenerateModernCSS();
+            
+            var darkOverrides = @"
+:root {
+    --bg-color: #0F172A;
+    --card-bg: #1E293B;
+    --text-color: #E2E8F0;
+    --text-secondary: #94A3B8;
+}
+
+.data-table th {
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+}
+
+.result-item, .fixture-item, .leader-item {
+    background: rgba(255,255,255,0.05);
+}
+
+.data-table.striped tbody tr:nth-child(even) {
+    background: rgba(255,255,255,0.03);
+}
+
+.data-table.hoverable tbody tr:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+footer {
+    background: #020617;
+}
+";
+            
+            return baseCSS + darkOverrides;
+        }
+        
+        private string GenerateSportCSS()
+        {
+            var baseCSS = GenerateModernCSS();
+            
+            var sportOverrides = @"
+header {
+    background: linear-gradient(135deg, #DC2626 0%, #7F1D1D 100%);
+}
+
+.stat-number {
+    color: #DC2626;
+}
+
+nav a:hover, nav a.active {
+    background: #DC2626;
+}
+
+.data-table th {
+    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+}
+";
+            
+            return baseCSS + sportOverrides;
+        }
+        
+        private string GenerateMinimalistCSS()
+        {
+            var baseCSS = GenerateModernCSS();
+            
+            var minimalistOverrides = @"
+header {
+    background: white;
+    color: #0F172A;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+header .season-badge {
+    background: #F1F5F9;
+    color: #64748B;
+}
+
+.section {
+    box-shadow: none;
+    border: 1px solid #E2E8F0;
+}
+
+.stat-card {
+    box-shadow: none;
+    border: 1px solid #E2E8F0;
+    border-top: none;
+}
+
+.data-table th {
+    background: #F8FAFC;
+    color: #0F172A;
+}
+
+nav a:hover, nav a.active {
+    background: #F1F5F9;
+    color: #0F172A;
+}
+";
+            
+            return baseCSS + minimalistOverrides;
+        }
+        
+        #endregion
+        
+        #region Player Stats Class
+        
+        private sealed class PlayerStat
+        {
+            public Guid PlayerId { get; set; }
+            public string PlayerName { get; set; } = "";
+            public string TeamName { get; set; } = "";
+            public int Played { get; set; }
+            public int Won { get; set; }
+            public int Lost { get; set; }
+            public int EightBalls { get; set; }
+            public int Rating { get; set; } = 1000;
+            public double WinPercentage => Played > 0 ? (Won * 100.0 / Played) : 0;
+        }
+        
+        #endregion
     }
     
     /// <summary>
