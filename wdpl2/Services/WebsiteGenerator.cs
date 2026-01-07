@@ -571,6 +571,12 @@ namespace Wdpl2.Services
                 html.AppendLine("            </div>");
             }
             
+            // Add printable fixtures sheet section if enabled
+            if (_settings.FixturesShowPrintableSheet)
+            {
+                AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
+            }
+            
             html.AppendLine("        </div>");
             html.AppendLine("    </main>");
             
@@ -583,6 +589,117 @@ namespace Wdpl2.Services
             html.AppendLine("</html>");
             
             return html.ToString();
+        }
+        
+        private void AppendFixturesSheetSection(StringBuilder html, Season season, List<Division> divisions, List<Venue> venues, List<Team> teams, List<Fixture> fixtures)
+        {
+            // Create a fixtures sheet generator with settings from the league
+            var fixturesSheetSettings = _league.FixturesSheetSettings ?? new FixturesSheetSettings
+            {
+                LeagueName = _settings.LeagueName,
+                SeasonName = season.Name
+            };
+            
+            // Update league/season name from website settings
+            fixturesSheetSettings.LeagueName = _settings.LeagueName;
+            fixturesSheetSettings.SeasonName = season.Name;
+            
+            var fixturesSheetGenerator = new FixturesSheetGenerator(_league, fixturesSheetSettings);
+            
+            // Get embeddable content and CSS
+            var sheetContent = fixturesSheetGenerator.GenerateEmbeddableContent(season.Id);
+            var sheetCss = fixturesSheetGenerator.GetEmbeddableCSS();
+            
+            var expandedClass = _settings.FixturesSheetDefaultExpanded ? " expanded" : "";
+            var sheetTitle = string.IsNullOrWhiteSpace(_settings.FixturesSheetTitle) 
+                ? "Printable Fixtures Sheet" 
+                : _settings.FixturesSheetTitle;
+            
+            html.AppendLine("            <!-- Printable Fixtures Sheet Section -->");
+            html.AppendLine("            <style>");
+            html.AppendLine("            .fixtures-sheet-section { position: relative; }");
+            html.AppendLine("            .fixtures-sheet-section .fixtures-sheet-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }");
+            html.AppendLine("            .fixtures-sheet-section .fixtures-sheet-header h3 { margin-bottom: 0; }");
+            html.AppendLine("            .fixtures-sheet-section .toggle-icon { font-size: 0.8rem; transition: transform 0.25s; color: var(--text-secondary, #64748B); }");
+            html.AppendLine("            .fixtures-sheet-section:not(.expanded) .toggle-icon { transform: rotate(-90deg); }");
+            html.AppendLine("            .fixtures-sheet-section .fixtures-sheet-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, padding 0.3s ease-out; padding-top: 0; }");
+            html.AppendLine("            .fixtures-sheet-section.expanded .fixtures-sheet-content { max-height: 5000px; padding-top: 24px; }");
+            html.AppendLine("            .fixtures-sheet-actions { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }");
+            html.AppendLine("            .fixtures-sheet-actions button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }");
+            html.AppendLine("            .fixtures-sheet-actions .btn-download { background: var(--primary-color, #3B82F6); color: white; }");
+            html.AppendLine("            .fixtures-sheet-actions .btn-download:hover { background: var(--secondary-color, #1D4ED8); transform: translateY(-2px); }");
+            html.AppendLine("            .fixtures-sheet-actions .btn-print { background: var(--bg-alt, #F1F5F9); color: var(--text-color, #0F172A); border: 1px solid var(--border-color, #E2E8F0); }");
+            html.AppendLine("            .fixtures-sheet-actions .btn-print:hover { background: var(--card-bg, white); border-color: var(--primary-color, #3B82F6); color: var(--primary-color, #3B82F6); }");
+            html.AppendLine("            .fixtures-sheet-wrapper { overflow-x: auto; background: white; border: 1px solid var(--border-color, #E2E8F0); border-radius: 10px; padding: 16px; max-width: 100%; }");
+            html.AppendLine("            .fixtures-sheet-wrapper .fixtures-sheet { transform: scale(0.85); transform-origin: top left; }");
+            html.AppendLine("            @media (max-width: 768px) { .fixtures-sheet-actions { flex-direction: column; } .fixtures-sheet-actions button { width: 100%; justify-content: center; } }");
+            html.AppendLine("            </style>");
+            html.AppendLine($"            <div class=\"section fixtures-sheet-section{expandedClass}\">");
+            html.AppendLine("                <div class=\"fixtures-sheet-header\" onclick=\"toggleFixturesSheet()\">");
+            html.AppendLine($"                    <h3>?? {sheetTitle}</h3>");
+            html.AppendLine("                    <div class=\"fixtures-sheet-controls\">");
+            html.AppendLine("                        <span class=\"toggle-icon\">?</span>");
+            html.AppendLine("                    </div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div class=\"fixtures-sheet-content\">");
+            html.AppendLine("                    <div class=\"fixtures-sheet-actions\">");
+            html.AppendLine("                        <button class=\"btn-download\" onclick=\"downloadFixturesSheet()\">? Download HTML</button>");
+            html.AppendLine("                        <button class=\"btn-print\" onclick=\"printFixturesSheet()\">?? Print</button>");
+            html.AppendLine("                    </div>");
+            html.AppendLine("                    <div class=\"fixtures-sheet-wrapper\" id=\"fixtures-sheet-container\">");
+            html.AppendLine(sheetContent);
+            html.AppendLine("                    </div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("            </div>");
+            
+            // Add JavaScript for toggle, print and download functionality
+            var escapedCss = EscapeJsString(sheetCss);
+            html.AppendLine("            <script>");
+            html.AppendLine("            function toggleFixturesSheet() {");
+            html.AppendLine("                const section = document.querySelector('.fixtures-sheet-section');");
+            html.AppendLine("                section.classList.toggle('expanded');");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function printFixturesSheet() {");
+            html.AppendLine("                const content = document.getElementById('fixtures-sheet-container').innerHTML;");
+            html.AppendLine("                const printWindow = window.open('', '_blank');");
+            html.AppendLine("                printWindow.document.write('<html><head><title>Fixtures Sheet</title>');");
+            html.AppendLine($"                printWindow.document.write('<style>{escapedCss}</style>');");
+            html.AppendLine("                printWindow.document.write('</head><body>');");
+            html.AppendLine("                printWindow.document.write(content);");
+            html.AppendLine("                printWindow.document.write('</body></html>');");
+            html.AppendLine("                printWindow.document.close();");
+            html.AppendLine("                printWindow.focus();");
+            html.AppendLine("                setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function downloadFixturesSheet() {");
+            html.AppendLine("                const content = document.getElementById('fixtures-sheet-container').innerHTML;");
+            html.AppendLine($"                const css = `{escapedCss}`;");
+            html.AppendLine("                const fullHtml = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Fixtures Sheet</title><style>${css}</style></head><body>${content}</body></html>`;");
+            html.AppendLine("                const blob = new Blob([fullHtml], { type: 'text/html' });");
+            html.AppendLine("                const url = URL.createObjectURL(blob);");
+            html.AppendLine("                const a = document.createElement('a');");
+            html.AppendLine("                a.href = url;");
+            html.AppendLine("                a.download = 'fixtures-sheet.html';");
+            html.AppendLine("                document.body.appendChild(a);");
+            html.AppendLine("                a.click();");
+            html.AppendLine("                document.body.removeChild(a);");
+            html.AppendLine("                URL.revokeObjectURL(url);");
+            html.AppendLine("            }");
+            html.AppendLine("            </script>");
+        }
+        
+        private static string EscapeJsString(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return "";
+            return input
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("`", "\\`");
         }
         
         private string GenerateResultsPage(Season season, WebsiteTemplate template)

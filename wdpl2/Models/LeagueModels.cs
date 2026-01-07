@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Wdpl2.Services;
 
 namespace Wdpl2.Models
 {
@@ -25,6 +26,9 @@ namespace Wdpl2.Models
 
         /// <summary>Website settings for HTML generation and FTP upload.</summary>
         public WebsiteSettings WebsiteSettings { get; set; } = new();
+        
+        /// <summary>Fixtures sheet settings for printable fixture sheet generation.</summary>
+        public FixturesSheetSettings FixturesSheetSettings { get; set; } = new();
 
         /// <summary>
         /// Get all entities for a specific season (divisions, venues, teams, players, fixtures).

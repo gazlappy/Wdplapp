@@ -91,6 +91,30 @@
                 </VerticalStackLayout>
             </Frame>
             
+            <!-- Printable Fixtures Sheet -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8" BackgroundColor="#F0F9FF">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="📄 Printable Fixtures Sheet" FontSize="14" FontAttributes="Bold" TextColor="#0369A1"/>
+                    <Label Text="Add a collapsible printable fixtures sheet to the fixtures page with a download button" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPrintableSheetCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Printable Fixtures Sheet" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="SheetDefaultExpandedCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Expanded by Default" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                    
+                    <Label Text="Section Title" FontSize="12" TextColor="#6B7280" Margin="0,8,0,0"/>
+                    <Entry x:Name="SheetTitleEntry" Text="Printable Fixtures Sheet" Placeholder="Enter section title"/>
+                    
+                    <Label Text="Note: Configure the fixtures sheet layout and styling in the Fixtures Sheet settings page" FontSize="11" TextColor="#9CA3AF" FontAttributes="Italic" Margin="0,8,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+            
             <Button Text="Save Changes" 
                     Clicked="OnSaveClicked" 
                     BackgroundColor="#10B981"

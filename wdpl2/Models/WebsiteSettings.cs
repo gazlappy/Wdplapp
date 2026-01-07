@@ -153,6 +153,11 @@ namespace Wdpl2.Models
         public string FixturesAwayTeamAlign { get; set; } = "left";   // right, left, center
         public string FixturesVsAlign { get; set; } = "center";       // center, left, right
         
+        // Fixtures Sheet Options (for fixtures page)
+        public bool FixturesShowPrintableSheet { get; set; } = false;
+        public bool FixturesSheetDefaultExpanded { get; set; } = false;
+        public string FixturesSheetTitle { get; set; } = "Printable Fixtures Sheet";
+        
         // Players Page Options
         public bool PlayersShowPosition { get; set; } = true;
         public bool PlayersShowTeam { get; set; } = true;

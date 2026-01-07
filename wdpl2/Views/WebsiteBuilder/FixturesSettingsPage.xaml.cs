@@ -36,6 +36,11 @@ public partial class FixturesSettingsPage : ContentPage
         }
         
         FixturesPerPageEntry.Text = settings.FixturesPerPage.ToString();
+        
+        // Printable fixtures sheet options
+        ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
+        SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
+        SheetTitleEntry.Text = settings.FixturesSheetTitle;
     }
 
     private async void OnSaveClicked(object sender, EventArgs e)
@@ -58,6 +63,13 @@ public partial class FixturesSettingsPage : ContentPage
             
             if (int.TryParse(FixturesPerPageEntry.Text, out int perPage))
                 settings.FixturesPerPage = perPage;
+            
+            // Printable fixtures sheet options
+            settings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
+            settings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
+            settings.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text) 
+                ? "Printable Fixtures Sheet" 
+                : SheetTitleEntry.Text;
             
             DataStore.Save();
             
