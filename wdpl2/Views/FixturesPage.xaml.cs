@@ -509,14 +509,20 @@ public partial class FixturesPage : ContentPage
                     System.Diagnostics.Debug.WriteLine($"Raw text:\n{azureResult.AllText}");
 
                     // Parse the Azure OCR result using the ScoreCardRecognitionService
+                    // Pass the fixture's team IDs so it can properly categorize home vs away players
                     var recognitionService = new ScoreCardRecognitionService();
-                    result = recognitionService.RecognizeFromOcrText(azureResult.AllText, imageData);
+                    result = recognitionService.RecognizeFromOcrText(
+                        azureResult.AllText, 
+                        imageData,
+                        _selectedFixture.HomeTeamId,
+                        _selectedFixture.AwayTeamId,
+                        _frameRows.Count);
                 }
                 else
                 {
                     // Azure failed - offer to try local OCR
                     var tryLocal = await DisplayAlert(
-                        "?? Azure OCR Failed",
+                        "Azure OCR Failed",
                         $"{azureResult.Error}\n\nWould you like to try local OCR instead?",
                         "Try Local", "Cancel");
 
@@ -543,7 +549,7 @@ public partial class FixturesPage : ContentPage
             {
                 // Show preview of recognized data and ask for confirmation
                 await ShowRecognitionResultsAsync(result, useAzure);
-            }
+            }            
             else if (result != null)
             {
                 // Recognition failed or no frames found - offer manual entry mode
@@ -927,11 +933,24 @@ public partial class FixturesPage : ContentPage
         // Load player lists
         LoadPlayerLists();
 
-        // Determine frame count
-        int frameCount = 10;
+        // Determine frame count - priority order:
+        // 1. Season's FramesPerMatch (if explicitly set > 0)
+        // 2. App Settings DefaultFramesPerMatch (if > 0)
+        // 3. Default to 15 (WDPL standard)
+        int frameCount = 15; // Ultimate default
         var season = data.Seasons.FirstOrDefault(s => s.Id == _selectedFixture.SeasonId);
+        
+        // First try settings
+        if (data.Settings.DefaultFramesPerMatch > 0)
+            frameCount = data.Settings.DefaultFramesPerMatch;
+        
+        // Then override with season-specific value if set
         if (season != null && season.FramesPerMatch > 0) 
             frameCount = season.FramesPerMatch;
+
+        System.Diagnostics.Debug.WriteLine($"BuildScorecard: Using {frameCount} frames");
+        System.Diagnostics.Debug.WriteLine($"  Season '{season?.Name}' FramesPerMatch: {season?.FramesPerMatch ?? 0}");
+        System.Diagnostics.Debug.WriteLine($"  Settings DefaultFramesPerMatch: {data.Settings.DefaultFramesPerMatch}");
 
         // Ensure fixture has enough frames
         while (_selectedFixture.Frames.Count < frameCount)

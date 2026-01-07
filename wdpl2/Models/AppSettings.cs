@@ -79,8 +79,11 @@ namespace Wdpl2.Models
 
         // ========== Fixture Defaults ==========
 
-        /// <summary>Default number of frames per match (default 10).</summary>
-        public int DefaultFramesPerMatch { get; set; } = 10;
+        /// <summary>Default number of frames per match (default 15 for WDPL).</summary>
+        public int DefaultFramesPerMatch { get; set; } = 15;
+
+        /// <summary>Maximum frames a single player can play per match (default 3 for WDPL).</summary>
+        public int MaxFramesPerPlayer { get; set; } = 3;
 
         /// <summary>Default match day of week (default Tuesday).</summary>
         public DayOfWeek DefaultMatchDay { get; set; } = DayOfWeek.Tuesday;
@@ -132,7 +135,8 @@ namespace Wdpl2.Models
             MatchDrawBonus = 1;
 
             // Fixture Defaults
-            DefaultFramesPerMatch = 15; // VBA: Frames = 15
+            DefaultFramesPerMatch = 15; // VBA/WDPL: Frames = 15
+            MaxFramesPerPlayer = 3;     // WDPL: Max 3 frames per player
             DefaultMatchDay = DayOfWeek.Tuesday;
             DefaultMatchTime = new TimeSpan(19, 30, 0);
             DefaultRoundsPerOpponent = 2;

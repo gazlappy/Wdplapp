@@ -28,8 +28,12 @@ namespace Wdpl2.Models
         /// <summary>Typical start time for matches on the weekly day.</summary>
         public TimeSpan MatchStartTime { get; set; } = new TimeSpan(20, 0, 0); // 20:00
 
-        /// <summary>Frames per match (used elsewhere in the app).</summary>
-        public int FramesPerMatch { get; set; } = 10;
+        /// <summary>
+        /// Frames per match for this season.
+        /// Default is 0, which means "use app settings DefaultFramesPerMatch".
+        /// Set to a specific value (e.g., 10, 15) to override for this season only.
+        /// </summary>
+        public int FramesPerMatch { get; set; } = 0;
 
         /// <summary>Date-only list of days where no fixtures should be scheduled.</summary>
         public List<DateTime> BlackoutDates { get; set; } = new();
