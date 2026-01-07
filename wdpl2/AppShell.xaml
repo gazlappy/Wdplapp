@@ -56,5 +56,10 @@
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>
+
+        <!-- OCR Test Page -->
+        <Tab Title="Test OCR">
+            <ShellContent Title="OCR Test" ContentTemplate="{DataTemplate views:TestPage}" />
+        </Tab>
     </TabBar>
 </Shell>

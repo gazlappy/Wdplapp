@@ -3,6 +3,8 @@
 	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'">
 		<!-- Include Windows App Runtime with the app when running unpackaged -->
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+		<!-- Workaround for duplicate TabbedPageStyle.xbf resource conflict -->
+		<WindowsPackageType>None</WindowsPackageType>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -186,12 +188,12 @@
 	  </MauiXaml>
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Update="Microsoft.Maui.Controls" Version="10.0.10" />
-	</ItemGroup>
-	<ItemGroup>
-	  <PackageReference Include="CommunityToolkit.Maui" Version="10.0.0" />
+	  <PackageReference Include="CommunityToolkit.Maui" Version="9.1.1" />
 	  <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 	  <PackageReference Include="DocumentFormat.OpenXml" Version="3.0.2" />
+	  <!-- Pin MAUI version to avoid TabbedPageStyle.xbf duplicate resource bug -->
+	  <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
+	  <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.40" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
 	    <PrivateAssets>all</PrivateAssets>
@@ -201,5 +203,20 @@
 	  <PackageReference Include="Plugin.Maui.OCR" Version="1.0.12" />
 	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />
 	</ItemGroup>
+
+	<!-- Workaround for duplicate TabbedPageStyle.xbf resource conflict in MAUI on Windows -->
+	<!-- See: https://github.com/dotnet/maui/issues/22511 -->
+	<PropertyGroup Condition="'$(TargetPlatformIdentifier)' == 'Windows'">
+		<_MauiStylesPath>Microsoft.Maui.Controls\Platform\Windows\TabbedPage\</_MauiStylesPath>
+	</PropertyGroup>
+	
+	<Target Name="RemoveDuplicateTabbedPageStyle" BeforeTargets="_ExpandWinAppSdkPriFiles;WinAppSdkGenerateProjectPriFile;_GenerateProjectPriFileCore" Condition="'$(TargetPlatformIdentifier)' == 'Windows'">
+		<ItemGroup>
+			<!-- Remove duplicates from various item groups that feed into PRI generation -->
+			<_WinAppSdkPriFile Remove="@(_WinAppSdkPriFile)" Condition="'%(Filename)%(Extension)' == 'TabbedPageStyle.xbf'" />
+			<_WinAppSdkProjectPriFile Remove="@(_WinAppSdkProjectPriFile)" Condition="$([System.String]::Copy('%(Identity)').Contains('TabbedPageStyle'))" />
+			<PRIResource Remove="@(PRIResource)" Condition="$([System.String]::Copy('%(Identity)').Contains('TabbedPageStyle'))" />
+		</ItemGroup>
+	</Target>
 
 </Project>

@@ -156,6 +156,60 @@ public sealed class ScoreCardRecognitionService
     }
 
     /// <summary>
+    /// Recognize score card from pre-extracted OCR text (e.g. from Azure Vision)
+    /// </summary>
+    public RecognitionResult RecognizeFromOcrText(string ocrText, byte[]? imageData = null)
+    {
+        var result = new RecognitionResult
+        {
+            ProcessedImageData = imageData,
+            RawOcrText = ocrText
+        };
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ocrText))
+            {
+                result.Success = false;
+                result.Message = "No OCR text provided";
+                result.Errors.Add("OCR text is empty");
+                return result;
+            }
+
+            // Parse the extracted text
+            result = ParseScoreCardText(ocrText, result);
+            
+            // Try to match player names to known players
+            MatchPlayersToKnownPlayers(result);
+
+            // Calculate overall confidence
+            if (result.Frames.Any())
+            {
+                result.Confidence = result.Frames.Average(f => f.Confidence);
+                result.Success = result.Confidence > 0.3;
+                result.Message = result.Success 
+                    ? $"Recognized {result.Frames.Count} frames with {result.Confidence:P0} confidence"
+                    : "Low confidence - please verify results manually";
+            }
+            else
+            {
+                result.Success = false;
+                result.Message = "Could not identify any frames in the score card";
+                result.Warnings.Add("Try to ensure the entire score card is visible in the photo");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = "Error processing score card";
+            result.Errors.Add(ex.Message);
+            return result;
+        }
+    }
+
+    /// <summary>
     /// Perform OCR on the image using Plugin.Maui.OCR
     /// </summary>
     private async Task<string> PerformOcrAsync(byte[] imageData)

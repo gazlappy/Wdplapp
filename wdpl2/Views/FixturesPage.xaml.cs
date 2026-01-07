@@ -442,9 +442,8 @@ public partial class FixturesPage : ContentPage
             if (photo == null)
                 return;
 
-            // Show processing indicator
-            await DisplayAlert($"{Emojis.Hourglass} Processing",
-                "Analyzing score card image...\nThis may take a moment.", "OK");
+            // Log that processing is starting (non-blocking)
+            System.Diagnostics.Debug.WriteLine($"Processing score card image ({photo.FileName})...");
 
             // Read the image
             using var stream = await photo.OpenReadAsync();

@@ -10,6 +10,57 @@
 
     <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,*" Padding="8" ColumnSpacing="8" RowSpacing="8">
         
+        <!-- OCR Progress Overlay -->
+        <Border 
+            x:Name="OcrProgressOverlay"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.ColumnSpan="2"
+            IsVisible="False"
+            BackgroundColor="#CC000000"
+            ZIndex="200"
+            Padding="20">
+            <Border 
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
+                StrokeShape="RoundRectangle 16"
+                Padding="32"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                WidthRequest="400">
+                <VerticalStackLayout Spacing="16" HorizontalOptions="Center">
+                    <Label x:Name="OcrProgressTitle" 
+                           Text="Processing Score Card" 
+                           FontSize="18" 
+                           FontAttributes="Bold" 
+                           HorizontalTextAlignment="Center" />
+                    
+                    <ActivityIndicator 
+                        x:Name="OcrActivityIndicator"
+                        IsRunning="True"
+                        Color="{StaticResource PrimaryColor}"
+                        HeightRequest="48"
+                        WidthRequest="48" />
+                    
+                    <Label x:Name="OcrProgressMessage" 
+                           Text="Analyzing image with OCR..." 
+                           FontSize="14" 
+                           HorizontalTextAlignment="Center"
+                           TextColor="Gray" />
+                    
+                    <ProgressBar x:Name="OcrProgressBar"
+                                 Progress="0"
+                                 ProgressColor="{StaticResource PrimaryColor}"
+                                 HeightRequest="8" />
+                    
+                    <Label x:Name="OcrProgressPercent" 
+                           Text="0%" 
+                           FontSize="12" 
+                           HorizontalTextAlignment="Center"
+                           TextColor="Gray" />
+                </VerticalStackLayout>
+            </Border>
+        </Border>
+        
         <!-- Header with Burger Menu Button -->
         <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
             <Button 

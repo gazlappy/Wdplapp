@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.TestPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="OCR Test Lab">
+    
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="*,2*">
+        
+        <!-- LEFT PANEL: Controls -->
+        <Border 
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.Column="0"
+            Margin="12"
+            Padding="16"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            StrokeShape="RoundRectangle 12"
+            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+            
+            <ScrollView>
+                <VerticalStackLayout Spacing="16">
+                    
+                    <!-- Header -->
+                    <Label 
+                        Text="OCR Test Lab" 
+                        FontSize="22" 
+                        FontAttributes="Bold" />
+                    
+                    <Label 
+                        Text="Test OCR with printed text and handwriting"
+                        FontSize="12"
+                        TextColor="Gray" />
+                    
+                    <!-- OCR Engine Selection -->
+                    <Label Text="OCR ENGINE" FontAttributes="Bold" FontSize="12" TextColor="Gray" Margin="0,8,0,0" />
+                    
+                    <Border 
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}"
+                        StrokeShape="RoundRectangle 8">
+                        <VerticalStackLayout Spacing="8">
+                            <HorizontalStackLayout Spacing="8">
+                                <RadioButton x:Name="LocalOcrRadio" Content="Local (Device)" IsChecked="True" GroupName="OcrEngine" CheckedChanged="OnOcrEngineChanged" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="8">
+                                <RadioButton x:Name="AzureOcrRadio" Content="Azure Vision (Handwriting)" GroupName="OcrEngine" CheckedChanged="OnOcrEngineChanged" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                    
+                    <!-- Local OCR Status -->
+                    <Border 
+                        x:Name="LocalStatusCard"
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#F0F9FF, Dark=#1E3A5F}"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="{AppThemeBinding Light=#3B82F6, Dark=#60A5FA}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Local OCR Status" FontAttributes="Bold" FontSize="14" />
+                            <Label x:Name="OcrStatusLabel" Text="Checking..." FontSize="12" />
+                            <Label x:Name="PlatformLabel" Text="" FontSize="11" TextColor="Gray" />
+                        </VerticalStackLayout>
+                    </Border>
+                    
+                    <!-- Azure Configuration -->
+                    <Border 
+                        x:Name="AzureConfigCard"
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#FEF3C7, Dark=#3D2F1E}"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="{AppThemeBinding Light=#F59E0B, Dark=#FBBF24}"
+                        IsVisible="False">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Azure Vision Configuration" FontAttributes="Bold" FontSize="14" />
+                            <Label x:Name="AzureStatusLabel" Text="Not configured" FontSize="12" TextColor="Gray" />
+                            
+                            <Label Text="Endpoint:" FontSize="11" Margin="0,4,0,0" />
+                            <Entry x:Name="AzureEndpointEntry" Placeholder="https://your-resource.cognitiveservices.azure.com" FontSize="11" />
+                            
+                            <Label Text="API Key:" FontSize="11" />
+                            <Entry x:Name="AzureApiKeyEntry" Placeholder="Your API key" IsPassword="True" FontSize="11" />
+                            
+                            <HorizontalStackLayout Spacing="8" Margin="0,4,0,0">
+                                <Button Text="Save" Clicked="OnSaveAzureConfig" BackgroundColor="#10B981" TextColor="White" FontSize="11" Padding="12,6" />
+                                <Button Text="Test" Clicked="OnTestAzureConnection" BackgroundColor="#3B82F6" TextColor="White" FontSize="11" Padding="12,6" />
+                                <Button Text="Clear" Clicked="OnClearAzureConfig" BackgroundColor="#EF4444" TextColor="White" FontSize="11" Padding="12,6" />
+                            </HorizontalStackLayout>
+                            
+                            <Label Text="Get free Azure account: portal.azure.com" FontSize="10" TextColor="Gray" TextDecorations="Underline">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnAzurePortalTapped" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </VerticalStackLayout>
+                    </Border>
+                    
+                    <!-- Image Source Section -->
+                    <Label Text="IMAGE SOURCE" FontAttributes="Bold" FontSize="12" TextColor="Gray" Margin="0,8,0,0" />
+                    
+                    <Button 
+                        x:Name="SelectImageButton"
+                        Text="Select from Gallery"
+                        Clicked="OnSelectImageClicked"
+                        BackgroundColor="#10B981"
+                        TextColor="White" />
+                    
+                    <Button 
+                        x:Name="TakePhotoButton"
+                        Text="Capture Photo"
+                        Clicked="OnTakePhotoClicked"
+                        BackgroundColor="#8B5CF6"
+                        TextColor="White" />
+                    
+                    <!-- OCR Options Section -->
+                    <Label Text="OCR OPTIONS" FontAttributes="Bold" FontSize="12" TextColor="Gray" Margin="0,12,0,0" />
+                    
+                    <Grid ColumnDefinitions="*,Auto" RowSpacing="8">
+                        <Label Text="Try Hard Mode" VerticalTextAlignment="Center" Grid.Column="0" FontSize="13" />
+                        <Switch x:Name="TryHardSwitch" Grid.Column="1" />
+                        
+                        <Label Text="Show Confidence" VerticalTextAlignment="Center" Grid.Row="1" Grid.Column="0" FontSize="13" />
+                        <Switch x:Name="ShowConfidenceSwitch" IsToggled="True" Grid.Row="1" Grid.Column="1" />
+                        
+                        <Label Text="Parse Lines" VerticalTextAlignment="Center" Grid.Row="2" Grid.Column="0" FontSize="13" />
+                        <Switch x:Name="ParseLinesSwitch" IsToggled="True" Grid.Row="2" Grid.Column="1" />
+                    </Grid>
+                    
+                    <!-- Actions Section -->
+                    <Label Text="ACTIONS" FontAttributes="Bold" FontSize="12" TextColor="Gray" Margin="0,12,0,0" />
+                    
+                    <Button 
+                        x:Name="ProcessButton"
+                        Text="Run OCR"
+                        Clicked="OnProcessClicked"
+                        BackgroundColor="#3B82F6"
+                        TextColor="White"
+                        IsEnabled="False" />
+                    
+                    <Button 
+                        x:Name="ClearButton"
+                        Text="Clear Results"
+                        Clicked="OnClearClicked"
+                        BackgroundColor="#6B7280"
+                        TextColor="White" />
+                    
+                    <!-- Processing Indicator -->
+                    <HorizontalStackLayout x:Name="ProcessingPanel" IsVisible="False" Spacing="8" HorizontalOptions="Center">
+                        <ActivityIndicator IsRunning="True" Color="#3B82F6" HeightRequest="20" WidthRequest="20" />
+                        <Label x:Name="ProcessingLabel" Text="Processing..." VerticalTextAlignment="Center" FontSize="12" />
+                    </HorizontalStackLayout>
+                    
+                    <!-- Performance Stats -->
+                    <Border 
+                        x:Name="StatsCard"
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}"
+                        StrokeShape="RoundRectangle 8"
+                        IsVisible="False"
+                        Margin="0,8,0,0">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Performance" FontAttributes="Bold" FontSize="12" />
+                            <Label x:Name="ProcessingTimeLabel" Text="" FontSize="11" />
+                            <Label x:Name="ImageSizeLabel" Text="" FontSize="11" />
+                            <Label x:Name="ConfidenceLabel" Text="" FontSize="11" />
+                            <Label x:Name="EngineUsedLabel" Text="" FontSize="11" TextColor="Gray" />
+                        </VerticalStackLayout>
+                    </Border>
+                    
+                    <!-- Handwriting Tips -->
+                    <Border 
+                        Padding="12"
+                        BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#1E3A5F}"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="{AppThemeBinding Light=#3B82F6, Dark=#60A5FA}"
+                        Margin="0,8,0,0">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Handwriting Tips" FontAttributes="Bold" FontSize="12" />
+                            <Label FontSize="10" LineHeight="1.3" Text="For handwriting recognition:&#10;1. Use Azure Vision (best results)&#10;2. Write clearly with good spacing&#10;3. Use dark ink on light paper&#10;4. Ensure good, even lighting&#10;5. Hold camera steady and parallel" />
+                        </VerticalStackLayout>
+                    </Border>
+                    
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+        
+        <!-- RIGHT PANEL: Results -->
+        <Grid 
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.Column="1"
+            Margin="0,12,12,12"
+            RowDefinitions="Auto,*">
+            
+            <!-- Image Preview -->
+            <Border 
+                x:Name="ImagePreviewBorder"
+                Grid.Row="0"
+                Padding="8"
+                BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}"
+                StrokeShape="RoundRectangle 12"
+                Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}"
+                HeightRequest="280"
+                IsVisible="False"
+                Margin="0,0,0,12">
+                <Grid>
+                    <Image 
+                        x:Name="SelectedImage"
+                        Aspect="AspectFit" />
+                    <Label 
+                        x:Name="ImageInfoLabel"
+                        Text=""
+                        FontSize="10"
+                        BackgroundColor="#80000000"
+                        TextColor="White"
+                        Padding="6,3"
+                        VerticalOptions="End"
+                        HorizontalOptions="End"
+                        Margin="8" />
+                </Grid>
+            </Border>
+            
+            <!-- Placeholder when no image -->
+            <Border 
+                x:Name="PlaceholderBorder"
+                Grid.Row="0"
+                Padding="24"
+                BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}"
+                StrokeShape="RoundRectangle 12"
+                Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}"
+                StrokeDashArray="4,4"
+                HeightRequest="280"
+                Margin="0,0,0,12">
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="12">
+                    <Label Text="No Image Selected" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="Center" TextColor="Gray" />
+                    <Label Text="Select an image from gallery or capture a photo.&#10;&#10;For handwriting, select 'Azure Vision' engine&#10;for best recognition accuracy." FontSize="12" HorizontalTextAlignment="Center" TextColor="Gray" />
+                </VerticalStackLayout>
+            </Border>
+            
+            <!-- Results Tabs -->
+            <Border 
+                Grid.Row="1"
+                Padding="0"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A1A}"
+                StrokeShape="RoundRectangle 12"
+                Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+                
+                <Grid RowDefinitions="Auto,*">
+                    
+                    <!-- Tab Headers -->
+                    <HorizontalStackLayout Grid.Row="0" Spacing="0" BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}">
+                        <Button x:Name="TabRawText" Text="Raw Text" Clicked="OnTabClicked" 
+                                BackgroundColor="{AppThemeBinding Light=#3B82F6, Dark=#2563EB}" TextColor="White"
+                                CornerRadius="0" Padding="16,10" FontSize="13" />
+                        <Button x:Name="TabLines" Text="Lines" Clicked="OnTabClicked"
+                                BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#374151, Dark=#9CA3AF}"
+                                CornerRadius="0" Padding="16,10" FontSize="13" />
+                        <Button x:Name="TabWords" Text="Words" Clicked="OnTabClicked"
+                                BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#374151, Dark=#9CA3AF}"
+                                CornerRadius="0" Padding="16,10" FontSize="13" />
+                        <Button x:Name="TabAnalysis" Text="Analysis" Clicked="OnTabClicked"
+                                BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#374151, Dark=#9CA3AF}"
+                                CornerRadius="0" Padding="16,10" FontSize="13" />
+                        <Button x:Name="TabConfidence" Text="Confidence" Clicked="OnTabClicked"
+                                BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#374151, Dark=#9CA3AF}"
+                                CornerRadius="0" Padding="16,10" FontSize="13" />
+                    </HorizontalStackLayout>
+                    
+                    <!-- Tab Content -->
+                    <Grid Grid.Row="1" Padding="12">
+                        
+                        <!-- Raw Text Tab -->
+                        <ScrollView x:Name="RawTextPanel">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="Extracted Text" FontAttributes="Bold" FontSize="14" VerticalTextAlignment="Center" />
+                                    <Button Text="Copy" Clicked="OnCopyTextClicked" HeightRequest="28" Padding="12,0" FontSize="11" />
+                                </HorizontalStackLayout>
+                                <Border 
+                                    Padding="12"
+                                    BackgroundColor="{AppThemeBinding Light=#1E293B, Dark=#0F172A}"
+                                    StrokeShape="RoundRectangle 8">
+                                    <Label 
+                                        x:Name="RawTextLabel"
+                                        Text="(No OCR results yet)"
+                                        FontFamily="Courier New"
+                                        FontSize="12"
+                                        TextColor="#94A3B8"
+                                        LineHeight="1.4" />
+                                </Border>
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        
+                        <!-- Lines Tab -->
+                        <ScrollView x:Name="LinesPanel" IsVisible="False">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Detected Lines" FontAttributes="Bold" FontSize="14" />
+                                <Label x:Name="LineCountLabel" Text="0 lines detected" FontSize="12" TextColor="Gray" />
+                                <CollectionView x:Name="LinesCollection" ItemsLayout="VerticalList">
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="10" Margin="0,2" BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#1E293B}" StrokeShape="RoundRectangle 6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                    <Label Text="{Binding LineNumber}" FontAttributes="Bold" TextColor="#3B82F6" WidthRequest="30" />
+                                                    <Label Grid.Column="1" Text="{Binding Text}" FontSize="12" LineBreakMode="TailTruncation" />
+                                                    <Label Grid.Column="2" Text="{Binding CharCount, StringFormat='{0} chars'}" FontSize="10" TextColor="Gray" Margin="8,0" />
+                                                    <Label Grid.Column="3" Text="{Binding ConfidenceText}" FontSize="10" TextColor="{Binding ConfidenceColor}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        
+                        <!-- Words Tab -->
+                        <ScrollView x:Name="WordsPanel" IsVisible="False">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Word Frequency" FontAttributes="Bold" FontSize="14" />
+                                <Label x:Name="WordCountLabel" Text="0 unique words" FontSize="12" TextColor="Gray" />
+                                <FlexLayout x:Name="WordsFlexLayout" Wrap="Wrap" JustifyContent="Start" AlignItems="Start" />
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        
+                        <!-- Analysis Tab -->
+                        <ScrollView x:Name="AnalysisPanel" IsVisible="False">
+                            <VerticalStackLayout Spacing="12">
+                                <Label Text="Text Analysis" FontAttributes="Bold" FontSize="14" />
+                                
+                                <!-- Statistics Grid -->
+                                <Grid ColumnDefinitions="*,*" RowSpacing="8" ColumnSpacing="8">
+                                    <Border Padding="12" BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#1E3A5F}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout>
+                                            <Label x:Name="StatCharacters" Text="0" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6" />
+                                            <Label Text="Characters" FontSize="11" TextColor="Gray" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                    <Border Grid.Column="1" Padding="12" BackgroundColor="{AppThemeBinding Light=#F0FDF4, Dark=#1E3A1E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout>
+                                            <Label x:Name="StatWords" Text="0" FontSize="24" FontAttributes="Bold" TextColor="#10B981" />
+                                            <Label Text="Words" FontSize="11" TextColor="Gray" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                    <Border Grid.Row="1" Padding="12" BackgroundColor="{AppThemeBinding Light=#FEF3C7, Dark=#3D2F1E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout>
+                                            <Label x:Name="StatLines" Text="0" FontSize="24" FontAttributes="Bold" TextColor="#F59E0B" />
+                                            <Label Text="Lines" FontSize="11" TextColor="Gray" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                    <Border Grid.Row="1" Grid.Column="1" Padding="12" BackgroundColor="{AppThemeBinding Light=#FDF2F8, Dark=#3D1E2E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout>
+                                            <Label x:Name="StatNumbers" Text="0" FontSize="24" FontAttributes="Bold" TextColor="#EC4899" />
+                                            <Label Text="Numbers Found" FontSize="11" TextColor="Gray" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </Grid>
+                                
+                                <!-- Pattern Detection -->
+                                <Label Text="Pattern Detection" FontAttributes="Bold" FontSize="12" Margin="0,8,0,0" />
+                                <Border Padding="12" BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}" StrokeShape="RoundRectangle 8">
+                                    <VerticalStackLayout x:Name="PatternsPanel" Spacing="6">
+                                        <Label Text="No patterns detected yet" FontSize="12" TextColor="Gray" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                
+                                <!-- Detected Entities -->
+                                <Label Text="Detected Entities" FontAttributes="Bold" FontSize="12" Margin="0,8,0,0" />
+                                <Border Padding="12" BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}" StrokeShape="RoundRectangle 8">
+                                    <VerticalStackLayout x:Name="EntitiesPanel" Spacing="6">
+                                        <Label Text="No entities detected yet" FontSize="12" TextColor="Gray" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        
+                        <!-- Confidence Tab (Azure only) -->
+                        <ScrollView x:Name="ConfidencePanel" IsVisible="False">
+                            <VerticalStackLayout Spacing="12">
+                                <Label Text="Word Confidence Analysis" FontAttributes="Bold" FontSize="14" />
+                                <Label x:Name="ConfidenceInfoLabel" Text="Shows per-word confidence scores from Azure Vision" FontSize="12" TextColor="Gray" />
+                                
+                                <!-- Confidence Summary -->
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                    <Border Padding="12" BackgroundColor="{AppThemeBinding Light=#F0FDF4, Dark=#1E3A1E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout HorizontalOptions="Center">
+                                            <Label x:Name="HighConfCount" Text="0" FontSize="20" FontAttributes="Bold" TextColor="#10B981" HorizontalTextAlignment="Center" />
+                                            <Label Text="High (90%+)" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                    <Border Grid.Column="1" Padding="12" BackgroundColor="{AppThemeBinding Light=#FEF3C7, Dark=#3D2F1E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout HorizontalOptions="Center">
+                                            <Label x:Name="MedConfCount" Text="0" FontSize="20" FontAttributes="Bold" TextColor="#F59E0B" HorizontalTextAlignment="Center" />
+                                            <Label Text="Medium (70-90%)" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                    <Border Grid.Column="2" Padding="12" BackgroundColor="{AppThemeBinding Light=#FEF2F2, Dark=#3D1E1E}" StrokeShape="RoundRectangle 8">
+                                        <VerticalStackLayout HorizontalOptions="Center">
+                                            <Label x:Name="LowConfCount" Text="0" FontSize="20" FontAttributes="Bold" TextColor="#EF4444" HorizontalTextAlignment="Center" />
+                                            <Label Text="Low (&lt;70%)" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </Grid>
+                                
+                                <!-- Low Confidence Words -->
+                                <Label Text="Words Needing Review (Low Confidence)" FontAttributes="Bold" FontSize="12" Margin="0,8,0,0" />
+                                <Border Padding="12" BackgroundColor="{AppThemeBinding Light=#FEF2F2, Dark=#3D1E1E}" StrokeShape="RoundRectangle 8">
+                                    <VerticalStackLayout x:Name="LowConfWordsPanel" Spacing="4">
+                                        <Label Text="No low confidence words" FontSize="12" TextColor="Gray" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                
+                                <!-- All Words with Confidence -->
+                                <Label Text="All Words with Confidence Scores" FontAttributes="Bold" FontSize="12" Margin="0,8,0,0" />
+                                <CollectionView x:Name="ConfidenceWordsCollection" HeightRequest="300">
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="8" Margin="0,2" BackgroundColor="{Binding BackgroundColor}" StrokeShape="RoundRectangle 4">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <Label Text="{Binding Text}" FontSize="12" VerticalTextAlignment="Center" />
+                                                    <Label Grid.Column="1" Text="{Binding ConfidencePercent}" FontSize="11" TextColor="{Binding ConfidenceColor}" FontAttributes="Bold" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                                
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        
+                    </Grid>
+                </Grid>
+            </Border>
+            
+        </Grid>
+        
+        <!-- Error Overlay -->
+        <Border 
+            x:Name="ErrorOverlay"
+            Grid.RowSpan="2"
+            Grid.ColumnSpan="2"
+            Padding="24"
+            BackgroundColor="#E0FEF2F2"
+            IsVisible="False"
+            InputTransparent="False">
+            <Border 
+                Padding="24"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A1A}"
+                StrokeShape="RoundRectangle 16"
+                Stroke="#EF4444"
+                StrokeThickness="2"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                MaximumWidthRequest="500">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="OCR Error" FontSize="18" FontAttributes="Bold" TextColor="#EF4444" />
+                    <Label x:Name="ErrorMessageLabel" Text="" FontSize="13" LineHeight="1.4" />
+                    <Button Text="Dismiss" Clicked="OnDismissErrorClicked" BackgroundColor="#EF4444" TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+        </Border>
+        
+    </Grid>
+</ContentPage>
