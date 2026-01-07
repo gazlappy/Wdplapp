@@ -176,8 +176,21 @@ public sealed class ScoreCardRecognitionService
                 return result;
             }
 
-            // Parse the extracted text
+            // Log raw OCR text for debugging
+            System.Diagnostics.Debug.WriteLine("=== RAW OCR TEXT FROM AZURE ===");
+            System.Diagnostics.Debug.WriteLine(ocrText);
+            System.Diagnostics.Debug.WriteLine("=== END RAW OCR TEXT ===");
+
+            // Parse the extracted text using strict patterns first
             result = ParseScoreCardText(ocrText, result);
+            
+            // If no frames found with strict patterns, try flexible extraction
+            // (Only matches against known players in database)
+            if (!result.Frames.Any())
+            {
+                System.Diagnostics.Debug.WriteLine("No frames found with strict patterns, trying flexible extraction...");
+                ExtractFramesFromKnownPlayers(ocrText, result);
+            }
             
             // Try to match player names to known players
             MatchPlayersToKnownPlayers(result);
@@ -195,7 +208,8 @@ public sealed class ScoreCardRecognitionService
             {
                 result.Success = false;
                 result.Message = "Could not identify any frames in the score card";
-                result.Warnings.Add("Try to ensure the entire score card is visible in the photo");
+                result.Warnings.Add("No known players found in OCR text");
+                result.Warnings.Add($"Make sure players exist in the database ({_availablePlayers.Count} players available)");
             }
 
             return result;
@@ -698,5 +712,292 @@ public sealed class ScoreCardRecognitionService
         }
 
         return frames;
+    }
+
+    /// <summary>
+    /// Extract frames by matching OCR text against known players in the database.
+    /// STRICT MODE: Only creates frames for players that exist in the database.
+    /// Uses fuzzy matching to handle OCR misspellings.
+    /// </summary>
+    private void ExtractFramesFromKnownPlayers(string ocrText, RecognitionResult result)
+    {
+        var lines = ocrText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l) && l.Length > 2)
+            .ToList();
+
+        System.Diagnostics.Debug.WriteLine($"=== STRICT PLAYER MATCHING ===");
+        System.Diagnostics.Debug.WriteLine($"Processing {lines.Count} lines against {_availablePlayers.Count} known players");
+
+        var matchedPlayers = new List<(int lineIndex, string ocrText, Player player, double confidence)>();
+        
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            var lower = line.ToLower();
+            
+            // Skip obvious header/label lines
+            if (IsHeaderLine(lower))
+            {
+                System.Diagnostics.Debug.WriteLine($"  [{i}] SKIP (header): '{line}'");
+                continue;
+            }
+
+            // Skip if this matches a team name
+            var matchedTeam = FindBestMatchingTeam(line);
+            if (matchedTeam != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"  [{i}] SKIP (team): '{line}' -> '{matchedTeam.Name}'");
+                if (string.IsNullOrEmpty(result.HomeTeamName))
+                    result.HomeTeamName = matchedTeam.Name;
+                else if (string.IsNullOrEmpty(result.AwayTeamName) && matchedTeam.Name != result.HomeTeamName)
+                    result.AwayTeamName = matchedTeam.Name;
+                continue;
+            }
+
+            // Try to match the line (or parts of it) to a known player
+            var playerMatches = FindPlayersInLine(line);
+            
+            foreach (var match in playerMatches)
+            {
+                // Don't add the same player twice
+                if (!matchedPlayers.Any(m => m.player.Id == match.player.Id))
+                {
+                    matchedPlayers.Add((i, match.ocrText, match.player, match.confidence));
+                    System.Diagnostics.Debug.WriteLine($"  [{i}] MATCHED: '{match.ocrText}' -> '{match.player.FullName}' ({match.confidence:P0})");
+                }
+            }
+
+            if (!playerMatches.Any())
+            {
+                System.Diagnostics.Debug.WriteLine($"  [{i}] NO MATCH: '{line}'");
+            }
+        }
+
+        System.Diagnostics.Debug.WriteLine($"Found {matchedPlayers.Count} matched players");
+
+        // Extract score indicators from all lines
+        var scoreInfo = ExtractAllScoreInfo(lines);
+        
+        // Pair players into frames (alternating home/away)
+        int frameNum = 1;
+        for (int i = 0; i < matchedPlayers.Count - 1; i += 2)
+        {
+            var home = matchedPlayers[i];
+            var away = matchedPlayers[i + 1];
+
+            // Try to determine winner from nearby score info
+            var winner = FindWinnerForFrame(home.lineIndex, away.lineIndex, scoreInfo, lines);
+
+            var frame = new RecognizedFrame
+            {
+                FrameNumber = frameNum++,
+                HomePlayerName = home.player.FullName,
+                AwayPlayerName = away.player.FullName,
+                MatchedHomePlayerId = home.player.Id,
+                MatchedAwayPlayerId = away.player.Id,
+                Winner = winner,
+                Confidence = (home.confidence + away.confidence) / 2
+            };
+
+            result.Frames.Add(frame);
+            System.Diagnostics.Debug.WriteLine($"  Frame {frame.FrameNumber}: {frame.HomePlayerName} vs {frame.AwayPlayerName} [{winner}]");
+        }
+
+        // Calculate scores from frames
+        result.HomeScore = result.Frames.Count(f => f.Winner == FrameWinner.Home);
+        result.AwayScore = result.Frames.Count(f => f.Winner == FrameWinner.Away);
+        
+        System.Diagnostics.Debug.WriteLine($"=== END STRICT MATCHING: {result.Frames.Count} frames, score {result.HomeScore}-{result.AwayScore} ===");
+    }
+
+    /// <summary>
+    /// Find all players mentioned in a line of text.
+    /// Handles lines like "John Smith  Jane Doe" (two names on one line)
+    /// </summary>
+    private List<(string ocrText, Player player, double confidence)> FindPlayersInLine(string line)
+    {
+        var results = new List<(string ocrText, Player player, double confidence)>();
+        
+        // Clean the line first
+        var cleaned = CleanPlayerName(line);
+        
+        // Try to match the whole line first
+        var (player, confidence) = FindPlayerWithConfidence(cleaned);
+        if (player != null && confidence >= 0.5)
+        {
+            results.Add((cleaned, player, confidence));
+            return results;
+        }
+
+        // Try splitting at common separators and check each part
+        var words = cleaned.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (words.Length >= 4) // Could be two names
+        {
+            // Try different split points
+            for (int split = 2; split <= words.Length - 2; split++)
+            {
+                var part1 = string.Join(" ", words.Take(split));
+                var part2 = string.Join(" ", words.Skip(split));
+                
+                var (player1, conf1) = FindPlayerWithConfidence(part1);
+                var (player2, conf2) = FindPlayerWithConfidence(part2);
+                
+                if (player1 != null && conf1 >= 0.5 && player2 != null && conf2 >= 0.5 && player1.Id != player2.Id)
+                {
+                    results.Add((part1, player1, conf1));
+                    results.Add((part2, player2, conf2));
+                    return results;
+                }
+            }
+        }
+
+        // Try matching just first+last name combinations (2 words)
+        if (words.Length >= 2)
+        {
+            var twoWordName = words[0] + " " + words[1];
+            var (p, c) = FindPlayerWithConfidence(twoWordName);
+            if (p != null && c >= 0.5)
+            {
+                results.Add((twoWordName, p, c));
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Find the best matching player with confidence score.
+    /// Uses multiple matching strategies to handle OCR misspellings.
+    /// </summary>
+    private (Player? player, double confidence) FindPlayerWithConfidence(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length < 3)
+            return (null, 0);
+
+        // Skip numbers and obvious non-names
+        if (Regex.IsMatch(name, @"^\d+$") || Regex.IsMatch(name, @"^[0-9\s\-:]+$"))
+            return (null, 0);
+
+        var normalizedInput = NormalizeName(name);
+        if (normalizedInput.Length < 3)
+            return (null, 0);
+
+        // 1. Exact match (100% confidence)
+        var exactMatch = _availablePlayers.FirstOrDefault(p => 
+            string.Equals(NormalizeName(p.FullName), normalizedInput, StringComparison.OrdinalIgnoreCase));
+        if (exactMatch != null)
+            return (exactMatch, 1.0);
+
+        // 2. Check if input contains both first and last name
+        foreach (var player in _availablePlayers)
+        {
+            var firstName = NormalizeName(player.FirstName ?? "");
+            var lastName = NormalizeName(player.LastName ?? "");
+            
+            if (firstName.Length >= 2 && lastName.Length >= 2 &&
+                normalizedInput.Contains(firstName) && normalizedInput.Contains(lastName))
+            {
+                return (player, 0.95);
+            }
+        }
+
+        // 3. Fuzzy match with strict threshold
+        var candidates = _availablePlayers
+            .Select(p => new 
+            { 
+                Player = p, 
+                FullNameScore = CalculateNameSimilarity(normalizedInput, NormalizeName(p.FullName)),
+                FirstNameScore = CalculateNameSimilarity(normalizedInput, NormalizeName(p.FirstName ?? "")),
+                LastNameScore = CalculateNameSimilarity(normalizedInput, NormalizeName(p.LastName ?? ""))
+            })
+            .Select(x => new
+            {
+                x.Player,
+                BestScore = Math.Max(
+                    x.FullNameScore,
+                    Math.Max(x.LastNameScore * 0.8, (x.FirstNameScore + x.LastNameScore) / 2)
+                )
+            })
+            .Where(x => x.BestScore >= 0.5)
+            .OrderByDescending(x => x.BestScore)
+            .ToList();
+
+        if (candidates.Any())
+        {
+            var best = candidates.First();
+            return (best.Player, best.BestScore);
+        }
+
+        return (null, 0);
+    }
+
+    private bool IsHeaderLine(string lowerLine)
+    {
+        var skipPatterns = new[]
+        {
+            "home", "away", "player", "team", "score", "frame", "date", "division",
+            "wellington", "district", "pool", "league", "match", "result",
+            "full name", "captain", "before start", "games 11", "completed",
+            "total", "signature", "referee", "venue", "div."
+        };
+        return skipPatterns.Any(p => lowerLine.Contains(p)) || lowerLine.Length < 4;
+    }
+
+    private List<(int lineIndex, FrameWinner winner)> ExtractAllScoreInfo(List<string> lines)
+    {
+        var scores = new List<(int lineIndex, FrameWinner winner)>();
+        
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            
+            // Look for "1 0" or "0 1" patterns
+            var match = Regex.Match(line, @"\b([01])\s+([01])\b");
+            if (match.Success)
+            {
+                var home = match.Groups[1].Value;
+                var away = match.Groups[2].Value;
+                if (home == "1" && away == "0")
+                    scores.Add((i, FrameWinner.Home));
+                else if (home == "0" && away == "1")
+                    scores.Add((i, FrameWinner.Away));
+            }
+            
+            // Look for tick marks
+            if (line.Contains("?") || line.Contains("?") || line.Contains("?"))
+            {
+                // This line has a tick - need context to know which side
+                scores.Add((i, FrameWinner.None)); // Placeholder
+            }
+        }
+        
+        return scores;
+    }
+
+    private FrameWinner FindWinnerForFrame(int homeLineIdx, int awayLineIdx, List<(int lineIndex, FrameWinner winner)> scores, List<string> lines)
+    {
+        // Look for score indicators near the player lines
+        foreach (var (lineIdx, winner) in scores)
+        {
+            if (Math.Abs(lineIdx - homeLineIdx) <= 1 || Math.Abs(lineIdx - awayLineIdx) <= 1)
+            {
+                if (winner != FrameWinner.None)
+                    return winner;
+            }
+        }
+        
+        // Check the actual player lines for embedded scores
+        if (homeLineIdx < lines.Count)
+        {
+            var homeLine = lines[homeLineIdx];
+            if (Regex.IsMatch(homeLine, @"\b1\s+0\b") || homeLine.EndsWith(" 1"))
+                return FrameWinner.Home;
+            if (Regex.IsMatch(homeLine, @"\b0\s+1\b"))
+                return FrameWinner.Away;
+        }
+        
+        return FrameWinner.None;
     }
 }

@@ -401,6 +401,49 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
+        // Ask user which OCR engine to use
+        var ocrChoice = await DisplayActionSheet(
+            "Select OCR Engine",
+            "Cancel",
+            null,
+            "?? Local OCR - Fast, works offline",
+            "?? Azure Vision - Best for handwriting");
+
+        if (ocrChoice == "Cancel" || string.IsNullOrEmpty(ocrChoice))
+            return;
+
+        var useAzure = ocrChoice.Contains("Azure");
+
+        // If Azure selected, check if it's configured
+        if (useAzure)
+        {
+            var azureService = new AzureVisionOcrService();
+            if (!azureService.IsConfigured)
+            {
+                var configure = await DisplayAlert(
+                    "?? Azure Vision Not Configured",
+                    "Azure Vision requires an endpoint and API key.\n\n" +
+                    "Would you like to configure it now, or use local OCR instead?",
+                    "Configure", "Use Local");
+
+                if (configure)
+                {
+                    await ShowAzureConfigDialogAsync();
+                    // Re-check after configuration
+                    azureService = new AzureVisionOcrService();
+                    if (!azureService.IsConfigured)
+                    {
+                        await DisplayAlert("Not Configured", "Azure Vision was not configured. Using local OCR instead.", "OK");
+                        useAzure = false;
+                    }
+                }
+                else
+                {
+                    useAzure = false;
+                }
+            }
+        }
+
         // Ask user whether to take photo or pick from gallery
         var choice = await DisplayActionSheet(
             "?? Scan Score Card",
@@ -442,8 +485,9 @@ public partial class FixturesPage : ContentPage
             if (photo == null)
                 return;
 
-            // Log that processing is starting (non-blocking)
-            System.Diagnostics.Debug.WriteLine($"Processing score card image ({photo.FileName})...");
+            // Log that processing is starting
+            var ocrEngine = useAzure ? "Azure Vision" : "Local";
+            System.Diagnostics.Debug.WriteLine($"Processing score card image ({photo.FileName}) with {ocrEngine} OCR...");
 
             // Read the image
             using var stream = await photo.OpenReadAsync();
@@ -451,18 +495,58 @@ public partial class FixturesPage : ContentPage
             await stream.CopyToAsync(memoryStream);
             var imageData = memoryStream.ToArray();
 
-            // Perform recognition
-            var recognitionService = new ScoreCardRecognitionService();
-            var result = await recognitionService.RecognizeFromImageAsync(imageData);
+            ScoreCardRecognitionService.RecognitionResult? result = null;
 
-            if (result.Success && result.Frames.Any())
+            if (useAzure)
             {
-                // Show preview of recognized data and ask for confirmation
-                await ShowRecognitionResultsAsync(result);
+                // Use Azure Vision OCR
+                var azureService = new AzureVisionOcrService();
+                var azureResult = await azureService.RecognizeTextAsync(imageData);
+
+                if (azureResult.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Azure OCR returned {azureResult.Lines.Count} lines, confidence: {azureResult.AverageConfidence:P0}");
+                    System.Diagnostics.Debug.WriteLine($"Raw text:\n{azureResult.AllText}");
+
+                    // Parse the Azure OCR result using the ScoreCardRecognitionService
+                    var recognitionService = new ScoreCardRecognitionService();
+                    result = recognitionService.RecognizeFromOcrText(azureResult.AllText, imageData);
+                }
+                else
+                {
+                    // Azure failed - offer to try local OCR
+                    var tryLocal = await DisplayAlert(
+                        "?? Azure OCR Failed",
+                        $"{azureResult.Error}\n\nWould you like to try local OCR instead?",
+                        "Try Local", "Cancel");
+
+                    if (tryLocal)
+                    {
+                        useAzure = false;
+                        var recognitionService = new ScoreCardRecognitionService();
+                        result = await recognitionService.RecognizeFromImageAsync(imageData);
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
             }
             else
             {
-                // Recognition failed or no OCR - offer manual entry mode
+                // Use local OCR
+                var recognitionService = new ScoreCardRecognitionService();
+                result = await recognitionService.RecognizeFromImageAsync(imageData);
+            }
+
+            if (result != null && result.Success && result.Frames.Any())
+            {
+                // Show preview of recognized data and ask for confirmation
+                await ShowRecognitionResultsAsync(result, useAzure);
+            }
+            else if (result != null)
+            {
+                // Recognition failed or no frames found - offer manual entry mode
                 var message = result.Message;
                 if (result.Errors.Any())
                     message += "\n\n" + string.Join("\n", result.Errors);
@@ -492,10 +576,49 @@ public partial class FixturesPage : ContentPage
         }
     }
 
-    private async System.Threading.Tasks.Task ShowRecognitionResultsAsync(ScoreCardRecognitionService.RecognitionResult result)
+    private async System.Threading.Tasks.Task ShowAzureConfigDialogAsync()
+    {
+        var endpoint = await DisplayPromptAsync(
+            "Azure Vision Endpoint",
+            "Enter your Azure Computer Vision endpoint URL:\n(e.g., https://your-resource.cognitiveservices.azure.com)",
+            "Next", "Cancel",
+            placeholder: "https://your-resource.cognitiveservices.azure.com");
+
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return;
+
+        var apiKey = await DisplayPromptAsync(
+            "Azure Vision API Key",
+            "Enter your Azure Computer Vision API key:",
+            "Save", "Cancel",
+            placeholder: "Your API key");
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return;
+
+        var azureService = new AzureVisionOcrService();
+        azureService.Configure(endpoint, apiKey);
+
+        // Test the connection
+        var (success, message) = await azureService.TestConnectionAsync();
+        
+        if (success)
+        {
+            await DisplayAlert("? Success", "Azure Vision configured successfully!\n\n" + message, "OK");
+        }
+        else
+        {
+            await DisplayAlert("? Configuration Error", message + "\n\nPlease check your endpoint and API key.", "OK");
+            azureService.ClearConfiguration();
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowRecognitionResultsAsync(ScoreCardRecognitionService.RecognitionResult result, bool usedAzure = false)
     {
         // Build preview string
         var sb = new System.Text.StringBuilder();
+        var ocrLabel = usedAzure ? "Azure Vision" : "Local";
+        sb.AppendLine($"OCR Engine: {ocrLabel}");
         sb.AppendLine($"Confidence: {result.Confidence:P0}");
         sb.AppendLine($"Score: {result.HomeScore} - {result.AwayScore}");
         sb.AppendLine();
@@ -506,7 +629,7 @@ public partial class FixturesPage : ContentPage
             var homePlayer = frame.HomePlayerName ?? "?";
             var awayPlayer = frame.AwayPlayerName ?? "?";
             var winner = frame.Winner == FrameWinner.Home ? "H" : frame.Winner == FrameWinner.Away ? "A" : "-";
-            var eightBall = frame.EightBall ? "??" : "";
+            var eightBall = frame.EightBall ? "(8)" : "";
             sb.AppendLine($"  {frame.FrameNumber}. {homePlayer} vs {awayPlayer} [{winner}] {eightBall}");
         }
 
@@ -518,10 +641,10 @@ public partial class FixturesPage : ContentPage
         if (result.Warnings.Any())
         {
             sb.AppendLine();
-            sb.AppendLine("?? Warnings:");
+            sb.AppendLine("Warnings:");
             foreach (var warning in result.Warnings.Take(3))
             {
-                sb.AppendLine($"  • {warning}");
+                sb.AppendLine($"  - {warning}");
             }
         }
 
@@ -1325,7 +1448,7 @@ public partial class FixturesPage : ContentPage
 
             var choice = await DisplayActionSheet(
                 $"{Emojis.Bell} {reminders.Count} Reminder(s)",
-                "Close", "Cancel All", options);
+                "Close", "Cancel", options);
 
             if (choice == "Cancel All")
             {
