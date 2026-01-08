@@ -11,9 +11,14 @@ namespace Wdpl2.Services;
 
 /// <summary>
 /// Service for recognizing and parsing pool league score cards from photos.
-/// Score card format: HOME_PLAYER | 0 | AWAY_PLAYER | ? (or vice versa)
-/// The player with ? (tick/1) wins, the player with 0 loses.
-/// Players can play multiple consecutive frames.
+/// 
+/// OCR Format from Azure Vision (line by line):
+///   HOME_PLAYER_NAME
+///   HOME_SCORE (0 = loss)
+///   AWAY_PLAYER_NAME  
+///   [AWAY_SCORE sometimes missing - if home=0, away wins]
+/// 
+/// Repeats for each frame. Same player can appear multiple times.
 /// </summary>
 public sealed class ScoreCardRecognitionService
 {
@@ -32,6 +37,7 @@ public sealed class ScoreCardRecognitionService
         public double Confidence { get; set; }
         public byte[]? ProcessedImageData { get; set; }
         public string? RawOcrText { get; set; }
+        public string? ParsingStrategy { get; set; }
     }
 
     public sealed class RecognizedFrame
@@ -44,19 +50,6 @@ public sealed class ScoreCardRecognitionService
         public double Confidence { get; set; }
         public Guid? MatchedHomePlayerId { get; set; }
         public Guid? MatchedAwayPlayerId { get; set; }
-    }
-
-    private enum LineType { Header, Score, HomePlayer, AwayPlayer, Unknown }
-    
-    private class ClassifiedLine
-    {
-        public int Index;
-        public string Text = "";
-        public LineType Type;
-        public Player? Player;
-        public double Confidence;
-        public int? Score; // 0 = loss, 1 = win (tick mark)
-        public bool Used; // Track if this line has been consumed
     }
 
     private readonly List<Player> _availablePlayers;
@@ -109,9 +102,17 @@ public sealed class ScoreCardRecognitionService
         }
     }
 
+    /// <summary>
+    /// Main entry point for parsing OCR text
+    /// </summary>
     public RecognitionResult RecognizeFromOcrText(string ocrText, byte[]? imageData = null, Guid? homeTeamId = null, Guid? awayTeamId = null, int expectedFrames = 15)
     {
-        var result = new RecognitionResult { ProcessedImageData = imageData, RawOcrText = ocrText };
+        var result = new RecognitionResult 
+        { 
+            ProcessedImageData = imageData, 
+            RawOcrText = ocrText,
+            ParsingStrategy = "LineByLine"
+        };
 
         try
         {
@@ -131,24 +132,31 @@ public sealed class ScoreCardRecognitionService
                 ? _availablePlayers.Where(p => p.TeamId == awayTeamId.Value).ToList()
                 : new List<Player>();
 
-            System.Diagnostics.Debug.WriteLine($"Home: {string.Join(", ", homePlayers.Select(p => p.FullName))}");
-            System.Diagnostics.Debug.WriteLine($"Away: {string.Join(", ", awayPlayers.Select(p => p.FullName))}");
+            System.Diagnostics.Debug.WriteLine($"Home Players ({homePlayers.Count}): {string.Join(", ", homePlayers.Select(p => p.FullName))}");
+            System.Diagnostics.Debug.WriteLine($"Away Players ({awayPlayers.Count}): {string.Join(", ", awayPlayers.Select(p => p.FullName))}");
 
-            var lines = ocrText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+            // Parse the OCR text line by line
+            var frames = ParseFramesLineByLine(ocrText, homePlayers, awayPlayers, expectedFrames);
 
-            var classified = ClassifyLines(lines, homePlayers, awayPlayers);
-            var frames = ExtractFrames(classified, expectedFrames);
-
+            // Fill remaining empty frames
             while (frames.Count < expectedFrames)
-                frames.Add(new RecognizedFrame { FrameNumber = frames.Count + 1, Winner = FrameWinner.None, Confidence = 0 });
+            {
+                frames.Add(new RecognizedFrame 
+                { 
+                    FrameNumber = frames.Count + 1, 
+                    Winner = FrameWinner.None, 
+                    Confidence = 0 
+                });
+            }
 
             result.Frames = frames.Take(expectedFrames).ToList();
             result.HomeScore = result.Frames.Count(f => f.Winner == FrameWinner.Home);
             result.AwayScore = result.Frames.Count(f => f.Winner == FrameWinner.Away);
 
             var complete = result.Frames.Count(f => f.MatchedHomePlayerId.HasValue && f.MatchedAwayPlayerId.HasValue);
-            result.Confidence = complete > 0 ? result.Frames.Where(f => f.Confidence > 0).Average(f => f.Confidence) : 0;
+            result.Confidence = complete > 0 
+                ? result.Frames.Where(f => f.Confidence > 0).DefaultIfEmpty().Average(f => f?.Confidence ?? 0) 
+                : 0;
             result.Success = complete > 0;
             result.Message = $"Recognized {complete} frames, score {result.HomeScore}-{result.AwayScore}";
 
@@ -163,211 +171,182 @@ public sealed class ScoreCardRecognitionService
         }
     }
 
-    private List<ClassifiedLine> ClassifyLines(List<string> lines, List<Player> homePlayers, List<Player> awayPlayers)
-    {
-        var result = new List<ClassifiedLine>();
-        System.Diagnostics.Debug.WriteLine("=== CLASSIFYING LINES ===");
-
-        for (int i = 0; i < lines.Count; i++)
-        {
-            var line = lines[i];
-            var cl = new ClassifiedLine { Index = i, Text = line, Used = false };
-
-            if (IsHeaderLine(line.ToLower())) { cl.Type = LineType.Header; result.Add(cl); continue; }
-
-            // Check if line is ONLY a score (0, 1, tick, etc.)
-            var scoreOnly = ParseScoreOnly(line);
-            if (scoreOnly.HasValue)
-            {
-                cl.Type = LineType.Score; cl.Score = scoreOnly.Value; cl.Confidence = 1.0;
-                result.Add(cl);
-                System.Diagnostics.Debug.WriteLine($"  [{i}] SCORE: '{line}' = {scoreOnly}");
-                continue;
-            }
-
-            // Extract embedded score from line
-            var (cleanLine, embeddedScore) = ExtractEmbeddedScore(line);
-            var (homeMatch, homeConf) = FindBestMatch(cleanLine, homePlayers);
-            var (awayMatch, awayConf) = FindBestMatch(cleanLine, awayPlayers);
-
-            if (homeMatch != null && homeConf >= awayConf && homeConf >= 0.5)
-            {
-                cl.Type = LineType.HomePlayer; cl.Player = homeMatch; cl.Confidence = homeConf; cl.Score = embeddedScore;
-                System.Diagnostics.Debug.WriteLine($"  [{i}] HOME: '{line}' -> {homeMatch.FullName} ({homeConf:P0})" + (embeddedScore.HasValue ? $" score={embeddedScore}" : ""));
-            }
-            else if (awayMatch != null && awayConf >= 0.5)
-            {
-                cl.Type = LineType.AwayPlayer; cl.Player = awayMatch; cl.Confidence = awayConf; cl.Score = embeddedScore;
-                System.Diagnostics.Debug.WriteLine($"  [{i}] AWAY: '{line}' -> {awayMatch.FullName} ({awayConf:P0})" + (embeddedScore.HasValue ? $" score={embeddedScore}" : ""));
-            }
-            else
-            {
-                cl.Type = LineType.Unknown; cl.Score = embeddedScore;
-                System.Diagnostics.Debug.WriteLine($"  [{i}] ???: '{line}'" + (embeddedScore.HasValue ? $" score={embeddedScore}" : ""));
-            }
-            result.Add(cl);
-        }
-        return result;
-    }
-
     /// <summary>
-    /// Extract frames sequentially. Each frame consists of:
-    /// HOME_PLAYER [HOME_SCORE] AWAY_PLAYER [AWAY_SCORE]
-    /// 
-    /// Important: Same player can appear in consecutive frames!
-    /// We process line by line and pair HOME with the NEXT AWAY (or vice versa).
+    /// Parse frames from OCR text in line-by-line format:
+    /// HOME_PLAYER, SCORE, AWAY_PLAYER, [SCORE]
     /// </summary>
-    private List<RecognizedFrame> ExtractFrames(List<ClassifiedLine> allLines, int expectedFrames)
+    private List<RecognizedFrame> ParseFramesLineByLine(string ocrText, List<Player> homePlayers, List<Player> awayPlayers, int expectedFrames)
     {
         var frames = new List<RecognizedFrame>();
 
-        System.Diagnostics.Debug.WriteLine("=== EXTRACTING FRAMES ===");
-
-        // Get relevant lines (players and scores) in order
-        var relevant = allLines
-            .Where(l => l.Type == LineType.HomePlayer || l.Type == LineType.AwayPlayer || l.Type == LineType.Score)
-            .OrderBy(l => l.Index)
+        // Split and clean lines
+        var allLines = ocrText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l))
             .ToList();
 
-        foreach (var l in relevant)
-            System.Diagnostics.Debug.WriteLine($"  [{l.Index}] {l.Type}: '{l.Text}'" + (l.Score.HasValue ? $" score={l.Score}" : ""));
+        System.Diagnostics.Debug.WriteLine($"=== PARSING {allLines.Count} LINES ===");
 
-        int i = 0;
-        while (i < relevant.Count && frames.Count < expectedFrames)
+        // Classify each line
+        var classified = new List<(int index, string text, string type, Player? player, double conf, int? score)>();
+
+        for (int i = 0; i < allLines.Count; i++)
         {
-            var cur = relevant[i];
-            if (cur.Used) { i++; continue; }
+            var line = allLines[i];
+            var lower = line.ToLower();
 
-            // Try to build a frame starting from current position
-            var frame = TryBuildFrame(relevant, i, frames.Count + 1);
-            if (frame != null)
+            // Skip header lines
+            if (IsHeaderLine(lower))
             {
-                frames.Add(frame);
-                System.Diagnostics.Debug.WriteLine($"  Frame {frames.Count}: {frame.HomePlayerName}({GetScoreForLog(relevant, i, true)}) vs {frame.AwayPlayerName}({GetScoreForLog(relevant, i, false)}) [{frame.Winner}]");
+                System.Diagnostics.Debug.WriteLine($"  [{i:D2}] HEADER: '{line}'");
+                continue;
             }
-            
-            i++;
+
+            // Check if this line is ONLY a score
+            var scoreOnly = ParseScoreOnly(line);
+            if (scoreOnly.HasValue)
+            {
+                classified.Add((i, line, "SCORE", null, 1.0, scoreOnly.Value));
+                System.Diagnostics.Debug.WriteLine($"  [{i:D2}] SCORE={scoreOnly}: '{line}'");
+                continue;
+            }
+
+            // Try to match as a player name (with possible embedded score)
+            var (cleanName, embeddedScore) = ExtractEmbeddedScore(line);
+            var (homeMatch, homeConf) = FindBestPlayerMatch(cleanName, homePlayers);
+            var (awayMatch, awayConf) = FindBestPlayerMatch(cleanName, awayPlayers);
+
+            if (homeMatch != null && homeConf >= awayConf && homeConf >= 0.4)
+            {
+                classified.Add((i, line, "HOME", homeMatch, homeConf, embeddedScore));
+                System.Diagnostics.Debug.WriteLine($"  [{i:D2}] HOME ({homeConf:P0}): '{line}' -> {homeMatch.FullName}" + (embeddedScore.HasValue ? $" [score={embeddedScore}]" : ""));
+            }
+            else if (awayMatch != null && awayConf >= 0.4)
+            {
+                classified.Add((i, line, "AWAY", awayMatch, awayConf, embeddedScore));
+                System.Diagnostics.Debug.WriteLine($"  [{i:D2}] AWAY ({awayConf:P0}): '{line}' -> {awayMatch.FullName}" + (embeddedScore.HasValue ? $" [score={embeddedScore}]" : ""));
+            }
+            else
+            {
+                classified.Add((i, line, "???", null, 0, embeddedScore));
+                System.Diagnostics.Debug.WriteLine($"  [{i:D2}] ???: '{line}'" + (embeddedScore.HasValue ? $" [score={embeddedScore}]" : ""));
+            }
         }
 
-        System.Diagnostics.Debug.WriteLine($"Extracted {frames.Count} frames");
+        System.Diagnostics.Debug.WriteLine($"=== BUILDING FRAMES from {classified.Count} classified lines ===");
+
+        // Build frames: Pattern is HOME, SCORE, AWAY, [SCORE]
+        int idx = 0;
+        while (idx < classified.Count && frames.Count < expectedFrames)
+        {
+            var current = classified[idx];
+
+            // Start frame when we find a HOME player
+            if (current.type == "HOME")
+            {
+                var frame = BuildFrame(classified, ref idx, frames.Count + 1);
+                if (frame != null)
+                {
+                    frames.Add(frame);
+                    System.Diagnostics.Debug.WriteLine($"  Frame {frames.Count}: {frame.HomePlayerName} vs {frame.AwayPlayerName} [{frame.Winner}]");
+                }
+            }
+            // Or start with AWAY if that's what we have
+            else if (current.type == "AWAY")
+            {
+                var frame = BuildFrameStartingAway(classified, ref idx, frames.Count + 1);
+                if (frame != null)
+                {
+                    frames.Add(frame);
+                    System.Diagnostics.Debug.WriteLine($"  Frame {frames.Count} (A): {frame.HomePlayerName} vs {frame.AwayPlayerName} [{frame.Winner}]");
+                }
+            }
+            else
+            {
+                idx++; // Skip scores and unknowns when looking for frame start
+            }
+        }
+
+        System.Diagnostics.Debug.WriteLine($"=== EXTRACTED {frames.Count} FRAMES ===");
         return frames;
     }
 
-    private string GetScoreForLog(List<ClassifiedLine> lines, int startIdx, bool home)
+    private RecognizedFrame? BuildFrame(List<(int index, string text, string type, Player? player, double conf, int? score)> lines, ref int idx, int frameNumber)
     {
-        // Helper for logging - not critical
-        return "?";
-    }
+        var homeLine = lines[idx];
+        idx++; // Consume home line
 
-    /// <summary>
-    /// Try to build a frame starting from position i.
-    /// Returns null if can't build a valid frame.
-    /// Marks used lines.
-    /// </summary>
-    private RecognizedFrame? TryBuildFrame(List<ClassifiedLine> relevant, int startIdx, int frameNumber)
-    {
-        var cur = relevant[startIdx];
-        
-        if (cur.Type == LineType.HomePlayer)
-        {
-            return BuildFrameFromHome(relevant, startIdx, frameNumber);
-        }
-        else if (cur.Type == LineType.AwayPlayer)
-        {
-            return BuildFrameFromAway(relevant, startIdx, frameNumber);
-        }
-        else if (cur.Type == LineType.Score)
-        {
-            // Orphan score - try to find context
-            // Look ahead for a player
-            for (int j = startIdx + 1; j < relevant.Count && j <= startIdx + 2; j++)
-            {
-                if (!relevant[j].Used && (relevant[j].Type == LineType.HomePlayer || relevant[j].Type == LineType.AwayPlayer))
-                {
-                    // This score belongs to the upcoming player
-                    return null; // Let the next iteration handle it
-                }
-            }
-            cur.Used = true; // Orphan score, skip it
-        }
-        
-        return null;
-    }
+        Player? homePlayer = homeLine.player;
+        double homeConf = homeLine.conf;
+        int? homeScore = homeLine.score;
 
-    private RecognizedFrame? BuildFrameFromHome(List<ClassifiedLine> relevant, int startIdx, int frameNumber)
-    {
-        var homeLine = relevant[startIdx];
-        var home = homeLine.Player;
-        var homeConf = homeLine.Confidence;
-        int? homeScore = homeLine.Score;
-        
-        homeLine.Used = true;
-
-        Player? away = null;
+        Player? awayPlayer = null;
         double awayConf = 0;
         int? awayScore = null;
 
-        // Look ahead for: [SCORE], AWAY_PLAYER, [SCORE]
-        for (int j = startIdx + 1; j < relevant.Count && j <= startIdx + 6; j++)
+        // Look for: [SCORE], AWAY, [SCORE]
+        int lookAhead = 0;
+        while (idx < lines.Count && lookAhead < 5)
         {
-            var next = relevant[j];
-            if (next.Used) continue;
+            var next = lines[idx];
 
-            if (next.Type == LineType.Score)
+            if (next.type == "SCORE")
             {
+                // Assign score to whoever doesn't have one yet
                 if (!homeScore.HasValue)
                 {
-                    // This is home's score
-                    homeScore = next.Score;
-                    next.Used = true;
+                    homeScore = next.score;
+                    idx++;
                 }
-                else if (away != null && !awayScore.HasValue)
+                else if (awayPlayer != null && !awayScore.HasValue)
                 {
-                    // This is away's score (after we found away player)
-                    awayScore = next.Score;
-                    next.Used = true;
+                    awayScore = next.score;
+                    idx++;
                 }
-                // Don't break - continue looking
+                else
+                {
+                    idx++; // Skip extra score
+                }
+                lookAhead++;
                 continue;
             }
-            
-            if (next.Type == LineType.AwayPlayer)
+
+            if (next.type == "AWAY")
             {
-                away = next.Player;
-                awayConf = next.Confidence;
-                awayScore = next.Score; // Might have embedded score
-                next.Used = true;
+                awayPlayer = next.player;
+                awayConf = next.conf;
+                awayScore = next.score;
+                idx++; // Consume away line
                 
-                // Look one more line for away score if not embedded
-                if (!awayScore.HasValue && j + 1 < relevant.Count)
+                // Look one more for away score if not embedded
+                if (!awayScore.HasValue && idx < lines.Count && lines[idx].type == "SCORE")
                 {
-                    var afterAway = relevant[j + 1];
-                    if (!afterAway.Used && afterAway.Type == LineType.Score)
-                    {
-                        awayScore = afterAway.Score;
-                        afterAway.Used = true;
-                    }
+                    awayScore = lines[idx].score;
+                    idx++;
                 }
-                break; // Found away player, stop looking
+                break; // Found away player, frame complete
             }
-            
-            if (next.Type == LineType.HomePlayer)
+
+            if (next.type == "HOME")
             {
-                // Hit another home player without finding away
-                // This is the START of the NEXT frame - don't consume it!
+                // Hit another home player - frame boundary
                 break;
             }
+
+            // Unknown line - skip it
+            idx++;
+            lookAhead++;
         }
 
-        if (home != null && away != null)
+        if (homePlayer != null && awayPlayer != null)
         {
             return new RecognizedFrame
             {
                 FrameNumber = frameNumber,
-                HomePlayerName = home.FullName,
-                AwayPlayerName = away.FullName,
-                MatchedHomePlayerId = home.Id,
-                MatchedAwayPlayerId = away.Id,
+                HomePlayerName = homePlayer.FullName,
+                AwayPlayerName = awayPlayer.FullName,
+                MatchedHomePlayerId = homePlayer.Id,
+                MatchedAwayPlayerId = awayPlayer.Id,
                 Winner = DetermineWinner(homeScore, awayScore),
                 Confidence = (homeConf + awayConf) / 2
             };
@@ -376,65 +355,72 @@ public sealed class ScoreCardRecognitionService
         return null;
     }
 
-    private RecognizedFrame? BuildFrameFromAway(List<ClassifiedLine> relevant, int startIdx, int frameNumber)
+    private RecognizedFrame? BuildFrameStartingAway(List<(int index, string text, string type, Player? player, double conf, int? score)> lines, ref int idx, int frameNumber)
     {
-        var awayLine = relevant[startIdx];
-        var away = awayLine.Player;
-        var awayConf = awayLine.Confidence;
-        int? awayScore = awayLine.Score;
-        
-        awayLine.Used = true;
+        // This handles cases where OCR returned away player first
+        var awayLine = lines[idx];
+        idx++;
 
-        Player? home = null;
+        Player? awayPlayer = awayLine.player;
+        double awayConf = awayLine.conf;
+        int? awayScore = awayLine.score;
+
+        Player? homePlayer = null;
         double homeConf = 0;
         int? homeScore = null;
 
-        // Look ahead for: [SCORE], HOME_PLAYER, [SCORE]
-        for (int j = startIdx + 1; j < relevant.Count && j <= startIdx + 6; j++)
+        int lookAhead = 0;
+        while (idx < lines.Count && lookAhead < 5)
         {
-            var next = relevant[j];
-            if (next.Used) continue;
+            var next = lines[idx];
 
-            if (next.Type == LineType.Score)
+            if (next.type == "SCORE")
             {
                 if (!awayScore.HasValue)
                 {
-                    awayScore = next.Score;
-                    next.Used = true;
+                    awayScore = next.score;
+                    idx++;
                 }
-                else if (home != null && !homeScore.HasValue)
+                else if (homePlayer != null && !homeScore.HasValue)
                 {
-                    homeScore = next.Score;
-                    next.Used = true;
+                    homeScore = next.score;
+                    idx++;
                 }
+                else
+                {
+                    idx++;
+                }
+                lookAhead++;
                 continue;
             }
-            
-            if (next.Type == LineType.HomePlayer)
+
+            if (next.type == "HOME")
             {
-                home = next.Player;
-                homeConf = next.Confidence;
-                homeScore = next.Score;
-                next.Used = true;
+                homePlayer = next.player;
+                homeConf = next.conf;
+                homeScore = next.score;
+                idx++;
                 break;
             }
-            
-            if (next.Type == LineType.AwayPlayer)
+
+            if (next.type == "AWAY")
             {
-                // Hit another away player - start of next frame
                 break;
             }
+
+            idx++;
+            lookAhead++;
         }
 
-        if (home != null && away != null)
+        if (homePlayer != null && awayPlayer != null)
         {
             return new RecognizedFrame
             {
                 FrameNumber = frameNumber,
-                HomePlayerName = home.FullName,
-                AwayPlayerName = away.FullName,
-                MatchedHomePlayerId = home.Id,
-                MatchedAwayPlayerId = away.Id,
+                HomePlayerName = homePlayer.FullName,
+                AwayPlayerName = awayPlayer.FullName,
+                MatchedHomePlayerId = homePlayer.Id,
+                MatchedAwayPlayerId = awayPlayer.Id,
                 Winner = DetermineWinner(homeScore, awayScore),
                 Confidence = (homeConf + awayConf) / 2
             };
@@ -445,127 +431,190 @@ public sealed class ScoreCardRecognitionService
 
     private FrameWinner DetermineWinner(int? homeScore, int? awayScore)
     {
-        // 1 (or tick) = win, 0 = loss
+        // Score of 1 = win, 0 = loss
         if (homeScore == 1 && awayScore == 0) return FrameWinner.Home;
         if (homeScore == 0 && awayScore == 1) return FrameWinner.Away;
         if (homeScore == 1) return FrameWinner.Home;
         if (awayScore == 1) return FrameWinner.Away;
+        // If home has 0 and away score unknown, away wins
         if (homeScore == 0 && !awayScore.HasValue) return FrameWinner.Away;
         if (awayScore == 0 && !homeScore.HasValue) return FrameWinner.Home;
         return FrameWinner.None;
     }
 
+    /// <summary>
+    /// Check if line is ONLY a score value (0, 1, O, etc.)
+    /// </summary>
     private int? ParseScoreOnly(string line)
     {
         var t = line.Trim();
-        if (t == "0" || t == "O" || t == "o" || t == "()") return 0;
-        if (t == "1" || t == "l" || t == "I" || t == "?" || t == "?" || 
-            t == "/" || t == "\\" || t == "V" || t == "v" || t == "Y" || t == "y" ||
-            t == ">" || t == "J" || t == "j" || t == ")" || t == "]") return 1;
+        // Loss (0)
+        if (t == "0" || t == "O" || t == "o" || t == "D" || t == "Q") return 0;
+        // Win (1)  
+        if (t == "1" || t == "l" || t == "I" || t == "!" || t == "|") return 1;
+        // Also match "0-0", "00-0", "5" at end etc as unknown
         return null;
     }
 
+    /// <summary>
+    /// Extract embedded score from end of line: "PLAYER NAME 0" or "0 PLAYER NAME"
+    /// </summary>
     private (string cleanedLine, int? score) ExtractEmbeddedScore(string line)
     {
-        // Loss at end: "NAME 0"
-        var endLossMatch = Regex.Match(line, @"^(.+?)\s+([0Oo])$");
-        if (endLossMatch.Success)
-            return (endLossMatch.Groups[1].Value.Trim(), 0);
+        // Pattern: "NAME 0" or "NAME O" at end
+        var endMatch = Regex.Match(line, @"^(.+?)\s+([0OoDQ1lI!|])$");
+        if (endMatch.Success)
+        {
+            var scoreChar = endMatch.Groups[2].Value;
+            int? score = (scoreChar == "0" || scoreChar == "O" || scoreChar == "o" || scoreChar == "D" || scoreChar == "Q") ? 0 : 1;
+            return (endMatch.Groups[1].Value.Trim(), score);
+        }
 
-        // Win at end: "NAME ?"
-        var endWinMatch = Regex.Match(line, @"^(.+?)\s+([1lI??/\\VvYy>\]Jj])$");
-        if (endWinMatch.Success)
-            return (endWinMatch.Groups[1].Value.Trim(), 1);
-
-        // Loss at start: "0 NAME"
-        var startLossMatch = Regex.Match(line, @"^([0Oo])\s+(.+)$");
-        if (startLossMatch.Success)
-            return (startLossMatch.Groups[2].Value.Trim(), 0);
-
-        // Win at start: "? NAME"
-        var startWinMatch = Regex.Match(line, @"^([1lI??/\\VvYy>\]Jj])\s+(.+)$");
-        if (startWinMatch.Success)
-            return (startWinMatch.Groups[2].Value.Trim(), 1);
+        // Pattern: "0 NAME" at start
+        var startMatch = Regex.Match(line, @"^([0OoDQ1lI!|])\s+(.+)$");
+        if (startMatch.Success)
+        {
+            var scoreChar = startMatch.Groups[1].Value;
+            int? score = (scoreChar == "0" || scoreChar == "O" || scoreChar == "o" || scoreChar == "D" || scoreChar == "Q") ? 0 : 1;
+            return (startMatch.Groups[2].Value.Trim(), score);
+        }
 
         return (line, null);
     }
 
-    private (Player? player, double confidence) FindBestMatch(string text, List<Player> players)
+    /// <summary>
+    /// Find best matching player using fuzzy matching to handle OCR errors
+    /// </summary>
+    private (Player? player, double confidence) FindBestPlayerMatch(string text, List<Player> players)
     {
+        if (string.IsNullOrWhiteSpace(text) || text.Length < 3)
+            return (null, 0);
+
         Player? best = null;
         double bestConf = 0;
-        foreach (var p in players)
+
+        var normalizedText = NormalizeForMatching(text);
+
+        foreach (var player in players)
         {
-            var (match, conf) = MatchPlayer(p, text);
-            if (match && conf > bestConf) { best = p; bestConf = conf; }
+            var (isMatch, confidence) = CalculateMatchConfidence(normalizedText, player);
+            if (isMatch && confidence > bestConf)
+            {
+                best = player;
+                bestConf = confidence;
+            }
         }
+
         return (best, bestConf);
     }
 
-    private (bool match, double confidence) MatchPlayer(Player player, string text)
+    private (bool isMatch, double confidence) CalculateMatchConfidence(string ocrText, Player player)
     {
-        var line = Normalize(text);
-        var full = Normalize(player.FullName ?? "");
-        var first = Normalize(player.FirstName ?? "");
-        var last = Normalize(player.LastName ?? "");
+        var fullName = NormalizeForMatching(player.FullName ?? "");
+        var firstName = NormalizeForMatching(player.FirstName ?? "");
+        var lastName = NormalizeForMatching(player.LastName ?? "");
 
-        if (string.IsNullOrWhiteSpace(full) || line.Length < 3) return (false, 0);
-        if (line == full) return (true, 1.0);
-        if (line.Contains(full)) return (true, 0.95);
-        if (full.Contains(line) && line.Length >= 5) return (true, 0.85);
-        if (first.Length >= 2 && last.Length >= 2 && line.Contains(first) && line.Contains(last)) return (true, 0.9);
-        if (last.Length >= 4 && line.Contains(last)) return (true, 0.75);
+        if (string.IsNullOrEmpty(fullName)) return (false, 0);
 
-        // First name + partial last name (handles OCR errors like "LENINDONO" vs "LEN,NOON")
-        if (first.Length >= 3 && line.Contains(first) && last.Length >= 3)
+        // Exact match
+        if (ocrText == fullName)
+            return (true, 1.0);
+
+        // OCR text contains full name
+        if (ocrText.Contains(fullName))
+            return (true, 0.95);
+
+        // Full name contains OCR text (truncated name)
+        if (fullName.Contains(ocrText) && ocrText.Length >= 5)
+            return (true, 0.85);
+
+        // Both first and last name present (in any order)
+        if (firstName.Length >= 2 && lastName.Length >= 2)
         {
-            for (int len = last.Length; len >= 3; len--)
-                for (int start = 0; start <= last.Length - len; start++)
-                    if (line.Contains(last.Substring(start, len)))
-                        return (true, 0.6 + 0.15 * len / last.Length);
+            if (ocrText.Contains(firstName) && ocrText.Contains(lastName))
+                return (true, 0.9);
         }
 
-        // Levenshtein for OCR errors
-        var dist = Levenshtein(line, full);
-        var maxLen = Math.Max(line.Length, full.Length);
-        var sim = 1.0 - (double)dist / maxLen;
-        if (sim >= 0.65) return (true, sim * 0.75); // Lowered threshold for OCR variants
+        // Last name only (4+ chars for reliability)
+        if (lastName.Length >= 4 && ocrText.Contains(lastName))
+            return (true, 0.75);
+
+        // First name + partial last name (for OCR errors like "LENINDONO" -> "LENINDON")
+        if (firstName.Length >= 3 && ocrText.Contains(firstName) && lastName.Length >= 4)
+        {
+            // Check if OCR contains at least first 4 chars of last name
+            var lastPrefix = lastName.Substring(0, Math.Min(4, lastName.Length));
+            if (ocrText.Contains(lastPrefix))
+                return (true, 0.7);
+
+            // Or any 4+ char substring of last name
+            for (int len = lastName.Length; len >= 4; len--)
+            {
+                for (int start = 0; start <= lastName.Length - len; start++)
+                {
+                    var sub = lastName.Substring(start, len);
+                    if (ocrText.Contains(sub))
+                        return (true, 0.5 + 0.25 * len / lastName.Length);
+                }
+            }
+        }
+
+        // Levenshtein distance for fuzzy matching
+        int distance = LevenshteinDistance(ocrText, fullName);
+        int maxLen = Math.Max(ocrText.Length, fullName.Length);
+        double similarity = 1.0 - (double)distance / maxLen;
+
+        // Accept if similarity >= 55% (handles OCR errors like LONIS->LEWIS, STOVE->STEVE)
+        if (similarity >= 0.55)
+            return (true, similarity * 0.7);
 
         return (false, 0);
     }
 
-    private string Normalize(string s)
+    private string NormalizeForMatching(string s)
     {
         if (string.IsNullOrWhiteSpace(s)) return "";
-        s = Regex.Replace(s, @"[^\w\s]", ""); // Remove punctuation (handles "LEN,NOON" -> "LENNOON")
+        // Remove all non-alphanumeric, collapse spaces
+        s = Regex.Replace(s, @"[^\w\s]", "");
         s = Regex.Replace(s, @"\s+", " ");
         return s.Trim().ToLower();
     }
 
-    private int Levenshtein(string a, string b)
+    private int LevenshteinDistance(string a, string b)
     {
         if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
         if (string.IsNullOrEmpty(b)) return a.Length;
+        
         var d = new int[a.Length + 1, b.Length + 1];
         for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
         for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+        
         for (int i = 1; i <= a.Length; i++)
+        {
             for (int j = 1; j <= b.Length; j++)
             {
                 int cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
             }
+        }
         return d[a.Length, b.Length];
     }
 
     private bool IsHeaderLine(string lower)
     {
-        var skip = new[] { "home", "away", "player", "team", "score", "frame", "date", "division",
+        // Skip header/label lines
+        var skipPatterns = new[] { 
+            "home", "away", "player", "team", "score", "frame", "date", "division",
             "wellington", "district", "pool", "league", "match", "result", "full name",
             "captain", "before start", "games 11", "completed", "total", "signature",
-            "referee", "venue", "div.", "ensure", "repeat", "pairing", "only", "town", "minion",
-            "new player", "8 ball", "capt" };
-        return skip.Any(lower.Contains) || lower.Length < 3;
+            "referee", "venue", "div.", "ensure", "repeat", "pairing", "only", 
+            "old blues", "mylons", "minion", "new player", "8 ball", "capt", 
+            "town", "18/", "19/", "20/", "21/", "22/", "23/", "24/", "25/" // dates
+        };
+        
+        return skipPatterns.Any(p => lower.Contains(p)) || lower.Length < 3;
     }
 
     private async Task<string> PerformOcrAsync(byte[] imageData)

@@ -625,6 +625,7 @@ public partial class FixturesPage : ContentPage
         var sb = new System.Text.StringBuilder();
         var ocrLabel = usedAzure ? "Azure Vision" : "Local";
         sb.AppendLine($"OCR Engine: {ocrLabel}");
+        sb.AppendLine($"Strategy: {result.ParsingStrategy}");
         sb.AppendLine($"Confidence: {result.Confidence:P0}");
         sb.AppendLine($"Score: {result.HomeScore} - {result.AwayScore}");
         sb.AppendLine();
@@ -634,9 +635,10 @@ public partial class FixturesPage : ContentPage
         {
             var homePlayer = frame.HomePlayerName ?? "?";
             var awayPlayer = frame.AwayPlayerName ?? "?";
+            var homeMatched = frame.MatchedHomePlayerId.HasValue ? "?" : "?";
+            var awayMatched = frame.MatchedAwayPlayerId.HasValue ? "?" : "?";
             var winner = frame.Winner == FrameWinner.Home ? "H" : frame.Winner == FrameWinner.Away ? "A" : "-";
-            var eightBall = frame.EightBall ? "(8)" : "";
-            sb.AppendLine($"  {frame.FrameNumber}. {homePlayer} vs {awayPlayer} [{winner}] {eightBall}");
+            sb.AppendLine($"  {frame.FrameNumber}. {homePlayer}({homeMatched}) vs {awayPlayer}({awayMatched}) [{winner}]");
         }
 
         if (result.Frames.Count > 5)
@@ -654,15 +656,50 @@ public partial class FixturesPage : ContentPage
             }
         }
 
-        var applyResults = await DisplayAlert(
-            $"{Emojis.Success} Score Card Recognized",
-            sb.ToString() + "\n\nApply these results to the scorecard?",
-            "Apply", "Cancel");
+        // Show action sheet with options
+        var action = await DisplayActionSheet(
+            $"Score Card Recognized ({result.ParsingStrategy})",
+            "Cancel",
+            null,
+            $"? Apply Results ({result.HomeScore}-{result.AwayScore})",
+            "?? Show Raw OCR Text",
+            "?? Copy OCR to Clipboard");
 
-        if (applyResults)
+        if (action == null || action == "Cancel")
+            return;
+
+        if (action.Contains("Apply"))
         {
             ApplyRecognitionResults(result);
         }
+        else if (action.Contains("Raw OCR"))
+        {
+            await ShowRawOcrTextAsync(result.RawOcrText ?? "No OCR text available");
+        }
+        else if (action.Contains("Clipboard"))
+        {
+            if (!string.IsNullOrEmpty(result.RawOcrText))
+            {
+                await Clipboard.Default.SetTextAsync(result.RawOcrText);
+                await DisplayAlert("Copied", "OCR text copied to clipboard", "OK");
+            }
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowRawOcrTextAsync(string ocrText)
+    {
+        // Show the raw OCR output in a scrollable dialog
+        var lines = ocrText.Split('\n');
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Total Lines: {lines.Length}");
+        sb.AppendLine("?????????????????????");
+        
+        for (int i = 0; i < lines.Length; i++)
+        {
+            sb.AppendLine($"[{i + 1:D2}] {lines[i]}");
+        }
+
+        await DisplayAlert("Raw OCR Output", sb.ToString(), "OK");
     }
 
     private void ApplyRecognitionResults(ScoreCardRecognitionService.RecognitionResult result)
