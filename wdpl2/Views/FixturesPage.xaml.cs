@@ -56,6 +56,7 @@ public partial class FixturesPage : ContentPage
     private readonly ObservableCollection<PlayerListItem> _homePlayers = new();
     private readonly ObservableCollection<PlayerListItem> _awayPlayers = new();
     private readonly List<FrameRowData> _frameRows = new();
+    private readonly Dictionary<string, (int index, bool isHome)> _keyMappings = new();
 
     private Fixture? _selectedFixture;
     private int _currentFrameIndex = 0; // Which frame is being edited (0-based)
@@ -114,6 +115,12 @@ public partial class FixturesPage : ContentPage
         if (ScanScoreCardBtn != null)
         {
             ScanScoreCardBtn.Clicked += async (_, __) => await OnScanScoreCardAsync();
+        }
+
+        // Wire up keyboard capture for quick player selection
+        if (KeyboardCaptureEntry != null)
+        {
+            KeyboardCaptureEntry.TextChanged += OnKeyboardInput;
         }
 
         // Subscribe to global season changes
@@ -387,6 +394,141 @@ public partial class FixturesPage : ContentPage
                 
                 // Dim the entire button if player has reached max frames
                 border.Opacity = item.FrameCount >= 3 ? 0.5 : 1.0;
+            }
+        }
+    }
+
+    // ========== KEYBOARD SHORTCUTS ==========
+
+    private void RefocusKeyboardCapture()
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            await System.Threading.Tasks.Task.Delay(50);
+            KeyboardCaptureEntry?.Focus();
+        });
+    }
+
+    private void OnKeyboardInput(object? sender, TextChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.NewTextValue))
+            return;
+
+        // Get the last character typed
+        var key = e.NewTextValue.Length > 0 ? e.NewTextValue[^1].ToString() : "";
+        
+        if (!string.IsNullOrEmpty(key))
+        {
+            HandleKeyPress(key);
+        }
+
+        // Clear the entry for next input
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (KeyboardCaptureEntry != null)
+                KeyboardCaptureEntry.Text = "";
+        });
+    }
+
+    private void SetupKeyboardShortcuts()
+    {
+        _keyMappings.Clear();
+        
+        // Home players: 1, 2, 3, 4, 5, ...
+        for (int i = 0; i < _homePlayers.Count && i < 9; i++)
+        {
+            _keyMappings[(i + 1).ToString()] = (i, true);
+        }
+        
+        // Away players: 6, 7, 8, 9, 0, A, B, C, ...
+        for (int i = 0; i < _awayPlayers.Count; i++)
+        {
+            string key;
+            if (i < 4) key = (i + 6).ToString();      // 6, 7, 8, 9
+            else if (i == 4) key = "0";                // 0
+            else key = ((char)('A' + i - 5)).ToString(); // A, B, C...
+            _keyMappings[key] = (i, false);
+        }
+        
+        System.Diagnostics.Debug.WriteLine($"Keyboard shortcuts: {_keyMappings.Count} mappings");
+    }
+
+    /// <summary>
+    /// Handle keyboard input for quick player selection
+    /// Keys 1-5: Home players, Keys 6-9,0: Away players
+    /// H: Home win, J: Away win, Arrow keys: navigate frames
+    /// </summary>
+    public void HandleKeyPress(string key)
+    {
+        if (_selectedFixture == null || _frameRows.Count == 0)
+            return;
+
+        var upperKey = key.ToUpperInvariant();
+        System.Diagnostics.Debug.WriteLine($"KEY: '{upperKey}'");
+
+        // Navigation: Up/Down arrow or W/S
+        if (upperKey == "UP" || upperKey == "W")
+        {
+            if (_currentFrameIndex > 0)
+            {
+                _currentFrameIndex--;
+                _selectingHomePlayer = true;
+                UpdateCurrentFrameIndicator();
+                HighlightCurrentFrame();
+            }
+            return;
+        }
+        
+        if (upperKey == "DOWN" || upperKey == "S")
+        {
+            if (_currentFrameIndex < _frameRows.Count - 1)
+            {
+                _currentFrameIndex++;
+                _selectingHomePlayer = true;
+                UpdateCurrentFrameIndicator();
+                HighlightCurrentFrame();
+            }
+            return;
+        }
+
+        // Toggle home/away
+        if (upperKey == "TAB" || upperKey == " ")
+        {
+            _selectingHomePlayer = !_selectingHomePlayer;
+            UpdateCurrentFrameIndicator();
+            return;
+        }
+
+        // Set winner: H = Home, J = Away
+        if (upperKey == "H")
+        {
+            var frame = _frameRows[_currentFrameIndex];
+            frame.Winner = FrameWinner.Home;
+            UpdateFrameScoreButtons(frame);
+            UpdateScoreDisplay();
+            return;
+        }
+
+        if (upperKey == "J")
+        {
+            var frame = _frameRows[_currentFrameIndex];
+            frame.Winner = FrameWinner.Away;
+            UpdateFrameScoreButtons(frame);
+            UpdateScoreDisplay();
+            return;
+        }
+
+        // Player selection by number/letter
+        if (_keyMappings.TryGetValue(upperKey, out var mapping))
+        {
+            var (index, isHome) = mapping;
+            var players = isHome ? _homePlayers : _awayPlayers;
+            
+            if (index < players.Count)
+            {
+                var player = players[index];
+                System.Diagnostics.Debug.WriteLine($"KEY SELECT: {player.Name} (isHome={isHome})");
+                OnQuickPlayerTapped(player.Id, player.Name, isHome);
             }
         }
     }
@@ -1021,6 +1163,13 @@ public partial class FixturesPage : ContentPage
         BuildScorecard();
         UpdateHeader();
         UpdateReminderStatus();
+        
+        // Focus keyboard capture for quick entry (with small delay to ensure UI is ready)
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            await System.Threading.Tasks.Task.Delay(100);
+            KeyboardCaptureEntry?.Focus();
+        });
     }
 
     // ========== SCORECARD BUILDING ==========
@@ -1204,6 +1353,9 @@ public partial class FixturesPage : ContentPage
 
         // Update counts based on existing frame data
         UpdatePlayerFrameCounts();
+        
+        // Setup keyboard shortcuts for the loaded players
+        SetupKeyboardShortcuts();
     }
 
     private Border CreateQuickPlayerButton(string keyLabel, Player player, PlayerListItem listItem, bool isHome)
@@ -1296,6 +1448,7 @@ public partial class FixturesPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"TAP: {playerName} (isHome={isHome})");
             OnQuickPlayerTapped(playerId, playerName, isHome);
+            RefocusKeyboardCapture();
         };
         border.GestureRecognizers.Add(tapGesture);
 
@@ -1402,6 +1555,7 @@ public partial class FixturesPage : ContentPage
             _selectingHomePlayer = true;
             UpdateCurrentFrameIndicator();
             HighlightCurrentFrame();
+            RefocusKeyboardCapture();
         };
         homePlayerBorder.GestureRecognizers.Add(homeTap);
         Grid.SetColumn(homePlayerBorder, 1);
@@ -1444,6 +1598,7 @@ public partial class FixturesPage : ContentPage
                 frameRow.Winner = FrameWinner.None;
             }
             UpdateScoreDisplay();
+            RefocusKeyboardCapture();
         };
         Grid.SetColumn(homeScoreBtn, 2);
         grid.Children.Add(homeScoreBtn);
@@ -1485,6 +1640,7 @@ public partial class FixturesPage : ContentPage
                 frameRow.Winner = FrameWinner.None;
             }
             UpdateScoreDisplay();
+            RefocusKeyboardCapture();
         };
         Grid.SetColumn(awayScoreBtn, 3);
         grid.Children.Add(awayScoreBtn);
@@ -1515,6 +1671,7 @@ public partial class FixturesPage : ContentPage
             _selectingHomePlayer = false;
             UpdateCurrentFrameIndicator();
             HighlightCurrentFrame();
+            RefocusKeyboardCapture();
         };
         awayPlayerBorder.GestureRecognizers.Add(awayTap);
         Grid.SetColumn(awayPlayerBorder, 4);

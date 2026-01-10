@@ -353,12 +353,22 @@
 
                 <!-- Bottom: Actions & Status -->
                 <Border Grid.Row="3" Padding="8,6" BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2A2A2A}">
-                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                         <Label x:Name="ReminderStatusLabel" Text="" FontSize="10" VerticalOptions="Center" TextColor="Gray" AutomationProperties.Name="Reminder status" />
                         
-                        <Button x:Name="ClearBtn" Grid.Column="1" Text="Clear" Style="{StaticResource SecondaryButtonStyle}" HeightRequest="30" FontSize="11" Padding="12,0" AutomationProperties.Name="Clear scorecard" />
-                        <Button x:Name="SaveBtn" Grid.Column="2" Text="💾 Save" Style="{StaticResource SuccessButtonStyle}" HeightRequest="30" FontSize="11" Padding="12,0" AutomationProperties.Name="Save fixture" />
-                        <Label x:Name="HeaderLbl" Grid.Column="3" Text="Select a fixture" FontSize="10" VerticalOptions="Center" TextColor="Gray" AutomationProperties.Name="Status" />
+                        <!-- Hidden Entry for keyboard capture -->
+                        <Entry x:Name="KeyboardCaptureEntry" 
+                               Grid.Column="1"
+                               WidthRequest="1" 
+                               HeightRequest="1"
+                               Opacity="0.01"
+                               Keyboard="Text"
+                               Placeholder=""
+                               AutomationProperties.Name="Keyboard input" />
+                        
+                        <Button x:Name="ClearBtn" Grid.Column="2" Text="Clear" Style="{StaticResource SecondaryButtonStyle}" HeightRequest="30" FontSize="11" Padding="12,0" AutomationProperties.Name="Clear scorecard" />
+                        <Button x:Name="SaveBtn" Grid.Column="3" Text="💾 Save" Style="{StaticResource SuccessButtonStyle}" HeightRequest="30" FontSize="11" Padding="12,0" AutomationProperties.Name="Save fixture" />
+                        <Label x:Name="HeaderLbl" Grid.Column="4" Text="Select a fixture" FontSize="10" VerticalOptions="Center" TextColor="Gray" AutomationProperties.Name="Status" />
                     </Grid>
                 </Border>
                 
