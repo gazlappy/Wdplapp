@@ -286,7 +286,20 @@ public partial class LeagueTablesPage : ContentPage
             }
 
             grid.Add(L(nameof(TeamRow.Pos), TextAlignment.Center, true), 0, 0);
-            grid.Add(L(nameof(TeamRow.Team), TextAlignment.Start, true), 1, 0);
+            
+            // Make team name a clickable link
+            var teamNameLabel = new Label
+            {
+                HorizontalTextAlignment = TextAlignment.Start,
+                VerticalTextAlignment = TextAlignment.Center,
+                FontAttributes = FontAttributes.Bold,
+                FontSize = 12,
+                TextColor = Color.FromArgb("#0066CC"),
+                TextDecorations = TextDecorations.Underline
+            };
+            teamNameLabel.SetBinding(Label.TextProperty, new Binding(nameof(TeamRow.Team)));
+            grid.Add(teamNameLabel, 1, 0);
+            
             grid.Add(L(nameof(TeamRow.P)), 2, 0);
             grid.Add(L(nameof(TeamRow.W)), 3, 0);
             grid.Add(L(nameof(TeamRow.L)), 4, 0);
@@ -295,7 +308,24 @@ public partial class LeagueTablesPage : ContentPage
             grid.Add(L(nameof(TeamRow.Diff)), 7, 0);
             grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 8, 0);
 
-            return new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
+            var border = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
+            
+            // Add tap gesture to navigate to team details
+            var tapGesture = new TapGestureRecognizer();
+            tapGesture.SetBinding(TapGestureRecognizer.CommandParameterProperty, new Binding("."));
+            tapGesture.Tapped += async (s, e) =>
+            {
+                if (e is TappedEventArgs tapped && tapped.Parameter is TeamRow row)
+                {
+                    // Navigate to TeamsPage with the selected team
+                    var teamsPage = new TeamsPage();
+                    teamsPage.SelectTeam(row.TeamId);
+                    await Application.Current?.MainPage?.Navigation.PushAsync(teamsPage)!;
+                }
+            };
+            border.GestureRecognizers.Add(tapGesture);
+
+            return border;
         });
     }
 

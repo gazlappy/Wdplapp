@@ -126,6 +126,16 @@ public partial class TeamsPage : ContentPage
         RefreshAll();
     }
 
+    /// <summary>
+    /// Select a specific team by ID (called when navigating from league table)
+    /// </summary>
+    public void SelectTeam(Guid teamId)
+    {
+        _pendingTeamSelection = teamId;
+    }
+
+    private Guid? _pendingTeamSelection;
+
     ~TeamsPage()
     {
         SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
@@ -139,6 +149,39 @@ public partial class TeamsPage : ContentPage
         {
             // Refresh data when page appears to ensure we have latest season
             RefreshAll();
+            
+            // Handle pending team selection (from navigation)
+            if (_pendingTeamSelection.HasValue)
+            {
+                var teamId = _pendingTeamSelection.Value;
+                _pendingTeamSelection = null;
+                
+                // Find and select the team in the list
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    await System.Threading.Tasks.Task.Delay(100); // Allow list to populate
+                    
+                    var teamItem = _teamItems.FirstOrDefault(t => t.Id == teamId);
+                    if (teamItem != null)
+                    {
+                        TeamsList.SelectedItem = teamItem;
+                    }
+                    else
+                    {
+                        // Team might be in a different season - enable "Show all seasons"
+                        _showAllSeasons = true;
+                        ShowAllSeasonsCheck.IsChecked = true;
+                        RefreshTeamList(null);
+                        
+                        await System.Threading.Tasks.Task.Delay(100);
+                        teamItem = _teamItems.FirstOrDefault(t => t.Id == teamId);
+                        if (teamItem != null)
+                        {
+                            TeamsList.SelectedItem = teamItem;
+                        }
+                    }
+                });
+            }
         }
         catch (Exception ex)
         {
