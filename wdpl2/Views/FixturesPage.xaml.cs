@@ -86,10 +86,8 @@ public partial class FixturesPage : ContentPage
             FromDate.Date = new DateTime(DateTime.Today.Year, 1, 1);
         }
 
-        // Bind lists
+        // Bind fixture list
         FixturesList.ItemsSource = _items;
-        HomePlayersList.ItemsSource = _homePlayers;
-        AwayPlayersList.ItemsSource = _awayPlayers;
 
         // Wire events
         FixturesList.SelectionChanged += OnSelectFixture;
@@ -158,69 +156,148 @@ public partial class FixturesPage : ContentPage
 
     private void OnHomePlayerSelected(object? sender, SelectionChangedEventArgs e)
     {
-        if (_selectedFixture == null || _currentFrameIndex < 0 || _currentFrameIndex >= _frameRows.Count)
-            return;
-
-        var selected = e.CurrentSelection.FirstOrDefault() as PlayerListItem;
-        if (selected == null) return;
-
-        var frameRow = _frameRows[_currentFrameIndex];
-        frameRow.HomePlayerId = selected.Id;
-        frameRow.HomePlayerName = selected.Name;
-        
-        if (frameRow.HomePlayerLabel != null)
-        {
-            frameRow.HomePlayerLabel.Text = selected.Name;
-            frameRow.HomePlayerLabel.TextColor = Colors.Black;
-        }
-
-        // Update player frame counts
-        UpdatePlayerFrameCounts();
-
-        // Clear selection and move to away player selection
-        HomePlayersList.SelectedItem = null;
-        
-        // Auto-advance: Now select away player for same frame
-        _selectingHomePlayer = false;
-        UpdateCurrentFrameIndicator();
+        // Legacy handler - kept for compatibility but now using quick panels
     }
 
     private void OnAwayPlayerSelected(object? sender, SelectionChangedEventArgs e)
     {
+        // Legacy handler - kept for compatibility but now using quick panels
+    }
+
+    private void OnQuickPlayerTapped(Guid playerId, string playerName, bool isHomeTeam)
+    {
+        System.Diagnostics.Debug.WriteLine($"=== QUICK PLAYER TAP: {playerName} (Home={isHomeTeam}) ===");
+
         if (_selectedFixture == null || _currentFrameIndex < 0 || _currentFrameIndex >= _frameRows.Count)
-            return;
-
-        var selected = e.CurrentSelection.FirstOrDefault() as PlayerListItem;
-        if (selected == null) return;
-
-        var frameRow = _frameRows[_currentFrameIndex];
-        frameRow.AwayPlayerId = selected.Id;
-        frameRow.AwayPlayerName = selected.Name;
-        
-        if (frameRow.AwayPlayerLabel != null)
         {
-            frameRow.AwayPlayerLabel.Text = selected.Name;
-            frameRow.AwayPlayerLabel.TextColor = Colors.Black;
+            System.Diagnostics.Debug.WriteLine("  => EARLY RETURN - fixture or frame invalid");
+            return;
         }
 
-        // Update player frame counts
-        UpdatePlayerFrameCounts();
+        var frameRow = _frameRows[_currentFrameIndex];
 
-        // Clear selection and move to next frame
-        AwayPlayersList.SelectedItem = null;
+        // Check if player has already played 3 frames (WDPL rule)
+        int playerFrameCount = _frameRows.Count(f => 
+            (isHomeTeam && f.HomePlayerId == playerId) || 
+            (!isHomeTeam && f.AwayPlayerId == playerId));
         
-        // Auto-advance to next frame (home player)
-        if (_currentFrameIndex < _frameRows.Count - 1)
+        if (playerFrameCount >= 3)
         {
-            _currentFrameIndex++;
-            _selectingHomePlayer = true;
+            System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {playerName} already has {playerFrameCount} frames (max 3)");
+            _ = DisplayAlert("Maximum Frames Reached", 
+                $"{playerName} has already played 3 frames.\n\nEach player can only play a maximum of 3 frames per match.", 
+                "OK");
+            return;
+        }
+
+        // Assign player to the appropriate slot based on their team
+        if (isHomeTeam)
+        {
+            // Check for duplicate pairing if away player is already set
+            if (frameRow.AwayPlayerId.HasValue)
+            {
+                var duplicatePairing = _frameRows.Any(f => 
+                    f != frameRow && 
+                    f.HomePlayerId == playerId && 
+                    f.AwayPlayerId == frameRow.AwayPlayerId);
+                
+                if (duplicatePairing)
+                {
+                    var awayName = frameRow.AwayPlayerName;
+                    System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {playerName} vs {awayName} already played");
+                    _ = DisplayAlert("Duplicate Pairing", 
+                        $"{playerName} has already played against {awayName} in this match.\n\nNo repeat pairings allowed.", 
+                        "OK");
+                    return;
+                }
+            }
+
+            // Assign home player
+            frameRow.HomePlayerId = playerId;
+            frameRow.HomePlayerName = playerName;
+            
+            if (frameRow.HomePlayerLabel != null)
+            {
+                frameRow.HomePlayerLabel.Text = playerName;
+                frameRow.HomePlayerLabel.TextColor = Colors.Black;
+            }
+            System.Diagnostics.Debug.WriteLine($"  => Assigned HOME player to frame {_currentFrameIndex + 1}");
+
+            // If away is already filled, advance to next frame
+            if (frameRow.AwayPlayerId.HasValue)
+            {
+                if (_currentFrameIndex < _frameRows.Count - 1)
+                {
+                    _currentFrameIndex++;
+                    _selectingHomePlayer = true;
+                    HighlightCurrentFrame();
+                }
+                else
+                {
+                    CurrentFrameIndicator.IsVisible = false;
+                }
+            }
+            else
+            {
+                // Now expect away player for same frame
+                _selectingHomePlayer = false;
+            }
             UpdateCurrentFrameIndicator();
-            HighlightCurrentFrame();
+            UpdatePlayerFrameCounts();
         }
         else
         {
-            // All frames filled - hide indicator
-            CurrentFrameIndicator.IsVisible = false;
+            // Check for duplicate pairing if home player is already set
+            if (frameRow.HomePlayerId.HasValue)
+            {
+                var duplicatePairing = _frameRows.Any(f => 
+                    f != frameRow && 
+                    f.HomePlayerId == frameRow.HomePlayerId && 
+                    f.AwayPlayerId == playerId);
+                
+                if (duplicatePairing)
+                {
+                    var homeName = frameRow.HomePlayerName;
+                    System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {homeName} vs {playerName} already played");
+                    _ = DisplayAlert("Duplicate Pairing", 
+                        $"{homeName} has already played against {playerName} in this match.\n\nNo repeat pairings allowed.", 
+                        "OK");
+                    return;
+                }
+            }
+
+            // Assign away player
+            frameRow.AwayPlayerId = playerId;
+            frameRow.AwayPlayerName = playerName;
+            
+            if (frameRow.AwayPlayerLabel != null)
+            {
+                frameRow.AwayPlayerLabel.Text = playerName;
+                frameRow.AwayPlayerLabel.TextColor = Colors.Black;
+            }
+            System.Diagnostics.Debug.WriteLine($"  => Assigned AWAY player to frame {_currentFrameIndex + 1}");
+
+            // If home is already filled, advance to next frame
+            if (frameRow.HomePlayerId.HasValue)
+            {
+                if (_currentFrameIndex < _frameRows.Count - 1)
+                {
+                    _currentFrameIndex++;
+                    _selectingHomePlayer = true;
+                    HighlightCurrentFrame();
+                }
+                else
+                {
+                    CurrentFrameIndicator.IsVisible = false;
+                }
+            }
+            else
+            {
+                // Now expect home player for same frame
+                _selectingHomePlayer = true;
+            }
+            UpdateCurrentFrameIndicator();
+            UpdatePlayerFrameCounts();
         }
     }
 
@@ -244,48 +321,72 @@ public partial class FixturesPage : ContentPage
             }
         }
 
+        // Update home players
         foreach (var player in _homePlayers)
         {
             player.FrameCount = homeCounts.GetValueOrDefault(player.Id, 0);
         }
+        
+        // Update away players
         foreach (var player in _awayPlayers)
         {
             player.FrameCount = awayCounts.GetValueOrDefault(player.Id, 0);
         }
 
-        // Refresh the lists to show updated counts
-        var homeTemp = _homePlayers.ToList();
-        _homePlayers.Clear();
-        foreach (var p in homeTemp) _homePlayers.Add(p);
-
-        var awayTemp = _awayPlayers.ToList();
-        _awayPlayers.Clear();
-        foreach (var p in awayTemp) _awayPlayers.Add(p);
-    }
-
-    private void UpdateCurrentFrameIndicator()
-    {
-        if (_selectedFixture == null)
+        // Update the count labels and visual state in quick panels
+        foreach (var child in HomePlayersQuickPanel.Children)
         {
-            CurrentFrameIndicator.IsVisible = false;
-            return;
+            if (child is Border border && border.BindingContext is PlayerListItem item)
+            {
+                var grid = border.Content as Grid;
+                if (grid != null && grid.Children.Count >= 3)
+                {
+                    var countLabel = grid.Children[2] as Label;
+                    if (countLabel != null)
+                    {
+                        countLabel.Text = $"({item.FrameCount})";
+                        // Grey out if at max (3 frames)
+                        countLabel.TextColor = item.FrameCount >= 3 ? Colors.Red : Colors.Gray;
+                    }
+                    
+                    // Update player name label color
+                    var nameLabel = grid.Children[1] as Label;
+                    if (nameLabel != null)
+                    {
+                        nameLabel.TextColor = item.FrameCount >= 3 ? Colors.Gray : Colors.Black;
+                    }
+                }
+                
+                // Dim the entire button if player has reached max frames
+                border.Opacity = item.FrameCount >= 3 ? 0.5 : 1.0;
+            }
         }
 
-        CurrentFrameIndicator.IsVisible = true;
-        var side = _selectingHomePlayer ? "HOME" : "AWAY";
-        CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Select {side} player";
-    }
-
-    private void HighlightCurrentFrame()
-    {
-        for (int i = 0; i < _frameRows.Count; i++)
+        foreach (var child in AwayPlayersQuickPanel.Children)
         {
-            var row = _frameRows[i];
-            if (row.RowBorder != null)
+            if (child is Border border && border.BindingContext is PlayerListItem item)
             {
-                row.RowBorder.BackgroundColor = (i == _currentFrameIndex)
-                    ? Color.FromArgb("#FFF9C4") // Highlighted yellow
-                    : (i % 2 == 0 ? Colors.White : Color.FromArgb("#F5F5F5"));
+                var grid = border.Content as Grid;
+                if (grid != null && grid.Children.Count >= 3)
+                {
+                    var countLabel = grid.Children[2] as Label;
+                    if (countLabel != null)
+                    {
+                        countLabel.Text = $"({item.FrameCount})";
+                        // Grey out if at max (3 frames)
+                        countLabel.TextColor = item.FrameCount >= 3 ? Colors.Red : Colors.Gray;
+                    }
+                    
+                    // Update player name label color
+                    var nameLabel = grid.Children[1] as Label;
+                    if (nameLabel != null)
+                    {
+                        nameLabel.TextColor = item.FrameCount >= 3 ? Colors.Gray : Colors.Black;
+                    }
+                }
+                
+                // Dim the entire button if player has reached max frames
+                border.Opacity = item.FrameCount >= 3 ? 0.5 : 1.0;
             }
         }
     }
@@ -930,6 +1031,8 @@ public partial class FixturesPage : ContentPage
         _frameRows.Clear();
         _homePlayers.Clear();
         _awayPlayers.Clear();
+        HomePlayersQuickPanel.Children.Clear();
+        AwayPlayersQuickPanel.Children.Clear();
         _currentFrameIndex = 0;
         _selectingHomePlayer = true;
         CurrentFrameIndicator.IsVisible = false;
@@ -1039,6 +1142,8 @@ public partial class FixturesPage : ContentPage
     {
         _homePlayers.Clear();
         _awayPlayers.Clear();
+        HomePlayersQuickPanel.Children.Clear();
+        AwayPlayersQuickPanel.Children.Clear();
 
         if (_selectedFixture == null) return;
 
@@ -1051,14 +1156,22 @@ public partial class FixturesPage : ContentPage
             .ThenBy(p => p.FirstName ?? "")
             .ToList();
 
-        foreach (var p in homePlayers)
+        // Create quick key buttons for home players [1], [2], [3], [4], [5], ...
+        for (int i = 0; i < homePlayers.Count; i++)
         {
-            _homePlayers.Add(new PlayerListItem
+            var player = homePlayers[i];
+            var keyLabel = (i + 1).ToString(); // 1, 2, 3, 4, 5...
+            
+            var listItem = new PlayerListItem
             {
-                Id = p.Id,
-                Name = p.FullName ?? $"{p.FirstName} {p.LastName}".Trim(),
+                Id = player.Id,
+                Name = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
                 FrameCount = 0
-            });
+            };
+            _homePlayers.Add(listItem);
+
+            var btn = CreateQuickPlayerButton(keyLabel, player, listItem, true);
+            HomePlayersQuickPanel.Children.Add(btn);
         }
 
         // Get away team players
@@ -1068,18 +1181,134 @@ public partial class FixturesPage : ContentPage
             .ThenBy(p => p.FirstName ?? "")
             .ToList();
 
-        foreach (var p in awayPlayers)
+        // Create quick key buttons for away players [6], [7], [8], [9], [0], ...
+        for (int i = 0; i < awayPlayers.Count; i++)
         {
-            _awayPlayers.Add(new PlayerListItem
+            var player = awayPlayers[i];
+            string keyLabel;
+            if (i < 4) keyLabel = (i + 6).ToString();      // 6, 7, 8, 9
+            else if (i == 4) keyLabel = "0";                // 0
+            else keyLabel = ((char)('A' + i - 5)).ToString(); // A, B, C...
+            
+            var listItem = new PlayerListItem
             {
-                Id = p.Id,
-                Name = p.FullName ?? $"{p.FirstName} {p.LastName}".Trim(),
+                Id = player.Id,
+                Name = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
                 FrameCount = 0
-            });
+            };
+            _awayPlayers.Add(listItem);
+
+            var btn = CreateQuickPlayerButton(keyLabel, player, listItem, false);
+            AwayPlayersQuickPanel.Children.Add(btn);
         }
 
         // Update counts based on existing frame data
         UpdatePlayerFrameCounts();
+    }
+
+    private Border CreateQuickPlayerButton(string keyLabel, Player player, PlayerListItem listItem, bool isHome)
+    {
+        var playerId = player.Id;
+        var playerName = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim();
+        var shortName = GetShortPlayerName(player);
+        
+        var border = new Border
+        {
+            BackgroundColor = Colors.White,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            Stroke = isHome 
+                ? Color.FromArgb("#90CAF9") 
+                : Color.FromArgb("#EF9A9A"),
+            StrokeThickness = 1,
+            Padding = new Thickness(4, 6),
+            Margin = new Thickness(0, 0, 0, 2),
+            BindingContext = listItem
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(22) },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(24) }
+            },
+            ColumnSpacing = 4
+        };
+
+        // Key number badge
+        var keyBadge = new Border
+        {
+            BackgroundColor = isHome 
+                ? Color.FromArgb("#1976D2") 
+                : Color.FromArgb("#D32F2F"),
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 3 },
+            WidthRequest = 20,
+            HeightRequest = 20,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center
+        };
+        keyBadge.Content = new Label
+        {
+            Text = keyLabel,
+            FontSize = 10,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White,
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center
+        };
+        Grid.SetColumn(keyBadge, 0);
+        grid.Children.Add(keyBadge);
+
+        // Player name
+        var nameLabel = new Label
+        {
+            Text = shortName,
+            FontSize = 10,
+            TextColor = Colors.Black,
+            VerticalTextAlignment = TextAlignment.Center,
+            LineBreakMode = LineBreakMode.TailTruncation
+        };
+        Grid.SetColumn(nameLabel, 1);
+        grid.Children.Add(nameLabel);
+
+        // Frame count label
+        var countLabel = new Label
+        {
+            Text = "(0)",
+            FontSize = 9,
+            TextColor = Colors.Gray,
+            VerticalTextAlignment = TextAlignment.Center,
+            HorizontalTextAlignment = TextAlignment.End
+        };
+        Grid.SetColumn(countLabel, 2);
+        grid.Children.Add(countLabel);
+
+        border.Content = grid;
+
+        // Tap handler - single tap gesture only
+        var tapGesture = new TapGestureRecognizer
+        {
+            NumberOfTapsRequired = 1
+        };
+        tapGesture.Tapped += (s, e) => 
+        {
+            System.Diagnostics.Debug.WriteLine($"TAP: {playerName} (isHome={isHome})");
+            OnQuickPlayerTapped(playerId, playerName, isHome);
+        };
+        border.GestureRecognizers.Add(tapGesture);
+
+        return border;
+    }
+
+    private static string GetShortPlayerName(Player player)
+    {
+        if (!string.IsNullOrEmpty(player.FirstName) && !string.IsNullOrEmpty(player.LastName))
+        {
+            return $"{player.FirstName[0]}. {player.LastName}";
+        }
+        return player.FullName ?? "?";
     }
 
     private FrameRowData CreateFrameRow(int index, FrameResult fr)
@@ -1318,6 +1547,33 @@ public partial class FixturesPage : ContentPage
         frameRow.EightBallCheck = eightBallCheck;
 
         return frameRow;
+    }
+
+    private void UpdateCurrentFrameIndicator()
+    {
+        if (_selectedFixture == null)
+        {
+            CurrentFrameIndicator.IsVisible = false;
+            return;
+        }
+
+        CurrentFrameIndicator.IsVisible = true;
+        var side = _selectingHomePlayer ? "HOME" : "AWAY";
+        CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Select {side} player";
+    }
+
+    private void HighlightCurrentFrame()
+    {
+        for (int i = 0; i < _frameRows.Count; i++)
+        {
+            var row = _frameRows[i];
+            if (row.RowBorder != null)
+            {
+                row.RowBorder.BackgroundColor = (i == _currentFrameIndex)
+                    ? Color.FromArgb("#FFF9C4") // Highlighted yellow
+                    : (i % 2 == 0 ? Colors.White : Color.FromArgb("#F5F5F5"));
+            }
+        }
     }
 
     private void UpdateScoreDisplay()

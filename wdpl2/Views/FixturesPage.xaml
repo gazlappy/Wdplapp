@@ -324,26 +324,8 @@
                                 <Border BackgroundColor="{AppThemeBinding Light=#1976D2, Dark=#1565C0}" Padding="6,4">
                                     <Label x:Name="HomeTeamListHeader" Text="HOME" FontSize="10" FontAttributes="Bold" TextColor="White" HorizontalTextAlignment="Center" />
                                 </Border>
-                                <CollectionView x:Name="HomePlayersList" 
-                                                SelectionMode="Single"
-                                                SelectionChanged="OnHomePlayerSelected"
-                                                AutomationProperties.Name="Home players list">
-                                    <CollectionView.ItemTemplate>
-                                        <DataTemplate x:DataType="local:FixturesPage+PlayerListItem">
-                                            <Border Padding="4,6" 
-                                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A237E}"
-                                                    Margin="1"
-                                                    StrokeShape="RoundRectangle 3"
-                                                    Stroke="{AppThemeBinding Light=#BBDEFB, Dark=#303F9F}"
-                                                    StrokeThickness="1">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <Label Text="{Binding Name}" FontSize="11" VerticalOptions="Center" LineBreakMode="TailTruncation" />
-                                                    <Label Grid.Column="1" Text="{Binding FrameCount, StringFormat='({0})'}" FontSize="9" TextColor="Gray" VerticalOptions="Center" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </CollectionView.ItemTemplate>
-                                </CollectionView>
+                                <!-- Quick key buttons generated programmatically -->
+                                <VerticalStackLayout x:Name="HomePlayersQuickPanel" Spacing="2" Padding="2" />
                             </VerticalStackLayout>
                         </Border>
                         
@@ -361,26 +343,8 @@
                                 <Border BackgroundColor="{AppThemeBinding Light=#D32F2F, Dark=#C62828}" Padding="6,4">
                                     <Label x:Name="AwayTeamListHeader" Text="AWAY" FontSize="10" FontAttributes="Bold" TextColor="White" HorizontalTextAlignment="Center" />
                                 </Border>
-                                <CollectionView x:Name="AwayPlayersList" 
-                                                SelectionMode="Single"
-                                                SelectionChanged="OnAwayPlayerSelected"
-                                                AutomationProperties.Name="Away players list">
-                                    <CollectionView.ItemTemplate>
-                                        <DataTemplate x:DataType="local:FixturesPage+PlayerListItem">
-                                            <Border Padding="4,6" 
-                                                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#4A1414}"
-                                                    Margin="1"
-                                                    StrokeShape="RoundRectangle 3"
-                                                    Stroke="{AppThemeBinding Light=#FFCDD2, Dark=#7F1D1D}"
-                                                    StrokeThickness="1">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <Label Text="{Binding Name}" FontSize="11" VerticalOptions="Center" LineBreakMode="TailTruncation" />
-                                                    <Label Grid.Column="1" Text="{Binding FrameCount, StringFormat='({0})'}" FontSize="9" TextColor="Gray" VerticalOptions="Center" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </CollectionView.ItemTemplate>
-                                </CollectionView>
+                                <!-- Quick key buttons generated programmatically -->
+                                <VerticalStackLayout x:Name="AwayPlayersQuickPanel" Spacing="2" Padding="2" />
                             </VerticalStackLayout>
                         </Border>
                         
