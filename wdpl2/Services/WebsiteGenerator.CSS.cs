@@ -34,30 +34,47 @@ namespace Wdpl2.Services
         
         private string GenerateModernCSS()
         {
-            var css = new StringBuilder();
-            
-            css.AppendLine($@"
+            return $@"
+/* Modern CSS Variables */
 :root {{
     --primary-color: {_settings.PrimaryColor};
     --secondary-color: {_settings.SecondaryColor};
     --accent-color: {_settings.AccentColor};
-    --bg-color: {_settings.BackgroundColor};
-    --card-bg: {_settings.CardBackgroundColor};
+    --background-color: {_settings.BackgroundColor};
     --text-color: {_settings.TextColor};
     --text-secondary: {_settings.TextSecondaryColor};
+    --border-color: #e5e7eb;
+    --card-bg: {_settings.CardBackgroundColor};
+    --header-bg: {_settings.PrimaryColor};
     --header-text: {_settings.HeaderTextColor};
+    --nav-bg: {_settings.SecondaryColor};
+    --nav-text: {_settings.HeaderTextColor};
+    --nav-hover: {_settings.AccentColor};
+    --footer-bg: #1F2937;
+    --footer-text: #F9FAFB;
+    --table-header-bg: {_settings.PrimaryColor};
+    --table-header-text: {_settings.HeaderTextColor};
+    --table-alt-bg: #F9FAFB;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-emoji: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif;
     --border-radius: {_settings.BorderRadius}px;
-    --spacing: {_settings.CardSpacing}px;
-    --font-family: {WebsiteSettings.FontFamilies.GetValueOrDefault(_settings.FontFamily, "Inter")};
-    --header-font: {WebsiteSettings.FontFamilies.GetValueOrDefault(_settings.HeaderFontFamily, "Inter")};
+    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 6px rgba(0,0,0,0.1);
+    --max-content-width: 1200px;
+    --transition: all 0.2s ease;
+}}
+
+/* Emoji Support - ensure emojis display correctly */
+h1, h2, h3, h4, h5, h6, p, span, div, a, li {{
+    font-family: var(--font-family), var(--font-family-emoji);
 }}
 
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
 body {{
-    font-family: var(--font-family);
+    font-family: var(--font-family), var(--font-family-emoji);
     font-size: {_settings.BaseFontSize}px;
-    background: var(--bg-color);
+    background: var(--background-color);
     color: var(--text-color);
     line-height: 1.6;
 }}
@@ -589,9 +606,7 @@ footer a {{
 }}
 
 {_settings.CustomCss}
-");
-            
-            return css.ToString();
+";
         }
         
         private string GenerateDarkModeCSS()

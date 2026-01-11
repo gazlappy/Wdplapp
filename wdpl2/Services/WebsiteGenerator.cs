@@ -188,21 +188,31 @@ namespace Wdpl2.Services
                 var playerStats = CalculatePlayerStats(players, teams, fixtures);
                 
                 // Apply filter based on settings
+                // Priority: Website settings > App settings > No filter
                 int minFramesRequired = 0;
                 if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
                 {
-                    // Calculate max frames available in the season
+                    // Website percentage filter is explicitly configured
                     var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
                     minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
                 }
-                else
+                else if (_settings.PlayersMinGames > 0)
                 {
+                    // Website fixed minimum games filter
                     minFramesRequired = _settings.PlayersMinGames;
                 }
+                else if (_league.Settings.MinFramesPercentage > 0)
+                {
+                    // Fall back to app-level MinFramesPercentage setting (e.g., 60%)
+                    var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                    minFramesRequired = (int)Math.Ceiling(maxFrames * (_league.Settings.MinFramesPercentage / 100.0));
+                }
                 
+                // Sort by Rating (same as Players/Ratings page), not win percentage
                 var topPlayers = playerStats
                     .Where(p => p.Played >= minFramesRequired)
-                    .OrderByDescending(s => s.WinPercentage)
+                    .OrderByDescending(s => s.Rating)
+                    .ThenByDescending(s => s.WinPercentage)
                     .ThenByDescending(s => s.Won)
                     .Take(_settings.HomeLeagueLeadersCount)
                     .ToList();
@@ -210,23 +220,23 @@ namespace Wdpl2.Services
                 if (topPlayers.Any())
                 {
                     html.AppendLine("            <section class=\"section\">");
-                    html.AppendLine("                <h3>?? League Leaders</h3>");
+                    html.AppendLine("                <h3>&#127942; League Leaders</h3>");
                     html.AppendLine("                <div class=\"leaders-list\">");
                     var rank = 1;
                     foreach (var player in topPlayers)
                     {
-                        var medal = rank switch { 1 => "??", 2 => "??", 3 => "??", _ => $"#{rank}" };
+                        var medal = rank switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => $"#{rank}" };
                         html.AppendLine("                    <div class=\"leader-item\">");
                         html.AppendLine($"                        <span class=\"rank\">{medal}</span>");
                         html.AppendLine($"                        <span class=\"player-name\">{player.PlayerName}</span>");
                         html.AppendLine($"                        <span class=\"player-team\">{player.TeamName}</span>");
-                        html.AppendLine($"                        <span class=\"player-stat\">{player.WinPercentage:F1}%</span>");
+                        html.AppendLine($"                        <span class=\"player-stat\">{player.Rating}</span>");
                         html.AppendLine("                    </div>");
                         rank++;
                     }
                     html.AppendLine("                </div>");
                     if (_settings.ShowPlayerStats)
-                        html.AppendLine("                <p class=\"view-all\"><a href=\"players.html\">View All Players ?</a></p>");
+                        html.AppendLine("                <p class=\"view-all\"><a href=\"players.html\">View All Players &#8594;</a></p>");
                     html.AppendLine("            </section>");
                 }
             }
@@ -235,7 +245,7 @@ namespace Wdpl2.Services
             if (_settings.HomeShowRecentResults && _settings.ShowResults && completedFixtures > 0)
             {
                 html.AppendLine("            <section class=\"section\">");
-                html.AppendLine("                <h3>?? Recent Results</h3>");
+                html.AppendLine("                <h3>&#127937; Recent Results</h3>");
                 
                 var recentResults = fixtures
                     .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
@@ -260,7 +270,7 @@ namespace Wdpl2.Services
                     html.AppendLine("                    </div>");
                 }
                 html.AppendLine("                </div>");
-                html.AppendLine("                <p class=\"view-all\"><a href=\"results.html\">View All Results ?</a></p>");
+                html.AppendLine("                <p class=\"view-all\"><a href=\"results.html\">View All Results &#8594;</a></p>");
                 html.AppendLine("            </section>");
             }
             
@@ -276,7 +286,7 @@ namespace Wdpl2.Services
                 if (upcomingFixtures.Any())
                 {
                     html.AppendLine("            <section class=\"section\">");
-                    html.AppendLine("                <h3>?? Upcoming Fixtures</h3>");
+                    html.AppendLine("                <h3>&#128197; Upcoming Fixtures</h3>");
                     html.AppendLine("                <div class=\"fixtures-list\">");
                     
                     foreach (var fixture in upcomingFixtures)
@@ -302,7 +312,7 @@ namespace Wdpl2.Services
                     }
                     
                     html.AppendLine("                </div>");
-                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures ?</a></p>");
+                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
                     html.AppendLine("            </section>");
                 }
             }
@@ -395,7 +405,7 @@ namespace Wdpl2.Services
                         var posDisplay = position.ToString();
                         if (_settings.StandingsShowMedals && position <= 3)
                         {
-                            posDisplay = position switch { 1 => "??", 2 => "??", 3 => "??", _ => posDisplay };
+                            posDisplay = position switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => posDisplay };
                         }
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
@@ -451,7 +461,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Fixtures</h2>");
+            html.AppendLine("                <h2>&#128197; Fixtures</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Upcoming Matches</p>");
             html.AppendLine("            </div>");
             
@@ -504,7 +514,7 @@ namespace Wdpl2.Services
                     }
                     
                     html.AppendLine("                </div>");
-                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures ?</a></p>");
+                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
                     html.AppendLine("            </div>");
                 }
             }
@@ -580,15 +590,15 @@ namespace Wdpl2.Services
             html.AppendLine("            </style>");
             html.AppendLine($"            <div class=\"section fixtures-sheet-section{expandedClass}\">");
             html.AppendLine("                <div class=\"fixtures-sheet-header\" onclick=\"toggleFixturesSheet()\">");
-            html.AppendLine($"                    <h3>?? {sheetTitle}</h3>");
+            html.AppendLine($"                    <h3>&#128197; {sheetTitle}</h3>");
             html.AppendLine("                    <div class=\"fixtures-sheet-controls\">");
-            html.AppendLine("                        <span class=\"toggle-icon\">?</span>");
+            html.AppendLine("                        <span class=\"toggle-icon\">&#9660;</span>");
             html.AppendLine("                    </div>");
             html.AppendLine("                </div>");
             html.AppendLine("                <div class=\"fixtures-sheet-content\">");
             html.AppendLine("                    <div class=\"fixtures-sheet-actions\">");
-            html.AppendLine("                        <button class=\"btn-download\" onclick=\"downloadFixturesSheet()\">? Download HTML</button>");
-            html.AppendLine("                        <button class=\"btn-print\" onclick=\"printFixturesSheet()\">?? Print</button>");
+            html.AppendLine("                        <button class=\"btn-download\" onclick=\"downloadFixturesSheet()\">&#128229; Download HTML</button>");
+            html.AppendLine("                        <button class=\"btn-print\" onclick=\"printFixturesSheet()\">&#128424; Print</button>");
             html.AppendLine("                    </div>");
             html.AppendLine("                    <div class=\"fixtures-sheet-wrapper\" id=\"fixtures-sheet-container\">");
             html.AppendLine(sheetContent);
@@ -663,7 +673,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Match Results</h2>");
+            html.AppendLine("                <h2>&#127937; Match Results</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Latest Results</p>");
             html.AppendLine("            </div>");
             
@@ -774,7 +784,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Player Statistics</h2>");
+            html.AppendLine("                <h2>&#127942; Player Statistics</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
             html.AppendLine("            </div>");
             
@@ -837,7 +847,7 @@ namespace Wdpl2.Services
                     if (_settings.PlayersShowPosition)
                     {
                         var posDisplay = position <= 3 
-                            ? (position == 1 ? "??" : position == 2 ? "??" : "??")
+                            ? (position == 1 ? "&#129351;" : position == 2 ? "&#129352;" : "&#129353;")
                             : position.ToString();
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
@@ -903,7 +913,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Divisions</h2>");
+            html.AppendLine("                <h2>&#127941; Divisions</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{divisions.Count} Division(s)</p>");
             html.AppendLine("            </div>");
             
@@ -1015,7 +1025,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? League Rules</h2>");
+            html.AppendLine("                <h2>&#128214; League Rules</h2>");
             html.AppendLine("            </div>");
             html.AppendLine("            <div class=\"section content-section\">");
             html.AppendLine($"                {_settings.RulesContent}");
@@ -1050,7 +1060,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Contact Us</h2>");
+            html.AppendLine("                <h2>&#128231; Contact Us</h2>");
             html.AppendLine("            </div>");
             html.AppendLine("            <div class=\"section\">");
             html.AppendLine("                <div class=\"contact-grid\">");
@@ -1058,7 +1068,7 @@ namespace Wdpl2.Services
             if (!string.IsNullOrWhiteSpace(_settings.ContactEmail))
             {
                 html.AppendLine("                    <div class=\"contact-item\">");
-                html.AppendLine("                        <h4>?? Email</h4>");
+                html.AppendLine("                        <h4>&#128231; Email</h4>");
                 html.AppendLine($"                        <a href=\"mailto:{_settings.ContactEmail}\">{_settings.ContactEmail}</a>");
                 html.AppendLine("                    </div>");
             }
@@ -1066,7 +1076,7 @@ namespace Wdpl2.Services
             if (!string.IsNullOrWhiteSpace(_settings.ContactPhone))
             {
                 html.AppendLine("                    <div class=\"contact-item\">");
-                html.AppendLine("                        <h4>?? Phone</h4>");
+                html.AppendLine("                        <h4>&#128222; Phone</h4>");
                 html.AppendLine($"                        <a href=\"tel:{_settings.ContactPhone}\">{_settings.ContactPhone}</a>");
                 html.AppendLine("                    </div>");
             }
@@ -1074,7 +1084,7 @@ namespace Wdpl2.Services
             if (!string.IsNullOrWhiteSpace(_settings.ContactAddress))
             {
                 html.AppendLine("                    <div class=\"contact-item\">");
-                html.AppendLine("                        <h4>?? Address</h4>");
+                html.AppendLine("                        <h4>&#128205; Address</h4>");
                 html.AppendLine($"                        <p>{_settings.ContactAddress}</p>");
                 html.AppendLine("                    </div>");
             }
@@ -1132,7 +1142,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Our Sponsors</h2>");
+            html.AppendLine("                <h2>&#129309; Our Sponsors</h2>");
             html.AppendLine("                <p class=\"hero-dates\">Thank you to our supporters</p>");
             html.AppendLine("            </div>");
             
@@ -1158,13 +1168,13 @@ namespace Wdpl2.Services
                         if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
                             html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\"><img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\"></a>");
                         else
-                            html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\">");
+                            html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{sponsor.Name}\" style=\"max-height: {_settings.SponsorLogoMaxHeight}px;\"></a>");
                     }
                     html.AppendLine($"                        <h4>{sponsor.Name}</h4>");
                     if (!string.IsNullOrWhiteSpace(sponsor.Description))
                         html.AppendLine($"                        <p>{sponsor.Description}</p>");
                     if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
-                        html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\" class=\"sponsor-link\">Visit Website ?</a>");
+                        html.AppendLine($"                        <a href=\"{sponsor.WebsiteUrl}\" target=\"_blank\" class=\"sponsor-link\">Visit Website &#8594;</a>");
                     html.AppendLine("                    </div>");
                 }
                 
@@ -1202,7 +1212,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Latest News</h2>");
+            html.AppendLine("                <h2>&#128240; Latest News</h2>");
             html.AppendLine("            </div>");
             
             var publishedNews = _settings.NewsItems
@@ -1218,7 +1228,7 @@ namespace Wdpl2.Services
                 {
                     html.AppendLine("            <article class=\"section news-article\">");
                     if (news.IsPinned)
-                        html.AppendLine("                <span class=\"pinned-badge\">?? Pinned</span>");
+                        html.AppendLine("                <span class=\"pinned-badge\">&#128204; Pinned</span>");
                     html.AppendLine($"                <h3>{news.Title}</h3>");
                     html.AppendLine($"                <p class=\"news-meta\"><span class=\"date\">{news.DatePublished:dd MMMM yyyy}</span>");
                     if (!string.IsNullOrWhiteSpace(news.Category))
@@ -1326,7 +1336,7 @@ namespace Wdpl2.Services
             
             // Player header
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine($"                <h2>?? {stats.PlayerName}</h2>");
+            html.AppendLine($"                <h2>&#127942; {stats.PlayerName}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{team?.Name ?? "No Team"}</p>");
             html.AppendLine("            </div>");
             
@@ -1374,7 +1384,7 @@ namespace Wdpl2.Services
             if (playerHistory.Any())
             {
                 html.AppendLine("            <div class=\"section\">");
-                html.AppendLine("                <h3>?? Full Record</h3>");
+                html.AppendLine("                <h3>&#128203; Full Record</h3>");
                 html.AppendLine("                <div class=\"table-responsive\">");
                 html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
 
@@ -1416,7 +1426,7 @@ namespace Wdpl2.Services
             
             // Back to players link
             html.AppendLine("            <div class=\"section\" style=\"text-align: center;\">");
-            html.AppendLine("                <a href=\"players.html\" class=\"back-link\">? Back to All Players</a>");
+            html.AppendLine("                <a href=\"players.html\" class=\"back-link\">&#8592; Back to All Players</a>");
             html.AppendLine("            </div>");
             
             html.AppendLine("        </div>");
@@ -1511,7 +1521,7 @@ namespace Wdpl2.Services
             public int FramesDiff => FramesFor - FramesAgainst;
             public int Points { get; set; }
             public List<char> RecentForm { get; set; } = new();
-            public string FormDisplay => string.Join("", RecentForm.Take(5).Select(f => f switch { 'W' => "??", 'D' => "??", 'L' => "??", _ => "?" }));
+            public string FormDisplay => string.Join("", RecentForm.Take(5).Select(f => f switch { 'W' => "&#128994;", 'D' => "&#128992;", 'L' => "&#128308;", _ => "&#9898;" }));
         }
         
         private List<TeamStanding> CalculateStandings(List<Team> teams, List<Fixture> fixtures)
@@ -1593,7 +1603,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <main>");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>?? Photo Gallery</h2>");
+            html.AppendLine("                <h2>&#128247; Photo Gallery</h2>");
             html.AppendLine("            </div>");
             
             var images = _settings.GalleryImages.OrderBy(i => i.SortOrder).ToList();
