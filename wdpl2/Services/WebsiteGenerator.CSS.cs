@@ -244,40 +244,65 @@ main {{
 }}
 
 .result-item, .fixture-item {{
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(80px, 100px) 1fr auto 1fr minmax(100px, 150px);
     align-items: center;
-    justify-content: space-between;
     padding: 16px;
     background: rgba(0,0,0,0.02);
     border-radius: calc(var(--border-radius) / 2);
-    flex-wrap: wrap;
     gap: 10px;
+}}
+
+/* When no venue - 4 columns */
+.result-item:not(:has(.venue)), .fixture-item:not(:has(.venue)) {{
+    grid-template-columns: minmax(80px, 100px) 1fr auto 1fr;
+}}
+
+/* When no date - adjust first column */
+.result-item:not(:has(.date)), .fixture-item:not(:has(.date)) {{
+    grid-template-columns: 1fr auto 1fr minmax(100px, 150px);
+}}
+
+/* When no date and no venue */
+.result-item:not(:has(.date)):not(:has(.venue)), .fixture-item:not(:has(.date)):not(:has(.venue)) {{
+    grid-template-columns: 1fr auto 1fr;
+}}
+
+.result-item .date, .fixture-item .date {{
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
 }}
 
 .result-item .team, .fixture-item .team {{
     font-weight: 600;
-    flex: 1;
-    min-width: 120px;
-}}
-
-.result-item .score {{
-    font-weight: bold;
-    font-size: 1.2rem;
-    padding: 0 15px;
+    text-align: center;
 }}
 
 .result-item .team.winner {{
     color: var(--primary-color);
 }}
 
+.result-item .score {{
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 0 15px;
+    white-space: nowrap;
+    min-width: 70px;
+}}
+
 .fixture-item .vs {{
     color: var(--text-secondary);
+    text-align: center;
     padding: 0 10px;
+    min-width: 40px;
 }}
 
 .fixture-item .venue, .result-item .venue {{
     color: var(--text-secondary);
     font-size: 0.9rem;
+    text-align: right;
 }}
 
 .date {{
@@ -549,8 +574,17 @@ footer a {{
     header h1 {{ font-size: 1.8rem; }}
     .hero h2 {{ font-size: 1.5rem; }}
     nav .nav-container {{ justify-content: center; }}
-    .result-item, .fixture-item {{ flex-direction: column; text-align: center; }}
-    .result-item .team, .fixture-item .team {{ min-width: auto; }}
+    .result-item, .fixture-item {{ 
+        grid-template-columns: 1fr !important;
+        text-align: center;
+        gap: 8px;
+    }}
+    .result-item .date, .fixture-item .date,
+    .result-item .venue, .fixture-item .venue,
+    .result-item .team, .fixture-item .team,
+    .result-item .score, .fixture-item .vs {{
+        text-align: center;
+    }}
     .gallery-grid {{ grid-template-columns: repeat(2, 1fr); }}
 }}
 
