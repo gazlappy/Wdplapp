@@ -51,6 +51,39 @@ public partial class TeamsPage : ContentPage
         public string FrameRecord { get; set; } = "";
     }
 
+    public sealed class TeamPlayerItem
+    {
+        public Guid PlayerId { get; set; }
+        public string PlayerName { get; set; } = "";
+        public int Rank { get; set; }
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int EightBalls { get; set; }
+        public int Rating { get; set; } = 1000;
+        public bool IsCaptain { get; set; }
+        
+        public double WinPercentage => Played > 0 ? (double)Won / Played * 100.0 : 0;
+        public string WinPercentageDisplay => Played > 0 ? $"{WinPercentage:0}%" : "-";
+        public string RankDisplay => Rank <= 3 ? Rank switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => Rank.ToString() } : Rank.ToString();
+        public string CaptainLabel => IsCaptain ? "⭐ Captain" : "";
+        
+        public Color RankColor => Rank switch
+        {
+            1 => Color.FromArgb("#FFD700"), // Gold
+            2 => Color.FromArgb("#C0C0C0"), // Silver
+            3 => Color.FromArgb("#CD7F32"), // Bronze
+            _ => Color.FromArgb("#6B7280")  // Gray
+        };
+        
+        public Color WinPercentageColor => WinPercentage switch
+        {
+            >= 60 => Color.FromArgb("#10B981"), // Green
+            >= 40 => Color.FromArgb("#F59E0B"), // Amber
+            _ => Color.FromArgb("#EF4444")      // Red
+        };
+    }
+
     private readonly ObservableCollection<TeamListItem> _teamItems = new();
     private readonly ObservableCollection<Division> _divisions = new();
     private readonly ObservableCollection<Venue> _venues = new();
@@ -58,6 +91,7 @@ public partial class TeamsPage : ContentPage
     private readonly ObservableCollection<Player> _players = new();
     private readonly ObservableCollection<TeamHeadToHeadItem> _h2hItems = new();
     private readonly ObservableCollection<Season> _h2hSeasons = new();
+    private readonly ObservableCollection<TeamPlayerItem> _teamPlayerItems = new();
 
     private Team? _selectedTeam;
     private bool _isMultiSelectMode = false;
@@ -76,6 +110,7 @@ public partial class TeamsPage : ContentPage
         CaptainPicker.ItemsSource = _players;
         H2HList.ItemsSource = _h2hItems;
         H2HSeasonPicker.ItemsSource = _h2hSeasons;
+        TeamPlayersList.ItemsSource = _teamPlayerItems;
 
         // Burger menu
         BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
@@ -239,7 +274,8 @@ public partial class TeamsPage : ContentPage
                 TeamInfoPanel.IsVisible = false;
                 FilterPanel.IsVisible = false;
                 EmptyStatePanel.IsVisible = true;
-                H2HList.IsVisible = false;
+                H2HSection.IsVisible = false;
+                TeamPlayersSection.IsVisible = false;
                 return;
             }
 
@@ -247,7 +283,8 @@ public partial class TeamsPage : ContentPage
             TeamInfoPanel.IsVisible = true;
             FilterPanel.IsVisible = true;
             EmptyStatePanel.IsVisible = false;
-            H2HList.IsVisible = true;
+            H2HSection.IsVisible = true;
+            TeamPlayersSection.IsVisible = true;
 
             SelectedTeamName.Text = _selectedTeam.Name ?? "Unknown Team";
             
@@ -403,12 +440,108 @@ public partial class TeamsPage : ContentPage
                 : $"{totalWins}W-{totalLosses}L";
             SelectedTeamStats.Text = $"{totalMatches} matches • {recordText} ({winPct:0.#}%) • {totalFramesFor}-{totalFramesAgainst} frames";
 
+            // Refresh team players list
+            RefreshTeamPlayers(seasonIds);
+
             SetStatus($"Found {_h2hItems.Count} opponent(s)");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"RefreshHeadToHead Error: {ex}");
             SetStatus($"Error loading head-to-head: {ex.Message}");
+        }
+    }
+
+    private void RefreshTeamPlayers(List<Guid> seasonIds)
+    {
+        try
+        {
+            _teamPlayerItems.Clear();
+
+            if (_selectedTeam == null)
+            {
+                TeamPlayersCountLabel.Text = "";
+                return;
+            }
+
+            // Get players for this team
+            var teamPlayers = DataStore.Data.Players
+                .Where(p => p.TeamId == _selectedTeam.Id)
+                .ToList();
+
+            if (!teamPlayers.Any())
+            {
+                TeamPlayersCountLabel.Text = "0 players";
+                return;
+            }
+
+            // Get fixtures for calculating player stats
+            var fixtures = DataStore.Data.Fixtures
+                .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
+                .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
+                .Where(f => f.Frames.Any())
+                .ToList();
+
+            // Get season start date for rating calculation
+            var settings = DataStore.Data.Settings;
+            var season = seasonIds.Count == 1
+                ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonIds[0])
+                : DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _selectedTeam.SeasonId);
+            var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
+
+            // Calculate ratings using the shared RatingCalculator
+            var allRatings = RatingCalculator.CalculateAllRatings(
+                fixtures,
+                teamPlayers,
+                DataStore.Data.Teams,
+                settings,
+                seasonStartDate);
+
+            // Build player items with stats
+            var playerItems = new List<TeamPlayerItem>();
+
+            foreach (var player in teamPlayers)
+            {
+                var item = new TeamPlayerItem
+                {
+                    PlayerId = player.Id,
+                    PlayerName = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim(),
+                    IsCaptain = _selectedTeam.CaptainPlayerId == player.Id
+                };
+
+                // Get rating stats if available
+                if (allRatings.TryGetValue(player.Id, out var ratingStats))
+                {
+                    item.Played = ratingStats.Played;
+                    item.Won = ratingStats.Wins;
+                    item.Lost = ratingStats.Losses;
+                    item.EightBalls = ratingStats.EightBalls;
+                    item.Rating = ratingStats.Rating;
+                }
+
+                playerItems.Add(item);
+            }
+
+            // Sort by rating (highest first), then by played
+            var sortedPlayers = playerItems
+                .OrderByDescending(p => p.Rating)
+                .ThenByDescending(p => p.WinPercentage)
+                .ThenByDescending(p => p.Played)
+                .ToList();
+
+            // Assign ranks
+            for (int i = 0; i < sortedPlayers.Count; i++)
+            {
+                sortedPlayers[i].Rank = i + 1;
+                _teamPlayerItems.Add(sortedPlayers[i]);
+            }
+
+            TeamPlayersCountLabel.Text = $"{_teamPlayerItems.Count} player(s)";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"RefreshTeamPlayers Error: {ex}");
+            TeamPlayersCountLabel.Text = "Error loading players";
         }
     }
 
