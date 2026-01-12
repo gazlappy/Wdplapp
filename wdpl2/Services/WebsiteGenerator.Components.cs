@@ -103,6 +103,9 @@ namespace Wdpl2.Services
             if (_settings.ShowDivisions)
                 NavLink("divisions.html", "Divisions", "Divisions");
             
+            // UK 8-Ball Pool Game
+            NavLink("pool-game.html", "?? Play Pool", "Pool Game");
+            
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 NavLink("gallery.html", "Gallery", "Gallery");
             

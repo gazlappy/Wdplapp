@@ -112,6 +112,9 @@ namespace Wdpl2.Services
             if (_settings.ShowNews && _settings.NewsItems.Count > 0)
                 files["news.html"] = GenerateNewsPage(season, template);
             
+            // Add UK 8-Ball Pool Game
+            files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
+            
             // Custom pages
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished))
             {
