@@ -890,13 +890,17 @@ public partial class PlayersPage : ContentPage
             _selected.TransferHistory.Add(transfer);
             _selected.TeamId = newTeam.Id;
 
+            // Cache values before refresh (which clears selection and sets _selected to null)
+            var playerName = _selected.FullName;
+            var newTeamName = newTeam.Name ?? "Unknown";
+
             SafeRefreshPlayers(SearchEntry?.Text);
             LoadEditor(_selected);
             RefreshHeadToHead();
 
-            SetStatus($"✅ Transferred {_selected.FullName} to {newTeam.Name}");
+            SetStatus($"✅ Transferred {playerName} to {newTeamName}");
             await DisplayAlert($"{Emojis.Success} Transfer Complete",
-                $"{_selected.FullName} has been transferred to {newTeam.Name}.\n\nTheir rating ({currentRating}) and previous results have been preserved.", "OK");
+                $"{playerName} has been transferred to {newTeamName}.\n\nTheir rating ({currentRating}) and previous results have been preserved.", "OK");
         }
         catch (Exception ex)
         {
