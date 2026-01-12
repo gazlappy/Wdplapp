@@ -193,37 +193,44 @@ class PoolGame {
         
         const startX = 780, startY = 300, spacing = this.ballRadius * 2 + 0.5;
         
-        // EPA UK 8-ball rack: Black on spot (apex), reds and yellows mixed
-        // Triangle formation: 5 rows
-        const positions = [
-            [0, 0],        // Row 1: Black (apex)
-            [1, -0.5], [1, 0.5],    // Row 2: 2 balls
-            [2, -1], [2, 0], [2, 1],    // Row 3: 3 balls
-            [3, -1.5], [3, -0.5], [3, 0.5], [3, 1.5],    // Row 4: 4 balls
-            [4, -2], [4, -1], [4, 0], [4, 1], [4, 2]     // Row 5: 5 balls
+        // EXACT EPA UK 8-BALL RACK:
+        // Row 1: R | Row 2: YR | Row 3: R8Y | Row 4: YRYR | Row 5: RYYRY
+        const rackPattern = [
+            // Row 1 (apex): RED
+            {row: 0, col: 0, color: 'red', num: 1},
+            
+            // Row 2: YELLOW, RED
+            {row: 1, col: -0.5, color: 'yellow', num: 9},
+            {row: 1, col: 0.5, color: 'red', num: 2},
+            
+            // Row 3: RED, BLACK, YELLOW
+            {row: 2, col: -1, color: 'red', num: 3},
+            {row: 2, col: 0, color: 'black', num: 8},
+            {row: 2, col: 1, color: 'yellow', num: 10},
+            
+            // Row 4: YELLOW, RED, YELLOW, RED
+            {row: 3, col: -1.5, color: 'yellow', num: 11},
+            {row: 3, col: -0.5, color: 'red', num: 4},
+            {row: 3, col: 0.5, color: 'yellow', num: 12},
+            {row: 3, col: 1.5, color: 'red', num: 5},
+            
+            // Row 5 (back): RED, YELLOW, YELLOW, RED, YELLOW
+            {row: 4, col: -2, color: 'red', num: 6},
+            {row: 4, col: -1, color: 'yellow', num: 13},
+            {row: 4, col: 0, color: 'yellow', num: 14},
+            {row: 4, col: 1, color: 'red', num: 7},
+            {row: 4, col: 2, color: 'yellow', num: 15}
         ];
         
-        // Black on spot (EPA Rule 5)
-        this.balls.push(this.createBall(startX, startY, 'black', 8));
-        
-        // Mix reds (1-7) and yellows (9-15) randomly
-        const colors = [...Array(7).fill(null).map((_, i) => ({num: i+1, color: 'red'})), ...Array(7).fill(null).map((_, i) => ({num: i+9, color: 'yellow'}))];
-        for (let i = colors.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [colors[i], colors[j]] = [colors[j], colors[i]];
-        }
-        
-        // Place balls in tight triangle formation
-        for (let i = 1; i < positions.length; i++) {
-            const [row, col] = positions[i];
-            const ball = colors[i - 1];
+        // Place balls in exact EPA pattern
+        rackPattern.forEach(ball => {
             this.balls.push(this.createBall(
-                startX + row * spacing,
-                startY + col * spacing,
+                startX + ball.row * spacing,
+                startY + ball.col * spacing,
                 ball.color,
                 ball.num
             ));
-        }
+        });
         
         this.updateUI();
         this.animate();
@@ -371,27 +378,43 @@ class PoolGame {
         }
         
         if (this.isShooting) {
-            const dist = 35 + (this.maxPower - this.shotPower) * 2.5;
-            const startX = this.cueBall.x - Math.cos(this.aimAngle) * dist;
-            const startY = this.cueBall.y - Math.sin(this.aimAngle) * dist;
+            // Cue stick draws BACK as power increases (away from cue ball)
+            const pullBackDistance = 35 + (this.shotPower / this.maxPower) * 100; // Pull back further with more power
+            const cueStartX = this.cueBall.x - Math.cos(this.aimAngle) * pullBackDistance;
+            const cueStartY = this.cueBall.y - Math.sin(this.aimAngle) * pullBackDistance;
+            const cueEndX = this.cueBall.x - Math.cos(this.aimAngle) * (pullBackDistance + 200);
+            const cueEndY = this.cueBall.y - Math.sin(this.aimAngle) * (pullBackDistance + 200);
             
-            const grad = this.ctx.createLinearGradient(startX, startY, startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
+            // Cue stick gradient (wood texture)
+            const grad = this.ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
             grad.addColorStop(0, '#d4a574');
             grad.addColorStop(0.8, '#8b6f47');
             grad.addColorStop(1, '#5a4a3a');
             
+            // Draw cue stick
             this.ctx.strokeStyle = grad;
             this.ctx.lineWidth = 11;
             this.ctx.lineCap = 'round';
             this.ctx.beginPath();
-            this.ctx.moveTo(startX, startY);
-            this.ctx.lineTo(startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
+            this.ctx.moveTo(cueStartX, cueStartY);
+            this.ctx.lineTo(cueEndX, cueEndY);
             this.ctx.stroke();
             
+            // Cue tip (blue chalk)
             this.ctx.fillStyle = '#6495ED';
             this.ctx.beginPath();
-            this.ctx.arc(startX, startY, 7, 0, Math.PI * 2);
+            this.ctx.arc(cueStartX, cueStartY, 7, 0, Math.PI * 2);
             this.ctx.fill();
+            
+            // Power indicator line showing pull back
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.cueBall.x, this.cueBall.y);
+            this.ctx.lineTo(cueStartX, cueStartY);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
         }
         
         if (this.ballInHand) {

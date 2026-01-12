@@ -93,6 +93,14 @@ public partial class PoolGamePage : ContentPage
             pocketRadius: 22,
             ballRadius: 10,
             animationFrameId: null,
+            isShooting: false,
+            isAiming: false,
+            shotPower: 0,
+            maxPower: 20,
+            aimAngle: 0,
+            mouseX: 0,
+            mouseY: 0,
+            cueBall: null,
             
             init() {
                 // Pockets
@@ -108,49 +116,64 @@ public partial class PoolGamePage : ContentPage
                 this.balls = [];
                 
                 // Cue ball
-                this.balls.push({
+                this.cueBall = {
                     x: 200, y: 250,
                     vx: 0, vy: 0,
                     r: this.ballRadius,
                     color: 'white',
                     num: 0
-                });
+                };
+                this.balls.push(this.cueBall);
                 
-                // Triangle rack
+                // EXACT EPA UK 8-BALL RACK from your image:
+                // Row 1: R
+                // Row 2: Y R
+                // Row 3: R B Y
+                // Row 4: Y R Y R
+                // Row 5: R Y Y R Y
+                
                 const startX = 700, startY = 250, gap = this.ballRadius * 2 + 0.5;
-                const positions = [
-                    [0, 0],
-                    [1, -0.5], [1, 0.5],
-                    [2, -1], [2, 0], [2, 1],
-                    [3, -1.5], [3, -0.5], [3, 0.5], [3, 1.5],
-                    [4, -2], [4, -1], [4, 0], [4, 1], [4, 2]
+                
+                const rackPattern = [
+                    // Row 1 (apex): RED
+                    {x: startX + gap * 0, y: startY + 0, color: 'red', num: 1},
+                    
+                    // Row 2: YELLOW, RED
+                    {x: startX + gap * 1, y: startY - gap * 0.5, color: 'yellow', num: 9},
+                    {x: startX + gap * 1, y: startY + gap * 0.5, color: 'red', num: 2},
+                    
+                    // Row 3: RED, BLACK, YELLOW
+                    {x: startX + gap * 2, y: startY - gap * 1, color: 'red', num: 3},
+                    {x: startX + gap * 2, y: startY + 0, color: 'black', num: 8},
+                    {x: startX + gap * 2, y: startY + gap * 1, color: 'yellow', num: 10},
+                    
+                    // Row 4: YELLOW, RED, YELLOW, RED
+                    {x: startX + gap * 3, y: startY - gap * 1.5, color: 'yellow', num: 11},
+                    {x: startX + gap * 3, y: startY - gap * 0.5, color: 'red', num: 4},
+                    {x: startX + gap * 3, y: startY + gap * 0.5, color: 'yellow', num: 12},
+                    {x: startX + gap * 3, y: startY + gap * 1.5, color: 'red', num: 5},
+                    
+                    // Row 5 (back): RED, YELLOW, YELLOW, RED, YELLOW
+                    {x: startX + gap * 4, y: startY - gap * 2, color: 'red', num: 6},
+                    {x: startX + gap * 4, y: startY - gap * 1, color: 'yellow', num: 13},
+                    {x: startX + gap * 4, y: startY + 0, color: 'yellow', num: 14},
+                    {x: startX + gap * 4, y: startY + gap * 1, color: 'red', num: 7},
+                    {x: startX + gap * 4, y: startY + gap * 2, color: 'yellow', num: 15}
                 ];
                 
-                // Black at apex
-                this.balls.push({
-                    x: startX,
-                    y: startY,
-                    vx: 0, vy: 0,
-                    r: this.ballRadius,
-                    color: 'black',
-                    num: 8
-                });
-                
-                // Reds and yellows
-                for (let i = 1; i < positions.length; i++) {
-                    const [row, col] = positions[i];
-                    const isRed = (i % 2 === 1);
+                // Add all balls according to the exact pattern
+                rackPattern.forEach(ball => {
                     this.balls.push({
-                        x: startX + row * gap,
-                        y: startY + col * gap,
+                        x: ball.x,
+                        y: ball.y,
                         vx: 0, vy: 0,
                         r: this.ballRadius,
-                        color: isRed ? 'red' : 'yellow',
-                        num: isRed ? i : i + 8
+                        color: ball.color,
+                        num: ball.num
                     });
-                }
+                });
                 
-                statusEl.textContent = `? Game Ready! ${this.balls.length} balls on table. Click anywhere to shoot!`;
+                statusEl.textContent = `? EPA Rack: R | YR | R8Y | YRYR | RYYRY | ${this.balls.length} balls ready!`;
                 statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
             },
             
@@ -351,6 +374,87 @@ public partial class PoolGamePage : ContentPage
                     }
                 });
                 
+                // Draw aim line when aiming
+                if (this.isAiming && !moving && this.cueBall && !this.cueBall.potted) {
+                    const dist = 300;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([10, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(this.cueBall.x, this.cueBall.y);
+                    ctx.lineTo(
+                        this.cueBall.x + Math.cos(this.aimAngle) * dist,
+                        this.cueBall.y + Math.sin(this.aimAngle) * dist
+                    );
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                
+                // Draw cue stick when shooting
+                if (this.isShooting && this.cueBall && !this.cueBall.potted) {
+                    // Cue stick draws BACK as power increases
+                    const pullBackDistance = 35 + (this.shotPower / this.maxPower) * 100;
+                    const cueStartX = this.cueBall.x - Math.cos(this.aimAngle) * pullBackDistance;
+                    const cueStartY = this.cueBall.y - Math.sin(this.aimAngle) * pullBackDistance;
+                    const cueEndX = this.cueBall.x - Math.cos(this.aimAngle) * (pullBackDistance + 180);
+                    const cueEndY = this.cueBall.y - Math.sin(this.aimAngle) * (pullBackDistance + 180);
+                    
+                    // Cue stick gradient
+                    const grad = ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
+                    grad.addColorStop(0, '#d4a574');
+                    grad.addColorStop(0.8, '#8b6f47');
+                    grad.addColorStop(1, '#5a4a3a');
+                    
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 10;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(cueStartX, cueStartY);
+                    ctx.lineTo(cueEndX, cueEndY);
+                    ctx.stroke();
+                    
+                    // Cue tip (blue chalk)
+                    ctx.fillStyle = '#6495ED';
+                    ctx.beginPath();
+                    ctx.arc(cueStartX, cueStartY, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Power meter (vertical bar)
+                    const meterX = this.cueBall.x + 35;
+                    const meterY = this.cueBall.y - 50;
+                    const meterHeight = 100;
+                    const meterWidth = 12;
+                    
+                    // Meter background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+                    
+                    // Meter fill (gradient)
+                    const powerPercent = this.shotPower / this.maxPower;
+                    const fillHeight = meterHeight * powerPercent;
+                    const powerGrad = ctx.createLinearGradient(meterX, meterY + meterHeight, meterX, meterY);
+                    powerGrad.addColorStop(0, '#4ade80');
+                    powerGrad.addColorStop(0.5, '#fbbf24');
+                    powerGrad.addColorStop(1, '#ef4444');
+                    
+                    ctx.fillStyle = powerGrad;
+                    ctx.fillRect(meterX, meterY + meterHeight - fillHeight, meterWidth, fillHeight);
+                    
+                    // Meter border
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(meterX, meterY, meterWidth, meterHeight);
+                    
+                    // Power percentage
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'black';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(Math.round(powerPercent * 100) + '%', meterX + meterWidth / 2, meterY - 8);
+                    ctx.shadowBlur = 0;
+                }
+                
                 if (moving) {
                     statusEl.textContent = `? Balls rolling... (${activeBalls} on table)`;
                     statusEl.style.background = 'rgba(59, 130, 246, 0.9)';
@@ -363,33 +467,74 @@ public partial class PoolGamePage : ContentPage
             }
         };
         
-        // Click/touch to shoot
-        canvas.addEventListener('click', (e) => {
+        // Click-and-hold to shoot mechanics
+        let powerUpInterval = null;
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!game.cueBall || game.cueBall.potted) return;
+            
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            game.mouseX = (e.clientX - rect.left) * scaleX;
+            game.mouseY = (e.clientY - rect.top) * scaleY;
+            
+            // Update aim angle
+            const dx = game.mouseX - game.cueBall.x;
+            const dy = game.mouseY - game.cueBall.y;
+            game.aimAngle = Math.atan2(dy, dx);
+            game.isAiming = true;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const cue = game.balls.find(b => b.num === 0 && !b.potted);
+            if (!cue) return;
+            
+            // Check if any balls are moving
+            const ballsMoving = game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
+            if (ballsMoving) return;
+            
+            // Start charging shot
+            game.isShooting = true;
+            game.shotPower = 0;
+            
+            powerUpInterval = setInterval(() => {
+                game.shotPower = Math.min(game.shotPower + 0.5, game.maxPower);
+            }, 30);
+            
+            statusEl.textContent = '?? Hold to charge... Release to shoot!';
+            statusEl.style.background = 'rgba(251, 191, 36, 0.9)';
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            if (!game.isShooting) return;
+            
+            clearInterval(powerUpInterval);
+            game.isShooting = false;
             
             const cue = game.balls.find(b => b.num === 0 && !b.potted);
-            if (!cue) {
-                statusEl.textContent = '?? Cue ball has been potted!';
-                statusEl.style.background = 'rgba(239, 68, 68, 0.9)';
-                return;
-            }
+            if (!cue) return;
             
-            const dx = x - cue.x;
-            const dy = y - cue.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Apply velocity based on power
+            const speed = game.shotPower * 1.0;
+            cue.vx = Math.cos(game.aimAngle) * speed;
+            cue.vy = Math.sin(game.aimAngle) * speed;
             
-            if (dist > 5) {
-                const power = Math.min(dist / 15, 20);
-                cue.vx = (dx / dist) * power;
-                cue.vy = (dy / dist) * power;
-                statusEl.textContent = `?? Shot fired! Power: ${power.toFixed(1)}`;
-                statusEl.style.background = 'rgba(251, 191, 36, 0.9)';
-            }
+            game.shotPower = 0;
+            statusEl.textContent = `?? Shot fired! Power: ${speed.toFixed(1)}`;
+            statusEl.style.background = 'rgba(59, 130, 246, 0.9)';
         });
+        
+        canvas.addEventListener('mouseleave', () => {
+            game.isAiming = false;
+        });
+        
+        // MAUI Integrations
+        window.onload = () => {
+            setTimeout(() => {
+                document.body.style.opacity = 1;
+            }, 100);
+        };
         
         // Start game
         try {
@@ -401,6 +546,88 @@ public partial class PoolGamePage : ContentPage
             statusEl.style.background = '#EF4444';
             console.error('Pool game error:', e);
         }
+        
+        // Touch cue control
+        let touchStartX, touchStartY, touchEndX, touchEndY;
+        let isTouching = false;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            isTouching = true;
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
+            
+            // Disable scrolling
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isTouching) return;
+            
+            const touch = e.touches[0];
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
+            
+            // Calculate aim direction
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            game.aimAngle = Math.atan2(dy, dx);
+            
+            // Update shot power based on distance
+            const distance = Math.min(Math.sqrt(dx * dx + dy * dy), 100);
+            game.shotPower = distance / 5;
+            
+            // Cue stick draws BACK as power increases (away from cue ball)
+            const pullBackDistance = 35 + (game.shotPower / game.maxPower) * 100;
+            const cueStartX = game.balls[0].x - Math.cos(game.aimAngle) * pullBackDistance;
+            const cueStartY = game.balls[0].y - Math.sin(game.aimAngle) * pullBackDistance;
+            const cueEndX = game.balls[0].x - Math.cos(game.aimAngle) * (pullBackDistance + 200);
+            const cueEndY = game.balls[0].y - Math.sin(game.aimAngle) * (pullBackDistance + 200);
+            
+            // Draw cue stick
+            const grad = ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
+            grad.addColorStop(0, '#d4a574');
+            grad.addColorStop(0.8, '#8b6f47');
+            grad.addColorStop(1, '#5a4a3a');
+            
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 11;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cueStartX, cueStartY);
+            ctx.lineTo(cueEndX, cueEndY);
+            ctx.stroke();
+            
+            // Cue tip
+            ctx.fillStyle = '#6495ED';
+            ctx.beginPath();
+            ctx.arc(cueStartX, cueStartY, 7, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            isTouching = false;
+            
+            // Find cue ball
+            const cueBall = game.balls.find(b => b.num === 0 && !b.potted);
+            if (!cueBall) return;
+            
+            // Calculate final shot velocity
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 5) {
+                const power = Math.min(dist / 15, 20);
+                cueBall.vx = (dx / dist) * power;
+                cueBall.vy = (dy / dist) * power;
+                
+                statusEl.textContent = `?? Shot fired! Power: ${power.toFixed(1)}`;
+                statusEl.style.background = 'rgba(251, 191, 36, 0.9)';
+            }
+        });
     </script>
 </body>
 </html>";
