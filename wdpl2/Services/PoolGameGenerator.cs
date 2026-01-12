@@ -114,6 +114,9 @@ namespace Wdpl2.Services
         </div>
     </div>
     <script>{GetPoolGameJS()}</script>
+    <div id=""debugInfo"" style=""position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.8);color:lime;padding:10px;border-radius:8px;font-family:monospace;font-size:12px;z-index:10000;"">
+        Initializing...
+    </div>
 </body>
 </html>";
         }
@@ -123,8 +126,19 @@ namespace Wdpl2.Services
             return @"
 class PoolGame {
     constructor() {
+        console.log('PoolGame constructor started');
         this.canvas = document.getElementById('poolTable');
+        if (!this.canvas) {
+            throw new Error('Canvas element not found!');
+        }
+        console.log('Canvas found:', this.canvas.width, 'x', this.canvas.height);
+        
         this.ctx = this.canvas.getContext('2d', {alpha: false});
+        if (!this.ctx) {
+            throw new Error('Could not get 2D context!');
+        }
+        console.log('Context acquired');
+        
         this.width = 1200;
         this.height = 600;
         this.balls = [];
@@ -132,7 +146,7 @@ class PoolGame {
         this.isAiming = false;
         this.isShooting = false;
         this.shotPower = 0;
-        this.maxPower = 30;  // Increased from 22
+        this.maxPower = 40;
         this.aimAngle = 0;
         this.ballInHand = false;
         this.tableOpen = true;
@@ -144,17 +158,21 @@ class PoolGame {
         this.player2Potted = [];
         this.gameOver = false;
         this.winner = null;
-        this.friction = 0.982;  // Slightly less friction for better roll
+        this.friction = 0.980;
         this.cushionRestitution = 0.75;
-        this.pocketRadius = 26;  // Slightly larger pockets
+        this.pocketRadius = 28;
         this.ballRadius = 12;
         this.centerLineY = 300;
         this.pockets = [
             {x: 30, y: 30}, {x: 600, y: 20}, {x: 1170, y: 30},
             {x: 30, y: 570}, {x: 600, y: 580}, {x: 1170, y: 570}
         ];
+        
+        console.log('Properties initialized');
         this.setupEventListeners();
+        console.log('Event listeners setup');
         this.initGame();
+        console.log('Game initialized with', this.balls.length, 'balls');
     }
     
     initGame() {
@@ -209,6 +227,9 @@ class PoolGame {
         
         this.updateUI();
         this.animate();
+        
+        // DEBUG: Show initialization complete
+        document.getElementById('debugInfo').textContent = 'Game Initialized. Click to Start!';
     }
     
     createBall(x, y, color, number) {
@@ -252,9 +273,9 @@ class PoolGame {
             this.isShooting = true;
             this.shotPower = 0;
             this.powerUpInterval = setInterval(() => {
-                this.shotPower = Math.min(this.shotPower + 0.5, this.maxPower);  // Faster power buildup
+                this.shotPower = Math.min(this.shotPower + 0.65, this.maxPower);  // Faster buildup
                 document.getElementById('powerFill').style.width = (this.shotPower / this.maxPower * 100) + '%';
-            }, 35);  // Faster interval
+            }, 30);  // Faster interval
             document.getElementById('powerBarContainer').style.display = 'block';
         }
     }
@@ -262,7 +283,7 @@ class PoolGame {
     handleMouseUp() {
         if (this.isShooting) {
             clearInterval(this.powerUpInterval);
-            const speed = this.shotPower * 0.6;  // Increased multiplier from 0.45
+            const speed = this.shotPower * 0.75;  // Increased from 0.6 to 0.75 (25% more power)
             this.cueBall.vx = Math.cos(this.aimAngle) * speed;
             this.cueBall.vy = Math.sin(this.aimAngle) * speed;
             this.shotPower = 0;
@@ -285,34 +306,50 @@ class PoolGame {
         this.ctx.lineWidth = 20;
         this.ctx.strokeRect(10, 10, this.width - 20, this.height - 20);
         
-        // Draw pockets with better visibility
+        // Draw pockets with VERY VISIBLE capture zones
         this.pockets.forEach(p => {
+            // Large capture zone visualization (shows exactly where balls will pot)
+            const captureRadius = this.pocketRadius + 2;
+            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';  // Red tint to show capture zone
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, captureRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+            
             // Outer shadow
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, this.pocketRadius + 2, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Pocket hole
+            // Pocket hole (pure black)
             this.ctx.fillStyle = '#000';
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, this.pocketRadius, 0, Math.PI * 2);
             this.ctx.fill();
             
             // Pocket rim highlight
-            this.ctx.strokeStyle = '#1a1a1a';
+            this.ctx.strokeStyle = '#333';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, this.pocketRadius - 1, 0, Math.PI * 2);
             this.ctx.stroke();
+            
+            // DEBUG: Draw capture threshold circle
+            this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';  // Yellow outline
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([4, 4]);
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, captureRadius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
         });
         
         this.updatePhysics();
         this.balls.forEach(b => this.drawBall(b));
         
         if (this.isAiming && !this.isShooting && this.canShoot() && !this.ballInHand) {
-            const dist = 350;  // Longer aim line
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            const dist = 400;
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
             this.ctx.lineWidth = 2;
             this.ctx.setLineDash([10, 10]);
             this.ctx.beginPath();
@@ -320,36 +357,45 @@ class PoolGame {
             this.ctx.lineTo(this.cueBall.x + Math.cos(this.aimAngle) * dist, this.cueBall.y + Math.sin(this.aimAngle) * dist);
             this.ctx.stroke();
             this.ctx.setLineDash([]);
+            
+            // Draw target ball preview
+            const guideX = this.cueBall.x + Math.cos(this.aimAngle) * (this.ballRadius * 2 + 2);
+            const guideY = this.cueBall.y + Math.sin(this.aimAngle) * (this.ballRadius * 2 + 2);
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.arc(guideX, guideY, this.ballRadius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
         }
         
         if (this.isShooting) {
-            const dist = 40 + (this.maxPower - this.shotPower) * 3;
+            const dist = 35 + (this.maxPower - this.shotPower) * 2.5;
             const startX = this.cueBall.x - Math.cos(this.aimAngle) * dist;
             const startY = this.cueBall.y - Math.sin(this.aimAngle) * dist;
             
-            // Cue stick with gradient
             const grad = this.ctx.createLinearGradient(startX, startY, startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
             grad.addColorStop(0, '#d4a574');
             grad.addColorStop(0.8, '#8b6f47');
             grad.addColorStop(1, '#5a4a3a');
             
             this.ctx.strokeStyle = grad;
-            this.ctx.lineWidth = 10;
+            this.ctx.lineWidth = 11;
             this.ctx.lineCap = 'round';
             this.ctx.beginPath();
             this.ctx.moveTo(startX, startY);
             this.ctx.lineTo(startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
             this.ctx.stroke();
             
-            // Cue tip
             this.ctx.fillStyle = '#6495ED';
             this.ctx.beginPath();
-            this.ctx.arc(startX, startY, 6, 0, Math.PI * 2);
+            this.ctx.arc(startX, startY, 7, 0, Math.PI * 2);
             this.ctx.fill();
         }
         
         if (this.ballInHand) {
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
             this.ctx.lineWidth = 3;
             this.ctx.setLineDash([5, 5]);
             this.ctx.beginPath();
@@ -393,8 +439,8 @@ class PoolGame {
             this.balls.forEach(ball => {
                 ball.vx *= this.friction;
                 ball.vy *= this.friction;
-                if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
-                if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
+                if (Math.abs(ball.vx) < 0.04) ball.vx = 0;  // Stop sooner
+                if (Math.abs(ball.vy) < 0.04) ball.vy = 0;
                 ball.x += ball.vx;
                 ball.y += ball.vy;
                 
@@ -410,16 +456,31 @@ class PoolGame {
                 if (ball.y < minY) { ball.y = minY; ball.vy = -ball.vy * this.cushionRestitution; cushionHit = true; }
                 if (ball.y > maxY) { ball.y = maxY; ball.vy = -ball.vy * this.cushionRestitution; cushionHit = true; }
                 
-                // Improved pocket detection - check if ball is close enough to pocket
+                // FIXED: Much more forgiving pocket detection with proper removal
                 this.pockets.forEach(p => {
                     const dx = ball.x - p.x;
                     const dy = ball.y - p.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    // Ball pots if within pocket radius (no need to subtract ball radius)
-                    if (dist < this.pocketRadius) {
-                        if (ball.type === 'cue') cueBallPotted = true;
-                        else pottedBalls.push(ball);
+                    // Very forgiving pocket detection - if ball center gets within this distance
+                    const captureThreshold = this.pocketRadius + 2;  // Just needs to touch pocket edge
+                    
+                    if (dist <= captureThreshold) {
+                        // Mark ball for removal
+                        if (ball.type === 'cue') {
+                            cueBallPotted = true;
+                            console.log('CUE BALL POTTED! Distance:', dist.toFixed(2), 'Threshold:', captureThreshold);
+                        } else {
+                            // Only add if not already in the list
+                            const alreadyPotted = pottedBalls.some(pb => pb === ball);
+                            if (!alreadyPotted) {
+                                pottedBalls.push(ball);
+                                console.log('BALL POTTED:', ball.color, ball.number, 'Distance:', dist.toFixed(2), 'Threshold:', captureThreshold);
+                                // Stop ball movement immediately when potted
+                                ball.vx = 0;
+                                ball.vy = 0;
+                            }
+                        }
                     }
                 });
             });
@@ -438,21 +499,19 @@ class PoolGame {
                         const dist = Math.sqrt(distSq);
                         const nx = dx / dist, ny = dy / dist;
                         
-                        // Improved collision response with energy conservation
+                        // Enhanced collision response
                         const rvx = b2.vx - b1.vx;
                         const rvy = b2.vy - b1.vy;
                         const rvn = rvx * nx + rvy * ny;
                         
-                        // Only resolve if balls are moving toward each other
                         if (rvn < 0) {
-                            const impulse = 2 * rvn / 2;  // Equal mass assumption
-                            b1.vx += impulse * nx;
-                            b1.vy += impulse * ny;
-                            b2.vx -= impulse * nx;
-                            b2.vy -= impulse * ny;
+                            const impulse = 2 * rvn / 2;
+                            b1.vx += impulse * nx * 0.98;  // Slight energy retention
+                            b1.vy += impulse * ny * 0.98;
+                            b2.vx -= impulse * nx * 0.98;
+                            b2.vy -= impulse * ny * 0.98;
                         }
                         
-                        // Separate overlapping balls
                         const overlap = minDist - dist;
                         if (overlap > 0) {
                             b1.x -= nx * overlap * 0.5;
@@ -566,33 +625,23 @@ class PoolGame {
         }
         
         this.updateUI(message);
-        if (this.canShoot() && !this.ballInHand) {
+        if this.canShoot() && !this.ballInHand) {
             document.getElementById('shotInfo').textContent = 'Click and hold to shoot';
         }
     }
-    
-    updateUI(message) {
-        document.getElementById('turnIndicator').textContent = this.gameOver ? 'Player ' + this.winner + ' Wins!' : 'Player ' + this.currentPlayer + ""'s Turn"";
-        document.getElementById('player1Panel').classList.toggle('active', this.currentPlayer === 1 && !this.gameOver);
-        document.getElementById('player2Panel').classList.toggle('active', this.currentPlayer === 2 && !this.gameOver);
-        
-        const p1Text = this.player1Balls ? (this.player1Balls === 'red' ? '?? Reds' : '?? Yellows') : '-';
-        const p2Text = this.player2Balls ? (this.player2Balls === 'red' ? '?? Reds' : '?? Yellows') : '-';
-        document.getElementById('player1Balls').textContent = p1Text;
-        document.getElementById('player2Balls').textContent = p2Text;
-        
-        const p1Rem = this.player1Balls ? 7 - this.player1Potted.filter(b => b.type === this.player1Balls).length : 0;
-        const p2Rem = this.player2Balls ? 7 - this.player2Potted.filter(b => b.type === this.player2Balls).length : 0;
-        document.getElementById('player1Status').textContent = this.player1Balls ? p1Rem + ' ball(s) remaining' : 'Table open...';
-        document.getElementById('player2Status').textContent = this.player2Balls ? p2Rem + ' ball(s) remaining' : 'Table open...';
-        
-        if (message) document.getElementById('gameMessage').textContent = message;
-        else if (this.tableOpen) document.getElementById('gameMessage').textContent = 'Table Open - First pot decides groups';
-        else document.getElementById('gameMessage').textContent = 'EPA International Rules';
-    }
 }
 
-window.addEventListener('load', function() { new PoolGame(); });
+window.addEventListener('load', function() { 
+    try {
+        document.getElementById('debugInfo').textContent = 'Creating game...';
+        const game = new PoolGame();
+        document.getElementById('debugInfo').textContent = 'Game loaded! Balls: ' + game.balls.length;
+        setTimeout(() => { document.getElementById('debugInfo').style.display = 'none'; }, 3000);
+    } catch(e) {
+        document.getElementById('debugInfo').textContent = 'ERROR: ' + e.message;
+        console.error('Game init error:', e);
+    }
+});
 ";
         }
     }

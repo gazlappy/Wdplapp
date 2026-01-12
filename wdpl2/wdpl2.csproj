@@ -108,6 +108,9 @@
 	  <MauiXaml Update="Views\PlayersPage.xaml">
 	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\PoolGamePage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\SeasonAwardsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

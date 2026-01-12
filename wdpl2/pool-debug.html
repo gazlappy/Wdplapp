@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pool Game Debug Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1e3c72;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        #poolTable {
+            background: #1a7f37;
+            border: 20px solid #8B4513;
+            border-radius: 8px;
+            cursor: crosshair;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        #debug {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 8px;
+            max-width: 1200px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #10B981;
+            font-weight: bold;
+        }
+        .error {
+            color: #EF4444;
+            font-weight: bold;
+        }
+        button {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 16px;
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        #status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            color: lime;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>?? Pool Game - Full Debug Test</h1>
+    <button onclick="location.reload()">?? Reset Game</button>
+    <div id="status">Initializing...</div>
+    <canvas id="poolTable" width="1200" height="600"></canvas>
+    <div id="debug">
+        <strong>Debug Log:</strong><br>
+        <div id="debugLog">Waiting for initialization...</div>
+    </div>
+
+    <script>
+        const debugLog = document.getElementById('debugLog');
+        const status = document.getElementById('status');
+        
+        function log(msg, isError = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            debugLog.innerHTML += `<br><span class="${className}">[${timestamp}] ${msg}</span>`;
+            console.log(msg);
+            debugLog.parentElement.scrollTop = debugLog.parentElement.scrollHeight;
+        }
+        
+        function updateStatus(msg) {
+            status.textContent = msg;
+        }
+        
+        // Test canvas immediately
+        log('Testing canvas element...');
+        const canvas = document.getElementById('poolTable');
+        if (!canvas) {
+            log('ERROR: Canvas not found!', true);
+        } else {
+            log(`Canvas found: ${canvas.width}x${canvas.height}`);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                log('ERROR: Could not get 2D context!', true);
+            } else {
+                log('2D context acquired successfully');
+                
+                // Draw test pattern
+                ctx.fillStyle = '#1a7f37';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Canvas Working!', canvas.width/2, canvas.height/2);
+                log('Test pattern drawn to canvas');
+                
+                setTimeout(() => {
+                    log('Starting game initialization...');
+                    initGame();
+                }, 1000);
+            }
+        }
+        
+        function initGame() {
+            try {
+                const ctx = canvas.getContext('2d');
+                const balls = [];
+                
+                // Create cue ball
+                balls.push({
+                    x: 240, y: 300,
+                    vx: 0, vy: 0,
+                    radius: 12,
+                    color: 'white',
+                    type: 'cue',
+                    number: 0
+                });
+                log('Cue ball created');
+                
+                // Create rack of balls
+                const startX = 780, startY = 300, spacing = 24.5;
+                const positions = [
+                    [0, 0],
+                    [1, -0.5], [1, 0.5],
+                    [2, -1], [2, 0], [2, 1],
+                    [3, -1.5], [3, -0.5], [3, 0.5], [3, 1.5],
+                    [4, -2], [4, -1], [4, 0], [4, 1], [4, 2]
+                ];
+                
+                // Black
+                balls.push({x: startX, y: startY, vx: 0, vy: 0, radius: 12, color: 'black', type: 'black', number: 8});
+                
+                // Reds and yellows
+                for (let i = 1; i < positions.length; i++) {
+                    const [row, col] = positions[i];
+                    const isRed = i % 2 === 1;
+                    balls.push({
+                        x: startX + row * spacing,
+                        y: startY + col * spacing,
+                        vx: 0, vy: 0,
+                        radius: 12,
+                        color: isRed ? 'red' : 'yellow',
+                        type: isRed ? 'red' : 'yellow',
+                        number: isRed ? i : i + 8
+                    });
+                }
+                
+                log(`Created ${balls.length} balls total`);
+                updateStatus(`Game Ready! ${balls.length} balls`);
+                
+                // Draw all balls
+                function drawBalls() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Table
+                    ctx.fillStyle = '#1a7f37';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Cushions
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 20;
+                    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                    
+                    // Pockets
+                    const pockets = [
+                        {x: 30, y: 30}, {x: 600, y: 20}, {x: 1170, y: 30},
+                        {x: 30, y: 570}, {x: 600, y: 580}, {x: 1170, y: 570}
+                    ];
+                    pockets.forEach(p => {
+                        // Red capture zone
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 30, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Pocket
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 28, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    
+                    // Draw balls
+                    balls.forEach(ball => {
+                        const grad = ctx.createRadialGradient(
+                            ball.x - 4, ball.y - 4, 0,
+                            ball.x, ball.y, ball.radius
+                        );
+                        
+                        if (ball.color === 'white') {
+                            grad.addColorStop(0, '#fff');
+                            grad.addColorStop(1, '#ccc');
+                        } else if (ball.color === 'red') {
+                            grad.addColorStop(0, '#ff6b6b');
+                            grad.addColorStop(1, '#c92a2a');
+                        } else if (ball.color === 'yellow') {
+                            grad.addColorStop(0, '#ffd43b');
+                            grad.addColorStop(1, '#fab005');
+                        } else if (ball.color === 'black') {
+                            grad.addColorStop(0, '#4a4a4a');
+                            grad.addColorStop(1, '#000');
+                        }
+                        
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Number
+                        if (ball.number > 0) {
+                            ctx.fillStyle = 'white';
+                            ctx.beginPath();
+                            ctx.arc(ball.x, ball.y, ball.radius * 0.55, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = 'black';
+                            ctx.font = 'bold 10px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(ball.number, ball.x, ball.y);
+                        }
+                    });
+                    
+                    requestAnimationFrame(drawBalls);
+                }
+                
+                drawBalls();
+                log(`<span class="success">? GAME SUCCESSFULLY RENDERED!</span>`);
+                
+            } catch (e) {
+                log(`ERROR: ${e.message}`, true);
+                updateStatus('ERROR: ' + e.message);
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+</html>
