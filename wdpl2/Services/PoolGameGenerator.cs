@@ -132,7 +132,7 @@ class PoolGame {
         this.isAiming = false;
         this.isShooting = false;
         this.shotPower = 0;
-        this.maxPower = 22;
+        this.maxPower = 30;  // Increased from 22
         this.aimAngle = 0;
         this.ballInHand = false;
         this.tableOpen = true;
@@ -144,9 +144,9 @@ class PoolGame {
         this.player2Potted = [];
         this.gameOver = false;
         this.winner = null;
-        this.friction = 0.984;
+        this.friction = 0.982;  // Slightly less friction for better roll
         this.cushionRestitution = 0.75;
-        this.pocketRadius = 25;
+        this.pocketRadius = 26;  // Slightly larger pockets
         this.ballRadius = 12;
         this.centerLineY = 300;
         this.pockets = [
@@ -173,21 +173,38 @@ class PoolGame {
         this.cueBall = {x: 240, y: 300, vx: 0, vy: 0, radius: this.ballRadius, color: 'white', type: 'cue', number: 0};
         this.balls.push(this.cueBall);
         
-        const startX = 780, startY = 300, spacing = 25;
-        const positions = [[0,0],[-1,-1],[-1,1],[-2,-2],[-2,0],[-2,2],[-3,-3],[-3,-1],[-3,1],[-3,3],[-4,-4],[-4,-2],[-4,0],[-4,2],[-4,4]];
+        const startX = 780, startY = 300, spacing = this.ballRadius * 2 + 0.5;
         
+        // EPA UK 8-ball rack: Black on spot (apex), reds and yellows mixed
+        // Triangle formation: 5 rows
+        const positions = [
+            [0, 0],        // Row 1: Black (apex)
+            [1, -0.5], [1, 0.5],    // Row 2: 2 balls
+            [2, -1], [2, 0], [2, 1],    // Row 3: 3 balls
+            [3, -1.5], [3, -0.5], [3, 0.5], [3, 1.5],    // Row 4: 4 balls
+            [4, -2], [4, -1], [4, 0], [4, 1], [4, 2]     // Row 5: 5 balls
+        ];
+        
+        // Black on spot (EPA Rule 5)
         this.balls.push(this.createBall(startX, startY, 'black', 8));
         
+        // Mix reds (1-7) and yellows (9-15) randomly
         const colors = [...Array(7).fill(null).map((_, i) => ({num: i+1, color: 'red'})), ...Array(7).fill(null).map((_, i) => ({num: i+9, color: 'yellow'}))];
         for (let i = colors.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [colors[i], colors[j]] = [colors[j], colors[i]];
         }
         
+        // Place balls in tight triangle formation
         for (let i = 1; i < positions.length; i++) {
             const [row, col] = positions[i];
             const ball = colors[i - 1];
-            this.balls.push(this.createBall(startX + row * spacing * 0.866, startY + col * spacing * 0.5, ball.color, ball.num));
+            this.balls.push(this.createBall(
+                startX + row * spacing,
+                startY + col * spacing,
+                ball.color,
+                ball.num
+            ));
         }
         
         this.updateUI();
@@ -235,9 +252,9 @@ class PoolGame {
             this.isShooting = true;
             this.shotPower = 0;
             this.powerUpInterval = setInterval(() => {
-                this.shotPower = Math.min(this.shotPower + 0.35, this.maxPower);
+                this.shotPower = Math.min(this.shotPower + 0.5, this.maxPower);  // Faster power buildup
                 document.getElementById('powerFill').style.width = (this.shotPower / this.maxPower * 100) + '%';
-            }, 40);
+            }, 35);  // Faster interval
             document.getElementById('powerBarContainer').style.display = 'block';
         }
     }
@@ -245,7 +262,7 @@ class PoolGame {
     handleMouseUp() {
         if (this.isShooting) {
             clearInterval(this.powerUpInterval);
-            const speed = this.shotPower * 0.45;
+            const speed = this.shotPower * 0.6;  // Increased multiplier from 0.45
             this.cueBall.vx = Math.cos(this.aimAngle) * speed;
             this.cueBall.vy = Math.sin(this.aimAngle) * speed;
             this.shotPower = 0;
@@ -268,21 +285,36 @@ class PoolGame {
         this.ctx.lineWidth = 20;
         this.ctx.strokeRect(10, 10, this.width - 20, this.height - 20);
         
+        // Draw pockets with better visibility
         this.pockets.forEach(p => {
+            // Outer shadow
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, this.pocketRadius + 2, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Pocket hole
             this.ctx.fillStyle = '#000';
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, this.pocketRadius, 0, Math.PI * 2);
             this.ctx.fill();
+            
+            // Pocket rim highlight
+            this.ctx.strokeStyle = '#1a1a1a';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, this.pocketRadius - 1, 0, Math.PI * 2);
+            this.ctx.stroke();
         });
         
         this.updatePhysics();
         this.balls.forEach(b => this.drawBall(b));
         
         if (this.isAiming && !this.isShooting && this.canShoot() && !this.ballInHand) {
-            const dist = 250;
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            const dist = 350;  // Longer aim line
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
             this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([8, 8]);
+            this.ctx.setLineDash([10, 10]);
             this.ctx.beginPath();
             this.ctx.moveTo(this.cueBall.x, this.cueBall.y);
             this.ctx.lineTo(this.cueBall.x + Math.cos(this.aimAngle) * dist, this.cueBall.y + Math.sin(this.aimAngle) * dist);
@@ -291,23 +323,39 @@ class PoolGame {
         }
         
         if (this.isShooting) {
-            const dist = 45 + (this.maxPower - this.shotPower) * 3.5;
+            const dist = 40 + (this.maxPower - this.shotPower) * 3;
             const startX = this.cueBall.x - Math.cos(this.aimAngle) * dist;
             const startY = this.cueBall.y - Math.sin(this.aimAngle) * dist;
-            this.ctx.strokeStyle = '#8b6f47';
-            this.ctx.lineWidth = 9;
+            
+            // Cue stick with gradient
+            const grad = this.ctx.createLinearGradient(startX, startY, startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
+            grad.addColorStop(0, '#d4a574');
+            grad.addColorStop(0.8, '#8b6f47');
+            grad.addColorStop(1, '#5a4a3a');
+            
+            this.ctx.strokeStyle = grad;
+            this.ctx.lineWidth = 10;
             this.ctx.lineCap = 'round';
             this.ctx.beginPath();
             this.ctx.moveTo(startX, startY);
             this.ctx.lineTo(startX - Math.cos(this.aimAngle) * 200, startY - Math.sin(this.aimAngle) * 200);
             this.ctx.stroke();
+            
+            // Cue tip
+            this.ctx.fillStyle = '#6495ED';
+            this.ctx.beginPath();
+            this.ctx.arc(startX, startY, 6, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         
         if (this.ballInHand) {
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([5, 5]);
             this.ctx.beginPath();
-            this.ctx.arc(this.cueBall.x, this.cueBall.y, this.ballRadius + 8, 0, Math.PI * 2);
-            this.ctx.fill();
+            this.ctx.arc(this.cueBall.x, this.cueBall.y, this.ballRadius + 10, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
         }
         
         requestAnimationFrame(() => this.animate());
@@ -345,8 +393,8 @@ class PoolGame {
             this.balls.forEach(ball => {
                 ball.vx *= this.friction;
                 ball.vy *= this.friction;
-                if (Math.abs(ball.vx) < 0.06) ball.vx = 0;
-                if (Math.abs(ball.vy) < 0.06) ball.vy = 0;
+                if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
+                if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
                 ball.x += ball.vx;
                 ball.y += ball.vy;
                 
@@ -362,9 +410,14 @@ class PoolGame {
                 if (ball.y < minY) { ball.y = minY; ball.vy = -ball.vy * this.cushionRestitution; cushionHit = true; }
                 if (ball.y > maxY) { ball.y = maxY; ball.vy = -ball.vy * this.cushionRestitution; cushionHit = true; }
                 
+                // Improved pocket detection - check if ball is close enough to pocket
                 this.pockets.forEach(p => {
-                    const dx = ball.x - p.x, dy = ball.y - p.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < this.pocketRadius - 3) {
+                    const dx = ball.x - p.x;
+                    const dy = ball.y - p.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Ball pots if within pocket radius (no need to subtract ball radius)
+                    if (dist < this.pocketRadius) {
                         if (ball.type === 'cue') cueBallPotted = true;
                         else pottedBalls.push(ball);
                     }
@@ -384,18 +437,29 @@ class PoolGame {
                         
                         const dist = Math.sqrt(distSq);
                         const nx = dx / dist, ny = dy / dist;
-                        const dvn = (b2.vx - b1.vx) * nx + (b2.vy - b1.vy) * ny;
                         
-                        b1.vx += dvn * nx;
-                        b1.vy += dvn * ny;
-                        b2.vx -= dvn * nx;
-                        b2.vy -= dvn * ny;
+                        // Improved collision response with energy conservation
+                        const rvx = b2.vx - b1.vx;
+                        const rvy = b2.vy - b1.vy;
+                        const rvn = rvx * nx + rvy * ny;
                         
+                        // Only resolve if balls are moving toward each other
+                        if (rvn < 0) {
+                            const impulse = 2 * rvn / 2;  // Equal mass assumption
+                            b1.vx += impulse * nx;
+                            b1.vy += impulse * ny;
+                            b2.vx -= impulse * nx;
+                            b2.vy -= impulse * ny;
+                        }
+                        
+                        // Separate overlapping balls
                         const overlap = minDist - dist;
-                        b1.x -= nx * overlap * 0.5;
-                        b1.y -= ny * overlap * 0.5;
-                        b2.x += nx * overlap * 0.5;
-                        b2.y += ny * overlap * 0.5;
+                        if (overlap > 0) {
+                            b1.x -= nx * overlap * 0.5;
+                            b1.y -= ny * overlap * 0.5;
+                            b2.x += nx * overlap * 0.5;
+                            b2.y += ny * overlap * 0.5;
+                        }
                     }
                 }
             }
