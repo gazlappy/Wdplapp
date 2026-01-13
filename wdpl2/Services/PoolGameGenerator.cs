@@ -146,8 +146,15 @@ class PoolGame {
         this.isAiming = false;
         this.isShooting = false;
         this.shotPower = 0;
-        this.maxPower = 40;
+        this.maxPower = 80;
         this.aimAngle = 0;
+        this.pullBackDistance = 0;
+        this.pushForwardDistance = 0;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.dragStartTime = 0;
+        this.lastMouseTime = 0;
+        this.initialDotProduct = 0;
         this.ballInHand = false;
         this.tableOpen = true;
         this.isBreak = true;
@@ -263,6 +270,43 @@ class PoolGame {
         if (this.ballInHand && !this.isShooting) {
             this.cueBall.x = Math.max(this.ballRadius + 30, Math.min(this.width - this.ballRadius - 30, this.mouseX));
             this.cueBall.y = Math.max(this.ballRadius + 30, Math.min(this.height - this.ballRadius - 30, this.mouseY));
+        } else if (this.isShooting && this.canShoot()) {
+            // Aim is LOCKED - only track VERTICAL (Y-axis) mouse movement for power
+            const deltaY = this.mouseY - this.dragStartY;
+            
+            if (deltaY > 0) {
+                // Mouse moved DOWN = Pulling back
+                this.pullBackDistance = Math.min(deltaY, 150);
+                this.shotPower = (this.pullBackDistance / 150) * this.maxPower;
+                this.pushForwardDistance = 0;
+            } else {
+                // Mouse moved UP = Pushing forward
+                const pushDist = Math.abs(deltaY);
+                this.pushForwardDistance = Math.min(pushDist, this.pullBackDistance + 50);
+                
+                // Check if cue has made contact with ball
+                const cueDistance = 35 + this.pullBackDistance - this.pushForwardDistance;
+                if (cueDistance <= 12) { // Contact threshold
+                    // CONTACT MADE!
+                    const speed = Math.min(this.shotPower, this.maxPower) * 1.2;
+                    if (speed > 1) {
+                        this.cueBall.vx = Math.cos(this.aimAngle) * speed;
+                        this.cueBall.vy = Math.sin(this.aimAngle) * speed;
+                        document.getElementById('shotInfo').textContent = `Contact! Power: ${speed.toFixed(1)}`;
+                    }
+                    
+                    // Reset shooting state
+                    this.isShooting = false;
+                    this.isAiming = false;
+                    this.shotPower = 0;
+                    this.pullBackDistance = 0;
+                    this.pushForwardDistance = 0;
+                    document.getElementById('powerBarContainer').style.display = 'none';
+                }
+            }
+            
+            // Track time for velocity calculation
+            this.lastMouseTime = Date.now();
         } else if (!this.isShooting && this.canShoot()) {
             this.isAiming = true;
             this.aimAngle = Math.atan2(this.mouseY - this.cueBall.y, this.mouseX - this.cueBall.x);
@@ -272,32 +316,47 @@ class PoolGame {
     handleMouseDown() {
         if (this.ballInHand) {
             this.ballInHand = false;
-            document.getElementById('shotInfo').textContent = 'Click and hold to shoot';
+            document.getElementById('shotInfo').textContent = 'Click and drag to shoot';
             return;
         }
         
         if (this.canShoot() && !this.isShooting) {
+            // LOCK AIM ANGLE
+            const dx = this.mouseX - this.cueBall.x;
+            const dy = this.mouseY - this.cueBall.y;
+            this.aimAngle = Math.atan2(dy, dx);
+            
+            // Store initial Y position for vertical tracking
+            this.dragStartY = this.mouseY;
+            
             this.isShooting = true;
+            this.dragStartX = this.mouseX;
+            this.pullBackDistance = 0;
+            this.pushForwardDistance = 0;
             this.shotPower = 0;
-            this.powerUpInterval = setInterval(() => {
-                this.shotPower = Math.min(this.shotPower + 0.65, this.maxPower);  // Faster buildup
-                document.getElementById('powerFill').style.width = (this.shotPower / this.maxPower * 100) + '%';
-            }, 30);  // Faster interval
+            this.dragStartTime = Date.now();
+            this.lastMouseTime = Date.now();
+            document.getElementById('shotInfo').textContent = 'Aim locked! Move DOWN to pull back, UP to strike!';
             document.getElementById('powerBarContainer').style.display = 'block';
         }
     }
     
     handleMouseUp() {
         if (this.isShooting) {
-            clearInterval(this.powerUpInterval);
-            const speed = this.shotPower * 0.75;  // Increased from 0.6 to 0.75 (25% more power)
-            this.cueBall.vx = Math.cos(this.aimAngle) * speed;
-            this.cueBall.vy = Math.sin(this.aimAngle) * speed;
-            this.shotPower = 0;
-            document.getElementById('powerBarContainer').style.display = 'none';
+            // Mouse released without contact - cancel shot
             this.isShooting = false;
             this.isAiming = false;
-            document.getElementById('shotInfo').textContent = 'Shot in progress...';
+            this.shotPower = 0;
+            this.pullBackDistance = 0;
+            this.pushForwardDistance = 0;
+            document.getElementById('powerBarContainer').style.display = 'none';
+            document.getElementById('shotInfo').textContent = 'Shot cancelled - push forward to contact!';
+            
+            setTimeout(() => {
+                if (!this.isShooting && this.canShoot()) {
+                    document.getElementById('shotInfo').textContent = 'Click and hold to shoot';
+                }
+            }, 1500);
         }
     }
     
@@ -378,12 +437,17 @@ class PoolGame {
         }
         
         if (this.isShooting) {
-            // Cue stick draws BACK as power increases (away from cue ball)
-            const pullBackDistance = 35 + (this.shotPower / this.maxPower) * 100; // Pull back further with more power
-            const cueStartX = this.cueBall.x - Math.cos(this.aimAngle) * pullBackDistance;
-            const cueStartY = this.cueBall.y - Math.sin(this.aimAngle) * pullBackDistance;
-            const cueEndX = this.cueBall.x - Math.cos(this.aimAngle) * (pullBackDistance + 200);
-            const cueEndY = this.cueBall.y - Math.sin(this.aimAngle) * (pullBackDistance + 200);
+            // Cue stick visualization based on pull-back and push-forward
+            const baseDist = 35;
+            const pullBack = this.pullBackDistance;
+            const pushForward = this.pushForwardDistance;
+            
+            // Cue position: pulled back by pullBackDistance, then pushed forward by pushForwardDistance
+            const cueDistance = baseDist + pullBack - pushForward;
+            const cueStartX = this.cueBall.x - Math.cos(this.aimAngle) * cueDistance;
+            const cueStartY = this.cueBall.y - Math.sin(this.aimAngle) * cueDistance;
+            const cueEndX = this.cueBall.x - Math.cos(this.aimAngle) * (cueDistance + 200);
+            const cueEndY = this.cueBall.y - Math.sin(this.aimAngle) * (cueDistance + 200);
             
             // Cue stick gradient (wood texture)
             const grad = this.ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
@@ -400,21 +464,48 @@ class PoolGame {
             this.ctx.lineTo(cueEndX, cueEndY);
             this.ctx.stroke();
             
-            // Cue tip (blue chalk)
+            // Cue tip with glow when close to contact
+            const distanceToContact = cueDistance - 12;
+            if (distanceToContact < 10) {
+                this.ctx.fillStyle = 'rgba(100, 149, 237, 0.5)';
+                this.ctx.beginPath();
+                this.ctx.arc(cueStartX, cueStartY, 12, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
             this.ctx.fillStyle = '#6495ED';
             this.ctx.beginPath();
             this.ctx.arc(cueStartX, cueStartY, 7, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Power indicator line showing pull back
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            this.ctx.lineWidth = 2;
+            // Visual guide showing pull-back amount
+            if (pullBack > 10) {
+                const ghostStartX = this.cueBall.x - Math.cos(this.aimAngle) * baseDist;
+                const ghostStartY = this.cueBall.y - Math.sin(this.aimAngle) * baseDist;
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.lineWidth = 8;
+                this.ctx.setLineDash([10, 10]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(ghostStartX, ghostStartY);
+                this.ctx.lineTo(cueStartX, cueStartY);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+            
+            // Contact indicator (golden when very close)
+            const contactPointX = this.cueBall.x - Math.cos(this.aimAngle) * 12;
+            const contactPointY = this.cueBall.y - Math.sin(this.aimAngle) * 12;
+            this.ctx.strokeStyle = distanceToContact < 5 ? 'rgba(255, 215, 0, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+            this.ctx.lineWidth = 3;
             this.ctx.setLineDash([5, 5]);
             this.ctx.beginPath();
-            this.ctx.moveTo(this.cueBall.x, this.cueBall.y);
-            this.ctx.lineTo(cueStartX, cueStartY);
+            this.ctx.arc(contactPointX, contactPointY, 8, 0, Math.PI * 2);
             this.ctx.stroke();
             this.ctx.setLineDash([]);
+            
+            // Power meter update
+            const powerPercent = Math.min(this.shotPower / this.maxPower, 1.0);
+            document.getElementById('powerFill').style.width = (powerPercent * 100) + '%';
         }
         
         if (this.ballInHand) {
@@ -648,7 +739,7 @@ class PoolGame {
         }
         
         this.updateUI(message);
-        if this.canShoot() && !this.ballInHand) {
+        if this.canShoot() && !this.ballInHand {
             document.getElementById('shotInfo').textContent = 'Click and hold to shoot';
         }
     }
