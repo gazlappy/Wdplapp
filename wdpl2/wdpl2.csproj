@@ -43,6 +43,9 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 	<ItemGroup>
+	  <MauiImage Remove="Resources\Raw\pool-game.html" />
+	</ItemGroup>
+	<ItemGroup>
 	  <MauiImage Update="Resources\Images\dotnet_bot.svg">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </MauiImage>

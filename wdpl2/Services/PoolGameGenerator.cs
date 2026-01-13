@@ -55,7 +55,8 @@ namespace Wdpl2.Services
             <div class=""controls"">
                 <button id=""newGameBtn"" class=""btn"">New Game</button>
                 <button id=""rulesBtn"" class=""btn"">EPA Rules</button>
-                <button class=""btn"" onclick=""window.location.href='index.html'"">? Back</button>
+                <button id=""ballInHandBtn"" class=""btn"">? Move Cue Ball</button>
+                <button class=""btn"" onclick=""window.location.href='index.html'"">?? Back</button>
             </div>
         </div>
         <div class=""game-info"">
@@ -256,6 +257,7 @@ class PoolGame {
         this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
         document.getElementById('newGameBtn').addEventListener('click', () => this.initGame());
         document.getElementById('rulesBtn').addEventListener('click', () => document.getElementById('rulesModal').style.display = 'block');
+        document.getElementById('ballInHandBtn').addEventListener('click', () => this.enableBallInHand());
         document.getElementById('closeRules').addEventListener('click', () => document.getElementById('rulesModal').style.display = 'none');
         window.addEventListener('click', (e) => {
             if (e.target === document.getElementById('rulesModal')) document.getElementById('rulesModal').style.display = 'none';
@@ -267,10 +269,14 @@ class PoolGame {
         this.mouseX = e.clientX - rect.left;
         this.mouseY = e.clientY - rect.top;
         
-        if (this.ballInHand && !this.isShooting) {
-            this.cueBall.x = Math.max(this.ballRadius + 30, Math.min(this.width - this.ballRadius - 30, this.mouseX));
-            this.cueBall.y = Math.max(this.ballRadius + 30, Math.min(this.height - this.ballRadius - 30, this.mouseY));
-        } else if (this.isShooting && this.canShoot()) {
+        if (this.ballInHand) {
+            // Just update mouse position for ghost ball preview
+            return;
+        }
+        
+        if (!this.cueBall || this.cueBall.potted) return;
+        
+        if (this.isShooting && this.canShoot()) {
             // Aim is LOCKED - only track VERTICAL (Y-axis) mouse movement for power
             const deltaY = this.mouseY - this.dragStartY;
             
@@ -308,18 +314,60 @@ class PoolGame {
             // Track time for velocity calculation
             this.lastMouseTime = Date.now();
         } else if (!this.isShooting && this.canShoot()) {
-            this.isAiming = true;
-            this.aimAngle = Math.atan2(this.mouseY - this.cueBall.y, this.mouseX - this.cueBall.x);
+            // Update aim angle when not shooting - but NOT during ball-in-hand
+            if (!this.ballInHand) {
+                this.isAiming = true;
+                this.aimAngle = Math.atan2(this.mouseY - this.cueBall.y, this.mouseX - this.cueBall.x);
+            }
         }
     }
     
     handleMouseDown() {
+        // Handle ball-in-hand placement FIRST
         if (this.ballInHand) {
-            this.ballInHand = false;
-            document.getElementById('shotInfo').textContent = 'Click and drag to shoot';
+            // Check if placement is valid (not on top of another ball)
+            const minDist = this.ballRadius * 2 + 2;
+            let validPlacement = true;
+            
+            for (let ball of this.balls) {
+                if (ball.potted || ball.number === 0) continue;
+                const dx = this.mouseX - ball.x;
+                const dy = this.mouseY - ball.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    validPlacement = false;
+                    break;
+                }
+            }
+            
+            // Check if placement is within table bounds
+            const margin = 30 + this.ballRadius;
+            if (this.mouseX < margin || this.mouseX > this.width - margin ||
+                this.mouseY < margin || this.mouseY > this.height - margin) {
+                validPlacement = false;
+            }
+            
+            if (validPlacement) {
+                // Place the cue ball
+                this.cueBall.x = this.mouseX;
+                this.cueBall.y = this.mouseY;
+                this.cueBall.potted = false;
+                this.cueBall.vx = 0;
+                this.cueBall.vy = 0;
+                this.ballInHand = false;
+                
+                document.getElementById('shotInfo').textContent = 'Cue ball placed! Click and hold to shoot';
+                document.getElementById('gameMessage').textContent = 'Ready to shoot';
+                document.getElementById('foulIndicator').style.display = 'none';
+            } else {
+                document.getElementById('shotInfo').textContent = 'Invalid placement! Move away from other balls';
+            }
+            
+            // IMPORTANT: Return to prevent shooting logic
             return;
         }
         
+        // Only continue to shooting logic if NOT in ball-in-hand mode
         if (this.canShoot() && !this.isShooting) {
             // LOCK AIM ANGLE
             const dx = this.mouseX - this.cueBall.x;
@@ -342,6 +390,9 @@ class PoolGame {
     }
     
     handleMouseUp() {
+        // Ignore mouseup during ball-in-hand mode
+        if (this.ballInHand) return;
+        
         if (this.isShooting) {
             // Mouse released without contact - cancel shot
             this.isShooting = false;
@@ -739,13 +790,56 @@ class PoolGame {
         }
         
         this.updateUI(message);
-        if this.canShoot() && !this.ballInHand {
+        if this.canShoot() && !this.ballInHand) {
             document.getElementById('shotInfo').textContent = 'Click and hold to shoot';
         }
     }
+    
+    updateUI(message = '') {
+        document.getElementById('turnIndicator').textContent = 'Player ' + this.currentPlayer + ""'s Turn"";
+        document.getElementById('player1Panel').classList.toggle('active', this.currentPlayer === 1);
+        document.getElementById('player2Panel').classList.toggle('active', this.currentPlayer === 2);
+        
+        if (message) {
+            document.getElementById('gameMessage').textContent = message;
+        }
+        
+        const p1Reds = this.player1Potted.filter(b => b.type === 'red').length;
+        const p1Yellows = this.player1Potted.filter(b => b.type === 'yellow').length;
+        const p2Reds = this.player2Potted.filter(b => b.type === 'red').length;
+        const p2Yellows = this.player2Potted.filter(b => b.type === 'yellow').length;
+        
+        if (this.player1Balls === 'red') {
+            document.getElementById('player1Balls').textContent = '?? Reds: ' + p1Reds + '/7';
+        } else if (this.player1Balls === 'yellow') {
+            document.getElementById('player1Balls').textContent = '?? Yellows: ' + p1Yellows + '/7';
+        } else {
+            document.getElementById('player1Balls').textContent = '-';
+        }
+        
+        if (this.player2Balls === 'red') {
+            document.getElementById('player2Balls').textContent = '?? Reds: ' + p2Reds + '/7';
+        } else if (this.player2Balls === 'yellow') {
+            document.getElementById('player2Balls').textContent = '?? Yellows: ' + p2Yellows + '/7';
+        } else {
+            document.getElementById('player2Balls').textContent = '-';
+        }
+    }
+    
+    enableBallInHand() {
+        if (!this.cueBall) return;
+        
+        // Stop all balls first
+        this.balls.forEach(b => { b.vx = 0; b.vy = 0; });
+        
+        // Enable ball-in-hand mode
+        this.ballInHand = true;
+        document.getElementById('shotInfo').textContent = 'Click to place cue ball';
+        document.getElementById('gameMessage').textContent = 'Ball in hand - click to place';
+    }
 }
 
-window.addEventListener('load', function() { 
+window.addEventListener('load', function() {
     try {
         document.getElementById('debugInfo').textContent = 'Creating game...';
         const game = new PoolGame();
