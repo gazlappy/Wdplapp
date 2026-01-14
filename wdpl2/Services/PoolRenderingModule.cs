@@ -36,6 +36,19 @@ const PoolRendering = {
         ctx.lineWidth = 3;
         ctx.strokeRect(frameWidth / 2, frameWidth / 2, width - frameWidth, height - frameWidth);
         
+        // ===== AMBIENT ROOM LIGHTING EFFECT =====
+        // Subtle vignette to simulate room lighting falling off at edges
+        const vignetteGrad = ctx.createRadialGradient(
+            width / 2, height / 2, Math.min(width, height) * 0.3,
+            width / 2, height / 2, Math.max(width, height) * 0.8
+        );
+        vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignetteGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.02)');
+        vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+        
+        ctx.fillStyle = vignetteGrad;
+        ctx.fillRect(0, 0, width, height);
+        
         // ===== REALISTIC FELT WITH RADIAL GRADIENT LIGHTING =====
         // Simulates overhead pool table lamp - light center, darker edges
         const feltInset = frameWidth;
@@ -58,29 +71,64 @@ const PoolRendering = {
         // Subtle wear in high-traffic areas (break box, rack area)
         this.drawFeltWear(ctx, width, height, feltInset);
         
-        // ===== ENHANCED FELT TEXTURE (CLOTH WEAVE) =====
+        // ===== ENHANCED FELT TEXTURE (CLOTH WEAVE) WITH NAP DIRECTION =====
         ctx.save();
         ctx.globalAlpha = 0.05;
-        // Vertical threads
-        for (let i = 0; i < 70; i++) {
-            const x = feltInset + (Math.random() * feltWidth);
+        
+        // Felt nap direction (slight directional texture - balls roll slightly toward foot)
+        const napAngle = 0; // 0 = horizontal nap (toward foot of table)
+        
+        // Vertical threads with nap direction
+        for (let i = 0; i < 100; i++) {
+            const x = feltInset + (feltWidth / 100) * i;
+            const variation = (Math.sin(i * 0.5) * 2);
             ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 0.6;
             ctx.beginPath();
             ctx.moveTo(x, feltInset);
-            ctx.lineTo(x + (Math.random() - 0.5) * 10, feltInset + feltHeight);
+            ctx.quadraticCurveTo(
+                x + variation + Math.cos(napAngle) * 3, 
+                feltInset + feltHeight / 2, 
+                x + variation * 2, 
+                feltInset + feltHeight
+            );
             ctx.stroke();
         }
-        // Horizontal threads
-        for (let i = 0; i < 50; i++) {
-            const y = feltInset + (Math.random() * feltHeight);
+        
+        // Horizontal threads with nap direction (denser)
+        for (let i = 0; i < 80; i++) {
+            const y = feltInset + (feltHeight / 80) * i;
+            const variation = (Math.cos(i * 0.7) * 2);
             ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 0.6;
             ctx.beginPath();
             ctx.moveTo(feltInset, y);
-            ctx.lineTo(feltInset + feltWidth, y + (Math.random() - 0.5) * 10);
+            ctx.quadraticCurveTo(
+                feltInset + feltWidth / 2, 
+                y + variation + Math.sin(napAngle) * 3, 
+                feltInset + feltWidth, 
+                y + variation * 2
+            );
             ctx.stroke();
         }
+        
+        // Add subtle cross-hatch for depth
+        ctx.globalAlpha = 0.02;
+        for (let i = 0; i < 30; i++) {
+            const x = feltInset + Math.random() * feltWidth;
+            const y = feltInset + Math.random() * feltHeight;
+            const size = 10 + Math.random() * 20;
+            
+            ctx.strokeStyle = '#0F6426';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(x - size, y - size);
+            ctx.lineTo(x + size, y + size);
+            ctx.moveTo(x + size, y - size);
+            ctx.lineTo(x - size, y + size);
+            ctx.stroke();
+        }
+        
         ctx.restore();
         
         // ===== 3D BEVELED WOODEN RAILS WITH ENHANCED GRAIN =====
@@ -154,6 +202,9 @@ const PoolRendering = {
             width - cushionWidth * 2 - 2, 
             height - cushionWidth * 2 - 2
         );
+        
+        // ===== RAIL BOLTS / SCREWS (PROFESSIONAL DETAIL) =====
+        this.drawRailBolts(ctx, width, height, cushionMargin);
         
         // ===== DIAMOND SIGHT MARKERS =====
         // These are the aiming diamonds on professional tables
@@ -765,6 +816,340 @@ const PoolRendering = {
     },
     
     /**
+     * Draw trajectory predictions for object balls
+     * Shows where balls will go when hit by the cue ball
+     */
+    drawTrajectoryPredictions(ctx, cueBall, aimAngle, allBalls, tableWidth, tableHeight, cushionMargin, game) {
+        // Find which ball will be hit first
+        const hitResult = this.findFirstBallHit(cueBall, aimAngle, allBalls);
+        
+        if (!hitResult) return;
+        
+        const { ball: objectBall, collisionPoint, impactAngle } = hitResult;
+        
+        // Draw collision point indicator
+        if (game.showCollisionPoints) {
+            ctx.save();
+            
+            // Pulsing collision point
+            const pulseSize = 3 + Math.sin(Date.now() / 200) * 2;
+            
+            // Outer glow
+            const glowGrad = ctx.createRadialGradient(
+                collisionPoint.x, collisionPoint.y, 0,
+                collisionPoint.x, collisionPoint.y, 25
+            );
+            glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
+            glowGrad.addColorStop(0.5, 'rgba(255, 215, 0, 0.3)');
+            glowGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(collisionPoint.x, collisionPoint.y, 25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Collision point cross
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(collisionPoint.x - pulseSize * 3, collisionPoint.y);
+            ctx.lineTo(collisionPoint.x + pulseSize * 3, collisionPoint.y);
+            ctx.moveTo(collisionPoint.x, collisionPoint.y - pulseSize * 3);
+            ctx.lineTo(collisionPoint.x, collisionPoint.y + pulseSize * 3);
+            ctx.stroke();
+            
+            // Center dot
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(collisionPoint.x, collisionPoint.y, pulseSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw ghost ball at collision point
+        if (game.showGhostBalls) {
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            
+            // Ghost ball for cue ball position at impact
+            const ghostCueBall = {
+                x: collisionPoint.x - Math.cos(impactAngle) * (cueBall.r + objectBall.r),
+                y: collisionPoint.y - Math.sin(impactAngle) * (cueBall.r + objectBall.r),
+                r: cueBall.r,
+                color: 'white',
+                num: 0
+            };
+            
+            // Draw ghost cue ball
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(ghostCueBall.x, ghostCueBall.y, ghostCueBall.r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Connection line from cue ball
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(cueBall.x, cueBall.y);
+            ctx.lineTo(ghostCueBall.x, ghostCueBall.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.restore();
+        }
+        
+        // Calculate object ball trajectory after collision
+        // Use conservation of momentum and energy
+        const dx = objectBall.x - collisionPoint.x;
+        const dy = objectBall.y - collisionPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist > 0.1) {
+            // Normal vector at collision point
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            // Object ball will travel in the direction of the normal
+            const trajectoryAngle = Math.atan2(ny, nx);
+            
+            // Draw predicted trajectory path
+            this.drawPredictedPath(
+                ctx,
+                objectBall,
+                trajectoryAngle,
+                tableWidth,
+                tableHeight,
+                cushionMargin,
+                game
+            );
+        }
+    },
+    
+    /**
+     * Find which ball will be hit first by the cue ball
+     */
+    findFirstBallHit(cueBall, aimAngle, allBalls) {
+        let closestDist = Infinity;
+        let closestBall = null;
+        let closestCollision = null;
+        
+        // Ray from cue ball in aim direction
+        const rayDirX = Math.cos(aimAngle);
+        const rayDirY = Math.sin(aimAngle);
+        
+        allBalls.forEach(ball => {
+            if (ball === cueBall || ball.potted) return;
+            
+            // Vector from cue ball to object ball
+            const dx = ball.x - cueBall.x;
+            const dy = ball.y - cueBall.y;
+            
+            // Project onto ray direction
+            const projection = dx * rayDirX + dy * rayDirY;
+            
+            // Only consider balls in front of cue ball
+            if (projection < 0) return;
+            
+            // Find closest point on ray to ball center
+            const closestX = cueBall.x + rayDirX * projection;
+            const closestY = cueBall.y + rayDirY * projection;
+            
+            // Distance from ball center to ray
+            const distToRay = Math.sqrt(
+                (ball.x - closestX) * (ball.x - closestX) +
+                (ball.y - closestY) * (ball.y - closestY)
+            );
+            
+            // Check if ray intersects ball (within combined radii)
+            const combinedRadii = cueBall.r + ball.r;
+            
+            if (distToRay <= combinedRadii) {
+                // Calculate exact collision point
+                const distToBall = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distToBall < closestDist) {
+                    closestDist = distToBall;
+                    closestBall = ball;
+                    
+                    // Collision point is on the line between centers
+                    const collisionDist = distToBall - ball.r;
+                    closestCollision = {
+                        x: cueBall.x + rayDirX * collisionDist,
+                        y: cueBall.y + rayDirY * collisionDist
+                    };
+                }
+            }
+        });
+        
+        if (closestBall && closestCollision) {
+            return {
+                ball: closestBall,
+                collisionPoint: closestCollision,
+                impactAngle: aimAngle
+            };
+        }
+        
+        return null;
+    },
+    
+    /**
+     * Draw predicted path for a ball including cushion bounces
+     */
+    drawPredictedPath(ctx, ball, angle, tableWidth, tableHeight, cushionMargin, game) {
+        ctx.save();
+        
+        const minX = cushionMargin + ball.r;
+        const maxX = tableWidth - cushionMargin - ball.r;
+        const minY = cushionMargin + ball.r;
+        const maxY = tableHeight - cushionMargin - ball.r;
+        
+        let x = ball.x;
+        let y = ball.y;
+        let dirX = Math.cos(angle);
+        let dirY = Math.sin(angle);
+        let remainingLength = game.trajectoryLength || 200;
+        
+        const segments = [];
+        const maxBounces = 3; // Limit number of bounces to predict
+        let bounceCount = 0;
+        
+        // Trace path with cushion bounces
+        while (remainingLength > 0 && bounceCount < maxBounces) {
+            // Calculate distance to nearest cushion
+            let distToWall = Infinity;
+            let hitWall = null;
+            
+            // Check all four walls
+            if (dirX > 0) {
+                const d = (maxX - x) / dirX;
+                if (d > 0 && d < distToWall) {
+                    distToWall = d;
+                    hitWall = 'right';
+                }
+            } else if (dirX < 0) {
+                const d = (minX - x) / dirX;
+                if (d > 0 && d < distToWall) {
+                    distToWall = d;
+                    hitWall = 'left';
+                }
+            }
+            
+            if (dirY > 0) {
+                const d = (maxY - y) / dirY;
+                if (d > 0 && d < distToWall) {
+                    distToWall = d;
+                    hitWall = 'bottom';
+                }
+            } else if (dirY < 0) {
+                const d = (minY - y) / dirY;
+                if (d > 0 && d < distToWall) {
+                    distToWall = d;
+                    hitWall = 'top';
+                }
+            }
+            
+            // Determine segment length
+            const segmentLength = Math.min(distToWall, remainingLength);
+            const endX = x + dirX * segmentLength;
+            const endY = y + dirY * segmentLength;
+            
+            segments.push({ startX: x, startY: y, endX, endY, bounce: bounceCount });
+            
+            x = endX;
+            y = endY;
+            remainingLength -= segmentLength;
+            
+            // Handle cushion bounce
+            if (distToWall < remainingLength && hitWall) {
+                bounceCount++;
+                
+                // Reflect direction based on which wall was hit
+                if (hitWall === 'left' || hitWall === 'right') {
+                    dirX = -dirX * 0.78; // Apply restitution
+                } else {
+                    dirY = -dirY * 0.78;
+                }
+                
+                // Normalize direction
+                const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+                if (mag > 0) {
+                    dirX /= mag;
+                    dirY /= mag;
+                }
+            }
+        }
+        
+        // Draw all segments with fading
+        segments.forEach((seg, index) => {
+            const alpha = 1 - (index / segments.length) * 0.7;
+            
+            // Color changes after each bounce
+            let color;
+            if (seg.bounce === 0) {
+                color = `rgba(100, 200, 255, ${alpha * 0.8})`;  // Blue for first segment
+            } else if (seg.bounce === 1) {
+                color = `rgba(255, 200, 100, ${alpha * 0.7})`;  // Orange after first bounce
+            } else {
+                color = `rgba(255, 100, 100, ${alpha * 0.6})`;  // Red after second bounce
+            }
+            
+            // Draw line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.moveTo(seg.startX, seg.startY);
+            ctx.lineTo(seg.endX, seg.endY);
+            ctx.stroke();
+            
+            // Draw dots along the line for better visibility
+            const numDots = 5;
+            ctx.fillStyle = color;
+            for (let i = 0; i <= numDots; i++) {
+                const t = i / numDots;
+                const dotX = seg.startX + (seg.endX - seg.startX) * t;
+                const dotY = seg.startY + (seg.endY - seg.startY) * t;
+                const dotSize = 2 * alpha;
+                
+                ctx.beginPath();
+                ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+        
+        // Draw end point indicator
+        if (segments.length > 0) {
+            const lastSeg = segments[segments.length - 1];
+            const endGrad = ctx.createRadialGradient(
+                lastSeg.endX, lastSeg.endY, 0,
+                lastSeg.endX, lastSeg.endY, ball.r + 5
+            );
+            endGrad.addColorStop(0, 'rgba(100, 200, 255, 0.5)');
+            endGrad.addColorStop(1, 'rgba(100, 200, 255, 0)');
+            
+            ctx.fillStyle = endGrad;
+            ctx.beginPath();
+            ctx.arc(lastSeg.endX, lastSeg.endY, ball.r + 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Dotted circle at end
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(lastSeg.endX, lastSeg.endY, ball.r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        ctx.setLineDash([]);
+        ctx.restore();
+    },
+    
+    /**
      * Draw aim line with fade and trajectory prediction
      */
     drawAimLine(ctx, cueBall, aimAngle, length = 300) {
@@ -982,6 +1367,80 @@ const PoolRendering = {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.font = 'bold 11px Arial';
         ctx.fillText('POWER', meterX + meterWidth / 2, meterY + meterHeight + 18);
+    },
+    
+    /**
+     * Draw rail bolts/screws on the wooden rails
+     * PHASE 3: Professional detail
+     */
+    drawRailBolts(ctx, width, height, margin) {
+        ctx.save();
+        
+        const boltRadius = 3;
+        const boltColor = '#4a3520';
+        const boltHighlight = '#6d5436';
+        
+        // Top rail bolts
+        const topY = margin * 0.3;
+        for (let i = 1; i <= 11; i++) {
+            const x = (width / 12) * i;
+            this.drawBolt(ctx, x, topY, boltRadius, boltColor, boltHighlight);
+        }
+        
+        // Bottom rail bolts
+        const bottomY = height - margin * 0.3;
+        for (let i = 1; i <= 11; i++) {
+            const x = (width / 12) * i;
+            this.drawBolt(ctx, x, bottomY, boltRadius, boltColor, boltHighlight);
+        }
+        
+        // Left rail bolts
+        const leftX = margin * 0.3;
+        for (let i = 1; i <= 7; i++) {
+            const y = (height / 8) * i;
+            this.drawBolt(ctx, leftX, y, boltRadius, boltColor, boltHighlight);
+        }
+        
+        // Right rail bolts
+        const rightX = width - margin * 0.3;
+        for (let i = 1; i <= 7; i++) {
+            const y = (height / 4) * i;
+            this.drawBolt(ctx, rightX, y, boltRadius, boltColor, boltHighlight);
+        }
+        
+        ctx.restore();
+    },
+    
+    /**
+     * Draw a single rail bolt with 3D effect
+     */
+    drawBolt(ctx, x, y, radius, color, highlightColor) {
+        // Bolt shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.arc(x + 0.5, y + 0.5, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Bolt body with gradient
+        const boltGrad = ctx.createRadialGradient(x - 1, y - 1, 0, x, y, radius);
+        boltGrad.addColorStop(0, highlightColor);
+        boltGrad.addColorStop(0.5, color);
+        boltGrad.addColorStop(1, color);
+        
+        ctx.fillStyle = boltGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Bolt groove (Phillips head screw)
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x - radius * 0.6, y);
+        ctx.lineTo(x + radius * 0.6, y);
+        ctx.moveTo(x, y - radius * 0.6);
+        ctx.lineTo(x, y + radius * 0.6);
+        ctx.stroke();
     }
 };
 ";

@@ -331,7 +331,16 @@ const PoolDevSettings = {
                     </div>
                     <div class='dev-control'>
                         <label>Show Trajectory:</label>
-                        <input type='checkbox' id='showTrajectory'>
+                        <input type='checkbox' id='showTrajectory' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Collision Points:</label>
+                        <input type='checkbox' id='showCollisionPoints' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Trajectory Length:</label>
+                        <input type='range' id='trajectoryLength' min='50' max='400' value='200' step='10'>
+                        <span id='trajectoryLengthValue'>200</span>
                     </div>
                     <div class='dev-control'>
                         <label>Show Velocities:</label>
@@ -825,31 +834,23 @@ const PoolDevSettings = {
         });
         
         this.addCheckboxListener('showGhostBall', (checked) => {
-            self.game.showGhostBall = checked;
+            self.game.showGhostBalls = checked;
         });
         
         this.addCheckboxListener('showTrajectory', (checked) => {
-            self.game.showTrajectory = checked;
+            self.game.showTrajectoryPrediction = checked;
+        });
+        
+        this.addCheckboxListener('showCollisionPoints', (checked) => {
+            self.game.showCollisionPoints = checked;
+        });
+        
+        this.addRangeListener('trajectoryLength', (val) => {
+            self.game.trajectoryLength = parseFloat(val);
         });
         
         this.addCheckboxListener('showVelocities', (checked) => {
             self.game.showVelocities = checked;
-        });
-        
-        this.addCheckboxListener('showBallNumbers', (checked) => {
-            self.game.showBallNumbers = checked;
-        });
-        
-        this.addCheckboxListener('showFps', (checked) => {
-            self.game.showFps = checked;
-        });
-        
-        this.addCheckboxListener('ballShadows', (checked) => {
-            self.game.ballShadows = checked;
-        });
-        
-        this.addCheckboxListener('tableTexture', (checked) => {
-            self.game.tableTexture = checked;
         });
         
         // Advanced Physics

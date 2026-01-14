@@ -366,6 +366,14 @@ const PoolPhysics = {
         if (distSq < minDist * minDist) {
             const dist = Math.sqrt(distSq);
             
+            // Prevent division by zero
+            if (dist < 0.001) {
+                // Balls are exactly on top of each other - separate them
+                b2.x += 0.1;
+                b2.y += 0.1;
+                return false;
+            }
+            
             // Normalize collision vector (line of centers)
             const nx = dx / dist;
             const ny = dy / dist;
@@ -411,6 +419,12 @@ const PoolPhysics = {
                 
                 // Calculate contact thickness (how much of ball overlaps)
                 const contactThickness = Math.abs(b1vt) / b1Speed; // 0 = head-on, 1 = glancing
+                
+                // Store original velocities before modification
+                const b1vx_orig = b1.vx;
+                const b1vy_orig = b1.vy;
+                const b2vx_orig = b2.vx;
+                const b2vy_orig = b2.vy;
                 
                 // ===== 90-DEGREE RULE IMPLEMENTATION =====
                 // For stationary equal-mass collisions
@@ -465,13 +479,29 @@ const PoolPhysics = {
                         }
                     }
                 } else {
-                    // Standard elastic collision for moving balls
-                    const impulse = dvn * this.COLLISION_DAMPING;
+                    // ===== STANDARD ELASTIC COLLISION FOR MOVING BALLS =====
+                    // Use proper physics formula for elastic collision
                     
-                    b1.vx += impulse * nx;
-                    b1.vy += impulse * ny;
-                    b2.vx -= impulse * nx;
-                    b2.vy -= impulse * ny;
+                    // Decompose velocities into normal and tangent components
+                    const b1vn_orig = b1vx_orig * nx + b1vy_orig * ny;
+                    const b1vt_orig = b1vx_orig * tx + b1vy_orig * ty;
+                    const b2vn_orig = b2vx_orig * nx + b2vy_orig * ny;
+                    const b2vt_orig = b2vx_orig * tx + b2vy_orig * ty;
+                    
+                    // For equal mass elastic collision, velocities swap in normal direction
+                    // Apply damping for energy loss
+                    const b1vn_new = b2vn_orig * this.COLLISION_DAMPING;
+                    const b2vn_new = b1vn_orig * this.COLLISION_DAMPING;
+                    
+                    // Tangent components remain unchanged (no friction perpendicular to collision)
+                    const b1vt_new = b1vt_orig;
+                    const b2vt_new = b2vt_orig;
+                    
+                    // Recompose velocities
+                    b1.vx = b1vn_new * nx + b1vt_new * tx;
+                    b1.vy = b1vn_new * ny + b1vt_new * ty;
+                    b2.vx = b2vn_new * nx + b2vt_new * tx;
+                    b2.vy = b2vn_new * ny + b2vt_new * ty;
                 }
                 
                 // REALISTIC SPIN TRANSFER WITH CUT ANGLE CONSIDERATION
@@ -587,12 +617,14 @@ const PoolPhysics = {
                 if (b1.spinX !== undefined) b1.spinX *= 0.5; // English more preserved
             }
             
-            // Separate overlapping balls more smoothly
+            // ===== PROPER BALL SEPARATION =====
+            // Separate overlapping balls to prevent them from getting stuck
             const overlap = minDist - dist;
             if (overlap > 0) {
-                // Slightly push balls apart based on overlap
-                const separationX = nx * overlap * 0.52;
-                const separationY = ny * overlap * 0.52;
+                // Push balls apart equally in opposite directions
+                // Each ball moves half the overlap distance
+                const separationX = nx * overlap * 0.5;
+                const separationY = ny * overlap * 0.5;
                 
                 b1.x -= separationX;
                 b1.y -= separationY;

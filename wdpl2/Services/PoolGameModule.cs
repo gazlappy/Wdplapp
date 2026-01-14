@@ -85,6 +85,13 @@ class PoolGame {
         this.friction = 0.987;
         this.cushionRestitution = 0.78;
         
+        // Trajectory prediction settings
+        this.showTrajectoryPrediction = true;  // Show predicted ball paths
+        this.trajectoryLength = 200;            // Length of prediction lines
+        this.trajectorySegments = 15;           // Number of segments for smooth curves
+        this.showCollisionPoints = true;        // Show where balls will collide
+        this.showGhostBalls = true;             // Show ghost balls at collision points
+        
         // Spin control properties
         this.maxSpin = 1.5;
         this.spinEffect = 2.0; // Set to 2.0 for visible but realistic effects
@@ -96,6 +103,12 @@ class PoolGame {
         this.fps = 0;
         this.frameCount = 0;
         this.lastFpsUpdate = Date.now();
+        
+        // Ball return tracking
+        this.pottedBalls = [];
+        this.redsPotted = 0;
+        this.yellowsPotted = 0;
+        this.blackPotted = false;
         
         this.init();
     }
@@ -233,6 +246,9 @@ class PoolGame {
     resetRack() {
         this.balls = [];
         
+        // Clear ball return tray
+        this.clearBallReturnTray();
+        
         const breakLineX = this.width * 0.25;
         
         this.cueBall = {
@@ -297,6 +313,87 @@ class PoolGame {
         this.statusEl.style.background = 'rgba(251, 191, 36, 0.9)';
     }
     
+    updateBallReturnTray(ball) {
+        // Track potted ball
+        this.pottedBalls.push({
+            num: ball.num,
+            color: ball.color,
+            time: Date.now()
+        });
+        
+        // Update counts
+        if (ball.color === 'red') {
+            this.redsPotted++;
+        } else if (ball.color === 'yellow') {
+            this.yellowsPotted++;
+        } else if (ball.num === 8) {
+            this.blackPotted = true;
+        }
+        
+        // Get tray element
+        const tray = document.getElementById('ballReturnTray');
+        if (!tray) return;
+        
+        // Remove empty message
+        const emptyMsg = tray.querySelector('.ball-return-empty');
+        if (emptyMsg) {
+            emptyMsg.remove();
+        }
+        
+        // Create ball element
+        const ballEl = document.createElement('div');
+        ballEl.className = `potted-ball ${ball.color}`;
+        ballEl.setAttribute('data-ball-num', ball.num);
+        
+        // Add number for non-white balls
+        if (ball.num > 0) {
+            const numberEl = document.createElement('div');
+            numberEl.className = 'potted-ball-number';
+            numberEl.textContent = ball.num;
+            ballEl.appendChild(numberEl);
+        }
+        
+        // Add tooltip
+        ballEl.title = `Ball ${ball.num} (${ball.color})`;
+        
+        // Add to tray
+        tray.appendChild(ballEl);
+        
+        // Update stats
+        this.updateBallReturnStats();
+        
+        console.log(`?? Ball ${ball.num} added to return tray. Reds: ${this.redsPotted}, Yellows: ${this.yellowsPotted}, Black: ${this.blackPotted}`);
+    }
+    
+    updateBallReturnStats() {
+        const redsEl = document.getElementById('redsPotted');
+        const yellowsEl = document.getElementById('yellowsPotted');
+        const blackEl = document.getElementById('blackPotted');
+        
+        if (redsEl) redsEl.textContent = `${this.redsPotted}/7`;
+        if (yellowsEl) yellowsEl.textContent = `${this.yellowsPotted}/7`;
+        if (blackEl) blackEl.textContent = this.blackPotted ? '1/1' : '0/1';
+    }
+    
+    clearBallReturnTray() {
+        // Reset tracking
+        this.pottedBalls = [];
+        this.redsPotted = 0;
+        this.yellowsPotted = 0;
+        this.blackPotted = false;
+        
+        // Clear tray
+        const tray = document.getElementById('ballReturnTray');
+        if (tray) {
+            tray.innerHTML = '<div class="ball-return-empty">No balls potted yet</div>';
+        }
+        
+        // Reset stats
+        this.updateBallReturnStats();
+        
+        console.log('?? Ball return tray cleared');
+    }
+    
     animate() {
         // Draw table
         PoolRendering.drawTable(this.ctx, this.width, this.height, this.cushionMargin);
@@ -351,6 +448,9 @@ class PoolGame {
                             console.warn('?? PoolAudio not available for pocket sound');
                         }
                         
+                        // Update ball return tray
+                        this.updateBallReturnTray(ball);
+                        
                         console.log('Ball potted:', ball.color, ball.num);
                         this.statusEl.textContent = 'Ball ' + ball.num + ' potted!';
                         this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
@@ -389,6 +489,20 @@ class PoolGame {
         // Draw aim line
         if (this.isAiming && !moving && this.cueBall && !this.cueBall.potted) {
             PoolRendering.drawAimLine(this.ctx, this.cueBall, this.aimAngle);
+            
+            // Draw trajectory predictions for object balls
+            if (this.showTrajectoryPrediction) {
+                PoolRendering.drawTrajectoryPredictions(
+                    this.ctx, 
+                    this.cueBall, 
+                    this.aimAngle, 
+                    this.balls,
+                    this.width,
+                    this.height,
+                    this.cushionMargin,
+                    this
+                );
+            }
         }
         
         // Draw cue stick
