@@ -163,6 +163,16 @@ const PoolDevSettings = {
                 <div class='dev-section'>
                     <h4>Shot Controls</h4>
                     <div class='dev-control'>
+                        <label>Shot Control Mode:</label>
+                        <select id='shotControlMode' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
+                            <option value='drag'>Drag & Release (Default)</option>
+                            <option value='click'>Click Power</option>
+                            <option value='slider'>Power Slider</option>
+                            <option value='tap'>Tap & Hold</option>
+                            <option value='swipe'>Swipe</option>
+                        </select>
+                    </div>
+                    <div class='dev-control'>
                         <label>Max Power:</label>
                         <input type='range' id='maxPower' min='20' max='150' value='40' step='5'>
                         <span id='maxPowerValue'>40</span>
@@ -182,6 +192,14 @@ const PoolDevSettings = {
                         <input type='range' id='maxPullDistance' min='50' max='250' value='150' step='10'>
                         <span id='maxPullDistanceValue'>150</span>
                     </div>
+                    <div class='dev-control'>
+                        <label>Auto-Aim Assist:</label>
+                        <input type='checkbox' id='autoAimAssist'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Shot Preview:</label>
+                        <input type='checkbox' id='showShotPreview' checked>
+                    </div>
                 </div>
                 
                 <div class='dev-section'>
@@ -193,13 +211,31 @@ const PoolDevSettings = {
                     </div>
                     <div class='dev-control'>
                         <label>Spin Effect:</label>
-                        <input type='range' id='spinEffect' min='0.1' max='1.0' value='0.5' step='0.05'>
-                        <span id='spinEffectValue'>0.5</span>
+                        <input type='range' id='spinEffect' min='0.1' max='2.0' value='1.0' step='0.1'>
+                        <span id='spinEffectValue'>1.0</span>
                     </div>
                     <div class='dev-control'>
                         <label>English Transfer:</label>
-                        <input type='range' id='englishTransfer' min='0.1' max='0.9' value='0.3' step='0.05'>
-                        <span id='englishTransferValue'>0.3</span>
+                        <input type='range' id='englishTransfer' min='0.1' max='0.9' value='0.5' step='0.05'>
+                        <span id='englishTransferValue'>0.5</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Spin Decay Rate:</label>
+                        <input type='range' id='spinDecayRate' min='0.95' max='0.999' value='0.98' step='0.001'>
+                        <span id='spinDecayRateValue'>0.98</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Sweet Spot Tolerance:</label>
+                        <input type='range' id='sweetSpotTolerance' min='0.05' max='0.25' value='0.14' step='0.01'>
+                        <span id='sweetSpotToleranceValue'>0.14</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Spin Arrows:</label>
+                        <input type='checkbox' id='showSpinArrows' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Sweet Spot Info:</label>
+                        <input type='checkbox' id='showSweetSpot' checked>
                     </div>
                 </div>
                 
@@ -574,6 +610,14 @@ const PoolDevSettings = {
         });
         
         // Shot Controls
+        const shotModeSelect = document.getElementById('shotControlMode');
+        if (shotModeSelect) {
+            shotModeSelect.addEventListener('change', (e) => {
+                self.game.shotControlMode = e.target.value;
+                console.log('Shot control mode changed to:', e.target.value);
+            });
+        }
+        
         this.addRangeListener('maxPower', (val) => {
             self.game.maxPower = parseFloat(val);
         });
@@ -590,6 +634,14 @@ const PoolDevSettings = {
             self.game.maxPullDistance = parseFloat(val);
         });
         
+        this.addCheckboxListener('autoAimAssist', (checked) => {
+            self.game.autoAimAssist = checked;
+        });
+        
+        this.addCheckboxListener('showShotPreview', (checked) => {
+            self.game.showShotPreview = checked;
+        });
+        
         // Spin Controls
         this.addRangeListener('maxSpin', (val) => {
             self.game.maxSpin = parseFloat(val);
@@ -597,10 +649,29 @@ const PoolDevSettings = {
         
         this.addRangeListener('spinEffect', (val) => {
             self.game.spinEffect = parseFloat(val);
+            if (typeof PoolSpinControl !== 'undefined') {
+                PoolSpinControl.spinEffectMultiplier = parseFloat(val);
+            }
         });
         
         this.addRangeListener('englishTransfer', (val) => {
             self.game.englishTransfer = parseFloat(val);
+        });
+        
+        this.addRangeListener('spinDecayRate', (val) => {
+            self.game.spinDecayRate = parseFloat(val);
+        });
+        
+        this.addRangeListener('sweetSpotTolerance', (val) => {
+            self.game.sweetSpotTolerance = parseFloat(val);
+        });
+        
+        this.addCheckboxListener('showSpinArrows', (checked) => {
+            self.game.showSpinArrows = checked;
+        });
+        
+        this.addCheckboxListener('showSweetSpot', (checked) => {
+            self.game.showSweetSpot = checked;
         });
         
         // Visual Effects
@@ -897,7 +968,7 @@ const PoolDevSettings = {
             friction: 0.987, rollingResistance: 0.99, spinDecay: 0.98,
             cushionRestitution: 0.78, ballRestitution: 0.95, collisionDamping: 0.98,
             maxPower: 40, powerMultiplier: 1.0, aimSensitivity: 1.0, maxPullDistance: 150,
-            maxSpin: 1.5, spinEffect: 0.5, englishTransfer: 0.3,
+            maxSpin: 1.5, spinEffect: 2.0, englishTransfer: 0.5, spinDecayRate: 0.98,
             airResistance: 0.999, angularDamping: 0.98, minSpeed: 0.05, gravityEffect: 1,
             volume: 50
         };
@@ -910,11 +981,19 @@ const PoolDevSettings = {
             }
         });
         
+        // Reset shot control mode
+        const shotModeSelect = document.getElementById('shotControlMode');
+        if (shotModeSelect) {
+            shotModeSelect.value = 'drag';
+            shotModeSelect.dispatchEvent(new Event('change'));
+        }
+        
         // Reset checkboxes
         const checkboxDefaults = {
             showPocketZones: true, showCaptureZones: false, showAimLine: true, showGhostBall: true,
-            showBallNumbers: true, ballShadows: true, tableTexture: true,
-            showTrajectory: false, showVelocities: false, showFps: false, soundEffects: false
+            showBallNumbers: true, ballShadows: true, tableTexture: true, showSpinArrows: true,
+            showTrajectory: false, showVelocities: false, showFps: false, soundEffects: false,
+            autoAimAssist: false, showShotPreview: true
         };
         
         Object.keys(checkboxDefaults).forEach(key => {

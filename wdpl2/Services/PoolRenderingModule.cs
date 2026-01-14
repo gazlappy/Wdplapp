@@ -313,7 +313,7 @@ const PoolRendering = {
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Draw spin indicator if ball has active spin
+        // Draw spin indicator if ball has active spin - ENHANCED VISIBILITY
         if ((ball.spinX !== undefined && Math.abs(ball.spinX) > 0.05) || 
             (ball.spinY !== undefined && Math.abs(ball.spinY) > 0.05)) {
             
@@ -324,32 +324,66 @@ const PoolRendering = {
             );
             const spinAngle = Math.atan2(-(ball.spinY || 0), ball.spinX || 0);
             
-            const arrowLength = ball.r * 0.6 * spinMag;
+            const arrowLength = ball.r * 0.8 * spinMag;
             const arrowEndX = ball.x + Math.cos(spinAngle) * arrowLength;
             const arrowEndY = ball.y + Math.sin(spinAngle) * arrowLength;
             
-            // Arrow shaft
-            ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
-            ctx.lineWidth = 2;
+            // ENHANCED: Different colors for different spin types
+            let spinColor = 'rgba(255, 100, 100, 0.9)'; // Default red
+            if (Math.abs(ball.spinY) > Math.abs(ball.spinX)) {
+                // Top/back spin dominant
+                spinColor = ball.spinY > 0 ? 'rgba(100, 255, 100, 0.9)' : 'rgba(100, 100, 255, 0.9)';
+            }
+            
+            // Draw glow effect around ball with spin
+            const glowGrad = ctx.createRadialGradient(ball.x, ball.y, ball.r, ball.x, ball.y, ball.r + 15);
+            glowGrad.addColorStop(0, spinColor.replace('0.9', (spinMag * 0.3).toString()));
+            glowGrad.addColorStop(1, spinColor.replace('0.9', '0'));
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r + 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Arrow shaft - thicker and more visible
+            ctx.strokeStyle = spinColor;
+            ctx.lineWidth = 4; // Increased from 3 to 4
             ctx.beginPath();
             ctx.moveTo(ball.x, ball.y);
             ctx.lineTo(arrowEndX, arrowEndY);
             ctx.stroke();
             
-            // Arrow head
-            ctx.fillStyle = 'rgba(255, 100, 100, 0.8)';
+            // Arrow head - larger
+            ctx.fillStyle = spinColor;
             ctx.beginPath();
             ctx.moveTo(arrowEndX, arrowEndY);
             ctx.lineTo(
-                arrowEndX - 4 * Math.cos(spinAngle - Math.PI / 6),
-                arrowEndY - 4 * Math.sin(spinAngle - Math.PI / 6)
+                arrowEndX - 8 * Math.cos(spinAngle - Math.PI / 6),
+                arrowEndY - 8 * Math.sin(spinAngle - Math.PI / 6)
             );
             ctx.lineTo(
-                arrowEndX - 4 * Math.cos(spinAngle + Math.PI / 6),
-                arrowEndY - 4 * Math.sin(spinAngle + Math.PI / 6)
+                arrowEndX - 8 * Math.cos(spinAngle + Math.PI / 6),
+                arrowEndY - 8 * Math.sin(spinAngle + Math.PI / 6)
             );
             ctx.closePath();
             ctx.fill();
+            
+            // Add spin magnitude text with background and TYPE
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(ball.x - 35, ball.y - ball.r - 25, 70, 16);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            let spinText = Math.round(spinMag * 100) + '%';
+            if (Math.abs(ball.spinY) > Math.abs(ball.spinX)) {
+                spinText += ball.spinY > 0 ? ' TOP' : ' BACK';
+            } else if (Math.abs(ball.spinX) > 0.1) {
+                spinText += ball.spinX > 0 ? ' R' : ' L';
+            }
+            
+            ctx.fillText(spinText, ball.x, ball.y - ball.r - 17);
         }
     },
     

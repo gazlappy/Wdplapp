@@ -541,7 +541,8 @@ namespace Wdpl2.Services
             sb.AppendLine(PoolPocketModule.GenerateJavaScript());
             sb.AppendLine(PoolInputModule.GenerateJavaScript());
             sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
-            sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());  // Add dev settings
+            sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
+            sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
             sb.AppendLine(PoolGameModule.GenerateJavaScript());
             
             return sb.ToString();

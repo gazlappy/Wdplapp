@@ -56,6 +56,19 @@ class PoolGame {
         this.pullBackDistance = 0;
         this.pushForwardDistance = 0;
         
+        // Shot control mode
+        this.shotControlMode = 'drag'; // 'drag', 'click', 'slider', 'tap', 'swipe'
+        this.powerMultiplier = 1.0;
+        this.aimSensitivity = 1.0;
+        this.maxPullDistance = 150;
+        this.autoAimAssist = false;
+        this.showShotPreview = true;
+        
+        // Click power mode state
+        this.clickPowerCharging = false;
+        this.clickPowerStartTime = 0;
+        this.clickPowerMaxTime = 2000; // 2 seconds to reach max power
+        
         // Mouse tracking
         this.mouseX = 0;
         this.mouseY = 0;
@@ -71,6 +84,13 @@ class PoolGame {
         this.collisionDamping = 0.98;
         this.friction = 0.987;
         this.cushionRestitution = 0.78;
+        
+        // Spin control properties
+        this.maxSpin = 1.5;
+        this.spinEffect = 2.0; // Set to 2.0 for visible but realistic effects
+        this.englishTransfer = 0.5;
+        this.spinDecayRate = 0.98; // Realistic decay rate
+        this.showSpinArrows = true;
         
         // FPS tracking
         this.fps = 0;
@@ -90,6 +110,11 @@ class PoolGame {
         
         // Setup spin control
         PoolSpinControl.setupSpinControl(this.canvas, this);
+        
+        // Setup shot control modes
+        if (typeof PoolShotControl !== 'undefined') {
+            PoolShotControl.setupShotControls(this.canvas, this);
+        }
         
         // Initialize developer settings (F2 to toggle)
         if (typeof PoolDevSettings !== 'undefined') {
@@ -199,6 +224,15 @@ class PoolGame {
             
             activeBalls++;
             
+            // Store position history for trail effect (if ball has spin)
+            if ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05)) {
+                if (!ball.trail) ball.trail = [];
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 20) ball.trail.shift(); // Keep last 20 positions
+            } else {
+                ball.trail = []; // Clear trail when no spin
+            }
+            
             // Apply physics
             if (PoolPhysics.applyFriction(ball)) {
                 moving = true;
@@ -233,6 +267,22 @@ class PoolGame {
         // Handle collisions
         PoolPhysics.processCollisions(this.balls);
         
+        // Draw trails first (under balls)
+        this.balls.forEach(ball => {
+            if (!ball.potted && ball.trail && ball.trail.length > 1) {
+                this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(ball.trail[0].x, ball.trail[0].y);
+                for (let i = 1; i < ball.trail.length; i++) {
+                    const alpha = (i / ball.trail.length) * 0.3;
+                    this.ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
+                    this.ctx.lineTo(ball.trail[i].x, ball.trail[i].y);
+                }
+                this.ctx.stroke();
+            }
+        });
+        
         // Draw balls
         this.balls.forEach(ball => {
             if (!ball.potted) {
@@ -265,6 +315,11 @@ class PoolGame {
         
         // Draw spin control overlay
         PoolSpinControl.drawSpinControl(this.ctx);
+        
+        // Draw shot control mode feedback
+        if (typeof PoolShotControl !== 'undefined') {
+            PoolShotControl.drawModeFeedback(this.ctx);
+        }
         
         // Update status
         if (moving) {

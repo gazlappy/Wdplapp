@@ -21,6 +21,8 @@ const PoolSpinControl = {
     overlayX: 60,
     overlayY: 60,
     isDragging: false,
+    spinEffectMultiplier: 2.0, // Set to 2.0 for visible but realistic effects
+    game: null, // Reference to game object
     
     /**
      * Draw the spin control overlay
@@ -163,16 +165,33 @@ const PoolSpinControl = {
             }
         }
         
-        // Display spin values
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.font = '9px Arial';
-        ctx.textAlign = 'left';
+        // Display spin values and TYPE
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
         
         const spinPower = Math.sqrt(this.spinX * this.spinX + this.spinY * this.spinY);
         const spinPercent = Math.round(spinPower * 100);
         
         if (spinPercent > 0) {
-            ctx.fillText('Spin: ' + spinPercent + '%', centerX - radius - 5, centerY + radius + 32);
+            // Show spin percentage
+            ctx.fillText('Spin: ' + spinPercent + '%', centerX, centerY + radius + 32);
+            
+            // Show spin TYPE
+            let spinType = '';
+            if (Math.abs(this.spinX) > Math.abs(this.spinY)) {
+                // Primarily side spin
+                spinType = this.spinX > 0 ? 'Right English' : 'Left English';
+            } else if (Math.abs(this.spinY) > 0.1) {
+                // Primarily top/back spin
+                spinType = this.spinY > 0 ? 'Top Spin (Follow)' : 'Back Spin (Draw)';
+            }
+            
+            if (spinType) {
+                ctx.font = 'bold 9px Arial';
+                ctx.fillStyle = 'rgba(74, 222, 128, 0.9)';
+                ctx.fillText(spinType, centerX, centerY + radius + 44);
+            }
         }
     },
     
@@ -222,40 +241,107 @@ const PoolSpinControl = {
     /**
      * Apply spin to ball velocity
      * Called when ball is shot
+     * ENHANCED: Implements Sweet Spot strike height physics
      */
     applySpinToBall(ball, aimAngle) {
         if (!ball) return;
         
-        // Store spin values for physics calculations
-        ball.spinX = this.spinX;
-        ball.spinY = this.spinY;
+        // Get spin effect multiplier from game settings
+        const effectMultiplier = this.spinEffectMultiplier || 1.0;
         
+        // Store spin values for physics calculations
+        ball.spinX = this.spinX * effectMultiplier;
+        ball.spinY = this.spinY * effectMultiplier;
+        
+        // ===== SWEET SPOT PHYSICS =====
+        // The sweet spot is at height h = 7/5 * r (1.4r) from the table
+        // Striking at this height creates pure rolling without sliding
+        // Reference: Dr. Dave's Pool Physics
+        
+        const ballRadius = ball.r || 14;
+        const sweetSpotHeight = (7/5) * ballRadius; // 1.4r
+        
+        // Calculate strike height based on vertical spin position
+        // spinY > 0 = above center (top spin) = higher strike
+        // spinY < 0 = below center (back spin) = lower strike
+        // spinY = 0 = center = sweet spot height
+        
+        // Map spin to strike height (range: 0.5r to 1.8r)
+        const minHeight = ballRadius * 0.5;  // Bottom of ball
+        const maxHeight = ballRadius * 1.8;  // Near top
+        const strikeHeight = sweetSpotHeight + (this.spinY * ballRadius * 0.4);
+        const clampedHeight = Math.max(minHeight, Math.min(maxHeight, strikeHeight));
+        
+        // Calculate if strike is at sweet spot (within 10% tolerance)
+        const heightDiff = Math.abs(clampedHeight - sweetSpotHeight);
+        const atSweetSpot = heightDiff < (ballRadius * 0.14); // 10% tolerance
+        
+        if (atSweetSpot) {
+            // SWEET SPOT HIT - Pure rolling, no sliding phase
+            ball.slidingComplete = true;
+            console.log('SWEET SPOT! Strike at optimal height, pure rolling motion');
+        } else {
+            // Off sweet spot - will have sliding phase
+            ball.slidingComplete = false;
+            
+            // Calculate sliding intensity based on distance from sweet spot
+            const slidingIntensity = heightDiff / ballRadius;
+            ball.initialSlidingIntensity = Math.min(slidingIntensity, 1.0);
+            
+            console.log('Strike height:', clampedHeight.toFixed(1), 'Sweet spot:', sweetSpotHeight.toFixed(1), 'Sliding intensity:', (slidingIntensity * 100).toFixed(0) + '%');
+        }
+        
+        // Mark ball as in sliding phase (important for realistic spin)
         const currentSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
         
-        // Apply English (side spin) - affects direction immediately
+        // REALISTIC SPIN PHYSICS:
+        // Initial spin application is MINIMAL - the real effect happens during roll and collisions
+        
+        // SIDE SPIN (English) - very small initial deflection
         if (this.spinX !== 0) {
-            const spinEffect = this.spinX * 0.25; // 25% maximum deflection
+            // MINIMAL initial deflection - English mainly affects cushions and throw
+            const spinEffect = this.spinX * 0.02 * effectMultiplier;
             const perpAngle = aimAngle + Math.PI / 2;
             
             ball.vx += Math.cos(perpAngle) * spinEffect * currentSpeed;
             ball.vy += Math.sin(perpAngle) * spinEffect * currentSpeed;
+            
+            console.log('English applied! Will affect cushion angles and throw');
         }
         
-        // Top/back spin affects initial velocity
+        // TOP/BACK SPIN - affects initial speed SLIGHTLY
         if (this.spinY !== 0) {
-            const speedModifier = 1 + (this.spinY * 0.15); // +/- 15% speed
+            // Speed modifier affected by strike height
+            let speedModifier = 1 + (this.spinY * 0.1 * effectMultiplier);
+            
+            // Sweet spot hits transfer energy more efficiently
+            if (atSweetSpot) {
+                speedModifier *= 1.05; // 5% bonus for perfect strike
+            }
+            
             ball.vx *= speedModifier;
             ball.vy *= speedModifier;
+            
+            if (this.spinY > 0) {
+                console.log('TOP SPIN applied! Ball will FOLLOW THROUGH after contact');
+            } else {
+                console.log('BACK SPIN applied! Ball will DRAW BACK after contact');
+            }
         }
         
         // Store spin magnitude for visual feedback
         ball.spinMagnitude = Math.sqrt(this.spinX * this.spinX + this.spinY * this.spinY);
+        
+        // Clear instructions
+        console.log('Spin values - X:', ball.spinX.toFixed(2), 'Y:', ball.spinY.toFixed(2));
+        console.log('Watch what happens when ball hits another ball or cushion!');
     },
     
     /**
      * Setup event handlers for spin control
      */
     setupSpinControl(canvas, game) {
+        this.game = game; // Store game reference
         let spinDragging = false;
         
         canvas.addEventListener('mousedown', (e) => {

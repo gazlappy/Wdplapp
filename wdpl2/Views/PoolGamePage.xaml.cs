@@ -99,6 +99,10 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
+    {Services.PoolShotControlModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
     {Services.PoolDevSettingsModule.GenerateJavaScript()}
     </script>
     
