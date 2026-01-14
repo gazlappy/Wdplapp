@@ -75,6 +75,130 @@ public partial class PoolGamePage : ContentPage
         }}
         button:hover {{ background: #2563EB; }}
         button:active {{ transform: scale(0.95); }}
+        
+        /* Ball Return Window */
+        .ball-return-window {{
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+            border: 3px solid #8B4513;
+            max-width: 1000px;
+            width: 100%;
+        }}
+        
+        .ball-return-header {{
+            text-align: center;
+            color: #ecf0f1;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }}
+        
+        .ball-return-tray {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            min-height: 80px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+        }}
+        
+        .potted-ball {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 
+                0 4px 8px rgba(0,0,0,0.4),
+                inset -2px -2px 4px rgba(0,0,0,0.3),
+                inset 2px 2px 4px rgba(255,255,255,0.3);
+            animation: ballDrop 0.5s ease-out;
+            position: relative;
+        }}
+        
+        @keyframes ballDrop {{
+            0% {{ transform: translateY(-100px) scale(0.5); opacity: 0; }}
+            50% {{ transform: translateY(10px) scale(1.1); }}
+            100% {{ transform: translateY(0) scale(1); opacity: 1; }}
+        }}
+        
+        .potted-ball.red {{
+            background: radial-gradient(circle at 30% 30%, #ff7777, #e63946, #780000);
+        }}
+        
+        .potted-ball.yellow {{
+            background: radial-gradient(circle at 30% 30%, #ffe066, #ffd43b, #a67c00);
+        }}
+        
+        .potted-ball.black {{
+            background: radial-gradient(circle at 30% 30%, #555555, #2a2a2a, #000000);
+        }}
+        
+        .potted-ball.white {{
+            background: radial-gradient(circle at 30% 30%, #ffffff, #f0f0f0, #a0a0a0);
+        }}
+        
+        .potted-ball-number {{
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 1;
+            background: rgba(255,255,255,0.9);
+            color: #1a1a1a;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }}
+        
+        .ball-return-empty {{
+            color: #7f8c8d;
+            font-style: italic;
+            text-align: center;
+            padding: 25px;
+            font-size: 0.9rem;
+        }}
+        
+        .ball-return-stats {{
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }}
+        
+        .ball-stat {{
+            text-align: center;
+            color: #ecf0f1;
+        }}
+        
+        .ball-stat-label {{
+            font-size: 0.75rem;
+            color: #95a5a6;
+            text-transform: uppercase;
+        }}
+        
+        .ball-stat-value {{
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 4px;
+        }}
+        
+        .ball-stat-value.red {{ color: #e63946; }}
+        .ball-stat-value.yellow {{ color: #ffd43b; }}
+        .ball-stat-value.black {{ color: #ffffff; }}
     </style>
 </head>
 <body>
@@ -84,6 +208,30 @@ public partial class PoolGamePage : ContentPage
         <button onclick='game.stopBalls()'>Stop All Balls</button>
         <button onclick='game.resetRack()'>Reset Rack</button>
         <button onclick='if(typeof PoolDevSettings !== ""undefined"") PoolDevSettings.toggle()'>Dev Settings (F2)</button>
+    </div>
+    
+    <!-- Ball Return Window -->
+    <div class='ball-return-window'>
+        <div class='ball-return-header'>
+            ?? BALL RETURN TRAY
+        </div>
+        <div class='ball-return-tray' id='ballReturnTray'>
+            <div class='ball-return-empty'>No balls potted yet</div>
+        </div>
+        <div class='ball-return-stats'>
+            <div class='ball-stat'>
+                <div class='ball-stat-label'>Reds</div>
+                <div class='ball-stat-value red' id='redsPotted'>0/7</div>
+            </div>
+            <div class='ball-stat'>
+                <div class='ball-stat-label'>Yellows</div>
+                <div class='ball-stat-value yellow' id='yellowsPotted'>0/7</div>
+            </div>
+            <div class='ball-stat'>
+                <div class='ball-stat-label'>Black</div>
+                <div class='ball-stat-value black' id='blackPotted'>0/1</div>
+            </div>
+        </div>
     </div>
     
     <script>

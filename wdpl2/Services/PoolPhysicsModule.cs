@@ -638,25 +638,130 @@ const PoolPhysics = {
         return false;
     },
     
+    
     /**
-     * Process all ball collisions
+     * Process all ball collisions with continuous collision detection (CCD)
+     * Prevents tunneling at high speeds by checking along the path of movement
+     * @param {Array} balls - Array of ball objects
+     * @param {Object} game - Game instance for tracking first ball hit
      */
-    processCollisions(balls) {
+    processCollisions(balls, game = null) {
         let collisionOccurred = false;
+        let firstBallHit = null;
         
-        for (let i = 0; i < balls.length; i++) {
-            if (balls[i].potted) continue;
-            
-            for (let j = i + 1; j < balls.length; j++) {
-                if (balls[j].potted) continue;
+        // Find the maximum speed of any ball
+        let maxSpeed = 0;
+        for (const ball of balls) {
+            if (ball.potted) continue;
+            const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if (speed > maxSpeed) maxSpeed = speed;
+        }
+        
+        // Calculate number of sub-steps needed based on speed
+        // If a ball moves more than half its radius per frame, we need sub-stepping
+        const minBallRadius = balls.reduce((min, b) => b.potted ? min : Math.min(min, b.r), Infinity);
+        const subSteps = Math.max(1, Math.ceil(maxSpeed / (minBallRadius * 0.5)));
+        
+        // Perform collision detection in sub-steps for high-speed scenarios
+        for (let step = 0; step < subSteps; step++) {
+            for (let i = 0; i < balls.length; i++) {
+                if (balls[i].potted) continue;
                 
-                if (this.handleBallCollision(balls[i], balls[j])) {
-                    collisionOccurred = true;
+                for (let j = i + 1; j < balls.length; j++) {
+                    if (balls[j].potted) continue;
+                    
+                    // Check for collision using swept sphere test for fast balls
+                    if (this.checkAndHandleCollision(balls[i], balls[j], subSteps)) {
+                        collisionOccurred = true;
+                        
+                        // Track first ball hit by cue ball for rule enforcement
+                        if (game && !firstBallHit) {
+                            if (balls[i].num === 0) {
+                                firstBallHit = balls[j];
+                            } else if (balls[j].num === 0) {
+                                firstBallHit = balls[i];
+                            }
+                        }
+                    }
                 }
             }
         }
         
-        return collisionOccurred;
+        return { occurred: collisionOccurred, firstBallHit: firstBallHit };
+    },
+    
+    /**
+     * Check for collision between two balls, considering their velocities
+     * Uses swept collision detection for high-speed balls
+     */
+    checkAndHandleCollision(b1, b2, subSteps) {
+        // First do a quick distance check
+        const dx = b2.x - b1.x;
+        const dy = b2.y - b1.y;
+        const distSq = dx * dx + dy * dy;
+        const minDist = b1.r + b2.r;
+        
+        // If already colliding, handle it
+        if (distSq < minDist * minDist) {
+            return this.handleBallCollision(b1, b2);
+        }
+        
+        // For high speed balls, check if they will collide along their paths
+        const relVx = b1.vx - b2.vx;
+        const relVy = b1.vy - b2.vy;
+        const relSpeed = Math.sqrt(relVx * relVx + relVy * relVy);
+        
+        // If relative speed is high enough to potentially tunnel
+        if (relSpeed > minDist * 0.3) {
+            // Use swept sphere collision detection
+            // Check if the balls will collide within this frame
+            
+            // Vector from b2 to b1
+            const cx = b1.x - b2.x;
+            const cy = b1.y - b2.y;
+            
+            // Relative velocity (b1 relative to b2)
+            const vx = b1.vx - b2.vx;
+            const vy = b1.vy - b2.vy;
+            
+            // Quadratic equation coefficients for finding collision time
+            const a = vx * vx + vy * vy;
+            const b = 2 * (cx * vx + cy * vy);
+            const c = cx * cx + cy * cy - minDist * minDist;
+            
+            const discriminant = b * b - 4 * a * c;
+            
+            if (discriminant >= 0 && a > 0.0001) {
+                // Find the earliest collision time
+                const t = (-b - Math.sqrt(discriminant)) / (2 * a);
+                
+                // Check if collision happens within this sub-step (0 to 1/subSteps of a frame)
+                if (t >= 0 && t <= 1.0 / subSteps) {
+                    // Move balls to collision point
+                    const oldB1x = b1.x, oldB1y = b1.y;
+                    const oldB2x = b2.x, oldB2y = b2.y;
+                    
+                    b1.x += b1.vx * t;
+                    b1.y += b1.vy * t;
+                    b2.x += b2.vx * t;
+                    b2.y += b2.vy * t;
+                    
+                    // Handle the collision
+                    const result = this.handleBallCollision(b1, b2);
+                    
+                    // Move balls for remaining time
+                    const remainingTime = (1.0 / subSteps) - t;
+                    b1.x += b1.vx * remainingTime;
+                    b1.y += b1.vy * remainingTime;
+                    b2.x += b2.vx * remainingTime;
+                    b2.y += b2.vy * remainingTime;
+                    
+                    return result;
+                }
+            }
+        }
+        
+        return false;
     }
 };
 ";

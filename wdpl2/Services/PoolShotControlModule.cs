@@ -50,6 +50,7 @@ const PoolShotControl = {
         const startCharging = (e) => {
             if (this.game.shotControlMode !== 'click') return;
             if (!this.game.cueBall || this.game.cueBall.potted) return;
+            if (this.game.ballInHand) return; // Don't charge during ball-in-hand
             
             // Check if balls are moving
             const ballsMoving = this.game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
@@ -81,6 +82,11 @@ const PoolShotControl = {
             
             // Fire the shot
             if (this.game.shotPower > 0 && this.game.cueBall && !this.game.cueBall.potted) {
+                // Start shot tracking for rules
+                if (typeof this.game.startShot === 'function') {
+                    this.game.startShot();
+                }
+                
                 const power = this.game.shotPower * (this.game.powerMultiplier || 1.0);
                 this.game.cueBall.vx = Math.cos(this.game.aimAngle) * power;
                 this.game.cueBall.vy = Math.sin(this.game.aimAngle) * power;
@@ -157,11 +163,18 @@ const PoolShotControl = {
                 this.game.shotPower = (power / 100) * this.game.maxPower;
             });
             
+            
             shootBtn.addEventListener('click', () => {
+                if (this.game.ballInHand) return; // Don't shoot during ball-in-hand
                 if (this.game.cueBall && !this.game.cueBall.potted && this.game.shotPower > 0) {
                     // Check if balls are moving
                     const ballsMoving = this.game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
                     if (ballsMoving) return;
+                    
+                    // Start shot tracking for rules
+                    if (typeof this.game.startShot === 'function') {
+                        this.game.startShot();
+                    }
                     
                     const power = this.game.shotPower * (this.game.powerMultiplier || 1.0);
                     this.game.cueBall.vx = Math.cos(this.game.aimAngle) * power;
@@ -171,6 +184,7 @@ const PoolShotControl = {
                     if (typeof PoolSpinControl !== 'undefined') {
                         PoolSpinControl.applySpinToBall(this.game.cueBall, this.game.aimAngle);
                     }
+                    
                     
                     this.game.isAiming = false;
                     slider.value = 50;
@@ -194,9 +208,11 @@ const PoolShotControl = {
         let holdStartTime = 0;
         let holdInterval = null;
         
+        
         const startHold = (e) => {
             if (this.game.shotControlMode !== 'tap') return;
             if (!this.game.cueBall || this.game.cueBall.potted) return;
+            if (this.game.ballInHand) return; // Don't start hold during ball-in-hand
             
             // Check if balls are moving
             const ballsMoving = this.game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
@@ -214,12 +230,18 @@ const PoolShotControl = {
             }, 16);
         };
         
+        
         const releaseHold = (e) => {
             if (this.game.shotControlMode !== 'tap') return;
             
             clearInterval(holdInterval);
             
             if (this.game.shotPower > 0 && this.game.cueBall && !this.game.cueBall.potted) {
+                // Start shot tracking for rules
+                if (typeof this.game.startShot === 'function') {
+                    this.game.startShot();
+                }
+                
                 const power = this.game.shotPower * (this.game.powerMultiplier || 1.0);
                 this.game.cueBall.vx = Math.cos(this.game.aimAngle) * power;
                 this.game.cueBall.vy = Math.sin(this.game.aimAngle) * power;
@@ -251,6 +273,7 @@ const PoolShotControl = {
         const startSwipe = (e) => {
             if (this.game.shotControlMode !== 'swipe') return;
             if (!this.game.cueBall || this.game.cueBall.potted) return;
+            if (this.game.ballInHand) return; // Don't start swipe during ball-in-hand
             
             // Check if balls are moving
             const ballsMoving = this.game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
@@ -296,6 +319,11 @@ const PoolShotControl = {
             const angle = Math.atan2(dy, dx);
             
             if (this.game.cueBall && !this.game.cueBall.potted && power > 2) {
+                // Start shot tracking for rules
+                if (typeof this.game.startShot === 'function') {
+                    this.game.startShot();
+                }
+                
                 this.game.cueBall.vx = Math.cos(angle) * power;
                 this.game.cueBall.vy = Math.sin(angle) * power;
                 

@@ -5,7 +5,7 @@
              Title="Pool Game"
              BackgroundColor="#1e3c72">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*">
         
         <!-- Header -->
         <Frame Grid.Row="0" 
@@ -33,32 +33,6 @@
         <WebView Grid.Row="1" 
                  x:Name="GameWebView"
                  Margin="0"/>
-
-        <!-- Instructions -->
-        <Frame Grid.Row="2" 
-               BackgroundColor="#2a5298" 
-               Padding="15" 
-               CornerRadius="0"
-               HasShadow="True">
-            <VerticalStackLayout Spacing="5">
-                <Label Text="Touch Controls:" 
-                       FontSize="14" 
-                       FontAttributes="Bold"
-                       TextColor="White"/>
-                <Label Text="Tap and hold to aim and power up shot" 
-                       FontSize="12" 
-                       TextColor="White" 
-                       Opacity="0.9"/>
-                <Label Text="Release to shoot - longer hold = more power" 
-                       FontSize="12" 
-                       TextColor="White" 
-                       Opacity="0.9"/>
-                <Label Text="Tap New Game button in game to restart" 
-                       FontSize="12" 
-                       TextColor="White" 
-                       Opacity="0.9"/>
-            </VerticalStackLayout>
-        </Frame>
 
     </Grid>
 

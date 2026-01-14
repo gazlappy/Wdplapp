@@ -424,6 +424,29 @@ const PoolDevSettings = {
                         <button id='resetDefaults' class='dev-btn'>Reset All</button>
                     </div>
                 </div>
+                
+                <div class='dev-section'>
+                    <h4>Save / Load Settings</h4>
+                    <div class='dev-control'>
+                        <label>Save Slot:</label>
+                        <select id='saveSlotSelect' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
+                            <option value='slot1'>Slot 1</option>
+                            <option value='slot2'>Slot 2</option>
+                            <option value='slot3'>Slot 3</option>
+                            <option value='custom'>Custom</option>
+                        </select>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Custom Name:</label>
+                        <input type='text' id='customSaveName' placeholder='My Settings' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='saveSettings' class='dev-btn' style='background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);'>Save</button>
+                        <button id='loadSettings' class='dev-btn' style='background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);'>Load</button>
+                        <button id='deleteSettings' class='dev-btn' style='background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);'>Delete</button>
+                    </div>
+                    <div id='savedSettingsList' style='margin-top:10px;font-size:11px;color:#a0aec0;'></div>
+                </div>
             </div>
         `;
         
@@ -894,6 +917,14 @@ const PoolDevSettings = {
         document.getElementById('randomShot').addEventListener('click', () => self.randomShot());
         document.getElementById('exportSettings').addEventListener('click', () => self.exportSettings());
         document.getElementById('resetDefaults').addEventListener('click', () => self.resetDefaults());
+        
+        // Save/Load buttons
+        document.getElementById('saveSettings').addEventListener('click', () => self.saveSettings());
+        document.getElementById('loadSettings').addEventListener('click', () => self.loadSettings());
+        document.getElementById('deleteSettings').addEventListener('click', () => self.deleteSettings());
+        
+        // Update saved settings list on init
+        this.updateSavedSettingsList();
     },
     
     addCheckboxListener(id, callback) {
@@ -1151,6 +1182,253 @@ const PoolDevSettings = {
         });
         
         console.log('Reset to defaults');
+    },
+    
+    getSettingsKey() {
+        const slotSelect = document.getElementById('saveSlotSelect');
+        const customName = document.getElementById('customSaveName');
+        
+        if (slotSelect.value === 'custom' && customName.value.trim()) {
+            return 'poolSettings_' + customName.value.trim().replace(/[^a-zA-Z0-9]/g, '_');
+        }
+        return 'poolSettings_' + slotSelect.value;
+    },
+    
+    getDisplayName(key) {
+        const slotSelect = document.getElementById('saveSlotSelect');
+        const customName = document.getElementById('customSaveName');
+        
+        if (slotSelect.value === 'custom' && customName.value.trim()) {
+            return customName.value.trim();
+        }
+        
+        const slotNames = {
+            slot1: 'Slot 1',
+            slot2: 'Slot 2',
+            slot3: 'Slot 3'
+        };
+        return slotNames[slotSelect.value] || slotSelect.value;
+    },
+    
+    saveSettings() {
+        const key = this.getSettingsKey();
+        const displayName = this.getDisplayName();
+        
+        const settings = {
+            name: displayName,
+            timestamp: Date.now(),
+            data: {
+                // Table
+                tableWidth: this.game.width,
+                tableHeight: this.game.height,
+                cushionMargin: this.game.cushionMargin,
+                
+                // Balls
+                ballRadius: this.game.standardBallRadius,
+                cueBallRadius: this.game.cueBallRadius,
+                ballSpacing: this.game.ballSpacing || 0.5,
+                
+                // Pockets
+                cornerPocketOpening: this.game.cornerPocketOpening || 32,
+                cornerPocketRadius: this.game.cornerPocketRadius,
+                middlePocketOpening: this.game.middlePocketOpening || 34,
+                middlePocketRadius: this.game.middlePocketRadius,
+                captureThreshold: (this.game.captureThresholdPercent || 0.30) * 100,
+                pocketDepth: this.game.pocketDepth || 1.0,
+                
+                // Physics
+                friction: this.game.friction,
+                rollingResistance: this.game.rollingResistance || 0.99,
+                spinDecay: this.game.spinDecay || 0.98,
+                cushionRestitution: this.game.cushionRestitution,
+                ballRestitution: this.game.ballRestitution || 0.95,
+                collisionDamping: this.game.collisionDamping,
+                airResistance: this.game.airResistance || 0.999,
+                angularDamping: this.game.angularDamping || 0.98,
+                minSpeed: this.game.minSpeed || 0.05,
+                gravityEffect: this.game.gravityEffect || 1,
+                
+                // Shot Controls
+                shotControlMode: this.game.shotControlMode || 'drag',
+                maxPower: this.game.maxPower,
+                powerMultiplier: this.game.powerMultiplier || 1.0,
+                aimSensitivity: this.game.aimSensitivity || 1.0,
+                maxPullDistance: this.game.maxPullDistance || 150,
+                
+                // Spin
+                maxSpin: this.game.maxSpin || 1.5,
+                spinEffect: this.game.spinEffect || 1.0,
+                englishTransfer: this.game.englishTransfer || 0.5,
+                spinDecayRate: this.game.spinDecayRate || 0.98,
+                
+                // WPA
+                ballToBallFriction: this.game.ballToBallFriction || 0.055,
+                ballToClothSliding: this.game.ballToClothSliding || 0.25,
+                rollingResistanceCoeff: this.game.rollingResistanceCoeff || 0.010,
+                spinDecayRateCoeff: this.game.spinDecayRateCoeff || 10,
+                miscueLimit: this.game.miscueLimit || 0.5,
+                maxSpinRpm: this.game.maxSpinRpm || 4000,
+                cueBallMassVariance: this.game.cueBallMassVariance || 1.05,
+                
+                // Visual
+                showPocketZones: this.game.showPocketZones !== false,
+                showCaptureZones: this.game.showCaptureZones || false,
+                showAimLine: this.game.showAimLine !== false,
+                showGhostBall: this.game.showGhostBall !== false,
+                showTrajectory: this.game.showTrajectory || false,
+                showCollisionPoints: this.game.showCollisionPoints !== false,
+                trajectoryLength: this.game.trajectoryLength || 200,
+                showVelocities: this.game.showVelocities || false,
+                showBallNumbers: this.game.showBallNumbers !== false,
+                showFps: this.game.showFps || false,
+                ballShadows: this.game.ballShadows !== false,
+                tableTexture: this.game.tableTexture !== false,
+                
+                // Audio
+                soundEffects: this.game.soundEffects || false,
+                volume: (this.game.volume || 0.5) * 100
+            }
+        };
+        
+        try {
+            localStorage.setItem(key, JSON.stringify(settings));
+            this.showNotification('Settings saved: ' + displayName, 'success');
+            this.updateSavedSettingsList();
+            console.log('Settings saved to:', key);
+        } catch (err) {
+            console.error('Failed to save settings:', err);
+            this.showNotification('Failed to save settings', 'error');
+        }
+    },
+    
+    loadSettings() {
+        const key = this.getSettingsKey();
+        
+        try {
+            const saved = localStorage.getItem(key);
+            if (!saved) {
+                this.showNotification('No saved settings found', 'error');
+                return;
+            }
+            
+            const settings = JSON.parse(saved);
+            const data = settings.data;
+            
+            // Apply all settings by updating inputs and triggering events
+            Object.keys(data).forEach(inputId => {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = data[inputId];
+                        input.dispatchEvent(new Event('change'));
+                    } else if (input.tagName === 'SELECT') {
+                        input.value = data[inputId];
+                        input.dispatchEvent(new Event('change'));
+                    } else {
+                        input.value = data[inputId];
+                        input.dispatchEvent(new Event('input'));
+                    }
+                }
+            });
+            
+            this.showNotification('Settings loaded: ' + settings.name, 'success');
+            console.log('Settings loaded from:', key);
+        } catch (err) {
+            console.error('Failed to load settings:', err);
+            this.showNotification('Failed to load settings', 'error');
+        }
+    },
+    
+    deleteSettings() {
+        const key = this.getSettingsKey();
+        const displayName = this.getDisplayName();
+        
+        if (!confirm('Delete saved settings: ' + displayName + '?')) return;
+        
+        try {
+            localStorage.removeItem(key);
+            this.showNotification('Settings deleted: ' + displayName, 'success');
+            this.updateSavedSettingsList();
+            console.log('Settings deleted:', key);
+        } catch (err) {
+            console.error('Failed to delete settings:', err);
+            this.showNotification('Failed to delete settings', 'error');
+        }
+    },
+    
+    updateSavedSettingsList() {
+        const listEl = document.getElementById('savedSettingsList');
+        if (!listEl) return;
+        
+        const savedKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('poolSettings_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    savedKeys.push({
+                        key: key,
+                        name: data.name || key.replace('poolSettings_', ''),
+                        timestamp: data.timestamp
+                    });
+                } catch (e) {
+                    // Skip invalid entries
+                }
+            }
+        }
+        
+        if (savedKeys.length === 0) {
+            listEl.innerHTML = 'No saved settings';
+            return;
+        }
+        
+        // Sort by timestamp, newest first
+        savedKeys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        
+        listEl.innerHTML = '<strong>Saved:</strong> ' + savedKeys.map(s => {
+            const date = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : '';
+            return s.name + (date ? ' (' + date + ')' : '');
+        }).join(', ');
+    },
+    
+    showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 20000;
+            animation: fadeInOut 2s ease-in-out forwards;
+            ${type === 'success' 
+                ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;'
+                : 'background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: white;'}
+        `;
+        
+        // Add animation style if not exists
+        if (!document.getElementById('notificationStyle')) {
+            const style = document.createElement('style');
+            style.id = 'notificationStyle';
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+                    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 2000);
     }
 };
 

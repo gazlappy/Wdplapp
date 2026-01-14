@@ -110,8 +110,543 @@ class PoolGame {
         this.yellowsPotted = 0;
         this.blackPotted = false;
         
+        // ========== GAME RULES & TURN MANAGEMENT ==========
+        // Players
+        this.players = [
+            { name: 'Player 1', color: null, ballsPotted: 0, onBlack: false },
+            { name: 'Player 2', color: null, ballsPotted: 0, onBlack: false }
+        ];
+        this.currentPlayerIndex = 0;
+        
+        // Game state
+        this.gamePhase = 'break'; // 'break', 'open', 'playing', 'finished'
+        this.isBreakShot = true;
+        this.tableOpen = true;
+        this.waitingForBallsToStop = false;
+        this.gameOver = false;
+        this.winner = null;
+        
+        // Shot tracking for rule enforcement
+        this.shotInProgress = false;
+        this.firstBallHit = null;
+        this.ballsPottedThisShot = [];
+        this.cueBallPotted = false;
+        this.cushionHitAfterContact = false;
+        this.anyBallHitCushion = false;
+        this.legalBreak = false;
+        
+        // Break shot tracking - balls that have crossed center line
+        this.ballsCrossedCenter = new Set();
+        
+        // Foul tracking
+        this.foulCommitted = false;
+        this.foulReason = '';
+        this.ballInHand = false;
+        this.ballInHandBaulk = true; // Restricted to behind baulk line (start of frame and scratches)
+        
+        // Baulk line position (1/5 of table from break end)
+        this.baulkLineX = this.width * 0.2;
+        
         this.init();
     }
+    
+    // ========== PLAYER & TURN MANAGEMENT ==========
+    getCurrentPlayer() {
+        return this.players[this.currentPlayerIndex];
+    }
+    
+    getOpponent() {
+        return this.players[1 - this.currentPlayerIndex];
+    }
+    
+    
+    switchTurn() {
+        const previousPlayer = this.getCurrentPlayer().name;
+        this.currentPlayerIndex = 1 - this.currentPlayerIndex;
+        const newPlayer = this.getCurrentPlayer().name;
+        
+        console.log('========================================');
+        console.log('>>> TURN SWITCHED <<<');
+        console.log('From:', previousPlayer, 'To:', newPlayer);
+        console.log('========================================');
+        
+        this.updateTurnDisplay();
+    }
+    
+    updateTurnDisplay() {
+        const player = this.getCurrentPlayer();
+        let turnText = player.name + ' - Turn';
+        
+        if (player.color) {
+            turnText += ' (' + player.color.toUpperCase() + 'S)';
+        } else if (this.tableOpen) {
+            turnText += ' (Table Open)';
+        }
+        
+        if (player.onBlack) {
+            turnText += ' - ON THE BLACK!';
+        }
+        
+        if (this.ballInHand) {
+            turnText += ' - BALL IN HAND';
+        }
+        
+        this.statusEl.textContent = turnText;
+        this.statusEl.style.background = player.color === 'red' ? 'rgba(220, 38, 38, 0.9)' : 
+                                         player.color === 'yellow' ? 'rgba(234, 179, 8, 0.9)' : 
+                                         'rgba(59, 130, 246, 0.9)';
+    }
+    
+    // ========== SHOT TRACKING ==========
+    startShot() {
+        console.log('========================================');
+        console.log('>>> SHOT STARTED <<<');
+        console.log('Player:', this.getCurrentPlayer().name);
+        console.log('========================================');
+        
+        this.shotInProgress = true;
+        this.firstBallHit = null;
+        this.ballsPottedThisShot = [];
+        this.cueBallPotted = false;
+        this.cushionHitAfterContact = false;
+        this.anyBallHitCushion = false;
+        this.foulCommitted = false;
+        this.foulReason = '';
+        
+        // Reset break tracking
+        this.ballsCrossedCenter = new Set();
+    }
+    
+    recordFirstBallHit(ball) {
+        if (!this.firstBallHit && ball.num !== 0) {
+            this.firstBallHit = ball;
+            console.log('First ball hit:', ball.color, ball.num);
+        }
+    }
+    
+    
+    recordCushionHit() {
+        if (this.firstBallHit) {
+            this.cushionHitAfterContact = true;
+        }
+        this.anyBallHitCushion = true;
+    }
+    
+    recordBallPotted(ball) {
+        this.ballsPottedThisShot.push(ball);
+        
+        if (ball.num === 0) {
+            this.cueBallPotted = true;
+            console.log('?? Cue ball potted (scratch)!');
+        } else {
+            console.log('?? Ball potted this shot:', ball.color, ball.num);
+        }
+    }
+    
+    // ========== RULE ENFORCEMENT ==========
+    evaluateShot() {
+        const player = this.getCurrentPlayer();
+        console.log('========================================');
+        console.log('=== EVALUATING SHOT ===');
+        console.log('Current Player:', player.name);
+        console.log('Phase:', this.gamePhase);
+        console.log('First ball hit:', this.firstBallHit ? this.firstBallHit.color + ' ' + this.firstBallHit.num : 'NONE');
+        console.log('Balls potted this shot:', this.ballsPottedThisShot.length);
+        this.ballsPottedThisShot.forEach(b => console.log('  - ' + b.color + ' ' + b.num));
+        console.log('Cue ball potted:', this.cueBallPotted);
+        console.log('Cushion hit after contact:', this.cushionHitAfterContact);
+        console.log('========================================');
+        
+        // Check for cue ball potted (scratch) - always a foul with baulk restriction
+        if (this.cueBallPotted) {
+            this.commitScratchFoul('Cue ball potted (scratch)');
+            return;
+        }
+        
+        // Break shot evaluation
+        if (this.gamePhase === 'break') {
+            this.evaluateBreakShot();
+            return;
+        }
+        
+        // Check if no ball was hit
+        if (!this.firstBallHit) {
+            this.commitFoul('Failed to hit any ball');
+            return;
+        }
+        
+        // Check if black was hit first illegally
+        if (this.firstBallHit.num === 8) {
+            // Can only hit black first if on the black
+            if (!player.onBlack) {
+                this.commitFoul('Hit black ball first - not allowed until on the black');
+                return;
+            }
+        }
+        
+        // Check if wrong ball hit first (when colors assigned)
+        if (!this.tableOpen && player.color) {
+            if (this.firstBallHit.color !== player.color && this.firstBallHit.num !== 8) {
+                // Exception: if player is on the black (already checked above)
+                this.commitFoul('Hit opponent ball first (' + this.firstBallHit.color + ')');
+                return;
+            }
+        }
+        
+        // Check for legal shot (pot or cushion)
+        const pottedNonCue = this.ballsPottedThisShot.filter(b => b.num !== 0);
+        if (pottedNonCue.length === 0 && !this.cushionHitAfterContact) {
+            this.commitFoul('No pot and no cushion hit after contact');
+            return;
+        }
+        
+        // Process potted balls and determine if turn continues
+        this.processPottedBalls();
+    }
+    
+    evaluateBreakShot() {
+        const ballsPotted = this.ballsPottedThisShot.filter(b => b.num !== 0);
+        
+        // Check for cue ball potted on break - scratch with baulk restriction
+        if (this.cueBallPotted) {
+            this.gamePhase = 'open';
+            this.tableOpen = true;
+            this.commitScratchFoul('Cue ball potted on break');
+            return;
+        }
+        
+        // Check if black was potted on break
+        const blackPotted = ballsPotted.find(b => b.num === 8);
+        if (blackPotted) {
+            // Re-rack and re-break (simplification: just reset)
+            this.statusEl.textContent = 'Black potted on break! Re-racking...';
+            setTimeout(() => this.resetRack(), 2000);
+            return;
+        }
+        
+        // Calculate break points (EPA rules):
+        // - 1 point per ball potted
+        // - 1 point per ball that crossed the center line at ANY point (even if it rolled back)
+        // - Need 3 points for a legal break
+        
+        let breakPoints = 0;
+        
+        // Points for potted balls
+        breakPoints += ballsPotted.length;
+        console.log('Break points from potted balls:', ballsPotted.length);
+        
+        // Points for balls that crossed center line (tracked during the shot)
+        // This counts balls that crossed at ANY point, even if they rolled back
+        const ballsCrossedCount = this.ballsCrossedCenter.size;
+        breakPoints += ballsCrossedCount;
+        console.log('Break points from balls that crossed center:', ballsCrossedCount);
+        console.log('Balls that crossed:', Array.from(this.ballsCrossedCenter));
+        console.log('Total break points:', breakPoints);
+        
+        // Need at least 3 points for a legal break
+        const REQUIRED_BREAK_POINTS = 3;
+        
+        if (breakPoints >= REQUIRED_BREAK_POINTS) {
+            this.legalBreak = true;
+            console.log('Legal break -', breakPoints, 'points achieved');
+            
+            // If balls were potted, assign colors
+            if (ballsPotted.length > 0) {
+                const firstPotted = ballsPotted[0];
+                this.assignColors(firstPotted.color);
+                this.gamePhase = 'playing';
+                this.tableOpen = false;
+                // Player continues (potted a ball on break)
+                this.updateTurnDisplay();
+                return;
+            }
+            
+            // Legal break but no pot - table open, switch turn
+            this.gamePhase = 'open';
+            this.tableOpen = true;
+            this.switchTurn();
+            return;
+        }
+        
+        // Illegal break - not enough points
+        this.commitFoul('Illegal break - only ' + breakPoints + ' points (need ' + REQUIRED_BREAK_POINTS + ')');
+        this.gamePhase = 'open';
+        this.tableOpen = true;
+        // Note: switchTurn already called in commitFoul
+    }
+    
+    processPottedBalls() {
+        const player = this.getCurrentPlayer();
+        const pottedNonCue = this.ballsPottedThisShot.filter(b => b.num !== 0);
+        
+        console.log('Processing potted balls for:', player.name);
+        console.log('Potted non-cue balls:', pottedNonCue.length);
+        
+        // Table is open - first pot determines colors
+        if (this.tableOpen && pottedNonCue.length > 0) {
+            const firstPotted = pottedNonCue.find(b => b.num !== 8);
+            if (firstPotted) {
+                this.assignColors(firstPotted.color);
+                this.gamePhase = 'playing';
+                this.tableOpen = false;
+            }
+        }
+        
+        let continueTurn = false;
+        let pottedOwnBall = false;
+        let pottedOpponentBall = false;
+        let pottedBlack = false;
+        
+        pottedNonCue.forEach(ball => {
+            if (ball.num === 8) {
+                pottedBlack = true;
+            } else if (ball.color === player.color || this.tableOpen) {
+                pottedOwnBall = true;
+                player.ballsPotted++;
+            } else {
+                pottedOpponentBall = true;
+                this.getOpponent().ballsPotted++;
+            }
+        });
+        
+        // Check for win/loss on black
+        if (pottedBlack) {
+            this.handleBlackPotted(player);
+            return;
+        }
+        
+        // Potting opponent's ball is a foul
+        if (pottedOpponentBall && !this.tableOpen) {
+            this.commitFoul('Potted opponent ball');
+            return; // commitFoul already switches turn
+        }
+        
+        // Check if player is now on the black
+        this.checkIfOnBlack();
+        
+        // Continue turn if potted own ball legally
+        if (pottedOwnBall && !this.foulCommitted) {
+            continueTurn = true;
+            console.log('CONTINUE TURN - ' + player.name + ' potted own ball');
+            this.updateTurnDisplay();
+        }
+        
+        if (!continueTurn) {
+            console.log('SWITCHING TURN - no own ball potted');
+            this.switchTurn();
+        }
+    }
+    
+    assignColors(color) {
+        const player = this.getCurrentPlayer();
+        const opponent = this.getOpponent();
+        
+        player.color = color;
+        opponent.color = color === 'red' ? 'yellow' : 'red';
+        
+        console.log('?? Colors assigned:', player.name, '=', player.color, '|', opponent.name, '=', opponent.color);
+        
+        this.showColorAssignment();
+    }
+    
+    showColorAssignment() {
+        const player = this.getCurrentPlayer();
+        const opponent = this.getOpponent();
+        
+        const msg = document.createElement('div');
+        msg.innerHTML = `
+            <div style=""text-align:center;font-size:20px;font-weight:bold;margin-bottom:10px;"">COLORS ASSIGNED!</div>
+            <div style=""display:flex;justify-content:space-around;"">
+                <div style=""text-align:center;"">
+                    <div style=""font-size:16px;"">${player.name}</div>
+                    <div style=""width:40px;height:40px;border-radius:50%;margin:10px auto;background:${player.color === 'red' ? '#DC2626' : '#EAB308'};""></div>
+                    <div style=""font-size:14px;text-transform:uppercase;"">${player.color}s</div>
+                </div>
+                <div style=""text-align:center;"">
+                    <div style=""font-size:16px;"">${opponent.name}</div>
+                    <div style=""width:40px;height:40px;border-radius:50%;margin:10px auto;background:${opponent.color === 'red' ? '#DC2626' : '#EAB308'};""></div>
+                    <div style=""font-size:14px;text-transform:uppercase;"">${opponent.color}s</div>
+                </div>
+            </div>
+        `;
+        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;box-shadow:0 0 30px rgba(0,0,0,0.8);';
+        document.body.appendChild(msg);
+        
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transition = 'opacity 0.5s';
+            setTimeout(() => msg.remove(), 500);
+        }, 2500);
+    }
+    
+    checkIfOnBlack() {
+        this.players.forEach(player => {
+            if (player.color) {
+                const remainingBalls = this.balls.filter(b => 
+                    !b.potted && b.color === player.color
+                ).length;
+                
+                player.onBlack = remainingBalls === 0;
+                
+                if (player.onBlack) {
+                    console.log('?? ' + player.name + ' is now ON THE BLACK!');
+                }
+            }
+        });
+    }
+    
+    handleBlackPotted(player) {
+        if (!player.onBlack) {
+            // Potted black too early - lose!
+            this.gameOver = true;
+            this.winner = this.getOpponent();
+            this.showGameOver(this.winner.name + ' WINS!', player.name + ' potted the black too early!');
+        } else if (this.foulCommitted || this.cueBallPotted) {
+            // Potted black on a foul - lose!
+            this.gameOver = true;
+            this.winner = this.getOpponent();
+            this.showGameOver(this.winner.name + ' WINS!', player.name + ' fouled while potting the black!');
+        } else {
+            // Legal black pot - win!
+            this.gameOver = true;
+            this.winner = player;
+            this.showGameOver(player.name + ' WINS!', 'Congratulations!');
+        }
+    }
+    
+    showGameOver(title, subtitle) {
+        this.gamePhase = 'finished';
+        
+        const overlay = document.createElement('div');
+        overlay.innerHTML = `
+            <div style=""text-align:center;"">
+                <div style=""font-size:48px;font-weight:bold;margin-bottom:20px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);"">${title}</div>
+                <div style=""font-size:24px;margin-bottom:30px;opacity:0.9;"">${subtitle}</div>
+                <button onclick=""game.newGame()"" style=""padding:15px 40px;font-size:20px;background:#10B981;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold;"">New Game</button>
+            </div>
+        `;
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;color:white;';
+        overlay.id = 'gameOverOverlay';
+        document.body.appendChild(overlay);
+    }
+    
+    commitFoul(reason) {
+        this.foulCommitted = true;
+        this.foulReason = reason;
+        this.ballInHand = true;
+        this.ballInHandBaulk = false; // Regular fouls allow placement anywhere
+        
+        console.log('FOUL:', reason);
+        
+        this.showFoulMessage(reason, false);
+        this.switchTurn();
+    }
+    
+    commitScratchFoul(reason) {
+        this.foulCommitted = true;
+        this.foulReason = reason;
+        
+        console.log('SCRATCH FOUL:', reason);
+        
+        // Handle cue ball respawn with baulk restriction
+        this.handleCueBallPotted();
+        
+        this.showFoulMessage(reason, true);
+        this.switchTurn();
+    }
+    
+    showFoulMessage(reason, isBaulkRestricted = false) {
+        const msg = document.createElement('div');
+        const placementText = isBaulkRestricted ? 'ball in hand (behind baulk)' : 'ball in hand anywhere';
+        msg.innerHTML = `
+            <div style=""font-size:32px;font-weight:bold;color:#EF4444;"">FOUL!</div>
+            <div style=""font-size:18px;margin-top:10px;"">${reason}</div>
+            <div style=""font-size:16px;margin-top:15px;color:#10B981;"">${this.getCurrentPlayer().name} gets ${placementText}</div>
+        `;
+        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(239,68,68,0.5);';
+        document.body.appendChild(msg);
+        
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transition = 'opacity 0.5s';
+            setTimeout(() => msg.remove(), 500);
+        }, 2000);
+    }
+    
+    handleCueBallPotted() {
+        // Respawn cue ball for ball in hand behind baulk line
+        this.cueBall.potted = false;
+        this.cueBall.x = this.baulkLineX / 2; // Place in middle of baulk area
+        this.cueBall.y = this.height / 2;
+        this.cueBall.vx = 0;
+        this.cueBall.vy = 0;
+        this.ballInHand = true;
+        this.ballInHandBaulk = true; // Restricted to behind baulk line when potted
+    }
+    
+    placeCueBall(x, y) {
+        if (!this.ballInHand) return false;
+        
+        // Check baulk line restriction
+        if (this.ballInHandBaulk && x > this.baulkLineX) {
+            console.log('Cannot place cue ball here - must be behind baulk line');
+            return false;
+        }
+        
+        // Check if position is valid (not overlapping other balls)
+        const minDist = this.cueBall.r * 2 + 2;
+        for (const ball of this.balls) {
+            if (ball === this.cueBall || ball.potted) continue;
+            const dx = x - ball.x;
+            const dy = y - ball.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+                console.log('Cannot place cue ball here - too close to another ball');
+                return false;
+            }
+        }
+        
+        // Check bounds
+        const margin = this.cushionMargin + this.cueBall.r;
+        if (x < margin || x > this.width - margin || y < margin || y > this.height - margin) {
+            console.log('Cannot place cue ball outside play area');
+            return false;
+        }
+        
+        this.cueBall.x = x;
+        this.cueBall.y = y;
+        this.ballInHand = false;
+        this.ballInHandBaulk = false;
+        
+        console.log('Cue ball placed at:', x, y);
+        this.updateTurnDisplay();
+        return true;
+    }
+    
+    newGame() {
+        // Remove game over overlay
+        const overlay = document.getElementById('gameOverOverlay');
+        if (overlay) overlay.remove();
+        
+        // Reset players
+        this.players = [
+            { name: 'Player 1', color: null, ballsPotted: 0, onBlack: false },
+            { name: 'Player 2', color: null, ballsPotted: 0, onBlack: false }
+        ];
+        this.currentPlayerIndex = 0;
+        
+        // Reset game state
+        this.gamePhase = 'break';
+        this.isBreakShot = true;
+        this.tableOpen = true;
+        this.gameOver = false;
+        this.winner = null;
+        
+        // Reset rack (this will set ballInHand and ballInHandBaulk)
+        this.resetRack();
+        this.updateTurnDisplay();
+    }
+    
     
     init() {
         this.repositionPockets();
@@ -122,12 +657,12 @@ class PoolGame {
             PoolAudio.init();
             PoolAudio.setEnabled(true);
             PoolAudio.setVolume(0.7); // Slightly louder default
-            console.log('?? Audio system initialized');
+            console.log('Audio system initialized');
             
             // Add audio status indicator
             this.createAudioStatusIndicator();
         } else {
-            console.warn('?? PoolAudio module not loaded');
+            console.warn('PoolAudio module not loaded');
         }
         
         // Setup input
@@ -153,6 +688,9 @@ class PoolGame {
         } else {
             console.warn('PoolDevSettings not available');
         }
+        
+        // Show initial turn display
+        this.updateTurnDisplay();
         
         // Start animation
         this.animate();
@@ -300,7 +838,11 @@ class PoolGame {
             });
         });
         
-        this.statusEl.textContent = 'UK 8-Ball | Press F2 for Dev Settings | ' + this.balls.length + ' balls ready!';
+        // Ball in hand behind baulk line at start of frame
+        this.ballInHand = true;
+        this.ballInHandBaulk = true;
+        
+        this.statusEl.textContent = 'Place cue ball behind baulk line to break';
         this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
     }
     
@@ -314,6 +856,11 @@ class PoolGame {
     }
     
     updateBallReturnTray(ball) {
+        // Don't add white ball (cue ball) to the return tray
+        if (ball.num === 0) {
+            return;
+        }
+        
         // Track potted ball
         this.pottedBalls.push({
             num: ball.num,
@@ -385,7 +932,7 @@ class PoolGame {
         // Clear tray
         const tray = document.getElementById('ballReturnTray');
         if (tray) {
-            tray.innerHTML = '<div class="ball-return-empty">No balls potted yet</div>';
+            tray.innerHTML = '<div class=""ball-return-empty"">No balls potted yet</div>';
         }
         
         // Reset stats
@@ -402,11 +949,21 @@ class PoolGame {
         // Physics
         let moving = false;
         let activeBalls = 0;
+        const centerX = this.width / 2;
         
         this.balls.forEach(ball => {
             if (ball.potted) return;
             
             activeBalls++;
+            
+            // Track balls crossing center line during break (for 3-point rule)
+            // Once a ball crosses, it counts even if it rolls back
+            if (this.gamePhase === 'break' && this.shotInProgress && ball.num !== 0) {
+                if (ball.x < centerX && !this.ballsCrossedCenter.has(ball.num)) {
+                    this.ballsCrossedCenter.add(ball.num);
+                    console.log('Ball', ball.num, 'crossed center line! Total crossed:', this.ballsCrossedCenter.size);
+                }
+            }
             
             // Store position history for trail effect (if ball has spin)
             if ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05)) {
@@ -422,7 +979,11 @@ class PoolGame {
                 moving = true;
             }
             
-            PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin);
+            // Track cushion hits for rule enforcement
+            const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin);
+            if (cushionHit && this.shotInProgress) {
+                this.recordCushionHit();
+            }
             
             // Check pockets
             for (let i = 0; i < this.pockets.length; i++) {
@@ -430,6 +991,7 @@ class PoolGame {
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                
                 
                 const pocketRadius = p.r || 29.5;
                 const captureThreshold = ball.r * this.captureThresholdPercent;
@@ -451,17 +1013,22 @@ class PoolGame {
                         // Update ball return tray
                         this.updateBallReturnTray(ball);
                         
+                        // Track for rule enforcement
+                        this.recordBallPotted(ball);
+                        
                         console.log('Ball potted:', ball.color, ball.num);
-                        this.statusEl.textContent = 'Ball ' + ball.num + ' potted!';
-                        this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
                     }
                     break;
                 }
             }
         });
         
-        // Handle collisions
-        PoolPhysics.processCollisions(this.balls);
+        
+        // Handle collisions (with first ball hit tracking)
+        const collision = PoolPhysics.processCollisions(this.balls, this);
+        if (collision && collision.firstBallHit && this.shotInProgress && !this.firstBallHit) {
+            this.recordFirstBallHit(collision.firstBallHit);
+        }
         
         // Draw trails first (under balls)
         this.balls.forEach(ball => {
@@ -531,14 +1098,129 @@ class PoolGame {
             PoolShotControl.drawModeFeedback(this.ctx);
         }
         
-        // Update status
-        if (moving) {
-            this.statusEl.textContent = 'Balls rolling... (' + activeBalls + ' on table)';
-            this.statusEl.style.background = 'rgba(59, 130, 246, 0.9)';
-        } else if (!moving && activeBalls > 0 && !this.isShooting) {
-            this.statusEl.textContent = 'Ready! ' + activeBalls + ' balls. Press F2 for settings.';
-            this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
+        
+        // Draw ball-in-hand indicator and baulk line
+        if (this.ballInHand && this.cueBall && !this.cueBall.potted) {
+            this.ctx.save();
+            
+            // Draw baulk line and zone if restricted
+            if (this.ballInHandBaulk) {
+                // Draw baulk line
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([10, 5]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.baulkLineX, this.cushionMargin);
+                this.ctx.lineTo(this.baulkLineX, this.height - this.cushionMargin);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                
+                // Shade the valid baulk area
+                this.ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+                this.ctx.fillRect(
+                    this.cushionMargin, 
+                    this.cushionMargin, 
+                    this.baulkLineX - this.cushionMargin, 
+                    this.height - this.cushionMargin * 2
+                );
+                
+                // Draw D (semicircle) at baulk line - traditional UK pool
+                const dRadius = (this.height - this.cushionMargin * 2) * 0.29;
+                const dCenterY = this.height / 2;
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(this.baulkLineX, dCenterY, dRadius, Math.PI * 0.5, Math.PI * 1.5);
+                this.ctx.stroke();
+                
+                // Label
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                this.ctx.font = 'bold 12px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('BAULK', this.baulkLineX / 2, this.cushionMargin + 20);
+            }
+            
+            // Draw pulsing circle around cue ball
+            const pulseSize = Math.sin(Date.now() / 200) * 5 + 15;
+            this.ctx.strokeStyle = '#10B981';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([8, 4]);
+            this.ctx.beginPath();
+            this.ctx.arc(this.cueBall.x, this.cueBall.y, this.cueBall.r + pulseSize, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Check if current position is valid
+            let isValidPosition = true;
+            let invalidReason = '';
+            
+            // Check baulk restriction
+            if (this.ballInHandBaulk && this.cueBall.x > this.baulkLineX) {
+                isValidPosition = false;
+                invalidReason = 'BEHIND BAULK LINE';
+            }
+            
+            // Check ball overlap
+            const minDist = this.cueBall.r * 2 + 2;
+            for (const ball of this.balls) {
+                if (ball === this.cueBall || ball.potted) continue;
+                const dx = this.cueBall.x - ball.x;
+                const dy = this.cueBall.y - ball.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    isValidPosition = false;
+                    invalidReason = 'TOO CLOSE TO BALL';
+                    break;
+                }
+            }
+            
+            // Check bounds
+            const margin = this.cushionMargin + this.cueBall.r;
+            if (this.cueBall.x < margin || this.cueBall.x > this.width - margin || 
+                this.cueBall.y < margin || this.cueBall.y > this.height - margin) {
+                isValidPosition = false;
+                invalidReason = 'OUT OF BOUNDS';
+            }
+            
+            // Draw indicator text
+            this.ctx.fillStyle = isValidPosition ? '#10B981' : '#EF4444';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(
+                isValidPosition ? 'DRAG TO PLACE' : invalidReason, 
+                this.cueBall.x, 
+                this.cueBall.y - this.cueBall.r - 25
+            );
+            
+            // Draw inner indicator
+            if (!isValidPosition) {
+                this.ctx.strokeStyle = '#EF4444';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(this.cueBall.x, this.cueBall.y, this.cueBall.r + 5, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.restore();
         }
+        
+        // Evaluate shot when balls stop moving after a shot was taken
+        if (!moving && this.shotInProgress && !this.gameOver) {
+            this.shotInProgress = false;
+            this.evaluateShot();
+        }
+        
+        // Update status based on game state
+        if (this.gameOver) {
+            // Game over - don't update status
+        } else if (moving && this.shotInProgress) {
+            const player = this.getCurrentPlayer();
+            this.statusEl.textContent = 'Balls rolling... (' + player.name + ')';
+            this.statusEl.style.background = 'rgba(59, 130, 246, 0.9)';
+        } else if (!this.isShooting && !this.ballInHand && !this.shotInProgress) {
+            this.updateTurnDisplay();
+        }
+        
         
         // Continue animation
         requestAnimationFrame(() => this.animate());
