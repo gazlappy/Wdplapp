@@ -64,6 +64,15 @@ const PoolInput = {
                         // CONTACT!
                         const speed = Math.min(game.shotPower, game.maxPower) * 2.5;
                         if (speed > 0.5) {
+                            // ?? PLAY CUE HIT SOUND
+                            const hitPower = speed / game.maxPower;
+                            console.log(`?? Cue hit! Power: ${hitPower.toFixed(2)}, Speed: ${speed.toFixed(1)}`);
+                            if (typeof PoolAudio !== 'undefined') {
+                                PoolAudio.play('cueHit', hitPower);
+                            } else {
+                                console.warn('?? PoolAudio not available for cue hit');
+                            }
+                            
                             game.cueBall.vx = Math.cos(game.aimAngle) * speed;
                             game.cueBall.vy = Math.sin(game.aimAngle) * speed;
                             

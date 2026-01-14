@@ -104,6 +104,19 @@ class PoolGame {
         this.repositionPockets();
         this.resetRack();
         
+        // Initialize audio system with visual feedback
+        if (typeof PoolAudio !== 'undefined') {
+            PoolAudio.init();
+            PoolAudio.setEnabled(true);
+            PoolAudio.setVolume(0.7); // Slightly louder default
+            console.log('?? Audio system initialized');
+            
+            // Add audio status indicator
+            this.createAudioStatusIndicator();
+        } else {
+            console.warn('?? PoolAudio module not loaded');
+        }
+        
         // Setup input
         PoolInput.setupMouseControls(this.canvas, this, this.statusEl);
         PoolInput.setupTouchControls(this.canvas, this, this.statusEl);
@@ -116,7 +129,7 @@ class PoolGame {
             PoolShotControl.setupShotControls(this.canvas, this);
         }
         
-        // Initialize developer settings (F2 to toggle)
+        // Setup developer settings (F2 to toggle)
         if (typeof PoolDevSettings !== 'undefined') {
             try {
                 PoolDevSettings.init(this);
@@ -130,6 +143,80 @@ class PoolGame {
         
         // Start animation
         this.animate();
+    }
+    
+    createAudioStatusIndicator() {
+        const audioBtn = document.createElement('button');
+        audioBtn.id = 'audioTestBtn';
+        audioBtn.innerHTML = '?? <span>Click to Enable Sound</span>';
+        audioBtn.style.cssText = 'position:fixed;top:10px;right:10px;padding:12px 20px;background:rgba(239,68,68,0.9);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:10000;font-size:14px;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+        
+        const updateStatus = () => {
+            if (typeof PoolAudio !== 'undefined') {
+                if (PoolAudio.userInteracted && PoolAudio.context.state === 'running') {
+                    audioBtn.innerHTML = '?? <span>Sound Enabled</span>';
+                    audioBtn.style.background = 'rgba(16, 185, 129, 0.9)';
+                    return true;
+                } else if (PoolAudio.context.state === 'suspended') {
+                    audioBtn.innerHTML = '?? <span>Tap to Enable</span>';
+                    audioBtn.style.background = 'rgba(251, 191, 36, 0.9)';
+                } else {
+                    audioBtn.innerHTML = '?? <span>Click to Enable</span>';
+                    audioBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+                }
+            }
+            return false;
+        };
+        
+        audioBtn.addEventListener('click', async () => {
+            console.log('?? Audio test button clicked');
+            if (typeof PoolAudio !== 'undefined') {
+                try {
+                    if (PoolAudio.context.state === 'suspended') {
+                        await PoolAudio.context.resume();
+                        console.log('   Context resumed from button click');
+                    }
+                    PoolAudio.userInteracted = true;
+                    
+                    console.log('   Playing test sound...');
+                    PoolAudio.play('cueHit', 0.8);
+                    
+                    setTimeout(() => {
+                        if (updateStatus()) {
+                            console.log('? Audio fully working!');
+                            setTimeout(() => {
+                                audioBtn.style.opacity = '0';
+                                setTimeout(() => audioBtn.remove(), 300);
+                            }, 2000);
+                        }
+                    }, 100);
+                } catch (e) {
+                    console.error('? Audio test failed:', e);
+                    audioBtn.innerHTML = '? <span>Audio Error</span>';
+                }
+            }
+        });
+        
+        document.body.appendChild(audioBtn);
+        
+        const statusInterval = setInterval(() => {
+            if (updateStatus()) {
+                setTimeout(() => {
+                    audioBtn.style.opacity = '0';
+                    setTimeout(() => {
+                        audioBtn.remove();
+                        clearInterval(statusInterval);
+                    }, 300);
+                }, 1500);
+            }
+        }, 500);
+        
+        window.addEventListener('audioUnlocked', () => {
+            console.log('?? Audio unlocked event received');
+            updateStatus();
+        });
+        
+        updateStatus();
     }
     
     repositionPockets() {
@@ -255,6 +342,15 @@ class PoolGame {
                         ball.potted = true;
                         ball.vx = 0;
                         ball.vy = 0;
+                        
+                        // ?? PLAY POCKET SOUND
+                        console.log(`?? Ball ${ball.num} potted!`);
+                        if (typeof PoolAudio !== 'undefined') {
+                            PoolAudio.play('pocket', 1.0);
+                        } else {
+                            console.warn('?? PoolAudio not available for pocket sound');
+                        }
+                        
                         console.log('Ball potted:', ball.color, ball.num);
                         this.statusEl.textContent = 'Ball ' + ball.num + ' potted!';
                         this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';

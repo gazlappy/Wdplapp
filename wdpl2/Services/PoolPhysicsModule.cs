@@ -221,14 +221,20 @@ const PoolPhysics = {
         
         // Apply spin effects on cushion bounce - REALISTIC PHYSICS
         if (bounced) {
+            const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            
+            // ?? PLAY CUSHION BOUNCE SOUND
+            console.log(`?? Cushion bounce! Speed: ${impactSpeed.toFixed(2)}`);
+            if (typeof PoolAudio !== 'undefined') {
+                PoolAudio.play('cushionBounce', impactSpeed / 20);
+            } else {
+                console.warn('?? PoolAudio not available for cushion bounce');
+            }
+            
             // ===== RAIL GRAB PHYSICS =====
             // Reference: Rail Grab - Speed and Spin - Harder shots or more spin create non-linear rebounds
             // The cushion response changes based on impact speed and spin
             
-            const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-            
-            // Rail grab factor: higher speed = more grip on cushion
-            // Typical threshold: slow shots (under 5) vs fast shots (over 15)
             const speedFactor = Math.min(impactSpeed / 20, 1.0); // 0 to 1 scale
             
             // Cushion compression: harder hits compress cushion more
@@ -380,6 +386,15 @@ const PoolPhysics = {
                 // Store pre-collision info
                 const b1Speed = Math.sqrt(b1.vx * b1.vx + b1.vy * b1.vy);
                 const b1Angle = Math.atan2(b1.vy, b1.vx);
+                
+                // ?? PLAY BALL COLLISION SOUND
+                const collisionVelocity = Math.abs(dvn) / 10;
+                console.log(`?? Ball collision detected! Velocity: ${collisionVelocity.toFixed(2)}`);
+                if (typeof PoolAudio !== 'undefined') {
+                    PoolAudio.play('ballCollision', collisionVelocity);
+                } else {
+                    console.warn('?? PoolAudio not available for collision');
+                }
                 
                 // Check if b2 is stationary (90-degree rule applies)
                 const b2Speed = Math.sqrt(b2.vx * b2.vx + b2.vy * b2.vy);

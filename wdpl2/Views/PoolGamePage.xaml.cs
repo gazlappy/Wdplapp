@@ -2,6 +2,14 @@ using Microsoft.Maui.Controls;
 using System.IO;
 using System.Text;
 
+#if ANDROID
+using Android.Webkit;
+#endif
+
+#if IOS || MACCATALYST
+using WebKit;
+#endif
+
 namespace Wdpl2.Views;
 
 public partial class PoolGamePage : ContentPage
@@ -79,6 +87,10 @@ public partial class PoolGamePage : ContentPage
     </div>
     
     <script>
+    {Services.PoolAudioModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
     {Services.PoolPhysicsModule.GenerateJavaScript()}
     </script>
     
@@ -116,9 +128,61 @@ public partial class PoolGamePage : ContentPage
     public PoolGamePage()
     {
         InitializeComponent();
+        
+        // Configure WebView for audio support
+        ConfigureWebView();
+        
         LoadGame();
         
         ResetBtn.Clicked += (s, e) => LoadGame();
+    }
+    
+    private void ConfigureWebView()
+    {
+        // Enable JavaScript (required for audio)
+        // This is already enabled by default in MAUI, but we'll be explicit
+        
+#if ANDROID
+        // Android-specific WebView configuration
+        Microsoft.Maui.Handlers.WebViewHandler.Mapper.AppendToMapping("AudioConfig", (handler, view) =>
+        {
+            if (handler.PlatformView is Android.Webkit.WebView webView)
+            {
+                var settings = webView.Settings;
+                settings.JavaScriptEnabled = true;
+                settings.MediaPlaybackRequiresUserGesture = false; // Allow autoplay
+                settings.DomStorageEnabled = true;
+                settings.DatabaseEnabled = true;
+                
+                // Set WebChromeClient to handle permissions
+                webView.SetWebChromeClient(new Android.Webkit.WebChromeClient());
+                
+                System.Diagnostics.Debug.WriteLine("? Android WebView configured for audio");
+            }
+        });
+#endif
+
+#if IOS || MACCATALYST
+        // iOS-specific WebView configuration
+        Microsoft.Maui.Handlers.WebViewHandler.Mapper.AppendToMapping("AudioConfig", (handler, view) =>
+        {
+            if (handler.PlatformView is WebKit.WKWebView webView)
+            {
+                webView.Configuration.AllowsInlineMediaPlayback = true;
+                webView.Configuration.MediaTypesRequiringUserActionForPlayback = WebKit.WKAudiovisualMediaTypes.None;
+                
+                System.Diagnostics.Debug.WriteLine("? iOS WebView configured for audio");
+            }
+        });
+#endif
+
+#if WINDOWS
+        // Windows-specific WebView configuration  
+        Microsoft.Maui.Handlers.WebViewHandler.Mapper.AppendToMapping("AudioConfig", (handler, view) =>
+        {
+            System.Diagnostics.Debug.WriteLine("? Windows WebView configured");
+        });
+#endif
     }
 
     private void LoadGame()

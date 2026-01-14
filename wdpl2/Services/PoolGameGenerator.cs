@@ -536,6 +536,7 @@ namespace Wdpl2.Services
             var sb = new StringBuilder();
             
             // Add all module JavaScript
+            sb.AppendLine(PoolAudioModule.GenerateJavaScript());
             sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
             sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
             sb.AppendLine(PoolPocketModule.GenerateJavaScript());

@@ -16,89 +16,396 @@ public static class PoolRenderingModule
 
 const PoolRendering = {
     /**
-     * Draw the pool table with realistic felt texture
+     * Draw the pool table with realistic felt texture and gradient lighting
+     * PHASE 3: Felt wear patterns + enhanced atmospheric lighting
      */
     drawTable(ctx, width, height, cushionMargin) {
-        // Draw felt with subtle texture
-        ctx.fillStyle = '#0d5c2b';
+        // ===== TABLE FRAME (WOODEN APRON) =====
+        // Visible wooden border around the entire table
+        const frameWidth = 12;
+        const frameGradient = ctx.createLinearGradient(0, 0, frameWidth, 0);
+        frameGradient.addColorStop(0, '#4a3520');
+        frameGradient.addColorStop(0.5, '#5c4530');
+        frameGradient.addColorStop(1, '#3a2817');
+        
+        ctx.fillStyle = frameGradient;
         ctx.fillRect(0, 0, width, height);
         
-        // Add subtle felt grain pattern
+        // Frame inner shadow
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(frameWidth / 2, frameWidth / 2, width - frameWidth, height - frameWidth);
+        
+        // ===== REALISTIC FELT WITH RADIAL GRADIENT LIGHTING =====
+        // Simulates overhead pool table lamp - light center, darker edges
+        const feltInset = frameWidth;
+        const feltWidth = width - (feltInset * 2);
+        const feltHeight = height - (feltInset * 2);
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = Math.max(feltWidth, feltHeight) * 0.7;
+        
+        const feltGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+        feltGradient.addColorStop(0, '#1B8B3D');    // Lighter center (tournament green)
+        feltGradient.addColorStop(0.4, '#178535');   // Medium
+        feltGradient.addColorStop(0.7, '#137A2E');   // Darker
+        feltGradient.addColorStop(1, '#0F6426');     // Darkest edges
+        
+        ctx.fillStyle = feltGradient;
+        ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
+        
+        // ===== PHASE 3: FELT WEAR PATTERNS =====
+        // Subtle wear in high-traffic areas (break box, rack area)
+        this.drawFeltWear(ctx, width, height, feltInset);
+        
+        // ===== ENHANCED FELT TEXTURE (CLOTH WEAVE) =====
         ctx.save();
-        ctx.globalAlpha = 0.03;
-        for (let i = 0; i < 50; i++) {
-            ctx.strokeStyle = i % 2 === 0 ? '#0a4a23' : '#10642f';
+        ctx.globalAlpha = 0.05;
+        // Vertical threads
+        for (let i = 0; i < 70; i++) {
+            const x = feltInset + (Math.random() * feltWidth);
+            ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
             ctx.lineWidth = 0.5;
             ctx.beginPath();
-            ctx.moveTo(Math.random() * width, 0);
-            ctx.lineTo(Math.random() * width, height);
+            ctx.moveTo(x, feltInset);
+            ctx.lineTo(x + (Math.random() - 0.5) * 10, feltInset + feltHeight);
+            ctx.stroke();
+        }
+        // Horizontal threads
+        for (let i = 0; i < 50; i++) {
+            const y = feltInset + (Math.random() * feltHeight);
+            ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(feltInset, y);
+            ctx.lineTo(feltInset + feltWidth, y + (Math.random() - 0.5) * 10);
             ctx.stroke();
         }
         ctx.restore();
         
+        // ===== 3D BEVELED WOODEN RAILS WITH ENHANCED GRAIN =====
+        const cushionWidth = cushionMargin;
+        
+        // RAIL TOP EDGE (lightest - wood finish highlight)
+        ctx.strokeStyle = '#C4A571';  // Light oak highlight
+        ctx.lineWidth = cushionWidth * 0.25;
+        ctx.strokeRect(
+            cushionWidth * 0.125, 
+            cushionWidth * 0.125, 
+            width - cushionWidth * 0.25, 
+            height - cushionWidth * 0.25
+        );
+        
+        // ENHANCED WOOD GRAIN TEXTURE
+        this.drawWoodGrainRails(ctx, width, height, cushionWidth);
+        
+        // RAIL MAIN BODY (medium - wood grain)
+        const woodGradient = ctx.createLinearGradient(0, 0, cushionWidth, 0);
+        woodGradient.addColorStop(0, '#8B6F47');     // Medium brown
+        woodGradient.addColorStop(0.3, '#A0826D');   // Lighter
+        woodGradient.addColorStop(0.7, '#704E2E');   // Darker
+        woodGradient.addColorStop(1, '#5C3D2E');     // Darkest
+        
+        ctx.strokeStyle = woodGradient;
+        ctx.lineWidth = cushionWidth * 0.6;
+        ctx.strokeRect(
+            cushionWidth * 0.3, 
+            cushionWidth * 0.3, 
+            width - cushionWidth * 0.6, 
+            height - cushionWidth * 0.6
+        );
+        
+        // RAIL BOTTOM EDGE (darkest - shadow)
+        ctx.strokeStyle = '#3D2817';  // Deep brown shadow
+        ctx.lineWidth = cushionWidth * 0.15;
+        ctx.strokeRect(
+            cushionWidth * 0.925, 
+            cushionWidth * 0.925, 
+            width - cushionWidth * 1.85, 
+            height - cushionWidth * 1.85
+        );
+        
+        // GREEN RUBBER CUSHION STRIP (the actual playing surface edge)
+        ctx.strokeStyle = '#0F6426';  // Dark green rubber
+        ctx.lineWidth = 4;
+        ctx.strokeRect(
+            cushionWidth - 2, 
+            cushionWidth - 2, 
+            width - cushionWidth * 2 + 4, 
+            height - cushionWidth * 2 + 4
+        );
+        
+        // Rubber cushion highlight (shiny rubber)
+        ctx.strokeStyle = 'rgba(50, 150, 70, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+            cushionWidth - 1, 
+            cushionWidth - 1, 
+            width - cushionWidth * 2 + 2, 
+            height - cushionWidth * 2 + 2
+        );
+        
+        // Inner cushion shadow (depth)
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(
+            cushionWidth + 1, 
+            cushionWidth + 1, 
+            width - cushionWidth * 2 - 2, 
+            height - cushionWidth * 2 - 2
+        );
+        
+        // ===== DIAMOND SIGHT MARKERS =====
+        // These are the aiming diamonds on professional tables
+        this.drawDiamondSights(ctx, width, height, cushionMargin);
+        
+        // ===== TABLE MARKINGS =====
         // Center line with fade effect
         const lineGrad = ctx.createLinearGradient(0, 0, 0, height);
         lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        lineGrad.addColorStop(0.1, 'rgba(255, 255, 255, 0.15)');
-        lineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
-        lineGrad.addColorStop(0.9, 'rgba(255, 255, 255, 0.15)');
+        lineGrad.addColorStop(0.1, 'rgba(255, 255, 255, 0.12)');
+        lineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
+        lineGrad.addColorStop(0.9, 'rgba(255, 255, 255, 0.12)');
         lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 3;
-        ctx.setLineDash([15, 10]);
-        ctx.beginPath();
-        ctx.moveTo(width / 2, 0);
-        ctx.lineTo(width / 2, height);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Break line (head string) at 1/4 from left
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.lineWidth = 2;
-        ctx.setLineDash([8, 8]);
+        ctx.setLineDash([12, 8]);
         ctx.beginPath();
-        ctx.moveTo(width * 0.25, cushionMargin);
-        ctx.lineTo(width * 0.25, height - cushionMargin);
+        ctx.moveTo(width / 2, cushionMargin);
+        ctx.lineTo(width / 2, height - cushionMargin);
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Cushions with 3D effect - properly sized
-        const cushionWidth = cushionMargin;
-        const cushionGrad = ctx.createLinearGradient(0, 0, cushionWidth, 0);
-        cushionGrad.addColorStop(0, '#5c3317');
-        cushionGrad.addColorStop(0.3, '#8B4513');
-        cushionGrad.addColorStop(0.7, '#A0522D');
-        cushionGrad.addColorStop(1, '#6d3e1f');
+        // Head string (break line) at 1/4
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(width * 0.25, cushionMargin + 5);
+        ctx.lineTo(width * 0.25, height - cushionMargin - 5);
+        ctx.stroke();
+        ctx.setLineDash([]);
         
-        ctx.strokeStyle = cushionGrad;
-        ctx.lineWidth = cushionWidth;
-        ctx.strokeRect(
-            cushionWidth / 2, 
-            cushionWidth / 2, 
-            width - cushionWidth, 
-            height - cushionWidth
-        );
+        // Foot spot (where rack goes)
+        const footSpotX = width * 0.75;
+        const footSpotY = height / 2;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.beginPath();
+        ctx.arc(footSpotX, footSpotY, 3, 0, Math.PI * 2);
+        ctx.fill();
         
-        // Inner cushion shadow
+        // Head spot (where cue ball breaks from)
+        const headSpotX = width * 0.25;
+        const headSpotY = height / 2;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.beginPath();
+        ctx.arc(headSpotX, headSpotY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // ===== PHASE 3: TABLE MANUFACTURER LOGO =====
+        this.drawTableLogo(ctx, width, height, cushionMargin);
+    },
+    
+    /**
+     * Draw subtle felt wear patterns in high-traffic areas
+     * PHASE 3: Realistic table wear
+     */
+    drawFeltWear(ctx, width, height, inset) {
+        ctx.save();
+        ctx.globalAlpha = 0.03;
+        
+        // Break box area wear (head of table, left side)
+        const breakBoxX = width * 0.25;
+        const breakBoxY = height / 2;
+        const breakBoxGrad = ctx.createRadialGradient(breakBoxX, breakBoxY, 0, breakBoxX, breakBoxY, 80);
+        breakBoxGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+        breakBoxGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.2)');
+        breakBoxGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = breakBoxGrad;
+        ctx.beginPath();
+        ctx.arc(breakBoxX, breakBoxY, 80, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Rack area wear (foot of table, right side)
+        const rackX = width * 0.75;
+        const rackY = height / 2;
+        const rackGrad = ctx.createRadialGradient(rackX, rackY, 0, rackX, rackY, 100);
+        rackGrad.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+        rackGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
+        rackGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = rackGrad;
+        ctx.beginPath();
+        ctx.arc(rackX, rackY, 100, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Center area light wear (common shot paths)
+        const centerGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, 150);
+        centerGrad.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+        centerGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.1)');
+        centerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = centerGrad;
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, 150, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    },
+    
+    /**
+     * Draw subtle table manufacturer logo
+     * PHASE 3: Professional branding
+     */
+    drawTableLogo(ctx, width, height, margin) {
+        ctx.save();
+        ctx.globalAlpha = 0.08;
+        
+        // Logo position (bottom right corner of felt)
+        const logoX = width - margin - 60;
+        const logoY = height - margin - 25;
+        
+        // Simple 8-ball logo text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.font = 'italic bold 14px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('Championship', logoX, logoY);
+        
+        ctx.font = 'italic bold 10px Arial';
+        ctx.fillText('Professional Series', logoX, logoY + 12);
+        
+        // Small 8-ball icon
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.arc(logoX - 70, logoY - 3, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(logoX - 70, logoY - 3, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.font = 'bold 6px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('8', logoX - 70, logoY);
+        
+        ctx.restore();
+    },
+    
+    /**
+     * Draw realistic wood grain texture on rails
+     * PHASE 2: Detailed wood grain pattern
+     */
+    drawWoodGrainRails(ctx, width, height, cushionWidth) {
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        
+        // Top rail grain
+        for (let i = 0; i < 12; i++) {
+            const x = (width / 12) * i;
+            ctx.strokeStyle = i % 2 === 0 ? '#6d5436' : '#8B6F47';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.quadraticCurveTo(x + 20, cushionWidth / 2, x + 5, cushionWidth);
+            ctx.stroke();
+        }
+        
+        // Bottom rail grain
+        for (let i = 0; i < 12; i++) {
+            const x = (width / 12) * i;
+            ctx.strokeStyle = i % 2 === 0 ? '#6d5436' : '#8B6F47';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, height - cushionWidth);
+            ctx.quadraticCurveTo(x + 20, height - cushionWidth / 2, x + 5, height);
+            ctx.stroke();
+        }
+        
+        // Left rail grain (vertical)
+        for (let i = 0; i < 8; i++) {
+            const y = (height / 8) * i;
+            ctx.strokeStyle = i % 2 === 0 ? '#6d5436' : '#8B6F47';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.quadraticCurveTo(cushionWidth / 2, y + 15, cushionWidth, y + 5);
+            ctx.stroke();
+        }
+        
+        // Right rail grain (vertical)
+        for (let i = 0; i < 8; i++) {
+            const y = (height / 8) * i;
+            ctx.strokeStyle = i % 2 === 0 ? '#6d5436' : '#8B6F47';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(width - cushionWidth, y);
+            ctx.quadraticCurveTo(width - cushionWidth / 2, y + 15, width, y + 5);
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    },
+    
+    /**
+     * Draw diamond sight markers on rails (professional aiming system)
+     */
+    drawDiamondSights(ctx, width, height, cushionMargin) {
+        const diamondSize = 5;
+        const diamondColor = 'rgba(255, 255, 255, 0.4)';
+        
+        // Top rail diamonds
+        const topY = cushionMargin / 2;
+        for (let i = 1; i <= 7; i++) {
+            const x = (width / 8) * i;
+            this.drawDiamond(ctx, x, topY, diamondSize, diamondColor);
+        }
+        
+        // Bottom rail diamonds
+        const bottomY = height - cushionMargin / 2;
+        for (let i = 1; i <= 7; i++) {
+            const x = (width / 8) * i;
+            this.drawDiamond(ctx, x, bottomY, diamondSize, diamondColor);
+        }
+        
+        // Left rail diamonds
+        const leftX = cushionMargin / 2;
+        for (let i = 1; i <= 3; i++) {
+            const y = (height / 4) * i;
+            this.drawDiamond(ctx, leftX, y, diamondSize, diamondColor);
+        }
+        
+        // Right rail diamonds
+        const rightX = width - cushionMargin / 2;
+        for (let i = 1; i <= 3; i++) {
+            const y = (height / 4) * i;
+            this.drawDiamond(ctx, rightX, y, diamondSize, diamondColor);
+        }
+    },
+    
+    /**
+     * Draw a single diamond sight marker
+     */
+    drawDiamond(ctx, x, y, size, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);  // 45-degree rotation for diamond
+        
+        // Diamond with gradient
+        const diamondGrad = ctx.createLinearGradient(-size, -size, size, size);
+        diamondGrad.addColorStop(0, color);
+        diamondGrad.addColorStop(0.5, color.replace('0.4', '0.6'));
+        diamondGrad.addColorStop(1, color);
+        
+        ctx.fillStyle = diamondGrad;
+        ctx.fillRect(-size, -size, size * 2, size * 2);
+        
+        // Diamond border
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(
-            cushionWidth + 2, 
-            cushionWidth + 2, 
-            width - cushionWidth * 2 - 4, 
-            height - cushionWidth * 2 - 4
-        );
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(-size, -size, size * 2, size * 2);
         
-        // Table edge highlight
-        ctx.strokeStyle = 'rgba(139, 90, 43, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-            cushionWidth + 5, 
-            cushionWidth + 5, 
-            width - cushionWidth * 2 - 10, 
-            height - cushionWidth * 2 - 10
-        );
+        ctx.restore();
     },
     
     /**
@@ -153,47 +460,80 @@ const PoolRendering = {
     
     /**
      * Draw a ball with realistic 3D rolling effect
+     * PHASE 3: Felt color reflection + enhanced ambient lighting
      */
     drawBall(ctx, ball) {
         if (ball.potted) return;
         
-        // Ball shadow on table
+        // ===== REALISTIC BALL SHADOW =====
+        // Soft, elliptical shadow on table (not perfect circle due to angle)
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
-        ctx.ellipse(ball.x + 2, ball.y + 3, ball.r * 0.9, ball.r * 0.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 0.85, ball.r * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Softer outer shadow (penumbra)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.beginPath();
+        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.1, ball.r * 0.7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
         
-        // Main ball gradient (light from top-left)
-        const lightOffsetX = -ball.r * 0.35;
-        const lightOffsetY = -ball.r * 0.35;
+        // ===== PHASE 3: FELT COLOR REFLECTION ON BALL BOTTOM =====
+        // Green felt reflects onto the bottom of the ball
+        const feltReflection = ctx.createRadialGradient(
+            ball.x, ball.y + ball.r * 0.5, 0,
+            ball.x, ball.y + ball.r * 0.5, ball.r * 0.7
+        );
+        feltReflection.addColorStop(0, 'rgba(27, 139, 61, 0.15)');  // Tournament green reflection
+        feltReflection.addColorStop(0.5, 'rgba(27, 139, 61, 0.08)');
+        feltReflection.addColorStop(1, 'rgba(27, 139, 61, 0)');
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = feltReflection;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y + ball.r * 0.5, ball.r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        
+        // ===== GLOSSY BALL WITH REALISTIC LIGHTING =====
+        // Light from top-left (simulating overhead lamp)
+        const lightOffsetX = -ball.r * 0.4;
+        const lightOffsetY = -ball.r * 0.4;
         
         const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.2,
-            ball.x, ball.y, ball.r * 1.1
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.15,
+            ball.x, ball.y, ball.r * 1.15
         );
         
-        // Set colors based on ball type
+        // Set colors based on ball type with improved gradients
         if (ball.color === 'white') {
             grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.3, '#f5f5f5');
-            grad.addColorStop(0.7, '#e0e0e0');
-            grad.addColorStop(1, '#b0b0b0');
+            grad.addColorStop(0.2, '#fafafa');
+            grad.addColorStop(0.5, '#f0f0f0');
+            grad.addColorStop(0.8, '#d0d0d0');
+            grad.addColorStop(1, '#a0a0a0');
         } else if (ball.color === 'red') {
             grad.addColorStop(0, '#ff9999');
-            grad.addColorStop(0.2, '#ff6b6b');
-            grad.addColorStop(0.6, '#e63946');
-            grad.addColorStop(1, '#9d0208');
+            grad.addColorStop(0.15, '#ff7777');
+            grad.addColorStop(0.5, '#e63946');
+            grad.addColorStop(0.8, '#c1121f');
+            grad.addColorStop(1, '#780000');
         } else if (ball.color === 'yellow') {
             grad.addColorStop(0, '#fff9c4');
-            grad.addColorStop(0.2, '#ffd43b');
-            grad.addColorStop(0.6, '#fab005');
-            grad.addColorStop(1, '#c17900');
+            grad.addColorStop(0.15, '#ffe066');
+            grad.addColorStop(0.5, '#ffd43b');
+            grad.addColorStop(0.8, '#fab005');
+            grad.addColorStop(1, '#a67c00');
         } else { // black
-            grad.addColorStop(0, '#4a4a4a');
-            grad.addColorStop(0.3, '#2a2a2a');
-            grad.addColorStop(0.7, '#1a1a1a');
+            grad.addColorStop(0, '#555555');
+            grad.addColorStop(0.2, '#3a3a3a');
+            grad.addColorStop(0.5, '#2a2a2a');
+            grad.addColorStop(0.8, '#1a1a1a');
             grad.addColorStop(1, '#000000');
         }
         
@@ -265,7 +605,7 @@ const PoolRendering = {
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
             ctx.clip();
             
-            ctx.globalAlpha = 0.08;
+            ctx.globalAlpha = 0.06;
             
             // Simple rolling lines that move with rotation
             const numLines = 8;
@@ -291,33 +631,70 @@ const PoolRendering = {
             ctx.restore();
         }
         
-        // Specular highlight (shiny spot) - always on top
-        const specular = ctx.createRadialGradient(
-            ball.x + lightOffsetX * 0.8, ball.y + lightOffsetY * 0.8, 0,
-            ball.x + lightOffsetX * 0.8, ball.y + lightOffsetY * 0.8, ball.r * 0.4
+        // ===== ENHANCED SPECULAR HIGHLIGHT (GLOSSY SHINE) =====
+        // Two-layer highlight for more realistic shine
+        // Primary highlight (intense)
+        const specular1 = ctx.createRadialGradient(
+            ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, 0,
+            ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, ball.r * 0.35
         );
-        specular.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-        specular.addColorStop(0.3, 'rgba(255, 255, 255, 0.6)');
-        specular.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)');
-        specular.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        specular1.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        specular1.addColorStop(0.2, 'rgba(255, 255, 255, 0.7)');
+        specular1.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        specular1.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
-        ctx.fillStyle = specular;
+        ctx.fillStyle = specular1;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Secondary highlight (softer, larger)
+        const specular2 = ctx.createRadialGradient(
+            ball.x + lightOffsetX * 0.5, ball.y + lightOffsetY * 0.5, 0,
+            ball.x + lightOffsetX * 0.5, ball.y + lightOffsetY * 0.5, ball.r * 0.6
+        );
+        specular2.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        specular2.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)');
+        specular2.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
+        specular2.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = specular2;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
         
         // Ball outline for definition
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.stroke();
+        
+        // ===== PHASE 3: ENHANCED AMBIENT OCCLUSION =====
+        // Darker bottom edge with more realistic falloff
+        const aoGradient = ctx.createRadialGradient(
+            ball.x, ball.y + ball.r * 0.4, ball.r * 0.2,
+            ball.x, ball.y + ball.r * 0.4, ball.r * 1.0
+        );
+        aoGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        aoGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.08)');
+        aoGradient.addColorStop(0.8, 'rgba(0, 0, 0, 0.15)');
+        aoGradient.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = aoGradient;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y + ball.r * 0.4, ball.r * 1.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         
         // Draw spin indicator if ball has active spin - ENHANCED VISIBILITY
         if ((ball.spinX !== undefined && Math.abs(ball.spinX) > 0.05) || 
             (ball.spinY !== undefined && Math.abs(ball.spinY) > 0.05)) {
             
-            // Draw spin arrow on ball
             const spinMag = Math.sqrt(
                 (ball.spinX || 0) * (ball.spinX || 0) + 
                 (ball.spinY || 0) * (ball.spinY || 0)
@@ -346,7 +723,7 @@ const PoolRendering = {
             
             // Arrow shaft - thicker and more visible
             ctx.strokeStyle = spinColor;
-            ctx.lineWidth = 4; // Increased from 3 to 4
+            ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(ball.x, ball.y);
             ctx.lineTo(arrowEndX, arrowEndY);
