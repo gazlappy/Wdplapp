@@ -167,3 +167,66 @@ Rail Grab	Speed & Spin	Harder shots or more spin create non-linear rebounds.
 For simulation development, the Alciatore Pool Physics Articles and the Kiefl Billiards Theory remain the gold standards for full system integration. 
 These technical analyses detail the physics of billiard ball dynamics, including cushion impacts, squirt, and throw, for advanced simulation modeling.
 
+In 2026, the physical standards for professional pool remain regulated primarily by the 
+World Pool-Billiard Association (WPA). Modeling a game requires precise values for ball mass and the rotational limits of spin. 
+1. Official Ball Weight & Size (2026) 
+•	Standard Weight: 156 to 170 grams (approx. 5.5 to 6.0 oz).
+•	Set Consistency: Professional sets (e.g., Aramith Tournament) typically ensure all balls in a set are within 0.5 grams of each other to maintain consistent rebound and collision dynamics.
+•	Diameter: 57.15 mm (2.25 inches), with a tolerance of 
+ 
+ 
+±0.127
+mm.
+•	Cue Ball Variance: In some commercial or "coin-op" environments, the cue ball may be slightly heavier (often 170g vs. 160g object balls) or contain a magnetic core for return mechanisms, which significantly affects "draw" and "follow" shots. 
+2. Maximum Spin (Angular Velocity) 
+Spin is limited by the miscue limit, which is the maximum distance from the center a player can strike without the tip slipping. 
+•	The Miscue Limit: Roughly 0.5 times the radius (
+ 
+ 
+0.5𝑅
+) from the center. Striking beyond this point usually results in a miscue.
+•	Max RPM Calculation: For a professional-level power shot (hitting at 
+ 
+ 
+∼20
+mph), the angular velocity can reach approximately 3,000 to 5,000 RPM.
+•	Spin/Speed Ratio (SRF): The "intensity" of spin is measured by the ratio of angular velocity to linear velocity.
+o	Max Side Spin: Approximately 100% spin is achieved when the tip offset is at the miscue limit.
+o	Deceleration: Once moving, the ball loses spin due to cloth friction at a rate of roughly 5–15 rad/sec². 
+3. Key Physical Constants for Simulation 
+Property 	Typical Value (2026)	Significance
+Moment of Inertia (
+ 
+ 
+𝐼
+)	 
+ 
+2/5𝑀𝑅2	Formula for a solid sphere.
+Ball-to-Ball Friction (
+ 
+ 
+𝜇
+)	0.03 – 0.08	Determines "Throw" on contact.
+Ball-to-Cloth Sliding Friction	0.15 – 0.40	Determines how fast a sliding ball starts rolling.
+Coefficient of Restitution (
+ 
+ 
+𝑒
+)	0.92 – 0.98	Energy retained after a ball-to-ball hit.
+Rolling Resistance	0.005 – 0.015	Determines how far the ball travels while rolling.
+4. Motion Transitions 
+•	Pure Rolling Condition: A ball transitions from sliding to "pure roll" when its linear velocity (
+ 
+ 
+𝑣
+) equals its angular velocity times radius (
+ 
+ 
+𝑣=𝜔𝑅
+).
+•	The 5/7 Rule: If a ball is struck perfectly at the "sweet spot" (
+ 
+ 
+1.4𝑅
+high), it begins in a state of pure roll immediately, maximizing distance and accuracy
+

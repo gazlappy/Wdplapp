@@ -207,6 +207,7 @@ const PoolSpinControl = {
     
     /**
      * Update spin based on mouse position
+     * ENHANCED: WPA 2026 miscue limit at 0.5R
      */
     updateSpin(mouseX, mouseY) {
         const dx = mouseX - this.overlayX;
@@ -214,20 +215,27 @@ const PoolSpinControl = {
         
         // Clamp to circle
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const maxDistance = this.ballOverlayRadius - 5;
+        
+        // WPA 2026: Miscue limit at 0.5R
+        // Beyond this point, the cue tip slips and miscues
+        const miscueLimit = 0.5; // 50% of radius
+        const maxDistance = (this.ballOverlayRadius - 5) * miscueLimit;
         
         if (distance > maxDistance) {
             const scale = maxDistance / distance;
-            this.spinX = (dx * scale) / maxDistance;
-            this.spinY = -(dy * scale) / maxDistance; // Inverted Y
+            this.spinX = (dx * scale) / (this.ballOverlayRadius - 5);
+            this.spinY = -(dy * scale) / (this.ballOverlayRadius - 5); // Inverted Y
         } else {
-            this.spinX = dx / maxDistance;
-            this.spinY = -dy / maxDistance; // Inverted Y
+            this.spinX = dx / (this.ballOverlayRadius - 5);
+            this.spinY = -dy / (this.ballOverlayRadius - 5); // Inverted Y
         }
         
-        // Clamp values
-        this.spinX = Math.max(-1, Math.min(1, this.spinX));
-        this.spinY = Math.max(-1, Math.min(1, this.spinY));
+        // Clamp values to miscue limit
+        const spinMagnitude = Math.sqrt(this.spinX * this.spinX + this.spinY * this.spinY);
+        if (spinMagnitude > miscueLimit) {
+            this.spinX = (this.spinX / spinMagnitude) * miscueLimit;
+            this.spinY = (this.spinY / spinMagnitude) * miscueLimit;
+        }
     },
     
     /**
@@ -241,7 +249,7 @@ const PoolSpinControl = {
     /**
      * Apply spin to ball velocity
      * Called when ball is shot
-     * ENHANCED: Implements Sweet Spot strike height physics
+     * ENHANCED: Implements Sweet Spot strike height physics + SQUIRT deflection
      */
     applySpinToBall(ball, aimAngle) {
         if (!ball) return;
@@ -252,6 +260,38 @@ const PoolSpinControl = {
         // Store spin values for physics calculations
         ball.spinX = this.spinX * effectMultiplier;
         ball.spinY = this.spinY * effectMultiplier;
+        
+        // ===== SQUIRT PHYSICS (CUE BALL DEFLECTION) =====
+        // Reference: ? ? arctan(m_tip/M × e/R)
+        // When striking off-center (English), the ball squirts away from center
+        
+        let squirtAngle = 0;
+        if (Math.abs(this.spinX) > 0.01) {
+            // Calculate squirt deflection
+            const ballMass = 1.0; // Normalized mass
+            const cueTipMass = 0.15; // Typical cue tip effective mass (adjustable)
+            const ballRadius = ball.r || 14;
+            const offCenterOffset = Math.abs(this.spinX) * ballRadius * 0.7; // English creates offset
+            
+            // Squirt formula
+            const squirtFactor = (cueTipMass / ballMass) * (offCenterOffset / ballRadius);
+            squirtAngle = Math.atan(squirtFactor);
+            
+            // Squirt direction is OPPOSITE to the English
+            // Right English ? Ball squirts LEFT initially
+            // Left English ? Ball squirts RIGHT initially
+            squirtAngle *= -Math.sign(this.spinX);
+            
+            // Apply squirt to aim angle
+            const squirtedAimAngle = aimAngle + squirtAngle;
+            
+            // Adjust ball velocity for squirt deflection
+            const currentSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            ball.vx = Math.cos(squirtedAimAngle) * currentSpeed;
+            ball.vy = Math.sin(squirtedAimAngle) * currentSpeed;
+            
+            console.log('SQUIRT! English:', this.spinX.toFixed(2), 'Deflection:', (squirtAngle * 180 / Math.PI).toFixed(2), 'deg');
+        }
         
         // ===== SWEET SPOT PHYSICS =====
         // The sweet spot is at height h = 7/5 * r (1.4r) from the table
@@ -272,9 +312,10 @@ const PoolSpinControl = {
         const strikeHeight = sweetSpotHeight + (this.spinY * ballRadius * 0.4);
         const clampedHeight = Math.max(minHeight, Math.min(maxHeight, strikeHeight));
         
-        // Calculate if strike is at sweet spot (within 10% tolerance)
+        // Calculate if strike is at sweet spot (within tolerance)
         const heightDiff = Math.abs(clampedHeight - sweetSpotHeight);
-        const atSweetSpot = heightDiff < (ballRadius * 0.14); // 10% tolerance
+        const tolerance = this.game?.sweetSpotTolerance || 0.14;
+        const atSweetSpot = heightDiff < (ballRadius * tolerance);
         
         if (atSweetSpot) {
             // SWEET SPOT HIT - Pure rolling, no sliding phase
@@ -291,20 +332,17 @@ const PoolSpinControl = {
             console.log('Strike height:', clampedHeight.toFixed(1), 'Sweet spot:', sweetSpotHeight.toFixed(1), 'Sliding intensity:', (slidingIntensity * 100).toFixed(0) + '%');
         }
         
-        // Mark ball as in sliding phase (important for realistic spin)
-        const currentSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-        
         // REALISTIC SPIN PHYSICS:
         // Initial spin application is MINIMAL - the real effect happens during roll and collisions
         
-        // SIDE SPIN (English) - very small initial deflection
+        // SIDE SPIN (English) - very small initial deflection (additional to squirt)
         if (this.spinX !== 0) {
             // MINIMAL initial deflection - English mainly affects cushions and throw
             const spinEffect = this.spinX * 0.02 * effectMultiplier;
-            const perpAngle = aimAngle + Math.PI / 2;
+            const perpAngle = aimAngle + squirtAngle + Math.PI / 2;
             
-            ball.vx += Math.cos(perpAngle) * spinEffect * currentSpeed;
-            ball.vy += Math.sin(perpAngle) * spinEffect * currentSpeed;
+            ball.vx += Math.cos(perpAngle) * spinEffect * Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            ball.vy += Math.sin(perpAngle) * spinEffect * Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
             
             console.log('English applied! Will affect cushion angles and throw');
         }
@@ -334,7 +372,9 @@ const PoolSpinControl = {
         
         // Clear instructions
         console.log('Spin values - X:', ball.spinX.toFixed(2), 'Y:', ball.spinY.toFixed(2));
-        console.log('Watch what happens when ball hits another ball or cushion!');
+        if (Math.abs(squirtAngle) > 0.01) {
+            console.log('Aim adjusted for squirt - compensate by aiming', (squirtAngle * 180 / Math.PI).toFixed(2), 'deg', squirtAngle > 0 ? 'RIGHT' : 'LEFT');
+        }
     },
     
     /**

@@ -123,6 +123,49 @@ const PoolDevSettings = {
                 </div>
                 
                 <div class='dev-section'>
+                    <h4>WPA 2026 Standards</h4>
+                    <div class='dev-control'>
+                        <label>Ball-Ball Friction:</label>
+                        <input type='range' id='ballToBallFriction' min='0.03' max='0.08' value='0.055' step='0.005'>
+                        <span id='ballToBallFrictionValue'>0.055</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Ball-Cloth Sliding:</label>
+                        <input type='range' id='ballToClothSliding' min='0.15' max='0.40' value='0.25' step='0.01'>
+                        <span id='ballToClothSlidingValue'>0.25</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Rolling Resistance:</label>
+                        <input type='range' id='rollingResistanceCoeff' min='0.005' max='0.015' value='0.010' step='0.001'>
+                        <span id='rollingResistanceCoeffValue'>0.010</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Spin Decay Rate:</label>
+                        <input type='range' id='spinDecayRateCoeff' min='5' max='15' value='10' step='1'>
+                        <span id='spinDecayRateCoeffValue'>10</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Miscue Limit:</label>
+                        <input type='range' id='miscueLimit' min='0.3' max='0.7' value='0.5' step='0.05'>
+                        <span id='miscueLimitValue'>0.5</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Max Spin RPM:</label>
+                        <input type='range' id='maxSpinRpm' min='3000' max='5000' value='4000' step='100'>
+                        <span id='maxSpinRpmValue'>4000</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Cue Ball Mass Var:</label>
+                        <input type='range' id='cueBallMassVariance' min='1.0' max='1.10' value='1.05' step='0.01'>
+                        <span id='cueBallMassVarianceValue'>1.05</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show WPA Info:</label>
+                        <input type='checkbox' id='showWpaInfo' checked>
+                    </div>
+                </div>
+                
+                <div class='dev-section'>
                     <h4>Physics - Friction</h4>
                     <div class='dev-control'>
                         <label>Table Friction:</label>
@@ -230,12 +273,49 @@ const PoolDevSettings = {
                         <span id='sweetSpotToleranceValue'>0.14</span>
                     </div>
                     <div class='dev-control'>
+                        <label>Cue Tip Mass:</label>
+                        <input type='range' id='cueTipMass' min='0.05' max='0.30' value='0.15' step='0.01'>
+                        <span id='cueTipMassValue'>0.15</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Squirt Factor:</label>
+                        <input type='range' id='squirtFactor' min='0.0' max='2.0' value='1.0' step='0.1'>
+                        <span id='squirtFactorValue'>1.0</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Throw FIT Factor:</label>
+                        <input type='range' id='throwFitFactor' min='0.0' max='1.0' value='0.6' step='0.05'>
+                        <span id='throwFitFactorValue'>0.6</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Throw SIT Factor:</label>
+                        <input type='range' id='throwSitFactor' min='0.0' max='0.3' value='0.15' step='0.01'>
+                        <span id='throwSitFactorValue'>0.15</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Rail Grab Intensity:</label>
+                        <input type='range' id='railGrabIntensity' min='0.0' max='2.0' value='1.0' step='0.1'>
+                        <span id='railGrabIntensityValue'>1.0</span>
+                    </div>
+                    <div class='dev-control'>
                         <label>Show Spin Arrows:</label>
                         <input type='checkbox' id='showSpinArrows' checked>
                     </div>
                     <div class='dev-control'>
                         <label>Show Sweet Spot Info:</label>
                         <input type='checkbox' id='showSweetSpot' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Squirt Deflection:</label>
+                        <input type='checkbox' id='showSquirt' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Throw Effects:</label>
+                        <input type='checkbox' id='showThrow' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Rail Grab:</label>
+                        <input type='checkbox' id='showRailGrab' checked>
                     </div>
                 </div>
                 
@@ -583,6 +663,39 @@ const PoolDevSettings = {
             self.game.showCaptureZones = checked;
         });
         
+        // WPA 2026 Standards
+        this.addRangeListener('ballToBallFriction', (val) => {
+            self.game.ballToBallFriction = parseFloat(val);
+        });
+        
+        this.addRangeListener('ballToClothSliding', (val) => {
+            self.game.ballToClothSliding = parseFloat(val);
+        });
+        
+        this.addRangeListener('rollingResistanceCoeff', (val) => {
+            self.game.rollingResistanceCoeff = parseFloat(val);
+        });
+        
+        this.addRangeListener('spinDecayRateCoeff', (val) => {
+            self.game.spinDecayRateCoeff = parseFloat(val);
+        });
+        
+        this.addRangeListener('miscueLimit', (val) => {
+            self.game.miscueLimit = parseFloat(val);
+        });
+        
+        this.addRangeListener('maxSpinRpm', (val) => {
+            self.game.maxSpinRpm = parseFloat(val);
+        });
+        
+        this.addRangeListener('cueBallMassVariance', (val) => {
+            self.game.cueBallMassVariance = parseFloat(val);
+        });
+        
+        this.addCheckboxListener('showWpaInfo', (checked) => {
+            self.game.showWpaInfo = checked;
+        });
+        
         // Physics - Friction
         this.addRangeListener('friction', (val) => {
             self.game.friction = parseFloat(val);
@@ -666,12 +779,44 @@ const PoolDevSettings = {
             self.game.sweetSpotTolerance = parseFloat(val);
         });
         
+        this.addRangeListener('cueTipMass', (val) => {
+            self.game.cueTipMass = parseFloat(val);
+        });
+        
+        this.addRangeListener('squirtFactor', (val) => {
+            self.game.squirtFactor = parseFloat(val);
+        });
+        
+        this.addRangeListener('throwFitFactor', (val) => {
+            self.game.throwFitFactor = parseFloat(val);
+        });
+        
+        this.addRangeListener('throwSitFactor', (val) => {
+            self.game.throwSitFactor = parseFloat(val);
+        });
+        
+        this.addRangeListener('railGrabIntensity', (val) => {
+            self.game.railGrabIntensity = parseFloat(val);
+        });
+        
         this.addCheckboxListener('showSpinArrows', (checked) => {
             self.game.showSpinArrows = checked;
         });
         
         this.addCheckboxListener('showSweetSpot', (checked) => {
             self.game.showSweetSpot = checked;
+        });
+        
+        this.addCheckboxListener('showSquirt', (checked) => {
+            self.game.showSquirt = checked;
+        });
+        
+        this.addCheckboxListener('showThrow', (checked) => {
+            self.game.showThrow = checked;
+        });
+        
+        this.addCheckboxListener('showRailGrab', (checked) => {
+            self.game.showRailGrab = checked;
         });
         
         // Visual Effects

@@ -15,14 +15,32 @@ public static class PoolPhysicsModule
 // ============================================
 
 const PoolPhysics = {
-    // Constants
+    // Constants - WPA 2026 OFFICIAL STANDARDS
     FRICTION: 0.987,  // Slightly less friction for smoother roll
-    CUSHION_RESTITUTION: 0.78,  // More realistic bounce
+    CUSHION_RESTITUTION: 0.95,  // WPA 2026: 0.92-0.98 (using mid-high)
     MIN_VELOCITY: 0.012,
-    COLLISION_DAMPING: 0.98,  // Energy loss in collisions
+    COLLISION_DAMPING: 0.96,  // WPA 2026: 0.92-0.98 coefficient of restitution
+    
+    // WPA 2026 Physical Constants
+    BALL_TO_BALL_FRICTION: 0.055,  // WPA 2026: 0.03-0.08 (determines throw)
+    BALL_TO_CLOTH_SLIDING: 0.25,   // WPA 2026: 0.15-0.40 (sliding friction)
+    ROLLING_RESISTANCE: 0.010,     // WPA 2026: 0.005-0.015
+    MOMENT_OF_INERTIA_FACTOR: 0.4, // 2/5 for solid sphere (2/5 = 0.4)
+    
+    // Spin limits - WPA 2026
+    MISCUE_LIMIT: 0.5,             // Max offset = 0.5 * radius
+    MAX_SPIN_RPM: 4000,            // Max RPM: 3000-5000
+    SPIN_DECAY_RATE: 10,           // rad/sec^2: 5-15
+    
+    // Ball specifications - WPA 2026
+    STANDARD_BALL_MASS: 163,       // grams (156-170g range, using mid-point)
+    STANDARD_BALL_DIAMETER: 57.15, // mm (2.25 inches)
+    CUE_BALL_MASS_VARIANCE: 1.05,  // Commercial cue balls can be 5% heavier
+    OBJECT_BALL_MASS_VARIANCE: 1.05, // Object balls can also vary (1.025 to 1.075 actual range)
     
     /**
      * Apply friction with rolling rotation and spin effects
+     * ENHANCED: WPA 2026 standards with moment of inertia and 5/7 rule
      */
     applyFriction(ball) {
         const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
@@ -35,6 +53,18 @@ const PoolPhysics = {
             ball.vx *= this.FRICTION;
             ball.vy *= this.FRICTION;
             
+            // WPA 2026: Calculate angular velocity (omega = v/r)
+            if (!ball.omega) ball.omega = 0; // Angular velocity in rad/sec
+            
+            // Check if ball is in pure rolling (5/7 rule)
+            const expectedOmega = speed / (ball.r || 14);
+            const isPureRolling = Math.abs(ball.omega - expectedOmega) < 0.1;
+            
+            if (isPureRolling && !ball.slidingComplete) {
+                console.log('5/7 RULE! Ball transitioned to pure rolling, v = omega * R');
+                ball.slidingComplete = true;
+            }
+            
             // REALISTIC SPIN PHYSICS:
             // In real pool, spin affects the ball through the Magnus effect and friction
             
@@ -42,24 +72,18 @@ const PoolPhysics = {
             if (ball.spinX !== undefined && Math.abs(ball.spinX) > 0.01) {
                 // In real pool, English has NEARLY ZERO effect during roll
                 // It's stored on the ball to affect cushions and throw only
-                // However, there IS a very subtle parabolic deflection
                 const magnusForce = ball.spinX * 0.002; // MINIMAL
                 const perpAngle = initialAngle + Math.PI / 2;
                 
-                // PARABOLIC DEFLECTION: English creates very slight curve over distance
-                // This is much less than top/back spin but still follows physics
-                if (!ball.englishDistance) ball.englishDistance = 0;
-                ball.englishDistance += speed;
+                ball.vx += Math.cos(perpAngle) * magnusForce;
+                ball.vy += Math.sin(perpAngle) * magnusForce;
                 
-                // Parabolic factor increases with distance traveled
-                const distanceFactor = Math.min(ball.englishDistance / 500, 1.0); // Caps at 500 units
-                const parabolicMagnusForce = magnusForce * (1 + distanceFactor * 0.5);
-                
-                ball.vx += Math.cos(perpAngle) * parabolicMagnusForce;
-                ball.vy += Math.sin(perpAngle) * parabolicMagnusForce;
-                
-                // Spin decays extremely slowly - it stays on the ball for contact
-                ball.spinX *= 0.998; // Even slower decay
+                // WPA 2026: Spin decay rate 5-15 rad/sec^2
+                // Convert to per-frame decay (assuming 60fps)
+                const spinDecayPerFrame = this.SPIN_DECAY_RATE / 60;
+                const currentSpinSpeed = Math.abs(ball.spinX);
+                const decayFactor = Math.max(0, 1 - (spinDecayPerFrame / Math.max(currentSpinSpeed, 0.01)));
+                ball.spinX *= decayFactor;
             }
             
             // TOP/BACK SPIN - This is where real pool physics happens
@@ -68,6 +92,9 @@ const PoolPhysics = {
                 // Then the spin gradually converts to rolling motion
                 // This creates a PARABOLIC PATH as described in physics literature
                 
+                // WPA 2026: Ball-to-cloth sliding friction (0.15-0.40)
+                const slidingFriction = this.BALL_TO_CLOTH_SLIDING;
+                
                 // Check if ball is still in sliding phase
                 if (!ball.slidingComplete) {
                     // Get initial sliding intensity from sweet spot calculation
@@ -75,7 +102,7 @@ const PoolPhysics = {
                     
                     // During sliding, spin creates friction in the direction of spin
                     // This creates the initial part of the parabolic curve
-                    const spinFriction = ball.spinY * 0.15 * slidingMultiplier;
+                    const spinFriction = ball.spinY * 0.15 * slidingMultiplier * slidingFriction;
                     
                     // PARABOLIC CURVE: Acceleration is proportional to spin and decreases over time
                     // As spin converts to roll, the curve flattens out
@@ -94,17 +121,25 @@ const PoolPhysics = {
                     if (!ball.slideDistance) ball.slideDistance = 0;
                     ball.slideDistance += speed;
                     
-                    // Check if sliding is complete (spin matches roll)
+                    // Check if sliding is complete (spin matches roll) - 5/7 RULE
                     // The parabolic curve completes when sliding ends
                     const expectedRoll = speed * 10; // Arbitrary units
                     if (Math.abs(ball.spinY) < expectedRoll * 0.1) {
                         ball.slidingComplete = true;
-                        console.log('Parabolic curve complete! Distance:', ball.slideDistance.toFixed(1), 'Final speed:', speed.toFixed(2));
+                        ball.omega = speed / (ball.r || 14); // Set proper angular velocity
+                        console.log('Parabolic curve complete! Distance:', ball.slideDistance.toFixed(1), 'Final speed:', speed.toFixed(2), 'Pure roll achieved');
                     }
                 } else {
                     // After sliding phase, ball is in pure rolling
                     // Parabolic curve has completed, now just linear with friction
-                    ball.spinY *= 0.98;
+                    // WPA 2026: Apply spin decay
+                    const spinDecayPerFrame = this.SPIN_DECAY_RATE / 60;
+                    const currentSpinSpeed = Math.abs(ball.spinY);
+                    const decayFactor = Math.max(0, 1 - (spinDecayPerFrame / Math.max(currentSpinSpeed, 0.01)));
+                    ball.spinY *= decayFactor;
+                    
+                    // Update angular velocity to match linear velocity (pure roll)
+                    ball.omega = speed / (ball.r || 14);
                 }
             }
             
@@ -135,6 +170,7 @@ const PoolPhysics = {
             ball.vx = 0;
             ball.vy = 0;
             ball.speed = 0;
+            ball.omega = 0; // Angular velocity
             // Clear spin when stopped
             if (ball.spinX !== undefined) ball.spinX = 0;
             if (ball.spinY !== undefined) ball.spinY = 0;
@@ -185,44 +221,70 @@ const PoolPhysics = {
         
         // Apply spin effects on cushion bounce - REALISTIC PHYSICS
         if (bounced) {
+            // ===== RAIL GRAB PHYSICS =====
+            // Reference: Rail Grab - Speed and Spin - Harder shots or more spin create non-linear rebounds
+            // The cushion response changes based on impact speed and spin
+            
+            const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            
+            // Rail grab factor: higher speed = more grip on cushion
+            // Typical threshold: slow shots (under 5) vs fast shots (over 15)
+            const speedFactor = Math.min(impactSpeed / 20, 1.0); // 0 to 1 scale
+            
+            // Cushion compression: harder hits compress cushion more
+            const compressionFactor = 1 + (speedFactor * 0.15); // Up to 15 percent more compression
+            
+            // Apply compression to restitution
+            const adjustedRestitution = this.CUSHION_RESTITUTION * compressionFactor;
+            
             // SIDE SPIN (English) - This is WHERE English REALLY matters in real pool
             if (ball.spinX !== undefined && Math.abs(ball.spinX) > 0.01) {
-                // English has MAJOR effect on cushion contact - this is the key!
-                const englishEffect = ball.spinX * 0.8; // INCREASED from 0.4 to 0.8
+                // English effect enhanced by rail grab
+                // Faster shots with English = more dramatic angle changes
+                const railGrabEnglish = ball.spinX * (0.8 + speedFactor * 0.4); // Speed amplifies English
                 
                 if (bounceAxis === 'vertical') {
                     // Hitting vertical cushion - English changes the angle significantly
                     const currentAngle = Math.atan2(ball.vy, ball.vx);
-                    const newAngle = currentAngle + (englishEffect * 0.5); // INCREASED from 0.3 to 0.5
+                    const newAngle = currentAngle + (railGrabEnglish * 0.5);
                     const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
                     
-                    ball.vx = Math.cos(newAngle) * speed * this.CUSHION_RESTITUTION;
-                    ball.vy = Math.sin(newAngle) * speed * this.CUSHION_RESTITUTION;
+                    ball.vx = Math.cos(newAngle) * speed * adjustedRestitution;
+                    ball.vy = Math.sin(newAngle) * speed * adjustedRestitution;
                     
-                    console.log('?? English on cushion! Angle change:', (englishEffect * 0.5 * 180 / Math.PI).toFixed(1) + '°');
+                    console.log('RAIL GRAB! Speed:', impactSpeed.toFixed(1), 'English effect:', (railGrabEnglish * 100).toFixed(0) + '%, Angle change:', (railGrabEnglish * 0.5 * 180 / Math.PI).toFixed(1), 'deg');
                 } else if (bounceAxis === 'horizontal') {
                     // Hitting horizontal cushion - English changes the angle significantly
                     const currentAngle = Math.atan2(ball.vy, ball.vx);
-                    const newAngle = currentAngle + (englishEffect * 0.5); // INCREASED from 0.3 to 0.5
+                    const newAngle = currentAngle + (railGrabEnglish * 0.5);
                     const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
                     
-                    ball.vx = Math.cos(newAngle) * speed * this.CUSHION_RESTITUTION;
-                    ball.vy = Math.sin(newAngle) * speed * this.CUSHION_RESTITUTION;
+                    ball.vx = Math.cos(newAngle) * speed * adjustedRestitution;
+                    ball.vy = Math.sin(newAngle) * speed * adjustedRestitution;
                     
-                    console.log('?? English on cushion! Angle change:', (englishEffect * 0.5 * 180 / Math.PI).toFixed(1) + '°');
+                    console.log('RAIL GRAB! Speed:', impactSpeed.toFixed(1), 'English effect:', (railGrabEnglish * 100).toFixed(0) + '%, Angle change:', (railGrabEnglish * 0.5 * 180 / Math.PI).toFixed(1), 'deg');
                 }
                 
-                // English significantly preserved after cushion (key for multi-rail shots)
-                ball.spinX *= 0.9; // INCREASED from 0.85 to 0.9
+                // English decay affected by speed - faster hits preserve more spin
+                ball.spinX *= (0.85 + speedFactor * 0.1); // Up to 95% retention on hard hits
+            } else {
+                // No English - just apply rail grab to restitution
+                if (bounceAxis === 'vertical') {
+                    ball.vx *= adjustedRestitution;
+                } else if (bounceAxis === 'horizontal') {
+                    ball.vy *= adjustedRestitution;
+                }
             }
             
             // TOP/BACK SPIN - Affects rebound speed dramatically
+            // Rail grab amplifies spin effects on hard hits
             if (ball.spinY !== undefined && Math.abs(ball.spinY) > 0.01) {
                 const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
                 
                 // Top spin: ball grips and accelerates off cushion
                 // Back spin: ball stops dead or even reverses
-                const spinEffect = ball.spinY * 1.5; // Very strong effect
+                // Rail grab: effect scales with impact speed
+                const spinEffect = ball.spinY * (1.5 + speedFactor * 0.5); // Speed amplifies effect
                 
                 if (bounceAxis === 'vertical') {
                     ball.vx = ball.vx * (1 + spinEffect);
@@ -230,13 +292,14 @@ const PoolPhysics = {
                     ball.vy = ball.vy * (1 + spinEffect);
                 }
                 
-                // With max back spin, ball can reverse
-                if (ball.spinY < -0.8) {
+                // With max back spin on hard hit, ball can reverse more dramatically
+                if (ball.spinY < -0.8 && speedFactor > 0.5) {
                     if (bounceAxis === 'vertical') {
-                        ball.vx *= -0.3; // Reverse!
+                        ball.vx *= -0.4; // Enhanced reverse on hard hit
                     } else {
-                        ball.vy *= -0.3; // Reverse!
+                        ball.vy *= -0.4; // Enhanced reverse on hard hit
                     }
+                    console.log('RAIL GRAB + BACK SPIN! Hard hit reversal');
                 }
                 
                 // Spin mostly lost after cushion impact
@@ -458,15 +521,32 @@ const PoolPhysics = {
                 
                 // Side spin creates throw on the object ball - THIS IS KEY!
                 if (b1.spinX !== undefined && Math.abs(b1.spinX) > 0.3) {
-                    // Throw is a MAJOR effect of English in real pool
-                    const throwEffect = b1.spinX * 0.15 * spinEffectiveness;
+                    // ===== ENHANCED THROW MODEL (FIT + SIT) - WPA 2026 =====
+                    // FIT (Friction-Induced Throw): Maximum at 1/2-ball hit (30-degree cut)
+                    // SIT (Spin-Induced Throw): English deflects object ball
+                    // WPA 2026: Ball-to-ball friction coefficient 0.03-0.08
+                    
+                    // Calculate FIT based on cut angle
+                    // Maximum throw occurs at 30-degree cut angle (half-ball hit)
+                    const cutAngleDegrees = normalizedCutAngle * 180 / Math.PI;
+                    const optimalCutAngle = 30; // degrees for max throw
+                    
+                    // Throw curve: peaks at 30 degrees, reduces at thin and thick hits
+                    const cutAngleFactor = 1 - Math.abs(cutAngleDegrees - optimalCutAngle) / optimalCutAngle;
+                    const fitFactor = Math.max(0, cutAngleFactor) * this.BALL_TO_BALL_FRICTION * 8.0; // WPA friction scaled
+                    
+                    // SIT (Spin-Induced Throw): English effect
+                    const sitFactor = b1.spinX * 0.15 * spinEffectiveness; // SIT contribution
+                    
+                    // Combined throw effect
+                    const totalThrow = fitFactor + sitFactor;
                     
                     // Apply throw to object ball
-                    b2.vx += tx * throwEffect * b1Speed;
-                    b2.vy += ty * throwEffect * b1Speed;
+                    b2.vx += tx * totalThrow * b1Speed;
+                    b2.vy += ty * totalThrow * b1Speed;
                     
-                    if (Math.abs(throwEffect) > 0.03) {
-                        console.log('?? THROW! Effect:', (throwEffect * 100).toFixed(1) + '%, thickness:', (spinEffectiveness * 100).toFixed(0) + '%');
+                    if (Math.abs(totalThrow) > 0.05) {
+                        console.log('THROW (WPA 2026)! FIT:', (fitFactor * 100).toFixed(1) + '%, SIT:', (sitFactor * 100).toFixed(1) + '%, Total:', (totalThrow * 100).toFixed(1) + '%, Cut:', cutAngleDegrees.toFixed(1) + ' deg');
                     }
                 }
                 
