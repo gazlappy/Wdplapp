@@ -80,12 +80,12 @@ const PoolPockets = {
     },
     
     /**
-     * Draw corner pocket jaws (angled cushions)
+     * Draw corner pocket jaws (rounded Supreme shoulders)
      */
     drawCornerPocketJaws(ctx, pocket, pocketRadius) {
-        const jawLength = pocketRadius * 1.4;
-        const jawWidth = 10;
-        const taperWidth = 4; // Taper into pocket
+        const taperDist = pocket.taperDist || 3.0; // 3 inch taper for corners
+        const taperPx = taperDist * (1000 / 72); // Convert to pixels
+        const shoulderRadius = pocketRadius * 0.4; // Rounded shoulder curve
         
         ctx.save();
         ctx.translate(pocket.x, pocket.y);
@@ -99,91 +99,124 @@ const PoolPockets = {
         
         ctx.rotate(rotation);
         
-        // Draw tapered edges leading into pocket (creates wider opening effect)
-        ctx.fillStyle = '#6B4423';
-        ctx.beginPath();
-        ctx.moveTo(-pocketRadius - taperWidth, -pocketRadius - taperWidth);
-        ctx.lineTo(-pocketRadius + taperWidth, -pocketRadius + taperWidth);
-        ctx.lineTo(-pocketRadius - jawLength, -pocketRadius);
-        ctx.closePath();
-        ctx.fill();
+        // Draw rounded Supreme shoulders (pronounced convex curves)
+        // These prevent cheating the pocket - balls bounce away
         
-        ctx.beginPath();
-        ctx.moveTo(-pocketRadius - taperWidth, -pocketRadius - taperWidth);
-        ctx.lineTo(-pocketRadius + taperWidth, -pocketRadius + taperWidth);
-        ctx.lineTo(-pocketRadius, -pocketRadius - jawLength);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Left jaw cushion
-        const jawGrad1 = ctx.createLinearGradient(-jawLength, 0, 0, 0);
-        jawGrad1.addColorStop(0, '#8B4513');
-        jawGrad1.addColorStop(1, '#A0522D');
-        ctx.fillStyle = jawGrad1;
-        ctx.fillRect(-jawLength, -pocketRadius, jawLength, jawWidth);
-        
-        // Top jaw cushion
-        const jawGrad2 = ctx.createLinearGradient(0, -jawLength, 0, 0);
-        jawGrad2.addColorStop(0, '#8B4513');
-        jawGrad2.addColorStop(1, '#A0522D');
-        ctx.fillStyle = jawGrad2;
-        ctx.fillRect(-pocketRadius, -jawLength, jawWidth, jawLength);
-        
-        // Rounded corner where jaws meet
+        // Left shoulder curve
         ctx.fillStyle = '#8B4513';
         ctx.beginPath();
-        ctx.arc(-pocketRadius + jawWidth/2, -pocketRadius + jawWidth/2, jawWidth/2, 0, Math.PI * 2);
+        ctx.arc(-pocketRadius - shoulderRadius, -pocketRadius, shoulderRadius, 0, Math.PI / 2);
+        ctx.lineTo(-pocketRadius, -pocketRadius - shoulderRadius);
+        ctx.closePath();
         ctx.fill();
+        
+        // Top shoulder curve
+        ctx.beginPath();
+        ctx.arc(-pocketRadius, -pocketRadius - shoulderRadius, shoulderRadius, Math.PI / 2, Math.PI);
+        ctx.lineTo(-pocketRadius - shoulderRadius, -pocketRadius);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw cushion taper (starts 3 inches from end for corners)
+        const cushionGrad = ctx.createLinearGradient(-pocketRadius, 0, -pocketRadius - taperPx, 0);
+        cushionGrad.addColorStop(0, '#A0522D');
+        cushionGrad.addColorStop(1, '#8B4513');
+        
+        // Left cushion with taper
+        ctx.fillStyle = cushionGrad;
+        ctx.fillRect(-pocketRadius - taperPx, -pocketRadius - 5, taperPx, 10);
+        
+        // Top cushion with taper
+        const cushionGrad2 = ctx.createLinearGradient(0, -pocketRadius, 0, -pocketRadius - taperPx);
+        cushionGrad2.addColorStop(0, '#A0522D');
+        cushionGrad2.addColorStop(1, '#8B4513');
+        ctx.fillStyle = cushionGrad2;
+        ctx.fillRect(-pocketRadius - 5, -pocketRadius - taperPx, 10, taperPx);
+        
+        // Highlight rounded shoulders
+        ctx.strokeStyle = 'rgba(139, 69, 19, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(-pocketRadius - shoulderRadius, -pocketRadius, shoulderRadius, 0, Math.PI / 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(-pocketRadius, -pocketRadius - shoulderRadius, shoulderRadius, Math.PI / 2, Math.PI);
+        ctx.stroke();
         
         ctx.restore();
     },
     
     /**
-     * Draw middle pocket jaws (straight sides)
+     * Draw middle pocket jaws (rounded Supreme shoulders)
      */
     drawMiddlePocketJaws(ctx, pocket, pocketRadius) {
-        const jawLength = pocketRadius * 1.0;
-        const jawWidth = 8;
-        const taperWidth = 3;
+        const taperDist = pocket.taperDist || 2.5; // 2.5 inch taper for centre
+        const taperPx = taperDist * (1000 / 72); // Convert to pixels
+        const shoulderRadius = pocketRadius * 0.35; // Rounded shoulder curve
         
-        // Draw tapered edges (chamfers) leading to pocket
-        ctx.fillStyle = '#6B4423';
+        // Draw rounded Supreme shoulders on both sides
+        // Centre pockets are WIDER (95mm vs 85mm corners)
         
-        // Left taper
-        ctx.beginPath();
-        ctx.moveTo(pocket.x - pocketRadius - taperWidth, pocket.y - taperWidth);
-        ctx.lineTo(pocket.x - pocketRadius + taperWidth, pocket.y + taperWidth);
-        ctx.lineTo(pocket.x - pocketRadius - jawLength, pocket.y + jawWidth/2);
-        ctx.lineTo(pocket.x - pocketRadius - jawLength, pocket.y - jawWidth/2);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Right taper
-        ctx.beginPath();
-        ctx.moveTo(pocket.x + pocketRadius + taperWidth, pocket.y - taperWidth);
-        ctx.lineTo(pocket.x + pocketRadius - taperWidth, pocket.y + taperWidth);
-        ctx.lineTo(pocket.x + pocketRadius + jawLength, pocket.y + jawWidth/2);
-        ctx.lineTo(pocket.x + pocketRadius + jawLength, pocket.y - jawWidth/2);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Left jaw cushion
+        // Left rounded shoulder
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(pocket.x - pocketRadius - jawLength, pocket.y - jawWidth/2, jawLength, jawWidth);
+        ctx.beginPath();
+        ctx.arc(pocket.x - pocketRadius - shoulderRadius, pocket.y, shoulderRadius, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(pocket.x - pocketRadius, pocket.y + shoulderRadius);
+        ctx.lineTo(pocket.x - pocketRadius, pocket.y - shoulderRadius);
+        ctx.closePath();
+        ctx.fill();
         
-        // Right jaw cushion
-        ctx.fillRect(pocket.x + pocketRadius, pocket.y - jawWidth/2, jawLength, jawWidth);
+        // Right rounded shoulder
+        ctx.beginPath();
+        ctx.arc(pocket.x + pocketRadius + shoulderRadius, pocket.y, shoulderRadius, Math.PI / 2, -Math.PI / 2);
+        ctx.lineTo(pocket.x + pocketRadius, pocket.y - shoulderRadius);
+        ctx.lineTo(pocket.x + pocketRadius, pocket.y + shoulderRadius);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw cushion taper (starts 2.5 inches from end for centre)
+        const cushionGrad1 = ctx.createLinearGradient(pocket.x - pocketRadius, pocket.y, pocket.x - pocketRadius - taperPx, pocket.y);
+        cushionGrad1.addColorStop(0, '#A0522D');
+        cushionGrad1.addColorStop(1, '#8B4513');
+        
+        // Left cushion with taper
+        ctx.fillStyle = cushionGrad1;
+        ctx.fillRect(pocket.x - pocketRadius - taperPx, pocket.y - 6, taperPx, 12);
+        
+        const cushionGrad2 = ctx.createLinearGradient(pocket.x + pocketRadius, pocket.y, pocket.x + pocketRadius + taperPx, pocket.y);
+        cushionGrad2.addColorStop(0, '#A0522D');
+        cushionGrad2.addColorStop(1, '#8B4513');
+        
+        // Right cushion with taper
+        ctx.fillStyle = cushionGrad2;
+        ctx.fillRect(pocket.x + pocketRadius, pocket.y - 6, taperPx, 12);
+        
+        // Highlight rounded shoulders
+        ctx.strokeStyle = 'rgba(139, 69, 19, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pocket.x - pocketRadius - shoulderRadius, pocket.y, shoulderRadius, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(pocket.x + pocketRadius + shoulderRadius, pocket.y, shoulderRadius, Math.PI / 2, -Math.PI / 2);
+        ctx.stroke();
     },
     
     /**
      * Draw pocket size label
      */
     drawPocketLabel(ctx, pocket, isCorner, pocketRadius) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.font = '8px Arial';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.font = '9px Arial';
         ctx.textAlign = 'center';
-        const size = isCorner ? '3.5in' : '3.2in';
-        ctx.fillText(size, pocket.x, pocket.y + pocketRadius + 12);
+        // Supreme specifications: Corner 85mm, Centre 95mm
+        const size = isCorner ? '85mm' : '95mm';
+        ctx.fillText(size, pocket.x, pocket.y + pocketRadius + 14);
+        ctx.font = '7px Arial';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillText('Supreme', pocket.x, pocket.y + pocketRadius + 22);
     }
 };
 ";

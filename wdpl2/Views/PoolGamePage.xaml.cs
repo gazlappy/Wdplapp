@@ -52,6 +52,8 @@ public partial class PoolGamePage : ContentPage
             margin-top: 15px;
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }}
         button {{
             padding: 12px 24px;
@@ -68,11 +70,12 @@ public partial class PoolGamePage : ContentPage
     </style>
 </head>
 <body>
-    <div id='status'>?? Loading Pool Game...</div>
+    <div id='status'>Loading Pool Game...</div>
     <canvas id='canvas' width='1000' height='500'></canvas>
     <div id='controls'>
-        <button onclick='game.stopBalls()'>?? Stop All Balls</button>
-        <button onclick='game.resetRack()'>?? Reset Rack</button>
+        <button onclick='game.stopBalls()'>Stop All Balls</button>
+        <button onclick='game.resetRack()'>Reset Rack</button>
+        <button onclick='if(typeof PoolDevSettings !== ""undefined"") PoolDevSettings.toggle()'>Dev Settings (F2)</button>
     </div>
     
     <script>
@@ -93,6 +96,10 @@ public partial class PoolGamePage : ContentPage
     
     <script>
     {Services.PoolInputModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
+    {Services.PoolDevSettingsModule.GenerateJavaScript()}
     </script>
     
     <script>

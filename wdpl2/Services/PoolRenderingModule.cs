@@ -104,8 +104,51 @@ const PoolRendering = {
     /**
      * Draw pockets - delegates to PoolPockets module
      */
-    drawPockets(ctx, pockets) {
+    drawPockets(ctx, pockets, game) {
         PoolPockets.drawPockets(ctx, pockets);
+        
+        // Draw developer visualizations if enabled
+        if (game && game.showCaptureZones) {
+            // Draw capture zone circles (the actual physics collision detection area)
+            pockets.forEach(p => {
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Label capture zone
+                ctx.fillStyle = 'rgba(255, 100, 100, 0.8)';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Capture: ' + p.r.toFixed(1) + 'px', p.x, p.y - p.r - 8);
+            });
+        }
+        
+        if (game && game.showPocketZones) {
+            // Draw visual opening circles (what the player sees as the pocket opening)
+            pockets.forEach(p => {
+                const opening = p.type === 'corner' ? 
+                    (game.cornerPocketOpening || p.r) : 
+                    (game.middlePocketOpening || p.r);
+                
+                ctx.strokeStyle = 'rgba(100, 255, 100, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, opening, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Label visual opening
+                ctx.fillStyle = 'rgba(100, 255, 100, 0.8)';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Opening: ' + opening.toFixed(1) + 'px', p.x, p.y + opening + 16);
+            });
+        }
     },
     
     /**
