@@ -82,35 +82,38 @@ const PoolDevSettings = {
                 
                 <div class='dev-section'>
                     <h4>Pocket Sizes</h4>
-                    <div class='dev-control'>
-                        <label>Corner Opening:</label>
-                        <input type='range' id='cornerPocketOpening' min='20' max='50' value='32' step='1'>
-                        <span id='cornerPocketOpeningValue'>32</span>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Pocket Openings (Rail Gaps)</div>
+                        <div class='dev-control'>
+                            <label>Corner Opening:</label>
+                            <input type='range' id='cornerPocketOpeningMult' min='1.0' max='2.5' value='1.6' step='0.1'>
+                            <span id='cornerPocketOpeningMultValue'>1.6x</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Side Opening:</label>
+                            <input type='range' id='sidePocketOpeningMult' min='1.0' max='2.0' value='1.3' step='0.1'>
+                            <span id='sidePocketOpeningMultValue'>1.3x</span>
+                        </div>
+                        <div class='dev-hint'>Controls how wide the gap is in the rails where balls enter</div>
                     </div>
-                    <div class='dev-control'>
-                        <label>Corner Capture Zone:</label>
-                        <input type='range' id='cornerPocketRadius' min='15' max='45' value='28' step='1'>
-                        <span id='cornerPocketRadiusValue'>28</span>
-                    </div>
-                    <div class='dev-control'>
-                        <label>Middle Opening:</label>
-                        <input type='range' id='middlePocketOpening' min='20' max='50' value='34' step='1'>
-                        <span id='middlePocketOpeningValue'>34</span>
-                    </div>
-                    <div class='dev-control'>
-                        <label>Middle Capture Zone:</label>
-                        <input type='range' id='middlePocketRadius' min='15' max='45' value='30' step='1'>
-                        <span id='middlePocketRadiusValue'>30</span>
-                    </div>
-                    <div class='dev-control'>
-                        <label>Capture Threshold:</label>
-                        <input type='range' id='captureThreshold' min='10' max='80' value='30' step='5'>
-                        <span id='captureThresholdValue'>30%</span>
-                    </div>
-                    <div class='dev-control'>
-                        <label>Pocket Depth Effect:</label>
-                        <input type='range' id='pocketDepth' min='0.5' max='2.0' value='1.0' step='0.1'>
-                        <span id='pocketDepthValue'>1.0</span>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Capture Zones (Ball Potting)</div>
+                        <div class='dev-control'>
+                            <label>Corner Capture:</label>
+                            <input type='range' id='cornerPocketRadius' min='15' max='45' value='28' step='1'>
+                            <span id='cornerPocketRadiusValue'>28</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Side Capture:</label>
+                            <input type='range' id='middlePocketRadius' min='15' max='45' value='30' step='1'>
+                            <span id='middlePocketRadiusValue'>30</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Capture Threshold:</label>
+                            <input type='range' id='captureThreshold' min='10' max='80' value='30' step='5'>
+                            <span id='captureThresholdValue'>30%</span>
+                        </div>
+                        <div class='dev-hint'>Controls when balls are considered potted</div>
                     </div>
                     <div class='dev-control'>
                         <label>Show Visual Zones:</label>
@@ -328,63 +331,6 @@ const PoolDevSettings = {
                     <div class='dev-hint'>When enabled, touching a ball while placing the cue ball is a foul</div>
                 </div>
                 
-                <div class='dev-section'>
-                    <h4>?? Pocket Jaws</h4>
-                    <div class='dev-subsection'>
-                        <div class='dev-subsection-title'>Angles & Physics</div>
-                        <div class='dev-control'>
-                            <label>Corner Angle:</label>
-                            <input type='range' id='cornerJawAngle' min='130' max='160' value='142' step='1'>
-                            <span id='cornerJawAngleValue'>142°</span>
-                        </div>
-                        <div class='dev-control'>
-                            <label>Side Angle:</label>
-                            <input type='range' id='sideJawAngle' min='90' max='120' value='104' step='1'>
-                            <span id='sideJawAngleValue'>104°</span>
-                        </div>
-                        <div class='dev-control'>
-                            <label>Jaw Length:</label>
-                            <input type='range' id='jawLength' min='0.5' max='3.0' value='1.5' step='0.1'>
-                            <span id='jawLengthValue'>1.5x</span>
-                        </div>
-                        <div class='dev-control'>
-                            <label>Restitution:</label>
-                            <input type='range' id='jawRestitution' min='0.3' max='0.9' value='0.6' step='0.05'>
-                            <span id='jawRestitutionValue'>0.60</span>
-                        </div>
-                    </div>
-                    <div class='dev-subsection'>
-                        <div class='dev-subsection-title'>Corner Position</div>
-                        <div class='dev-control'>
-                            <label>Start Offset:</label>
-                            <input type='range' id='cornerJawStartOffset' min='0.3' max='1.5' value='0.8' step='0.05'>
-                            <span id='cornerJawStartOffsetValue'>0.80</span>
-                        </div>
-                        <div class='dev-control'>
-                            <label>Spread:</label>
-                            <input type='range' id='cornerJawSpread' min='-0.5' max='0.5' value='0' step='0.05'>
-                            <span id='cornerJawSpreadValue'>0.00</span>
-                        </div>
-                    </div>
-                    <div class='dev-subsection'>
-                        <div class='dev-subsection-title'>Side Position</div>
-                        <div class='dev-control'>
-                            <label>Start Offset:</label>
-                            <input type='range' id='sideJawStartOffset' min='0.3' max='1.5' value='0.6' step='0.05'>
-                            <span id='sideJawStartOffsetValue'>0.60</span>
-                        </div>
-                        <div class='dev-control'>
-                            <label>Spread:</label>
-                            <input type='range' id='sideJawSpread' min='-0.5' max='0.5' value='0' step='0.05'>
-                            <span id='sideJawSpreadValue'>0.00</span>
-                        </div>
-                    </div>
-                    <div class='dev-control'>
-                        <label>Show Collision Zones:</label>
-                        <input type='checkbox' id='showJawCollisionZones'>
-                    </div>
-                    <div class='dev-hint'>Enable to visualize jaw collision detection lines</div>
-                </div>
                 
                 <div class='dev-section'>
                     <h4>Visual Effects</h4>
@@ -815,19 +761,20 @@ const PoolDevSettings = {
             self.game.ballSpacing = parseFloat(val);
         });
         
-        // Pocket Sizes
-        this.addRangeListener('cornerPocketOpening', (val) => {
-            self.game.cornerPocketOpening = parseFloat(val);
-            self.game.repositionPockets();
-        });
+        // Pocket Sizes - Opening Multipliers (controls visual gap in rails)
+        this.addRangeListener('cornerPocketOpeningMult', (val) => {
+            self.game.cornerPocketOpeningMult = parseFloat(val);
+            console.log('Corner pocket opening:', val + 'x');
+        }, (val) => val + 'x');
         
+        this.addRangeListener('sidePocketOpeningMult', (val) => {
+            self.game.sidePocketOpeningMult = parseFloat(val);
+            console.log('Side pocket opening:', val + 'x');
+        }, (val) => val + 'x');
+        
+        // Pocket Sizes - Capture Zones (controls when balls are potted)
         this.addRangeListener('cornerPocketRadius', (val) => {
             self.game.cornerPocketRadius = parseFloat(val);
-            self.game.repositionPockets();
-        });
-        
-        this.addRangeListener('middlePocketOpening', (val) => {
-            self.game.middlePocketOpening = parseFloat(val);
             self.game.repositionPockets();
         });
         
@@ -839,10 +786,6 @@ const PoolDevSettings = {
         this.addRangeListener('captureThreshold', (val) => {
             self.game.captureThresholdPercent = parseFloat(val) / 100;
         }, (val) => val + '%');
-        
-        this.addRangeListener('pocketDepth', (val) => {
-            self.game.pocketDepth = parseFloat(val);
-        });
         
         this.addCheckboxListener('showPocketZones', (checked) => {
             self.game.showPocketZones = checked;
@@ -1015,53 +958,6 @@ const PoolDevSettings = {
             console.log('Ball in hand touch foul:', checked ? 'enabled' : 'disabled');
         });
         
-        // Pocket Jaws - Angles
-        this.addRangeListener('cornerJawAngle', (val) => {
-            self.game.cornerJawAngle = parseFloat(val);
-            console.log('Corner jaw angle:', val + '°');
-        });
-        
-        this.addRangeListener('sideJawAngle', (val) => {
-            self.game.sideJawAngle = parseFloat(val);
-            console.log('Side jaw angle:', val + '°');
-        });
-        
-        this.addRangeListener('jawLength', (val) => {
-            self.game.jawLength = parseFloat(val);
-            console.log('Jaw length:', val + 'x');
-        });
-        
-        this.addRangeListener('jawRestitution', (val) => {
-            self.game.jawRestitution = parseFloat(val);
-            console.log('Jaw restitution:', val);
-        });
-        
-        // Pocket Jaws - Position
-        this.addRangeListener('cornerJawStartOffset', (val) => {
-            self.game.cornerJawStartOffset = parseFloat(val);
-            console.log('Corner jaw start offset:', val);
-        });
-        
-        this.addRangeListener('cornerJawSpread', (val) => {
-            self.game.cornerJawSpread = parseFloat(val);
-            console.log('Corner jaw spread:', val);
-        });
-        
-        this.addRangeListener('sideJawStartOffset', (val) => {
-            self.game.sideJawStartOffset = parseFloat(val);
-            console.log('Side jaw start offset:', val);
-        });
-        
-        this.addRangeListener('sideJawSpread', (val) => {
-            self.game.sideJawSpread = parseFloat(val);
-            console.log('Side jaw spread:', val);
-        });
-        
-        this.addCheckboxListener('showJawCollisionZones', (checked) => {
-            self.game.showJawCollisionZones = checked;
-            console.log('Show jaw collision zones:', checked);
-        });
-        
         // Visual Effects
         this.addCheckboxListener('showAimLine', (checked) => {
             self.game.showAimLine = checked;
@@ -1169,38 +1065,44 @@ const PoolDevSettings = {
     applyPreset(name) {
         const presets = {
             supreme: {
-                cornerPocketOpening: 32, cornerPocketRadius: 28, middlePocketOpening: 34, middlePocketRadius: 30, 
-                ballRadius: 14, captureThreshold: 30, pocketDepth: 1.0,
+                cornerPocketOpeningMult: 1.6, sidePocketOpeningMult: 1.3,
+                cornerPocketRadius: 28, middlePocketRadius: 30, 
+                ballRadius: 14, captureThreshold: 30,
                 friction: 0.987, cushionRestitution: 0.78, collisionDamping: 0.98,
                 maxPower: 40, powerMultiplier: 1.0
             },
             easy: {
-                cornerPocketOpening: 44, cornerPocketRadius: 40, middlePocketOpening: 46, middlePocketRadius: 42, 
-                ballRadius: 12, captureThreshold: 20, pocketDepth: 1.2,
+                cornerPocketOpeningMult: 2.2, sidePocketOpeningMult: 1.8,
+                cornerPocketRadius: 40, middlePocketRadius: 42, 
+                ballRadius: 12, captureThreshold: 20,
                 friction: 0.985, cushionRestitution: 0.80, collisionDamping: 0.99,
                 maxPower: 60, powerMultiplier: 1.2
             },
             tight: {
-                cornerPocketOpening: 26, cornerPocketRadius: 22, middlePocketOpening: 28, middlePocketRadius: 24, 
-                ballRadius: 14, captureThreshold: 50, pocketDepth: 0.8,
+                cornerPocketOpeningMult: 1.2, sidePocketOpeningMult: 1.0,
+                cornerPocketRadius: 22, middlePocketRadius: 24, 
+                ballRadius: 14, captureThreshold: 50,
                 friction: 0.990, cushionRestitution: 0.75, collisionDamping: 0.96,
                 maxPower: 35, powerMultiplier: 0.9
             },
             realistic: {
-                cornerPocketOpening: 31, cornerPocketRadius: 27, middlePocketOpening: 33, middlePocketRadius: 29, 
-                ballRadius: 13.89, captureThreshold: 40, pocketDepth: 1.0,
+                cornerPocketOpeningMult: 1.5, sidePocketOpeningMult: 1.25,
+                cornerPocketRadius: 27, middlePocketRadius: 29, 
+                ballRadius: 13.89, captureThreshold: 40,
                 friction: 0.989, cushionRestitution: 0.77, collisionDamping: 0.97,
                 maxPower: 45, powerMultiplier: 1.0, rollingResistance: 0.995, spinDecay: 0.985
             },
             arcade: {
-                cornerPocketOpening: 48, cornerPocketRadius: 45, middlePocketOpening: 50, middlePocketRadius: 47, 
-                ballRadius: 15, captureThreshold: 15, pocketDepth: 1.5,
+                cornerPocketOpeningMult: 2.5, sidePocketOpeningMult: 2.0,
+                cornerPocketRadius: 45, middlePocketRadius: 47, 
+                ballRadius: 15, captureThreshold: 15,
                 friction: 0.98, cushionRestitution: 0.85, collisionDamping: 0.99,
                 maxPower: 100, powerMultiplier: 1.5, maxSpin: 2.5
             },
             pro: {
-                cornerPocketOpening: 29, cornerPocketRadius: 25, middlePocketOpening: 31, middlePocketRadius: 27, 
-                ballRadius: 13.5, captureThreshold: 45, pocketDepth: 0.9,
+                cornerPocketOpeningMult: 1.3, sidePocketOpeningMult: 1.1,
+                cornerPocketRadius: 25, middlePocketRadius: 27, 
+                ballRadius: 13.5, captureThreshold: 45,
                 friction: 0.992, cushionRestitution: 0.76, collisionDamping: 0.96,
                 maxPower: 38, powerMultiplier: 0.95, rollingResistance: 0.997, spinDecay: 0.98
             }
@@ -1269,11 +1171,10 @@ const PoolDevSettings = {
             },
             pockets: {
                 cornerRadius: this.game.cornerPocketRadius,
-                cornerOpening: this.game.cornerPocketOpening || 32,
+                cornerOpeningMult: this.game.cornerPocketOpeningMult || 1.6,
                 middleRadius: this.game.middlePocketRadius,
-                middleOpening: this.game.middlePocketOpening || 34,
-                captureThreshold: this.game.captureThresholdPercent,
-                pocketDepth: this.game.pocketDepth || 1.0
+                sideOpeningMult: this.game.sidePocketOpeningMult || 1.3,
+                captureThreshold: this.game.captureThresholdPercent
             },
             physics: {
                 friction: this.game.friction,
@@ -1350,17 +1251,15 @@ const PoolDevSettings = {
         const defaults = {
             tableWidth: 1000, tableHeight: 500, cushionMargin: 21,
             ballRadius: 14, cueBallRadius: 13, ballSpacing: 0.5,
-            cornerPocketOpening: 32, cornerPocketRadius: 28, middlePocketOpening: 34, middlePocketRadius: 30, 
-            captureThreshold: 30, pocketDepth: 1.0,
+            cornerPocketOpeningMult: 1.6, sidePocketOpeningMult: 1.3,
+            cornerPocketRadius: 28, middlePocketRadius: 30, 
+            captureThreshold: 30,
             friction: 0.987, rollingResistance: 0.99, spinDecay: 0.98,
             cushionRestitution: 0.78, ballRestitution: 0.95, collisionDamping: 0.98,
             maxPower: 40, powerMultiplier: 1.0, aimSensitivity: 1.0, maxPullDistance: 150,
             maxSpin: 1.5, spinEffect: 2.0, englishTransfer: 0.5, spinDecayRate: 0.98,
             airResistance: 0.999, angularDamping: 0.98, minSpeed: 0.05, gravityEffect: 1,
-            volume: 50,
-            // Jaw settings defaults
-            cornerJawAngle: 142, sideJawAngle: 104, jawLength: 1.5, jawRestitution: 0.6,
-            cornerJawStartOffset: 0.8, cornerJawSpread: 0, sideJawStartOffset: 0.6, sideJawSpread: 0
+            volume: 50
         };
         
         Object.keys(defaults).forEach(key => {
@@ -1410,13 +1309,12 @@ const PoolDevSettings = {
             cueBallRadius: this.game.cueBallRadius,
             ballSpacing: this.game.ballSpacing || 0.5,
             
-            // Pockets
-            cornerPocketOpening: this.game.cornerPocketOpening || 32,
+            // Pockets - Opening multipliers
+            cornerPocketOpeningMult: this.game.cornerPocketOpeningMult || 1.6,
+            sidePocketOpeningMult: this.game.sidePocketOpeningMult || 1.3,
             cornerPocketRadius: this.game.cornerPocketRadius,
-            middlePocketOpening: this.game.middlePocketOpening || 34,
             middlePocketRadius: this.game.middlePocketRadius,
             captureThreshold: (this.game.captureThresholdPercent || 0.30) * 100,
-            pocketDepth: this.game.pocketDepth || 1.0,
             
             // Physics
             friction: this.game.friction,

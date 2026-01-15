@@ -765,121 +765,16 @@ const PoolPhysics = {
     },
     
     /**
-     * Handle pocket jaw collisions - balls hitting the angled cushion edges near pockets
+     * Handle pocket jaw collisions - DISABLED for simplified table
+     * The simplified table doesn't have angled jaws, just round pockets
      * @param {Object} ball - The ball to check
      * @param {Array} pockets - Array of pocket objects
      * @param {Object} game - Game instance for settings
-     * @returns {boolean} - True if a jaw collision occurred
+     * @returns {boolean} - Always false (disabled)
      */
     handlePocketJawCollision(ball, pockets, game) {
-        if (!pockets || ball.potted) return false;
-        
-        let jawCollision = false;
-        
-        for (const pocket of pockets) {
-            const dx = ball.x - pocket.x;
-            const dy = ball.y - pocket.y;
-            const distToCenter = Math.sqrt(dx * dx + dy * dy);
-            
-            // Only check jaw collision if ball is near pocket but not inside capture zone
-            const captureRadius = pocket.r * (1 - (game?.captureThresholdPercent || 0.3));
-            const jawZoneOuter = pocket.r * 2.5;  // Outer edge of jaw detection zone
-            const jawZoneInner = captureRadius;    // Inner edge (capture zone)
-            
-            if (distToCenter > jawZoneInner && distToCenter < jawZoneOuter) {
-                const isCorner = pocket.type === 'corner';
-                
-                // Get jaw angle from game settings
-                const jawAngle = isCorner ? 
-                    (game?.cornerJawAngle || 142) : 
-                    (game?.sideJawAngle || 104);
-                
-                // Convert to half-angle in radians (angle from pocket center to each jaw)
-                const halfJawAngle = (180 - jawAngle) / 2 * Math.PI / 180;
-                
-                // Calculate jaw positions based on pocket type
-                let jawAngles = [];
-                
-                if (isCorner) {
-                    // Corner pocket - determine which corner
-                    const tableWidth = game?.width || 1000;
-                    const tableHeight = game?.height || 500;
-                    const isLeft = pocket.x < tableWidth / 2;
-                    const isTop = pocket.y < tableHeight / 2;
-                    
-                    // Base angle pointing into table
-                    let baseAngle;
-                    if (isLeft && isTop) baseAngle = Math.PI * 0.25;      // Top-left: 45 deg
-                    else if (!isLeft && isTop) baseAngle = Math.PI * 0.75;  // Top-right: 135 deg
-                    else if (!isLeft && !isTop) baseAngle = Math.PI * 1.25; // Bottom-right: 225 deg
-                    else baseAngle = Math.PI * 1.75;                        // Bottom-left: 315 deg
-                    
-                    // Two jaws at angles from the base
-                    jawAngles = [
-                        { angle: baseAngle - halfJawAngle, normal: baseAngle - halfJawAngle + Math.PI/2 },
-                        { angle: baseAngle + halfJawAngle, normal: baseAngle + halfJawAngle - Math.PI/2 }
-                    ];
-                } else {
-                    // Side pocket - top or bottom
-                    const isTop = pocket.y < 200;
-                    const baseAngle = isTop ? Math.PI * 0.5 : Math.PI * 1.5; // Point into table
-                    
-                    jawAngles = [
-                        { angle: baseAngle - Math.PI/2 + halfJawAngle, normal: Math.PI },
-                        { angle: baseAngle + Math.PI/2 - halfJawAngle, normal: 0 }
-                    ];
-                }
-                
-                // Calculate jaw line segments with position controls
-                const jawLength = pocket.r * (game?.jawLength || 1.5);
-                const jawRestitution = game?.jawRestitution || 0.6;
-                
-                // Get position offsets from game settings
-                const jawStartOffset = isCorner ? 
-                    (game?.cornerJawStartOffset || 0.8) : 
-                    (game?.sideJawStartOffset || 0.6);
-                const jawSpread = isCorner ?
-                    (game?.cornerJawSpread || 0) :
-                    (game?.sideJawSpread || 0);
-                
-                for (let i = 0; i < jawAngles.length; i++) {
-                    const jaw = jawAngles[i];
-                    
-                    // Apply spread adjustment (positive = wider, negative = narrower)
-                    // First jaw gets negative adjustment, second gets positive
-                    const spreadAdjust = (i === 0 ? -1 : 1) * jawSpread;
-                    const adjustedAngle = jaw.angle + spreadAdjust;
-                    
-                    // Jaw starts at edge of pocket opening (use jawStartOffset to control distance from center)
-                    const jawStartX = pocket.x + Math.cos(adjustedAngle) * (pocket.r * jawStartOffset);
-                    const jawStartY = pocket.y + Math.sin(adjustedAngle) * (pocket.r * jawStartOffset);
-                    const jawEndX = pocket.x + Math.cos(adjustedAngle) * (pocket.r * jawStartOffset + jawLength);
-                    const jawEndY = pocket.y + Math.sin(adjustedAngle) * (pocket.r * jawStartOffset + jawLength);
-                    
-                    // Check distance from ball to jaw line segment
-                    const collision = this.checkLineCollision(
-                        ball, 
-                        jawStartX, jawStartY, 
-                        jawEndX, jawEndY,
-                        jaw.normal,
-                        jawRestitution
-                    );
-                    
-                    if (collision) {
-                        jawCollision = true;
-                        console.log('?? JAW COLLISION!', isCorner ? 'Corner' : 'Side', 'pocket, Restitution:', jawRestitution);
-                        
-                        // Play cushion sound
-                        if (typeof PoolAudio !== 'undefined') {
-                            const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                            PoolAudio.play('cushionBounce', impactSpeed / 15);
-                        }
-                    }
-                }
-            }
-        }
-        
-        return jawCollision;
+        // Jaw collisions disabled - simplified table uses round pockets without angled jaws
+        return false;
     },
     
     /**

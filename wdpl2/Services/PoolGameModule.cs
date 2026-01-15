@@ -23,6 +23,7 @@ class PoolGame {
         this.width = 1000;
         this.height = 500;
         
+        
         // Scale: 1000px canvas = 72 inches real table
         this.pixelsPerInch = 1000 / 72;
         
@@ -34,10 +35,15 @@ class PoolGame {
         this.cornerPocketRadius = 1.675 * this.pixelsPerInch + (3.0 * 0.1 * this.pixelsPerInch);
         this.middlePocketRadius = 1.87 * this.pixelsPerInch + (2.5 * 0.1 * this.pixelsPerInch);
         
-        // Pocket openings (visual) - slightly larger than capture zones
+        // Pocket openings (visual) - controls the gap in the cushions/rails
+        // These are multipliers relative to the cushion margin
+        this.cornerPocketOpeningMult = 1.6;    // Corner pocket opening multiplier (1.0-2.5)
+        this.sidePocketOpeningMult = 1.3;      // Side pocket opening multiplier (1.0-2.0)
+        this.pocketDepth = 1.0;
+        
+        // Legacy properties (kept for compatibility)
         this.cornerPocketOpening = 32;
         this.middlePocketOpening = 34;
-        this.pocketDepth = 1.0;
         
         // Cushion margin
         this.cushionMargin = 1.5 * this.pixelsPerInch;
@@ -87,23 +93,6 @@ class PoolGame {
         // Ball in hand touch foul - if true, touching a ball while placing cue ball is a foul
         this.ballInHandTouchFoul = true;
         this.cushionRestitution = 0.78;
-        
-        // Pocket jaw settings - UK 8-ball specifications
-        // Corner pocket jaw angle: typically 142-145 degrees (full angle across pocket)
-        // Side pocket jaw angle: typically 103-106 degrees (more open)
-        this.cornerJawAngle = 142;           // Degrees - angle of corner pocket jaws (142-145 typical)
-        this.sideJawAngle = 104;             // Degrees - angle of side pocket jaws (103-106 typical)
-        this.jawLength = 1.5;                // Jaw length multiplier (affects how far jaws extend)
-        this.jawRestitution = 0.6;           // How bouncy the jaws are (0.5-0.8 typical)
-        this.showJawCollisionZones = false;  // Debug visualization
-        
-        // Jaw position controls
-        this.jawStartOffset = 0.8;           // How far from pocket center jaws start (0.5-1.2, lower = closer to center)
-        this.jawSpread = 0;                  // Side-to-side spread adjustment (-0.3 to 0.3, 0 = default)
-        this.cornerJawStartOffset = 0.8;     // Corner-specific start offset
-        this.sideJawStartOffset = 0.6;       // Side pocket-specific start offset
-        this.cornerJawSpread = 0;            // Corner-specific spread
-        this.sideJawSpread = 0;              // Side pocket-specific spread
         
         // Trajectory prediction settings
         this.showTrajectoryPrediction = true;  // Show predicted ball paths

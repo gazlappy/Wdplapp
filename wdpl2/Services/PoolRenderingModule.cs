@@ -390,118 +390,241 @@ const PoolRendering = {
     },
     
     /**
-     * Draw simple cushions with basic pocket cutouts
-     * Clean, straightforward approach
+     * Draw UK-style pool table with proper pocket cutouts
+     * Based on reference image - cream rails, black pockets, green cushions
      */
     drawSimpleCushions(ctx, width, height, cushionMargin) {
         const railWidth = cushionMargin;
-        const pocketSize = cushionMargin * 1.8;  // Size of pocket cutout
-        const sidePocketSize = cushionMargin * 1.5;
         
-        // Colors
-        const woodColor = '#8B6F47';
-        const woodDark = '#5C4530';
-        const rubberColor = '#0B5B1E';
+        // Pocket hole sizes (the black circles)
+        const cornerPocketR = railWidth * 0.9;
+        const sidePocketR = railWidth * 0.75;
         
-        // Pocket positions
-        const pocketPositions = [
-            { x: 0, y: 0, size: pocketSize },                              // Top-left
-            { x: width, y: 0, size: pocketSize },                          // Top-right  
-            { x: 0, y: height, size: pocketSize },                         // Bottom-left
-            { x: width, y: height, size: pocketSize },                     // Bottom-right
-            { x: width / 2, y: 0, size: sidePocketSize },                  // Top-middle
-            { x: width / 2, y: height, size: sidePocketSize }              // Bottom-middle
+        // Pocket OPENING sizes (the gap in the cushions) - use game settings if available
+        // These control how wide the opening is in the rails/cushions
+        const cornerOpeningMult = (typeof game !== 'undefined' && game.cornerPocketOpeningMult) ? game.cornerPocketOpeningMult : 1.6;
+        const sideOpeningMult = (typeof game !== 'undefined' && game.sidePocketOpeningMult) ? game.sidePocketOpeningMult : 1.3;
+        
+        const cornerPocketOpening = railWidth * cornerOpeningMult;
+        const sidePocketOpening = railWidth * sideOpeningMult;
+        
+        // Colors matching reference image
+        const railColor = '#C4B998';        // Cream/tan rail color
+        const railLight = '#D9CEAB';        // Rail highlight
+        const railDark = '#A69B78';         // Rail shadow
+        const railEdge = '#8B8060';          // Dark edge
+        const cushionColor = '#1B7A3A';     // Green cushion rubber
+        const cushionLight = '#229A48';     // Cushion highlight
+        const pocketColor = '#000000';      // Black pocket holes
+        
+        // Corner pocket positions (at actual corners)
+        const corners = [
+            { x: railWidth * 0.7, y: railWidth * 0.7 },                    // Top-left
+            { x: width - railWidth * 0.7, y: railWidth * 0.7 },            // Top-right
+            { x: railWidth * 0.7, y: height - railWidth * 0.7 },           // Bottom-left
+            { x: width - railWidth * 0.7, y: height - railWidth * 0.7 }    // Bottom-right
         ];
         
-        // Draw pocket holes first
-        pocketPositions.forEach(p => {
-            const holeGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-            holeGrad.addColorStop(0, '#000000');
-            holeGrad.addColorStop(0.6, '#1a1a1a');
-            holeGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            
-            ctx.fillStyle = holeGrad;
+        // Side pocket positions
+        const sides = [
+            { x: width / 2, y: railWidth * 0.4 },                          // Top-middle
+            { x: width / 2, y: height - railWidth * 0.4 }                  // Bottom-middle
+        ];
+        
+        
+        ctx.save();
+        
+        // ========== 1. DRAW OUTER RAIL FRAME ==========
+        // This is the cream/tan wooden frame around the table
+        // Use pocket OPENING size for rail gaps (not hole size)
+        
+        // Top rail
+        ctx.fillStyle = railColor;
+        ctx.beginPath();
+        ctx.moveTo(corners[0].x + cornerPocketOpening, 0);
+        ctx.lineTo(sides[0].x - sidePocketOpening, 0);
+        ctx.lineTo(sides[0].x - sidePocketOpening, railWidth);
+        ctx.lineTo(corners[0].x + cornerPocketOpening, railWidth);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(sides[0].x + sidePocketOpening, 0);
+        ctx.lineTo(corners[1].x - cornerPocketOpening, 0);
+        ctx.lineTo(corners[1].x - cornerPocketOpening, railWidth);
+        ctx.lineTo(sides[0].x + sidePocketOpening, railWidth);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Bottom rail
+        ctx.beginPath();
+        ctx.moveTo(corners[2].x + cornerPocketOpening, height);
+        ctx.lineTo(sides[1].x - sidePocketOpening, height);
+        ctx.lineTo(sides[1].x - sidePocketOpening, height - railWidth);
+        ctx.lineTo(corners[2].x + cornerPocketOpening, height - railWidth);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(sides[1].x + sidePocketOpening, height);
+        ctx.lineTo(corners[3].x - cornerPocketOpening, height);
+        ctx.lineTo(corners[3].x - cornerPocketOpening, height - railWidth);
+        ctx.lineTo(sides[1].x + sidePocketOpening, height - railWidth);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Left rail
+        ctx.beginPath();
+        ctx.moveTo(0, corners[0].y + cornerPocketOpening);
+        ctx.lineTo(0, corners[2].y - cornerPocketOpening);
+        ctx.lineTo(railWidth, corners[2].y - cornerPocketOpening);
+        ctx.lineTo(railWidth, corners[0].y + cornerPocketOpening);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Right rail
+        ctx.beginPath();
+        ctx.moveTo(width, corners[1].y + cornerPocketOpening);
+        ctx.lineTo(width, corners[3].y - cornerPocketOpening);
+        ctx.lineTo(width - railWidth, corners[3].y - cornerPocketOpening);
+        ctx.lineTo(width - railWidth, corners[1].y + cornerPocketOpening);
+        ctx.closePath();
+        ctx.fill();
+        
+        // ========== 2. RAIL 3D EFFECTS ==========
+        // Top edge highlights
+        ctx.strokeStyle = railLight;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(corners[0].x + cornerPocketOpening, 2);
+        ctx.lineTo(sides[0].x - sidePocketOpening, 2);
+        ctx.moveTo(sides[0].x + sidePocketOpening, 2);
+        ctx.lineTo(corners[1].x - cornerPocketOpening, 2);
+        ctx.stroke();
+        
+        // Inner edge shadows
+        ctx.strokeStyle = railDark;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(corners[0].x + cornerPocketOpening, railWidth - 1);
+        ctx.lineTo(sides[0].x - sidePocketOpening, railWidth - 1);
+        ctx.moveTo(sides[0].x + sidePocketOpening, railWidth - 1);
+        ctx.lineTo(corners[1].x - cornerPocketOpening, railWidth - 1);
+        ctx.stroke();
+        
+        // Bottom rail inner edge
+        ctx.beginPath();
+        ctx.moveTo(corners[2].x + cornerPocketOpening, height - railWidth + 1);
+        ctx.lineTo(sides[1].x - sidePocketOpening, height - railWidth + 1);
+        ctx.moveTo(sides[1].x + sidePocketOpening, height - railWidth + 1);
+        ctx.lineTo(corners[3].x - cornerPocketOpening, height - railWidth + 1);
+        ctx.stroke();
+        
+        // ========== 3. DRAW POCKET HOLES ==========
+        // Black circles at corner and side positions (use hole size, not opening size)
+        
+        
+        // Corner pockets - with slight shadow/depth
+        corners.forEach(p => {
+            // Outer shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, cornerPocketR * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main black hole
+            ctx.fillStyle = pocketColor;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, cornerPocketR, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner depth
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, cornerPocketR * 0.7, 0, Math.PI * 2);
             ctx.fill();
         });
         
-        // Draw wood rails
-        ctx.fillStyle = woodColor;
+        // Side pockets
+        sides.forEach(p => {
+            // Outer shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, sidePocketR * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main black hole
+            ctx.fillStyle = pocketColor;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, sidePocketR, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner depth
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, sidePocketR * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+        });
         
-        // Top rail (with pocket gaps)
-        ctx.fillRect(pocketSize, 0, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
-        ctx.fillRect(width / 2 + sidePocketSize / 2, 0, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
         
-        // Bottom rail (with pocket gaps)
-        ctx.fillRect(pocketSize, height - railWidth, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
-        ctx.fillRect(width / 2 + sidePocketSize / 2, height - railWidth, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
+        // ========== 4. DRAW GREEN CUSHIONS ==========
+        // These are the rubber bumpers that balls bounce off
+        // They run along the inner edge of the rail and STOP at each pocket opening
         
-        // Left rail (with pocket gaps)
-        ctx.fillRect(0, pocketSize, railWidth, height - pocketSize * 2);
+        const cushionWidth = 6;
+        const cushionInset = railWidth - cushionWidth / 2 - 2;
         
-        // Right rail (with pocket gaps)
-        ctx.fillRect(width - railWidth, pocketSize, railWidth, height - pocketSize * 2);
-        
-        // Draw rubber cushion face (inner edge of rails)
-        ctx.strokeStyle = rubberColor;
-        ctx.lineWidth = 5;
+        ctx.strokeStyle = cushionColor;
+        ctx.lineWidth = cushionWidth;
         ctx.lineCap = 'round';
         
-        // Top cushion segments
+        // Top cushions (2 segments with gap for side pocket)
         ctx.beginPath();
-        ctx.moveTo(pocketSize + 5, railWidth - 2);
-        ctx.lineTo(width / 2 - sidePocketSize / 2 - 5, railWidth - 2);
+        ctx.moveTo(corners[0].x + cornerPocketOpening + 3, cushionInset);
+        ctx.lineTo(sides[0].x - sidePocketOpening - 3, cushionInset);
         ctx.stroke();
         
         ctx.beginPath();
-        ctx.moveTo(width / 2 + sidePocketSize / 2 + 5, railWidth - 2);
-        ctx.lineTo(width - pocketSize - 5, railWidth - 2);
+        ctx.moveTo(sides[0].x + sidePocketOpening + 3, cushionInset);
+        ctx.lineTo(corners[1].x - cornerPocketOpening - 3, cushionInset);
         ctx.stroke();
         
-        // Bottom cushion segments
+        // Bottom cushions
         ctx.beginPath();
-        ctx.moveTo(pocketSize + 5, height - railWidth + 2);
-        ctx.lineTo(width / 2 - sidePocketSize / 2 - 5, height - railWidth + 2);
+        ctx.moveTo(corners[2].x + cornerPocketOpening + 3, height - cushionInset);
+        ctx.lineTo(sides[1].x - sidePocketOpening - 3, height - cushionInset);
         ctx.stroke();
         
         ctx.beginPath();
-        ctx.moveTo(width / 2 + sidePocketSize / 2 + 5, height - railWidth + 2);
-        ctx.lineTo(width - pocketSize - 5, height - railWidth + 2);
+        ctx.moveTo(sides[1].x + sidePocketOpening + 3, height - cushionInset);
+        ctx.lineTo(corners[3].x - cornerPocketOpening - 3, height - cushionInset);
         ctx.stroke();
         
         // Left cushion
         ctx.beginPath();
-        ctx.moveTo(railWidth - 2, pocketSize + 5);
-        ctx.lineTo(railWidth - 2, height - pocketSize - 5);
+        ctx.moveTo(cushionInset, corners[0].y + cornerPocketOpening + 3);
+        ctx.lineTo(cushionInset, corners[2].y - cornerPocketOpening - 3);
         ctx.stroke();
         
         // Right cushion
         ctx.beginPath();
-        ctx.moveTo(width - railWidth + 2, pocketSize + 5);
-        ctx.lineTo(width - railWidth + 2, height - pocketSize - 5);
+        ctx.moveTo(width - cushionInset, corners[1].y + cornerPocketOpening + 3);
+        ctx.lineTo(width - cushionInset, corners[3].y - cornerPocketOpening - 3);
         ctx.stroke();
         
-        // Add wood highlights/shadows for 3D effect
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        // Cushion highlights (lighter green on top edge)
+        ctx.strokeStyle = cushionLight;
         ctx.lineWidth = 2;
         
-        // Top rail highlight
+        // Top cushion highlights
         ctx.beginPath();
-        ctx.moveTo(pocketSize, 2);
-        ctx.lineTo(width / 2 - sidePocketSize / 2, 2);
-        ctx.moveTo(width / 2 + sidePocketSize / 2, 2);
-        ctx.lineTo(width - pocketSize, 2);
+        ctx.moveTo(corners[0].x + cornerPocketOpening + 3, cushionInset - 2);
+        ctx.lineTo(sides[0].x - sidePocketOpening - 3, cushionInset - 2);
+        ctx.moveTo(sides[0].x + sidePocketOpening + 3, cushionInset - 2);
+        ctx.lineTo(corners[1].x - cornerPocketOpening - 3, cushionInset - 2);
         ctx.stroke();
         
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        // Top rail shadow (inner edge)
-        ctx.beginPath();
-        ctx.moveTo(pocketSize, railWidth - 1);
-        ctx.lineTo(width / 2 - sidePocketSize / 2, railWidth - 1);
-        ctx.moveTo(width / 2 + sidePocketSize / 2, railWidth - 1);
-        ctx.lineTo(width - pocketSize, railWidth - 1);
-        ctx.stroke();
+        ctx.restore();
     },
     
     /**
