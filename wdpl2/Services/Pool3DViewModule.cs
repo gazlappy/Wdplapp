@@ -1,8 +1,7 @@
 namespace Wdpl2.Services;
 
 /// <summary>
-/// 3D View module for pool game - PLAYABLE 3D rendering with full game controls
-/// Uses Three.js for WebGL rendering
+/// 3D View module for pool game - Starting with empty room, will add table in modules
 /// </summary>
 public static class Pool3DViewModule
 {
@@ -10,39 +9,23 @@ public static class Pool3DViewModule
     {
         return @"
 // ============================================
-// POOL 3D VIEW MODULE - PLAYABLE VERSION
-// Three.js based 3D rendering with full game controls
+// POOL 3D VIEW MODULE - CLEAN START
+// Just an empty room with lighting
 // ============================================
 
 const Pool3DView = {
     is3DMode: false,
-    isPlayMode: true,
     scene: null,
     camera: null,
     renderer: null,
     controls: null,
     game: null,
     balls3D: [],
-    table3D: null,
     animationId: null,
     container: null,
     scale: 0.5,
     
-    // Game state
-    gameState: 'idle', // 'idle', 'aiming', 'powering'
-    cueStick: null,
-    aimLine: null,
-    ghostBall: null,
-    aimAngle: 0,
-    shotPower: 0,
-    dragStartY: 0,
-    
-    raycaster: null,
-    mouse: null,
-    tableTopPlane: null,
-    
-    statusDisplay: null,
-    modeButton: null,
+    // Materials
     materials: {},
     
     async init(game) {
@@ -92,56 +75,59 @@ const Pool3DView = {
     },
     
     enable3D() {
+        // Hide 2D canvas
         if (this.game.canvas) this.game.canvas.style.display = 'none';
         document.querySelectorAll('#status,#controls,.ball-return-window').forEach(e => { if(e) e.style.display = 'none'; });
         
+        // Create container
         this.container = document.createElement('div');
         this.container.id = 'pool3DContainer';
         this.container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;background:#1a1a2e;';
         document.body.appendChild(this.container);
         
+        // Setup everything
         this.setupScene();
         this.createMaterials();
+        this.createRoom();
         this.createTable();
         this.createBalls();
-        this.createCueStick();
-        this.createAimVisuals();
         this.createLighting();
         this.setupControls();
-        this.setupInput();
         this.createUI();
         this.animate();
-        this.setPlayMode(true);
     },
     
     disable3D() {
+        // Show 2D canvas
         if (this.game.canvas) this.game.canvas.style.display = 'block';
         document.querySelectorAll('#status,#controls,.ball-return-window').forEach(e => { if(e) e.style.display = ''; });
+        
+        // Cleanup
         if (this.container) { this.container.remove(); this.container = null; }
         if (this.animationId) { cancelAnimationFrame(this.animationId); this.animationId = null; }
         if (this.renderer) { this.renderer.dispose(); this.renderer = null; }
-        this.scene = null; this.camera = null; this.controls = null; this.balls3D = [];
-        this.gameState = 'idle';
+        this.scene = null;
+        this.camera = null;
+        this.controls = null;
+        this.balls3D = [];
     },
     
     setupScene() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x1a1a2e);
         
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 10000);
-        this.camera.position.set(0, 300, 300);
+        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 5000);
+        this.camera.position.set(0, 250, 350);
         this.camera.lookAt(0, 0, 0);
         
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
         
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
-        this.tableTopPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -8);
-        
+        // Handle resize
         window.addEventListener('resize', () => {
             if (!this.is3DMode) return;
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -152,142 +138,471 @@ const Pool3DView = {
     
     createMaterials() {
         this.materials = {
-            felt: new THREE.MeshStandardMaterial({ color: 0x0d5c2e, roughness: 0.9 }),
-            wood: new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.7 }),
-            rail: new THREE.MeshStandardMaterial({ color: 0xC4B998, roughness: 0.5 }),
-            cushion: new THREE.MeshStandardMaterial({ color: 0x1B7A3A, roughness: 0.6 }),
+            // Room
+            floor: new THREE.MeshStandardMaterial({ color: 0x2a2a3e, roughness: 0.8 }),
+            wall: new THREE.MeshStandardMaterial({ color: 0x3a3a4e, roughness: 0.9 }),
+            
+            // Table
+            felt: new THREE.MeshStandardMaterial({ color: 0x0d6b32, roughness: 0.9 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x5D3A1A, roughness: 0.5 }),
+            cushion: new THREE.MeshStandardMaterial({ color: 0x1B8A4A, roughness: 0.6 }),
+            slate: new THREE.MeshStandardMaterial({ color: 0x3A4A4A, roughness: 0.7 }),
+            pocket: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1.0 }),
+            
+            // Balls
             white: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }),
             red: new THREE.MeshStandardMaterial({ color: 0xDC2626, roughness: 0.2 }),
             yellow: new THREE.MeshStandardMaterial({ color: 0xEAB308, roughness: 0.2 }),
-            black: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.2 }),
-            pocket: new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0 }),
-            cue: new THREE.MeshStandardMaterial({ color: 0xD4A574, roughness: 0.4 }),
-            cueTip: new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.8 })
+            black: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.2 })
         };
     },
     
-    createTable() {
-        const w = this.game.width * this.scale;
-        const h = this.game.height * this.scale;
-        const cm = this.game.cushionMargin * this.scale;
-        
-        this.table3D = new THREE.Group();
-        
-        // Felt
-        const felt = new THREE.Mesh(new THREE.BoxGeometry(w-cm*2, 2, h-cm*2), this.materials.felt);
-        felt.position.y = 1; felt.receiveShadow = true;
-        this.table3D.add(felt);
-        
-        // Frame
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(w+40, 30, h+40), this.materials.wood);
-        frame.position.y = -15;
-        this.table3D.add(frame);
-        
-        // Rails
-        [[0, -h/2+cm/2, w-cm*3, cm], [0, h/2-cm/2, w-cm*3, cm]].forEach(([x,z,rw,rd]) => {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(rw,15,rd), this.materials.rail);
-            rail.position.set(x, 9, z); rail.castShadow = true;
-            this.table3D.add(rail);
-        });
-        [[-w/2+cm/2, 0, cm, h-cm*3], [w/2-cm/2, 0, cm, h-cm*3]].forEach(([x,z,rw,rd]) => {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(rw,15,rd), this.materials.rail);
-            rail.position.set(x, 9, z); rail.castShadow = true;
-            this.table3D.add(rail);
-        });
-        
-        // Cushions
-        [[0, -h/2+cm-2.5, w-cm*4, 5], [0, h/2-cm+2.5, w-cm*4, 5]].forEach(([x,z,cw,cd]) => {
-            const cush = new THREE.Mesh(new THREE.BoxGeometry(cw,8,cd), this.materials.cushion);
-            cush.position.set(x, 6, z);
-            this.table3D.add(cush);
-        });
-        [[-w/2+cm-2.5, 0, 5, h-cm*4], [w/2-cm+2.5, 0, 5, h-cm*4]].forEach(([x,z,cw,cd]) => {
-            const cush = new THREE.Mesh(new THREE.BoxGeometry(cw,8,cd), this.materials.cushion);
-            cush.position.set(x, 6, z);
-            this.table3D.add(cush);
-        });
-        
-        // Pockets
-        [[-w/2+cm*0.7,-h/2+cm*0.7], [w/2-cm*0.7,-h/2+cm*0.7], [-w/2+cm*0.7,h/2-cm*0.7], [w/2-cm*0.7,h/2-cm*0.7], [0,-h/2+cm*0.4], [0,h/2-cm*0.4]].forEach(([x,z]) => {
-            const p = new THREE.Mesh(new THREE.CylinderGeometry(12,12,10,32), this.materials.pocket);
-            p.position.set(x, 0, z);
-            this.table3D.add(p);
-        });
-        
+    createRoom() {
         // Floor
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), new THREE.MeshStandardMaterial({color:0x2a2a3e,roughness:0.8}));
-        floor.rotation.x = -Math.PI/2; floor.position.y = -35; floor.receiveShadow = true;
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(1500, 1500),
+            this.materials.floor
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -50;
+        floor.receiveShadow = true;
         this.scene.add(floor);
         
-        this.scene.add(this.table3D);
+        // Back wall
+        const backWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(1500, 400),
+            this.materials.wall
+        );
+        backWall.position.set(0, 150, -500);
+        this.scene.add(backWall);
+        
+        // Side walls
+        const leftWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000, 400),
+            this.materials.wall
+        );
+        leftWall.rotation.y = Math.PI / 2;
+        leftWall.position.set(-750, 150, 0);
+        this.scene.add(leftWall);
+        
+        const rightWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000, 400),
+            this.materials.wall
+        );
+        rightWall.rotation.y = -Math.PI / 2;
+        rightWall.position.set(750, 150, 0);
+        this.scene.add(rightWall);
+        
+        
+        
+        
+        console.log('Room created');
+    },
+    
+    createTable() {
+        // Table dimensions based on game scale
+        const W = this.game.width * this.scale;  // ~250
+        const H = this.game.height * this.scale; // ~125
+        const tableY = 0; // Table surface at Y=0
+        
+        // === DEBUG: PLAYING SURFACE OVERLAY ===
+        // Shows the exact area where balls can roll (matches 2D game coordinates)
+        const debugOverlay = new THREE.Group();
+        debugOverlay.name = 'playingSurfaceOverlay';
+        
+        // Playing surface outline (wireframe rectangle)
+        const outlineGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(W, H));
+        const outlineMat = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        const outline = new THREE.LineSegments(outlineGeom, outlineMat);
+        outline.rotation.x = -Math.PI / 2;
+        outline.position.y = tableY + 2;
+        debugOverlay.add(outline);
+        
+        // Corner markers (where corner pockets are)
+        const cornerMarkerGeom = new THREE.CircleGeometry(8, 16);
+        const cornerMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
+        [[-W/2, -H/2], [W/2, -H/2], [-W/2, H/2], [W/2, H/2]].forEach(([x, z]) => {
+            const marker = new THREE.Mesh(cornerMarkerGeom, cornerMarkerMat);
+            marker.rotation.x = -Math.PI / 2;
+            marker.position.set(x, tableY + 2.1, z);
+            debugOverlay.add(marker);
+        });
+        
+        // Side pocket markers
+        const sideMarkerMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.5 });
+        [[0, -H/2], [0, H/2]].forEach(([x, z]) => {
+            const marker = new THREE.Mesh(cornerMarkerGeom, sideMarkerMat);
+            marker.rotation.x = -Math.PI / 2;
+            marker.position.set(x, tableY + 2.1, z);
+            debugOverlay.add(marker);
+        });
+        
+        // Cushion boundary lines (inner play area)
+        const cushionMargin = this.game.cushionMargin * this.scale;
+        const innerW = W - cushionMargin * 2;
+        const innerH = H - cushionMargin * 2;
+        const innerOutlineGeom = new THREE.EdgesGeometry(new THREE.PlaneGeometry(innerW, innerH));
+        const innerOutlineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 1 });
+        const innerOutline = new THREE.LineSegments(innerOutlineGeom, innerOutlineMat);
+        innerOutline.rotation.x = -Math.PI / 2;
+        innerOutline.position.y = tableY + 2.2;
+        debugOverlay.add(innerOutline);
+        
+        
+        
+        
+        // Add label
+        console.log('DEBUG OVERLAY: Green = full table bounds, Cyan = cushion boundary, Red = corner pockets, Yellow = side pockets');
+        
+        this.scene.add(debugOverlay);
+        this.debugOverlay = debugOverlay;
+        
+        // === SLATE BED WITH POCKET CUTOUTS ===
+        const slateThickness = 8;
+        const slateY = tableY - slateThickness/2;
+        
+        // Pocket cutout sizes
+        const cornerPocketR = 16; // Corner pocket radius
+        const sidePocketR = 14;   // Side pocket radius
+        
+        // Create slate shape with edge cutouts
+        // Drawing clockwise, with cutouts curving INWARD from corners/edges
+        const slateShape = new THREE.Shape();
+        
+        const halfW = W/2;
+        const halfH = H/2;
+        
+        // Start at top edge, after top-left corner pocket
+        slateShape.moveTo(-halfW + cornerPocketR, -halfH);
+        
+        // Top edge to top side pocket
+        slateShape.lineTo(-sidePocketR, -halfH);
+        
+        // Top side pocket - semicircle cutout going INTO the slate (toward +Y in shape coords)
+        slateShape.absarc(0, -halfH, sidePocketR, Math.PI, 0, false);
+        
+        // Continue top edge to top-right corner
+        slateShape.lineTo(halfW - cornerPocketR, -halfH);
+        
+        // Top-right corner pocket - quarter circle cutout
+        slateShape.absarc(halfW, -halfH, cornerPocketR, Math.PI, Math.PI * 1.5, false);
+        
+        // Right edge to bottom-right corner
+        slateShape.lineTo(halfW, halfH - cornerPocketR);
+        
+        // Bottom-right corner pocket
+        slateShape.absarc(halfW, halfH, cornerPocketR, Math.PI * 1.5, 0, false);
+        
+        // Bottom edge to bottom side pocket
+        slateShape.lineTo(sidePocketR, halfH);
+        
+        // Bottom side pocket - semicircle cutout going INTO the slate (toward -Y in shape coords)
+        slateShape.absarc(0, halfH, sidePocketR, 0, Math.PI, false);
+        
+        // Continue bottom edge to bottom-left corner
+        slateShape.lineTo(-halfW + cornerPocketR, halfH);
+        
+        // Bottom-left corner pocket
+        slateShape.absarc(-halfW, halfH, cornerPocketR, 0, Math.PI * 0.5, false);
+        
+        // Left edge to top-left corner
+        slateShape.lineTo(-halfW, -halfH + cornerPocketR);
+        
+        // Top-left corner pocket
+        slateShape.absarc(-halfW, -halfH, cornerPocketR, Math.PI * 0.5, Math.PI, false);
+        
+        // Close the shape
+        slateShape.lineTo(-halfW + cornerPocketR, -halfH);
+        
+        // Extrude the shape to create 3D slate
+        const extrudeSettings = {
+            depth: slateThickness,
+            bevelEnabled: false
+        };
+        const slateGeom = new THREE.ExtrudeGeometry(slateShape, extrudeSettings);
+        
+        // Rotate and position (ExtrudeGeometry extrudes along Z, we need Y)
+        const slate = new THREE.Mesh(slateGeom, this.materials.slate);
+        slate.rotation.x = -Math.PI / 2;
+        slate.position.y = slateY + slateThickness/2;
+        slate.receiveShadow = true;
+        this.scene.add(slate);
+        
+        // Add pocket hole interiors (black cylinders going down into pockets)
+        const pocketDepth = 20;
+        const pocketMat = this.materials.pocket;
+        
+        // Corner pockets - positioned at the actual corners
+        [[-halfW, -halfH], [halfW, -halfH], [-halfW, halfH], [halfW, halfH]].forEach(([x, z]) => {
+            const pocketHole = new THREE.Mesh(
+                new THREE.CylinderGeometry(cornerPocketR, cornerPocketR * 1.2, pocketDepth, 24),
+                pocketMat
+            );
+            pocketHole.position.set(x, slateY - pocketDepth/2 + 2, z);
+            this.scene.add(pocketHole);
+        });
+        
+        // Side pockets - on the long edges (top and bottom in 3D space)
+        [[0, -halfH], [0, halfH]].forEach(([x, z]) => {
+            const pocketHole = new THREE.Mesh(
+                new THREE.CylinderGeometry(sidePocketR, sidePocketR * 1.2, pocketDepth, 24),
+                pocketMat
+            );
+            pocketHole.position.set(x, slateY - pocketDepth/2 + 2, z);
+            this.scene.add(pocketHole);
+        });
+        
+        console.log('Table created (slate with edge pocket cutouts): W=' + W + ', H=' + H);
+    },
+    
+    addCushion(x, y, z, w, h, d) {
+        const cushion = new THREE.Mesh(
+            new THREE.BoxGeometry(w, h, d),
+            this.materials.cushion
+        );
+        cushion.position.set(x, y, z);
+        cushion.castShadow = true;
+        this.scene.add(cushion);
+    },
+    
+    addRail(x, y, z, w, h, d) {
+        const rail = new THREE.Mesh(
+            new THREE.BoxGeometry(w, h, d),
+            this.materials.wood
+        );
+        rail.position.set(x, y, z);
+        rail.castShadow = true;
+        rail.receiveShadow = true;
+        this.scene.add(rail);
+    },
+    
+    addCornerPocket(x, y, z, r, jawY, corner) {
+        // Pocket hole (black cylinder going down)
+        const pocket = new THREE.Mesh(
+            new THREE.CylinderGeometry(r, r * 1.3, 15, 24),
+            this.materials.pocket
+        );
+        pocket.position.set(x, y, z);
+        this.scene.add(pocket);
+        
+        // Create angled jaw pieces
+        // Corner pockets have two jaws at 45 degrees
+        const jawLen = 18;
+        const jawH = 5;
+        const jawW = 3;
+        const jawOffset = r + jawW/2 + 1;
+        
+        // Jaw material (same green as cushions)
+        const jawMat = this.materials.cushion;
+        
+        // Create angled jaw geometry (wedge shape)
+        const jawShape = new THREE.Shape();
+        jawShape.moveTo(0, 0);
+        jawShape.lineTo(jawLen, 0);
+        jawShape.lineTo(jawLen, jawH * 0.3);
+        jawShape.lineTo(0, jawH);
+        jawShape.closePath();
+        
+        const jawGeom = new THREE.ExtrudeGeometry(jawShape, { depth: jawW, bevelEnabled: false });
+        
+        // Position jaws based on corner
+        if (corner === 'topLeft') {
+            // Jaw along top edge (pointing right)
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = 0;
+            jaw1.position.set(x + jawOffset - 2, jawY, z + jawW/2);
+            this.scene.add(jaw1);
+            
+            // Jaw along left edge (pointing down)
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = Math.PI/2;
+            jaw2.position.set(x + jawW/2, jawY, z + jawOffset - 2);
+            this.scene.add(jaw2);
+        } else if (corner === 'topRight') {
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = Math.PI;
+            jaw1.position.set(x - jawOffset + 2, jawY, z - jawW/2);
+            this.scene.add(jaw1);
+            
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = Math.PI/2;
+            jaw2.position.set(x - jawW/2, jawY, z + jawOffset - 2);
+            this.scene.add(jaw2);
+        } else if (corner === 'bottomLeft') {
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = 0;
+            jaw1.position.set(x + jawOffset - 2, jawY, z - jawW/2);
+            this.scene.add(jaw1);
+            
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = -Math.PI/2;
+            jaw2.position.set(x + jawW/2, jawY, z - jawOffset + 2);
+            this.scene.add(jaw2);
+        } else if (corner === 'bottomRight') {
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = Math.PI;
+            jaw1.position.set(x - jawOffset + 2, jawY, z + jawW/2);
+            this.scene.add(jaw1);
+            
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = -Math.PI/2;
+            jaw2.position.set(x - jawW/2, jawY, z - jawOffset + 2);
+            this.scene.add(jaw2);
+        }
+    },
+    
+    addSidePocket(x, y, z, r, jawY, side) {
+        // Pocket hole
+        const pocket = new THREE.Mesh(
+            new THREE.CylinderGeometry(r, r * 1.2, 12, 24),
+            this.materials.pocket
+        );
+        pocket.position.set(x, y, z);
+        this.scene.add(pocket);
+        
+        // Side pockets have two parallel jaws
+        const jawLen = 15;
+        const jawH = 5;
+        const jawW = 3;
+        const jawSpacing = r + 4;
+        
+        const jawMat = this.materials.cushion;
+        
+        // Create angled jaw geometry
+        const jawShape = new THREE.Shape();
+        jawShape.moveTo(0, 0);
+        jawShape.lineTo(jawLen, 0);
+        jawShape.lineTo(jawLen, jawH * 0.3);
+        jawShape.lineTo(0, jawH);
+        jawShape.closePath();
+        
+        const jawGeom = new THREE.ExtrudeGeometry(jawShape, { depth: jawW, bevelEnabled: false });
+        
+        if (side === 'top') {
+            // Left jaw
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = Math.PI/2;
+            jaw1.position.set(x - jawSpacing, jawY, z + jawW/2);
+            this.scene.add(jaw1);
+            
+            // Right jaw (mirrored)
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = Math.PI/2;
+            jaw2.position.set(x + jawSpacing + jawW, jawY, z + jawW/2);
+            this.scene.add(jaw2);
+        } else {
+            // Bottom side pocket
+            const jaw1 = new THREE.Mesh(jawGeom, jawMat);
+            jaw1.rotation.x = -Math.PI/2;
+            jaw1.rotation.z = -Math.PI/2;
+            jaw1.position.set(x - jawSpacing - jawW, jawY, z - jawW/2);
+            this.scene.add(jaw1);
+            
+            const jaw2 = new THREE.Mesh(jawGeom, jawMat);
+            jaw2.rotation.x = -Math.PI/2;
+            jaw2.rotation.z = -Math.PI/2;
+            jaw2.position.set(x + jawSpacing, jawY, z - jawW/2);
+            this.scene.add(jaw2);
+        }
+    },
+    
+    addFrame(x, y, z, w, h, d) {
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(w, h, d),
+            this.materials.wood
+        );
+        frame.position.set(x, y, z);
+        frame.castShadow = true;
+        this.scene.add(frame);
+    },
+    
+    addLeg(x, y, z, h) {
+        const leg = new THREE.Mesh(
+            new THREE.CylinderGeometry(6, 7, h, 10),
+            this.materials.wood
+        );
+        leg.position.set(x, y, z);
+        leg.castShadow = true;
+        this.scene.add(leg);
     },
     
     createBalls() {
         this.balls3D = [];
-        const r = this.game.standardBallRadius * this.scale * 0.9;
+        const ballR = this.game.standardBallRadius * this.scale;
+        const ballY = ballR + 1; // Sit on felt
         
         this.game.balls.forEach((ball, i) => {
             const mat = this.materials[ball.color] || this.materials.white;
-            const radius = ball.num === 0 ? r * 0.95 : r;
-            const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 32), mat);
+            const mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(ballR, 24, 24),
+                mat
+            );
             mesh.castShadow = true;
-            mesh.userData = { index: i, num: ball.num, radius };
+            mesh.userData = { index: i, num: ball.num };
             this.balls3D.push(mesh);
             this.scene.add(mesh);
         });
+        
         this.updateBallPositions();
+        console.log('Balls created:', this.balls3D.length);
     },
     
-    createCueStick() {
-        this.cueStick = new THREE.Group();
+    updateBallPositions() {
+        const ballY = this.game.standardBallRadius * this.scale + 1;
         
-        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 3, 180, 16), this.materials.cue);
-        shaft.rotation.x = Math.PI/2; shaft.position.z = 100;
-        this.cueStick.add(shaft);
-        
-        const tip = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 5, 16), this.materials.cueTip);
-        tip.rotation.x = Math.PI/2; tip.position.z = 7;
-        this.cueStick.add(tip);
-        
-        const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 3, 16), new THREE.MeshStandardMaterial({color:0xffffff}));
-        ferrule.rotation.x = Math.PI/2; ferrule.position.z = 11;
-        this.cueStick.add(ferrule);
-        
-        this.cueStick.visible = false;
-        this.scene.add(this.cueStick);
-    },
-    
-    createAimVisuals() {
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, 0,0,-300], 3));
-        this.aimLine = new THREE.Line(geom, new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.7}));
-        this.aimLine.visible = false;
-        this.scene.add(this.aimLine);
-        
-        this.ghostBall = new THREE.Mesh(
-            new THREE.SphereGeometry(this.game.standardBallRadius * this.scale * 0.9, 16, 16),
-            new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.3,wireframe:true})
-        );
-        this.ghostBall.visible = false;
-        this.scene.add(this.ghostBall);
+        this.game.balls.forEach((ball, i) => {
+            const mesh = this.balls3D[i];
+            if (!mesh) return;
+            
+            if (ball.potted) {
+                mesh.visible = false;
+                return;
+            }
+            
+            mesh.visible = true;
+            // Convert 2D coords to 3D (centered on table)
+            const x = (ball.x - this.game.width/2) * this.scale;
+            const z = (ball.y - this.game.height/2) * this.scale;
+            mesh.position.set(x, ballY, z);
+        });
     },
     
     createLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        // Ambient light
+        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        this.scene.add(ambient);
         
-        const spot = new THREE.SpotLight(0xfff5e6, 1.0);
-        spot.position.set(0, 350, 0);
-        spot.angle = Math.PI/3; spot.penumbra = 0.3;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        this.scene.add(spot);
+        // Main overhead light
+        const mainLight = new THREE.SpotLight(0xfff5e6, 1.0);
+        mainLight.position.set(0, 300, 0);
+        mainLight.angle = Math.PI / 3;
+        mainLight.penumbra = 0.5;
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.set(2048, 2048);
+        mainLight.shadow.camera.near = 100;
+        mainLight.shadow.camera.far = 500;
+        this.scene.add(mainLight);
         
-        const shade = new THREE.Mesh(
-            new THREE.CylinderGeometry(40, 60, 30, 32, 1, true),
-            new THREE.MeshStandardMaterial({color:0x228B22,side:THREE.DoubleSide})
-        );
-        shade.position.set(0, 320, 0);
-        this.scene.add(shade);
+        // Fill lights
+        const fill1 = new THREE.DirectionalLight(0xffffff, 0.3);
+        fill1.position.set(-200, 150, 100);
+        this.scene.add(fill1);
+        
+        const fill2 = new THREE.DirectionalLight(0xffffff, 0.3);
+        fill2.position.set(200, 150, -100);
+        this.scene.add(fill2);
+        
+        console.log('Lighting created');
     },
     
     setupControls() {
@@ -296,313 +611,122 @@ const Pool3DView = {
         this.controls.dampingFactor = 0.05;
         this.controls.minDistance = 100;
         this.controls.maxDistance = 800;
-        this.controls.maxPolarAngle = Math.PI/2 - 0.1;
+        this.controls.maxPolarAngle = Math.PI / 2 - 0.1;
         this.controls.target.set(0, 0, 0);
-        this.controls.enabled = false;
     },
     
-    setupInput() {
-        const el = this.renderer.domElement;
-        el.addEventListener('mousedown', e => this.onMouseDown(e));
-        el.addEventListener('mousemove', e => this.onMouseMove(e));
-        el.addEventListener('mouseup', e => this.onMouseUp(e));
-        el.addEventListener('contextmenu', e => e.preventDefault());
-        
-        document.addEventListener('keydown', e => {
-            if (!this.is3DMode) return;
-            if (e.key === 'Escape') this.cancelShot();
-            if (e.key === ' ') { e.preventDefault(); this.setPlayMode(!this.isPlayMode); }
-        });
-    },
-    
-    onMouseDown(e) {
-        this.updateMouse(e);
-        if (!this.isPlayMode) return;
-        
-        if (e.button === 0) {
-            if (!this.canShoot()) return;
-            if (this.game.ballInHand) { this.placeCueBall(); return; }
-            this.gameState = 'aiming';
-            this.updateAim();
-        } else if (e.button === 2) {
-            this.controls.enabled = true;
+    toggleDebugOverlay() {
+        if (this.debugOverlay) {
+            this.debugOverlay.visible = !this.debugOverlay.visible;
+            console.log('Debug overlay:', this.debugOverlay.visible ? 'ON' : 'OFF');
         }
-    },
-    
-    onMouseMove(e) {
-        this.updateMouse(e);
-        if (this.gameState === 'aiming') this.updateAim();
-        else if (this.gameState === 'powering') {
-            this.shotPower = Math.min(this.game.maxPower, Math.max(0, (e.clientY - this.dragStartY) * 0.3));
-            this.updateCuePosition();
-            this.updatePowerDisplay();
-        }
-    },
-    
-    onMouseUp(e) {
-        if (e.button === 2) { if (this.isPlayMode) this.controls.enabled = false; return; }
-        if (e.button !== 0) return;
-        
-        if (this.gameState === 'aiming') {
-            this.gameState = 'powering';
-            this.dragStartY = e.clientY;
-            this.shotPower = 0;
-        } else if (this.gameState === 'powering') {
-            if (this.shotPower > 1) this.executeShot();
-            else this.cancelShot();
-        }
-    },
-    
-    updateMouse(e) {
-        this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    },
-    
-    canShoot() {
-        if (this.game.gameOver || !this.game.cueBall || this.game.cueBall.potted) return false;
-        for (const b of this.game.balls) {
-            if (!b.potted && (Math.abs(b.vx) > 0.1 || Math.abs(b.vy) > 0.1)) return false;
-        }
-        return true;
-    },
-    
-    updateAim() {
-        const cue = this.getCueBall3D();
-        if (!cue) return;
-        
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        const pt = new THREE.Vector3();
-        this.raycaster.ray.intersectPlane(this.tableTopPlane, pt);
-        if (!pt) return;
-        
-        this.aimAngle = Math.atan2(pt.z - cue.position.z, pt.x - cue.position.x);
-        
-        this.updateAimLine(cue.position);
-        this.updateCuePosition();
-        this.updateGhostBall(cue.position);
-        
-        this.cueStick.visible = true;
-        this.aimLine.visible = true;
-    },
-    
-    updateAimLine(pos) {
-        const len = 250;
-        const arr = this.aimLine.geometry.attributes.position.array;
-        arr[0] = pos.x; arr[1] = pos.y; arr[2] = pos.z;
-        arr[3] = pos.x + Math.cos(this.aimAngle) * len;
-        arr[4] = pos.y;
-        arr[5] = pos.z + Math.sin(this.aimAngle) * len;
-        this.aimLine.geometry.attributes.position.needsUpdate = true;
-    },
-    
-    updateCuePosition() {
-        const cue = this.getCueBall3D();
-        if (!cue) return;
-        
-        const pull = this.gameState === 'powering' ? this.shotPower * 2 : 0;
-        const dist = 15 + pull;
-        
-        this.cueStick.position.set(
-            cue.position.x - Math.cos(this.aimAngle) * dist,
-            cue.position.y,
-            cue.position.z - Math.sin(this.aimAngle) * dist
-        );
-        this.cueStick.rotation.y = -this.aimAngle - Math.PI/2;
-    },
-    
-    updateGhostBall(pos) {
-        const cueBallR = this.game.cueBallRadius * this.scale;
-        const dx = Math.cos(this.aimAngle);
-        const dz = Math.sin(this.aimAngle);
-        
-        let closest = null, closestDist = Infinity;
-        
-        this.game.balls.forEach((b, i) => {
-            if (b.potted || b.num === 0) return;
-            const b3d = this.balls3D[i];
-            if (!b3d?.visible) return;
-            
-            const combined = cueBallR + b.r * this.scale;
-            const toX = b3d.position.x - pos.x;
-            const toZ = b3d.position.z - pos.z;
-            const dot = toX * dx + toZ * dz;
-            
-            if (dot > 0) {
-                const cx = pos.x + dx * dot;
-                const cz = pos.z + dz * dot;
-                const dist = Math.hypot(b3d.position.x - cx, b3d.position.z - cz);
-                
-                if (dist < combined && dot < closestDist) {
-                    closestDist = dot;
-                    const off = Math.sqrt(combined * combined - dist * dist);
-                    closest = { x: pos.x + dx * (dot - off), z: pos.z + dz * (dot - off) };
-                }
-            }
-        });
-        
-        if (closest) {
-            this.ghostBall.position.set(closest.x, pos.y, closest.z);
-            this.ghostBall.visible = true;
-        } else {
-            this.ghostBall.visible = false;
-        }
-    },
-    
-    executeShot() {
-        const power = this.shotPower * (this.game.powerMultiplier || 1.0);
-        this.game.cueBall.vx = Math.cos(-this.aimAngle + Math.PI) * power;
-        this.game.cueBall.vy = Math.sin(-this.aimAngle + Math.PI) * power;
-        this.game.startShot();
-        if (typeof PoolAudio !== 'undefined') PoolAudio.play('cueHit', Math.min(1.0, power/30));
-        console.log('3D Shot: power=' + power.toFixed(1));
-        this.cancelShot();
-    },
-    
-    placeCueBall() {
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        const pt = new THREE.Vector3();
-        this.raycaster.ray.intersectPlane(this.tableTopPlane, pt);
-        if (pt) {
-            const x = (pt.x / this.scale) + this.game.width / 2;
-            const y = (pt.z / this.scale) + this.game.height / 2;
-            if (this.game.placeCueBall(x, y)) this.updateBallPositions();
-        }
-    },
-    
-    cancelShot() {
-        this.gameState = 'idle';
-        this.shotPower = 0;
-        this.cueStick.visible = false;
-        this.aimLine.visible = false;
-        this.ghostBall.visible = false;
-        this.updatePowerDisplay();
-    },
-    
-    getCueBall3D() {
-        return this.balls3D.find(b => b.userData.num === 0);
-    },
-    
-    updateBallPositions() {
-        this.game.balls.forEach((b, i) => {
-            const m = this.balls3D[i];
-            if (!m) return;
-            if (b.potted) { m.visible = false; return; }
-            m.visible = true;
-            m.position.set(
-                (b.x - this.game.width/2) * this.scale,
-                m.userData.radius + 2,
-                (b.y - this.game.height/2) * this.scale
-            );
-            if (Math.abs(b.vx) > 0.1 || Math.abs(b.vy) > 0.1) {
-                m.rotation.x += b.vy * 0.01;
-                m.rotation.z -= b.vx * 0.01;
-            }
-        });
-    },
-    
-    setPlayMode(play) {
-        this.isPlayMode = play;
-        this.controls.enabled = !play;
-        if (this.modeButton) {
-            this.modeButton.innerHTML = play ? '?? PLAY MODE' : '??? VIEW MODE';
-            this.modeButton.style.background = play ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#3b82f6,#2563eb)';
-        }
-        if (!play) this.cancelShot();
     },
     
     createUI() {
-        // Status
-        this.statusDisplay = document.createElement('div');
-        this.statusDisplay.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);padding:12px 25px;background:rgba(0,0,0,0.85);color:white;border-radius:10px;font-size:16px;font-weight:bold;z-index:10001;';
-        this.container.appendChild(this.statusDisplay);
-        
-        // Mode button
-        this.modeButton = document.createElement('button');
-        this.modeButton.innerHTML = '?? PLAY MODE';
-        this.modeButton.style.cssText = 'position:fixed;top:60px;left:10px;padding:10px 15px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:10001;font-size:12px;';
-        this.modeButton.onclick = () => this.setPlayMode(!this.isPlayMode);
-        this.container.appendChild(this.modeButton);
-        
-        // Power meter
-        const pw = document.createElement('div');
-        pw.innerHTML = `<div style='font-size:11px;margin-bottom:5px;opacity:0.8'>POWER</div><div style='width:25px;height:180px;background:#333;border-radius:5px;overflow:hidden'><div id='power3DFill' style='width:100%;height:0%;background:linear-gradient(to top,#22c55e,#eab308,#ef4444);transition:height 0.05s'></div></div><div id='power3DVal' style='margin-top:5px;font-weight:bold'>0%</div>`;
-        pw.style.cssText = 'position:fixed;right:20px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.85);padding:12px;border-radius:10px;color:white;text-align:center;z-index:10001;';
-        this.container.appendChild(pw);
-        
-        // Help
-        const help = document.createElement('div');
-        help.innerHTML = '<b>?? Play Mode:</b><br>• Left-click to aim<br>• Release, drag down for power<br>• Release to shoot<br>• Right-click rotates view<br>• SPACE toggles mode<br>• ESC cancels shot';
-        help.style.cssText = 'position:fixed;bottom:20px;left:20px;padding:12px 15px;background:rgba(0,0,0,0.85);color:white;border-radius:10px;font-size:11px;line-height:1.6;z-index:10001;';
-        this.container.appendChild(help);
+        // Status display
+        const status = document.createElement('div');
+        status.id = 'status3D';
+        status.textContent = '3D View Active';
+        status.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);padding:10px 20px;background:rgba(59,130,246,0.9);color:white;border-radius:8px;font-weight:bold;z-index:10001;';
+        this.container.appendChild(status);
         
         // Camera buttons
-        const cams = document.createElement('div');
-        cams.innerHTML = ['Top','Player 1','Player 2','Low'].map(v => `<button class='cam3d' data-view='${v.toLowerCase().replace(' ','')}'>${v}</button>`).join('');
-        cams.style.cssText = 'position:fixed;top:110px;left:10px;display:flex;flex-direction:column;gap:4px;z-index:10001;';
-        const st = document.createElement('style');
-        st.textContent = '.cam3d{padding:6px 10px;background:rgba(59,130,246,0.8);color:white;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:bold;}';
-        document.head.appendChild(st);
-        cams.querySelectorAll('.cam3d').forEach(b => b.onclick = () => this.setCameraView(b.dataset.view));
-        this.container.appendChild(cams);
-    },
-    
-    updateStatusDisplay() {
-        if (!this.statusDisplay) return;
-        const p = this.game.getCurrentPlayer();
-        let t = p.name + (p.color ? ` (${p.color.toUpperCase()}S)` : this.game.tableOpen ? ' - Table Open' : '');
-        if (p.onBlack) t += ' - ON BLACK!';
-        if (this.game.ballInHand) t = 'CLICK TO PLACE CUE BALL';
-        if (this.game.gameOver) t = this.game.winner ? this.game.winner.name + ' WINS!' : 'GAME OVER';
-        this.statusDisplay.textContent = t;
-        this.statusDisplay.style.background = this.game.ballInHand ? 'rgba(34,197,94,0.9)' : this.game.gameOver ? 'rgba(139,92,246,0.9)' : p.color === 'red' ? 'rgba(220,38,38,0.9)' : p.color === 'yellow' ? 'rgba(234,179,8,0.9)' : 'rgba(59,130,246,0.9)';
-    },
-    
-    updatePowerDisplay() {
-        const fill = document.getElementById('power3DFill');
-        const val = document.getElementById('power3DVal');
-        if (fill && val) {
-            const pct = (this.shotPower / this.game.maxPower) * 100;
-            fill.style.height = pct + '%';
-            val.textContent = Math.round(pct) + '%';
-        }
+        const camBtns = document.createElement('div');
+        camBtns.innerHTML = `
+            <button onclick=""Pool3DView.setCameraView('top')"" style=""margin:2px;padding:8px 12px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;"">Top</button>
+            <button onclick=""Pool3DView.setCameraView('angle')"" style=""margin:2px;padding:8px 12px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;"">Angle</button>
+            <button onclick=""Pool3DView.setCameraView('low')"" style=""margin:2px;padding:8px 12px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;"">Low</button>
+            <button onclick=""Pool3DView.toggleDebugOverlay()"" style=""margin:2px;padding:8px 12px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;"">Toggle Bounds</button>
+        `;
+        camBtns.style.cssText = 'position:fixed;top:50px;left:10px;z-index:10001;';
+        this.container.appendChild(camBtns);
+        
+        // Debug overlay legend
+        const legend = document.createElement('div');
+        legend.innerHTML = `
+            <b>Bounds Overlay:</b><br>
+            <span style=""color:#00ff00"">?</span> Table bounds<br>
+            <span style=""color:#00ffff"">?</span> Cushion line<br>
+            <span style=""color:#ff0000"">?</span> Corner pockets<br>
+            <span style=""color:#ffff00"">?</span> Side pockets
+        `;
+        legend.style.cssText = 'position:fixed;top:50px;right:20px;padding:10px;background:rgba(0,0,0,0.8);color:white;border-radius:8px;font-size:11px;z-index:10001;';
+        this.container.appendChild(legend);
+        
+        // Instructions
+        const help = document.createElement('div');
+        help.innerHTML = '<b>Controls:</b><br>Drag to rotate<br>Scroll to zoom<br>Click buttons for camera views';
+        help.style.cssText = 'position:fixed;bottom:20px;left:20px;padding:15px;background:rgba(0,0,0,0.8);color:white;border-radius:8px;font-size:12px;z-index:10001;';
+        this.container.appendChild(help);
     },
     
     setCameraView(view) {
-        const w = this.game.width * this.scale, h = this.game.height * this.scale;
-        const views = {
-            top: [[0,450,0],[0,0,0]],
-            player1: [[-w/2-80,120,0],[w/4,0,0]],
-            player2: [[w/2+80,120,0],[-w/4,0,0]],
-            low: [[0,40,h/2+180],[0,15,0]]
+        const W = this.game.width * this.scale;
+        const H = this.game.height * this.scale;
+        
+        let pos, target;
+        switch(view) {
+            case 'top':
+                pos = [0, 400, 0];
+                target = [0, 0, 0];
+                break;
+            case 'angle':
+                pos = [W/2 + 100, 200, H/2 + 150];
+                target = [0, 0, 0];
+                break;
+            case 'low':
+                pos = [0, 50, H/2 + 200];
+                target = [0, 20, 0];
+                break;
+            default:
+                return;
+        }
+        
+        // Animate camera
+        const start = {
+            x: this.camera.position.x,
+            y: this.camera.position.y,
+            z: this.camera.position.z,
+            tx: this.controls.target.x,
+            ty: this.controls.target.y,
+            tz: this.controls.target.z
         };
-        const v = views[view];
-        if (v) this.animateCamera(v[0], v[1]);
-    },
-    
-    animateCamera(pos, target) {
-        const s = {px:this.camera.position.x,py:this.camera.position.y,pz:this.camera.position.z,tx:this.controls.target.x,ty:this.controls.target.y,tz:this.controls.target.z};
         const t0 = Date.now();
-        const anim = () => {
-            const p = Math.min(1, (Date.now()-t0)/600);
-            const e = 1 - Math.pow(1-p, 3);
-            this.camera.position.set(s.px+(pos[0]-s.px)*e, s.py+(pos[1]-s.py)*e, s.pz+(pos[2]-s.pz)*e);
-            this.controls.target.set(s.tx+(target[0]-s.tx)*e, s.ty+(target[1]-s.ty)*e, s.tz+(target[2]-s.tz)*e);
-            if (p < 1) requestAnimationFrame(anim);
+        const duration = 500;
+        
+        const animate = () => {
+            const t = Math.min(1, (Date.now() - t0) / duration);
+            const ease = 1 - Math.pow(1 - t, 3);
+            
+            this.camera.position.set(
+                start.x + (pos[0] - start.x) * ease,
+                start.y + (pos[1] - start.y) * ease,
+                start.z + (pos[2] - start.z) * ease
+            );
+            this.controls.target.set(
+                start.tx + (target[0] - start.tx) * ease,
+                start.ty + (target[1] - start.ty) * ease,
+                start.tz + (target[2] - start.tz) * ease
+            );
+            
+            if (t < 1) requestAnimationFrame(animate);
         };
-        anim();
+        animate();
     },
     
     animate() {
         if (!this.is3DMode) return;
         this.animationId = requestAnimationFrame(() => this.animate());
+        
         this.updateBallPositions();
-        this.updateStatusDisplay();
         if (this.controls) this.controls.update();
-        if (this.renderer) this.renderer.render(this.scene, this.camera);
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 };
 
-console.log('Pool3DView module loaded (PLAYABLE)');
+console.log('Pool3DView module loaded');
 ";
     }
 }
