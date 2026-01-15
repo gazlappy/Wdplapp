@@ -131,83 +131,13 @@ const PoolRendering = {
         
         ctx.restore();
         
-        // ===== 3D BEVELED WOODEN RAILS WITH ENHANCED GRAIN =====
-        const cushionWidth = cushionMargin;
-        
-        // RAIL TOP EDGE (lightest - wood finish highlight)
-        ctx.strokeStyle = '#C4A571';  // Light oak highlight
-        ctx.lineWidth = cushionWidth * 0.25;
-        ctx.strokeRect(
-            cushionWidth * 0.125, 
-            cushionWidth * 0.125, 
-            width - cushionWidth * 0.25, 
-            height - cushionWidth * 0.25
-        );
-        
-        // ENHANCED WOOD GRAIN TEXTURE
-        this.drawWoodGrainRails(ctx, width, height, cushionWidth);
-        
-        // RAIL MAIN BODY (medium - wood grain)
-        const woodGradient = ctx.createLinearGradient(0, 0, cushionWidth, 0);
-        woodGradient.addColorStop(0, '#8B6F47');     // Medium brown
-        woodGradient.addColorStop(0.3, '#A0826D');   // Lighter
-        woodGradient.addColorStop(0.7, '#704E2E');   // Darker
-        woodGradient.addColorStop(1, '#5C3D2E');     // Darkest
-        
-        ctx.strokeStyle = woodGradient;
-        ctx.lineWidth = cushionWidth * 0.6;
-        ctx.strokeRect(
-            cushionWidth * 0.3, 
-            cushionWidth * 0.3, 
-            width - cushionWidth * 0.6, 
-            height - cushionWidth * 0.6
-        );
-        
-        // RAIL BOTTOM EDGE (darkest - shadow)
-        ctx.strokeStyle = '#3D2817';  // Deep brown shadow
-        ctx.lineWidth = cushionWidth * 0.15;
-        ctx.strokeRect(
-            cushionWidth * 0.925, 
-            cushionWidth * 0.925, 
-            width - cushionWidth * 1.85, 
-            height - cushionWidth * 1.85
-        );
-        
-        // GREEN RUBBER CUSHION STRIP (the actual playing surface edge)
-        ctx.strokeStyle = '#0F6426';  // Dark green rubber
-        ctx.lineWidth = 4;
-        ctx.strokeRect(
-            cushionWidth - 2, 
-            cushionWidth - 2, 
-            width - cushionWidth * 2 + 4, 
-            height - cushionWidth * 2 + 4
-        );
-        
-        // Rubber cushion highlight (shiny rubber)
-        ctx.strokeStyle = 'rgba(50, 150, 70, 0.4)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-            cushionWidth - 1, 
-            cushionWidth - 1, 
-            width - cushionWidth * 2 + 2, 
-            height - cushionWidth * 2 + 2
-        );
-        
-        // Inner cushion shadow (depth)
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(
-            cushionWidth + 1, 
-            cushionWidth + 1, 
-            width - cushionWidth * 2 - 2, 
-            height - cushionWidth * 2 - 2
-        );
+        // ===== SIMPLE CUSHIONS AND POCKETS =====
+        this.drawSimpleCushions(ctx, width, height, cushionMargin);
         
         // ===== RAIL BOLTS / SCREWS (PROFESSIONAL DETAIL) =====
         this.drawRailBolts(ctx, width, height, cushionMargin);
         
         // ===== DIAMOND SIGHT MARKERS =====
-        // These are the aiming diamonds on professional tables
         this.drawDiamondSights(ctx, width, height, cushionMargin);
         
         // ===== TABLE MARKINGS =====
@@ -460,54 +390,138 @@ const PoolRendering = {
     },
     
     /**
-     * Draw pockets - delegates to PoolPockets module
+     * Draw simple cushions with basic pocket cutouts
+     * Clean, straightforward approach
+     */
+    drawSimpleCushions(ctx, width, height, cushionMargin) {
+        const railWidth = cushionMargin;
+        const pocketSize = cushionMargin * 1.8;  // Size of pocket cutout
+        const sidePocketSize = cushionMargin * 1.5;
+        
+        // Colors
+        const woodColor = '#8B6F47';
+        const woodDark = '#5C4530';
+        const rubberColor = '#0B5B1E';
+        
+        // Pocket positions
+        const pocketPositions = [
+            { x: 0, y: 0, size: pocketSize },                              // Top-left
+            { x: width, y: 0, size: pocketSize },                          // Top-right  
+            { x: 0, y: height, size: pocketSize },                         // Bottom-left
+            { x: width, y: height, size: pocketSize },                     // Bottom-right
+            { x: width / 2, y: 0, size: sidePocketSize },                  // Top-middle
+            { x: width / 2, y: height, size: sidePocketSize }              // Bottom-middle
+        ];
+        
+        // Draw pocket holes first
+        pocketPositions.forEach(p => {
+            const holeGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+            holeGrad.addColorStop(0, '#000000');
+            holeGrad.addColorStop(0.6, '#1a1a1a');
+            holeGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.fillStyle = holeGrad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        // Draw wood rails
+        ctx.fillStyle = woodColor;
+        
+        // Top rail (with pocket gaps)
+        ctx.fillRect(pocketSize, 0, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
+        ctx.fillRect(width / 2 + sidePocketSize / 2, 0, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
+        
+        // Bottom rail (with pocket gaps)
+        ctx.fillRect(pocketSize, height - railWidth, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
+        ctx.fillRect(width / 2 + sidePocketSize / 2, height - railWidth, width / 2 - pocketSize - sidePocketSize / 2, railWidth);
+        
+        // Left rail (with pocket gaps)
+        ctx.fillRect(0, pocketSize, railWidth, height - pocketSize * 2);
+        
+        // Right rail (with pocket gaps)
+        ctx.fillRect(width - railWidth, pocketSize, railWidth, height - pocketSize * 2);
+        
+        // Draw rubber cushion face (inner edge of rails)
+        ctx.strokeStyle = rubberColor;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        
+        // Top cushion segments
+        ctx.beginPath();
+        ctx.moveTo(pocketSize + 5, railWidth - 2);
+        ctx.lineTo(width / 2 - sidePocketSize / 2 - 5, railWidth - 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(width / 2 + sidePocketSize / 2 + 5, railWidth - 2);
+        ctx.lineTo(width - pocketSize - 5, railWidth - 2);
+        ctx.stroke();
+        
+        // Bottom cushion segments
+        ctx.beginPath();
+        ctx.moveTo(pocketSize + 5, height - railWidth + 2);
+        ctx.lineTo(width / 2 - sidePocketSize / 2 - 5, height - railWidth + 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(width / 2 + sidePocketSize / 2 + 5, height - railWidth + 2);
+        ctx.lineTo(width - pocketSize - 5, height - railWidth + 2);
+        ctx.stroke();
+        
+        // Left cushion
+        ctx.beginPath();
+        ctx.moveTo(railWidth - 2, pocketSize + 5);
+        ctx.lineTo(railWidth - 2, height - pocketSize - 5);
+        ctx.stroke();
+        
+        // Right cushion
+        ctx.beginPath();
+        ctx.moveTo(width - railWidth + 2, pocketSize + 5);
+        ctx.lineTo(width - railWidth + 2, height - pocketSize - 5);
+        ctx.stroke();
+        
+        // Add wood highlights/shadows for 3D effect
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 2;
+        
+        // Top rail highlight
+        ctx.beginPath();
+        ctx.moveTo(pocketSize, 2);
+        ctx.lineTo(width / 2 - sidePocketSize / 2, 2);
+        ctx.moveTo(width / 2 + sidePocketSize / 2, 2);
+        ctx.lineTo(width - pocketSize, 2);
+        ctx.stroke();
+        
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        // Top rail shadow (inner edge)
+        ctx.beginPath();
+        ctx.moveTo(pocketSize, railWidth - 1);
+        ctx.lineTo(width / 2 - sidePocketSize / 2, railWidth - 1);
+        ctx.moveTo(width / 2 + sidePocketSize / 2, railWidth - 1);
+        ctx.lineTo(width - pocketSize, railWidth - 1);
+        ctx.stroke();
+    },
+    
+    /**
+     * Draw pockets - simple circles for physics zones
      */
     drawPockets(ctx, pockets, game) {
-        PoolPockets.drawPockets(ctx, pockets);
-        
-        // Draw developer visualizations if enabled
-        if (game && game.showCaptureZones) {
-            // Draw capture zone circles (the actual physics collision detection area)
-            pockets.forEach(p => {
-                ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // Label capture zone
-                ctx.fillStyle = 'rgba(255, 100, 100, 0.8)';
-                ctx.font = 'bold 10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Capture: ' + p.r.toFixed(1) + 'px', p.x, p.y - p.r - 8);
-            });
-        }
-        
+        // Draw pocket debug zones if enabled
         if (game && game.showPocketZones) {
-            // Draw visual opening circles (what the player sees as the pocket opening)
             pockets.forEach(p => {
-                const opening = p.type === 'corner' ? 
-                    (game.cornerPocketOpening || p.r) : 
-                    (game.middlePocketOpening || p.r);
-                
                 ctx.strokeStyle = 'rgba(100, 255, 100, 0.4)';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([8, 4]);
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, opening, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                
-                // Label visual opening
-                ctx.fillStyle = 'rgba(100, 255, 100, 0.8)';
-                ctx.font = 'bold 10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Opening: ' + opening.toFixed(1) + 'px', p.x, p.y + opening + 16);
             });
         }
     },
+    
     
     /**
      * Draw a ball with realistic 3D rolling effect

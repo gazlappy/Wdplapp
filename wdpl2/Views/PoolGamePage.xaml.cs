@@ -16,11 +16,22 @@ public partial class PoolGamePage : ContentPage
 {
     private string GenerateModularGameHtml()
     {
+        // Load saved settings to inject into the page
+        var savedSettings = LoadSettings();
+        var savedSettingsJs = string.IsNullOrEmpty(savedSettings) 
+            ? "null" 
+            : savedSettings;
+        
         return $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>
+    <script>
+        // Inject saved settings from MAUI Preferences
+        window.MAUI_SAVED_SETTINGS = {savedSettingsJs};
+        console.log('MAUI saved settings injected:', window.MAUI_SAVED_SETTINGS ? 'found' : 'none');
+    </script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ 
@@ -280,9 +291,62 @@ public partial class PoolGamePage : ContentPage
         // Configure WebView for audio support
         ConfigureWebView();
         
+        // Handle WebView navigation for settings persistence
+        GameWebView.Navigating += OnWebViewNavigating;
+        
         LoadGame();
         
-        ResetBtn.Clicked += (s, e) => LoadGame();
+        // Reset button should only reset the game frame, not reload the entire page
+        ResetBtn.Clicked += async (s, e) => await ResetGame();
+    }
+    
+    private async void OnWebViewNavigating(object? sender, WebNavigatingEventArgs e)
+    {
+        // Intercept custom URL scheme for settings persistence
+        if (e.Url.StartsWith("poolsettings://"))
+        {
+            e.Cancel = true;
+            
+            try
+            {
+                var uri = new Uri(e.Url);
+                var action = uri.Host;
+                
+                if (action == "save")
+                {
+                    // Get the JSON from the query string
+                    var json = Uri.UnescapeDataString(uri.Query.TrimStart('?'));
+                    SaveSettings(json);
+                    
+                    // Notify JavaScript that save was successful
+                    await GameWebView.EvaluateJavaScriptAsync("if(typeof PoolDevSettings !== 'undefined') PoolDevSettings.showNotification('Settings saved!', 'success');");
+                }
+                else if (action == "clear")
+                {
+                    ClearSettings();
+                    await GameWebView.EvaluateJavaScriptAsync("if(typeof PoolDevSettings !== 'undefined') PoolDevSettings.showNotification('Settings cleared!', 'success');");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Settings navigation error: {ex.Message}");
+            }
+        }
+    }
+    
+    
+    private async Task ResetGame()
+    {
+        // Call the JavaScript newGame() function instead of reloading the entire page
+        // This preserves dev settings
+        try
+        {
+            await GameWebView.EvaluateJavaScriptAsync("if(typeof game !== 'undefined') game.newGame();");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Reset game error: {ex.Message}");
+        }
     }
     
     private void ConfigureWebView()
@@ -305,7 +369,7 @@ public partial class PoolGamePage : ContentPage
                 // Set WebChromeClient to handle permissions
                 webView.SetWebChromeClient(new Android.Webkit.WebChromeClient());
                 
-                System.Diagnostics.Debug.WriteLine("? Android WebView configured for audio");
+                System.Diagnostics.Debug.WriteLine("Android WebView configured for audio");
             }
         });
 #endif
@@ -319,7 +383,7 @@ public partial class PoolGamePage : ContentPage
                 webView.Configuration.AllowsInlineMediaPlayback = true;
                 webView.Configuration.MediaTypesRequiringUserActionForPlayback = WebKit.WKAudiovisualMediaTypes.None;
                 
-                System.Diagnostics.Debug.WriteLine("? iOS WebView configured for audio");
+                System.Diagnostics.Debug.WriteLine("iOS WebView configured for audio");
             }
         });
 #endif
@@ -328,9 +392,53 @@ public partial class PoolGamePage : ContentPage
         // Windows-specific WebView configuration  
         Microsoft.Maui.Handlers.WebViewHandler.Mapper.AppendToMapping("AudioConfig", (handler, view) =>
         {
-            System.Diagnostics.Debug.WriteLine("? Windows WebView configured");
+            System.Diagnostics.Debug.WriteLine("Windows WebView configured");
         });
 #endif
+    }
+    
+    // Save settings to MAUI Preferences (persists between sessions)
+    public static void SaveSettings(string json)
+    {
+        try
+        {
+            Preferences.Set("poolGameDefaults", json);
+            System.Diagnostics.Debug.WriteLine("Settings saved to MAUI Preferences");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
+        }
+    }
+    
+    // Load settings from MAUI Preferences
+    public static string LoadSettings()
+    {
+        try
+        {
+            var settings = Preferences.Get("poolGameDefaults", "");
+            System.Diagnostics.Debug.WriteLine($"Settings loaded from MAUI Preferences: {(string.IsNullOrEmpty(settings) ? "none" : "found")}");
+            return settings;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load settings: {ex.Message}");
+            return "";
+        }
+    }
+    
+    // Clear settings from MAUI Preferences
+    public static void ClearSettings()
+    {
+        try
+        {
+            Preferences.Remove("poolGameDefaults");
+            System.Diagnostics.Debug.WriteLine("Settings cleared from MAUI Preferences");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to clear settings: {ex.Message}");
+        }
     }
 
     private void LoadGame()

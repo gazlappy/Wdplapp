@@ -83,7 +83,27 @@ class PoolGame {
         this.pocketZoneOpacity = 0.2;
         this.collisionDamping = 0.98;
         this.friction = 0.987;
+        
+        // Ball in hand touch foul - if true, touching a ball while placing cue ball is a foul
+        this.ballInHandTouchFoul = true;
         this.cushionRestitution = 0.78;
+        
+        // Pocket jaw settings - UK 8-ball specifications
+        // Corner pocket jaw angle: typically 142-145 degrees (full angle across pocket)
+        // Side pocket jaw angle: typically 103-106 degrees (more open)
+        this.cornerJawAngle = 142;           // Degrees - angle of corner pocket jaws (142-145 typical)
+        this.sideJawAngle = 104;             // Degrees - angle of side pocket jaws (103-106 typical)
+        this.jawLength = 1.5;                // Jaw length multiplier (affects how far jaws extend)
+        this.jawRestitution = 0.6;           // How bouncy the jaws are (0.5-0.8 typical)
+        this.showJawCollisionZones = false;  // Debug visualization
+        
+        // Jaw position controls
+        this.jawStartOffset = 0.8;           // How far from pocket center jaws start (0.5-1.2, lower = closer to center)
+        this.jawSpread = 0;                  // Side-to-side spread adjustment (-0.3 to 0.3, 0 = default)
+        this.cornerJawStartOffset = 0.8;     // Corner-specific start offset
+        this.sideJawStartOffset = 0.6;       // Side pocket-specific start offset
+        this.cornerJawSpread = 0;            // Corner-specific spread
+        this.sideJawSpread = 0;              // Side pocket-specific spread
         
         // Trajectory prediction settings
         this.showTrajectoryPrediction = true;  // Show predicted ball paths
@@ -143,6 +163,7 @@ class PoolGame {
         this.foulReason = '';
         this.ballInHand = false;
         this.ballInHandBaulk = true; // Restricted to behind baulk line (start of frame and scratches)
+        this.ballInHandTouchFoulTriggered = false; // Prevents multiple touch fouls
         
         // Baulk line position (1/5 of table from break end)
         this.baulkLineX = this.width * 0.2;
@@ -154,6 +175,7 @@ class PoolGame {
     getCurrentPlayer() {
         return this.players[this.currentPlayerIndex];
     }
+    
     
     getOpponent() {
         return this.players[1 - this.currentPlayerIndex];
@@ -257,9 +279,9 @@ class PoolGame {
         console.log('Cushion hit after contact:', this.cushionHitAfterContact);
         console.log('========================================');
         
-        // Check for cue ball potted (scratch) - always a foul with baulk restriction
+        // Check for cue ball potted (scratch) - ball in hand anywhere after the break
         if (this.cueBallPotted) {
-            this.commitScratchFoul('Cue ball potted (scratch)');
+            this.commitScratchFoul('Cue ball potted (scratch)', false);
             return;
         }
         
@@ -311,7 +333,7 @@ class PoolGame {
         if (this.cueBallPotted) {
             this.gamePhase = 'open';
             this.tableOpen = true;
-            this.commitScratchFoul('Cue ball potted on break');
+            this.commitScratchFoul('Cue ball potted on break', true);
             return;
         }
         
@@ -535,23 +557,63 @@ class PoolGame {
         this.foulReason = reason;
         this.ballInHand = true;
         this.ballInHandBaulk = false; // Regular fouls allow placement anywhere
+        this.ballInHandTouchFoulTriggered = false; // Reset for new ball in hand
         
         console.log('FOUL:', reason);
+        
+        
         
         this.showFoulMessage(reason, false);
         this.switchTurn();
     }
     
-    commitScratchFoul(reason) {
+    commitScratchFoul(reason, restrictToBaulk = false) {
         this.foulCommitted = true;
         this.foulReason = reason;
         
-        console.log('SCRATCH FOUL:', reason);
+        console.log('SCRATCH FOUL:', reason, restrictToBaulk ? '(baulk restricted)' : '(anywhere)');
         
-        // Handle cue ball respawn with baulk restriction
-        this.handleCueBallPotted();
+        // Handle cue ball respawn - only restrict to baulk on break
+        this.handleCueBallPotted(restrictToBaulk);
         
-        this.showFoulMessage(reason, true);
+        this.showFoulMessage(reason, restrictToBaulk);
+        this.switchTurn();
+    }
+    
+    commitBallInHandTouchFoul(touchedBall) {
+        // Touched a ball while placing the cue ball - foul!
+        this.foulCommitted = true;
+        this.foulReason = 'Touched ' + touchedBall.color + ' ball while placing cue ball';
+        
+        console.log('BALL IN HAND TOUCH FOUL:', this.foulReason);
+        
+        // Show special foul message
+        const msg = document.createElement('div');
+        msg.innerHTML = `
+            <div style=""font-size:32px;font-weight:bold;color:#EF4444;"">FOUL!</div>
+            <div style=""font-size:18px;margin-top:10px;"">Touched ${touchedBall.color} ball while placing cue ball</div>
+            <div style=""font-size:16px;margin-top:15px;color:#10B981;"">${this.getOpponent().name} gets ball in hand anywhere</div>
+        `;
+        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(239,68,68,0.5);';
+        document.body.appendChild(msg);
+        
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transition = 'opacity 0.5s';
+            setTimeout(() => msg.remove(), 500);
+        }, 2000);
+        
+        // Ball in hand passes to opponent - anywhere on the table
+        this.ballInHand = true;
+        this.ballInHandBaulk = false;
+        this.ballInHandTouchFoulTriggered = false; // Reset for next player
+        
+        // Move cue ball to a neutral position
+        this.cueBall.x = this.width / 4;
+        this.cueBall.y = this.height / 2;
+        this.cueBall.vx = 0;
+        this.cueBall.vy = 0;
+        
         this.switchTurn();
     }
     
@@ -573,15 +635,26 @@ class PoolGame {
         }, 2000);
     }
     
-    handleCueBallPotted() {
-        // Respawn cue ball for ball in hand behind baulk line
+    handleCueBallPotted(restrictToBaulk = false) {
+        // Respawn cue ball for ball in hand
         this.cueBall.potted = false;
-        this.cueBall.x = this.baulkLineX / 2; // Place in middle of baulk area
-        this.cueBall.y = this.height / 2;
         this.cueBall.vx = 0;
         this.cueBall.vy = 0;
         this.ballInHand = true;
-        this.ballInHandBaulk = true; // Restricted to behind baulk line when potted
+        this.ballInHandTouchFoulTriggered = false; // Reset for new ball in hand
+        
+        // Only restrict to baulk on break - after break, ball in hand anywhere
+        this.ballInHandBaulk = restrictToBaulk;
+        
+        if (restrictToBaulk) {
+            // Place in middle of baulk area
+            this.cueBall.x = this.baulkLineX / 2;
+            this.cueBall.y = this.height / 2;
+        } else {
+            // Place in center of table for anywhere placement
+            this.cueBall.x = this.width / 4;
+            this.cueBall.y = this.height / 2;
+        }
     }
     
     placeCueBall(x, y) {
@@ -841,6 +914,7 @@ class PoolGame {
         // Ball in hand behind baulk line at start of frame
         this.ballInHand = true;
         this.ballInHandBaulk = true;
+        this.ballInHandTouchFoulTriggered = false;
         
         this.statusEl.textContent = 'Place cue ball behind baulk line to break';
         this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
@@ -983,6 +1057,12 @@ class PoolGame {
             const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin);
             if (cushionHit && this.shotInProgress) {
                 this.recordCushionHit();
+            }
+            
+            // Check pocket jaw collisions (balls bouncing off angled pocket edges)
+            const jawHit = PoolPhysics.handlePocketJawCollision(ball, this.pockets, this);
+            if (jawHit) {
+                moving = true; // Ball is still moving after jaw bounce
             }
             
             // Check pockets
@@ -1160,18 +1240,37 @@ class PoolGame {
                 invalidReason = 'BEHIND BAULK LINE';
             }
             
-            // Check ball overlap
+            // Check ball overlap and detect touches for foul
             const minDist = this.cueBall.r * 2 + 2;
+            let touchingBall = null;
             for (const ball of this.balls) {
                 if (ball === this.cueBall || ball.potted) continue;
                 const dx = this.cueBall.x - ball.x;
                 const dy = this.cueBall.y - ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Check if balls are actually touching (collision distance)
+                const touchDist = this.cueBall.r + ball.r;
+                if (dist <= touchDist) {
+                    touchingBall = ball;
+                }
+                
                 if (dist < minDist) {
                     isValidPosition = false;
                     invalidReason = 'TOO CLOSE TO BALL';
                     break;
                 }
+            }
+            
+            // If cue ball touched another ball while in hand, commit foul (if enabled)
+            if (touchingBall && this.ballInHandTouchFoul && !this.ballInHandTouchFoulTriggered) {
+                this.ballInHandTouchFoulTriggered = true; // Prevent multiple triggers
+                console.log('Ball in hand touched ball:', touchingBall.color, touchingBall.num);
+                
+                // Commit foul after a short delay to show the touch
+                setTimeout(() => {
+                    this.commitBallInHandTouchFoul(touchingBall);
+                }, 100);
             }
             
             // Check bounds
@@ -1203,6 +1302,7 @@ class PoolGame {
             
             this.ctx.restore();
         }
+        
         
         // Evaluate shot when balls stop moving after a shot was taken
         if (!moving && this.shotInProgress && !this.gameOver) {

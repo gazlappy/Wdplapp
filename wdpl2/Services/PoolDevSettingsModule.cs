@@ -38,8 +38,8 @@ const PoolDevSettings = {
         panel.id = 'devSettingsPanel';
         panel.innerHTML = `
             <div class='dev-header'>
-                <h3>Developer Settings</h3>
-                <button id='devSettingsClose' class='dev-close-btn'>X</button>
+                <h3>Developer Settings<span class='dev-drag-hint'>(drag to move)</span></h3>
+                <button id='devSettingsClose' class='dev-close-btn'>×</button>
             </div>
             <div class='dev-content'>
                 <div class='dev-section'>
@@ -320,6 +320,73 @@ const PoolDevSettings = {
                 </div>
                 
                 <div class='dev-section'>
+                    <h4>Game Rules</h4>
+                    <div class='dev-control'>
+                        <label>Ball in Hand Touch Foul:</label>
+                        <input type='checkbox' id='ballInHandTouchFoul' checked>
+                    </div>
+                    <div class='dev-hint'>When enabled, touching a ball while placing the cue ball is a foul</div>
+                </div>
+                
+                <div class='dev-section'>
+                    <h4>?? Pocket Jaws</h4>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Angles & Physics</div>
+                        <div class='dev-control'>
+                            <label>Corner Angle:</label>
+                            <input type='range' id='cornerJawAngle' min='130' max='160' value='142' step='1'>
+                            <span id='cornerJawAngleValue'>142°</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Side Angle:</label>
+                            <input type='range' id='sideJawAngle' min='90' max='120' value='104' step='1'>
+                            <span id='sideJawAngleValue'>104°</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Jaw Length:</label>
+                            <input type='range' id='jawLength' min='0.5' max='3.0' value='1.5' step='0.1'>
+                            <span id='jawLengthValue'>1.5x</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Restitution:</label>
+                            <input type='range' id='jawRestitution' min='0.3' max='0.9' value='0.6' step='0.05'>
+                            <span id='jawRestitutionValue'>0.60</span>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Corner Position</div>
+                        <div class='dev-control'>
+                            <label>Start Offset:</label>
+                            <input type='range' id='cornerJawStartOffset' min='0.3' max='1.5' value='0.8' step='0.05'>
+                            <span id='cornerJawStartOffsetValue'>0.80</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Spread:</label>
+                            <input type='range' id='cornerJawSpread' min='-0.5' max='0.5' value='0' step='0.05'>
+                            <span id='cornerJawSpreadValue'>0.00</span>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Side Position</div>
+                        <div class='dev-control'>
+                            <label>Start Offset:</label>
+                            <input type='range' id='sideJawStartOffset' min='0.3' max='1.5' value='0.6' step='0.05'>
+                            <span id='sideJawStartOffsetValue'>0.60</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Spread:</label>
+                            <input type='range' id='sideJawSpread' min='-0.5' max='0.5' value='0' step='0.05'>
+                            <span id='sideJawSpreadValue'>0.00</span>
+                        </div>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Collision Zones:</label>
+                        <input type='checkbox' id='showJawCollisionZones'>
+                    </div>
+                    <div class='dev-hint'>Enable to visualize jaw collision detection lines</div>
+                </div>
+                
+                <div class='dev-section'>
                     <h4>Visual Effects</h4>
                     <div class='dev-control'>
                         <label>Show Aim Line:</label>
@@ -423,29 +490,10 @@ const PoolDevSettings = {
                         <button id='exportSettings' class='dev-btn'>Export</button>
                         <button id='resetDefaults' class='dev-btn'>Reset All</button>
                     </div>
-                </div>
-                
-                <div class='dev-section'>
-                    <h4>Save / Load Settings</h4>
-                    <div class='dev-control'>
-                        <label>Save Slot:</label>
-                        <select id='saveSlotSelect' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
-                            <option value='slot1'>Slot 1</option>
-                            <option value='slot2'>Slot 2</option>
-                            <option value='slot3'>Slot 3</option>
-                            <option value='custom'>Custom</option>
-                        </select>
+                    <div class='dev-buttons' style='margin-top:8px;'>
+                        <button id='saveDefaults' class='dev-btn' style='background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);grid-column:span 2;'>Save as Defaults</button>
+                        <button id='clearDefaults' class='dev-btn' style='background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);'>Clear Saved</button>
                     </div>
-                    <div class='dev-control'>
-                        <label>Custom Name:</label>
-                        <input type='text' id='customSaveName' placeholder='My Settings' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
-                    </div>
-                    <div class='dev-buttons'>
-                        <button id='saveSettings' class='dev-btn' style='background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);'>Save</button>
-                        <button id='loadSettings' class='dev-btn' style='background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);'>Load</button>
-                        <button id='deleteSettings' class='dev-btn' style='background:linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);'>Delete</button>
-                    </div>
-                    <div id='savedSettingsList' style='margin-top:10px;font-size:11px;color:#a0aec0;'></div>
                 </div>
             </div>
         `;
@@ -454,9 +502,8 @@ const PoolDevSettings = {
         style.textContent = `
             #devSettingsPanel {
                 position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
+                top: 50px;
+                left: 50px;
                 width: 500px;
                 max-height: 85vh;
                 background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
@@ -467,38 +514,55 @@ const PoolDevSettings = {
                 display: none;
                 overflow: hidden;
                 font-family: Arial, sans-serif;
+                resize: both;
+                min-width: 400px;
+                min-height: 300px;
             }
             #devSettingsPanel.visible { display: block; animation: slideIn 0.3s ease-out; }
             @keyframes slideIn {
-                from { opacity: 0; transform: translate(-50%, -45%); }
-                to { opacity: 1; transform: translate(-50%, -50%); }
+                from { opacity: 0; transform: translateY(-20px); }
+                to { opacity: 1; transform: translateY(0); }
             }
             .dev-header {
                 background: rgba(0,0,0,0.3);
-                padding: 15px 20px;
+                padding: 12px 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 border-bottom: 2px solid #3B82F6;
+                cursor: move;
+                user-select: none;
             }
             .dev-header h3 { 
                 margin: 0; 
                 color: white; 
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: bold;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .dev-header h3::before {
+                content: '??';
+            }
+            .dev-drag-hint {
+                font-size: 10px;
+                color: rgba(255,255,255,0.5);
+                margin-left: 10px;
+                font-weight: normal;
             }
             .dev-close-btn {
                 background: #ef4444;
                 border: none;
                 color: white;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: bold;
-                width: 32px;
-                height: 32px;
+                width: 28px;
+                height: 28px;
                 border-radius: 50%;
                 cursor: pointer;
                 transition: all 0.2s;
-                line-height: 32px;
+                line-height: 28px;
             }
             .dev-close-btn:hover {
                 background: #dc2626;
@@ -506,7 +570,7 @@ const PoolDevSettings = {
             }
             .dev-content {
                 padding: 15px;
-                max-height: calc(85vh - 64px);
+                max-height: calc(85vh - 50px);
                 overflow-y: auto;
                 color: white;
             }
@@ -587,6 +651,27 @@ const PoolDevSettings = {
                 color: #fbbf24;
                 font-size: 11px;
             }
+            .dev-subsection {
+                background: rgba(0,0,0,0.15);
+                border-radius: 6px;
+                padding: 8px 10px;
+                margin-bottom: 8px;
+                border-left: 3px solid #3B82F6;
+            }
+            .dev-subsection-title {
+                font-size: 11px;
+                color: #93c5fd;
+                font-weight: bold;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .dev-subsection .dev-control {
+                padding: 3px 0;
+            }
+            .dev-subsection .dev-control label {
+                font-size: 11px;
+            }
             .dev-buttons {
                 display: grid;
                 grid-template-columns: repeat(3, 1fr);
@@ -616,6 +701,78 @@ const PoolDevSettings = {
         
         document.head.appendChild(style);
         document.body.appendChild(panel);
+        
+        // Make the panel draggable
+        this.makeDraggable(panel);
+    },
+    
+    makeDraggable(panel) {
+        const header = panel.querySelector('.dev-header');
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+        
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('dev-close-btn')) return;
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialX = panel.offsetLeft;
+            initialY = panel.offsetTop;
+            panel.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+            
+            // Keep panel within viewport
+            newX = Math.max(0, Math.min(newX, window.innerWidth - panel.offsetWidth));
+            newY = Math.max(0, Math.min(newY, window.innerHeight - panel.offsetHeight));
+            
+            panel.style.left = newX + 'px';
+            panel.style.top = newY + 'px';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            panel.style.cursor = '';
+        });
+        
+        // Touch support for mobile
+        header.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('dev-close-btn')) return;
+            isDragging = true;
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            initialX = panel.offsetLeft;
+            initialY = panel.offsetTop;
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+            
+            newX = Math.max(0, Math.min(newX, window.innerWidth - panel.offsetWidth));
+            newY = Math.max(0, Math.min(newY, window.innerHeight - panel.offsetHeight));
+            
+            panel.style.left = newX + 'px';
+            panel.style.top = newY + 'px';
+        }, { passive: true });
+        
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+        });
     },
     
     attachEventListeners() {
@@ -847,8 +1004,62 @@ const PoolDevSettings = {
             self.game.showThrow = checked;
         });
         
+        
         this.addCheckboxListener('showRailGrab', (checked) => {
             self.game.showRailGrab = checked;
+        });
+        
+        // Game Rules
+        this.addCheckboxListener('ballInHandTouchFoul', (checked) => {
+            self.game.ballInHandTouchFoul = checked;
+            console.log('Ball in hand touch foul:', checked ? 'enabled' : 'disabled');
+        });
+        
+        // Pocket Jaws - Angles
+        this.addRangeListener('cornerJawAngle', (val) => {
+            self.game.cornerJawAngle = parseFloat(val);
+            console.log('Corner jaw angle:', val + '°');
+        });
+        
+        this.addRangeListener('sideJawAngle', (val) => {
+            self.game.sideJawAngle = parseFloat(val);
+            console.log('Side jaw angle:', val + '°');
+        });
+        
+        this.addRangeListener('jawLength', (val) => {
+            self.game.jawLength = parseFloat(val);
+            console.log('Jaw length:', val + 'x');
+        });
+        
+        this.addRangeListener('jawRestitution', (val) => {
+            self.game.jawRestitution = parseFloat(val);
+            console.log('Jaw restitution:', val);
+        });
+        
+        // Pocket Jaws - Position
+        this.addRangeListener('cornerJawStartOffset', (val) => {
+            self.game.cornerJawStartOffset = parseFloat(val);
+            console.log('Corner jaw start offset:', val);
+        });
+        
+        this.addRangeListener('cornerJawSpread', (val) => {
+            self.game.cornerJawSpread = parseFloat(val);
+            console.log('Corner jaw spread:', val);
+        });
+        
+        this.addRangeListener('sideJawStartOffset', (val) => {
+            self.game.sideJawStartOffset = parseFloat(val);
+            console.log('Side jaw start offset:', val);
+        });
+        
+        this.addRangeListener('sideJawSpread', (val) => {
+            self.game.sideJawSpread = parseFloat(val);
+            console.log('Side jaw spread:', val);
+        });
+        
+        this.addCheckboxListener('showJawCollisionZones', (checked) => {
+            self.game.showJawCollisionZones = checked;
+            console.log('Show jaw collision zones:', checked);
         });
         
         // Visual Effects
@@ -918,13 +1129,12 @@ const PoolDevSettings = {
         document.getElementById('exportSettings').addEventListener('click', () => self.exportSettings());
         document.getElementById('resetDefaults').addEventListener('click', () => self.resetDefaults());
         
-        // Save/Load buttons
-        document.getElementById('saveSettings').addEventListener('click', () => self.saveSettings());
-        document.getElementById('loadSettings').addEventListener('click', () => self.loadSettings());
-        document.getElementById('deleteSettings').addEventListener('click', () => self.deleteSettings());
+        // Save/Clear defaults buttons
+        document.getElementById('saveDefaults').addEventListener('click', () => self.saveAsDefaults());
+        document.getElementById('clearDefaults').addEventListener('click', () => self.clearSavedDefaults());
         
-        // Update saved settings list on init
-        this.updateSavedSettingsList();
+        // Load saved defaults on init
+        this.loadSavedDefaults();
     },
     
     addCheckboxListener(id, callback) {
@@ -1147,7 +1357,10 @@ const PoolDevSettings = {
             maxPower: 40, powerMultiplier: 1.0, aimSensitivity: 1.0, maxPullDistance: 150,
             maxSpin: 1.5, spinEffect: 2.0, englishTransfer: 0.5, spinDecayRate: 0.98,
             airResistance: 0.999, angularDamping: 0.98, minSpeed: 0.05, gravityEffect: 1,
-            volume: 50
+            volume: 50,
+            // Jaw settings defaults
+            cornerJawAngle: 142, sideJawAngle: 104, jawLength: 1.5, jawRestitution: 0.6,
+            cornerJawStartOffset: 0.8, cornerJawSpread: 0, sideJawStartOffset: 0.6, sideJawSpread: 0
         };
         
         Object.keys(defaults).forEach(key => {
@@ -1170,7 +1383,8 @@ const PoolDevSettings = {
             showPocketZones: true, showCaptureZones: false, showAimLine: true, showGhostBall: true,
             showBallNumbers: true, ballShadows: true, tableTexture: true, showSpinArrows: true,
             showTrajectory: false, showVelocities: false, showFps: false, soundEffects: false,
-            autoAimAssist: false, showShotPreview: true
+            autoAimAssist: false, showShotPreview: true, showJawCollisionZones: false,
+            ballInHandTouchFoul: true
         };
         
         Object.keys(checkboxDefaults).forEach(key => {
@@ -1184,211 +1398,122 @@ const PoolDevSettings = {
         console.log('Reset to defaults');
     },
     
-    getSettingsKey() {
-        const slotSelect = document.getElementById('saveSlotSelect');
-        const customName = document.getElementById('customSaveName');
-        
-        if (slotSelect.value === 'custom' && customName.value.trim()) {
-            return 'poolSettings_' + customName.value.trim().replace(/[^a-zA-Z0-9]/g, '_');
-        }
-        return 'poolSettings_' + slotSelect.value;
-    },
-    
-    getDisplayName(key) {
-        const slotSelect = document.getElementById('saveSlotSelect');
-        const customName = document.getElementById('customSaveName');
-        
-        if (slotSelect.value === 'custom' && customName.value.trim()) {
-            return customName.value.trim();
-        }
-        
-        const slotNames = {
-            slot1: 'Slot 1',
-            slot2: 'Slot 2',
-            slot3: 'Slot 3'
-        };
-        return slotNames[slotSelect.value] || slotSelect.value;
-    },
-    
-    saveSettings() {
-        const key = this.getSettingsKey();
-        const displayName = this.getDisplayName();
-        
+    saveAsDefaults() {
         const settings = {
-            name: displayName,
-            timestamp: Date.now(),
-            data: {
-                // Table
-                tableWidth: this.game.width,
-                tableHeight: this.game.height,
-                cushionMargin: this.game.cushionMargin,
-                
-                // Balls
-                ballRadius: this.game.standardBallRadius,
-                cueBallRadius: this.game.cueBallRadius,
-                ballSpacing: this.game.ballSpacing || 0.5,
-                
-                // Pockets
-                cornerPocketOpening: this.game.cornerPocketOpening || 32,
-                cornerPocketRadius: this.game.cornerPocketRadius,
-                middlePocketOpening: this.game.middlePocketOpening || 34,
-                middlePocketRadius: this.game.middlePocketRadius,
-                captureThreshold: (this.game.captureThresholdPercent || 0.30) * 100,
-                pocketDepth: this.game.pocketDepth || 1.0,
-                
-                // Physics
-                friction: this.game.friction,
-                rollingResistance: this.game.rollingResistance || 0.99,
-                spinDecay: this.game.spinDecay || 0.98,
-                cushionRestitution: this.game.cushionRestitution,
-                ballRestitution: this.game.ballRestitution || 0.95,
-                collisionDamping: this.game.collisionDamping,
-                airResistance: this.game.airResistance || 0.999,
-                angularDamping: this.game.angularDamping || 0.98,
-                minSpeed: this.game.minSpeed || 0.05,
-                gravityEffect: this.game.gravityEffect || 1,
-                
-                // Shot Controls
-                shotControlMode: this.game.shotControlMode || 'drag',
-                maxPower: this.game.maxPower,
-                powerMultiplier: this.game.powerMultiplier || 1.0,
-                aimSensitivity: this.game.aimSensitivity || 1.0,
-                maxPullDistance: this.game.maxPullDistance || 150,
-                
-                // Spin
-                maxSpin: this.game.maxSpin || 1.5,
-                spinEffect: this.game.spinEffect || 1.0,
-                englishTransfer: this.game.englishTransfer || 0.5,
-                spinDecayRate: this.game.spinDecayRate || 0.98,
-                
-                // WPA
-                ballToBallFriction: this.game.ballToBallFriction || 0.055,
-                ballToClothSliding: this.game.ballToClothSliding || 0.25,
-                rollingResistanceCoeff: this.game.rollingResistanceCoeff || 0.010,
-                spinDecayRateCoeff: this.game.spinDecayRateCoeff || 10,
-                miscueLimit: this.game.miscueLimit || 0.5,
-                maxSpinRpm: this.game.maxSpinRpm || 4000,
-                cueBallMassVariance: this.game.cueBallMassVariance || 1.05,
-                
-                // Visual
-                showPocketZones: this.game.showPocketZones !== false,
-                showCaptureZones: this.game.showCaptureZones || false,
-                showAimLine: this.game.showAimLine !== false,
-                showGhostBall: this.game.showGhostBall !== false,
-                showTrajectory: this.game.showTrajectory || false,
-                showCollisionPoints: this.game.showCollisionPoints !== false,
-                trajectoryLength: this.game.trajectoryLength || 200,
-                showVelocities: this.game.showVelocities || false,
-                showBallNumbers: this.game.showBallNumbers !== false,
-                showFps: this.game.showFps || false,
-                ballShadows: this.game.ballShadows !== false,
-                tableTexture: this.game.tableTexture !== false,
-                
-                // Audio
-                soundEffects: this.game.soundEffects || false,
-                volume: (this.game.volume || 0.5) * 100
-            }
+            // Table
+            tableWidth: this.game.width,
+            tableHeight: this.game.height,
+            cushionMargin: this.game.cushionMargin,
+            
+            // Balls
+            ballRadius: this.game.standardBallRadius,
+            cueBallRadius: this.game.cueBallRadius,
+            ballSpacing: this.game.ballSpacing || 0.5,
+            
+            // Pockets
+            cornerPocketOpening: this.game.cornerPocketOpening || 32,
+            cornerPocketRadius: this.game.cornerPocketRadius,
+            middlePocketOpening: this.game.middlePocketOpening || 34,
+            middlePocketRadius: this.game.middlePocketRadius,
+            captureThreshold: (this.game.captureThresholdPercent || 0.30) * 100,
+            pocketDepth: this.game.pocketDepth || 1.0,
+            
+            // Physics
+            friction: this.game.friction,
+            rollingResistance: this.game.rollingResistance || 0.99,
+            spinDecay: this.game.spinDecay || 0.98,
+            cushionRestitution: this.game.cushionRestitution,
+            ballRestitution: this.game.ballRestitution || 0.95,
+            collisionDamping: this.game.collisionDamping,
+            airResistance: this.game.airResistance || 0.999,
+            angularDamping: this.game.angularDamping || 0.98,
+            minSpeed: this.game.minSpeed || 0.05,
+            gravityEffect: this.game.gravityEffect || 1,
+            
+            // Shot Controls
+            shotControlMode: this.game.shotControlMode || 'drag',
+            maxPower: this.game.maxPower,
+            powerMultiplier: this.game.powerMultiplier || 1.0,
+            aimSensitivity: this.game.aimSensitivity || 1.0,
+            maxPullDistance: this.game.maxPullDistance || 150,
+            
+            // Spin
+            maxSpin: this.game.maxSpin || 1.5,
+            spinEffect: this.game.spinEffect || 1.0,
+            englishTransfer: this.game.englishTransfer || 0.5,
+            spinDecayRate: this.game.spinDecayRate || 0.98,
+            
+            // Audio
+            volume: (this.game.volume || 0.5) * 100
         };
         
-        try {
-            localStorage.setItem(key, JSON.stringify(settings));
-            this.showNotification('Settings saved: ' + displayName, 'success');
-            this.updateSavedSettingsList();
-            console.log('Settings saved to:', key);
-        } catch (err) {
-            console.error('Failed to save settings:', err);
-            this.showNotification('Failed to save settings', 'error');
-        }
+        const jsonStr = JSON.stringify(settings);
+        console.log('Saving settings via MAUI bridge...');
+        
+        // Use MAUI bridge (custom URL scheme)
+        // This triggers OnWebViewNavigating in C# which saves to Preferences
+        window.location.href = 'poolsettings://save?' + encodeURIComponent(jsonStr);
+        
+        // Also store in window for immediate session use
+        window.poolGameSavedDefaults = settings;
     },
     
-    loadSettings() {
-        const key = this.getSettingsKey();
+    loadSavedDefaults() {
+        let settings = null;
         
+        // Check for MAUI-injected settings first (from Preferences)
+        if (window.MAUI_SAVED_SETTINGS) {
+            settings = window.MAUI_SAVED_SETTINGS;
+            console.log('Loaded settings from MAUI Preferences (injected)');
+        }
+        
+        // Fallback: Check window object
+        if (!settings && window.poolGameSavedDefaults) {
+            settings = window.poolGameSavedDefaults;
+            console.log('Loaded settings from window object');
+        }
+        
+        if (!settings) {
+            console.log('No saved defaults found');
+            return;
+        }
+        
+        // Apply all settings by updating inputs and triggering events
         try {
-            const saved = localStorage.getItem(key);
-            if (!saved) {
-                this.showNotification('No saved settings found', 'error');
-                return;
-            }
-            
-            const settings = JSON.parse(saved);
-            const data = settings.data;
-            
-            // Apply all settings by updating inputs and triggering events
-            Object.keys(data).forEach(inputId => {
+            Object.keys(settings).forEach(inputId => {
                 const input = document.getElementById(inputId);
                 if (input) {
                     if (input.type === 'checkbox') {
-                        input.checked = data[inputId];
+                        input.checked = settings[inputId];
                         input.dispatchEvent(new Event('change'));
                     } else if (input.tagName === 'SELECT') {
-                        input.value = data[inputId];
+                        input.value = settings[inputId];
                         input.dispatchEvent(new Event('change'));
                     } else {
-                        input.value = data[inputId];
+                        input.value = settings[inputId];
                         input.dispatchEvent(new Event('input'));
                     }
                 }
             });
-            
-            this.showNotification('Settings loaded: ' + settings.name, 'success');
-            console.log('Settings loaded from:', key);
+            console.log('Applied saved defaults successfully');
         } catch (err) {
-            console.error('Failed to load settings:', err);
-            this.showNotification('Failed to load settings', 'error');
+            console.error('Failed to apply settings:', err);
         }
     },
     
-    deleteSettings() {
-        const key = this.getSettingsKey();
-        const displayName = this.getDisplayName();
+    clearSavedDefaults() {
+        if (!confirm('Clear saved default settings?')) return;
         
-        if (!confirm('Delete saved settings: ' + displayName + '?')) return;
+        // Use MAUI bridge to clear settings
+        window.location.href = 'poolsettings://clear';
         
-        try {
-            localStorage.removeItem(key);
-            this.showNotification('Settings deleted: ' + displayName, 'success');
-            this.updateSavedSettingsList();
-            console.log('Settings deleted:', key);
-        } catch (err) {
-            console.error('Failed to delete settings:', err);
-            this.showNotification('Failed to delete settings', 'error');
+        // Also clear window object
+        if (window.poolGameSavedDefaults) {
+            delete window.poolGameSavedDefaults;
         }
-    },
-    
-    updateSavedSettingsList() {
-        const listEl = document.getElementById('savedSettingsList');
-        if (!listEl) return;
-        
-        const savedKeys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('poolSettings_')) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    savedKeys.push({
-                        key: key,
-                        name: data.name || key.replace('poolSettings_', ''),
-                        timestamp: data.timestamp
-                    });
-                } catch (e) {
-                    // Skip invalid entries
-                }
-            }
+        if (window.MAUI_SAVED_SETTINGS) {
+            window.MAUI_SAVED_SETTINGS = null;
         }
-        
-        if (savedKeys.length === 0) {
-            listEl.innerHTML = 'No saved settings';
-            return;
-        }
-        
-        // Sort by timestamp, newest first
-        savedKeys.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        
-        listEl.innerHTML = '<strong>Saved:</strong> ' + savedKeys.map(s => {
-            const date = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : '';
-            return s.name + (date ? ' (' + date + ')' : '');
-        }).join(', ');
     },
     
     showNotification(message, type) {
