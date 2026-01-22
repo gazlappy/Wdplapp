@@ -138,64 +138,17 @@ const PoolPhysics = {
                     const decayFactor = Math.max(0, 1 - (spinDecayPerFrame / Math.max(currentSpinSpeed, 0.01)));
                     ball.spinY *= decayFactor;
                     
+                    
                     // Update angular velocity to match linear velocity (pure roll)
                     ball.omega = speed / (ball.r || 14);
                 }
             }
             
             
-            // Calculate rotation based on velocity direction
-            // The ball rotates around an axis perpendicular to its direction of movement
-            const dx = ball.vx;
-            const dy = ball.vy;
-            
-            // Initialize 3D number position if needed (unit vector on sphere surface)
-            if (ball.numPosX === undefined) {
-                ball.numPosX = 0;
-                ball.numPosY = 0;
-                ball.numPosZ = 1;
-            }
-            
-            // Calculate how much the ball rotates this frame
-            const frameDistance = speed;
-            const rotationAngle = frameDistance / ball.r;
-            
-            // The rotation axis is perpendicular to the velocity direction
-            const axisX = -dy / speed;
-            const axisY = dx / speed;
-            const axisZ = 0;
-            
-            // Apply rotation using Rodrigues rotation formula
-            if (rotationAngle > 0.001) {
-                const cos_a = Math.cos(rotationAngle);
-                const sin_a = Math.sin(rotationAngle);
-                const one_minus_cos = 1 - cos_a;
-                
-                // Current number position
-                const px = ball.numPosX;
-                const py = ball.numPosY;
-                const pz = ball.numPosZ;
-                
-                // Dot product of axis and position
-                const dot = axisX * px + axisY * py + axisZ * pz;
-                
-                // Cross product of axis and position
-                const crossX = axisY * pz - axisZ * py;
-                const crossY = axisZ * px - axisX * pz;
-                const crossZ = axisX * py - axisY * px;
-                
-                // Rodrigues formula
-                ball.numPosX = px * cos_a + crossX * sin_a + axisX * dot * one_minus_cos;
-                ball.numPosY = py * cos_a + crossY * sin_a + axisY * dot * one_minus_cos;
-                ball.numPosZ = pz * cos_a + crossZ * sin_a + axisZ * dot * one_minus_cos;
-                
-                // Normalize to keep it on the unit sphere
-                const len = Math.sqrt(ball.numPosX * ball.numPosX + ball.numPosY * ball.numPosY + ball.numPosZ * ball.numPosZ);
-                if (len > 0.001) {
-                    ball.numPosX /= len;
-                    ball.numPosY /= len;
-                    ball.numPosZ /= len;
-                }
+            // ===== BALL ROTATION (delegated to PoolBallRotation module) =====
+            // Uses proper kinematic rolling and Rodrigues' rotation formula
+            if (typeof PoolBallRotation !== 'undefined') {
+                PoolBallRotation.updateRotation(ball);
             }
             
             // Update position

@@ -706,6 +706,7 @@ namespace Wdpl2.Services
             
             // Add all module JavaScript
             sb.AppendLine(PoolAudioModule.GenerateJavaScript());
+            sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
             sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
             sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
             sb.AppendLine(PoolPocketModule.GenerateJavaScript());

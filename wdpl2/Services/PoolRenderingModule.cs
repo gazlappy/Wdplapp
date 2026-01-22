@@ -703,27 +703,24 @@ drawTable(ctx, width, height, cushionMargin, game) {
         if (ball.potted) return;
         
         // ===== REALISTIC BALL SHADOW =====
-        // Soft, elliptical shadow on table (not perfect circle due to angle)
         ctx.save();
         ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
         ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 0.85, ball.r * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Softer outer shadow (penumbra)
         ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
         ctx.beginPath();
         ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.1, ball.r * 0.7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
         
-        // ===== PHASE 3: FELT COLOR REFLECTION ON BALL BOTTOM =====
-        // Green felt reflects onto the bottom of the ball
+        // ===== FELT COLOR REFLECTION ON BALL BOTTOM =====
         const feltReflection = ctx.createRadialGradient(
             ball.x, ball.y + ball.r * 0.5, 0,
             ball.x, ball.y + ball.r * 0.5, ball.r * 0.7
         );
-        feltReflection.addColorStop(0, 'rgba(27, 139, 61, 0.15)');  // Tournament green reflection
+        feltReflection.addColorStop(0, 'rgba(27, 139, 61, 0.15)');
         feltReflection.addColorStop(0.5, 'rgba(27, 139, 61, 0.08)');
         feltReflection.addColorStop(1, 'rgba(27, 139, 61, 0)');
         
@@ -737,180 +734,394 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.fill();
         ctx.restore();
         
-        // ===== GLOSSY BALL WITH REALISTIC LIGHTING =====
-        // Light from top-left (simulating overhead lamp)
+        // Light position for gradients
         const lightOffsetX = -ball.r * 0.4;
         const lightOffsetY = -ball.r * 0.4;
         
-        const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.15,
-            ball.x, ball.y, ball.r * 1.15
-        );
-        
-        // Set colors based on ball type with improved gradients
-        // Check for custom display color from ball style settings
-        const displayColor = ball.displayColor || null;
-        
-        if (ball.color === 'white') {
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.2, '#fafafa');
-            grad.addColorStop(0.5, '#f0f0f0');
-            grad.addColorStop(0.8, '#d0d0d0');
-            grad.addColorStop(1, '#a0a0a0');
-        } else if (ball.color === 'black' || ball.num === 8) {
-            grad.addColorStop(0, '#555555');
-            grad.addColorStop(0.2, '#3a3a3a');
-            grad.addColorStop(0.5, '#2a2a2a');
-            grad.addColorStop(0.8, '#1a1a1a');
-            grad.addColorStop(1, '#000000');
-        } else if (displayColor) {
-            // Use custom display color from ball style
-            const baseColor = this.hexToRgb(displayColor);
-            if (baseColor) {
-                grad.addColorStop(0, this.lightenColor(displayColor, 40));
-                grad.addColorStop(0.15, this.lightenColor(displayColor, 25));
-                grad.addColorStop(0.5, displayColor);
-                grad.addColorStop(0.8, this.darkenColor(displayColor, 20));
-                grad.addColorStop(1, this.darkenColor(displayColor, 40));
-            } else {
-                // Fallback
-                grad.addColorStop(0, '#cccccc');
-                grad.addColorStop(1, '#666666');
-            }
-        } else if (ball.color === 'red') {
-            grad.addColorStop(0, '#ff9999');
-            grad.addColorStop(0.15, '#ff7777');
-            grad.addColorStop(0.5, '#e63946');
-            grad.addColorStop(0.8, '#c1121f');
-            grad.addColorStop(1, '#780000');
+        // ===== UK-STYLE BALL RENDERING =====
+        if (ball.color === 'red') {
+            // UK RED BALLS: Maroon with cream stripe band around middle
+            this.drawUKRedBall(ctx, ball, lightOffsetX, lightOffsetY);
         } else if (ball.color === 'yellow') {
-            grad.addColorStop(0, '#fff9c4');
-            grad.addColorStop(0.15, '#ffe066');
-            grad.addColorStop(0.5, '#ffd43b');
-            grad.addColorStop(0.8, '#fab005');
-            grad.addColorStop(1, '#a67c00');
+            // UK YELLOW BALLS: Solid bright yellow
+            this.drawUKYellowBall(ctx, ball, lightOffsetX, lightOffsetY);
+        } else if (ball.color === 'black' || ball.num === 8) {
+            // BLACK BALL: Solid black with gloss
+            this.drawBlackBall(ctx, ball, lightOffsetX, lightOffsetY);
+        } else if (ball.color === 'white') {
+            // CUE BALL: White/cream
+            this.drawCueBall(ctx, ball, lightOffsetX, lightOffsetY);
         } else {
-            // Unknown color fallback
-            grad.addColorStop(0, '#cccccc');
-            grad.addColorStop(0.5, '#999999');
-            grad.addColorStop(1, '#666666');
+            // Fallback
+            this.drawGenericBall(ctx, ball, lightOffsetX, lightOffsetY);
         }
         
-        // Draw ball base
+        // ===== DRAW NUMBER CIRCLE =====
+        this.drawBallNumber(ctx, ball);
+        
+        // ===== SPECULAR HIGHLIGHTS =====
+        this.drawSpecularHighlights(ctx, ball, lightOffsetX, lightOffsetY);
+    },
+    
+    // Red Ball - American style with cream polar caps and maroon center band
+    drawUKRedBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Get stripe offset from rotation module (uses pole position tracking)
+        const stripeOffset = typeof PoolBallRotation !== 'undefined' 
+            ? PoolBallRotation.getStripeOffset(ball) 
+            : 0;
+        
+        // Base cream/ivory color (the polar caps)
+        const baseGrad = ctx.createRadialGradient(
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
+            ball.x, ball.y, ball.r * 1.1
+        );
+        baseGrad.addColorStop(0, '#fffef8');
+        baseGrad.addColorStop(0.2, '#faf5e8');
+        baseGrad.addColorStop(0.5, '#f0e8d8');
+        baseGrad.addColorStop(0.8, '#d8d0c0');
+        baseGrad.addColorStop(1, '#b8b0a0');
+        
+        ctx.fillStyle = baseGrad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw the maroon center band - uses proper 3D rotation tracking
+        this.drawRedBallMaroonBand(ctx, ball, lightOffsetX, lightOffsetY, stripeOffset);
+        
+        ctx.restore();
+    },
+    
+    // Draw the maroon band - fixed width horizontal stripe that rolls with the ball
+    drawRedBallMaroonBand(ctx, ball, lightOffsetX, lightOffsetY, stripeOffset) {
+        ctx.save();
+        
+        // Calculate band position from rotation module's stripe offset
+        // stripeOffset is -1 to 1, representing how far the pole has tilted
+        const bandOffset = stripeOffset * ball.r * 0.85;
+        const bandCenterY = ball.y + bandOffset;
+        
+        // Create maroon gradient centered on the band
+        const maroonGrad = ctx.createRadialGradient(
+            ball.x + lightOffsetX * 0.5, bandCenterY + lightOffsetY * 0.5, ball.r * 0.1,
+            ball.x, bandCenterY, ball.r * 1.1
+        );
+        maroonGrad.addColorStop(0, '#a04555');
+        maroonGrad.addColorStop(0.15, '#8b2538');
+        maroonGrad.addColorStop(0.4, '#6d1a2d');
+        maroonGrad.addColorStop(0.7, '#5a1525');
+        maroonGrad.addColorStop(1, '#3a0815');
+        
+        // Draw band as a fixed width horizontal stripe - same width all the way around
+        // Band height is 60% of ball diameter (30% above and below center)
+        const bandHalfHeight = ball.r * 0.60;
+        
+        ctx.fillStyle = maroonGrad;
+        ctx.beginPath();
+        ctx.rect(ball.x - ball.r, bandCenterY - bandHalfHeight, ball.r * 2, bandHalfHeight * 2);
+        ctx.fill();
+        
+        // Add subtle shading to the band for 3D effect
+        const bandShadow = ctx.createLinearGradient(
+            ball.x, bandCenterY - bandHalfHeight,
+            ball.x, bandCenterY + bandHalfHeight
+        );
+        bandShadow.addColorStop(0, 'rgba(255,200,200,0.15)');
+        bandShadow.addColorStop(0.3, 'rgba(0,0,0,0)');
+        bandShadow.addColorStop(0.7, 'rgba(0,0,0,0.1)');
+        bandShadow.addColorStop(1, 'rgba(0,0,0,0.2)');
+        
+        ctx.fillStyle = bandShadow;
+        ctx.beginPath();
+        ctx.rect(ball.x - ball.r, bandCenterY - bandHalfHeight, ball.r * 2, bandHalfHeight * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    },
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // UK Yellow Ball - Solid bright yellow
+    drawUKYellowBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        const grad = ctx.createRadialGradient(
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
+            ball.x, ball.y, ball.r * 1.1
+        );
+        grad.addColorStop(0, '#ffed80');
+        grad.addColorStop(0.15, '#ffe033');
+        grad.addColorStop(0.4, '#ffd700');
+        grad.addColorStop(0.7, '#e6b800');
+        grad.addColorStop(1, '#997a00');
+        
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+    
+    // Black Ball
+    drawBlackBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        const grad = ctx.createRadialGradient(
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
+            ball.x, ball.y, ball.r * 1.1
+        );
+        grad.addColorStop(0, '#555555');
+        grad.addColorStop(0.2, '#3a3a3a');
+        grad.addColorStop(0.5, '#2a2a2a');
+        grad.addColorStop(0.8, '#1a1a1a');
+        grad.addColorStop(1, '#000000');
+        
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+    
+    // Cue Ball - White/cream with dark spots for spin tracking
+    drawCueBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        // Base white/cream gradient
+        const grad = ctx.createRadialGradient(
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
+            ball.x, ball.y, ball.r * 1.1
+        );
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.2, '#fefefa');
+        grad.addColorStop(0.5, '#f8f5f0');
+        grad.addColorStop(0.8, '#e8e4dc');
+        grad.addColorStop(1, '#c8c4bc');
+        
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw number that rotates with the ball in proper 3D
-        if (ball.num > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-            ctx.clip();
+        // Draw dark spots for spin tracking (like real cue balls)
+        this.drawCueBallSpots(ctx, ball);
+    },
+    
+    // Draw the characteristic dark spots on a cue ball
+    drawCueBallSpots(ctx, ball) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Get the 3D rotation state (default to facing viewer)
+        const numX = ball.numPosX !== undefined ? ball.numPosX : 0;
+        const numY = ball.numPosY !== undefined ? ball.numPosY : 0;
+        const numZ = ball.numPosZ !== undefined ? ball.numPosZ : 1;
+        
+        // Define 6 spots positioned on a sphere (like dice positions)
+        // These are unit vectors pointing to spot positions
+        const spotPositions = [
+            { x: 0, y: 0, z: 1 },    // Front
+            { x: 0, y: 0, z: -1 },   // Back
+            { x: 1, y: 0, z: 0 },    // Right
+            { x: -1, y: 0, z: 0 },   // Left
+            { x: 0, y: 1, z: 0 },    // Bottom
+            { x: 0, y: -1, z: 0 }    // Top
+        ];
+        
+        // Get rotation matrix from the tracked position
+        // We use the numPos as the Z-axis of our rotation
+        const zx = numX, zy = numY, zz = numZ;
+        
+        // Create orthonormal basis (simplified rotation)
+        let yx, yy, yz;
+        if (Math.abs(zz) > 0.9) {
+            // Z is pointing mostly up/down, use X as reference
+            yx = 0; yy = 1; yz = 0;
+        } else {
+            // Cross product with up vector to get Y
+            const upX = 0, upY = 0, upZ = 1;
+            yx = zy * upZ - zz * upY;
+            yy = zz * upX - zx * upZ;
+            yz = zx * upY - zy * upX;
+            const yLen = Math.sqrt(yx*yx + yy*yy + yz*yz);
+            if (yLen > 0.001) { yx /= yLen; yy /= yLen; yz /= yLen; }
+        }
+        
+        // X axis = Y cross Z
+        const xx = yy * zz - yz * zy;
+        const xy = yz * zx - yx * zz;
+        const xz = yx * zy - yy * zx;
+        
+        // Draw each spot
+        const spotRadius = ball.r * 0.12;
+        const depthFactor = 0.7;
+        
+        spotPositions.forEach((spot, index) => {
+            // Transform spot position by rotation matrix
+            const rotX = spot.x * xx + spot.y * yx + spot.z * zx;
+            const rotY = spot.x * xy + spot.y * yy + spot.z * zy;
+            const rotZ = spot.x * xz + spot.y * yz + spot.z * zz;
             
-            // Get the 3D position of the number on the sphere surface
-            // numPosX, numPosY, numPosZ form a unit vector showing where the number is
-            // Z > 0 means facing toward viewer, Z < 0 means facing away
-            const numX = ball.numPosX !== undefined ? ball.numPosX : 0;
-            const numY = ball.numPosY !== undefined ? ball.numPosY : 0;
-            const numZ = ball.numPosZ !== undefined ? ball.numPosZ : 1;
-            
-            // Only draw if number is on visible hemisphere (facing camera)
-            if (numZ > -0.15) {
-                // Project 3D sphere position to 2D screen coordinates
-                const depthFactor = 0.65;
-                const numberX = ball.x + numX * ball.r * depthFactor;
-                const numberY = ball.y + numY * ball.r * depthFactor;
+            // Only draw if spot is on visible hemisphere
+            if (rotZ > -0.1) {
+                const screenX = ball.x + rotX * ball.r * depthFactor;
+                const screenY = ball.y + rotY * ball.r * depthFactor;
                 
-                // Scale the number based on how much it faces us (perspective)
-                const perspective = Math.max(0.3, (numZ + 0.15) / 1.15);
-                const scale = 0.5 + perspective * 0.5;
+                // Perspective scaling and alpha based on depth
+                const perspective = Math.max(0.3, (rotZ + 0.1) / 1.1);
+                const scale = 0.6 + perspective * 0.4;
+                const alpha = Math.max(0.1, Math.min(0.9, (rotZ + 0.2) / 0.8));
                 
-                // Fade based on how much the number is facing us
-                const alpha = Math.max(0, Math.min(1, (numZ + 0.2) / 0.9));
-                
+                // Draw bowtie/cross shaped spot
+                ctx.save();
                 ctx.globalAlpha = alpha;
+                ctx.translate(screenX, screenY);
+                ctx.scale(scale, scale);
                 
-                // White circle for number background
-                const circleRadius = ball.r * 0.42 * scale;
+                // Dark blue-gray color like real cue ball spots
+                ctx.fillStyle = '#2a3a4a';
                 
-                // Offset the gradient for 3D effect
-                const gradOffsetX = -numX * 2;
-                const gradOffsetY = -numY * 2;
+                // Draw bowtie shape (two triangles pointing at each other)
+                const spotSize = spotRadius * 1.5;
                 
-                const numGrad = ctx.createRadialGradient(
-                    numberX + gradOffsetX, numberY + gradOffsetY, 0,
-                    numberX, numberY, circleRadius
-                );
-                numGrad.addColorStop(0, '#ffffff');
-                numGrad.addColorStop(0.7, '#f5f5f5');
-                numGrad.addColorStop(1, '#e0e0e0');
-                
-                ctx.fillStyle = numGrad;
+                // First triangle (left half)
                 ctx.beginPath();
-                ctx.arc(numberX, numberY, circleRadius, 0, Math.PI * 2);
+                ctx.moveTo(-spotSize, -spotSize * 0.6);
+                ctx.lineTo(0, 0);
+                ctx.lineTo(-spotSize, spotSize * 0.6);
+                ctx.closePath();
                 ctx.fill();
                 
-                // Subtle border
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
+                // Second triangle (right half)
+                ctx.beginPath();
+                ctx.moveTo(spotSize, -spotSize * 0.6);
+                ctx.lineTo(0, 0);
+                ctx.lineTo(spotSize, spotSize * 0.6);
+                ctx.closePath();
+                ctx.fill();
                 
-                // Number text
-                const fontSize = Math.round(10 * scale);
+                // Small center dot
+                ctx.beginPath();
+                ctx.arc(0, 0, spotSize * 0.2, 0, Math.PI * 2);
+                ctx.fill();
                 
-                // Shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                ctx.font = 'bold ' + fontSize + 'px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(ball.num, numberX + 0.5, numberY + 0.5);
-                
-                // Number
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillText(ball.num, numberX, numberY);
+                ctx.restore();
             }
+        });
+        
+        ctx.restore();
+    },
+    
+    // Generic fallback ball
+    drawGenericBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        const grad = ctx.createRadialGradient(
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
+            ball.x, ball.y, ball.r * 1.1
+        );
+        grad.addColorStop(0, '#cccccc');
+        grad.addColorStop(0.5, '#999999');
+        grad.addColorStop(1, '#666666');
+        
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+    
+    
+    // Draw ball number with cream circle and black ring (American style for reds)
+    drawBallNumber(ctx, ball) {
+        if (ball.num <= 0) return;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Use rotation module for number position and visibility
+        const useRotationModule = typeof PoolBallRotation !== 'undefined';
+        
+        let numberVisible, numberX, numberY, scale, alpha;
+        
+        if (useRotationModule) {
+            // Get values from rotation module
+            numberVisible = PoolBallRotation.isNumberVisible(ball);
             
-            ctx.restore();
+            if (numberVisible) {
+                const screenOffset = PoolBallRotation.getNumberScreenOffset(ball);
+                const depthFactor = 0.65;
+                
+                numberX = ball.x + screenOffset.x * ball.r * depthFactor;
+                numberY = ball.y + screenOffset.y * ball.r * depthFactor;
+                
+                scale = PoolBallRotation.getNumberScale(ball);
+                alpha = PoolBallRotation.getNumberAlpha(ball);
+            }
+        } else {
+            // Fallback - number always visible at center
+            numberVisible = true;
+            numberX = ball.x;
+            numberY = ball.y;
+            scale = 1;
+            alpha = 1;
         }
         
-        // Draw subtle rolling texture - simplified
-        if (ball.rotation !== undefined) {
-            ctx.save();
+        // Only draw if number is on visible side
+        if (numberVisible) {
+            ctx.globalAlpha = alpha;
+            
+            // American style: cream circle with black ring outline
+            const circleRadius = ball.r * 0.42 * scale;
+            const ringWidth = circleRadius * 0.18;
+            
+            // Outer black ring
+            ctx.fillStyle = '#1a1a1a';
             ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-            ctx.clip();
+            ctx.arc(numberX, numberY, circleRadius, 0, Math.PI * 2);
+            ctx.fill();
             
-            ctx.globalAlpha = 0.06;
+            // Inner cream/ivory circle
+            const innerGrad = ctx.createRadialGradient(
+                numberX - 1, numberY - 1, 0,
+                numberX, numberY, circleRadius - ringWidth
+            );
+            innerGrad.addColorStop(0, '#fffef8');
+            innerGrad.addColorStop(0.3, '#faf8f0');
+            innerGrad.addColorStop(0.7, '#f0ebe0');
+            innerGrad.addColorStop(1, '#e8e0d5');
             
-            // Simple rolling lines that move with rotation
-            const numLines = 8;
-            for (let i = 0; i < numLines; i++) {
-                const lineAngle = (i / numLines) * Math.PI * 2 + ball.rotation;
-                const depth = Math.cos(lineAngle);
-                
-                // Only draw lines on visible hemisphere
-                if (depth > 0) {
-                    const lineAlpha = depth * 0.6;
-                    ctx.strokeStyle = 'rgba(0, 0, 0, ' + lineAlpha + ')';
-                    ctx.lineWidth = 1;
-                    
-                    // Draw arc across ball surface
-                    ctx.beginPath();
-                    const startAngle = lineAngle - Math.PI / 2;
-                    const endAngle = lineAngle + Math.PI / 2;
-                    ctx.arc(ball.x, ball.y, ball.r * 0.8, startAngle, endAngle);
-                    ctx.stroke();
-                }
-            }
+            ctx.fillStyle = innerGrad;
+            ctx.beginPath();
+            ctx.arc(numberX, numberY, circleRadius - ringWidth, 0, Math.PI * 2);
+            ctx.fill();
             
-            ctx.restore();
+            // Subtle highlight on the cream circle
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            
+            // BLACK number text
+            const fontSize = Math.round(10 * scale);
+            
+            ctx.fillStyle = '#1a1a1a';
+            ctx.font = 'bold ' + fontSize + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ball.num, numberX, numberY + 0.5);
         }
         
-        // ===== ENHANCED SPECULAR HIGHLIGHT (GLOSSY SHINE) =====
-        // Two-layer highlight for more realistic shine
-        // Primary highlight (intense)
+        ctx.restore();
+    },
+    
+    // Draw specular highlights for glossy shine
+    drawSpecularHighlights(ctx, ball, lightOffsetX, lightOffsetY) {
+        // Primary highlight
         const specular1 = ctx.createRadialGradient(
             ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, 0,
             ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, ball.r * 0.35

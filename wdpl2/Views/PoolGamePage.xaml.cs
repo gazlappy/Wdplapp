@@ -250,6 +250,10 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
+    {Services.PoolBallRotationModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
     {Services.PoolPhysicsModule.GenerateJavaScript()}
     </script>
     
