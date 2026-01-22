@@ -15,68 +15,114 @@ public static class PoolRenderingModule
 // ============================================
 
 const PoolRendering = {
-    /**
-     * Draw the pool table with realistic felt texture and gradient lighting
-     * PHASE 3: Felt wear patterns + enhanced atmospheric lighting
-     */
-    drawTable(ctx, width, height, cushionMargin) {
-        // ===== TABLE FRAME (WOODEN APRON) =====
-        // Visible wooden border around the entire table
-        const frameWidth = 12;
-        const frameGradient = ctx.createLinearGradient(0, 0, frameWidth, 0);
-        frameGradient.addColorStop(0, '#4a3520');
-        frameGradient.addColorStop(0.5, '#5c4530');
-        frameGradient.addColorStop(1, '#3a2817');
+/**
+ * Helper to darken/lighten colors
+ */
+adjustColor(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = Math.min(255, Math.max(0, (num >> 16) + Math.round(255 * percent / 100)));
+    const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + Math.round(255 * percent / 100)));
+    const b = Math.min(255, Math.max(0, (num & 0x0000FF) + Math.round(255 * percent / 100)));
+    return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+},
+    
+/**
+ * Convert hex to RGB object
+ */
+hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+},
+    
+/**
+ * Lighten a hex color
+ */
+lightenColor(hex, percent) {
+    const rgb = this.hexToRgb(hex);
+    if (!rgb) return hex;
+    const r = Math.min(255, rgb.r + Math.round((255 - rgb.r) * percent / 100));
+    const g = Math.min(255, rgb.g + Math.round((255 - rgb.g) * percent / 100));
+    const b = Math.min(255, rgb.b + Math.round((255 - rgb.b) * percent / 100));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+},
+    
+/**
+ * Darken a hex color
+ */
+darkenColor(hex, percent) {
+    const rgb = this.hexToRgb(hex);
+    if (!rgb) return hex;
+    const r = Math.max(0, Math.round(rgb.r * (100 - percent) / 100));
+    const g = Math.max(0, Math.round(rgb.g * (100 - percent) / 100));
+    const b = Math.max(0, Math.round(rgb.b * (100 - percent) / 100));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+},
+    
+/**
+ * Draw the pool table with realistic felt texture and gradient lighting
+ * Supports custom colors from game settings
+ */
+drawTable(ctx, width, height, cushionMargin, game) {
+    // Get custom colors from game settings (or use defaults)
+    const clothColor = (game && game.clothColor) || '#1a7f37';
+    const railColor = (game && game.railColor) || '#8B4513';
         
-        ctx.fillStyle = frameGradient;
-        ctx.fillRect(0, 0, width, height);
+    // ===== TABLE FRAME (WOODEN APRON) =====
+    const frameWidth = 12;
+    const frameGradient = ctx.createLinearGradient(0, 0, frameWidth, 0);
+    frameGradient.addColorStop(0, this.adjustColor(railColor, -20));
+    frameGradient.addColorStop(0.5, railColor);
+    frameGradient.addColorStop(1, this.adjustColor(railColor, -30));
         
-        // Frame inner shadow
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(frameWidth / 2, frameWidth / 2, width - frameWidth, height - frameWidth);
+    ctx.fillStyle = frameGradient;
+    ctx.fillRect(0, 0, width, height);
         
-        // ===== AMBIENT ROOM LIGHTING EFFECT =====
-        // Subtle vignette to simulate room lighting falling off at edges
-        const vignetteGrad = ctx.createRadialGradient(
-            width / 2, height / 2, Math.min(width, height) * 0.3,
-            width / 2, height / 2, Math.max(width, height) * 0.8
-        );
-        vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vignetteGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.02)');
-        vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+    // Frame inner shadow
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(frameWidth / 2, frameWidth / 2, width - frameWidth, height - frameWidth);
         
-        ctx.fillStyle = vignetteGrad;
-        ctx.fillRect(0, 0, width, height);
+    // ===== AMBIENT ROOM LIGHTING EFFECT =====
+    const vignetteGrad = ctx.createRadialGradient(
+        width / 2, height / 2, Math.min(width, height) * 0.3,
+        width / 2, height / 2, Math.max(width, height) * 0.8
+    );
+    vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignetteGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.02)');
+    vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
         
-        // ===== REALISTIC FELT WITH RADIAL GRADIENT LIGHTING =====
-        // Simulates overhead pool table lamp - light center, darker edges
-        const feltInset = frameWidth;
-        const feltWidth = width - (feltInset * 2);
-        const feltHeight = height - (feltInset * 2);
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.max(feltWidth, feltHeight) * 0.7;
+    ctx.fillStyle = vignetteGrad;
+    ctx.fillRect(0, 0, width, height);
         
-        const feltGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-        feltGradient.addColorStop(0, '#1B8B3D');    // Lighter center (tournament green)
-        feltGradient.addColorStop(0.4, '#178535');   // Medium
-        feltGradient.addColorStop(0.7, '#137A2E');   // Darker
-        feltGradient.addColorStop(1, '#0F6426');     // Darkest edges
+    // ===== REALISTIC FELT WITH RADIAL GRADIENT LIGHTING =====
+    const feltInset = frameWidth;
+    const feltWidth = width - (feltInset * 2);
+    const feltHeight = height - (feltInset * 2);
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.max(feltWidth, feltHeight) * 0.7;
         
-        ctx.fillStyle = feltGradient;
-        ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
+    const feltGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+    feltGradient.addColorStop(0, this.adjustColor(clothColor, 15));    // Lighter center
+    feltGradient.addColorStop(0.4, this.adjustColor(clothColor, 5));   // Medium
+    feltGradient.addColorStop(0.7, clothColor);                         // Base color
+    feltGradient.addColorStop(1, this.adjustColor(clothColor, -15));   // Darker edges
         
-        // ===== PHASE 3: FELT WEAR PATTERNS =====
-        // Subtle wear in high-traffic areas (break box, rack area)
-        this.drawFeltWear(ctx, width, height, feltInset);
+    ctx.fillStyle = feltGradient;
+    ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
         
-        // ===== ENHANCED FELT TEXTURE (CLOTH WEAVE) WITH NAP DIRECTION =====
-        ctx.save();
-        ctx.globalAlpha = 0.05;
+    // ===== PHASE 3: FELT WEAR PATTERNS =====
+    this.drawFeltWear(ctx, width, height, feltInset);
         
-        // Felt nap direction (slight directional texture - balls roll slightly toward foot)
-        const napAngle = 0; // 0 = horizontal nap (toward foot of table)
+    // ===== ENHANCED FELT TEXTURE WITH CUSTOM COLOR =====
+    ctx.save();
+    ctx.globalAlpha = 0.05;
+        
+    const napAngle = 0;
         
         // Vertical threads with nap direction
         for (let i = 0; i < 100; i++) {
@@ -408,13 +454,16 @@ const PoolRendering = {
         const cornerPocketOpening = railWidth * cornerOpeningMult;
         const sidePocketOpening = railWidth * sideOpeningMult;
         
-        // Colors matching reference image
-        const railColor = '#C4B998';        // Cream/tan rail color
-        const railLight = '#D9CEAB';        // Rail highlight
-        const railDark = '#A69B78';         // Rail shadow
-        const railEdge = '#8B8060';          // Dark edge
-        const cushionColor = '#1B7A3A';     // Green cushion rubber
-        const cushionLight = '#229A48';     // Cushion highlight
+        // Colors - use custom colors from game settings if available
+        const customRailColor = (typeof game !== 'undefined' && game.railColor) ? game.railColor : '#C4B998';
+        const customClothColor = (typeof game !== 'undefined' && game.clothColor) ? game.clothColor : '#1B7A3A';
+        
+        const railColor = customRailColor;
+        const railLight = this.adjustColor(customRailColor, 15);
+        const railDark = this.adjustColor(customRailColor, -15);
+        const railEdge = this.adjustColor(customRailColor, -25);
+        const cushionColor = this.adjustColor(customClothColor, -5);
+        const cushionLight = this.adjustColor(customClothColor, 10);
         const pocketColor = '#000000';      // Black pocket holes
         
         // Corner pocket positions (at actual corners)
@@ -699,12 +748,35 @@ const PoolRendering = {
         );
         
         // Set colors based on ball type with improved gradients
+        // Check for custom display color from ball style settings
+        const displayColor = ball.displayColor || null;
+        
         if (ball.color === 'white') {
             grad.addColorStop(0, '#ffffff');
             grad.addColorStop(0.2, '#fafafa');
             grad.addColorStop(0.5, '#f0f0f0');
             grad.addColorStop(0.8, '#d0d0d0');
             grad.addColorStop(1, '#a0a0a0');
+        } else if (ball.color === 'black' || ball.num === 8) {
+            grad.addColorStop(0, '#555555');
+            grad.addColorStop(0.2, '#3a3a3a');
+            grad.addColorStop(0.5, '#2a2a2a');
+            grad.addColorStop(0.8, '#1a1a1a');
+            grad.addColorStop(1, '#000000');
+        } else if (displayColor) {
+            // Use custom display color from ball style
+            const baseColor = this.hexToRgb(displayColor);
+            if (baseColor) {
+                grad.addColorStop(0, this.lightenColor(displayColor, 40));
+                grad.addColorStop(0.15, this.lightenColor(displayColor, 25));
+                grad.addColorStop(0.5, displayColor);
+                grad.addColorStop(0.8, this.darkenColor(displayColor, 20));
+                grad.addColorStop(1, this.darkenColor(displayColor, 40));
+            } else {
+                // Fallback
+                grad.addColorStop(0, '#cccccc');
+                grad.addColorStop(1, '#666666');
+            }
         } else if (ball.color === 'red') {
             grad.addColorStop(0, '#ff9999');
             grad.addColorStop(0.15, '#ff7777');
@@ -717,12 +789,11 @@ const PoolRendering = {
             grad.addColorStop(0.5, '#ffd43b');
             grad.addColorStop(0.8, '#fab005');
             grad.addColorStop(1, '#a67c00');
-        } else { // black
-            grad.addColorStop(0, '#555555');
-            grad.addColorStop(0.2, '#3a3a3a');
-            grad.addColorStop(0.5, '#2a2a2a');
-            grad.addColorStop(0.8, '#1a1a1a');
-            grad.addColorStop(1, '#000000');
+        } else {
+            // Unknown color fallback
+            grad.addColorStop(0, '#cccccc');
+            grad.addColorStop(0.5, '#999999');
+            grad.addColorStop(1, '#666666');
         }
         
         // Draw ball base
@@ -731,55 +802,73 @@ const PoolRendering = {
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw number that rotates with the ball
-        if (ball.num > 0 && ball.rotation !== undefined) {
+        // Draw number that rotates with the ball in proper 3D
+        if (ball.num > 0) {
             ctx.save();
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
             ctx.clip();
             
-            // Calculate number position based on rotation
-            const numberAngle = ball.rotation;
+            // Get the 3D position of the number on the sphere surface
+            // numPosX, numPosY, numPosZ form a unit vector showing where the number is
+            // Z > 0 means facing toward viewer, Z < 0 means facing away
+            const numX = ball.numPosX !== undefined ? ball.numPosX : 0;
+            const numY = ball.numPosY !== undefined ? ball.numPosY : 0;
+            const numZ = ball.numPosZ !== undefined ? ball.numPosZ : 1;
             
-            // Calculate 3D position of number on sphere
-            const numberDepth = Math.cos(numberAngle);
-            
-            // Only draw if number is on visible hemisphere
-            if (numberDepth > -0.3) {
-                const numberX = ball.x + Math.sin(numberAngle) * ball.r * 0.3;
-                const numberY = ball.y;
+            // Only draw if number is on visible hemisphere (facing camera)
+            if (numZ > -0.15) {
+                // Project 3D sphere position to 2D screen coordinates
+                const depthFactor = 0.65;
+                const numberX = ball.x + numX * ball.r * depthFactor;
+                const numberY = ball.y + numY * ball.r * depthFactor;
                 
-                // Scale and fade based on depth (3D effect)
-                const scale = 0.7 + (numberDepth * 0.3);
-                const alpha = Math.max(0, (numberDepth + 0.3) / 1.3);
+                // Scale the number based on how much it faces us (perspective)
+                const perspective = Math.max(0.3, (numZ + 0.15) / 1.15);
+                const scale = 0.5 + perspective * 0.5;
+                
+                // Fade based on how much the number is facing us
+                const alpha = Math.max(0, Math.min(1, (numZ + 0.2) / 0.9));
                 
                 ctx.globalAlpha = alpha;
                 
-                // White circle for number - scaled based on depth
-                const circleRadius = ball.r * 0.5 * scale;
+                // White circle for number background
+                const circleRadius = ball.r * 0.42 * scale;
+                
+                // Offset the gradient for 3D effect
+                const gradOffsetX = -numX * 2;
+                const gradOffsetY = -numY * 2;
+                
                 const numGrad = ctx.createRadialGradient(
-                    numberX - 1, numberY - 1, 0,
+                    numberX + gradOffsetX, numberY + gradOffsetY, 0,
                     numberX, numberY, circleRadius
                 );
                 numGrad.addColorStop(0, '#ffffff');
-                numGrad.addColorStop(0.8, '#f0f0f0');
-                numGrad.addColorStop(1, '#d0d0d0');
+                numGrad.addColorStop(0.7, '#f5f5f5');
+                numGrad.addColorStop(1, '#e0e0e0');
                 
                 ctx.fillStyle = numGrad;
                 ctx.beginPath();
                 ctx.arc(numberX, numberY, circleRadius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Number shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.font = 'bold ' + (9 * scale) + 'px Arial';
+                // Subtle border
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+                
+                // Number text
+                const fontSize = Math.round(10 * scale);
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.font = 'bold ' + fontSize + 'px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(ball.num, numberX + 0.5, numberY + 0.5);
                 
                 // Number
                 ctx.fillStyle = '#1a1a1a';
-                ctx.font = 'bold ' + (9 * scale) + 'px Arial';
                 ctx.fillText(ball.num, numberX, numberY);
             }
             
@@ -1058,20 +1147,28 @@ const PoolRendering = {
         
         // Calculate object ball trajectory after collision using proper physics
         // The object ball travels along the line connecting the ball centers at impact
-        const ghostCueBallX = collisionPoint.cueBallX || (collisionPoint.x - Math.cos(impactAngle) * cueBall.r);
-        const ghostCueBallY = collisionPoint.cueBallY || (collisionPoint.y - Math.sin(impactAngle) * cueBall.r);
+        const ghostCueBallX = collisionPoint.cueBallX;
+        const ghostCueBallY = collisionPoint.cueBallY;
         
-        // Direction from cue ball position at impact to object ball center
+        if (!ghostCueBallX || !ghostCueBallY) return;
+        
+        // The object ball trajectory is along the line from ghost cue ball to object ball center
+        // This is the fundamental physics of pool - object ball travels along line of centers
         const objDx = objectBall.x - ghostCueBallX;
         const objDy = objectBall.y - ghostCueBallY;
         const objDist = Math.sqrt(objDx * objDx + objDy * objDy);
         
         if (objDist > 0.1) {
+            // Normalize the direction
+            const objNx = objDx / objDist;
+            const objNy = objDy / objDist;
+            
             // Object ball trajectory angle - this is the key physics!
             // Object ball travels along the line of centers at impact
-            const trajectoryAngle = Math.atan2(objDy, objDx);
+            const trajectoryAngle = Math.atan2(objNy, objNx);
             
-            // Draw predicted trajectory path
+            // Draw predicted trajectory path starting from object ball's CURRENT position
+            // (The ball will move in this direction after being hit)
             this.drawPredictedPath(
                 ctx,
                 objectBall,
@@ -1081,6 +1178,84 @@ const PoolRendering = {
                 cushionMargin,
                 game
             );
+            
+            // Also draw cue ball deflection path (90 degrees for stun shot, varies with spin)
+            this.drawCueBallDeflection(
+                ctx,
+                cueBall,
+                ghostCueBallX,
+                ghostCueBallY,
+                aimAngle,
+                trajectoryAngle,
+                tableWidth,
+                tableHeight,
+                cushionMargin,
+                game
+            );
+        }
+    },
+    
+    /**
+     * Draw the predicted cue ball path after collision
+     */
+    drawCueBallDeflection(ctx, cueBall, ghostX, ghostY, aimAngle, objectAngle, tableWidth, tableHeight, cushionMargin, game) {
+        // For a stun shot (no top/bottom spin), the cue ball deflects at 90 degrees to the object ball path
+        // The tangent line is perpendicular to the line of centers
+        
+        // Calculate the deflection angle (perpendicular to object ball direction)
+        // Cue ball goes in the direction that conserves momentum
+        let deflectionAngle;
+        
+        // Determine which side of the object ball path the cue ball goes
+        // Based on the approach angle relative to the contact line
+        const angleDiff = aimAngle - objectAngle;
+        
+        // Normalize angle difference to -PI to PI
+        let normalizedDiff = angleDiff;
+        while (normalizedDiff > Math.PI) normalizedDiff -= 2 * Math.PI;
+        while (normalizedDiff < -Math.PI) normalizedDiff += 2 * Math.PI;
+        
+        // Cue ball deflects perpendicular to object ball path
+        // Direction depends on which side of center the cue ball hits
+        if (normalizedDiff >= 0) {
+            deflectionAngle = objectAngle - Math.PI / 2;
+        } else {
+            deflectionAngle = objectAngle + Math.PI / 2;
+        }
+        
+        // For a cut shot, the cue ball path is shorter (energy transferred to object ball)
+        // The thinner the cut, the more the cue ball continues forward
+        const cutAngle = Math.abs(normalizedDiff);
+        const deflectionStrength = Math.sin(cutAngle); // 0 for straight shot, 1 for 90-degree cut
+        
+        // Only show deflection line if it's a significant cut (not a straight-on shot)
+        if (deflectionStrength > 0.1) {
+            ctx.save();
+            
+            const deflectionLength = (game.trajectoryLength || 200) * 0.6 * deflectionStrength;
+            const endX = ghostX + Math.cos(deflectionAngle) * deflectionLength;
+            const endY = ghostY + Math.sin(deflectionAngle) * deflectionLength;
+            
+            // Clamp to table bounds
+            const minX = cushionMargin + cueBall.r;
+            const maxX = tableWidth - cushionMargin - cueBall.r;
+            const minY = cushionMargin + cueBall.r;
+            const maxY = tableHeight - cushionMargin - cueBall.r;
+            
+            const clampedEndX = Math.max(minX, Math.min(maxX, endX));
+            const clampedEndY = Math.max(minY, Math.min(maxY, endY));
+            
+            // Draw cue ball deflection path
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(ghostX, ghostY);
+            ctx.lineTo(clampedEndX, clampedEndY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.restore();
         }
     },
     

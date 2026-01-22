@@ -108,6 +108,7 @@ class PoolGame {
         this.spinDecayRate = 0.98; // Realistic decay rate
         this.showSpinArrows = true;
         
+        
         // FPS tracking
         this.fps = 0;
         this.frameCount = 0;
@@ -126,6 +127,15 @@ class PoolGame {
             { name: 'Player 2', color: null, ballsPotted: 0, onBlack: false }
         ];
         this.currentPlayerIndex = 0;
+        
+        // Break rules (can be changed in settings)
+        this.goldenBall = false;    // If true, potting black on break wins
+        this.goldenDuck = false;    // If true, potting black + white on break loses
+        
+        // Match settings
+        this.matchType = 'single';  // 'single', 'best3', 'best5', 'best7'
+        this.player1Frames = 0;
+        this.player2Frames = 0;
         
         // Game state
         this.gamePhase = 'break'; // 'break', 'open', 'playing', 'finished'
@@ -317,22 +327,56 @@ class PoolGame {
     
     evaluateBreakShot() {
         const ballsPotted = this.ballsPottedThisShot.filter(b => b.num !== 0);
+        const player = this.getCurrentPlayer();
+        
+        // Check if black was potted on break
+        const blackPotted = ballsPotted.find(b => b.num === 8);
+        
+        // ===== GOLDEN DUCK: Black AND White potted on break = LOSE =====
+        if (blackPotted && this.cueBallPotted && this.goldenDuck) {
+            this.gameOver = true;
+            this.winner = this.getOpponent();
+            this.showGameOver(this.getOpponent().name + ' WINS!', '?? GOLDEN DUCK! ' + player.name + ' potted black AND white on break!');
+            return;
+        }
+        
+        // ===== GOLDEN BALL: Black potted on break (without scratching) = WIN =====
+        if (blackPotted && !this.cueBallPotted && this.goldenBall) {
+            this.gameOver = true;
+            this.winner = player;
+            this.showGameOver(player.name + ' WINS!', '?? GOLDEN BALL! Potted the black on the break!');
+            return;
+        }
         
         // Check for cue ball potted on break - scratch with baulk restriction
         if (this.cueBallPotted) {
+            // If black was also potted (but golden duck is off), re-spot black first
+            if (blackPotted) {
+                this.respotBlack();
+            }
             this.gamePhase = 'open';
             this.tableOpen = true;
             this.commitScratchFoul('Cue ball potted on break', true);
             return;
         }
         
-        // Check if black was potted on break
-        const blackPotted = ballsPotted.find(b => b.num === 8);
+        // Black potted on break WITHOUT golden ball enabled = re-spot
         if (blackPotted) {
-            // Re-rack and re-break (simplification: just reset)
-            this.statusEl.textContent = 'Black potted on break! Re-racking...';
-            setTimeout(() => this.resetRack(), 2000);
-            return;
+            this.respotBlack();
+            this.showRespotMessage();
+            // Continue evaluating the break (black doesn't count as a pot)
+            // Remove black from potted balls for scoring
+            const nonBlackPotted = ballsPotted.filter(b => b.num !== 8);
+            
+            // If other balls were potted, use those for break evaluation
+            if (nonBlackPotted.length > 0) {
+                // Assign colors based on first non-black ball potted
+                this.assignColors(nonBlackPotted[0].color);
+                this.gamePhase = 'playing';
+                this.tableOpen = false;
+                this.updateTurnDisplay();
+                return;
+            }
         }
         
         // Calculate break points (EPA rules):
@@ -342,9 +386,10 @@ class PoolGame {
         
         let breakPoints = 0;
         
-        // Points for potted balls
-        breakPoints += ballsPotted.length;
-        console.log('Break points from potted balls:', ballsPotted.length);
+        // Points for potted balls (exclude black if it was re-spotted)
+        const scoringBalls = ballsPotted.filter(b => b.num !== 8);
+        breakPoints += scoringBalls.length;
+        console.log('Break points from potted balls:', scoringBalls.length);
         
         // Points for balls that crossed center line (tracked during the shot)
         // This counts balls that crossed at ANY point, even if they rolled back
@@ -362,8 +407,8 @@ class PoolGame {
             console.log('Legal break -', breakPoints, 'points achieved');
             
             // If balls were potted, assign colors
-            if (ballsPotted.length > 0) {
-                const firstPotted = ballsPotted[0];
+            if (scoringBalls.length > 0) {
+                const firstPotted = scoringBalls[0];
                 this.assignColors(firstPotted.color);
                 this.gamePhase = 'playing';
                 this.tableOpen = false;
@@ -384,6 +429,64 @@ class PoolGame {
         this.gamePhase = 'open';
         this.tableOpen = true;
         // Note: switchTurn already called in commitFoul
+    }
+    
+    respotBlack() {
+        // Find the black ball
+        const blackBall = this.balls.find(b => b.num === 8);
+        if (!blackBall) return;
+        
+        // Black ball spot position (center of triangle area)
+        const spotX = this.width * 0.75;
+        const spotY = this.height / 2;
+        
+        // Check if the spot is occupied
+        let targetX = spotX;
+        let targetY = spotY;
+        let spotClear = false;
+        
+        // Try the spot first, then move toward the foot rail if blocked
+        for (let offset = 0; offset <= 200 && !spotClear; offset += blackBall.r * 2 + 2) {
+            targetX = spotX + offset;
+            spotClear = true;
+            
+            for (const ball of this.balls) {
+                if (ball === blackBall || ball.potted) continue;
+                const dx = targetX - ball.x;
+                const dy = targetY - ball.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < blackBall.r + ball.r + 2) {
+                    spotClear = false;
+                    break;
+                }
+            }
+        }
+        
+        // Re-spot the black ball
+        blackBall.potted = false;
+        blackBall.x = targetX;
+        blackBall.y = targetY;
+        blackBall.vx = 0;
+        blackBall.vy = 0;
+        
+        console.log('Black ball re-spotted at:', targetX, targetY);
+    }
+    
+    showRespotMessage() {
+        const msg = document.createElement('div');
+        msg.innerHTML = `
+            <div style=""font-size:28px;font-weight:bold;color:#fbbf24;"">BLACK RE-SPOTTED</div>
+            <div style=""font-size:16px;margin-top:10px;"">Black potted on break - returned to spot</div>
+            <div style=""font-size:14px;margin-top:10px;color:#94a3b8;"">Enable Golden Ball in settings for instant win</div>
+        `;
+        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(251,191,36,0.5);';
+        document.body.appendChild(msg);
+        
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transition = 'opacity 0.5s';
+            setTimeout(() => msg.remove(), 500);
+        }, 2500);
     }
     
     processPottedBalls() {
@@ -603,22 +706,136 @@ class PoolGame {
     }
     
     handleBlackPotted(player) {
+        let winner;
+        let loserMessage;
+        
         if (!player.onBlack) {
             // Potted black too early - lose!
-            this.gameOver = true;
-            this.winner = this.getOpponent();
-            this.showGameOver(this.winner.name + ' WINS!', player.name + ' potted the black too early!');
+            winner = this.getOpponent();
+            loserMessage = player.name + ' potted the black too early!';
         } else if (this.foulCommitted || this.cueBallPotted) {
             // Potted black on a foul - lose!
-            this.gameOver = true;
-            this.winner = this.getOpponent();
-            this.showGameOver(this.winner.name + ' WINS!', player.name + ' fouled while potting the black!');
+            winner = this.getOpponent();
+            loserMessage = player.name + ' fouled while potting the black!';
         } else {
             // Legal black pot - win!
-            this.gameOver = true;
-            this.winner = player;
-            this.showGameOver(player.name + ' WINS!', 'Congratulations!');
+            winner = player;
+            loserMessage = null;
         }
+        
+        this.gameOver = true;
+        this.winner = winner;
+        
+        // Check for match mode
+        if (typeof PoolGameSettings !== 'undefined' && PoolGameSettings.settings.matchType !== 'single') {
+            const winnerIndex = winner === this.players[0] ? 0 : 1;
+            const result = PoolGameSettings.recordFrameWin(winnerIndex);
+            
+            if (result.matchWon) {
+                // Match is won!
+                const matchName = PoolGameSettings.getMatchName();
+                const p1Frames = PoolGameSettings.settings.player1Frames;
+                const p2Frames = PoolGameSettings.settings.player2Frames;
+                this.showMatchWin(winner.name, matchName, p1Frames, p2Frames);
+            } else {
+                // Frame won, but match continues
+                const p1Frames = PoolGameSettings.settings.player1Frames;
+                const p2Frames = PoolGameSettings.settings.player2Frames;
+                const framesToWin = PoolGameSettings.getFramesToWin();
+                this.showFrameWin(winner.name, loserMessage, p1Frames, p2Frames, framesToWin);
+            }
+        } else {
+            // Single frame mode
+            this.showGameOver(winner.name + ' WINS!', loserMessage || 'Congratulations!');
+        }
+    }
+    
+    showFrameWin(winnerName, subtitle, p1Frames, p2Frames, framesToWin) {
+        this.gamePhase = 'finished';
+        
+        const overlay = document.createElement('div');
+        overlay.innerHTML = `
+            <div style=""text-align:center;"">
+                <div style=""font-size:32px;font-weight:bold;margin-bottom:10px;color:#4ade80;"">FRAME WON!</div>
+                <div style=""font-size:42px;font-weight:bold;margin-bottom:20px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);"">${winnerName}</div>
+                ${subtitle ? `<div style=""font-size:18px;margin-bottom:20px;opacity:0.8;"">${subtitle}</div>` : ''}
+                <div style=""font-size:48px;font-weight:bold;margin:20px 0;color:#fbbf24;"">${p1Frames} - ${p2Frames}</div>
+                <div style=""font-size:16px;margin-bottom:30px;opacity:0.7;"">First to ${framesToWin} frames wins the match</div>
+                <button onclick=""game.nextFrame()"" style=""padding:15px 40px;font-size:20px;background:#3B82F6;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold;margin-right:10px;"">Next Frame</button>
+                <button onclick=""game.newMatch()"" style=""padding:15px 40px;font-size:20px;background:#6B7280;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold;"">New Match</button>
+            </div>
+        `;
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;color:white;';
+        overlay.id = 'gameOverOverlay';
+        document.body.appendChild(overlay);
+    }
+    
+    showMatchWin(winnerName, matchName, p1Frames, p2Frames) {
+        this.gamePhase = 'finished';
+        
+        const overlay = document.createElement('div');
+        overlay.innerHTML = `
+            <div style=""text-align:center;"">
+                <div style=""font-size:28px;font-weight:bold;margin-bottom:10px;color:#fbbf24;"">?? ${matchName.toUpperCase()} ??</div>
+                <div style=""font-size:48px;font-weight:bold;margin-bottom:20px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);"">${winnerName} WINS!</div>
+                <div style=""font-size:56px;font-weight:bold;margin:20px 0;color:#4ade80;"">${p1Frames} - ${p2Frames}</div>
+                <div style=""font-size:18px;margin-bottom:30px;opacity:0.8;"">Congratulations on winning the match!</div>
+                <button onclick=""game.newMatch()"" style=""padding:15px 40px;font-size:20px;background:#10B981;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:bold;"">New Match</button>
+            </div>
+        `;
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:10000;color:white;';
+        overlay.id = 'gameOverOverlay';
+        document.body.appendChild(overlay);
+    }
+    
+    nextFrame() {
+        // Remove overlay
+        const overlay = document.getElementById('gameOverOverlay');
+        if (overlay) overlay.remove();
+        
+        // Swap who breaks (loser of last frame breaks)
+        const lastWinnerIndex = this.winner === this.players[0] ? 0 : 1;
+        this.currentPlayerIndex = 1 - lastWinnerIndex; // Loser breaks
+        
+        // Reset for new frame
+        this.resetFrameState();
+    }
+    
+    newMatch() {
+        // Remove overlay
+        const overlay = document.getElementById('gameOverOverlay');
+        if (overlay) overlay.remove();
+        
+        // Reset match scores
+        if (typeof PoolGameSettings !== 'undefined') {
+            PoolGameSettings.resetMatch();
+        }
+        
+        // Reset to player 1 breaking
+        this.currentPlayerIndex = 0;
+        
+        // Reset for new frame
+        this.resetFrameState();
+    }
+    
+    resetFrameState() {
+        // Reset players
+        this.players.forEach(p => {
+            p.color = null;
+            p.ballsPotted = 0;
+            p.onBlack = false;
+        });
+        
+        // Reset game state
+        this.gamePhase = 'break';
+        this.isBreakShot = true;
+        this.tableOpen = true;
+        this.gameOver = false;
+        this.winner = null;
+        
+        // Reset rack
+        this.resetRack();
+        this.updateTurnDisplay();
     }
     
     showGameOver(title, subtitle) {
@@ -954,9 +1171,10 @@ class PoolGame {
             r: this.cueBallRadius,
             color: 'white',
             num: 0,
-            rotation: 0,
-            rotationAxisX: 0,
-            rotationAxisY: 1
+            // 3D number position (unit vector on sphere surface)
+            numPosX: 0,
+            numPosY: 0,
+            numPosZ: 1  // Facing toward viewer
         };
         this.balls.push(this.cueBall);
         
@@ -983,6 +1201,11 @@ class PoolGame {
         ];
         
         rackPattern.forEach(ball => {
+            // Random initial orientation for the number (looks more natural)
+            // Generate a random point on a sphere using spherical coordinates
+            const theta = Math.random() * Math.PI * 2;  // Random angle around Y axis
+            const phi = Math.random() * Math.PI * 0.8 - Math.PI * 0.4;  // Mostly facing forward
+            
             this.balls.push({
                 x: ball.x,
                 y: ball.y,
@@ -990,9 +1213,10 @@ class PoolGame {
                 r: this.standardBallRadius,
                 color: ball.color,
                 num: ball.num,
-                rotation: 0,
-                rotationAxisX: 0,
-                rotationAxisY: 1
+                // 3D number position (unit vector on sphere surface)
+                numPosX: Math.sin(theta) * Math.cos(phi),
+                numPosY: Math.sin(phi),
+                numPosZ: Math.cos(theta) * Math.cos(phi)
             });
         });
         
@@ -1101,8 +1325,8 @@ class PoolGame {
     }
     
     animate() {
-        // Draw table
-        PoolRendering.drawTable(this.ctx, this.width, this.height, this.cushionMargin);
+        // Draw table with custom colors from settings
+        PoolRendering.drawTable(this.ctx, this.width, this.height, this.cushionMargin, this);
         PoolRendering.drawPockets(this.ctx, this.pockets, this);
         
         // Physics

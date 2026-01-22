@@ -278,7 +278,23 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
+    {Services.PoolGameSettingsModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
     {Services.PoolGameModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
+    // Initialize game settings after game loads
+    window.addEventListener('load', () => {{
+        setTimeout(() => {{
+            if (typeof PoolGameSettings !== 'undefined' && typeof game !== 'undefined') {{
+                PoolGameSettings.init(game);
+                PoolGameSettings.applySettings();
+            }}
+        }}, 300);
+    }});
     </script>
 </body>
 </html>";
