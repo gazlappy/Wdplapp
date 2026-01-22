@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.SnakeGamePage"
+             Title="Snake"
+             BackgroundColor="#1a1a2e">
+
+    <Grid RowDefinitions="Auto,*">
+        
+        <!-- Header -->
+        <Frame Grid.Row="0" 
+               BackgroundColor="#16213e" 
+               Padding="15" 
+               CornerRadius="0"
+               HasShadow="True">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <Label Text="?? Snake" 
+                       FontSize="24" 
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       VerticalOptions="Center"/>
+                <Label Grid.Column="1"
+                       x:Name="ScoreLabel"
+                       Text="Score: 0"
+                       FontSize="18"
+                       TextColor="#22c55e"
+                       VerticalOptions="Center"
+                       Margin="0,0,20,0"/>
+                <Button Grid.Column="2"
+                        Text="New Game"
+                        x:Name="NewGameBtn"
+                        BackgroundColor="#22c55e"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="15,10"
+                        Clicked="OnNewGameClicked"/>
+            </Grid>
+        </Frame>
+
+        <!-- WebView for Game -->
+        <WebView Grid.Row="1" 
+                 x:Name="GameWebView"
+                 Margin="0"/>
+
+    </Grid>
+
+</ContentPage>

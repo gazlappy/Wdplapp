@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.GamesLibraryPage"
+             Title="Games Library"
+             BackgroundColor="#1a1a2e">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Header -->
+            <Frame BackgroundColor="#16213e" 
+                   Padding="20" 
+                   CornerRadius="15"
+                   HasShadow="True">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="?? Games Library" 
+                           FontSize="32" 
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"/>
+                    <Label Text="Choose a game to play!" 
+                           FontSize="16" 
+                           TextColor="#94a3b8"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Category Filter -->
+            <HorizontalStackLayout x:Name="CategoryFilter" 
+                                   Spacing="10" 
+                                   HorizontalOptions="Center">
+                <Button Text="All" 
+                        x:Name="AllCategoryBtn"
+                        Clicked="OnCategoryFilterClicked"
+                        BackgroundColor="#3b82f6"
+                        TextColor="White"
+                        CornerRadius="20"
+                        Padding="15,8"/>
+            </HorizontalStackLayout>
+
+            <!-- Featured Games Section -->
+            <Frame x:Name="FeaturedSection"
+                   BackgroundColor="#16213e" 
+                   Padding="15" 
+                   CornerRadius="12"
+                   HasShadow="True">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="? Featured" 
+                           FontSize="20" 
+                           FontAttributes="Bold"
+                           TextColor="#fbbf24"/>
+                    <FlexLayout x:Name="FeaturedGamesLayout" 
+                                Wrap="Wrap" 
+                                JustifyContent="Start"
+                                AlignItems="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- All Games Grid -->
+            <Frame BackgroundColor="#16213e" 
+                   Padding="15" 
+                   CornerRadius="12"
+                   HasShadow="True">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="?? All Games" 
+                           FontSize="20" 
+                           FontAttributes="Bold"
+                           TextColor="White"/>
+                    <FlexLayout x:Name="AllGamesLayout" 
+                                Wrap="Wrap" 
+                                JustifyContent="Start"
+                                AlignItems="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Coming Soon Section -->
+            <Frame BackgroundColor="#16213e" 
+                   Padding="15" 
+                   CornerRadius="12"
+                   HasShadow="True"
+                   Opacity="0.7">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="?? Coming Soon" 
+                           FontSize="18" 
+                           FontAttributes="Bold"
+                           TextColor="#94a3b8"/>
+                    <Label Text="More games are on the way! Stay tuned for Solitaire, Minesweeper, Tetris, and more..." 
+                           FontSize="14" 
+                           TextColor="#64748b"/>
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

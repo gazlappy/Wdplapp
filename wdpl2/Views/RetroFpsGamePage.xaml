@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.RetroFpsGamePage"
+             Title="Dungeon Blaster"
+             BackgroundColor="#000000">
+
+    <Grid RowDefinitions="Auto,*">
+        
+        <!-- Header -->
+        <Frame Grid.Row="0" 
+               BackgroundColor="#1a0a0a" 
+               Padding="15" 
+               CornerRadius="0"
+               HasShadow="True">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="?? Dungeon Blaster" 
+                       FontSize="24" 
+                       FontAttributes="Bold"
+                       TextColor="#ef4444"
+                       VerticalOptions="Center"/>
+                <Button Grid.Column="1"
+                        Text="New Game"
+                        x:Name="NewGameBtn"
+                        BackgroundColor="#dc2626"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="15,10"
+                        Clicked="OnNewGameClicked"/>
+            </Grid>
+        </Frame>
+
+        <!-- WebView for Game -->
+        <WebView Grid.Row="1" 
+                 x:Name="GameWebView"
+                 Margin="0"/>
+
+    </Grid>
+
+</ContentPage>
