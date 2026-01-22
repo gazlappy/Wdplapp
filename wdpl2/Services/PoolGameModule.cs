@@ -392,8 +392,68 @@ class PoolGame {
         
         console.log('Processing potted balls for:', player.name);
         console.log('Potted non-cue balls:', pottedNonCue.length);
+        console.log('First ball hit:', this.firstBallHit ? this.firstBallHit.color : 'none');
+        console.log('Table open:', this.tableOpen);
         
-        // Table is open - first pot determines colors
+        // Check for open table scenarios
+        // Rule: On an open table, you must pot the same color as the first ball you hit to claim that color
+        if (this.tableOpen && pottedNonCue.length > 0 && this.firstBallHit) {
+            // Check if ANY potted ball matches the first ball hit color
+            const matchingPottedBall = pottedNonCue.find(b => b.num !== 8 && b.color === this.firstBallHit.color);
+            const otherColorPotted = pottedNonCue.find(b => b.num !== 8 && b.color !== this.firstBallHit.color);
+            
+            if (matchingPottedBall) {
+                // Potted the same color as first hit - player claims this color!
+                console.log('Open table: Hit ' + this.firstBallHit.color + ', potted ' + this.firstBallHit.color + ' - Player claims this color!');
+                this.assignColors(this.firstBallHit.color);
+                this.gamePhase = 'playing';
+                this.tableOpen = false;
+                
+                // Count the matching ball(s) for the player
+                let matchCount = 0;
+                pottedNonCue.forEach(ball => {
+                    if (ball.num !== 8 && ball.color === this.firstBallHit.color) {
+                        matchCount++;
+                    }
+                });
+                this.getCurrentPlayer().ballsPotted += matchCount;
+                
+                // If other color was also potted, count for opponent
+                if (otherColorPotted) {
+                    let otherCount = 0;
+                    pottedNonCue.forEach(ball => {
+                        if (ball.num !== 8 && ball.color !== this.firstBallHit.color) {
+                            otherCount++;
+                        }
+                    });
+                    this.getOpponent().ballsPotted += otherCount;
+                }
+                
+                // Check if player is now on the black
+                this.checkIfOnBlack();
+                
+                // Player continues turn
+                console.log('CONTINUE TURN - potted matching color on open table');
+                this.updateTurnDisplay();
+                return;
+                
+            } else if (otherColorPotted) {
+                // Only potted the OTHER color (not the one hit first)
+                // This is a LOSS OF TURN but NOT a foul - table remains open
+                console.log('Open table mismatch: Hit ' + this.firstBallHit.color + ', potted ' + otherColorPotted.color);
+                console.log('This is a LOSS OF TURN (not a foul)');
+                console.log('Table REMAINS OPEN');
+                
+                // Table stays open - do NOT assign colors
+                // Show loss of turn message (not foul)
+                this.showLossOfTurnMessage('Hit ' + this.firstBallHit.color + ' first, potted ' + otherColorPotted.color + ' - Table still open');
+                this.switchTurn();
+                return;
+            }
+        }
+        
+        // Table is open with no first ball hit tracking, or other scenarios
+        // First pot determines colors
         if (this.tableOpen && pottedNonCue.length > 0) {
             const firstPotted = pottedNonCue.find(b => b.num !== 8);
             if (firstPotted) {
@@ -411,7 +471,7 @@ class PoolGame {
         pottedNonCue.forEach(ball => {
             if (ball.num === 8) {
                 pottedBlack = true;
-            } else if (ball.color === player.color || this.tableOpen) {
+            } else if (ball.color === player.color) {
                 pottedOwnBall = true;
                 player.ballsPotted++;
             } else {
@@ -426,10 +486,28 @@ class PoolGame {
             return;
         }
         
-        // Potting opponent's ball is a foul
+        // Potting opponent's ball when table is NOT open
+        // If player hit their OWN ball first, it's just a loss of turn (not a foul)
+        // If player hit OPPONENT ball first, it's already handled as a foul in evaluateShot()
         if (pottedOpponentBall && !this.tableOpen) {
-            this.commitFoul('Potted opponent ball');
-            return; // commitFoul already switches turn
+            // Check if we hit our own color first
+            const hitOwnColorFirst = this.firstBallHit && this.firstBallHit.color === player.color;
+            
+            if (hitOwnColorFirst) {
+                // Hit own ball first, but potted opponent's ball - LOSS OF TURN (not foul)
+                console.log('Hit own color (' + player.color + ') first, but potted opponent ball');
+                console.log('This is a LOSS OF TURN (not a foul)');
+                
+                this.checkIfOnBlack();
+                this.showLossOfTurnMessage('Hit ' + player.color + ' first, potted opponent ball');
+                this.switchTurn();
+                return;
+            } else {
+                // Hit opponent's ball first and potted it - this should have been caught earlier
+                // but handle it as a foul just in case
+                this.commitFoul('Potted opponent ball');
+                return;
+            }
         }
         
         // Check if player is now on the black
@@ -447,6 +525,24 @@ class PoolGame {
             this.switchTurn();
         }
     }
+    
+    showLossOfTurnMessage(reason) {
+        const msg = document.createElement('div');
+        msg.innerHTML = `
+            <div style=""font-size:28px;font-weight:bold;color:#F59E0B;"">LOSS OF TURN</div>
+            <div style=""font-size:16px;margin-top:10px;"">${reason}</div>
+            <div style=""font-size:14px;margin-top:10px;color:#94a3b8;"">Not a foul - no ball in hand</div>
+        `;
+        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(245,158,11,0.5);';
+        document.body.appendChild(msg);
+        
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transition = 'opacity 0.5s';
+            setTimeout(() => msg.remove(), 500);
+        }, 2000);
+    }
+    
     
     assignColors(color) {
         const player = this.getCurrentPlayer();

@@ -278,22 +278,7 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
-    {Services.Pool3DViewModule.GenerateJavaScript()}
-    </script>
-    
-    <script>
     {Services.PoolGameModule.GenerateJavaScript()}
-    </script>
-    
-    <script>
-    // Initialize 3D view after game loads
-    window.addEventListener('load', () => {{
-        setTimeout(() => {{
-            if (typeof Pool3DView !== 'undefined' && typeof game !== 'undefined') {{
-                Pool3DView.init(game);
-            }}
-        }}, 500);
-    }});
     </script>
 </body>
 </html>";

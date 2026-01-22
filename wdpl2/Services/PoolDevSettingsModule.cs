@@ -246,6 +246,20 @@ const PoolDevSettings = {
                         <label>Show Shot Preview:</label>
                         <input type='checkbox' id='showShotPreview' checked>
                     </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Fine-Tune Aiming (Hold . key)</div>
+                        <div class='dev-control'>
+                            <label>Fine-Tune Sensitivity:</label>
+                            <input type='range' id='fineTuneSensitivity' min='5' max='50' value='15' step='5'>
+                            <span id='fineTuneSensitivityValue'>15%</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Micro-Adjust Step:</label>
+                            <input type='range' id='microAdjustStep' min='0.001' max='0.01' value='0.002' step='0.001'>
+                            <span id='microAdjustStepValue'>0.002</span>
+                        </div>
+                        <div class='dev-hint'>Hold period (.) for fine aim, use ? ? for micro-adjustments</div>
+                    </div>
                 </div>
                 
                 <div class='dev-section'>
@@ -885,6 +899,22 @@ const PoolDevSettings = {
         
         this.addCheckboxListener('showShotPreview', (checked) => {
             self.game.showShotPreview = checked;
+        });
+        
+        // Fine-Tune Aiming
+        this.addRangeListener('fineTuneSensitivity', (val) => {
+            const sensitivity = parseFloat(val) / 100;
+            if (typeof PoolInput !== 'undefined') {
+                PoolInput.fineTuneSensitivity = sensitivity;
+            }
+            console.log('Fine-tune sensitivity:', val + '%');
+        }, (val) => val + '%');
+        
+        this.addRangeListener('microAdjustStep', (val) => {
+            if (typeof PoolInput !== 'undefined') {
+                PoolInput.microAdjustStep = parseFloat(val);
+            }
+            console.log('Micro-adjust step:', val);
         });
         
         // Spin Controls

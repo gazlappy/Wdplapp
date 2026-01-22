@@ -17,11 +17,124 @@ public static class PoolInputModule
 const PoolInput = {
 // Ball in hand dragging state
 isDraggingCueBall: false,
+
+// Fine tune aim state
+fineTuneActive: false,
+fineTuneSensitivity: 0.15, // 15% of normal sensitivity when fine tuning
+microAdjustStep: 0.002, // Configurable micro-adjustment step
+lastAimAngle: 0,
     
+/**
+ * Setup keyboard controls for fine-tune aiming
+ */
+setupKeyboardControls(game) {
+    // Track fine-tune key state
+    document.addEventListener('keydown', (e) => {
+        // Period key (.) or > key for fine-tune aiming
+        if (e.key === '.' || e.key === '>') {
+            if (!this.fineTuneActive) {
+                this.fineTuneActive = true;
+                this.lastAimAngle = game.aimAngle;
+                console.log('Fine-tune aim: ON (15% sensitivity)');
+                
+                // Show indicator
+                this.showFineTuneIndicator(true);
+            }
+        }
+        
+        // Arrow keys for micro-adjustments when fine-tuning
+        if (this.fineTuneActive && game.isAiming && !game.isShooting) {
+            const microStep = this.microAdjustStep; // Use configurable step
+            if (e.key === 'ArrowLeft') {
+                game.aimAngle -= microStep;
+                e.preventDefault();
+            } else if (e.key === 'ArrowRight') {
+                game.aimAngle += microStep;
+                e.preventDefault();
+            }
+        }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+        if (e.key === '.' || e.key === '>') {
+            this.fineTuneActive = false;
+            console.log('Fine-tune aim: OFF');
+            this.showFineTuneIndicator(false);
+        }
+    });
+},
+
+/**
+ * Show/hide fine-tune indicator on screen
+ */
+showFineTuneIndicator(show) {
+    let indicator = document.getElementById('fineTuneIndicator');
+    
+    if (show) {
+        const sensitivityPercent = Math.round(this.fineTuneSensitivity * 100);
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'fineTuneIndicator';
+            indicator.style.cssText = `
+                position: fixed;
+                top: 60px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(59, 130, 246, 0.95);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 14px;
+                text-align: center;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                animation: pulse 1s infinite;
+            `;
+            document.body.appendChild(indicator);
+            
+            // Add pulse animation if not exists
+            if (!document.getElementById('fineTuneStyles')) {
+                const style = document.createElement('style');
+                style.id = 'fineTuneStyles';
+                style.textContent = `
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+                        50% { opacity: 0.8; transform: translateX(-50%) scale(1.02); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        indicator.innerHTML = `?? FINE AIM (${sensitivityPercent}%)<br><small>? ? for micro-adjust</small>`;
+        indicator.style.display = 'block';
+    } else if (indicator) {
+        indicator.style.display = 'none';
+    }
+},
+
+/**
+ * Apply fine-tune sensitivity to aim angle change
+ */
+applyFineTuneAim(game, newAngle) {
+    if (this.fineTuneActive) {
+        // Calculate the difference and apply reduced sensitivity
+        const angleDiff = newAngle - this.lastAimAngle;
+        game.aimAngle = this.lastAimAngle + (angleDiff * this.fineTuneSensitivity);
+        this.lastAimAngle = game.aimAngle;
+    } else {
+        game.aimAngle = newAngle;
+        this.lastAimAngle = newAngle;
+    }
+},
+
 /**
  * Setup mouse controls for pull-back/push-forward cueing
  */
 setupMouseControls(canvas, game, statusEl) {
+    // Initialize keyboard controls for fine-tune
+    this.setupKeyboardControls(game);
+    
     canvas.addEventListener('mousemove', (e) => {
         if (!game.cueBall || game.cueBall.potted) return;
             
@@ -46,10 +159,11 @@ setupMouseControls(canvas, game, statusEl) {
             
             // Skip shooting controls if not using drag mode
             if (game.shotControlMode && game.shotControlMode !== 'drag') {
-                // Update aim angle
+                // Update aim angle with fine-tune support
                 const dx = game.mouseX - game.cueBall.x;
                 const dy = game.mouseY - game.cueBall.y;
-                game.aimAngle = Math.atan2(dy, dx);
+                const newAngle = Math.atan2(dy, dx);
+                this.applyFineTuneAim(game, newAngle);
                 game.isAiming = true;
                 return;
             }
@@ -98,6 +212,7 @@ setupMouseControls(canvas, game, statusEl) {
                                 ? ' | Spin: ' + Math.round(game.cueBall.spinMagnitude * 100) + '%' 
                                 : '';
                             
+                            
                             statusEl.textContent = `Contact! Power: ${speed.toFixed(1)}${spinInfo}`;
                             statusEl.style.background = 'rgba(59, 130, 246, 0.9)';
                         }
@@ -110,10 +225,11 @@ setupMouseControls(canvas, game, statusEl) {
                     }
                 }
             } else {
-                // Update aim angle
+                // Update aim angle with fine-tune support
                 const dx = game.mouseX - game.cueBall.x;
                 const dy = game.mouseY - game.cueBall.y;
-                game.aimAngle = Math.atan2(dy, dx);
+                const newAngle = Math.atan2(dy, dx);
+                this.applyFineTuneAim(game, newAngle);
                 game.isAiming = true;
             }
         });

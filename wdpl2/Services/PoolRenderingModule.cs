@@ -953,6 +953,17 @@ const PoolRendering = {
     },
     
     /**
+     * Get color string for a ball (used in trajectory prediction)
+     */
+    getBallColor(ball) {
+        if (ball.color === 'red') return 'rgba(220, 38, 38, 0.8)';
+        if (ball.color === 'yellow') return 'rgba(234, 179, 8, 0.8)';
+        if (ball.color === 'black') return 'rgba(50, 50, 50, 0.8)';
+        if (ball.color === 'white') return 'rgba(255, 255, 255, 0.8)';
+        return 'rgba(200, 200, 200, 0.8)';
+    },
+    
+    /**
      * Draw trajectory predictions for object balls
      * Shows where balls will go when hit by the cue ball
      */
@@ -1009,49 +1020,56 @@ const PoolRendering = {
             ctx.globalAlpha = 0.4;
             
             // Ghost ball for cue ball position at impact
-            const ghostCueBall = {
-                x: collisionPoint.x - Math.cos(impactAngle) * (cueBall.r + objectBall.r),
-                y: collisionPoint.y - Math.sin(impactAngle) * (cueBall.r + objectBall.r),
-                r: cueBall.r,
-                color: 'white',
-                num: 0
-            };
+            // Use the precise position calculated in findFirstBallHit
+            const ghostCueBallX = collisionPoint.cueBallX || (collisionPoint.x - Math.cos(impactAngle) * cueBall.r);
+            const ghostCueBallY = collisionPoint.cueBallY || (collisionPoint.y - Math.sin(impactAngle) * cueBall.r);
             
-            // Draw ghost cue ball
+            // Draw ghost cue ball (where cue ball will be at impact)
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.arc(ghostCueBall.x, ghostCueBall.y, ghostCueBall.r, 0, Math.PI * 2);
+            ctx.arc(ghostCueBallX, ghostCueBallY, cueBall.r, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
             
-            // Connection line from cue ball
+            // Draw ghost object ball (where object ball will go)
+            // The impact angle points from cue ball to object ball at collision
+            ctx.strokeStyle = this.getBallColor(objectBall) || 'rgba(255, 200, 100, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(objectBall.x, objectBall.y, objectBall.r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Connection line from cue ball to ghost position
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
             ctx.moveTo(cueBall.x, cueBall.y);
-            ctx.lineTo(ghostCueBall.x, ghostCueBall.y);
+            ctx.lineTo(ghostCueBallX, ghostCueBallY);
             ctx.stroke();
             ctx.setLineDash([]);
             
             ctx.restore();
         }
         
-        // Calculate object ball trajectory after collision
-        // Use conservation of momentum and energy
-        const dx = objectBall.x - collisionPoint.x;
-        const dy = objectBall.y - collisionPoint.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Calculate object ball trajectory after collision using proper physics
+        // The object ball travels along the line connecting the ball centers at impact
+        const ghostCueBallX = collisionPoint.cueBallX || (collisionPoint.x - Math.cos(impactAngle) * cueBall.r);
+        const ghostCueBallY = collisionPoint.cueBallY || (collisionPoint.y - Math.sin(impactAngle) * cueBall.r);
         
-        if (dist > 0.1) {
-            // Normal vector at collision point
-            const nx = dx / dist;
-            const ny = dy / dist;
-            
-            // Object ball will travel in the direction of the normal
-            const trajectoryAngle = Math.atan2(ny, nx);
+        // Direction from cue ball position at impact to object ball center
+        const objDx = objectBall.x - ghostCueBallX;
+        const objDy = objectBall.y - ghostCueBallY;
+        const objDist = Math.sqrt(objDx * objDx + objDy * objDy);
+        
+        if (objDist > 0.1) {
+            // Object ball trajectory angle - this is the key physics!
+            // Object ball travels along the line of centers at impact
+            const trajectoryAngle = Math.atan2(objDy, objDx);
             
             // Draw predicted trajectory path
             this.drawPredictedPath(
@@ -1068,11 +1086,13 @@ const PoolRendering = {
     
     /**
      * Find which ball will be hit first by the cue ball
+     * Uses proper geometric ray-circle intersection
      */
     findFirstBallHit(cueBall, aimAngle, allBalls) {
         let closestDist = Infinity;
         let closestBall = null;
         let closestCollision = null;
+        let actualImpactAngle = aimAngle;
         
         // Ray from cue ball in aim direction
         const rayDirX = Math.cos(aimAngle);
@@ -1081,11 +1101,11 @@ const PoolRendering = {
         allBalls.forEach(ball => {
             if (ball === cueBall || ball.potted) return;
             
-            // Vector from cue ball to object ball
+            // Vector from cue ball to object ball center
             const dx = ball.x - cueBall.x;
             const dy = ball.y - cueBall.y;
             
-            // Project onto ray direction
+            // Project onto ray direction (dot product)
             const projection = dx * rayDirX + dy * rayDirY;
             
             // Only consider balls in front of cue ball
@@ -1095,29 +1115,53 @@ const PoolRendering = {
             const closestX = cueBall.x + rayDirX * projection;
             const closestY = cueBall.y + rayDirY * projection;
             
-            // Distance from ball center to ray
-            const distToRay = Math.sqrt(
-                (ball.x - closestX) * (ball.x - closestX) +
-                (ball.y - closestY) * (ball.y - closestY)
-            );
+            // Perpendicular distance from ball center to ray
+            const perpDistSq = (ball.x - closestX) * (ball.x - closestX) +
+                               (ball.y - closestY) * (ball.y - closestY);
+            const perpDist = Math.sqrt(perpDistSq);
             
-            // Check if ray intersects ball (within combined radii)
+            // Combined radii - this is the hit threshold
             const combinedRadii = cueBall.r + ball.r;
             
-            if (distToRay <= combinedRadii) {
-                // Calculate exact collision point
-                const distToBall = Math.sqrt(dx * dx + dy * dy);
+            // Check if ray intersects ball
+            if (perpDist <= combinedRadii) {
+                // Use proper ray-circle intersection formula
+                // Find the exact point where cue ball edge touches object ball edge
                 
-                if (distToBall < closestDist) {
-                    closestDist = distToBall;
+                // Distance along ray to collision point
+                // Using: d = projection - sqrt(combinedRadii^2 - perpDist^2)
+                const halfChord = Math.sqrt(combinedRadii * combinedRadii - perpDistSq);
+                const collisionDist = projection - halfChord;
+                
+                if (collisionDist > 0 && collisionDist < closestDist) {
+                    closestDist = collisionDist;
                     closestBall = ball;
                     
-                    // Collision point is on the line between centers
-                    const collisionDist = distToBall - ball.r;
+                    // Position of cue ball center at moment of collision
+                    const cueBallAtImpactX = cueBall.x + rayDirX * collisionDist;
+                    const cueBallAtImpactY = cueBall.y + rayDirY * collisionDist;
+                    
+                    // The collision point is on the line between the two ball centers
+                    // at a distance of cueBall.r from the cue ball center
+                    const impactDx = ball.x - cueBallAtImpactX;
+                    const impactDy = ball.y - cueBallAtImpactY;
+                    const impactDist = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
+                    
+                    // Normalize the impact vector
+                    const impactNx = impactDx / impactDist;
+                    const impactNy = impactDy / impactDist;
+                    
+                    // Collision point on the surface of both balls
                     closestCollision = {
-                        x: cueBall.x + rayDirX * collisionDist,
-                        y: cueBall.y + rayDirY * collisionDist
+                        x: cueBallAtImpactX + impactNx * cueBall.r,
+                        y: cueBallAtImpactY + impactNy * cueBall.r,
+                        // Also store cue ball position at impact for ghost ball
+                        cueBallX: cueBallAtImpactX,
+                        cueBallY: cueBallAtImpactY
                     };
+                    
+                    // The actual impact angle is the angle from cue ball to object ball at impact
+                    actualImpactAngle = Math.atan2(impactDy, impactDx);
                 }
             }
         });
@@ -1126,7 +1170,7 @@ const PoolRendering = {
             return {
                 ball: closestBall,
                 collisionPoint: closestCollision,
-                impactAngle: aimAngle
+                impactAngle: actualImpactAngle
             };
         }
         
