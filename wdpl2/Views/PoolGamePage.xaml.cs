@@ -273,6 +273,7 @@ public partial class PoolGamePage : ContentPage
         <button onclick='game.stopBalls()'>Stop All Balls</button>
         <button onclick='game.resetRack()'>Reset Rack</button>
         <button id='toggle3DBtn' onclick='if(typeof Pool3DRenderer !== ""undefined"") Pool3DRenderer.toggle()'>?? 3D View</button>
+        <button id='toggleRealisticBtn' onclick='if(typeof PoolThreeJS !== ""undefined"") PoolThreeJS.toggle()' title='Photorealistic 3D (Shift+#)'>? Realistic</button>
         <button onclick='if(typeof PoolDevSettings !== ""undefined"") PoolDevSettings.toggle()'>Dev Settings (F2)</button>
     </div>
     
@@ -386,6 +387,19 @@ public partial class PoolGamePage : ContentPage
                         await originalToggle();
                         btn.textContent = Pool3DRenderer.enabled ? '?? 2D View' : '?? 3D View';
                         btn.style.background = Pool3DRenderer.enabled ? '#10b981' : '';
+                    }};
+                }}
+            }}
+            
+            // Setup Photorealistic 3D renderer integration
+            if (typeof PoolThreeJS !== 'undefined') {{
+                const realisticBtn = document.getElementById('toggleRealisticBtn');
+                if (realisticBtn) {{
+                    const originalToggle = PoolThreeJS.toggle.bind(PoolThreeJS);
+                    PoolThreeJS.toggle = async function() {{
+                        await originalToggle();
+                        realisticBtn.textContent = PoolThreeJS.enabled ? '?? Standard' : '? Realistic';
+                        realisticBtn.style.background = PoolThreeJS.enabled ? '#8b5cf6' : '';
                     }};
                 }}
             }}

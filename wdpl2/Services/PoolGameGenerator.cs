@@ -525,6 +525,7 @@ namespace Wdpl2.Services
                 <button id=""rulesBtn"" class=""btn btn-small"">EPA Rules</button>
                 <button id=""ballInHandBtn"" class=""btn btn-small"">?? Move Cue</button>
                 <button id=""toggle3DBtn"" class=""btn btn-small"">?? 3D View</button>
+                <button id=""toggleRealisticBtn"" class=""btn btn-small"" title=""Photorealistic 3D (Shift+#)"">? Realistic</button>
                 <button id=""devSettingsBtn"" class=""btn btn-small"">?? Dev</button>
                 <button class=""btn btn-small"" onclick=""window.location.href='index.html'"">?? Back</button>
             </div>
@@ -686,6 +687,23 @@ namespace Wdpl2.Services
                     setTimeout(() => {{
                         toggle3DBtn.textContent = Pool3DRenderer.enabled ? '?? 2D View' : '?? 3D View';
                     }}, 100);
+                }}
+            }});
+        }}
+        
+        // Photorealistic 3D toggle button
+        const toggleRealisticBtn = document.getElementById('toggleRealisticBtn');
+        if (toggleRealisticBtn) {{
+            toggleRealisticBtn.addEventListener('click', async () => {{
+                if (typeof PoolThreeJS !== 'undefined') {{
+                    await PoolThreeJS.toggle();
+                    // Update button text based on state
+                    setTimeout(() => {{
+                        toggleRealisticBtn.textContent = PoolThreeJS.enabled ? '?? Standard' : '? Realistic';
+                        toggleRealisticBtn.style.background = PoolThreeJS.enabled ? '#8b5cf6' : '';
+                    }}, 100);
+                }} else {{
+                    console.warn('PoolThreeJS not available');
                 }}
             }});
         }}
