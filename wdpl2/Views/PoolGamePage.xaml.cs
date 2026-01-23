@@ -87,6 +87,36 @@ public partial class PoolGamePage : ContentPage
             height: auto;
             box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         }}
+        .canvas-wrapper {{
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            aspect-ratio: 2 / 1;
+            background: #1a7f37;
+            border: 15px solid #8B4513;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }}
+        .canvas-wrapper canvas {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: none;
+            max-width: none;
+        }}
+        #poolTable3D {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 10;
+        }}
         #controls {{
             margin-top: 15px;
             display: flex;
@@ -236,10 +266,13 @@ public partial class PoolGamePage : ContentPage
 </head>
 <body>
     <div id='status'>Loading Pool Game...</div>
-    <canvas id='canvas' width='1000' height='500'></canvas>
+    <div class='canvas-wrapper' id='canvasWrapper'>
+        <canvas id='canvas' width='1000' height='500'></canvas>
+    </div>
     <div id='controls'>
         <button onclick='game.stopBalls()'>Stop All Balls</button>
         <button onclick='game.resetRack()'>Reset Rack</button>
+        <button id='toggle3DBtn' onclick='if(typeof Pool3DRenderer !== ""undefined"") Pool3DRenderer.toggle()'>?? 3D View</button>
         <button onclick='if(typeof PoolDevSettings !== ""undefined"") PoolDevSettings.toggle()'>Dev Settings (F2)</button>
     </div>
     
@@ -308,6 +341,10 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
+    {Services.Pool3DRendererModule.GenerateJavaScript()}
+    </script>
+    
+    <script>
     {Services.PoolGameModule.GenerateJavaScript()}
     </script>
     
@@ -318,6 +355,34 @@ public partial class PoolGamePage : ContentPage
             if (typeof PoolGameSettings !== 'undefined' && typeof game !== 'undefined') {{
                 PoolGameSettings.init(game);
                 PoolGameSettings.applySettings();
+            }}
+            
+            // Setup 3D renderer integration
+            if (typeof Pool3DRenderer !== 'undefined' && typeof game !== 'undefined') {{
+                Pool3DRenderer.updateModeIndicator();
+                
+                // Hook into game loop for 3D rendering
+                const originalGameLoop = game.gameLoop ? game.gameLoop.bind(game) : null;
+                if (originalGameLoop) {{
+                    game.gameLoop = function() {{
+                        originalGameLoop();
+                        if (Pool3DRenderer.enabled && Pool3DRenderer.initialized) {{
+                            Pool3DRenderer.updateBalls(game.balls, game.canvas.width, game.canvas.height);
+                            Pool3DRenderer.render();
+                        }}
+                    }};
+                }}
+                
+                // Update button when toggled
+                const btn = document.getElementById('toggle3DBtn');
+                if (btn) {{
+                    const originalToggle = Pool3DRenderer.toggle.bind(Pool3DRenderer);
+                    Pool3DRenderer.toggle = async function() {{
+                        await originalToggle();
+                        btn.textContent = Pool3DRenderer.enabled ? '?? 2D View' : '?? 3D View';
+                        btn.style.background = Pool3DRenderer.enabled ? '#10b981' : '';
+                    }};
+                }}
             }}
         }}, 300);
     }});

@@ -86,94 +86,117 @@ drawTable(ctx, width, height, cushionMargin, game) {
     ctx.lineWidth = 3;
     ctx.strokeRect(frameWidth / 2, frameWidth / 2, width - frameWidth, height - frameWidth);
         
-    // ===== AMBIENT ROOM LIGHTING EFFECT =====
-    const vignetteGrad = ctx.createRadialGradient(
-        width / 2, height / 2, Math.min(width, height) * 0.3,
-        width / 2, height / 2, Math.max(width, height) * 0.8
-    );
-    vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignetteGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.02)');
-    vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
-        
-    ctx.fillStyle = vignetteGrad;
-    ctx.fillRect(0, 0, width, height);
-        
-    // ===== REALISTIC FELT WITH RADIAL GRADIENT LIGHTING =====
+    // ===== OVERHEAD TABLE LIGHT SIMULATION =====
+    // Realistic pool table lighting - bright center with warm tones, gradual falloff
     const feltInset = frameWidth;
     const feltWidth = width - (feltInset * 2);
     const feltHeight = height - (feltInset * 2);
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.max(feltWidth, feltHeight) * 0.7;
         
+    // Primary felt color with overhead light hotspot
+    const radius = Math.max(feltWidth, feltHeight) * 0.65;
     const feltGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-    feltGradient.addColorStop(0, this.adjustColor(clothColor, 15));    // Lighter center
-    feltGradient.addColorStop(0.4, this.adjustColor(clothColor, 5));   // Medium
-    feltGradient.addColorStop(0.7, clothColor);                         // Base color
-    feltGradient.addColorStop(1, this.adjustColor(clothColor, -15));   // Darker edges
+    feltGradient.addColorStop(0, this.adjustColor(clothColor, 18));    // Bright center (overhead light)
+    feltGradient.addColorStop(0.2, this.adjustColor(clothColor, 12));  // Still bright
+    feltGradient.addColorStop(0.4, this.adjustColor(clothColor, 5));   // Transition
+    feltGradient.addColorStop(0.65, clothColor);                        // Base color
+    feltGradient.addColorStop(0.85, this.adjustColor(clothColor, -8)); // Slight shadow
+    feltGradient.addColorStop(1, this.adjustColor(clothColor, -18));   // Dark edges
         
     ctx.fillStyle = feltGradient;
+    ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
+    
+    // Secondary warm light glow (simulates incandescent pool light)
+    const warmGlow = ctx.createRadialGradient(
+        centerX, centerY - feltHeight * 0.05, feltWidth * 0.1,
+        centerX, centerY, feltWidth * 0.5
+    );
+    warmGlow.addColorStop(0, 'rgba(255, 248, 220, 0.08)');  // Warm center
+    warmGlow.addColorStop(0.3, 'rgba(255, 245, 200, 0.04)');
+    warmGlow.addColorStop(0.6, 'rgba(255, 240, 180, 0.02)');
+    warmGlow.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    
+    ctx.fillStyle = warmGlow;
+    ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
+        
+    // Edge vignette for depth (darker corners)
+    const vignetteGrad = ctx.createRadialGradient(
+        centerX, centerY, Math.min(feltWidth, feltHeight) * 0.35,
+        centerX, centerY, Math.max(feltWidth, feltHeight) * 0.75
+    );
+    vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignetteGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.02)');
+    vignetteGrad.addColorStop(0.8, 'rgba(0, 0, 0, 0.06)');
+    vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+        
+    ctx.fillStyle = vignetteGrad;
     ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
         
     // ===== PHASE 3: FELT WEAR PATTERNS =====
     this.drawFeltWear(ctx, width, height, feltInset);
         
-    // ===== ENHANCED FELT TEXTURE WITH CUSTOM COLOR =====
+    // ===== ENHANCED FELT TEXTURE =====
+    // Realistic baize weave pattern with directional nap
     ctx.save();
-    ctx.globalAlpha = 0.05;
         
-    const napAngle = 0;
+    // Layer 1: Fine warp threads (lengthwise)
+    ctx.globalAlpha = 0.035;
+    const warpColor1 = this.darkenColor(clothColor, 25);
+    const warpColor2 = this.lightenColor(clothColor, 8);
+    
+    for (let i = 0; i < 150; i++) {
+        const x = feltInset + (feltWidth / 150) * i;
+        const offset = Math.sin(i * 0.3) * 1.5;
+        ctx.strokeStyle = i % 2 === 0 ? warpColor1 : warpColor2;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x + offset, feltInset);
+        ctx.lineTo(x - offset, feltInset + feltHeight);
+        ctx.stroke();
+    }
+    
+    // Layer 2: Fine weft threads (crosswise) - slightly denser
+    ctx.globalAlpha = 0.03;
+    const weftColor1 = this.darkenColor(clothColor, 20);
+    const weftColor2 = this.lightenColor(clothColor, 5);
+    
+    for (let i = 0; i < 100; i++) {
+        const y = feltInset + (feltHeight / 100) * i;
+        const offset = Math.cos(i * 0.4) * 1;
+        ctx.strokeStyle = i % 2 === 0 ? weftColor1 : weftColor2;
+        ctx.lineWidth = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(feltInset, y + offset);
+        ctx.lineTo(feltInset + feltWidth, y - offset);
+        ctx.stroke();
+    }
+    
+    // Layer 3: Subtle nap direction shimmer (directional light on fibers)
+    // Creates the appearance that fibers are aligned in one direction
+    ctx.globalAlpha = 0.015;
+    const napGradient = ctx.createLinearGradient(feltInset, feltInset, feltInset + feltWidth, feltInset);
+    napGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    napGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
+    napGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.6)');
+    napGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.4)');
+    napGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = napGradient;
+    ctx.fillRect(feltInset, feltInset, feltWidth, feltHeight);
+    
+    // Layer 4: Micro noise texture for that organic feel
+    ctx.globalAlpha = 0.02;
+    for (let i = 0; i < 60; i++) {
+        const x = feltInset + Math.random() * feltWidth;
+        const y = feltInset + Math.random() * feltHeight;
+        const size = 0.5 + Math.random() * 1.5;
         
-        // Vertical threads with nap direction
-        for (let i = 0; i < 100; i++) {
-            const x = feltInset + (feltWidth / 100) * i;
-            const variation = (Math.sin(i * 0.5) * 2);
-            ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
-            ctx.lineWidth = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(x, feltInset);
-            ctx.quadraticCurveTo(
-                x + variation + Math.cos(napAngle) * 3, 
-                feltInset + feltHeight / 2, 
-                x + variation * 2, 
-                feltInset + feltHeight
-            );
-            ctx.stroke();
-        }
-        
-        // Horizontal threads with nap direction (denser)
-        for (let i = 0; i < 80; i++) {
-            const y = feltInset + (feltHeight / 80) * i;
-            const variation = (Math.cos(i * 0.7) * 2);
-            ctx.strokeStyle = i % 3 === 0 ? '#0a4a23' : (i % 3 === 1 ? '#1a8a43' : '#157A35');
-            ctx.lineWidth = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(feltInset, y);
-            ctx.quadraticCurveTo(
-                feltInset + feltWidth / 2, 
-                y + variation + Math.sin(napAngle) * 3, 
-                feltInset + feltWidth, 
-                y + variation * 2
-            );
-            ctx.stroke();
-        }
-        
-        // Add subtle cross-hatch for depth
-        ctx.globalAlpha = 0.02;
-        for (let i = 0; i < 30; i++) {
-            const x = feltInset + Math.random() * feltWidth;
-            const y = feltInset + Math.random() * feltHeight;
-            const size = 10 + Math.random() * 20;
-            
-            ctx.strokeStyle = '#0F6426';
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(x - size, y - size);
-            ctx.lineTo(x + size, y + size);
-            ctx.moveTo(x + size, y - size);
-            ctx.lineTo(x - size, y + size);
-            ctx.stroke();
-        }
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
         
         ctx.restore();
         
@@ -570,111 +593,196 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.stroke();
         
         // ========== 3. DRAW POCKET HOLES ==========
-        // Black circles at corner and side positions (use hole size, not opening size)
+        // Realistic pockets with leather/rubber linings and depth
         
-        
-        // Corner pockets - with slight shadow/depth
+        // Corner pockets - with realistic depth and leather surround
         corners.forEach(p => {
-            // Outer shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            // Deepest part - absolute black
+            ctx.fillStyle = '#000000';
             ctx.beginPath();
-            ctx.arc(p.x, p.y, cornerPocketR * 1.15, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, cornerPocketR * 0.5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Main black hole
-            ctx.fillStyle = pocketColor;
+            // Depth gradient - creates 3D hole effect
+            const depthGrad = ctx.createRadialGradient(
+                p.x, p.y, cornerPocketR * 0.3,
+                p.x, p.y, cornerPocketR * 1.1
+            );
+            depthGrad.addColorStop(0, '#050505');
+            depthGrad.addColorStop(0.3, '#0a0a0a');
+            depthGrad.addColorStop(0.6, '#151515');
+            depthGrad.addColorStop(0.85, '#252525');
+            depthGrad.addColorStop(1, '#353535');
+            
+            ctx.fillStyle = depthGrad;
             ctx.beginPath();
             ctx.arc(p.x, p.y, cornerPocketR, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner depth
-            ctx.fillStyle = '#1a1a1a';
+            // Leather/rubber surround ring
+            const leatherGrad = ctx.createRadialGradient(
+                p.x - 2, p.y - 2, cornerPocketR * 0.85,
+                p.x, p.y, cornerPocketR * 1.15
+            );
+            leatherGrad.addColorStop(0, '#1a1a1a');
+            leatherGrad.addColorStop(0.3, '#252015');  // Dark brown leather
+            leatherGrad.addColorStop(0.6, '#302820');
+            leatherGrad.addColorStop(0.9, '#201810');
+            leatherGrad.addColorStop(1, '#100805');
+            
+            ctx.strokeStyle = leatherGrad;
+            ctx.lineWidth = cornerPocketR * 0.25;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, cornerPocketR * 0.7, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.arc(p.x, p.y, cornerPocketR * 1.02, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Highlight on leather edge (catches light)
+            ctx.strokeStyle = 'rgba(255, 240, 220, 0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(p.x - 1, p.y - 1, cornerPocketR * 1.1, Math.PI * 0.8, Math.PI * 1.5);
+            ctx.stroke();
         });
         
-        // Side pockets
+        // Side pockets - slightly different shape and depth
         sides.forEach(p => {
-            // Outer shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            // Deepest part
+            ctx.fillStyle = '#000000';
             ctx.beginPath();
-            ctx.arc(p.x, p.y, sidePocketR * 1.15, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, sidePocketR * 0.4, 0, Math.PI * 2);
             ctx.fill();
             
-            // Main black hole
-            ctx.fillStyle = pocketColor;
+            // Depth gradient
+            const depthGrad = ctx.createRadialGradient(
+                p.x, p.y, sidePocketR * 0.25,
+                p.x, p.y, sidePocketR * 1.05
+            );
+            depthGrad.addColorStop(0, '#050505');
+            depthGrad.addColorStop(0.35, '#0c0c0c');
+            depthGrad.addColorStop(0.65, '#181818');
+            depthGrad.addColorStop(0.9, '#282828');
+            depthGrad.addColorStop(1, '#383838');
+            
+            ctx.fillStyle = depthGrad;
             ctx.beginPath();
             ctx.arc(p.x, p.y, sidePocketR, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner depth
-            ctx.fillStyle = '#1a1a1a';
+            // Leather surround
+            const leatherGrad = ctx.createRadialGradient(
+                p.x - 2, p.y - 2, sidePocketR * 0.8,
+                p.x, p.y, sidePocketR * 1.1
+            );
+            leatherGrad.addColorStop(0, '#1a1a1a');
+            leatherGrad.addColorStop(0.4, '#282018');
+            leatherGrad.addColorStop(0.7, '#352820');
+            leatherGrad.addColorStop(1, '#151010');
+            
+            ctx.strokeStyle = leatherGrad;
+            ctx.lineWidth = sidePocketR * 0.22;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, sidePocketR * 0.7, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.arc(p.x, p.y, sidePocketR * 0.98, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Leather highlight
+            ctx.strokeStyle = 'rgba(255, 240, 220, 0.06)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(p.x - 1, p.y - 1, sidePocketR * 1.05, Math.PI * 0.7, Math.PI * 1.4);
+            ctx.stroke();
         });
         
         
         // ========== 4. DRAW GREEN CUSHIONS ==========
-        // These are the rubber bumpers that balls bounce off
-        // They run along the inner edge of the rail and STOP at each pocket opening
+        // Realistic rubber bumpers with 3D profile
         
-        const cushionWidth = 6;
-        const cushionInset = railWidth - cushionWidth / 2 - 2;
+        const cushionWidth = 8;  // Slightly thicker for better 3D effect
+        const cushionInset = railWidth - cushionWidth / 2 - 1;
         
-        ctx.strokeStyle = cushionColor;
-        ctx.lineWidth = cushionWidth;
-        ctx.lineCap = 'round';
+        // Helper function to draw a cushion segment with 3D effect
+        const drawCushionSegment = (x1, y1, x2, y2, isHorizontal) => {
+            // Shadow underneath cushion
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.lineWidth = cushionWidth + 2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x1 + (isHorizontal ? 0 : 1), y1 + (isHorizontal ? 1 : 0));
+            ctx.lineTo(x2 + (isHorizontal ? 0 : 1), y2 + (isHorizontal ? 1 : 0));
+            ctx.stroke();
+            
+            // Main cushion body (darker rubber base)
+            ctx.strokeStyle = this.darkenColor(cushionColor, 15);
+            ctx.lineWidth = cushionWidth;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            // Top highlight (rubber shine)
+            ctx.strokeStyle = this.lightenColor(cushionColor, 20);
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1 - (isHorizontal ? 2 : 0) + (isHorizontal ? 0 : 0));
+            ctx.lineTo(x2, y2 - (isHorizontal ? 2 : 0) + (isHorizontal ? 0 : 0));
+            if (!isHorizontal) {
+                ctx.moveTo(x1 - 2, y1);
+                ctx.lineTo(x2 - 2, y2);
+            }
+            ctx.stroke();
+            
+            // Subtle rubber texture line
+            ctx.strokeStyle = this.darkenColor(cushionColor, 8);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1 + (isHorizontal ? 1 : 0) - (isHorizontal ? 0 : 0));
+            ctx.lineTo(x2, y2 + (isHorizontal ? 1 : 0) - (isHorizontal ? 0 : 0));
+            if (!isHorizontal) {
+                ctx.moveTo(x1 + 1, y1);
+                ctx.lineTo(x2 + 1, y2);
+            }
+            ctx.stroke();
+        };
         
         // Top cushions (2 segments with gap for side pocket)
-        ctx.beginPath();
-        ctx.moveTo(corners[0].x + cornerPocketOpening + 3, cushionInset);
-        ctx.lineTo(sides[0].x - sidePocketOpening - 3, cushionInset);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(sides[0].x + sidePocketOpening + 3, cushionInset);
-        ctx.lineTo(corners[1].x - cornerPocketOpening - 3, cushionInset);
-        ctx.stroke();
+        drawCushionSegment(
+            corners[0].x + cornerPocketOpening + 3, cushionInset,
+            sides[0].x - sidePocketOpening - 3, cushionInset,
+            true
+        );
+        drawCushionSegment(
+            sides[0].x + sidePocketOpening + 3, cushionInset,
+            corners[1].x - cornerPocketOpening - 3, cushionInset,
+            true
+        );
         
         // Bottom cushions
-        ctx.beginPath();
-        ctx.moveTo(corners[2].x + cornerPocketOpening + 3, height - cushionInset);
-        ctx.lineTo(sides[1].x - sidePocketOpening - 3, height - cushionInset);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(sides[1].x + sidePocketOpening + 3, height - cushionInset);
-        ctx.lineTo(corners[3].x - cornerPocketOpening - 3, height - cushionInset);
-        ctx.stroke();
+        drawCushionSegment(
+            corners[2].x + cornerPocketOpening + 3, height - cushionInset,
+            sides[1].x - sidePocketOpening - 3, height - cushionInset,
+            true
+        );
+        drawCushionSegment(
+            sides[1].x + sidePocketOpening + 3, height - cushionInset,
+            corners[3].x - cornerPocketOpening - 3, height - cushionInset,
+            true
+        );
         
         // Left cushion
-        ctx.beginPath();
-        ctx.moveTo(cushionInset, corners[0].y + cornerPocketOpening + 3);
-        ctx.lineTo(cushionInset, corners[2].y - cornerPocketOpening - 3);
-        ctx.stroke();
+            drawCushionSegment(
+                cushionInset, corners[0].y + cornerPocketOpening + 3,
+                cushionInset, corners[2].y - cornerPocketOpening - 3,
+                false
+            );
         
-        // Right cushion
-        ctx.beginPath();
-        ctx.moveTo(width - cushionInset, corners[1].y + cornerPocketOpening + 3);
-        ctx.lineTo(width - cushionInset, corners[3].y - cornerPocketOpening - 3);
-        ctx.stroke();
+            // Right cushion
+            drawCushionSegment(
+                width - cushionInset, corners[1].y + cornerPocketOpening + 3,
+                width - cushionInset, corners[3].y - cornerPocketOpening - 3,
+                false
+            );
         
-        // Cushion highlights (lighter green on top edge)
-        ctx.strokeStyle = cushionLight;
-        ctx.lineWidth = 2;
-        
-        // Top cushion highlights
-        ctx.beginPath();
-        ctx.moveTo(corners[0].x + cornerPocketOpening + 3, cushionInset - 2);
-        ctx.lineTo(sides[0].x - sidePocketOpening - 3, cushionInset - 2);
-        ctx.moveTo(sides[0].x + sidePocketOpening + 3, cushionInset - 2);
-        ctx.lineTo(corners[1].x - cornerPocketOpening - 3, cushionInset - 2);
-        ctx.stroke();
-        
-        ctx.restore();
-    },
+            ctx.restore();
+        },
     
     /**
      * Draw pockets - simple circles for physics zones
@@ -697,23 +805,57 @@ drawTable(ctx, width, height, cushionMargin, game) {
     
     /**
      * Draw a ball with realistic 3D rolling effect
-     * PHASE 3: Felt color reflection + enhanced ambient lighting
+     * PHASE 4: Ultra-realistic lighting with subsurface scattering hints
      */
     drawBall(ctx, ball) {
         if (ball.potted) return;
         
-        // ===== REALISTIC BALL SHADOW =====
+        // Calculate ball speed for motion effects
+        const speed = Math.sqrt((ball.vx || 0) * (ball.vx || 0) + (ball.vy || 0) * (ball.vy || 0));
+        
+        // ===== CONTACT SHADOW (Dark core directly under ball) =====
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.beginPath();
-        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 0.85, ball.r * 0.55, 0, 0, Math.PI * 2);
+        ctx.ellipse(ball.x + 1, ball.y + 2, ball.r * 0.5, ball.r * 0.35, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        // ===== SOFT SHADOW (Larger diffuse shadow) =====
+        const shadowGrad = ctx.createRadialGradient(
+            ball.x + 3, ball.y + 4, ball.r * 0.3,
+            ball.x + 3, ball.y + 4, ball.r * 1.3
+        );
+        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+        shadowGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.2)');
+        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.08)');
+        shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = shadowGrad;
         ctx.beginPath();
-        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.1, ball.r * 0.7, 0, 0, Math.PI * 2);
+        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.3, ball.r * 0.8, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        
+        // ===== MOTION BLUR HINT FOR FAST BALLS =====
+        if (speed > 5) {
+            const blurAlpha = Math.min(0.15, speed / 80);
+            const angle = Math.atan2(ball.vy || 0, ball.vx || 0);
+            const blurLength = Math.min(ball.r * 0.8, speed * 0.5);
+            
+            ctx.save();
+            ctx.globalAlpha = blurAlpha;
+            ctx.fillStyle = ball.color === 'white' ? '#cccccc' : (ball.color === 'red' ? '#882020' : (ball.color === 'yellow' ? '#aa9900' : '#333333'));
+            ctx.beginPath();
+            ctx.ellipse(
+                ball.x - Math.cos(angle) * blurLength * 0.5, 
+                ball.y - Math.sin(angle) * blurLength * 0.5, 
+                ball.r + blurLength * 0.2, 
+                ball.r, 
+                angle, 0, Math.PI * 2
+            );
+            ctx.fill();
+            ctx.restore();
+        }
         
         // ===== FELT COLOR REFLECTION ON BALL BOTTOM =====
         const feltReflection = ctx.createRadialGradient(
@@ -853,56 +995,115 @@ drawTable(ctx, width, height, cushionMargin, game) {
     
     
     
-    // UK Yellow Ball - Solid bright yellow
+    // UK Yellow Ball - Solid bright yellow with phenolic resin look
     drawUKYellowBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        // Base gradient with more depth
         const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
-            ball.x, ball.y, ball.r * 1.1
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.05,
+            ball.x, ball.y, ball.r * 1.05
         );
-        grad.addColorStop(0, '#ffed80');
-        grad.addColorStop(0.15, '#ffe033');
-        grad.addColorStop(0.4, '#ffd700');
+        grad.addColorStop(0, '#fff8a0');  // Bright highlight
+        grad.addColorStop(0.1, '#ffed70');
+        grad.addColorStop(0.25, '#ffe033');
+        grad.addColorStop(0.5, '#ffd700');
         grad.addColorStop(0.7, '#e6b800');
-        grad.addColorStop(1, '#997a00');
+        grad.addColorStop(0.85, '#cc9900');
+        grad.addColorStop(1, '#8a6500');
         
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Subsurface scattering simulation - warm glow on shadow side
+        const sssGrad = ctx.createRadialGradient(
+            ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, 0,
+            ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, ball.r * 0.7
+        );
+        sssGrad.addColorStop(0, 'rgba(255, 200, 50, 0.15)');
+        sssGrad.addColorStop(0.5, 'rgba(255, 180, 30, 0.08)');
+        sssGrad.addColorStop(1, 'rgba(255, 180, 30, 0)');
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = sssGrad;
+        ctx.beginPath();
+        ctx.arc(ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, ball.r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     },
     
-    // Black Ball
+    // Black Ball - Deep glossy black with rich reflections
     drawBlackBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        // Deep black base with subtle blue tint (like real phenolic balls)
         const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
-            ball.x, ball.y, ball.r * 1.1
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.05,
+            ball.x, ball.y, ball.r * 1.05
         );
-        grad.addColorStop(0, '#555555');
-        grad.addColorStop(0.2, '#3a3a3a');
-        grad.addColorStop(0.5, '#2a2a2a');
-        grad.addColorStop(0.8, '#1a1a1a');
-        grad.addColorStop(1, '#000000');
+        grad.addColorStop(0, '#606875');   // Slight blue-gray highlight
+        grad.addColorStop(0.15, '#404550');
+        grad.addColorStop(0.3, '#2a2d33');
+        grad.addColorStop(0.5, '#1a1c20');
+        grad.addColorStop(0.7, '#0f1012');
+        grad.addColorStop(1, '#050506');
         
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Environment reflection hint (shows depth)
+        const envReflect = ctx.createLinearGradient(
+            ball.x - ball.r, ball.y - ball.r * 0.3,
+            ball.x + ball.r, ball.y + ball.r * 0.3
+        );
+        envReflect.addColorStop(0, 'rgba(80, 100, 80, 0)');
+        envReflect.addColorStop(0.3, 'rgba(80, 100, 80, 0.05)');
+        envReflect.addColorStop(0.5, 'rgba(80, 100, 80, 0.08)');
+        envReflect.addColorStop(0.7, 'rgba(80, 100, 80, 0.05)');
+        envReflect.addColorStop(1, 'rgba(80, 100, 80, 0)');
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = envReflect;
+        ctx.fillRect(ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
+        ctx.restore();
     },
     
-    // Cue Ball - White/cream with dark spots for spin tracking
+    // Cue Ball - Premium white with subtle warmth and perfect gloss
     drawCueBall(ctx, ball, lightOffsetX, lightOffsetY) {
-        // Base white/cream gradient
+        // Base white/cream gradient with more realistic falloff
         const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
-            ball.x, ball.y, ball.r * 1.1
+            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.03,
+            ball.x, ball.y, ball.r * 1.05
         );
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.2, '#fefefa');
-        grad.addColorStop(0.5, '#f8f5f0');
-        grad.addColorStop(0.8, '#e8e4dc');
-        grad.addColorStop(1, '#c8c4bc');
+        grad.addColorStop(0, '#ffffff');   // Pure white hotspot
+        grad.addColorStop(0.1, '#fefefc');
+        grad.addColorStop(0.25, '#faf8f4');
+        grad.addColorStop(0.5, '#f4f0e8');
+        grad.addColorStop(0.7, '#e8e2d8');
+        grad.addColorStop(0.85, '#d8d0c4');
+        grad.addColorStop(1, '#b8b0a0');
         
         ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Subtle warm rim lighting (simulates overhead table light)
+        const rimLight = ctx.createRadialGradient(
+            ball.x, ball.y, ball.r * 0.75,
+            ball.x, ball.y, ball.r
+        );
+        rimLight.addColorStop(0, 'rgba(255, 250, 240, 0)');
+        rimLight.addColorStop(0.7, 'rgba(255, 248, 235, 0.1)');
+        rimLight.addColorStop(1, 'rgba(255, 245, 225, 0.2)');
+        
+        ctx.fillStyle = rimLight;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
@@ -1119,16 +1320,17 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.restore();
     },
     
-    // Draw specular highlights for glossy shine
+    // Draw specular highlights for glossy shine - simulates overhead pool table light
     drawSpecularHighlights(ctx, ball, lightOffsetX, lightOffsetY) {
-        // Primary highlight
+        // Primary specular highlight (sharp, bright main light reflection)
         const specular1 = ctx.createRadialGradient(
-            ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, 0,
-            ball.x + lightOffsetX * 0.7, ball.y + lightOffsetY * 0.7, ball.r * 0.35
+            ball.x + lightOffsetX * 0.65, ball.y + lightOffsetY * 0.65, 0,
+            ball.x + lightOffsetX * 0.65, ball.y + lightOffsetY * 0.65, ball.r * 0.25
         );
-        specular1.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-        specular1.addColorStop(0.2, 'rgba(255, 255, 255, 0.7)');
-        specular1.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        specular1.addColorStop(0, 'rgba(255, 255, 255, 1.0)');  // Hot center
+        specular1.addColorStop(0.15, 'rgba(255, 255, 255, 0.9)');
+        specular1.addColorStop(0.4, 'rgba(255, 255, 255, 0.4)');
+        specular1.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
         specular1.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.fillStyle = specular1;
@@ -1136,14 +1338,14 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
         
-        // Secondary highlight (softer, larger)
+        // Secondary highlight (soft bloom around primary)
         const specular2 = ctx.createRadialGradient(
-            ball.x + lightOffsetX * 0.5, ball.y + lightOffsetY * 0.5, 0,
-            ball.x + lightOffsetX * 0.5, ball.y + lightOffsetY * 0.5, ball.r * 0.6
+            ball.x + lightOffsetX * 0.55, ball.y + lightOffsetY * 0.55, ball.r * 0.1,
+            ball.x + lightOffsetX * 0.55, ball.y + lightOffsetY * 0.55, ball.r * 0.5
         );
-        specular2.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-        specular2.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)');
-        specular2.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
+        specular2.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+        specular2.addColorStop(0.3, 'rgba(255, 255, 255, 0.15)');
+        specular2.addColorStop(0.6, 'rgba(255, 255, 255, 0.05)');
         specular2.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.fillStyle = specular2;
@@ -1151,9 +1353,43 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
         
-        // Ball outline for definition
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-        ctx.lineWidth = 1;
+        // Tertiary highlight - subtle secondary reflection (simulates rectangular pool light)
+        const specular3 = ctx.createRadialGradient(
+            ball.x + lightOffsetX * 0.3, ball.y + lightOffsetY * 0.2, 0,
+            ball.x + lightOffsetX * 0.3, ball.y + lightOffsetY * 0.2, ball.r * 0.2
+        );
+        specular3.addColorStop(0, 'rgba(255, 255, 250, 0.2)');
+        specular3.addColorStop(0.5, 'rgba(255, 255, 250, 0.05)');
+        specular3.addColorStop(1, 'rgba(255, 255, 250, 0)');
+        
+        ctx.fillStyle = specular3;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Rim lighting effect (subtle edge glow from ambient light)
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.clip();
+        
+        const rimGrad = ctx.createRadialGradient(
+            ball.x, ball.y, ball.r * 0.85,
+            ball.x, ball.y, ball.r * 1.0
+        );
+        rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        rimGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
+        rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.08)');
+        
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        
+        // Subtle ball outline for definition (very soft)
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
+        ctx.lineWidth = 0.75;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.stroke();
@@ -1754,94 +1990,209 @@ drawTable(ctx, width, height, cushionMargin, game) {
     },
     
     /**
-     * Draw realistic wooden cue stick
+     * Draw realistic wooden cue stick with professional details
      */
     drawCueStick(ctx, cueBall, aimAngle, pullBackDistance, pushForwardDistance) {
         const baseDist = 35;
         const cueDistance = baseDist + pullBackDistance - pushForwardDistance;
-        const cueLength = 200;
+        const cueLength = 220;  // Slightly longer for better proportions
         
         const cueStartX = cueBall.x - Math.cos(aimAngle) * cueDistance;
         const cueStartY = cueBall.y - Math.sin(aimAngle) * cueDistance;
         const cueEndX = cueBall.x - Math.cos(aimAngle) * (cueDistance + cueLength);
         const cueEndY = cueBall.y - Math.sin(aimAngle) * (cueDistance + cueLength);
         
-        // Cue shadow
+        // Calculate perpendicular for 3D effect
+        const perpX = -Math.sin(aimAngle);
+        const perpY = Math.cos(aimAngle);
+        
+        // ===== CUE SHADOW =====
         ctx.save();
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.lineWidth = 12;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.lineWidth = 14;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(cueStartX + 2, cueStartY + 2);
-        ctx.lineTo(cueEndX + 2, cueEndY + 2);
+        ctx.moveTo(cueStartX + 3, cueStartY + 3);
+        ctx.lineTo(cueEndX + 3, cueEndY + 3);
         ctx.stroke();
         ctx.restore();
         
-        // Main cue stick with wood grain
-        const grad = ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
-        grad.addColorStop(0, '#e6c9a8');
-        grad.addColorStop(0.15, '#d4a574');
-        grad.addColorStop(0.4, '#c19461');
-        grad.addColorStop(0.6, '#8b6f47');
-        grad.addColorStop(0.85, '#6d5436');
-        grad.addColorStop(1, '#5a4a3a');
+        // ===== MAIN CUE BODY WITH TAPER =====
+        // The cue tapers from ~13mm at tip to ~29mm at butt
         
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 11;
+        // Shaft section (lighter wood - maple)
+        const shaftLength = cueLength * 0.55;
+        const shaftEndX = cueStartX - Math.cos(aimAngle) * shaftLength;
+        const shaftEndY = cueStartY - Math.sin(aimAngle) * shaftLength;
+        
+        // Shaft gradient - light maple
+        const shaftGrad = ctx.createLinearGradient(cueStartX, cueStartY, shaftEndX, shaftEndY);
+        shaftGrad.addColorStop(0, '#faf0dc');   // Very light at tip
+        shaftGrad.addColorStop(0.2, '#f5e5c8');
+        shaftGrad.addColorStop(0.5, '#e8d4b0');
+        shaftGrad.addColorStop(0.8, '#dcc498');
+        shaftGrad.addColorStop(1, '#d0b880');   // Transition to joint
+        
+        ctx.strokeStyle = shaftGrad;
+        ctx.lineWidth = 9;  // Thinner shaft
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - Math.cos(aimAngle) * 8, cueStartY - Math.sin(aimAngle) * 8); // Start after ferrule
+        ctx.lineTo(shaftEndX, shaftEndY);
+        ctx.stroke();
+        
+        // Shaft wood grain effect
+        ctx.save();
+        ctx.strokeStyle = 'rgba(160, 130, 90, 0.15)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            const offset = (i - 1.5) * 2;
+            ctx.beginPath();
+            ctx.moveTo(
+                cueStartX - Math.cos(aimAngle) * 10 + perpX * offset, 
+                cueStartY - Math.sin(aimAngle) * 10 + perpY * offset
+            );
+            ctx.lineTo(
+                shaftEndX + perpX * offset * 0.8, 
+                shaftEndY + perpY * offset * 0.8
+            );
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        // Joint ring (metal/ivory collar)
+        const jointWidth = 8;
+        ctx.fillStyle = '#c0c0c0';  // Silver
+        ctx.strokeStyle = '#909090';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(shaftEndX, shaftEndY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Joint highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(shaftEndX - 1, shaftEndY - 1, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Butt section (darker hardwood with wrap)
+        const buttStartX = shaftEndX - Math.cos(aimAngle) * 4;
+        const buttStartY = shaftEndY - Math.sin(aimAngle) * 4;
+        
+        // Butt gradient - darker hardwood
+        const buttGrad = ctx.createLinearGradient(buttStartX, buttStartY, cueEndX, cueEndY);
+        buttGrad.addColorStop(0, '#8b6f47');
+        buttGrad.addColorStop(0.1, '#7a5c38');
+        buttGrad.addColorStop(0.3, '#6d4c2a');
+        buttGrad.addColorStop(0.5, '#5a3d20');
+        buttGrad.addColorStop(0.7, '#4d3318');
+        buttGrad.addColorStop(0.9, '#3a2510');
+        buttGrad.addColorStop(1, '#2a1a08');
+        
+        ctx.strokeStyle = buttGrad;
+        ctx.lineWidth = 13;  // Thicker butt
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(cueStartX, cueStartY);
+        ctx.moveTo(buttStartX, buttStartY);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
         
-        // Wood grain highlights
-        ctx.strokeStyle = 'rgba(210, 180, 140, 0.3)';
-        ctx.lineWidth = 9;
+        // Wrap section (leather or linen grip) - about 1/3 up the butt
+        const wrapStart = 0.4;
+        const wrapEnd = 0.7;
+        const wrapStartX = buttStartX - Math.cos(aimAngle) * (cueLength * 0.45 * wrapStart);
+        const wrapStartY = buttStartY - Math.sin(aimAngle) * (cueLength * 0.45 * wrapStart);
+        const wrapEndX = buttStartX - Math.cos(aimAngle) * (cueLength * 0.45 * wrapEnd);
+        const wrapEndY = buttStartY - Math.sin(aimAngle) * (cueLength * 0.45 * wrapEnd);
+        
+        ctx.strokeStyle = '#1a1a1a';  // Black Irish linen
+        ctx.lineWidth = 14;
         ctx.beginPath();
-        ctx.moveTo(cueStartX, cueStartY);
-        ctx.lineTo(cueEndX + Math.cos(aimAngle) * 20, cueEndY + Math.sin(aimAngle) * 20);
+        ctx.moveTo(wrapStartX, wrapStartY);
+        ctx.lineTo(wrapEndX, wrapEndY);
         ctx.stroke();
         
-        // Cue tip leather with 3D effect
+        // Wrap texture lines
+        ctx.strokeStyle = 'rgba(60, 60, 60, 0.8)';
+        ctx.lineWidth = 1;
+        const wrapDist = Math.sqrt(Math.pow(wrapEndX - wrapStartX, 2) + Math.pow(wrapEndY - wrapStartY, 2));
+        for (let i = 0; i < wrapDist; i += 4) {
+            const t = i / wrapDist;
+            const x = wrapStartX + (wrapEndX - wrapStartX) * t;
+            const y = wrapStartY + (wrapEndY - wrapStartY) * t;
+            ctx.beginPath();
+            ctx.moveTo(x + perpX * 6, y + perpY * 6);
+            ctx.lineTo(x - perpX * 6, y - perpY * 6);
+            ctx.stroke();
+        }
+        
+        // ===== FERRULE (white/ivory section before tip) =====
+        const ferruleLength = 8;
+        const ferruleEndX = cueStartX - Math.cos(aimAngle) * ferruleLength;
+        const ferruleEndY = cueStartY - Math.sin(aimAngle) * ferruleLength;
+        
+        const ferruleGrad = ctx.createLinearGradient(cueStartX, cueStartY, ferruleEndX, ferruleEndY);
+        ferruleGrad.addColorStop(0, '#f8f8f0');
+        ferruleGrad.addColorStop(0.5, '#f0ece0');
+        ferruleGrad.addColorStop(1, '#e8e0d0');
+        
+        ctx.strokeStyle = ferruleGrad;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(cueStartX, cueStartY);
+        ctx.lineTo(ferruleEndX, ferruleEndY);
+        ctx.stroke();
+        
+        // ===== CUE TIP (blue chalk-covered leather) =====
         const tipGrad = ctx.createRadialGradient(
-            cueStartX - 1, cueStartY - 1, 0,
-            cueStartX, cueStartY, 8
+            cueStartX - perpX * 1, cueStartY - perpY * 1, 0,
+            cueStartX, cueStartY, 6
         );
-        tipGrad.addColorStop(0, '#7ba3d6');
-        tipGrad.addColorStop(0.5, '#6495ED');
-        tipGrad.addColorStop(1, '#4169E1');
+        tipGrad.addColorStop(0, '#8bb8e8');   // Light blue (chalk)
+        tipGrad.addColorStop(0.4, '#6a9fd4');
+        tipGrad.addColorStop(0.7, '#5080b8');
+        tipGrad.addColorStop(1, '#3a6090');   // Darker edge
         
         ctx.fillStyle = tipGrad;
         ctx.beginPath();
-        ctx.arc(cueStartX, cueStartY, 7, 0, Math.PI * 2);
+        ctx.arc(cueStartX, cueStartY, 5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Tip highlight
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        // Tip highlight (rounded dome of tip)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
         ctx.beginPath();
-        ctx.arc(cueStartX - 2, cueStartY - 2, 3, 0, Math.PI * 2);
+        ctx.ellipse(cueStartX - 1.5, cueStartY - 1.5, 2, 1.5, aimAngle, 0, Math.PI * 2);
         ctx.fill();
         
-        // Contact glow effect
+        // ===== CONTACT GLOW EFFECT =====
         const distanceToContact = cueDistance - 12;
         if (distanceToContact < 15) {
             const glowIntensity = 1 - (distanceToContact / 15);
             ctx.save();
-            ctx.fillStyle = `rgba(255, 215, 0, ${glowIntensity * 0.5})`;
+            const glowGrad = ctx.createRadialGradient(
+                cueStartX, cueStartY, 0,
+                cueStartX, cueStartY, 20
+            );
+            glowGrad.addColorStop(0, `rgba(255, 230, 150, ${glowIntensity * 0.6})`);
+            glowGrad.addColorStop(0.5, `rgba(255, 215, 100, ${glowIntensity * 0.3})`);
+            glowGrad.addColorStop(1, 'rgba(255, 200, 50, 0)');
+            ctx.fillStyle = glowGrad;
             ctx.beginPath();
-            ctx.arc(cueStartX, cueStartY, 15, 0, Math.PI * 2);
+            ctx.arc(cueStartX, cueStartY, 20, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
         
-        // Ghost guide with motion blur
+        // ===== GHOST GUIDE (shows rest position) =====
         if (pullBackDistance > 10) {
             const ghostStartX = cueBall.x - Math.cos(aimAngle) * baseDist;
             const ghostStartY = cueBall.y - Math.sin(aimAngle) * baseDist;
             
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 10;
-            ctx.setLineDash([8, 8]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.lineWidth = 8;
+            ctx.setLineDash([6, 6]);
             ctx.beginPath();
             ctx.moveTo(ghostStartX, ghostStartY);
             ctx.lineTo(cueStartX, cueStartY);
@@ -1849,16 +2200,16 @@ drawTable(ctx, width, height, cushionMargin, game) {
             ctx.setLineDash([]);
         }
         
-        // Contact indicator
+        // ===== CONTACT POINT INDICATOR =====
         const contactPointX = cueBall.x - Math.cos(aimAngle) * 12;
         const contactPointY = cueBall.y - Math.sin(aimAngle) * 12;
-        const contactColor = distanceToContact < 5 ? 'rgba(255, 215, 0, 0.9)' : 'rgba(255, 255, 255, 0.5)';
+        const contactColor = distanceToContact < 5 ? 'rgba(255, 215, 0, 0.9)' : 'rgba(255, 255, 255, 0.4)';
         
         ctx.strokeStyle = contactColor;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.arc(contactPointX, contactPointY, 10, 0, Math.PI * 2);
+        ctx.arc(contactPointX, contactPointY, 8, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
     },

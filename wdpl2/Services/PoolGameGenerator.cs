@@ -524,6 +524,7 @@ namespace Wdpl2.Services
                 <button id=""newGameBtn"" class=""btn btn-small"">New Game</button>
                 <button id=""rulesBtn"" class=""btn btn-small"">EPA Rules</button>
                 <button id=""ballInHandBtn"" class=""btn btn-small"">?? Move Cue</button>
+                <button id=""toggle3DBtn"" class=""btn btn-small"">?? 3D View</button>
                 <button id=""devSettingsBtn"" class=""btn btn-small"">?? Dev</button>
                 <button class=""btn btn-small"" onclick=""window.location.href='index.html'"">?? Back</button>
             </div>
@@ -675,6 +676,20 @@ namespace Wdpl2.Services
             }});
         }}
         
+        // 3D View toggle button
+        const toggle3DBtn = document.getElementById('toggle3DBtn');
+        if (toggle3DBtn) {{
+            toggle3DBtn.addEventListener('click', () => {{
+                if (typeof Pool3DRenderer !== 'undefined') {{
+                    Pool3DRenderer.toggle();
+                    // Update button text based on state
+                    setTimeout(() => {{
+                        toggle3DBtn.textContent = Pool3DRenderer.enabled ? '?? 2D View' : '?? 3D View';
+                    }}, 100);
+                }}
+            }});
+        }}
+        
         // Prevent zoom on double-tap for iOS
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {{
@@ -709,23 +724,75 @@ namespace Wdpl2.Services
         }
         
         private static string GetPoolGameJS()
-        {
-            var sb = new StringBuilder();
+                {
+                    var sb = new StringBuilder();
             
-            // Add all module JavaScript (same order as app)
-            sb.AppendLine(PoolAudioModule.GenerateJavaScript());
-            sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
-            sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
-            sb.AppendLine(PoolPocketModule.GenerateJavaScript());
-            sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
-            sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
-            sb.AppendLine(PoolInputModule.GenerateJavaScript());
-            sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
-            sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
-            sb.AppendLine(PoolGameSettingsModule.GenerateJavaScript());  // Added: same as app
-            sb.AppendLine(PoolGameModule.GenerateJavaScript());
+                    // Add all module JavaScript (same order as app)
+                    sb.AppendLine(PoolAudioModule.GenerateJavaScript());
+                    sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
+                    sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
+                    sb.AppendLine(PoolPocketModule.GenerateJavaScript());
+                    sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
+                    sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
+                    sb.AppendLine(PoolInputModule.GenerateJavaScript());
+                    sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
+                    sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
+                    sb.AppendLine(PoolGameSettingsModule.GenerateJavaScript());  // Added: same as app
+                    sb.AppendLine(Pool3DRendererModule.GenerateJavaScript());    // 3D Renderer POC - press '3' to toggle
+                    sb.AppendLine(PoolGameModule.GenerateJavaScript());
             
-            return sb.ToString();
+                    // Add 3D render loop integration
+                    sb.AppendLine(Get3DIntegrationJS());
+            
+                    return sb.ToString();
+                }
+        
+                /// <summary>
+                /// Integration code to hook 3D renderer into the game loop
+                /// </summary>
+                private static string Get3DIntegrationJS()
+                {
+                    return @"
+        // ============================================
+        // 3D RENDERER INTEGRATION
+        // Hooks Pool3DRenderer into the game loop
+        // ============================================
+        (function() {
+            // Wait for game to initialize
+            const waitForGame = setInterval(() => {
+                if (typeof game !== 'undefined' && game.balls) {
+                    clearInterval(waitForGame);
+            
+                    // Store original render function
+                    const originalRender = game.render ? game.render.bind(game) : null;
+            
+                    // Override the game loop to include 3D rendering
+                    const originalGameLoop = game.gameLoop ? game.gameLoop.bind(game) : null;
+            
+                    if (originalGameLoop) {
+                        game.gameLoop = function() {
+                            originalGameLoop();
+                    
+                            // Update 3D renderer if enabled
+                            if (Pool3DRenderer.enabled && Pool3DRenderer.initialized) {
+                                Pool3DRenderer.updateBalls(
+                                    game.balls, 
+                                    game.canvas.width, 
+                                    game.canvas.height
+                                );
+                                Pool3DRenderer.render();
+                            }
+                        };
+                    }
+            
+                    // Show mode indicator on load
+                    Pool3DRenderer.updateModeIndicator();
+            
+                    console.log('[3D Integration] Ready! Press ""3"" to toggle 3D mode.');
+                }
+            }, 100);
+        })();
+        ";
+                }
+            }
         }
-    }
-}
