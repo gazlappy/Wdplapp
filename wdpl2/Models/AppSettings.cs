@@ -117,6 +117,14 @@ namespace Wdpl2.Models
         /// <summary>Time of day for weekly fixture list (default 09:00).</summary>
         public TimeSpan WeeklyFixtureTime { get; set; } = new TimeSpan(9, 0, 0);
 
+        // ========== Theme Settings ==========
+
+        /// <summary>Enable/disable dark mode theme (default false - uses system).</summary>
+        public bool DarkModeEnabled { get; set; } = false;
+
+        /// <summary>Follow system theme (default true). When false, uses DarkModeEnabled value.</summary>
+        public bool UseSystemTheme { get; set; } = true;
+
         /// <summary>Reset all settings to defaults.</summary>
         public void ResetToDefaults()
         {
@@ -148,6 +156,10 @@ namespace Wdpl2.Models
             WeeklyFixtureListEnabled = false;
             WeeklyFixtureDay = DayOfWeek.Monday;
             WeeklyFixtureTime = new TimeSpan(9, 0, 0);
+
+            // Theme Settings
+            DarkModeEnabled = false;
+            UseSystemTheme = true;
         }
 
         /// <summary>

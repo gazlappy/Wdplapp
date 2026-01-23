@@ -22,20 +22,40 @@ public partial class PoolGamePage : ContentPage
             ? "null" 
             : savedSettings;
         
+        // Get current theme for styling
+        var isDarkMode = Services.ThemeService.IsDarkModeActive;
+        var themeClass = isDarkMode ? "dark-theme" : "light-theme";
+        var bodyBg = isDarkMode ? "#0f1419" : "#1e3c72";
+        var statusBg = isDarkMode ? "rgba(30,35,40,0.95)" : "rgba(0,0,0,0.9)";
+        var buttonBg = isDarkMode ? "#1d4ed8" : "#3B82F6";
+        var buttonHoverBg = isDarkMode ? "#1e40af" : "#2563EB";
+        var ballReturnBg = isDarkMode ? "linear-gradient(135deg, #1a1f26 0%, #242b35 100%)" : "linear-gradient(135deg, #2c3e50 0%, #34495e 100%)";
+        
         return $@"<!DOCTYPE html>
-<html>
+<html class='{themeClass}'>
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>
     <script>
         // Inject saved settings from MAUI Preferences
         window.MAUI_SAVED_SETTINGS = {savedSettingsJs};
+        window.MAUI_THEME = '{(isDarkMode ? "dark" : "light")}';
         console.log('MAUI saved settings injected:', window.MAUI_SAVED_SETTINGS ? 'found' : 'none');
+        console.log('MAUI theme:', window.MAUI_THEME);
     </script>
     <style>
+        :root {{
+            --body-bg: {bodyBg};
+            --status-bg: {statusBg};
+            --button-bg: {buttonBg};
+            --button-hover-bg: {buttonHoverBg};
+            --ball-return-bg: {ballReturnBg};
+            --text-color: white;
+            --text-muted: #95a5a6;
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ 
-            background: #1e3c72; 
+            background: var(--body-bg); 
             font-family: Arial, sans-serif;
             overflow: hidden;
             display: flex;
@@ -44,8 +64,8 @@ public partial class PoolGamePage : ContentPage
             padding: 20px;
         }}
         #status {{
-            color: white;
-            background: rgba(0,0,0,0.9);
+            color: var(--text-color);
+            background: var(--status-bg);
             padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 10px;
@@ -76,20 +96,22 @@ public partial class PoolGamePage : ContentPage
         }}
         button {{
             padding: 12px 24px;
-            background: #3B82F6;
-            color: white;
+            background: var(--button-bg);
+            color: var(--text-color);
             border: none;
             border-radius: 8px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
+            transition: background 0.2s;
         }}
-        button:hover {{ background: #2563EB; }}
+        button:hover {{ background: var(--button-hover-bg); }}
         button:active {{ transform: scale(0.95); }}
+        
         
         /* Ball Return Window */
         .ball-return-window {{
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            background: var(--ball-return-bg);
             border-radius: 12px;
             padding: 15px;
             margin-top: 15px;
@@ -101,7 +123,7 @@ public partial class PoolGamePage : ContentPage
         
         .ball-return-header {{
             text-align: center;
-            color: #ecf0f1;
+            color: var(--text-color);
             font-weight: bold;
             font-size: 1.1rem;
             margin-bottom: 12px;

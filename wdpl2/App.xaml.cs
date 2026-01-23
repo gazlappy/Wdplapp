@@ -11,6 +11,9 @@ public partial class App : Application
         // Load data
         DataStore.Load();
         
+        // Apply saved theme settings
+        ThemeService.ApplyTheme();
+        
         // Initialize season service
         SeasonService.Initialize();
     }

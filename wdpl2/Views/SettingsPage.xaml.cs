@@ -18,8 +18,42 @@ namespace Wdpl2.Views
     {
         private static AppSettings Settings => DataStore.Data.Settings;
 
+        // Theme-aware colors
+        private static Color InfoBoxBackground => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#1E3A5F") 
+            : Color.FromArgb("#F0F9FF");
+        
+        private static Color InfoBoxText => ThemeService.IsDarkModeActive 
+            ? Colors.White 
+            : Colors.Black;
+            
+        private static Color SubtitleText => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#9CA3AF") 
+            : Color.FromArgb("#666666");
+            
+        private static Color CardBackground => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#1F2937") 
+            : Color.FromArgb("#FAFAFA");
+            
+        private static Color CardBorder => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#374151") 
+            : Color.FromArgb("#E5E7EB");
+            
+        private static Color WarningBoxBackground => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#422006") 
+            : Color.FromArgb("#FFFBEB");
+            
+        private static Color SuccessBoxBackground => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#052E16") 
+            : Color.FromArgb("#F0FDF4");
+            
+        private static Color ErrorBoxBackground => ThemeService.IsDarkModeActive 
+            ? Color.FromArgb("#450A0A") 
+            : Color.FromArgb("#FEF2F2");
+
         private readonly ObservableCollection<string> _categories = new()
         {
+            "Appearance",
             "Player Ratings",
             "Match Scoring",
             "Fixture Defaults",
@@ -68,6 +102,7 @@ namespace Wdpl2.Views
         {
             View? content = category switch
             {
+                "Appearance" => CreateAppearancePanel(),
                 "Player Ratings" => CreatePlayerRatingsPanel(),
                 "Match Scoring" => CreateMatchScoringPanel(),
                 "Fixture Defaults" => CreateFixtureDefaultsPanel(),
@@ -78,6 +113,126 @@ namespace Wdpl2.Views
             };
 
             ContentPanel.Content = content;
+        }
+
+        private View CreateAppearancePanel()
+        {
+            var useSystemThemeSwitch = new Switch { IsToggled = Settings.UseSystemTheme };
+            var darkModeSwitch = new Switch { IsToggled = Settings.DarkModeEnabled, IsEnabled = !Settings.UseSystemTheme };
+            var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
+
+            var grid = new Grid 
+            { 
+                ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = 80 } }, 
+                RowSpacing = 16 
+            };
+
+            // Theme Icon/Header
+            var headerStack = new HorizontalStackLayout { Spacing = 8 };
+            headerStack.Children.Add(new Label { Text = "??", FontSize = 24, VerticalTextAlignment = TextAlignment.Center });
+            headerStack.Children.Add(new Label { Text = "Theme Settings", FontSize = 18, FontAttributes = FontAttributes.Bold, VerticalTextAlignment = TextAlignment.Center });
+            grid.Add(headerStack, 0, 0);
+            Grid.SetColumnSpan(headerStack, 2);
+
+            // Use System Theme
+            grid.Add(new Label { Text = "Follow system theme:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
+            grid.Add(useSystemThemeSwitch, 1, 1);
+
+            // Dark Mode
+            var darkModeLabel = new Label { Text = "Dark mode:", VerticalTextAlignment = TextAlignment.Center };
+            grid.Add(darkModeLabel, 0, 2);
+            grid.Add(darkModeSwitch, 1, 2);
+
+            // Current theme indicator
+            var currentThemeLabel = new Label 
+            { 
+                Text = GetCurrentThemeText(),
+                FontSize = 14,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            currentThemeLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
+            grid.Add(currentThemeLabel, 0, 3);
+            Grid.SetColumnSpan(currentThemeLabel, 2);
+
+            // Status label
+            grid.Add(statusLabel, 0, 4);
+            Grid.SetColumnSpan(statusLabel, 2);
+
+            // Event handlers
+            useSystemThemeSwitch.Toggled += (s, e) =>
+            {
+                darkModeSwitch.IsEnabled = !e.Value;
+                Settings.UseSystemTheme = e.Value;
+                
+                if (e.Value)
+                {
+                    ThemeService.UseSystemTheme();
+                    statusLabel.Text = "?? Following system theme";
+                }
+                else
+                {
+                    ThemeService.SetDarkMode(Settings.DarkModeEnabled);
+                    statusLabel.Text = Settings.DarkModeEnabled ? "?? Dark mode enabled" : "?? Light mode enabled";
+                }
+                
+                currentThemeLabel.Text = GetCurrentThemeText();
+                DataStore.Save();
+                
+                // Refresh the panel after a short delay to allow theme to apply
+                Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
+            };
+
+            darkModeSwitch.Toggled += (s, e) =>
+            {
+                Settings.DarkModeEnabled = e.Value;
+                ThemeService.SetDarkMode(e.Value);
+                statusLabel.Text = e.Value ? "?? Dark mode enabled" : "?? Light mode enabled";
+                currentThemeLabel.Text = GetCurrentThemeText();
+                DataStore.Save();
+                
+                // Refresh the panel after a short delay to allow theme to apply
+                Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
+            };
+
+            // Info panel
+            var infoLabel = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = "?? Theme Options:\n\n" +
+                       "• Follow system theme: Automatically switches between light and dark based on your device settings\n" +
+                       "• Dark mode: Manual control when system theme is disabled\n\n" +
+                       "The pool game will also update to match your theme preference."
+            };
+            infoLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
+            var infoFrame = new Border
+            {
+                Padding = 12,
+                Stroke = Color.FromArgb("#3B82F6"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 16, 0, 0),
+                Content = infoLabel
+            };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+
+            var stack = new VerticalStackLayout { Spacing = 8 };
+            stack.Children.Add(grid);
+            stack.Children.Add(infoFrame);
+
+            return stack;
+        }
+
+        private static string GetCurrentThemeText()
+        {
+            var isDark = ThemeService.IsDarkModeActive;
+            var isSystem = Settings.UseSystemTheme;
+            
+            if (isSystem)
+            {
+                return isDark ? "?? System theme: Dark" : "?? System theme: Light";
+            }
+            return isDark ? "?? Current: Dark mode" : "?? Current: Light mode";
         }
 
         private View CreatePlayerRatingsPanel()
@@ -121,31 +276,33 @@ namespace Wdpl2.Views
             _useEightBallSwitch.Toggled += (s, e) => _eightBallFactorEntry.IsEnabled = e.Value;
             _eightBallFactorEntry.IsEnabled = Settings.UseEightBallFactor;
 
+            var infoContent = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = "VBA-Style Cumulative Weighted Rating:\n\n" +
+                       "• Earlier frames have lower weight (Weighting - Bias × frames)\n" +
+                       "• Later frames have higher weight (progressive bias increase)\n" +
+                       "• Rating based on opponent strength at time of match\n" +
+                       "• Win against stronger opponent = higher rating gain\n\n" +
+                       "Min Frames %:\n" +
+                       "Percentage of maximum available frames needed to appear in ratings table.\n" +
+                       "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
+                       "All players still have ratings calculated.\n\n" +
+                       "Formula:\n" +
+                       "Rating = ?(OpponentRating × Factor × Weight) / ?Weight"
+            };
+            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
             var infoFrame = new Border
             {
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0F9FF"),
                 Stroke = Color.FromArgb("#3B82F6"),
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 8, 0, 0),
-                Content = new Label
-                {
-                    FontSize = 12,
-                    LineHeight = 1.4,
-                    TextColor = Colors.Black,
-                    Text = "VBA-Style Cumulative Weighted Rating:\n\n" +
-                           "• Earlier frames have lower weight (Weighting - Bias × frames)\n" +
-                           "• Later frames have higher weight (progressive bias increase)\n" +
-                           "• Rating based on opponent strength at time of match\n" +
-                           "• Win against stronger opponent = higher rating gain\n\n" +
-                           "Min Frames %:\n" +
-                           "Percentage of maximum available frames needed to appear in ratings table.\n" +
-                           "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
-                           "All players still have ratings calculated.\n\n" +
-                           "Formula:\n" +
-                           "Rating = ?(OpponentRating × Factor × Weight) / ?Weight"
-                }
+                Content = infoContent
             };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
 
             var buttons = new HorizontalStackLayout
             {
@@ -158,13 +315,16 @@ namespace Wdpl2.Views
                 }
             };
 
+            var subtitleLabel = new Label { Text = "VBA-style opponent-based cumulative weighted rating system", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
             return new VerticalStackLayout
             {
                 Spacing = 12,
                 Children =
                 {
                     new Label { Text = "Player Rating System", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "VBA-style opponent-based cumulative weighted rating system", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
+                    subtitleLabel,
                     grid,
                     infoFrame,
                     buttons,
@@ -187,28 +347,30 @@ namespace Wdpl2.Views
             grid.Add(new Label { Text = "Match draw bonus:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
             grid.Add(_pointsForDrawEntry, 1, 1);
 
+            var infoContent = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = "New Points System:\n\n" +
+                       "Team points = Frames Won + Bonus\n\n" +
+                       "• Win: Frames Won + Match Win Bonus\n" +
+                       "• Draw: Frames Won + Match Draw Bonus\n" +
+                       "• Loss: Frames Won (no bonus)\n\n" +
+                       "Example: Team wins 6-4 with Win Bonus=2:\n" +
+                       "  Winner gets 6+2=8 points\n" +
+                       "  Loser gets 4 points"
+            };
+            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
             var infoFrame = new Border
             {
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0F9FF"),
                 Stroke = Color.FromArgb("#3B82F6"),
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 8, 0, 0),
-                Content = new Label
-                {
-                    FontSize = 12,
-                    LineHeight = 1.4,
-                    TextColor = Colors.Black,
-                    Text = "New Points System:\n\n" +
-                           "Team points = Frames Won + Bonus\n\n" +
-                           "• Win: Frames Won + Match Win Bonus\n" +
-                           "• Draw: Frames Won + Match Draw Bonus\n" +
-                           "• Loss: Frames Won (no bonus)\n\n" +
-                           "Example: Team wins 6-4 with Win Bonus=2:\n" +
-                           "  Winner gets 6+2=8 points\n" +
-                           "  Loser gets 4 points"
-                }
+                Content = infoContent
             };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
 
             var buttons = new HorizontalStackLayout
             {
@@ -221,13 +383,16 @@ namespace Wdpl2.Views
                 }
             };
 
+            var subtitleLabel = new Label { Text = "Configure how team match points are awarded", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
             return new VerticalStackLayout
             {
                 Spacing = 12,
                 Children =
                 {
                     new Label { Text = "Match Scoring", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "Configure how team match points are awarded", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
+                    subtitleLabel,
                     grid,
                     infoFrame,
                     buttons,
@@ -262,21 +427,23 @@ namespace Wdpl2.Views
             grid.Add(new Label { Text = "Rounds per opponent:", VerticalTextAlignment = TextAlignment.Center }, 0, 3);
             grid.Add(_roundsPerOpponentEntry, 1, 3);
 
+            var infoContent = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = "These defaults are used when generating fixtures for a season. \nYou can override them when creating a specific season."
+            };
+            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
             var infoFrame = new Border
             {
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0F9FF"),
                 Stroke = Color.FromArgb("#3B82F6"),
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 8, 0, 0),
-                Content = new Label
-                {
-                    FontSize = 12,
-                    LineHeight = 1.4,
-                    TextColor = Colors.Black,
-                    Text = "These defaults are used when generating fixtures for a season. \nYou can override them when creating a specific season."
-                }
+                Content = infoContent
             };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
 
             var buttons = new HorizontalStackLayout
             {
@@ -289,13 +456,16 @@ namespace Wdpl2.Views
                 }
             };
 
+            var subtitleLabel = new Label { Text = "Default values used when generating new fixtures", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
             return new VerticalStackLayout
             {
                 Spacing = 12,
                 Children =
                 {
                     new Label { Text = "Fixture Generation Defaults", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "Default values used when generating new fixtures", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
+                    subtitleLabel,
                     grid,
                     infoFrame,
                     buttons,
@@ -463,9 +633,9 @@ namespace Wdpl2.Views
             {
                 Text = "Pending notifications: Checking...",
                 FontSize = 12,
-                Margin = new Thickness(0, 8, 0, 0),
-                TextColor = Color.FromArgb("#666")
+                Margin = new Thickness(0, 8, 0, 0)
             };
+            pendingLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
 
             // Cancel All Button
             var cancelAllBtn = new Button
@@ -564,61 +734,101 @@ namespace Wdpl2.Views
             };
 
             // Info Frame - Updated for Phase 3
+            var infoHeaderLabel = new Label 
+            { 
+                Text = $"{Emojis.Info} About Notifications", 
+                FontAttributes = FontAttributes.Bold, 
+                FontSize = 14,
+                FontFamily = Emojis.GetFontFamily()
+            };
+            infoHeaderLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
+            var infoBodyLabel = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                FormattedText = new FormattedString
+                {
+                    Spans =
+                    {
+                        new Span { Text = "Notification Types:\n", FontAttributes = FontAttributes.Bold },
+                        new Span { Text = $"{Emojis.Bell} Match Reminders - Get notified before your matches\n" },
+                        new Span { Text = $"{Emojis.Success} Result Alerts - Instant notifications when results are posted\n" },
+                        new Span { Text = $"{Emojis.Calendar} Weekly Summary - Monday morning fixture list\n\n" },
+                        new Span { Text = "Customization:\n", FontAttributes = FontAttributes.Bold },
+                        new Span { Text = $"{Emojis.Success} Choose reminder timing (1-24 hours before match)\n" },
+                        new Span { Text = $"{Emojis.Success} Enable/disable each notification type independently\n" },
+                        new Span { Text = $"{Emojis.Success} Settings saved automatically when changed\n\n" },
+                        new Span { Text = "How It Works:\n", FontAttributes = FontAttributes.Bold },
+                        new Span { Text = "• Reminders scheduled automatically when fixtures are generated or saved\n" },
+                        new Span { Text = "• Past matches don't get reminders\n" },
+                        new Span { Text = "• Settings apply to all future notifications\n" },
+                        new Span { Text = "• Works on iOS, Android, and Windows" }
+                    }
+                }
+            };
+            infoBodyLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
             var infoFrame = new Border
             {
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0F9FF"),
                 Stroke = Color.FromArgb("#3B82F6"),
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 16, 0, 0),
                 Content = new VerticalStackLayout
                 {
                     Spacing = 8,
-                    Children =
+                    Children = { infoHeaderLabel, infoBodyLabel }
+                }
+            };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+
+            var warningHeaderLabel = new Label 
+            { 
+                Text = $"{Emojis.Warning} Important", 
+                FontAttributes = FontAttributes.Bold, 
+                FontSize = 14, 
+                FontFamily = Emojis.GetFontFamily()
+            };
+            warningHeaderLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
+            var warningBodyLabel = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                FormattedText = new FormattedString
+                {
+                    Spans =
                     {
-                        new Label 
-                        { 
-                            Text = $"{Emojis.Info} About Notifications", 
-                            FontAttributes = FontAttributes.Bold, 
-                            FontSize = 14,
-                            TextColor = Colors.Black,
-                            FontFamily = Emojis.GetFontFamily()
-                        },
-                        new Label
-                        {
-                            FontSize = 12,
-                            LineHeight = 1.4,
-                            TextColor = Colors.Black,
-                            FormattedText = new FormattedString
-                            {
-                                Spans =
-                                {
-                                    new Span { Text = "Notification Types:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = $"{Emojis.Bell} Match Reminders - Get notified before your matches\n" },
-                                    new Span { Text = $"{Emojis.Success} Result Alerts - Instant notifications when results are posted\n" },
-                                    new Span { Text = $"{Emojis.Calendar} Weekly Summary - Monday morning fixture list\n\n" },
-                                    new Span { Text = "Customization:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = $"{Emojis.Success} Choose reminder timing (1-24 hours before match)\n" },
-                                    new Span { Text = $"{Emojis.Success} Enable/disable each notification type independently\n" },
-                                    new Span { Text = $"{Emojis.Success} Settings saved automatically when changed\n\n" },
-                                    new Span { Text = "How It Works:\n", FontAttributes = FontAttributes.Bold },
-                                    new Span { Text = "• Reminders scheduled automatically when fixtures are generated or saved\n" },
-                                    new Span { Text = "• Past matches don't get reminders\n" },
-                                    new Span { Text = "• Settings apply to all future notifications\n" },
-                                    new Span { Text = "• Works on iOS, Android, and Windows"
-                                    }
-                                }
-                            }
-                        }
+                        new Span { Text = $"{Emojis.Info} You must grant notification permissions first\n" },
+                        new Span { Text = $"{Emojis.Info} Changing reminder time affects new notifications only\n" },
+                        new Span { Text = $"{Emojis.Info} Battery saver mode may delay notifications\n" },
+                        new Span { Text = $"{Emojis.Info} Test notifications to ensure they're working" }
                     }
                 }
             };
-
+            warningBodyLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+            
             var warningFrame = new Border
             {
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#FFFBEB"),
                 Stroke = Color.FromArgb("#F59E0B"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 8, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children = { warningHeaderLabel, warningBodyLabel }
+                }
+            };
+            warningFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FFFBEB"), Color.FromArgb("#422006"));
+
+            var subtitleLabel = new Label { Text = "Customize your notification preferences", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            
+            var preferencesCard = new Border
+            {
+                Padding = 16,
                 StrokeThickness = 1,
                 Margin = new Thickness(0, 8, 0, 0),
                 Content = new VerticalStackLayout
@@ -626,34 +836,13 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label 
-                        { 
-                            Text = $"{Emojis.Warning} Important", 
-                            FontAttributes = FontAttributes.Bold, 
-                            FontSize = 14, 
-                            TextColor = Colors.Black,
-                            FontFamily = Emojis.GetFontFamily()
-                        },
-                        new Label
-                        {
-                            FontSize = 12,
-                            LineHeight = 1.4,
-                            TextColor = Colors.Black,
-                            FormattedText = new FormattedString
-                            {
-                                Spans =
-                                {
-                                    new Span { Text = $"{Emojis.Info} You must grant notification permissions first\n" },
-                                    new Span { Text = $"{Emojis.Info} Changing reminder time affects new notifications only\n" },
-                                    new Span { Text = $"{Emojis.Info} Battery saver mode may delay notifications\n" },
-                                    new Span { Text = $"{Emojis.Info} Test notifications to ensure they're working"
-                                    }
-                                }
-                            }
-                        }
+                        new Label { Text = "?? Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
+                        preferencesGrid
                     }
                 }
             };
+            preferencesCard.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FAFAFA"), Color.FromArgb("#1F2937"));
+            preferencesCard.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
 
             var scrollView = new ScrollView
             {
@@ -663,26 +852,10 @@ namespace Wdpl2.Views
                     Children =
                     {
                         new Label { Text = "Match Notifications", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                        new Label { Text = "Customize your notification preferences", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
+                        subtitleLabel,
                         
                         // Phase 3: User Preferences Section
-                        new Border
-                        {
-                            Padding = 16,
-                            BackgroundColor = Color.FromArgb("#FAFAFA"),
-                            Stroke = Color.FromArgb("#E5E7EB"),
-                            StrokeThickness = 1,
-                            Margin = new Thickness(0, 8, 0, 0),
-                            Content = new VerticalStackLayout
-                            {
-                                Spacing = 8,
-                                Children =
-                                {
-                                    new Label { Text = "?? Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
-                                    preferencesGrid
-                                }
-                            }
-                        },
+                        preferencesCard,
                         
                         // Permissions & Management Section
                         new Label { Text = "Setup & Testing", FontAttributes = FontAttributes.Bold, FontSize = 16, Margin = new Thickness(0, 16, 0, 0) },
@@ -725,16 +898,17 @@ namespace Wdpl2.Views
 
         private View CreateImportDataPanel()
         {
-            _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0), TextColor = Color.FromArgb("#666") };
+            _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
+            _statusLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
 
             // ========== FILE SELECTION ==========
             var selectedFileLabel = new Label
             {
                 Text = "No database selected",
                 FontSize = 12,
-                TextColor = Colors.Gray,
                 Margin = new Thickness(0, 8, 0, 4)
             };
+            selectedFileLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Gray, Color.FromArgb("#9CA3AF"));
 
             var selectDbBtn = new Button
             {
@@ -800,33 +974,34 @@ namespace Wdpl2.Views
             };
 
             // ========== IMPORT RESULTS SECTION ==========
+            var resultsLabel = new Label { Text = "? Import Results", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#10B981") };
+            var resultsContentLabel = new Label { Text = "", FontSize = 12, LineHeight = 1.4 };
+            
             var resultsBorder = new Border
             {
                 IsVisible = false,
                 Stroke = Color.FromArgb("#10B981"),
                 StrokeThickness = 2,
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0FDF4"),
                 Margin = new Thickness(0, 12, 0, 0),
                 StrokeShape = new RoundRectangle { CornerRadius = 8 },
                 Content = new VerticalStackLayout
                 {
                     Spacing = 8,
-                    Children =
-                    {
-                        new Label { Text = "? Import Results", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#10B981") },
-                        new Label { Text = "", FontSize = 12, LineHeight = 1.4 }
-                    }
+                    Children = { resultsLabel, resultsContentLabel }
                 }
             };
+            resultsBorder.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0FDF4"), Color.FromArgb("#052E16"));
 
+            var errorsLabel = new Label { Text = "? Errors", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#EF4444") };
+            var errorsContentLabel = new Label { Text = "", FontSize = 11, LineHeight = 1.4 };
+            
             var errorsBorder = new Border
             {
                 IsVisible = false,
                 Stroke = Color.FromArgb("#EF4444"),
                 StrokeThickness = 2,
                 Padding = 12,
-                BackgroundColor = Color.FromArgb("#FEF2F2"),
                 Margin = new Thickness(0, 12, 0, 0),
                 StrokeShape = new RoundRectangle { CornerRadius = 8 },
                 Content = new ScrollView
@@ -835,14 +1010,11 @@ namespace Wdpl2.Views
                     Content = new VerticalStackLayout
                     {
                         Spacing = 8,
-                        Children =
-                        {
-                            new Label { Text = "? Errors", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#EF4444") },
-                            new Label { Text = "", FontSize = 11, LineHeight = 1.4 }
-                        }
+                        Children = { errorsLabel, errorsContentLabel }
                     }
                 }
             };
+            errorsBorder.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FEF2F2"), Color.FromArgb("#450A0A"));
 
             string? selectedDatabasePath = null;
 

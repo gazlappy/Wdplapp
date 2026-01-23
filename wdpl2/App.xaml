@@ -8,6 +8,8 @@
         <ResourceDictionary>
             <!-- Merge Shared Styles -->
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
                 <ResourceDictionary Source="Resources/Styles/SharedStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
@@ -34,9 +36,15 @@
                 <Setter Property="AutoSize" Value="TextChanges" />
             </Style>
 
-            <!-- Label Style -->
+            <!-- Label Style - with proper dark mode support -->
             <Style TargetType="Label">
                 <Setter Property="Margin" Value="0,4,0,2" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+            </Style>
+            
+            <!-- Page background for dark mode -->
+            <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

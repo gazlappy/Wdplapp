@@ -22,6 +22,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _darkMode;
     
     [ObservableProperty]
+    private bool _useSystemTheme = true;
+    
+    [ObservableProperty]
     private string _defaultVenue = "";
     
     [ObservableProperty]
@@ -73,6 +76,10 @@ public partial class SettingsViewModel : ObservableObject
         var settings = _dataStore.GetData().Settings;
         if (settings != null)
         {
+            // Load theme settings
+            _darkMode = settings.DarkModeEnabled;
+            _useSystemTheme = settings.UseSystemTheme;
+            
             // Load notification settings (Phase 3)
             _matchRemindersEnabled = settings.MatchRemindersEnabled;
             _reminderHours = settings.ReminderHoursBefore;
@@ -115,9 +122,13 @@ public partial class SettingsViewModel : ObservableObject
     private async Task ResetSettingsAsync()
     {
         _darkMode = false;
+        _useSystemTheme = true;
         _defaultVenue = "";
         _framesPerMatch = 8;
         _autoSave = true;
+        
+        // Apply system theme
+        ThemeService.UseSystemTheme();
         
         await SaveSettingsAsync();
         SetStatus("Settings reset to defaults");
@@ -199,5 +210,49 @@ public partial class SettingsViewModel : ObservableObject
     private void SetStatus(string message)
     {
         _statusMessage = $"{System.DateTime.Now:HH:mm:ss}  {message}";
+    }
+    
+    // Theme Commands
+    [RelayCommand]
+    private void SetDarkMode(bool enabled)
+    {
+        _darkMode = enabled;
+        if (!_useSystemTheme)
+        {
+            ThemeService.SetDarkMode(enabled);
+            SetStatus(enabled ? "?? Dark mode enabled" : "?? Light mode enabled");
+        }
+    }
+    
+    [RelayCommand]
+    private void SetSystemTheme(bool enabled)
+    {
+        _useSystemTheme = enabled;
+        if (enabled)
+        {
+            ThemeService.UseSystemTheme();
+            SetStatus("?? Following system theme");
+        }
+        else
+        {
+            ThemeService.SetDarkMode(_darkMode);
+        }
+    }
+    
+    [RelayCommand]
+    private void ToggleDarkMode()
+    {
+        if (_useSystemTheme)
+        {
+            // First disable system theme, then toggle
+            _useSystemTheme = false;
+            _darkMode = true;
+            ThemeService.SetDarkMode(true);
+        }
+        else
+        {
+            _darkMode = !_darkMode;
+            ThemeService.SetDarkMode(_darkMode);
+        }
     }
 }
