@@ -298,15 +298,20 @@ public partial class PoolGamePage : ContentPage
                 <div class='ball-stat-value black' id='blackPotted'>0/1</div>
             </div>
         </div>
-    </div>
+        </div>
     
-    <script>
-    {Services.PoolAudioModule.GenerateJavaScript()}
-    </script>
+        <script>
+        {Services.PoolThreeJSModule.GenerateJavaScript()}
+        </script>
     
-    <script>
-    {Services.PoolBallRotationModule.GenerateJavaScript()}
-    </script>
+        <script>
+        {Services.PoolAudioModule.GenerateJavaScript()}
+        </script>
+    
+        <script>
+        {Services.PoolBallRotationModule.GenerateJavaScript()}
+        </script>
+    
     
     <script>
     {Services.PoolPhysicsModule.GenerateJavaScript()}

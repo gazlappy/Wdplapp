@@ -724,28 +724,31 @@ namespace Wdpl2.Services
         }
         
         private static string GetPoolGameJS()
-                {
-                    var sb = new StringBuilder();
+        {
+            var sb = new StringBuilder();
             
-                    // Add all module JavaScript (same order as app)
-                    sb.AppendLine(PoolAudioModule.GenerateJavaScript());
-                    sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
-                    sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
-                    sb.AppendLine(PoolPocketModule.GenerateJavaScript());
-                    sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
-                    sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
-                    sb.AppendLine(PoolInputModule.GenerateJavaScript());
-                    sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
-                    sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
-                    sb.AppendLine(PoolGameSettingsModule.GenerateJavaScript());  // Added: same as app
-                    sb.AppendLine(Pool3DRendererModule.GenerateJavaScript());    // 3D Renderer POC - press '3' to toggle
-                    sb.AppendLine(PoolGameModule.GenerateJavaScript());
+            // Add embedded Three.js first (before 3D renderer)
+            sb.AppendLine(PoolThreeJSModule.GenerateJavaScript());
+                    
+            // Add all module JavaScript (same order as app)
+            sb.AppendLine(PoolAudioModule.GenerateJavaScript());
+            sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
+            sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
+            sb.AppendLine(PoolPocketModule.GenerateJavaScript());
+            sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
+            sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
+            sb.AppendLine(PoolInputModule.GenerateJavaScript());
+            sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
+            sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
+            sb.AppendLine(PoolGameSettingsModule.GenerateJavaScript());  // Added: same as app
+            sb.AppendLine(Pool3DRendererModule.GenerateJavaScript());    // 3D Renderer POC - press '3' to toggle
+            sb.AppendLine(PoolGameModule.GenerateJavaScript());
             
-                    // Add 3D render loop integration
-                    sb.AppendLine(Get3DIntegrationJS());
+            // Add 3D render loop integration
+            sb.AppendLine(Get3DIntegrationJS());
             
-                    return sb.ToString();
-                }
+            return sb.ToString();
+        }
         
                 /// <summary>
                 /// Integration code to hook 3D renderer into the game loop
