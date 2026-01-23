@@ -311,28 +311,43 @@ const PoolThreeJS = {
         
         this.updateLoadingProgress(20, 'Loading 3D model from GitHub...');
         
-        // Load from GitHub raw URL (push your changes first!)
-        // The model is in wdpl2/Models/scene.gltf
+        // Try multiple URLs - master and main branches
+        // Push your model files to GitHub first!
         const modelUrls = [
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
+            'https://raw.githubusercontent.com/gazlappy/Wdplapp/main/wdpl2/Models/scene.gltf',
         ];
         
         // Try each URL until one works
+        let lastError = null;
         for (const url of modelUrls) {
             try {
                 console.log('[ThreeJS] Attempting to load model from:', url);
+                this.updateLoadingProgress(30, 'Downloading from GitHub...');
                 await this.loadGLTF(url);
                 this.modelLoaded = true;
-                console.log('[ThreeJS] Model loaded successfully!');
+                console.log('[ThreeJS] Model loaded successfully from:', url);
                 return;
             } catch (error) {
-                console.warn('[ThreeJS] Failed to load model from:', url, error);
+                console.warn('[ThreeJS] Failed to load from:', url);
+                console.warn('[ThreeJS] Error:', error.message || error);
+                lastError = error;
             }
         }
         
         // Fallback to procedural table if model fails to load
-        console.log('[ThreeJS] External model failed, using procedural table');
-        this.updateLoadingProgress(50, 'Building procedural table (model not available)...');
+        console.log('[ThreeJS] All model URLs failed, using procedural table');
+        console.log('[ThreeJS] Last error:', lastError);
+        this.updateLoadingProgress(50, 'Model not found - using procedural table...');
+        
+        // Show a message to the user about pushing to GitHub
+        setTimeout(() => {
+            const status = document.getElementById('threejs-status');
+            if (status) {
+                status.innerHTML = '<span style="color:#f59e0b">?? Push model files to GitHub to see 3D model</span>';
+            }
+        }, 500);
+        
         await this.createProceduralTable();
         this.modelLoaded = true;
     },
