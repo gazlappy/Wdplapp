@@ -309,41 +309,32 @@ const PoolThreeJS = {
             this.gltfLoader.setDRACOLoader(dracoLoader);
         }
         
-        this.updateLoadingProgress(20, 'Loading 3D model...');
+        this.updateLoadingProgress(20, 'Loading 3D model from GitHub...');
         
-        // For Sketchfab models, we need to use their download API or a direct link
-        // Since direct Sketchfab downloads require authentication, we'll use the procedural table
-        // but with enhanced quality. In production, you would host the GLB file yourself.
-        
-        // Try loading from a sample pool table model URL
-        // Replace this URL with your downloaded GLB file hosted somewhere accessible
+        // Load from GitHub raw URL (push your changes first!)
+        // The model is in wdpl2/Models/scene.gltf
         const modelUrls = [
-            // Add your hosted GLB URL here after downloading from Sketchfab
-            // 'https://your-server.com/pool-table.glb',
+            'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
         ];
-        
-        // If no external model URLs configured, use procedural
-        if (modelUrls.length === 0) {
-            console.log('[ThreeJS] No external model URL configured, using enhanced procedural table');
-            this.updateLoadingProgress(50, 'Building enhanced procedural table...');
-            await this.createProceduralTable();
-            this.modelLoaded = true;
-            return;
-        }
         
         // Try each URL until one works
         for (const url of modelUrls) {
             try {
+                console.log('[ThreeJS] Attempting to load model from:', url);
                 await this.loadGLTF(url);
                 this.modelLoaded = true;
+                console.log('[ThreeJS] Model loaded successfully!');
                 return;
             } catch (error) {
                 console.warn('[ThreeJS] Failed to load model from:', url, error);
             }
         }
         
-        // Fallback to procedural
-        throw new Error('All model URLs failed');
+        // Fallback to procedural table if model fails to load
+        console.log('[ThreeJS] External model failed, using procedural table');
+        this.updateLoadingProgress(50, 'Building procedural table (model not available)...');
+        await this.createProceduralTable();
+        this.modelLoaded = true;
     },
     
     loadGLTF: function(url) {
@@ -361,23 +352,44 @@ const PoolThreeJS = {
                     const size = box.getSize(new THREE.Vector3());
                     const center = box.getCenter(new THREE.Vector3());
                     
-                    // Scale model to fit our table dimensions
-                    const scaleX = this.tableWidth / size.x;
-                    const scaleZ = this.tableHeight / size.z;
-                    const scale = Math.min(scaleX, scaleZ) * 0.9;
+                    console.log('[ThreeJS] Model size:', size);
+                    console.log('[ThreeJS] Model center:', center);
+                    
+                    // The Sketchfab model has different dimensions
+                    // Table is roughly 53x91 units in the model (Y is length in GLTF)
+                    // We need to scale to fit our 1000x500 game dimensions
+                    const modelTableWidth = size.y;  // GLTF Y = our X (length)
+                    const modelTableHeight = size.x; // GLTF X = our Z (width)
+                    
+                    const scaleX = this.tableWidth / modelTableWidth;
+                    const scaleZ = this.tableHeight / modelTableHeight;
+                    const scale = Math.min(scaleX, scaleZ) * 0.85;
+                    
+                    console.log('[ThreeJS] Applying scale:', scale);
                     
                     model.scale.set(scale, scale, scale);
                     
-                    // Center the model
-                    model.position.x = this.tableWidth / 2 - center.x * scale;
-                    model.position.y = -center.y * scale;
-                    model.position.z = this.tableHeight / 2 - center.z * scale;
+                    // The model is oriented differently - rotate to match our coordinate system
+                    model.rotation.x = -Math.PI / 2;  // Flip from Z-up to Y-up
                     
-                    // Enable shadows
+                    // Center the model on our table position
+                    model.position.x = this.tableWidth / 2;
+                    model.position.y = 0;
+                    model.position.z = this.tableHeight / 2;
+                    
+                    // Store playing surface height for ball positioning
+                    this.playingSurfaceY = 15 * scale;
+                    
+                    // Enable shadows on all meshes
                     model.traverse((child) => {
                         if (child.isMesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
+                            
+                            // Hide the model's built-in balls (we use our own)
+                            if (child.name && (child.name.includes('Sphere') || child.name.includes('Duplicate'))) {
+                                child.visible = false;
+                            }
                         }
                     });
                     
