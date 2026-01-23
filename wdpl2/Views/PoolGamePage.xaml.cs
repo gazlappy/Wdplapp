@@ -22,6 +22,9 @@ public partial class PoolGamePage : ContentPage
             ? "null" 
             : savedSettings;
         
+        // Get embedded 3D model script
+        var embeddedModelScript = Services.PoolThreeJSModule.GetEmbeddedModelScript();
+        
         // Get current theme for styling
         var isDarkMode = Services.ThemeService.IsDarkModeActive;
         var themeClass = isDarkMode ? "dark-theme" : "light-theme";
@@ -42,6 +45,9 @@ public partial class PoolGamePage : ContentPage
         window.MAUI_THEME = '{(isDarkMode ? "dark" : "light")}';
         console.log('MAUI saved settings injected:', window.MAUI_SAVED_SETTINGS ? 'found' : 'none');
         console.log('MAUI theme:', window.MAUI_THEME);
+        
+        // Inject embedded 3D model data
+        {embeddedModelScript}
     </script>
     <style>
         :root {{
@@ -420,10 +426,29 @@ public partial class PoolGamePage : ContentPage
         // Handle WebView navigation for settings persistence
         GameWebView.Navigating += OnWebViewNavigating;
         
-        LoadGame();
+        // Load embedded 3D model, then load the game
+        _ = InitializeAsync();
         
         // Reset button should only reset the game frame, not reload the entire page
         ResetBtn.Clicked += async (s, e) => await ResetGame();
+    }
+    
+    private async Task InitializeAsync()
+    {
+        System.Diagnostics.Debug.WriteLine("=== PoolGamePage.InitializeAsync() STARTING ===");
+        try
+        {
+            // Preload the embedded 3D model
+            await Services.PoolThreeJSModule.LoadEmbeddedModelAsync();
+            System.Diagnostics.Debug.WriteLine("=== PoolGamePage.InitializeAsync() MODEL LOADED ===");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to preload embedded model: {ex.Message}");
+        }
+        
+        // Load the game after model is ready
+        LoadGame();
     }
     
     private async void OnWebViewNavigating(object? sender, WebNavigatingEventArgs e)
@@ -437,6 +462,7 @@ public partial class PoolGamePage : ContentPage
             {
                 var uri = new Uri(e.Url);
                 var action = uri.Host;
+                
                 
                 if (action == "save")
                 {
@@ -457,6 +483,51 @@ public partial class PoolGamePage : ContentPage
             {
                 System.Diagnostics.Debug.WriteLine($"Settings navigation error: {ex.Message}");
             }
+        }
+        
+        // Handle 3D model loading request
+        if (e.Url.StartsWith("poolmodel://"))
+        {
+            e.Cancel = true;
+            _ = InjectModelDataAsync();
+        }
+    }
+    
+    private async Task InjectModelDataAsync()
+    {
+        try
+        {
+            var gltfJson = Services.PoolThreeJSModule.GetGltfJson();
+            var binBase64 = Services.PoolThreeJSModule.GetBinBase64();
+            
+            if (string.IsNullOrEmpty(gltfJson) || string.IsNullOrEmpty(binBase64))
+            {
+                System.Diagnostics.Debug.WriteLine("[PoolGame] No embedded model data available");
+                await GameWebView.EvaluateJavaScriptAsync("window.EMBEDDED_GLTF_MODEL = null; window.EMBEDDED_GLTF_BIN = null;");
+                return;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"[PoolGame] Injecting model data: GLTF={gltfJson.Length} chars, BIN={binBase64.Length} chars");
+            
+            // Inject the GLTF JSON - escape for JavaScript
+            var escapedGltf = gltfJson
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\r", "")
+                .Replace("\n", "");
+            
+            // Inject in chunks to avoid string size limits
+            // First set the BIN (base64 is safe)
+            await GameWebView.EvaluateJavaScriptAsync($"window.EMBEDDED_GLTF_BIN = '{binBase64}';");
+            
+            // Then set the GLTF JSON
+            await GameWebView.EvaluateJavaScriptAsync($"window.EMBEDDED_GLTF_MODEL = '{escapedGltf}';");
+            
+            System.Diagnostics.Debug.WriteLine("[PoolGame] Model data injected successfully");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PoolGame] Failed to inject model data: {ex.Message}");
         }
     }
     
@@ -573,7 +644,7 @@ public partial class PoolGamePage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine("=== PoolGamePage.LoadGame() ===");
             
-            // Generate modular HTML
+            // Generate modular HTML (embedded model should already be loaded)
             var html = GenerateModularGameHtml();
             System.Diagnostics.Debug.WriteLine($"HTML Length: {html.Length} chars");
             

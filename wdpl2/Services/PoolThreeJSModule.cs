@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Text.Json;
+
 namespace Wdpl2.Services;
 
 /// <summary>
@@ -7,6 +10,83 @@ namespace Wdpl2.Services;
 /// </summary>
 public static class PoolThreeJSModule
 {
+    // Cached embedded model data
+    private static string? _embeddedGltfJson;
+    private static string? _embeddedBinBase64;
+    
+    /// <summary>
+    /// Load embedded model files from embedded resources
+    /// </summary>
+    public static async Task LoadEmbeddedModelAsync()
+    {
+        if (_embeddedGltfJson != null && _embeddedBinBase64 != null)
+            return; // Already loaded
+            
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            
+            // Find the embedded resource names
+            var resourceNames = assembly.GetManifestResourceNames();
+            System.Diagnostics.Debug.WriteLine($"[PoolThreeJS] Available resources: {string.Join(", ", resourceNames)}");
+            
+            var gltfResourceName = resourceNames.FirstOrDefault(n => n.EndsWith("scene.gltf"));
+            var binResourceName = resourceNames.FirstOrDefault(n => n.EndsWith("scene.bin"));
+            
+            if (gltfResourceName == null || binResourceName == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PoolThreeJS] Model resources not found. GLTF={gltfResourceName}, BIN={binResourceName}");
+                return;
+            }
+            
+            // Load GLTF JSON
+            using var gltfStream = assembly.GetManifestResourceStream(gltfResourceName);
+            if (gltfStream != null)
+            {
+                using var gltfReader = new StreamReader(gltfStream);
+                _embeddedGltfJson = await gltfReader.ReadToEndAsync();
+            }
+            
+            // Load BIN as base64
+            using var binStream = assembly.GetManifestResourceStream(binResourceName);
+            if (binStream != null)
+            {
+                using var memStream = new MemoryStream();
+                await binStream.CopyToAsync(memStream);
+                _embeddedBinBase64 = Convert.ToBase64String(memStream.ToArray());
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"[PoolThreeJS] Loaded embedded model: GLTF={_embeddedGltfJson?.Length ?? 0} chars, BIN={_embeddedBinBase64?.Length ?? 0} base64 chars");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PoolThreeJS] Failed to load embedded model: {ex.Message}");
+            _embeddedGltfJson = null;
+            _embeddedBinBase64 = null;
+        }
+    }
+    
+    /// <summary>
+    /// Get the embedded model data as JavaScript injection code
+    /// We don't inject the full data directly - it's too large
+    /// Instead, we set a flag and provide a method to fetch it
+    /// </summary>
+    public static string GetEmbeddedModelScript()
+    {
+        bool hasModel = !string.IsNullOrEmpty(_embeddedGltfJson) && !string.IsNullOrEmpty(_embeddedBinBase64);
+        return $"window.EMBEDDED_MODEL_AVAILABLE = {(hasModel ? "true" : "false")}; console.log('[MAUI] Embedded model available:', {(hasModel ? "true" : "false")});";
+    }
+    
+    /// <summary>
+    /// Get the GLTF JSON for injection via EvaluateJavaScriptAsync
+    /// </summary>
+    public static string? GetGltfJson() => _embeddedGltfJson;
+    
+    /// <summary>
+    /// Get the binary data as base64 for injection via EvaluateJavaScriptAsync
+    /// </summary>
+    public static string? GetBinBase64() => _embeddedBinBase64;
+    
     public static string GenerateJavaScript()
     {
         return """
@@ -309,10 +389,57 @@ const PoolThreeJS = {
             this.gltfLoader.setDRACOLoader(dracoLoader);
         }
         
+        // Check if MAUI has embedded model available (loaded on-demand)
+        if (window.EMBEDDED_MODEL_AVAILABLE) {
+            console.log('[ThreeJS] MAUI has embedded model, requesting data...');
+            this.updateLoadingProgress(20, 'Requesting model from app...');
+            
+            try {
+                // Request model data from MAUI via URL navigation
+                // MAUI will intercept this and inject the data
+                window.location.href = 'poolmodel://load';
+                
+                // Wait for MAUI to inject the data (with timeout)
+                let attempts = 0;
+                while (!window.EMBEDDED_GLTF_MODEL && attempts < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+                
+                if (window.EMBEDDED_GLTF_MODEL && window.EMBEDDED_GLTF_BIN) {
+                    console.log('[ThreeJS] Received embedded GLTF model data from MAUI');
+                    this.updateLoadingProgress(40, 'Processing embedded model...');
+                    
+                    // Parse the GLTF JSON
+                    const gltfJson = JSON.parse(window.EMBEDDED_GLTF_MODEL);
+                    
+                    // Replace the buffer URI with embedded base64 data
+                    if (gltfJson.buffers && gltfJson.buffers.length > 0) {
+                        gltfJson.buffers[0].uri = 'data:application/octet-stream;base64,' + window.EMBEDDED_GLTF_BIN;
+                    }
+                    
+                    // Convert back to string for the loader
+                    const embeddedGltfStr = JSON.stringify(gltfJson);
+                    const blob = new Blob([embeddedGltfStr], { type: 'application/json' });
+                    const dataUrl = URL.createObjectURL(blob);
+                    
+                    this.updateLoadingProgress(60, 'Loading 3D model...');
+                    await this.loadGLTF(dataUrl);
+                    URL.revokeObjectURL(dataUrl);
+                    
+                    this.modelLoaded = true;
+                    console.log('[ThreeJS] Embedded model loaded successfully!');
+                    return;
+                }
+            } catch (error) {
+                console.warn('[ThreeJS] Failed to load embedded model:', error);
+            }
+        }
+        }
+        
         this.updateLoadingProgress(20, 'Loading 3D model from GitHub...');
         
-        // Try multiple URLs - master and main branches
-        // Push your model files to GitHub first!
+        // Fallback: Try GitHub URLs
         const modelUrls = [
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/main/wdpl2/Models/scene.gltf',
@@ -335,18 +462,10 @@ const PoolThreeJS = {
             }
         }
         
-        // Fallback to procedural table if model fails to load
-        console.log('[ThreeJS] All model URLs failed, using procedural table');
+        // Fallback to procedural table if all methods fail
+        console.log('[ThreeJS] All model sources failed, using procedural table');
         console.log('[ThreeJS] Last error:', lastError);
-        this.updateLoadingProgress(50, 'Model not found - using procedural table...');
-        
-        // Show a message to the user about pushing to GitHub
-        setTimeout(() => {
-            const status = document.getElementById('threejs-status');
-            if (status) {
-                status.innerHTML = '<span style="color:#f59e0b">?? Push model files to GitHub to see 3D model</span>';
-            }
-        }, 500);
+        this.updateLoadingProgress(50, 'Using procedural table...');
         
         await this.createProceduralTable();
         this.modelLoaded = true;

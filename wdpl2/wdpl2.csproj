@@ -43,6 +43,11 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 	<ItemGroup>
+		<!-- Include 3D model files as embedded resources -->
+		<EmbeddedResource Include="Models\scene.gltf" />
+		<EmbeddedResource Include="Models\scene.bin" />
+	</ItemGroup>
+	<ItemGroup>
 	  <MauiImage Remove="Resources\Raw\pool-game.html" />
 	</ItemGroup>
 	<ItemGroup>
