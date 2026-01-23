@@ -517,14 +517,14 @@ namespace Wdpl2.Services
     </style>
 </head>
 <body>
-    <div class=""game-container"">
+        <div class=""game-container"">
         <div class=""game-header"">
             <h1>?? UK 8-Ball Pool</h1>
             <div class=""controls"">
                 <button id=""newGameBtn"" class=""btn btn-small"">New Game</button>
                 <button id=""rulesBtn"" class=""btn btn-small"">EPA Rules</button>
                 <button id=""ballInHandBtn"" class=""btn btn-small"">?? Move Cue</button>
-                <button id=""devSettingsBtn"" class=""btn btn-small"">?? Settings</button>
+                <button id=""devSettingsBtn"" class=""btn btn-small"">?? Dev</button>
                 <button class=""btn btn-small"" onclick=""window.location.href='index.html'"">?? Back</button>
             </div>
         </div>
@@ -538,7 +538,7 @@ namespace Wdpl2.Services
                 <div class=""turn-indicator"" id=""turnIndicator"">Player 1's Turn</div>
                 <div id=""gameMessage"">Legal Break: 3+ points required</div>
                 <div id=""shotInfo"">Touch and drag to aim & shoot</div>
-                <div class=""foul-indicator"" id=""foulIndicator"" style=""display:none"">?? FOUL - Ball in Hand</div>
+            <div class=""foul-indicator"" id=""foulIndicator"" style=""display:none"">?? FOUL - Ball in Hand</div>
             </div>
             <div class=""player-panel"" id=""player2Panel"">
                 <h3>Player 2</h3>
@@ -548,7 +548,7 @@ namespace Wdpl2.Services
         </div>
         <div class=""table-container"">
             <div class=""canvas-wrapper"">
-                <canvas id=""poolTable"" width=""1200"" height=""600""></canvas>
+                <canvas id=""poolTable"" width=""1000"" height=""500""></canvas>
             </div>
             <div class=""power-bar-container"" id=""powerBarContainer"">
                 <div style=""color:white;font-weight:bold;margin-bottom:8px;text-align:center"">Shot Power</div>
@@ -691,6 +691,14 @@ namespace Wdpl2.Services
                 e.preventDefault();
             }}
         }}, {{ passive: false }});
+        
+        // Initialize game settings after game loads (same as app)
+        setTimeout(() => {{
+            if (typeof PoolGameSettings !== 'undefined' && typeof game !== 'undefined') {{
+                PoolGameSettings.init(game);
+                PoolGameSettings.applySettings();
+            }}
+        }}, 300);
     }})();
     </script>
     <div id=""debugInfo"" style=""position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.8);color:lime;padding:10px;border-radius:8px;font-family:monospace;font-size:12px;z-index:10000;max-width:200px;display:none;"">
@@ -704,16 +712,17 @@ namespace Wdpl2.Services
         {
             var sb = new StringBuilder();
             
-            // Add all module JavaScript
+            // Add all module JavaScript (same order as app)
             sb.AppendLine(PoolAudioModule.GenerateJavaScript());
             sb.AppendLine(PoolBallRotationModule.GenerateJavaScript());  // Ball rotation - must be before Physics
             sb.AppendLine(PoolPhysicsModule.GenerateJavaScript());
-            sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
             sb.AppendLine(PoolPocketModule.GenerateJavaScript());
-            sb.AppendLine(PoolInputModule.GenerateJavaScript());
+            sb.AppendLine(PoolRenderingModule.GenerateJavaScript());
             sb.AppendLine(PoolSpinControlModule.GenerateJavaScript());
+            sb.AppendLine(PoolInputModule.GenerateJavaScript());
             sb.AppendLine(PoolShotControlModule.GenerateJavaScript());
             sb.AppendLine(PoolDevSettingsModule.GenerateJavaScript());
+            sb.AppendLine(PoolGameSettingsModule.GenerateJavaScript());  // Added: same as app
             sb.AppendLine(PoolGameModule.GenerateJavaScript());
             
             return sb.ToString();
