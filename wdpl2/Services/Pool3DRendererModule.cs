@@ -2,6 +2,7 @@ namespace Wdpl2.Services;
 
 /// <summary>
 /// Isometric 3D pool table renderer with playable controls
+/// Links to all game settings from the 2D version including all shot control modes
 /// </summary>
 public static class Pool3DRendererModule
 {
@@ -9,8 +10,8 @@ public static class Pool3DRendererModule
     {
         return """
 // ============================================
-// ISOMETRIC 3D POOL RENDERER v4.0
-// With playable aiming and shooting
+// ISOMETRIC 3D POOL RENDERER v6.0
+// Full dev settings + all shot control modes
 // ============================================
 
 const Pool3DRenderer = {
@@ -25,20 +26,98 @@ const Pool3DRenderer = {
     animationId: null,
     cameraAngle: 0.4,
     targetAngle: 0.4,
-    isAiming: false,
-    aimStartX: 0,
-    aimStartY: 0,
-    aimEndX: 0,
-    aimEndY: 0,
-    shotPower: 0,
-    maxPower: 25,
     controlPanel: null,
     angleDisplay: null,
+    
+    // Shot state (shared across modes)
+    mouseX: 0,
+    mouseY: 0,
+    aimAngle: 0,
+    shotPower: 0,
+    isAiming: false,
+    
+    // Drag mode state
+    isShooting: false,
+    dragStartY: 0,
+    pullBackDistance: 0,
+    pushForwardDistance: 0,
+    
+    // Click/Tap mode state
+    clickPowerCharging: false,
+    clickPowerStartTime: 0,
+    clickPowerInterval: null,
+    
+    // Swipe mode state
+    swipeStart: null,
+    swipeStartTime: 0,
+    
+    // Ball in hand dragging state (same as 2D)
+    isDraggingCueBall: false,
+    
+    // Linked game settings (read from game object)
+    getSettings: function() {
+        if (typeof game === 'undefined') {
+            return {
+                standardBallRadius: 14,
+                cushionMargin: 30,
+                maxPower: 40,
+                friction: 0.987,
+                showPocketZones: false,
+                showCushionLines: false,
+                showVelocities: false,
+                showFps: false,
+                pocketZoneOpacity: 0.2,
+                showTrajectoryPrediction: true,
+                trajectoryLength: 200,
+                trajectorySegments: 15,
+                showCollisionPoints: true,
+                showGhostBalls: true,
+                showSpinArrows: true,
+                shotControlMode: 'drag',
+                powerMultiplier: 1.0,
+                clickPowerMaxTime: 2000,
+                aimSensitivity: 1.0,
+                maxPullDistance: 150,
+                collisionDamping: 0.98,
+                cushionRestitution: 0.78,
+                ballInHandTouchFoul: true
+            };
+        }
+        return {
+            standardBallRadius: game.standardBallRadius || 14,
+            cushionMargin: game.cushionMargin || 30,
+            maxPower: game.maxPower || 40,
+            friction: game.friction || 0.987,
+            showPocketZones: game.showPocketZones || false,
+            showCushionLines: game.showCushionLines || false,
+            showVelocities: game.showVelocities || false,
+            showFps: game.showFps || false,
+            pocketZoneOpacity: game.pocketZoneOpacity || 0.2,
+            showTrajectoryPrediction: game.showTrajectoryPrediction !== false,
+            trajectoryLength: game.trajectoryLength || 200,
+            trajectorySegments: game.trajectorySegments || 15,
+            showCollisionPoints: game.showCollisionPoints !== false,
+            showGhostBalls: game.showGhostBalls !== false,
+            showSpinArrows: game.showSpinArrows !== false,
+            shotControlMode: game.shotControlMode || 'drag',
+            powerMultiplier: game.powerMultiplier || 1.0,
+            clickPowerMaxTime: game.clickPowerMaxTime || 2000,
+            aimSensitivity: game.aimSensitivity || 1.0,
+            maxPullDistance: game.maxPullDistance || 150,
+            collisionDamping: game.collisionDamping || 0.98,
+            cushionRestitution: game.cushionRestitution || 0.78,
+            ballInHandTouchFoul: game.ballInHandTouchFoul !== false
+        };
+    },
+    
+    getShotMode: function() {
+        return this.getSettings().shotControlMode;
+    },
     
     init: async function(game) {
         if (this.initialized) return true;
         
-        console.log('[3D] v4.0 Initializing...');
+        console.log('[3D] v5.0 Initializing with full dev settings...');
         
         this.canvas2D = document.getElementById('poolTable') || document.getElementById('canvas');
         if (!this.canvas2D) {
@@ -63,7 +142,7 @@ const Pool3DRenderer = {
         this.setupInputHandlers();
         this.createControlPanel();
         this.initialized = true;
-        console.log('[3D] Ready - drag to aim, release to shoot!');
+        console.log('[3D] Ready - all dev settings linked!');
         return true;
     },
     
@@ -83,58 +162,403 @@ const Pool3DRenderer = {
             };
         }
         
-        function onStart(e) {
-            if (!self.enabled) return;
-            e.preventDefault();
-            var pos = getPos(e);
-            self.aimStartX = pos.x;
-            self.aimStartY = pos.y;
-            self.aimEndX = pos.x;
-            self.aimEndY = pos.y;
-            self.isAiming = true;
-            self.shotPower = 0;
+        function getEndPos(e) {
+            var rect = canvas.getBoundingClientRect();
+            var scaleX = canvas.width / rect.width;
+            var scaleY = canvas.height / rect.height;
+            var clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            var clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
         }
         
-        function onMove(e) {
-            if (!self.enabled || !self.isAiming) return;
-            e.preventDefault();
-            var pos = getPos(e);
-            self.aimEndX = pos.x;
-            self.aimEndY = pos.y;
-            var dx = self.aimEndX - self.aimStartX;
-            var dy = self.aimEndY - self.aimStartY;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-            self.shotPower = Math.min(dist / 5, self.maxPower);
+        function screenToGame(sx, sy) {
+            var w = canvas.width;
+            var h = canvas.height;
+            var gameW = self.gameWidth;
+            var gameH = self.gameHeight;
+            var scale = Math.min(w / gameW, h / gameH) * 0.95;
+            var offsetX = (w - gameW * scale) / 2;
+            var offsetY = (h - gameH * scale) / 2;
+            var ISO = self.cameraAngle;
+            var gx = (sx - offsetX) / scale;
+            var gy = (sy - offsetY - (gameH * scale * (1 - ISO) / 2)) / (scale * ISO);
+            return { x: gx, y: gy };
         }
         
-        function onEnd(e) {
-            if (!self.enabled || !self.isAiming) return;
-            e.preventDefault();
+        function ballsAreMoving() {
+            if (typeof game === 'undefined') return false;
+            return game.balls.some(function(b) { 
+                return !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01); 
+            });
+        }
+        
+        function fireShot(power, angle) {
+            if (typeof game === 'undefined' || !game.cueBall || game.cueBall.potted) return;
+            if (power < 0.5) return;
+            if (game.ballInHand) return; // Don't shoot during ball-in-hand
             
-            if (self.shotPower > 1 && typeof game !== 'undefined' && game.cueBall && !game.cueBall.potted) {
-                var dx = self.aimStartX - self.aimEndX;
-                var dy = self.aimStartY - self.aimEndY;
-                var dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist > 5) {
-                    var angle = Math.atan2(dy, dx);
-                    game.cueBall.vx = Math.cos(angle) * self.shotPower;
-                    game.cueBall.vy = Math.sin(angle) * self.shotPower;
-                    console.log('[3D] Shot! Power:', self.shotPower.toFixed(1));
-                }
+            var settings = self.getSettings();
+            var finalPower = power * (settings.powerMultiplier || 1.0);
+            
+            // Start shot tracking for rules (same as 2D)
+            if (typeof game.startShot === 'function') {
+                game.startShot();
             }
             
-            self.isAiming = false;
-            self.shotPower = 0;
+            game.cueBall.vx = Math.cos(angle) * finalPower;
+            game.cueBall.vy = Math.sin(angle) * finalPower;
+            
+            // Apply spin if available (same as 2D)
+            if (typeof PoolSpinControl !== 'undefined') {
+                PoolSpinControl.applySpinToBall(game.cueBall, angle);
+            }
+            
+            // Play sound (same as 2D)
+            if (typeof PoolAudio !== 'undefined') {
+                PoolAudio.play('cueHit', Math.min(finalPower / settings.maxPower, 1));
+            }
+            
+            console.log('[3D] Shot! Mode:', self.getShotMode(), 'Power:', finalPower.toFixed(1));
         }
         
-        canvas.addEventListener('mousedown', onStart);
-        canvas.addEventListener('mousemove', onMove);
-        canvas.addEventListener('mouseup', onEnd);
-        canvas.addEventListener('mouseleave', onEnd);
-        canvas.addEventListener('touchstart', onStart, { passive: false });
-        canvas.addEventListener('touchmove', onMove, { passive: false });
-        canvas.addEventListener('touchend', onEnd, { passive: false });
+        // ==========================================
+        // MOUSE MOVE - Update aim angle (all modes)
+        // ==========================================
+        canvas.addEventListener('mousemove', function(e) {
+            if (!self.enabled) return;
+            var pos = getPos(e);
+            self.mouseX = pos.x;
+            self.mouseY = pos.y;
+            
+            if (typeof game === 'undefined' || !game.cueBall || game.cueBall.potted) return;
+            
+            var gamePos = screenToGame(pos.x, pos.y);
+            var mode = self.getShotMode();
+            
+            // Handle ball-in-hand dragging (same as 2D)
+            if (game.ballInHand && self.isDraggingCueBall) {
+                game.cueBall.x = gamePos.x;
+                game.cueBall.y = gamePos.y;
+                return;
+            }
+            
+            // Skip shooting controls if ball-in-hand is active
+            if (game.ballInHand) return;
+            
+            // DRAG MODE - pull back / push forward
+            if (mode === 'drag' && self.isShooting) {
+                var deltaY = pos.y - self.dragStartY;
+                var settings = self.getSettings();
+                
+                if (deltaY > 0) {
+                    self.pullBackDistance = Math.min(deltaY, settings.maxPullDistance);
+                    self.shotPower = (self.pullBackDistance / settings.maxPullDistance) * settings.maxPower;
+                    self.pushForwardDistance = 0;
+                } else {
+                    var pushDist = Math.abs(deltaY);
+                    self.pushForwardDistance = Math.min(pushDist, self.pullBackDistance + 50);
+                    
+                    var cueDistance = 35 + self.pullBackDistance - self.pushForwardDistance;
+                    if (cueDistance <= 12) {
+                        fireShot(self.shotPower * 2.5, self.aimAngle);
+                        self.isShooting = false;
+                        self.shotPower = 0;
+                        self.pullBackDistance = 0;
+                        self.pushForwardDistance = 0;
+                    }
+                }
+            } else if (!self.isShooting && !self.clickPowerCharging) {
+                // Update aim angle when not in shooting mode
+                var dx = gamePos.x - game.cueBall.x;
+                var dy = gamePos.y - game.cueBall.y;
+                self.aimAngle = Math.atan2(dy, dx);
+                self.isAiming = true;
+            }
+        });
+        
+        // ==========================================
+        // MOUSE DOWN - Start shot based on mode
+        // ==========================================
+        canvas.addEventListener('mousedown', function(e) {
+            if (!self.enabled) return;
+            e.preventDefault();
+            
+            if (typeof game === 'undefined' || !game.cueBall || game.cueBall.potted) return;
+            
+            var pos = getPos(e);
+            var gamePos = screenToGame(pos.x, pos.y);
+            
+            // Handle ball-in-hand - start dragging (same as 2D)
+            if (game.ballInHand) {
+                self.isDraggingCueBall = true;
+                game.cueBall.x = gamePos.x;
+                game.cueBall.y = gamePos.y;
+                return;
+            }
+            
+            if (ballsAreMoving()) return;
+            
+            var mode = self.getShotMode();
+            var settings = self.getSettings();
+            
+            // Lock aim angle
+            var dx = gamePos.x - game.cueBall.x;
+            var dy = gamePos.y - game.cueBall.y;
+            self.aimAngle = Math.atan2(dy, dx);
+            
+            if (mode === 'drag') {
+                // DRAG MODE - start pull back
+                self.dragStartY = pos.y;
+                self.isShooting = true;
+                self.pullBackDistance = 0;
+                self.pushForwardDistance = 0;
+                self.shotPower = 0;
+            } else if (mode === 'click' || mode === 'tap') {
+                // CLICK/TAP MODE - start charging
+                self.clickPowerCharging = true;
+                self.clickPowerStartTime = Date.now();
+                self.shotPower = 0;
+                
+                self.clickPowerInterval = setInterval(function() {
+                    if (!self.clickPowerCharging) {
+                        clearInterval(self.clickPowerInterval);
+                        return;
+                    }
+                    var elapsed = Date.now() - self.clickPowerStartTime;
+                    var maxTime = mode === 'tap' ? 1500 : settings.clickPowerMaxTime;
+                    var powerPercent = Math.min(elapsed / maxTime, 1);
+                    self.shotPower = powerPercent * settings.maxPower;
+                }, 16);
+            } else if (mode === 'swipe') {
+                // SWIPE MODE - record start position
+                self.swipeStart = { x: pos.x, y: pos.y };
+                self.swipeStartTime = Date.now();
+            }
+        });
+        
+        // ==========================================
+        // MOUSE UP - Fire shot based on mode
+        // ==========================================
+        canvas.addEventListener('mouseup', function(e) {
+            if (!self.enabled) return;
+            
+            // Handle ball-in-hand placement on release (same as 2D)
+            if (self.isDraggingCueBall && game.ballInHand) {
+                self.isDraggingCueBall = false;
+                
+                var pos = getEndPos(e);
+                var gamePos = screenToGame(pos.x, pos.y);
+                
+                if (typeof game.placeCueBall === 'function') {
+                    var placed = game.placeCueBall(gamePos.x, gamePos.y);
+                    if (!placed) {
+                        console.log('[3D] Invalid cue ball position');
+                    }
+                }
+                return;
+            }
+            
+            // Skip if ball-in-hand (don't shoot)
+            if (typeof game !== 'undefined' && game.ballInHand) return;
+            
+            var mode = self.getShotMode();
+            var settings = self.getSettings();
+            
+            if (mode === 'drag') {
+                // DRAG MODE - cancel if not contact
+                self.isShooting = false;
+                self.shotPower = 0;
+                self.pullBackDistance = 0;
+                self.pushForwardDistance = 0;
+            } else if (mode === 'click' || mode === 'tap') {
+                // CLICK/TAP MODE - fire on release
+                clearInterval(self.clickPowerInterval);
+                if (self.clickPowerCharging && self.shotPower > 0) {
+                    fireShot(self.shotPower, self.aimAngle);
+                }
+                self.clickPowerCharging = false;
+                self.shotPower = 0;
+            } else if (mode === 'swipe' && self.swipeStart) {
+                // SWIPE MODE - calculate speed and fire
+                var pos = getEndPos(e);
+                var swipeTime = Date.now() - self.swipeStartTime;
+                
+                var dx = pos.x - self.swipeStart.x;
+                var dy = pos.y - self.swipeStart.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                var speed = distance / Math.max(swipeTime, 1);
+                
+                var power = Math.min(speed * 20, settings.maxPower);
+                var angle = Math.atan2(dy, dx);
+                
+                if (power > 2) {
+                    fireShot(power, angle);
+                }
+                self.swipeStart = null;
+            } else if (mode === 'slider') {
+                // SLIDER MODE - just update aim
+                self.isAiming = true;
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', function(e) {
+            if (!self.enabled) return;
+            self.isShooting = false;
+            self.clickPowerCharging = false;
+            clearInterval(self.clickPowerInterval);
+            self.shotPower = 0;
+            self.pullBackDistance = 0;
+            self.pushForwardDistance = 0;
+            self.swipeStart = null;
+            self.isDraggingCueBall = false;
+        });
+        
+        // ==========================================
+        // TOUCH EVENTS (mirror mouse events)
+        // ==========================================
+        canvas.addEventListener('touchstart', function(e) {
+            if (!self.enabled) return;
+            e.preventDefault();
+            
+            if (typeof game === 'undefined' || !game.cueBall || game.cueBall.potted) return;
+            
+            var pos = getPos(e);
+            var gamePos = screenToGame(pos.x, pos.y);
+            
+            // Handle ball-in-hand - start dragging (same as 2D)
+            if (game.ballInHand) {
+                self.isDraggingCueBall = true;
+                game.cueBall.x = gamePos.x;
+                game.cueBall.y = gamePos.y;
+                return;
+            }
+            
+            if (ballsAreMoving()) return;
+            
+            var mode = self.getShotMode();
+            var settings = self.getSettings();
+            
+            var dx = gamePos.x - game.cueBall.x;
+            var dy = gamePos.y - game.cueBall.y;
+            self.aimAngle = Math.atan2(dy, dx);
+            
+            if (mode === 'drag') {
+                self.dragStartY = pos.y;
+                self.isShooting = true;
+                self.pullBackDistance = 0;
+                self.pushForwardDistance = 0;
+                self.shotPower = 0;
+            } else if (mode === 'click' || mode === 'tap') {
+                self.clickPowerCharging = true;
+                self.clickPowerStartTime = Date.now();
+                self.shotPower = 0;
+                self.clickPowerInterval = setInterval(function() {
+                    if (!self.clickPowerCharging) {
+                        clearInterval(self.clickPowerInterval);
+                        return;
+                    }
+                    var elapsed = Date.now() - self.clickPowerStartTime;
+                    var maxTime = mode === 'tap' ? 1500 : settings.clickPowerMaxTime;
+                    self.shotPower = Math.min(elapsed / maxTime, 1) * settings.maxPower;
+                }, 16);
+            } else if (mode === 'swipe') {
+                self.swipeStart = { x: pos.x, y: pos.y };
+                self.swipeStartTime = Date.now();
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchmove', function(e) {
+            if (!self.enabled) return;
+            e.preventDefault();
+            
+            var pos = getPos(e);
+            var gamePos = screenToGame(pos.x, pos.y);
+            
+            // Handle ball-in-hand dragging (same as 2D)
+            if (game.ballInHand && self.isDraggingCueBall) {
+                game.cueBall.x = gamePos.x;
+                game.cueBall.y = gamePos.y;
+                return;
+            }
+            
+            var mode = self.getShotMode();
+            var settings = self.getSettings();
+            
+            if (mode === 'drag' && self.isShooting) {
+                var deltaY = pos.y - self.dragStartY;
+                
+                if (deltaY > 0) {
+                    self.pullBackDistance = Math.min(deltaY, settings.maxPullDistance);
+                    self.shotPower = (self.pullBackDistance / settings.maxPullDistance) * settings.maxPower;
+                    self.pushForwardDistance = 0;
+                } else {
+                    var pushDist = Math.abs(deltaY);
+                    self.pushForwardDistance = Math.min(pushDist, self.pullBackDistance + 50);
+                    
+                    var cueDistance = 35 + self.pullBackDistance - self.pushForwardDistance;
+                    if (cueDistance <= 12) {
+                        fireShot(self.shotPower * 2.5, self.aimAngle);
+                        self.isShooting = false;
+                        self.shotPower = 0;
+                        self.pullBackDistance = 0;
+                        self.pushForwardDistance = 0;
+                    }
+                }
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', function(e) {
+            if (!self.enabled) return;
+            
+            // Handle ball-in-hand placement on release (same as 2D)
+            if (self.isDraggingCueBall && game.ballInHand) {
+                self.isDraggingCueBall = false;
+                
+                var pos = getEndPos(e);
+                var gamePos = screenToGame(pos.x, pos.y);
+                
+                if (typeof game.placeCueBall === 'function') {
+                    var placed = game.placeCueBall(gamePos.x, gamePos.y);
+                    if (!placed) {
+                        console.log('[3D] Invalid cue ball position');
+                    }
+                }
+                return;
+            }
+            
+            var mode = self.getShotMode();
+            var settings = self.getSettings();
+            
+            if (mode === 'drag') {
+                self.isShooting = false;
+                self.shotPower = 0;
+                self.pullBackDistance = 0;
+                self.pushForwardDistance = 0;
+            } else if (mode === 'click' || mode === 'tap') {
+                clearInterval(self.clickPowerInterval);
+                if (self.clickPowerCharging && self.shotPower > 0) {
+                    fireShot(self.shotPower, self.aimAngle);
+                }
+                self.clickPowerCharging = false;
+                self.shotPower = 0;
+            } else if (mode === 'swipe' && self.swipeStart) {
+                var pos = getEndPos(e);
+                var swipeTime = Date.now() - self.swipeStartTime;
+                var dx = pos.x - self.swipeStart.x;
+                var dy = pos.y - self.swipeStart.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                var speed = distance / Math.max(swipeTime, 1);
+                var power = Math.min(speed * 20, settings.maxPower);
+                var angle = Math.atan2(dy, dx);
+                if (power > 2) {
+                    fireShot(power, angle);
+                }
+                self.swipeStart = null;
+            }
+        }, { passive: false });
     },
     
     createControlPanel: function() {
@@ -233,6 +657,11 @@ const Pool3DRenderer = {
         var offsetY = (h - gameH * scale) / 2;
         var ISO = this.cameraAngle;
         
+        // Get linked settings from game
+        var settings = this.getSettings();
+        var cushion = settings.cushionMargin;
+        var ballR = settings.standardBallRadius;
+        
         var self = this;
         function toScreen(gx, gy, height) {
             height = height || 0;
@@ -240,8 +669,6 @@ const Pool3DRenderer = {
             var y = offsetY + gy * scale * ISO + (gameH * scale * (1 - ISO) / 2) - height * 0.5;
             return { x: x, y: y };
         }
-        
-        var cushion = (typeof game !== 'undefined' && game.cushionMargin) ? game.cushionMargin : 20;
         
         // Background
         var bgGrad = ctx.createLinearGradient(0, 0, 0, h);
@@ -312,20 +739,37 @@ const Pool3DRenderer = {
         ctx.closePath();
         ctx.fill();
         
-        // Cushions
+        // Cushions (use settings)
         this.drawRect(ctx, toScreen, cushion, 0, gameW - cushion * 2, cushion, 12, '#1a7030');
         this.drawRect(ctx, toScreen, cushion, gameH - cushion, gameW - cushion * 2, cushion, 12, '#1a7030');
         this.drawRect(ctx, toScreen, 0, cushion, cushion, gameH - cushion * 2, 12, '#1a7030');
         this.drawRect(ctx, toScreen, gameW - cushion, cushion, cushion, gameH - cushion * 2, 12, '#1a7030');
         
-        // Pockets
+        // Show cushion lines if enabled
+        if (settings.showCushionLines) {
+            ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+            ctx.lineWidth = 2;
+            var cl1 = toScreen(cushion, cushion, 10);
+            var cl2 = toScreen(gameW - cushion, cushion, 10);
+            var cl3 = toScreen(gameW - cushion, gameH - cushion, 10);
+            var cl4 = toScreen(cushion, gameH - cushion, 10);
+            ctx.beginPath();
+            ctx.moveTo(cl1.x, cl1.y);
+            ctx.lineTo(cl2.x, cl2.y);
+            ctx.lineTo(cl3.x, cl3.y);
+            ctx.lineTo(cl4.x, cl4.y);
+            ctx.closePath();
+            ctx.stroke();
+        }
+        
+        // Pockets (use game pockets if available)
         var pockets = [];
         if (typeof game !== 'undefined' && game.pockets) {
             for (var i = 0; i < game.pockets.length; i++) {
                 pockets.push({ x: game.pockets[i].x, y: game.pockets[i].y, r: game.pockets[i].r });
             }
         } else {
-            var pr = 25;
+            var pr = ballR * 1.8;
             pockets = [
                 { x: cushion, y: cushion, r: pr },
                 { x: gameW / 2, y: 0, r: pr },
@@ -339,7 +783,16 @@ const Pool3DRenderer = {
         for (var i = 0; i < pockets.length; i++) {
             var p = pockets[i];
             var pp = toScreen(p.x, p.y, 8);
-            var pocketR = (p.r || 25) * scale;
+            var pocketR = (p.r || ballR * 1.8) * scale;
+            
+            // Show pocket zones if enabled
+            if (settings.showPocketZones) {
+                ctx.fillStyle = 'rgba(255,0,0,' + settings.pocketZoneOpacity + ')';
+                ctx.beginPath();
+                ctx.ellipse(pp.x, pp.y, pocketR * 1.5, pocketR * 1.5 * ISO, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
             ctx.fillStyle = '#000';
             ctx.beginPath();
             ctx.ellipse(pp.x, pp.y, pocketR, pocketR * ISO, 0, 0, Math.PI * 2);
@@ -354,8 +807,6 @@ const Pool3DRenderer = {
             }
         }
         sortedBalls.sort(function(a, b) { return a.y - b.y; });
-        
-        var ballR = (typeof game !== 'undefined' && game.standardBallRadius) ? game.standardBallRadius : 14;
         
         for (var i = 0; i < sortedBalls.length; i++) {
             var ball = sortedBalls[i];
@@ -386,72 +837,345 @@ const Pool3DRenderer = {
             ctx.beginPath();
             ctx.ellipse(bp.x - br * 0.3, bp.y - br * 0.35, br * 0.2, br * 0.12, -0.4, 0, Math.PI * 2);
             ctx.fill();
+            
+            // Show velocities if enabled
+            if (settings.showVelocities && (ball.vx || ball.vy)) {
+                var vx = ball.vx || 0;
+                var vy = ball.vy || 0;
+                var speed = Math.sqrt(vx * vx + vy * vy);
+                if (speed > 0.1) {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(bp.x, bp.y);
+                    ctx.lineTo(bp.x + vx * 5, bp.y + vy * 5 * ISO);
+                    ctx.stroke();
+                }
+            }
+            
+            // Show spin arrows if enabled (for cue ball)
+            if (settings.showSpinArrows && ball.color === 'white' && typeof game !== 'undefined') {
+                var spinX = game.spinX || 0;
+                var spinY = game.spinY || 0;
+                if (Math.abs(spinX) > 0.01 || Math.abs(spinY) > 0.01) {
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(bp.x, bp.y);
+                    ctx.lineTo(bp.x + spinX * 20, bp.y + spinY * 20 * ISO);
+                ctx.stroke();
+                    // Arrow head
+                    ctx.fillStyle = '#ff00ff';
+                    ctx.beginPath();
+                ctx.arc(bp.x + spinX * 20, bp.y + spinY * 20 * ISO, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
         }
         
-        // Draw aiming line
-        if (this.isAiming && typeof game !== 'undefined' && game.cueBall && !game.cueBall.potted) {
+        // Draw cue stick and aiming (same as 2D pull-back system)
+        if (typeof game !== 'undefined' && game.cueBall && !game.cueBall.potted) {
             var cueBallScreen = toScreen(game.cueBall.x, game.cueBall.y, ballR * scale * 2);
-            var dx = this.aimStartX - this.aimEndX;
-            var dy = this.aimStartY - this.aimEndY;
-            var dist = Math.sqrt(dx * dx + dy * dy);
+            var angle = this.aimAngle;
             
-            if (dist > 5) {
-                var angle = Math.atan2(dy, dx);
+            // Check if balls are moving
+            var ballsMoving = game.balls.some(function(b) { 
+                return !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01); 
+            });
+            
+            // Ball-in-hand indicator (same as 2D)
+            if (game.ballInHand && !ballsMoving) {
+                // Pulsing highlight around cue ball
+                var pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+                ctx.strokeStyle = 'rgba(16, 185, 129, ' + pulse + ')';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cueBallScreen.x, cueBallScreen.y, ballR * scale + 8, 0, Math.PI * 2);
+                ctx.stroke();
                 
-                // Cue stick
+                // Drag indicator arrows
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+                var arrowDist = ballR * scale + 20;
+                for (var i = 0; i < 4; i++) {
+                    var arrowAngle = (i * Math.PI / 2);
+                    var ax = cueBallScreen.x + Math.cos(arrowAngle) * arrowDist;
+                    var ay = cueBallScreen.y + Math.sin(arrowAngle) * arrowDist;
+                    ctx.beginPath();
+                    ctx.moveTo(ax + Math.cos(arrowAngle) * 8, ay + Math.sin(arrowAngle) * 8);
+                    ctx.lineTo(ax + Math.cos(arrowAngle - 2.5) * 6, ay + Math.sin(arrowAngle - 2.5) * 6);
+                    ctx.lineTo(ax + Math.cos(arrowAngle + 2.5) * 6, ay + Math.sin(arrowAngle + 2.5) * 6);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                // Ball-in-hand message
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillRect(w/2 - 100, h - 50, 200, 30);
+                ctx.fillStyle = '#10b981';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                var bihText = game.ballInHandBaulk ? 'BALL IN HAND (Behind Baulk)' : 'BALL IN HAND (Anywhere)';
+                ctx.fillText(bihText, w/2, h - 30);
+            }
+            
+            if (!ballsMoving && !game.ballInHand) {
+                // Calculate cue position based on pull-back/push-forward
+                var cueDistance = 35 + this.pullBackDistance - this.pushForwardDistance;
                 var cueLength = 200;
-                var cueEndX = cueBallScreen.x - Math.cos(angle) * cueLength;
-                var cueEndY = cueBallScreen.y - Math.sin(angle) * cueLength;
-                var cueStartX = cueBallScreen.x - Math.cos(angle) * (ballR * scale + dist * 0.3);
-                var cueStartY = cueBallScreen.y - Math.sin(angle) * (ballR * scale + dist * 0.3);
                 
+                // Cue tip position (distance from ball)
+                var tipX = cueBallScreen.x - Math.cos(angle) * (ballR * scale + cueDistance * 0.5);
+                var tipY = cueBallScreen.y - Math.sin(angle) * (ballR * scale + cueDistance * 0.5);
+                
+                // Cue end position
+                var endX = tipX - Math.cos(angle) * cueLength;
+                var endY = tipY - Math.sin(angle) * cueLength;
+                
+                // Cue stick body (wood)
                 ctx.strokeStyle = '#8B4513';
                 ctx.lineWidth = 6;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(cueStartX, cueStartY);
-                ctx.lineTo(cueEndX, cueEndY);
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(endX, endY);
                 ctx.stroke();
                 
-                // Cue tip
+                // Cue wrap (grip area)
+                var wrapStartX = tipX - Math.cos(angle) * 100;
+                var wrapStartY = tipY - Math.sin(angle) * 100;
+                var wrapEndX = tipX - Math.cos(angle) * 150;
+                var wrapEndY = tipY - Math.sin(angle) * 150;
+                ctx.strokeStyle = '#2a1a0a';
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(wrapStartX, wrapStartY);
+                ctx.lineTo(wrapEndX, wrapEndY);
+                ctx.stroke();
+                
+                // Cue tip (ivory/leather)
                 ctx.strokeStyle = '#d4a574';
                 ctx.lineWidth = 8;
                 ctx.beginPath();
-                ctx.moveTo(cueStartX, cueStartY);
-                ctx.lineTo(cueStartX - Math.cos(angle) * 15, cueStartY - Math.sin(angle) * 15);
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX + Math.cos(angle) * 8, tipY + Math.sin(angle) * 8);
                 ctx.stroke();
                 
-                // Aim line
-                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 8]);
-                ctx.beginPath();
-                ctx.moveTo(cueBallScreen.x, cueBallScreen.y);
-                ctx.lineTo(cueBallScreen.x + Math.cos(angle) * 300, cueBallScreen.y + Math.sin(angle) * 300);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                // Advanced trajectory prediction with collision detection
+                if (settings.showTrajectoryPrediction) {
+                    var hitResult = this.findFirstBallHit(game.cueBall, angle, this.balls);
+                    
+                    if (hitResult) {
+                        // We have a collision - draw line to collision point
+                        var collisionScreen = toScreen(hitResult.collisionPoint.cueBallX, hitResult.collisionPoint.cueBallY, ballR * scale * 2);
+                        
+                        // Aim line to collision
+                        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([8, 8]);
+                        ctx.beginPath();
+                        ctx.moveTo(cueBallScreen.x, cueBallScreen.y);
+                        ctx.lineTo(collisionScreen.x, collisionScreen.y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        // Ghost cue ball at collision point
+                        if (settings.showGhostBalls) {
+                            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.arc(collisionScreen.x, collisionScreen.y, ballR * scale, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            
+                            // Ghost object ball (highlighted)
+                            var objectBallScreen = toScreen(hitResult.ball.x, hitResult.ball.y, ballR * scale * 2);
+                            var objCol = this.getBallColor(hitResult.ball.color);
+                            ctx.strokeStyle = objCol.main;
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.arc(objectBallScreen.x, objectBallScreen.y, ballR * scale + 4, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                        }
+                        
+                        // Collision point indicator (pulsing)
+                        var pulseSize = 4 + Math.sin(Date.now() / 200) * 2;
+                        var collisionPointScreen = toScreen(hitResult.collisionPoint.x, hitResult.collisionPoint.y, ballR * scale);
+                        
+                        // Glow
+                        var glowGrad = ctx.createRadialGradient(
+                            collisionPointScreen.x, collisionPointScreen.y, 0,
+                            collisionPointScreen.x, collisionPointScreen.y, 20
+                        );
+                        glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
+                        glowGrad.addColorStop(0.5, 'rgba(255, 215, 0, 0.3)');
+                        glowGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                        ctx.fillStyle = glowGrad;
+                        ctx.beginPath();
+                        ctx.arc(collisionPointScreen.x, collisionPointScreen.y, 20, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Cross marker
+                        ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(collisionPointScreen.x - pulseSize * 2, collisionPointScreen.y);
+                        ctx.lineTo(collisionPointScreen.x + pulseSize * 2, collisionPointScreen.y);
+                        ctx.moveTo(collisionPointScreen.x, collisionPointScreen.y - pulseSize * 2);
+                        ctx.lineTo(collisionPointScreen.x, collisionPointScreen.y + pulseSize * 2);
+                        ctx.stroke();
+                        
+                        // Object ball trajectory after collision
+                        var ghostCueBallX = hitResult.collisionPoint.cueBallX;
+                        var ghostCueBallY = hitResult.collisionPoint.cueBallY;
+                        var objDx = hitResult.ball.x - ghostCueBallX;
+                        var objDy = hitResult.ball.y - ghostCueBallY;
+                        var objDist = Math.sqrt(objDx * objDx + objDy * objDy);
+                        
+                        if (objDist > 0.1) {
+                            var objNx = objDx / objDist;
+                            var objNy = objDy / objDist;
+                            var trajectoryAngle = Math.atan2(objNy, objNx);
+                            
+                            // Draw object ball predicted path
+                            var objTrajectoryLength = 150;
+                            var objEndX = hitResult.ball.x + objNx * objTrajectoryLength;
+                            var objEndY = hitResult.ball.y + objNy * objTrajectoryLength;
+                            var objEndScreen = toScreen(objEndX, objEndY, ballR * scale * 2);
+                            
+                            var objCol = this.getBallColor(hitResult.ball.color);
+                            ctx.strokeStyle = objCol.main.replace(')', ', 0.6)').replace('rgb', 'rgba');
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([6, 6]);
+                            ctx.beginPath();
+                            ctx.moveTo(objectBallScreen.x, objectBallScreen.y);
+                            ctx.lineTo(objEndScreen.x, objEndScreen.y);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            
+                            // Arrow head for object ball direction
+                            var arrowSize = 10;
+                            var arrowAngle = Math.atan2(objEndScreen.y - objectBallScreen.y, objEndScreen.x - objectBallScreen.x);
+                            ctx.fillStyle = objCol.main;
+                            ctx.beginPath();
+                            ctx.moveTo(objEndScreen.x, objEndScreen.y);
+                            ctx.lineTo(objEndScreen.x - arrowSize * Math.cos(arrowAngle - 0.4), objEndScreen.y - arrowSize * Math.sin(arrowAngle - 0.4));
+                            ctx.lineTo(objEndScreen.x - arrowSize * Math.cos(arrowAngle + 0.4), objEndScreen.y - arrowSize * Math.sin(arrowAngle + 0.4));
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // Cue ball deflection path (90 degrees to object ball for stun)
+                            var cueBallDeflectAngle = trajectoryAngle + Math.PI / 2;
+                            // Determine which side based on original aim
+                            var crossProduct = Math.cos(angle) * objNy - Math.sin(angle) * objNx;
+                            if (crossProduct < 0) {
+                                cueBallDeflectAngle = trajectoryAngle - Math.PI / 2;
+                            }
+                            
+                            var cueDeflectLength = 80;
+                            var cueDeflectEndX = ghostCueBallX + Math.cos(cueBallDeflectAngle) * cueDeflectLength;
+                            var cueDeflectEndY = ghostCueBallY + Math.sin(cueBallDeflectAngle) * cueDeflectLength;
+                            var cueDeflectScreen = toScreen(cueDeflectEndX, cueDeflectEndY, ballR * scale * 2);
+                            
+                            ctx.strokeStyle = 'rgba(200, 200, 255, 0.5)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([4, 4]);
+                            ctx.beginPath();
+                            ctx.moveTo(collisionScreen.x, collisionScreen.y);
+                            ctx.lineTo(cueDeflectScreen.x, cueDeflectScreen.y);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                        }
+                    } else {
+                        // No collision - draw straight line to max distance
+                        var endX = cueBallScreen.x + Math.cos(angle) * settings.trajectoryLength;
+                        var endY = cueBallScreen.y + Math.sin(angle) * settings.trajectoryLength * ISO;
+                        
+                        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([8, 8]);
+                        ctx.beginPath();
+                        ctx.moveTo(cueBallScreen.x, cueBallScreen.y);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        // Ghost ball at end
+                        if (settings.showGhostBalls) {
+                            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.arc(endX, endY, ballR * scale, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    }
+                }
                 
-                // Power bar
-                var powerPct = Math.min(this.shotPower / this.maxPower, 1);
-                var powerColor = powerPct < 0.3 ? '#4ade80' : powerPct < 0.7 ? '#fbbf24' : '#ef4444';
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(w/2 - 75, h - 50, 150, 25);
-                ctx.fillStyle = powerColor;
-                ctx.fillRect(w/2 - 73, h - 48, 146 * powerPct, 21);
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('POWER: ' + Math.round(powerPct * 100) + '%', w/2, h - 34);
+                // Power bar (show when charging in any mode)
+                var showPowerBar = (this.isShooting && this.pullBackDistance > 0) || this.clickPowerCharging;
+                if (showPowerBar && this.shotPower > 0) {
+                    var maxPwr = settings.maxPower;
+                    var powerPct = Math.min(this.shotPower / maxPwr, 1);
+                    var powerColor = powerPct < 0.3 ? '#4ade80' : powerPct < 0.7 ? '#fbbf24' : '#ef4444';
+                    var mode = this.getShotMode();
+                    
+                    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                    ctx.fillRect(w/2 - 80, h - 60, 160, 35);
+                    
+                    // Power bar background
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(w/2 - 73, h - 53, 146, 21);
+                    
+                    // Power bar fill
+                    ctx.fillStyle = powerColor;
+                    ctx.fillRect(w/2 - 73, h - 53, 146 * powerPct, 21);
+                    
+                    // Power text
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('POWER: ' + Math.round(powerPct * 100) + '%', w/2, h - 38);
+                    
+                    // Mode-specific instructions
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = '#fbbf24';
+                    var modeHint = mode === 'drag' ? '? Pull back | ? Strike!' :
+                                   mode === 'click' || mode === 'tap' ? 'Release to shoot!' :
+                                   'Building power...';
+                    ctx.fillText(modeHint, w/2, h - 25);
+                }
             }
         }
         
-        // HUD
+        // HUD with shot mode info
+        var mode = this.getShotMode();
+        var modeNames = {
+            drag: 'Drag ??',
+            click: 'Click & Hold',
+            tap: 'Tap & Hold',
+            swipe: 'Swipe',
+            slider: 'Slider'
+        };
+        var modeHints = {
+            drag: 'Click to lock, drag ??',
+            click: 'Hold to charge, release',
+            tap: 'Hold to charge, release',
+            swipe: 'Swipe direction & speed',
+            slider: 'Use slider, click shoot'
+        };
+        
         ctx.fillStyle = 'rgba(0,0,0,0.75)';
-        ctx.fillRect(w/2 - 100, 8, 200, 30);
+        ctx.fillRect(w/2 - 140, 8, 280, 30);
         ctx.fillStyle = '#4ade80';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('?? 3D | Drag to aim & shoot', w/2, 28);
+        var hudText = '?? 3D | ' + (modeNames[mode] || mode) + ' | ' + (modeHints[mode] || '');
+        if (settings.showFps && typeof game !== 'undefined' && game.fps) {
+            hudText += ' | ' + Math.round(game.fps) + ' FPS';
+        }
+        ctx.fillText(hudText, w/2, 28);
     },
     
     drawRect: function(ctx, toScreen, x, y, width, height, h, color) {
@@ -477,6 +1201,91 @@ const Pool3DRenderer = {
             black: { light: '#666666', main: '#2a2a2a', dark: '#000000' }
         };
         return colors[color] || colors.white;
+    },
+    
+    // Find the first ball that would be hit along the aim line
+    findFirstBallHit: function(cueBall, aimAngle, allBalls) {
+        if (!cueBall || !allBalls) return null;
+        
+        var dirX = Math.cos(aimAngle);
+        var dirY = Math.sin(aimAngle);
+        var closestHit = null;
+        var closestDist = Infinity;
+        
+        for (var i = 0; i < allBalls.length; i++) {
+            var ball = allBalls[i];
+            if (ball === cueBall || ball.potted || ball.color === 'white') continue;
+            
+            // Vector from cue ball to target ball
+            var dx = ball.x - cueBall.x;
+            var dy = ball.y - cueBall.y;
+            
+            // Project onto aim direction
+            var dot = dx * dirX + dy * dirY;
+            
+            // Ball must be in front of cue ball
+            if (dot <= 0) continue;
+            
+            // Closest point on aim line to target ball center
+            var closestX = cueBall.x + dirX * dot;
+            var closestY = cueBall.y + dirY * dot;
+            
+            // Distance from line to ball center
+            var lineDistX = ball.x - closestX;
+            var lineDistY = ball.y - closestY;
+            var lineDist = Math.sqrt(lineDistX * lineDistX + lineDistY * lineDistY);
+            
+            // Combined radius for collision
+            var combinedR = (cueBall.r || 14) + (ball.r || 14);
+            
+            // Check if line passes close enough to hit
+            if (lineDist < combinedR) {
+                // Calculate exact collision point using circle-line intersection
+                var a = dirX * dirX + dirY * dirY;
+                var b = 2 * (dirX * (cueBall.x - ball.x) + dirY * (cueBall.y - ball.y));
+                var c = (cueBall.x - ball.x) * (cueBall.x - ball.x) + 
+                        (cueBall.y - ball.y) * (cueBall.y - ball.y) - 
+                        combinedR * combinedR;
+                
+                var discriminant = b * b - 4 * a * c;
+                
+                if (discriminant >= 0) {
+                    var t = (-b - Math.sqrt(discriminant)) / (2 * a);
+                    
+                    if (t > 0 && t < closestDist) {
+                        closestDist = t;
+                        
+                        // Cue ball position at collision
+                        var cueBallAtCollisionX = cueBall.x + dirX * t;
+                        var cueBallAtCollisionY = cueBall.y + dirY * t;
+                        
+                        // Contact point (on the surface between balls)
+                        var contactDx = ball.x - cueBallAtCollisionX;
+                        var contactDy = ball.y - cueBallAtCollisionY;
+                        var contactDist = Math.sqrt(contactDx * contactDx + contactDy * contactDy);
+                        var contactNx = contactDx / contactDist;
+                        var contactNy = contactDy / contactDist;
+                        
+                        var contactX = cueBallAtCollisionX + contactNx * (cueBall.r || 14);
+                        var contactY = cueBallAtCollisionY + contactNy * (cueBall.r || 14);
+                        
+                        closestHit = {
+                            ball: ball,
+                            collisionPoint: {
+                                x: contactX,
+                                y: contactY,
+                                cueBallX: cueBallAtCollisionX,
+                                cueBallY: cueBallAtCollisionY
+                            },
+                            impactAngle: Math.atan2(contactNy, contactNx),
+                            distance: t
+                        };
+                    }
+                }
+            }
+        }
+        
+        return closestHit;
     },
     
     toggle: async function() {
@@ -551,7 +1360,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-console.log('[3D] Pool3DRenderer v4.0 loaded');
+console.log('[3D] Pool3DRenderer v5.0 loaded - all dev settings linked!');
 """;
     }
 }

@@ -1180,40 +1180,56 @@ class PoolGame {
         
         const rackX = this.width * 0.75;
         const rackY = this.height / 2;
-        const gap = this.standardBallRadius * 2 + 0.5;
+        const r = this.standardBallRadius;
         
+        // For touching balls in a triangle rack:
+        // - Horizontal spacing between rows: 2 * r * cos(30°) = r * sqrt(3)
+        // - Vertical spacing between balls in same row: 2 * r (diameter)
+        // Adding tiny offset (0.1) to prevent physics engine from detecting immediate collision
+        const rowGap = r * Math.sqrt(3) + 0.1;  // Horizontal distance between rows
+        const ballGap = r * 2 + 0.1;            // Vertical distance between ball centers
+        
+        // 15-ball rack pattern (UK 8-ball blackball rules)
+        // Row 0: 1 ball, Row 1: 2 balls, Row 2: 3 balls (8 in middle), etc.
         const rackPattern = [
-            {x: rackX + gap * 0, y: rackY + 0, color: 'red', num: 1},
-            {x: rackX + gap * 1, y: rackY - gap * 0.5, color: 'yellow', num: 9},
-            {x: rackX + gap * 1, y: rackY + gap * 0.5, color: 'red', num: 2},
-            {x: rackX + gap * 2, y: rackY - gap * 1, color: 'red', num: 3},
-            {x: rackX + gap * 2, y: rackY + 0, color: 'black', num: 8},
-            {x: rackX + gap * 2, y: rackY + gap * 1, color: 'yellow', num: 10},
-            {x: rackX + gap * 3, y: rackY - gap * 1.5, color: 'yellow', num: 11},
-            {x: rackX + gap * 3, y: rackY - gap * 0.5, color: 'red', num: 4},
-            {x: rackX + gap * 3, y: rackY + gap * 0.5, color: 'yellow', num: 12},
-            {x: rackX + gap * 3, y: rackY + gap * 1.5, color: 'red', num: 5},
-            {x: rackX + gap * 4, y: rackY - gap * 2, color: 'red', num: 6},
-            {x: rackX + gap * 4, y: rackY - gap * 1, color: 'yellow', num: 13},
-            {x: rackX + gap * 4, y: rackY + 0, color: 'yellow', num: 14},
-            {x: rackX + gap * 4, y: rackY + gap * 1, color: 'red', num: 7},
-            {x: rackX + gap * 4, y: rackY + gap * 2, color: 'yellow', num: 15}
+            // Row 0 (apex - 1 ball)
+            {row: 0, pos: 0, color: 'red', num: 1},
+            // Row 1 (2 balls)
+            {row: 1, pos: -0.5, color: 'yellow', num: 9},
+            {row: 1, pos: 0.5, color: 'red', num: 2},
+            // Row 2 (3 balls - 8-ball in center)
+            {row: 2, pos: -1, color: 'red', num: 3},
+            {row: 2, pos: 0, color: 'black', num: 8},
+            {row: 2, pos: 1, color: 'yellow', num: 10},
+            // Row 3 (4 balls)
+            {row: 3, pos: -1.5, color: 'yellow', num: 11},
+            {row: 3, pos: -0.5, color: 'red', num: 4},
+            {row: 3, pos: 0.5, color: 'yellow', num: 12},
+            {row: 3, pos: 1.5, color: 'red', num: 5},
+            // Row 4 (5 balls - back row)
+            {row: 4, pos: -2, color: 'red', num: 6},
+            {row: 4, pos: -1, color: 'yellow', num: 13},
+            {row: 4, pos: 0, color: 'yellow', num: 14},
+            {row: 4, pos: 1, color: 'red', num: 7},
+            {row: 4, pos: 2, color: 'yellow', num: 15}
         ];
         
         rackPattern.forEach(ball => {
+            // Calculate position based on row and position within row
+            const x = rackX + ball.row * rowGap;
+            const y = rackY + ball.pos * ballGap;
+            
             // Random initial orientation for the number (looks more natural)
-            // Generate a random point on a sphere using spherical coordinates
-            const theta = Math.random() * Math.PI * 2;  // Random angle around Y axis
-            const phi = Math.random() * Math.PI * 0.8 - Math.PI * 0.4;  // Mostly facing forward
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI * 0.8 - Math.PI * 0.4;
             
             this.balls.push({
-                x: ball.x,
-                y: ball.y,
+                x: x,
+                y: y,
                 vx: 0, vy: 0,
                 r: this.standardBallRadius,
                 color: ball.color,
                 num: ball.num,
-                // 3D number position (unit vector on sphere surface)
                 numPosX: Math.sin(theta) * Math.cos(phi),
                 numPosY: Math.sin(phi),
                 numPosZ: Math.cos(theta) * Math.cos(phi)
