@@ -1,0 +1,11 @@
+Model Information:
+* title:	Pool Test
+* source:	https://sketchfab.com/3d-models/pool-test-f6fec9539faa4556b70a087736491f59
+* author:	KageG (https://sketchfab.com/KageG)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Pool Test" (https://sketchfab.com/3d-models/pool-test-f6fec9539faa4556b70a087736491f59) by KageG (https://sketchfab.com/KageG) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
