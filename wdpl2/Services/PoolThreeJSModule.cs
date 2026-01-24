@@ -396,8 +396,7 @@ const PoolThreeJS = {
         // Try model URLs from GitHub
         // NOTE: If repo is private, these won't work - will fall back to procedural table
         const modelUrls = [
-            'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
-            'https://raw.githubusercontent.com/gazlappy/Wdplapp/main/wdpl2/Models/scene.gltf',
+            'https://raw.githubusercontent.com/gazlappy/Wdplapp/refs/heads/master/wdpl2/Models/scene.gltf',
         ];
         
         for (const url of modelUrls) {
