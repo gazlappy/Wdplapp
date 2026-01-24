@@ -393,7 +393,8 @@ const PoolThreeJS = {
         
         this.updateLoadingProgress(20, 'Loading 3D model...');
         
-        // Try GitHub URLs
+        // Try model URLs from GitHub
+        // NOTE: If repo is private, these won't work - will fall back to procedural table
         const modelUrls = [
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/main/wdpl2/Models/scene.gltf',
