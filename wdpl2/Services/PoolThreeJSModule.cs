@@ -437,30 +437,35 @@ const PoolThreeJS = {
                     console.log('[ThreeJS] Model size:', size);
                     console.log('[ThreeJS] Model center:', center);
                     
-                    // The Sketchfab model has different dimensions
-                    // Table is roughly 53x91 units in the model (Y is length in GLTF)
-                    // We need to scale to fit our 1000x500 game dimensions
-                    const modelTableWidth = size.y;  // GLTF Y = our X (length)
-                    const modelTableHeight = size.x; // GLTF X = our Z (width)
-                    
-                    const scaleX = this.tableWidth / modelTableWidth;
-                    const scaleZ = this.tableHeight / modelTableHeight;
-                    const scale = Math.min(scaleX, scaleZ) * 0.85;
+                    // Scale to fit our 1000x500 game dimensions
+                    const modelWidth = Math.max(size.x, size.y, size.z);
+                    const scale = (this.tableWidth * 0.9) / modelWidth;
                     
                     console.log('[ThreeJS] Applying scale:', scale);
                     
                     model.scale.set(scale, scale, scale);
                     
-                    // The model is oriented differently - rotate to match our coordinate system
-                    model.rotation.x = -Math.PI / 2;  // Flip from Z-up to Y-up
+                    // Rotate to make the table lie flat (playing surface facing up)
+                    model.rotation.x = 0;
+                    model.rotation.y = 0;
+                    model.rotation.z = 0;
                     
-                    // Center the model on our table position
-                    model.position.x = this.tableWidth / 2;
-                    model.position.y = 0;
-                    model.position.z = this.tableHeight / 2;
+                    // Recalculate bounding box after scaling
+                    const scaledBox = new THREE.Box3().setFromObject(model);
+                    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+                    
+                    console.log('[ThreeJS] Scaled size:', scaledSize);
+                    console.log('[ThreeJS] Scaled center:', scaledCenter);
+                    
+                    // Position the model so it's centered on the game area and sitting on the floor
+                    // Center X and Z on the table area, lower Y so table surface is at a good height
+                    model.position.x = this.tableWidth / 2 - scaledCenter.x;
+                    model.position.y = -scaledCenter.y - scaledSize.y / 2 + 10; // Sit on floor with slight offset
+                    model.position.z = this.tableHeight / 2 - scaledCenter.z;
                     
                     // Store playing surface height for ball positioning
-                    this.playingSurfaceY = 15 * scale;
+                    this.playingSurfaceY = 15;
                     
                     // Enable shadows on all meshes
                     model.traverse((child) => {
@@ -469,7 +474,7 @@ const PoolThreeJS = {
                             child.receiveShadow = true;
                             
                             // Hide the model's built-in balls (we use our own)
-                            if (child.name && (child.name.includes('Sphere') || child.name.includes('Duplicate'))) {
+                            if (child.name && (child.name.includes('Sphere') || child.name.includes('Duplicate') || child.name.includes('ball'))) {
                                 child.visible = false;
                             }
                         }
@@ -477,6 +482,8 @@ const PoolThreeJS = {
                     
                     this.tableModel = model;
                     this.scene.add(model);
+                    
+                    
                     
                     // Add floor
                     this.addFloor();
