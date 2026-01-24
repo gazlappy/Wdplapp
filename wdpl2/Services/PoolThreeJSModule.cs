@@ -67,14 +67,14 @@ public static class PoolThreeJSModule
     }
     
     /// <summary>
-    /// Get the embedded model data as JavaScript injection code
-    /// We don't inject the full data directly - it's too large
-    /// Instead, we set a flag and provide a method to fetch it
+    /// Get the embedded model data as JavaScript code to include directly in HTML
+    /// NOTE: Embedding large model data directly causes crashes, so we just set flags
     /// </summary>
     public static string GetEmbeddedModelScript()
     {
-        bool hasModel = !string.IsNullOrEmpty(_embeddedGltfJson) && !string.IsNullOrEmpty(_embeddedBinBase64);
-        return $"window.EMBEDDED_MODEL_AVAILABLE = {(hasModel ? "true" : "false")}; console.log('[MAUI] Embedded model available:', {(hasModel ? "true" : "false")});";
+        // Don't embed the full model data - it's too large and crashes the WebView
+        // Instead, we'll load from GitHub or use procedural table
+        return "window.EMBEDDED_GLTF_MODEL = null; window.EMBEDDED_GLTF_BIN = null; console.log('[MAUI] Model will load from GitHub or use procedural');";
     }
     
     /// <summary>
@@ -233,6 +233,7 @@ const PoolThreeJS = {
         });
     },
     
+    
     showLoadingIndicator: function() {
         const loader = document.createElement('div');
         loader.id = 'threejs-loader';
@@ -250,6 +251,7 @@ const PoolThreeJS = {
             z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         `;
+        
         loader.innerHTML = `
             <div style="font-size: 24px; margin-bottom: 15px;">?? Loading 3D Table...</div>
             <div style="width: 200px; height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
@@ -389,84 +391,30 @@ const PoolThreeJS = {
             this.gltfLoader.setDRACOLoader(dracoLoader);
         }
         
-        // Check if MAUI has embedded model available (loaded on-demand)
-        if (window.EMBEDDED_MODEL_AVAILABLE) {
-            console.log('[ThreeJS] MAUI has embedded model, requesting data...');
-            this.updateLoadingProgress(20, 'Requesting model from app...');
-            
-            try {
-                // Request model data from MAUI via URL navigation
-                // MAUI will intercept this and inject the data
-                window.location.href = 'poolmodel://load';
-                
-                // Wait for MAUI to inject the data (with timeout)
-                let attempts = 0;
-                while (!window.EMBEDDED_GLTF_MODEL && attempts < 50) {
-                    await new Promise(r => setTimeout(r, 100));
-                    attempts++;
-                }
-                
-                if (window.EMBEDDED_GLTF_MODEL && window.EMBEDDED_GLTF_BIN) {
-                    console.log('[ThreeJS] Received embedded GLTF model data from MAUI');
-                    this.updateLoadingProgress(40, 'Processing embedded model...');
-                    
-                    // Parse the GLTF JSON
-                    const gltfJson = JSON.parse(window.EMBEDDED_GLTF_MODEL);
-                    
-                    // Replace the buffer URI with embedded base64 data
-                    if (gltfJson.buffers && gltfJson.buffers.length > 0) {
-                        gltfJson.buffers[0].uri = 'data:application/octet-stream;base64,' + window.EMBEDDED_GLTF_BIN;
-                    }
-                    
-                    // Convert back to string for the loader
-                    const embeddedGltfStr = JSON.stringify(gltfJson);
-                    const blob = new Blob([embeddedGltfStr], { type: 'application/json' });
-                    const dataUrl = URL.createObjectURL(blob);
-                    
-                    this.updateLoadingProgress(60, 'Loading 3D model...');
-                    await this.loadGLTF(dataUrl);
-                    URL.revokeObjectURL(dataUrl);
-                    
-                    this.modelLoaded = true;
-                    console.log('[ThreeJS] Embedded model loaded successfully!');
-                    return;
-                }
-            } catch (error) {
-                console.warn('[ThreeJS] Failed to load embedded model:', error);
-            }
-        }
-        }
+        this.updateLoadingProgress(20, 'Loading 3D model...');
         
-        this.updateLoadingProgress(20, 'Loading 3D model from GitHub...');
-        
-        // Fallback: Try GitHub URLs
+        // Try GitHub URLs
         const modelUrls = [
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/scene.gltf',
             'https://raw.githubusercontent.com/gazlappy/Wdplapp/main/wdpl2/Models/scene.gltf',
         ];
         
-        // Try each URL until one works
-        let lastError = null;
         for (const url of modelUrls) {
             try {
-                console.log('[ThreeJS] Attempting to load model from:', url);
-                this.updateLoadingProgress(30, 'Downloading from GitHub...');
+                console.log('[ThreeJS] Trying to load model from:', url);
+                this.updateLoadingProgress(40, 'Downloading from GitHub...');
                 await this.loadGLTF(url);
                 this.modelLoaded = true;
                 console.log('[ThreeJS] Model loaded successfully from:', url);
                 return;
             } catch (error) {
-                console.warn('[ThreeJS] Failed to load from:', url);
-                console.warn('[ThreeJS] Error:', error.message || error);
-                lastError = error;
+                console.warn('[ThreeJS] Failed to load from:', url, error.message);
             }
         }
         
-        // Fallback to procedural table if all methods fail
-        console.log('[ThreeJS] All model sources failed, using procedural table');
-        console.log('[ThreeJS] Last error:', lastError);
-        this.updateLoadingProgress(50, 'Using procedural table...');
-        
+        // Fall back to procedural table
+        console.log('[ThreeJS] Using procedural table (push model to GitHub for 3D model)');
+        this.updateLoadingProgress(50, 'Building procedural table...');
         await this.createProceduralTable();
         this.modelLoaded = true;
     },
@@ -996,41 +944,47 @@ const PoolThreeJS = {
     toggle: async function() {
         console.log('[ThreeJS] Toggle called');
         
-        if (!this.initialized) {
-            await this.init(typeof game !== 'undefined' ? game : null);
-        }
-        
-        this.enabled = !this.enabled;
-        console.log('[ThreeJS] Enabled:', this.enabled);
-        
-        if (this.enabled) {
-            this.container.style.display = 'block';
-            
-            const canvas2D = document.getElementById('canvas') || 
-                            document.getElementById('poolCanvas') ||
-                            document.getElementById('poolTable');
-            if (canvas2D) canvas2D.style.visibility = 'hidden';
-            
-            const canvas3D = document.getElementById('pool3DCanvas');
-            if (canvas3D) canvas3D.style.display = 'none';
-            
-            if (typeof Pool3DRenderer !== 'undefined' && Pool3DRenderer.enabled) {
-                Pool3DRenderer.enabled = false;
-                Pool3DRenderer.stopAnimationLoop();
-                if (Pool3DRenderer.controlPanel) {
-                    Pool3DRenderer.controlPanel.style.display = 'none';
-                }
+        try {
+            if (!this.initialized) {
+                console.log('[ThreeJS] Initializing...');
+                await this.init(typeof game !== 'undefined' ? game : null);
+                console.log('[ThreeJS] Initialized');
             }
             
-            this.startAnimation();
-        } else {
-            this.container.style.display = 'none';
-            this.stopAnimation();
             
-            const canvas2D = document.getElementById('canvas') || 
-                            document.getElementById('poolCanvas') ||
-                            document.getElementById('poolTable');
-            if (canvas2D) canvas2D.style.visibility = 'visible';
+            this.enabled = !this.enabled;
+            
+            if (this.enabled) {
+                this.container.style.display = 'block';
+                
+                const canvas2D = document.getElementById('canvas') || 
+                                document.getElementById('poolCanvas') ||
+                                document.getElementById('poolTable');
+                if (canvas2D) canvas2D.style.visibility = 'hidden';
+                
+                const canvas3D = document.getElementById('pool3DCanvas');
+                if (canvas3D) canvas3D.style.display = 'none';
+                
+                if (typeof Pool3DRenderer !== 'undefined' && Pool3DRenderer.enabled) {
+                    Pool3DRenderer.enabled = false;
+                    Pool3DRenderer.stopAnimationLoop();
+                    if (Pool3DRenderer.controlPanel) {
+                        Pool3DRenderer.controlPanel.style.display = 'none';
+                    }
+                }
+                
+                this.startAnimation();
+            } else {
+                this.container.style.display = 'none';
+                this.stopAnimation();
+                
+                const canvas2D = document.getElementById('canvas') || 
+                                document.getElementById('poolCanvas') ||
+                                document.getElementById('poolTable');
+                if (canvas2D) canvas2D.style.visibility = 'visible';
+            }
+        } catch (error) {
+            console.error('[ThreeJS] Toggle error:', error);
         }
     },
     
