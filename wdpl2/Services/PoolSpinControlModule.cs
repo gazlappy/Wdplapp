@@ -2,6 +2,7 @@ namespace Wdpl2.Services;
 
 /// <summary>
 /// Spin control module for pool game - visual ball spin selector
+/// Toggle with 'S' key
 /// </summary>
 public static class PoolSpinControlModule
 {
@@ -11,6 +12,7 @@ public static class PoolSpinControlModule
 // ============================================
 // POOL SPIN CONTROL MODULE
 // Visual ball overlay for applying spin
+// Press 'S' key to toggle visibility
 // ============================================
 
 const PoolSpinControl = {
@@ -18,29 +20,86 @@ const PoolSpinControl = {
     spinX: 0,  // -1 to 1 (left to right English)
     spinY: 0,  // -1 to 1 (bottom to top spin)
     ballOverlayRadius: 35,
-    overlayX: 60,
-    overlayY: 60,
+    overlayX: 60,   // X position when visible
+    overlayY: 440,  // Position near bottom-left
     isDragging: false,
     spinEffectMultiplier: 2.0, // Set to 2.0 for visible but realistic effects
     game: null, // Reference to game object
+    
+    // Visibility state - toggle with 'S' key
+    isVisible: false,
+    
+    // Auto-reset after shot
+    autoResetAfterShot: true,
+    
+    /**
+     * Toggle the spin control visibility (called by 'S' key)
+     */
+    toggle() {
+        this.isVisible = !this.isVisible;
+        console.log('Spin control:', this.isVisible ? 'VISIBLE' : 'HIDDEN', '(Press S to toggle)');
+    },
+    
+    /**
+     * Show the spin control
+     */
+    show() {
+        this.isVisible = true;
+    },
+    
+    /**
+     * Hide the spin control
+     */
+    hide() {
+        this.isVisible = false;
+    },
+    
+    /**
+     * Setup keyboard handler for 'S' key toggle
+     */
+    setupKeyboardToggle() {
+        document.addEventListener('keydown', (e) => {
+            // Toggle with 'S' key (not when typing in input fields)
+            if ((e.key === 's' || e.key === 'S') && 
+                !e.target.matches('input, textarea, select')) {
+                this.toggle();
+                e.preventDefault();
+            }
+        });
+        console.log('Spin control ready - Press S to show/hide');
+    },
+    
+    /**
+     * Reset spin to center (called after shot)
+     */
+    resetSpinAfterShot() {
+        if (this.autoResetAfterShot) {
+            this.spinX = 0;
+            this.spinY = 0;
+            console.log('Spin reset to center after shot');
+        }
+    },
     
     /**
      * Draw the spin control overlay
      */
     drawSpinControl(ctx) {
+        // Only draw if visible (toggle with 'S' key)
+        if (!this.isVisible) return;
+        
         const centerX = this.overlayX;
         const centerY = this.overlayY;
         const radius = this.ballOverlayRadius;
         
-        // Semi-transparent background panel
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(centerX - radius - 10, centerY - radius - 10, radius * 2 + 20, radius * 2 + 35);
+        // Semi-transparent background panel - extended for labels
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(centerX - radius - 10, centerY - radius - 25, radius * 2 + 20, radius * 2 + 60);
         
-        // Label
+        // Title label at top
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('SPIN', centerX, centerY + radius + 20);
+        ctx.fillText('SPIN (S to hide)', centerX, centerY - radius - 10);
         
         // Draw white ball
         const ballGrad = ctx.createRadialGradient(
@@ -175,7 +234,7 @@ const PoolSpinControl = {
         
         if (spinPercent > 0) {
             // Show spin percentage
-            ctx.fillText('Spin: ' + spinPercent + '%', centerX, centerY + radius + 32);
+            ctx.fillText('Spin: ' + spinPercent + '%', centerX, centerY + radius + 12);
             
             // Show spin TYPE
             let spinType = '';
@@ -190,15 +249,18 @@ const PoolSpinControl = {
             if (spinType) {
                 ctx.font = 'bold 9px Arial';
                 ctx.fillStyle = 'rgba(74, 222, 128, 0.9)';
-                ctx.fillText(spinType, centerX, centerY + radius + 44);
+                ctx.fillText(spinType, centerX, centerY + radius + 24);
             }
         }
     },
     
     /**
-     * Check if mouse is over spin control
+     * Check if mouse is over spin control (only when visible)
      */
     isOverSpinControl(mouseX, mouseY) {
+        // Only interactive when visible
+        if (!this.isVisible) return false;
+        
         const dx = mouseX - this.overlayX;
         const dy = mouseY - this.overlayY;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -375,6 +437,9 @@ const PoolSpinControl = {
         if (Math.abs(squirtAngle) > 0.01) {
             console.log('Aim adjusted for squirt - compensate by aiming', (squirtAngle * 180 / Math.PI).toFixed(2), 'deg', squirtAngle > 0 ? 'RIGHT' : 'LEFT');
         }
+        
+        // Reset spin after shot is applied
+        this.resetSpinAfterShot();
     },
     
     /**
@@ -384,6 +449,9 @@ const PoolSpinControl = {
         this.game = game; // Store game reference
         let spinDragging = false;
         
+        // Setup keyboard toggle (S key)
+        this.setupKeyboardToggle();
+        
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -391,7 +459,8 @@ const PoolSpinControl = {
             const mouseX = (e.clientX - rect.left) * scaleX;
             const mouseY = (e.clientY - rect.top) * scaleY;
             
-            if (this.isOverSpinControl(mouseX, mouseY)) {
+            // Only interact with spin control if visible
+            if (this.isVisible && this.isOverSpinControl(mouseX, mouseY)) {
                 spinDragging = true;
                 this.isDragging = true;
                 this.updateSpin(mouseX, mouseY);
@@ -428,7 +497,7 @@ const PoolSpinControl = {
             const mouseX = (e.clientX - rect.left) * scaleX;
             const mouseY = (e.clientY - rect.top) * scaleY;
             
-            if (this.isOverSpinControl(mouseX, mouseY)) {
+            if (this.isVisible && this.isOverSpinControl(mouseX, mouseY)) {
                 this.resetSpin();
                 e.stopPropagation();
             }

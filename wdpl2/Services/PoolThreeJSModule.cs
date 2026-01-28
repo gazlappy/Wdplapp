@@ -153,6 +153,7 @@ const PoolThreeJS = {
                 console.log('[ThreeJS] THREE already loaded, version:', THREE.REVISION);
             }
             
+            
             // Verify THREE loaded successfully
             if (typeof THREE === 'undefined') {
                 throw new Error('THREE.js failed to load');
@@ -180,12 +181,19 @@ const PoolThreeJS = {
             this.setupCamera();
             this.setupLighting();
             
-            // Try to load external model, fall back to procedural if it fails
+            // Try to load external table model, fall back to procedural if it fails
             try {
                 await this.loadTableModel();
             } catch (error) {
-                console.warn('[ThreeJS] Failed to load external model, using procedural table:', error);
+                console.warn('[ThreeJS] Failed to load table model, using procedural table:', error);
                 await this.createProceduralTable();
+            }
+            
+            // Try to load ball 3D model (optional - falls back to textured spheres)
+            try {
+                await this.loadBallModel();
+            } catch (error) {
+                console.log('[ThreeJS] Using textured sphere balls (no 3D model)');
             }
             
             this.setupControls();
@@ -196,7 +204,7 @@ const PoolThreeJS = {
             window.addEventListener('resize', () => this.onResize());
             
             this.initialized = true;
-            console.log('[ThreeJS] Initialization complete');
+            console.log('[ThreeJS] Initialization complete - UK Pool Balls');
             return true;
             
         } catch (error) {
@@ -2008,49 +2016,173 @@ const PoolThreeJS = {
         });
     },
     
-    createBallMesh: function(ball) {
-        const geometry = new THREE.SphereGeometry(ball.r, 32, 32);
+    
+    
+    // Ball model loading
+    ballModelLoaded: false,
+    ballModelTemplate: null,
+    ballModelUrl: 'https://raw.githubusercontent.com/gazlappy/Wdplapp/master/wdpl2/Models/ball.glb',
+    
+    loadBallModel: async function() {
+        if (this.ballModelLoaded) return;
         
-        let material;
-        if (ball.color === 'white') {
-            material = new THREE.MeshStandardMaterial({
-                color: 0xf5f5f0,
-                roughness: 0.15,
-                metalness: 0.0,
-                envMapIntensity: 0.5
+        try {
+            console.log('[ThreeJS] Loading ball 3D model...');
+            
+            return new Promise((resolve, reject) => {
+                this.gltfLoader.load(
+                    this.ballModelUrl,
+                    (gltf) => {
+                        console.log('[ThreeJS] Ball model loaded successfully');
+                        this.ballModelTemplate = gltf.scene;
+                        this.ballModelLoaded = true;
+                        resolve();
+                    },
+                    (progress) => {
+                        console.log('[ThreeJS] Ball model loading:', Math.round((progress.loaded / progress.total) * 100) + '%');
+                    },
+                    (error) => {
+                        console.warn('[ThreeJS] Ball model failed to load, using procedural balls:', error);
+                        this.ballModelLoaded = false;
+                        resolve(); // Don't reject, fall back to procedural
+                    }
+                );
             });
-        } else if (ball.color === 'black') {
-            material = new THREE.MeshStandardMaterial({
-                color: 0x1a1a1a,
-                roughness: 0.1,
-                metalness: 0.05
-            });
-        } else if (ball.color === 'red') {
-            material = new THREE.MeshStandardMaterial({
-                color: 0xcc2222,
-                roughness: 0.1,
-                metalness: 0.05
-            });
-        } else if (ball.color === 'yellow') {
-            material = new THREE.MeshStandardMaterial({
-                color: 0xddaa00,
-                roughness: 0.1,
-                metalness: 0.05
+        } catch (error) {
+            console.warn('[ThreeJS] Ball model loading error:', error);
+            this.ballModelLoaded = false;
+        }
+    },
+    
+    createBallMesh: function(ball) {
+        let mesh;
+        
+        // Try to use 3D model if loaded
+        if (this.ballModelLoaded && this.ballModelTemplate) {
+            mesh = this.ballModelTemplate.clone();
+            
+            // Scale to match ball radius
+            const scale = ball.r / 14; // Assuming model is designed for radius 14
+            mesh.scale.set(scale, scale, scale);
+            
+            // Apply UK ball material
+            const material = this.createUKBallMaterial(ball);
+            mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = material;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
             });
         } else {
-            material = new THREE.MeshStandardMaterial({
-                color: 0xcccccc,
-                roughness: 0.15,
-                metalness: 0.0
-            });
+            // Fallback to procedural sphere
+            const geometry = new THREE.SphereGeometry(ball.r, 48, 48);
+            const material = this.createUKBallMaterial(ball);
+            mesh = new THREE.Mesh(geometry, material);
         }
         
-        const mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.name = `ball_${ball.num}`;
         
         return mesh;
+    },
+    
+    // UK Pool ball colors - Red and Yellow teams
+    // UK 8-ball: 7 red, 7 yellow, 1 black, 1 white cue
+    ukBallColors: {
+        'white': { color: '#FFFEF0', hex: 0xFFFEF0, type: 'cue' },
+        'cue':   { color: '#FFFEF0', hex: 0xFFFEF0, type: 'cue' },
+        'red':   { color: '#CC0000', hex: 0xCC0000, type: 'red' },
+        'yellow':{ color: '#FFD700', hex: 0xFFD700, type: 'yellow' },
+        'black': { color: '#111111', hex: 0x111111, type: 'black' }
+    },
+    
+    createUKBallMaterial: function(ball) {
+        // Get ball color info
+        const colorKey = ball.color ? ball.color.toLowerCase() : 'white';
+        const ballInfo = this.ukBallColors[colorKey] || this.ukBallColors['white'];
+        
+        // Create high quality material for UK pool balls (solid colors, no numbers)
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // Create gradient for 3D depth effect
+        const gradient = ctx.createRadialGradient(180, 180, 0, 256, 256, 360);
+        
+        if (ballInfo.type === 'cue') {
+            // White cue ball with subtle cream tint
+            gradient.addColorStop(0, '#FFFFFF');
+            gradient.addColorStop(0.3, '#FFFEF8');
+            gradient.addColorStop(0.7, '#FFFEF0');
+            gradient.addColorStop(1, '#F5F2E8');
+        } else if (ballInfo.type === 'black') {
+            // Black 8-ball with subtle sheen
+            gradient.addColorStop(0, '#333333');
+            gradient.addColorStop(0.3, '#222222');
+            gradient.addColorStop(0.7, '#111111');
+            gradient.addColorStop(1, '#000000');
+        } else if (ballInfo.type === 'red') {
+            // Deep red ball
+            gradient.addColorStop(0, '#FF2222');
+            gradient.addColorStop(0.3, '#DD0000');
+            gradient.addColorStop(0.7, '#BB0000');
+            gradient.addColorStop(1, '#880000');
+        } else if (ballInfo.type === 'yellow') {
+            // Bright yellow ball
+            gradient.addColorStop(0, '#FFEE44');
+            gradient.addColorStop(0.3, '#FFD700');
+            gradient.addColorStop(0.7, '#EECC00');
+            gradient.addColorStop(1, '#CCAA00');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Add subtle surface imperfections for realism
+        this.addBallSurfaceDetail(ctx, ballInfo.type);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        
+        // Create physically-based material
+        const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: ballInfo.type === 'cue' ? 0.06 : 0.08,
+            metalness: 0.0,
+            envMapIntensity: 1.0
+        });
+        
+        // Add clearcoat for that glossy pool ball look (if supported)
+        if (material.clearcoat !== undefined) {
+            material.clearcoat = 1.0;
+            material.clearcoatRoughness = 0.05;
+        }
+        
+        return material;
+    },
+    
+    addBallSurfaceDetail: function(ctx, ballType) {
+        // Add very subtle specular highlight
+        const highlight = ctx.createRadialGradient(160, 140, 0, 160, 140, 100);
+        highlight.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+        highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+        highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = highlight;
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Add micro surface noise
+        const imageData = ctx.getImageData(0, 0, 512, 512);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = (Math.random() - 0.5) * 2;
+            imageData.data[i] = Math.min(255, Math.max(0, imageData.data[i] + noise));
+            imageData.data[i + 1] = Math.min(255, Math.max(0, imageData.data[i + 1] + noise));
+            imageData.data[i + 2] = Math.min(255, Math.max(0, imageData.data[i + 2] + noise));
+        }
+        ctx.putImageData(imageData, 0, 0);
     },
     
     render: function() {

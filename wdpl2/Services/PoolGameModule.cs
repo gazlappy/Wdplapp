@@ -590,21 +590,30 @@ class PoolGame {
         }
         
         // Potting opponent's ball when table is NOT open
-        // If player hit their OWN ball first, it's just a loss of turn (not a foul)
-        // If player hit OPPONENT ball first, it's already handled as a foul in evaluateShot()
+        // Key rule: If you hit your own color first AND pot your own ball, you continue
+        // even if you also pot opponent's ball (their ball just goes down as a bonus for them)
         if (pottedOpponentBall && !this.tableOpen) {
             // Check if we hit our own color first
             const hitOwnColorFirst = this.firstBallHit && this.firstBallHit.color === player.color;
             
             if (hitOwnColorFirst) {
-                // Hit own ball first, but potted opponent's ball - LOSS OF TURN (not foul)
-                console.log('Hit own color (' + player.color + ') first, but potted opponent ball');
-                console.log('This is a LOSS OF TURN (not a foul)');
-                
-                this.checkIfOnBlack();
-                this.showLossOfTurnMessage('Hit ' + player.color + ' first, potted opponent ball');
-                this.switchTurn();
-                return;
+                // Hit own ball first - check if we ALSO potted our own ball
+                if (pottedOwnBall) {
+                    // Potted own ball AND opponent's ball - CONTINUE TURN
+                    // Opponent's ball just goes down as a bonus for them
+                    console.log('Hit own color (' + player.color + ') first, potted BOTH own and opponent ball');
+                    console.log('Player CONTINUES - potted own ball (opponent ball is bonus for them)');
+                    // Don't return - let it fall through to continue turn logic
+                } else {
+                    // Hit own ball first, but ONLY potted opponent's ball - LOSS OF TURN (not foul)
+                    console.log('Hit own color (' + player.color + ') first, but ONLY potted opponent ball');
+                    console.log('This is a LOSS OF TURN (not a foul)');
+                    
+                    this.checkIfOnBlack();
+                    this.showLossOfTurnMessage('Hit ' + player.color + ' first, only potted opponent ball');
+                    this.switchTurn();
+                    return;
+                }
             } else {
                 // Hit opponent's ball first and potted it - this should have been caught earlier
                 // but handle it as a foul just in case
