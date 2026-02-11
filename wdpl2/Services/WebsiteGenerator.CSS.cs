@@ -135,6 +135,16 @@ header .logo {{
     margin-bottom: 15px;
 }}
 
+/* Header freeform sub-element layout */
+.header-freeform {{
+    position: relative;
+    min-height: 120px;
+}}
+
+.header-freeform > [data-block-id] {{
+    cursor: default;
+}}
+
 nav {{
     background: var(--card-bg);
     border-bottom: 1px solid rgba(0,0,0,0.1);
@@ -697,6 +707,11 @@ nav .nav-container {{ justify-content: center; }}
     top: auto !important;
     width: 100% !important;
     height: auto !important;
+}}
+.header-freeform > [data-block-id] {{
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
 }}
 .result-item, .fixture-item {{ 
         grid-template-columns: 1fr !important;

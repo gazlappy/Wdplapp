@@ -188,6 +188,13 @@ namespace Wdpl2.Models
         public bool ShowSeasonBadge { get; set; } = true;
         public string HeaderAlignment { get; set; } = "center"; // left, center, right
         
+        // Header sub-element positions (freeform inside header, percentage-based)
+        // Each is {left}%;{top}% — empty string means use auto/flow layout
+        public string HeaderLogoPos { get; set; } = "";
+        public string HeaderTitlePos { get; set; } = "";
+        public string HeaderSubtitlePos { get; set; } = "";
+        public string HeaderBadgePos { get; set; } = "";
+        
         // Navigation Options
         public string NavStyle { get; set; } = "pills"; // pills, underline, buttons, minimal
         public bool NavSticky { get; set; } = true;

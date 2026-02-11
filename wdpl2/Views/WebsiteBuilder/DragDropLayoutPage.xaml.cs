@@ -13,7 +13,9 @@ public partial class DragDropLayoutPage : ContentPage
     private List<LayoutBlock> _blocks = new();
     private bool _editMode = true;
     private bool _snapEnabled = true;
+    private bool _syncingPicker;
     private string _currentPage = "index.html";
+    private string? _currentQueryString;
 
     private static readonly (string FileName, string Label)[] Pages =
     [
@@ -70,6 +72,22 @@ public partial class DragDropLayoutPage : ContentPage
         if (_generatedFiles.TryGetValue("style.css", out var css))
             html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", $"<style>{css}</style>");
 
+        // For template pages (player.html, team.html), inline the JSON data
+        // so fetch() isn't needed, and inject the query string so URLSearchParams works
+        html = InlineJsonData(html);
+
+        if (!string.IsNullOrEmpty(_currentQueryString))
+        {
+            // Inject a script that sets the query string before the page JS runs
+            var fakeQs = _currentQueryString.Replace("\\", "\\\\").Replace("'", "\\'");
+            var qsScript = $"<script>if(!window.location.search){{" +
+                           $"Object.defineProperty(window,'_editorQS',{{value:'{fakeQs}'}});" +
+                           $"var _origUSP=URLSearchParams;" +
+                           $"URLSearchParams=function(s){{return new _origUSP(window._editorQS||s);}};" +
+                           $"}}</script>";
+            html = html.Replace("<head>", "<head>" + qsScript);
+        }
+
         // Inject freeform editor JS on home page
         if (_currentPage == "index.html")
             html = html.Replace("</body>", GetEditorScript() + "\n</body>");
@@ -77,12 +95,63 @@ public partial class DragDropLayoutPage : ContentPage
         EditorWebView.Source = new HtmlWebViewSource { Html = html };
     }
 
+    private string InlineJsonData(string html)
+    {
+        if (_generatedFiles == null) return html;
+
+        // Replace fetch('players-data.json').then(parse) with inline data
+        if (_generatedFiles.TryGetValue("players-data.json", out var playersJson))
+        {
+            var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
+                .Replace("\r", "").Replace("\n", "");
+            // Match the exact pattern from WebsiteTemplatePageGenerator
+            const string fetchPlayers = "fetch('players-data.json')";
+            const string thenParse = ".then(function(r) { return r.json(); })";
+            html = ReplaceFetchPattern(html, fetchPlayers, thenParse, escaped);
+        }
+
+        // Replace fetch('teams-data.json').then(parse) with inline data
+        if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
+        {
+            var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
+                .Replace("\r", "").Replace("\n", "");
+            const string fetchTeams = "fetch('teams-data.json')";
+            const string thenParse = ".then(function(r) { return r.json(); })";
+            html = ReplaceFetchPattern(html, fetchTeams, thenParse, escaped);
+        }
+
+        return html;
+    }
+
+    /// <summary>
+    /// Replaces a fetch('...').then(parse) pattern with Promise.resolve(inline data),
+    /// tolerant of any whitespace/newlines between the two parts.
+    /// </summary>
+    private static string ReplaceFetchPattern(string html, string fetchPart, string thenPart, string escapedJson)
+    {
+        var idx = html.IndexOf(fetchPart, StringComparison.Ordinal);
+        if (idx < 0) return html;
+
+        var afterFetch = idx + fetchPart.Length;
+        // Skip any whitespace/newlines between fetch(...) and .then(...)
+        var thenIdx = html.IndexOf(thenPart, afterFetch, StringComparison.Ordinal);
+        if (thenIdx < 0) return html;
+
+        var endIdx = thenIdx + thenPart.Length;
+        return string.Concat(
+            html.AsSpan(0, idx),
+            $"Promise.resolve(JSON.parse('{escapedJson}'))",
+            html.AsSpan(endIdx));
+    }
+
     private void OnPageChanged(object? sender, EventArgs e)
     {
+        if (_syncingPicker) return;
         if (PagePicker.SelectedIndex < 0) return;
         var label = PagePicker.SelectedItem?.ToString() ?? "Home";
         var page = Pages.FirstOrDefault(p => p.Label == label);
         _currentPage = page.FileName ?? "index.html";
+        _currentQueryString = null;
         LoadCurrentPage();
     }
 
@@ -119,6 +188,50 @@ public partial class DragDropLayoutPage : ContentPage
         {
             e.Cancel = true;
             HandleEditorCommand(e.Url);
+            return;
+        }
+
+        // Intercept .html links and load from generated files
+        var url = e.Url;
+        string? targetFile = null;
+        string? queryString = null;
+
+        // Extract filename and query string from URLs like
+        // "player.html?id=xxx" or "http://...../standings.html"
+        var lastSlash = url.LastIndexOf('/');
+        var pathPart = lastSlash >= 0 ? url[(lastSlash + 1)..] : url;
+        var qIdx = pathPart.IndexOf('?');
+        if (qIdx >= 0)
+        {
+            queryString = pathPart[qIdx..]; // includes the '?'
+            pathPart = pathPart[..qIdx];
+        }
+
+        if (pathPart.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            targetFile = pathPart;
+
+        if (targetFile != null && _generatedFiles != null && _generatedFiles.ContainsKey(targetFile))
+        {
+            e.Cancel = true;
+            _currentPage = targetFile;
+            _currentQueryString = queryString;
+            SyncPagePicker(targetFile);
+            LoadCurrentPage();
+        }
+    }
+
+    private void SyncPagePicker(string fileName)
+    {
+        var match = Pages.FirstOrDefault(p => p.FileName == fileName);
+        if (match.Label != null && PagePicker.ItemsSource is IList<string> items)
+        {
+            var idx = items.IndexOf(match.Label);
+            if (idx >= 0)
+            {
+                _syncingPicker = true;
+                PagePicker.SelectedIndex = idx;
+                _syncingPicker = false;
+            }
         }
     }
 
@@ -173,8 +286,27 @@ public partial class DragDropLayoutPage : ContentPage
             var positions = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
             if (positions == null) return;
 
+            var inv = CultureInfo.InvariantCulture;
             foreach (var kvp in positions)
             {
+                // Header sub-element positions ? stored as "left%;top%" strings
+                if (kvp.Key.StartsWith("header-"))
+                {
+                    var left = kvp.Value.GetProperty("left").GetDouble();
+                    var top = kvp.Value.GetProperty("top").GetDouble();
+                    var posStr = $"{left.ToString("F1", inv)}%{';'}{top.ToString("F0", inv)}px";
+                    
+                    var settings = League.WebsiteSettings;
+                    switch (kvp.Key)
+                    {
+                        case "header-logo":     settings.HeaderLogoPos = posStr; break;
+                        case "header-title":    settings.HeaderTitlePos = posStr; break;
+                        case "header-subtitle": settings.HeaderSubtitlePos = posStr; break;
+                        case "header-badge":    settings.HeaderBadgePos = posStr; break;
+                    }
+                    continue;
+                }
+
                 var block = _blocks.Find(b => b.BlockType == kvp.Key);
                 if (block != null)
                 {
@@ -207,6 +339,12 @@ public partial class DragDropLayoutPage : ContentPage
     private void OnResetClicked(object? sender, EventArgs e)
     {
         _blocks = LayoutBlock.GetDefaultBlocks();
+        // Clear header sub-element positions
+        var settings = League.WebsiteSettings;
+        settings.HeaderLogoPos = "";
+        settings.HeaderTitlePos = "";
+        settings.HeaderSubtitlePos = "";
+        settings.HeaderBadgePos = "";
         StatusLabel.Text = "Layout reset to defaults";
         GenerateAndLoad();
     }
@@ -274,6 +412,11 @@ public partial class DragDropLayoutPage : ContentPage
         body:not(.editor-on) .rh, body:not(.editor-on) .blbl,
         body:not(.editor-on) .egrid { display:none !important; }
         body:not(.editor-on) [data-block-id] { cursor:default; outline:none !important; }
+        /* Header sub-element editor styles */
+        [data-block-id^="header-"] { position: relative; }
+        [data-block-id^="header-"].sel { outline-color: #F59E0B; }
+        [data-block-id^="header-"] > .rh { border-color: #F59E0B; }
+        [data-block-id^="header-"] > .blbl { background: #B45309; }
     `;
     document.head.appendChild(css);
     document.body.classList.add('editor-on');
@@ -282,8 +425,8 @@ public partial class DragDropLayoutPage : ContentPage
     grid.className = 'egrid';
     canvas.insertBefore(grid, canvas.firstChild);
 
-    const blocks = [...canvas.querySelectorAll('[data-block-id]')];
-    blocks.forEach(el => {
+    /* Setup: decorate all [data-block-id] elements with handles and labels */
+    function setupBlock(el) {
         const lbl = document.createElement('div');
         lbl.className = 'blbl';
         lbl.textContent = el.dataset.blockName || el.dataset.blockId;
@@ -307,6 +450,17 @@ public partial class DragDropLayoutPage : ContentPage
                 startMove(e, el);
             }
         });
+    }
+
+    /* Top-level canvas blocks */
+    const blocks = [...canvas.querySelectorAll(':scope > [data-block-id]')];
+    blocks.forEach(setupBlock);
+
+    /* Header sub-elements: make header-content relative and setup children */
+    document.querySelectorAll('.header-content').forEach(hc => {
+        hc.style.position = 'relative';
+        hc.style.minHeight = '120px';
+        [...hc.querySelectorAll('[data-block-id]')].forEach(setupBlock);
     });
 
     canvas.addEventListener('mousedown', e => {
@@ -358,6 +512,11 @@ public partial class DragDropLayoutPage : ContentPage
         el.classList.add('moving');
         startM = {x: e.clientX, y: e.clientY};
         startR = { l: parseFloat(el.style.left)||0, t: parseFloat(el.style.top)||0 };
+        /* For header sub-elements, resolve the reference container */
+        if (isSubElement(el)) {
+            const parent = el.closest('.header-content') || el.parentElement;
+            canvasR = parent.getBoundingClientRect();
+        }
     }
     function doMove(e) {
         if (!selected) return;
@@ -369,6 +528,8 @@ public partial class DragDropLayoutPage : ContentPage
         nl = Math.max(0, nl); nt = Math.max(0, nt);
         selected.style.left = nl + '%';
         selected.style.top = nt + 'px';
+        /* When a sub-element moves, make it absolutely positioned */
+        if (isSubElement(selected)) selected.style.position = 'absolute';
         sendStatus();
     }
 
@@ -376,6 +537,10 @@ public partial class DragDropLayoutPage : ContentPage
         mode = 'resizing'; handle = h;
         el.classList.add('moving');
         startM = {x: e.clientX, y: e.clientY};
+        if (isSubElement(el)) {
+            const parent = el.closest('.header-content') || el.parentElement;
+            canvasR = parent.getBoundingClientRect();
+        }
         const r = el.getBoundingClientRect();
         startR = {
             l: parseFloat(el.style.left)||0,
@@ -428,6 +593,10 @@ public partial class DragDropLayoutPage : ContentPage
     }
 
     /* === Public API for C# to call === */
+    function isSubElement(el) {
+        return el.dataset.blockId && el.dataset.blockId.startsWith('header-');
+    }
+
     window.toggleEditor = function(on) {
         editorOn = on;
         document.body.classList.toggle('editor-on', on);
@@ -442,7 +611,8 @@ public partial class DragDropLayoutPage : ContentPage
     };
     window.getBlockPositions = function() {
         const pos = {};
-        canvas.querySelectorAll('[data-block-id]').forEach(el => {
+        /* Top-level canvas blocks */
+        canvas.querySelectorAll(':scope > [data-block-id]').forEach(el => {
             pos[el.dataset.blockId] = {
                 left: parseFloat(el.style.left)||0,
                 top: parseFloat(el.style.top)||0,
@@ -450,6 +620,16 @@ public partial class DragDropLayoutPage : ContentPage
                 height: el.style.height ? parseFloat(el.style.height) : 0,
                 zIndex: parseInt(el.style.zIndex)||1
             };
+        });
+        /* Header sub-elements (positions relative to header) */
+        document.querySelectorAll('[data-block-id^="header-"]').forEach(el => {
+            if (el.style.position === 'absolute') {
+                pos[el.dataset.blockId] = {
+                    left: parseFloat(el.style.left)||0,
+                    top: parseFloat(el.style.top)||0,
+                    width: 0, height: 0, zIndex: 0
+                };
+            }
         });
         return JSON.stringify(pos);
     };

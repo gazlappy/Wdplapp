@@ -57,27 +57,58 @@ namespace Wdpl2.Services
         {
             var logoData = _settings.GetEffectiveLogoData();
             var hasLogo = _settings.UseCustomLogo && logoData != null && logoData.Length > 0;
+            var hasSub = !string.IsNullOrWhiteSpace(_settings.LeagueSubtitle);
+            var hasBadge = _settings.ShowSeasonBadge;
+            
+            // Check if any sub-element has a freeform position set
+            bool freeform = !string.IsNullOrEmpty(_settings.HeaderLogoPos)
+                         || !string.IsNullOrEmpty(_settings.HeaderTitlePos)
+                         || !string.IsNullOrEmpty(_settings.HeaderSubtitlePos)
+                         || !string.IsNullOrEmpty(_settings.HeaderBadgePos);
             
             html.AppendLine($"    <header {dataAttrs}>");
-            html.AppendLine("        <div class=\"header-content\">");
+            html.AppendLine($"        <div class=\"header-content{(freeform ? " header-freeform" : "")}\">");
             
             if (hasLogo)
             {
                 var imageOptimizer = new ImageOptimizationService();
                 var mimeType = imageOptimizer.GetMimeType("logo.png");
                 var dataUrl = imageOptimizer.ToDataUrl(logoData!, mimeType);
-                html.AppendLine($"            <img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;\">");
+                var posStyle = BuildSubElementStyle(_settings.HeaderLogoPos);
+                html.AppendLine($"            <img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" data-block-id=\"header-logo\" data-block-name=\"Logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;{posStyle}\">");
             }
             
-            html.AppendLine($"            <h1>{_settings.LeagueName}</h1>");
-            if (!string.IsNullOrWhiteSpace(_settings.LeagueSubtitle))
-                html.AppendLine($"            <p class=\"subtitle\">{_settings.LeagueSubtitle}</p>");
+            {
+                var posStyle = BuildSubElementStyle(_settings.HeaderTitlePos);
+                html.AppendLine($"            <h1 data-block-id=\"header-title\" data-block-name=\"Title\" style=\"{posStyle}\">{_settings.LeagueName}</h1>");
+            }
             
-            if (_settings.ShowSeasonBadge)
-                html.AppendLine($"            <span class=\"season-badge\">{season.Name}</span>");
+            if (hasSub)
+            {
+                var posStyle = BuildSubElementStyle(_settings.HeaderSubtitlePos);
+                html.AppendLine($"            <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\" style=\"{posStyle}\">{_settings.LeagueSubtitle}</p>");
+            }
+            
+            if (hasBadge)
+            {
+                var posStyle = BuildSubElementStyle(_settings.HeaderBadgePos);
+                html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\" style=\"{posStyle}\">{season.Name}</span>");
+            }
             
             html.AppendLine("        </div>");
             html.AppendLine("    </header>");
+        }
+        
+        /// <summary>
+        /// Converts a "left%;top%" position string to inline CSS.
+        /// Returns empty string if no position is set.
+        /// </summary>
+        private static string BuildSubElementStyle(string pos)
+        {
+            if (string.IsNullOrEmpty(pos)) return "";
+            var parts = pos.Split(';');
+            if (parts.Length < 2) return "";
+            return $" position:absolute; left:{parts[0]}; top:{parts[1]};";
         }
         
         private void AppendNavigation(StringBuilder html, string activePage)
