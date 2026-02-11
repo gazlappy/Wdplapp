@@ -162,7 +162,7 @@ namespace Wdpl2.Services
                 var left = block.LeftPercent.ToString("F1", inv);
                 var top = block.TopPx.ToString("F0", inv);
                 var width = block.WidthPercent.ToString("F1", inv);
-                var posStyle = $"position:absolute; left:{left}%; top:{top}px; width:{width}%; z-index:{block.ZIndex};";
+                var posStyle = $"position:absolute; left:{left}%; top:{top}px; max-width:{width}%; z-index:{block.ZIndex};";
                 if (block.HeightPx > 0)
                     posStyle += $" height:{block.HeightPx.ToString("F0", inv)}px; overflow:auto;";
                 

@@ -141,6 +141,10 @@ header .logo {{
     min-height: 120px;
 }}
 
+.header-content > [data-block-id] {{
+    width: fit-content;
+}}
+
 .header-freeform > [data-block-id] {{
     cursor: default;
 }}
@@ -189,6 +193,7 @@ nav a:hover, nav a.active {{
 .page-canvas > [data-block-id] {{
     position: absolute;
     box-sizing: border-box;
+    width: fit-content;
 }}
 
 .hero {{

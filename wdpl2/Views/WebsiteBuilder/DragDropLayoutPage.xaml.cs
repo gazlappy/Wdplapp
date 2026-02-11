@@ -392,6 +392,8 @@ public partial class DragDropLayoutPage : ContentPage
         [data-block-id].sel { outline: 2px solid #3B82F6; outline-offset: -1px; }
         [data-block-id][data-structural="true"].sel { outline-color: #8B5CF6; }
         [data-block-id].moving { cursor: grabbing !important; opacity: 0.85; }
+        /* Shrink sub-elements to content size so selection fits tightly */
+        .header-content > [data-block-id] { width: fit-content; margin-left: auto; margin-right: auto; }
         .rh { position:absolute; width:${HANDLE}px; height:${HANDLE}px;
                background:#fff; border:2px solid #3B82F6; border-radius:1px;
                z-index:99999; display:none; pointer-events:auto; }
@@ -545,7 +547,7 @@ public partial class DragDropLayoutPage : ContentPage
         startR = {
             l: parseFloat(el.style.left)||0,
             t: parseFloat(el.style.top)||0,
-            w: parseFloat(el.style.width)||(r.width/canvasR.width*100),
+            w: parseFloat(el.style.width) || parseFloat(el.style.maxWidth) || (r.width/canvasR.width*100),
             h: r.height
         };
     }
@@ -561,6 +563,7 @@ public partial class DragDropLayoutPage : ContentPage
         selected.style.left = l + '%';
         selected.style.top = t + 'px';
         selected.style.width = w + '%';
+        selected.style.maxWidth = w + '%';
         if (handle.includes('n') || handle.includes('s')) {
             selected.style.height = h + 'px';
             selected.style.overflow = 'auto';
@@ -585,7 +588,7 @@ public partial class DragDropLayoutPage : ContentPage
         const n = encodeURIComponent(selected.dataset.blockName || selected.dataset.blockId);
         const l = (parseFloat(selected.style.left)||0).toFixed(1);
         const t = (parseFloat(selected.style.top)||0).toFixed(0);
-        const w = (parseFloat(selected.style.width)||100).toFixed(1);
+        const w = (parseFloat(selected.style.width) || parseFloat(selected.style.maxWidth) || 100).toFixed(1);
         const r = selected.getBoundingClientRect();
         const h = selected.style.height ? parseFloat(selected.style.height).toFixed(0) : Math.round(r.height).toString();
         /* Use hash to avoid navigation reload */
@@ -616,7 +619,7 @@ public partial class DragDropLayoutPage : ContentPage
             pos[el.dataset.blockId] = {
                 left: parseFloat(el.style.left)||0,
                 top: parseFloat(el.style.top)||0,
-                width: parseFloat(el.style.width)||100,
+                width: parseFloat(el.style.width) || parseFloat(el.style.maxWidth) || 100,
                 height: el.style.height ? parseFloat(el.style.height) : 0,
                 zIndex: parseInt(el.style.zIndex)||1
             };
