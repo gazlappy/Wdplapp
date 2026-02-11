@@ -92,6 +92,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private async void OnColorsTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new ColorsSettingsPage());
     
+    private async void OnDragDropLayoutTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new DragDropLayoutPage());
+    
     private async void OnLayoutTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new LayoutSettingsPage());
     

@@ -96,6 +96,20 @@
             <!-- Design Section -->
             <Label Text="Design" FontSize="18" FontAttributes="Bold" Margin="0,10,0,0"/>
             
+            <Frame BorderColor="#F59E0B" Padding="0" CornerRadius="8" BackgroundColor="#FFFBEB">
+                <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnDragDropLayoutTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Grid.Column="0" Text="⚡" FontSize="20" VerticalOptions="Center"/>
+                    <VerticalStackLayout Grid.Column="1" Margin="15,0,0,0" VerticalOptions="Center">
+                        <Label Text="Visual Layout Editor" FontAttributes="Bold" FontSize="16"/>
+                        <Label Text="Live drag-and-drop editor for all pages" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text=">" FontSize="24" TextColor="#9CA3AF" VerticalOptions="Center"/>
+                </Grid>
+            </Frame>
+            
             <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                 <Grid Padding="15" ColumnDefinitions="Auto,*,Auto">
                     <Grid.GestureRecognizers>

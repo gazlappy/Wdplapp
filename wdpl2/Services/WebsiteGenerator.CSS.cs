@@ -34,6 +34,22 @@ namespace Wdpl2.Services
         
         private string GenerateModernCSS()
         {
+            var _btnBaseStyle = _settings.ButtonStyle switch
+            {
+                "filled" => "background: var(--primary-color); color: white; border: 2px solid var(--primary-color);",
+                "outline" => "background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color);",
+                "ghost" => "background: transparent; color: var(--primary-color); border: 2px solid transparent;",
+                _ => "background: var(--primary-color); color: white; border: 2px solid var(--primary-color);"
+            };
+            
+            var _btnHoverStyle = _settings.ButtonStyle switch
+            {
+                "filled" => "opacity: 0.9;",
+                "outline" => "background: var(--primary-color); color: white;",
+                "ghost" => "background: rgba(59,130,246,0.1);",
+                _ => "opacity: 0.9;"
+            };
+            
             return $@"
 /* Modern CSS Variables */
 :root {{
@@ -60,7 +76,9 @@ namespace Wdpl2.Services
     --border-radius: {_settings.BorderRadius}px;
     --shadow: 0 2px 4px rgba(0,0,0,0.1);
     --shadow-lg: 0 4px 6px rgba(0,0,0,0.1);
-    --max-content-width: 1200px;
+    --max-content-width: {_settings.MaxContentWidth}px;
+    --spacing: {_settings.SectionSpacing}px;
+    --card-spacing: {_settings.CardSpacing}px;
     --transition: all 0.2s ease;
 }}
 
@@ -80,7 +98,7 @@ body {{
 }}
 
 .container {{
-    max-width: 1200px;
+    max-width: var(--max-content-width);
     margin: 0 auto;
     padding: 0 20px;
 }}
@@ -129,7 +147,7 @@ nav .nav-container {{
     flex-wrap: wrap;
     gap: 8px;
     padding: 15px 20px;
-    max-width: 1200px;
+    max-width: var(--max-content-width);
     margin: 0 auto;
 }}
 
@@ -148,7 +166,7 @@ nav a:hover, nav a.active {{
     {(_settings.NavStyle == "underline" ? "background: transparent; color: var(--primary-color); border-bottom-color: var(--primary-color);" : "")}
 }}
 
-main {{
+.content-area {{
     padding: var(--spacing) 0;
 }}
 
@@ -181,6 +199,22 @@ main {{
     font-family: var(--header-font);
     margin-bottom: 20px;
     color: var(--text-color);
+}}
+
+/* Two-column layout for half-width blocks */
+.two-col-row {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing);
+    margin-bottom: var(--spacing);
+}}
+
+.two-col-row .section {{
+    margin-bottom: 0;
+}}
+
+.col-half {{
+    min-width: 0;
 }}
 
 .stats-grid {{
@@ -561,7 +595,7 @@ footer {{
 }}
 
 .footer-content {{
-    max-width: 1200px;
+    max-width: var(--max-content-width);
     margin: 0 auto;
     text-align: center;
 }}
@@ -587,10 +621,61 @@ footer a {{
     margin-top: 10px;
 }}
 
+/* Button Styling */
+.btn {{
+    display: inline-block;
+    padding: {(_settings.ButtonRounded ? "10px 24px" : "10px 20px")};
+    border-radius: {(_settings.ButtonRounded ? "20px" : "var(--border-radius)")};
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    {_btnBaseStyle}
+}}
+
+.btn:hover {{
+    {_btnHoverStyle}
+}}
+
+/* Sidebar Layout */
+{(_settings.PageLayout != "full-width" ? $@"
+.page-layout {{
+    display: grid;
+    grid-template-columns: {(_settings.PageLayout == "sidebar-left" ? $"{_settings.SidebarWidth}px 1fr" : $"1fr {_settings.SidebarWidth}px")};
+    gap: var(--spacing);
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    padding: 0 20px;
+}}
+
+.page-main {{
+    min-width: 0;
+}}
+
+.page-sidebar {{
+    min-width: 0;
+}}
+
+.page-sidebar .section {{
+    position: sticky;
+    top: 80px;
+}}
+
+@media (max-width: 900px) {{
+    .page-layout {{
+        grid-template-columns: 1fr;
+    }}
+    .page-sidebar .section {{
+        position: static;
+    }}
+}}
+" : "")}
+
 @media (max-width: 768px) {{
     header h1 {{ font-size: 1.8rem; }}
     .hero h2 {{ font-size: 1.5rem; }}
     nav .nav-container {{ justify-content: center; }}
+    .two-col-row {{ grid-template-columns: 1fr; }}
     .result-item, .fixture-item {{ 
         grid-template-columns: 1fr !important;
         text-align: center;

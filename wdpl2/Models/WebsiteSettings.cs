@@ -4,6 +4,35 @@ using System.Collections.Generic;
 namespace Wdpl2.Models
 {
     /// <summary>
+    /// Represents a draggable content block on the home page
+    /// </summary>
+    public sealed class LayoutBlock
+    {
+        public string Id { get; set; } = "";
+        public string BlockType { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public bool IsEnabled { get; set; } = true;
+        public int ColumnSpan { get; set; } = 2; // 1 = half width, 2 = full width
+        public int Order { get; set; }
+        public bool IsStructural { get; set; } // true for header, nav, footer
+        
+        public static List<LayoutBlock> GetDefaultBlocks() =>
+        [
+            new() { Id = "header",             BlockType = "header",             DisplayName = "Header",              Icon = "\U0001F3AF", IsEnabled = true,  ColumnSpan = 2, Order = 0,  IsStructural = true },
+            new() { Id = "nav",                BlockType = "nav",                DisplayName = "Navigation",          Icon = "\U0001F9ED", IsEnabled = true,  ColumnSpan = 2, Order = 1,  IsStructural = true },
+            new() { Id = "welcome",           BlockType = "welcome",           DisplayName = "Welcome / Hero",      Icon = "\U0001F3E0", IsEnabled = true,  ColumnSpan = 2, Order = 2 },
+            new() { Id = "quick-stats",        BlockType = "quick-stats",        DisplayName = "Quick Stats",         Icon = "\U0001F4CA", IsEnabled = true,  ColumnSpan = 2, Order = 3 },
+            new() { Id = "league-leaders",     BlockType = "league-leaders",     DisplayName = "League Leaders",      Icon = "\U0001F3C6", IsEnabled = true,  ColumnSpan = 1, Order = 4 },
+            new() { Id = "recent-results",     BlockType = "recent-results",     DisplayName = "Recent Results",      Icon = "\U0001F3C1", IsEnabled = true,  ColumnSpan = 1, Order = 5 },
+            new() { Id = "upcoming-fixtures",  BlockType = "upcoming-fixtures",  DisplayName = "Upcoming Fixtures",   Icon = "\U0001F4C5", IsEnabled = true,  ColumnSpan = 1, Order = 6 },
+            new() { Id = "latest-news",        BlockType = "latest-news",        DisplayName = "Latest News",         Icon = "\U0001F4F0", IsEnabled = false, ColumnSpan = 1, Order = 7 },
+            new() { Id = "sponsors",           BlockType = "sponsors",           DisplayName = "Sponsors",            Icon = "\u2B50",     IsEnabled = false, ColumnSpan = 2, Order = 8 },
+            new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 9,  IsStructural = true },
+        ];
+    }
+    
+    /// <summary>
     /// Website configuration and deployment settings
     /// </summary>
     public sealed class WebsiteSettings
@@ -51,6 +80,32 @@ namespace Wdpl2.Models
         public int BaseFontSize { get; set; } = 16;
         public int BorderRadius { get; set; } = 12;
         public int CardSpacing { get; set; } = 24;
+        
+        // Page Layout Options
+        public int MaxContentWidth { get; set; } = 1200; // 960, 1200, 1400, 1600
+        public int SectionSpacing { get; set; } = 24; // px gap between sections
+        public string PageLayout { get; set; } = "full-width"; // full-width, sidebar-right, sidebar-left
+        public int SidebarWidth { get; set; } = 320; // px width when sidebar layout
+        
+        // Home Section Order (controls display order on home page)
+        public List<string> HomeSectionOrder { get; set; } = new()
+        {
+            "welcome", "quick-stats", "league-leaders", "recent-results", "upcoming-fixtures", "latest-news", "sponsors"
+        };
+        
+        // Drag-and-drop layout blocks for home page
+        public List<LayoutBlock> HomeLayoutBlocks { get; set; } = new();
+        
+        /// <summary>
+        /// Available max content widths
+        /// </summary>
+        public static readonly Dictionary<int, string> ContentWidths = new()
+        {
+            [960] = "Narrow (960px)",
+            [1200] = "Standard (1200px)",
+            [1400] = "Wide (1400px)",
+            [1600] = "Extra Wide (1600px)"
+        };
         
         // Header Options
         public string HeaderStyle { get; set; } = "gradient"; // gradient, solid, image, minimal
@@ -269,6 +324,50 @@ namespace Wdpl2.Models
         }
         
         /// <summary>
+        /// Get effective layout blocks, migrating from HomeSectionOrder if needed
+        /// </summary>
+        public List<LayoutBlock> GetEffectiveLayoutBlocks()
+        {
+            // If we already have blocks with structural items, use them
+            if (HomeLayoutBlocks.Count > 0 && HomeLayoutBlocks.Any(b => b.IsStructural))
+                return HomeLayoutBlocks.OrderBy(b => b.Order).ToList();
+            
+            // Migrate: add structural blocks around existing content blocks
+            var defaults = LayoutBlock.GetDefaultBlocks();
+            var existing = HomeLayoutBlocks.Count > 0
+                ? HomeLayoutBlocks.ToList()
+                : HomeSectionOrder.Count > 0
+                    ? HomeSectionOrder.Select((key, i) =>
+                    {
+                        var tmpl = defaults.Find(d => d.Id == key);
+                        return new LayoutBlock
+                        {
+                            Id = key, BlockType = key,
+                            DisplayName = tmpl?.DisplayName ?? key,
+                            Icon = tmpl?.Icon ?? "\U0001F4E6",
+                            IsEnabled = true,
+                            ColumnSpan = tmpl?.ColumnSpan ?? 2,
+                            Order = i
+                        };
+                    }).ToList()
+                    : defaults.Where(b => !b.IsStructural).ToList();
+            
+            // Build full block list: header, nav, [content...], footer
+            var headerBlock = defaults.First(b => b.Id == "header");
+            var navBlock = defaults.First(b => b.Id == "nav");
+            var footerBlock = defaults.First(b => b.Id == "footer");
+            
+            var result = new List<LayoutBlock> { headerBlock, navBlock };
+            result.AddRange(existing.Where(b => !b.IsStructural));
+            result.Add(footerBlock);
+            
+            for (int i = 0; i < result.Count; i++)
+                result[i].Order = i;
+            
+            return result;
+        }
+        
+        /// <summary>
         /// Add a logo to the catalog
         /// </summary>
         public void AddLogoCatalogItem(string name, byte[] imageData, string description = "", string category = "General")
@@ -462,6 +561,22 @@ namespace Wdpl2.Models
             BaseFontSize = 16;
             BorderRadius = 12;
             CardSpacing = 24;
+            
+            // Page Layout
+            MaxContentWidth = 1200;
+            SectionSpacing = 24;
+            PageLayout = "full-width";
+            SidebarWidth = 320;
+            HomeSectionOrder = new List<string>
+            {
+                "welcome", "quick-stats", "league-leaders", "recent-results", "upcoming-fixtures", "latest-news", "sponsors"
+            };
+            HomeLayoutBlocks = LayoutBlock.GetDefaultBlocks();
+
+            
+            // Buttons
+            ButtonStyle = "filled";
+            ButtonRounded = true;
             
             // Header
             HeaderStyle = "gradient";

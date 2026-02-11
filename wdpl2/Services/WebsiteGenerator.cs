@@ -139,197 +139,77 @@ namespace Wdpl2.Services
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
             
-            AppendHeader(html, season);
-            AppendNavigation(html, "Home");
-            
-            html.AppendLine("    <main>");
-            html.AppendLine("        <div class=\"container\">");
-            
-            // Welcome Section
-            if (_settings.HomeShowWelcomeSection)
-            {
-                html.AppendLine("            <div class=\"hero\">");
-                html.AppendLine($"                <h2>Welcome to {season.Name}</h2>");
-                html.AppendLine($"                <p class=\"hero-dates\">{season.StartDate:MMMM d, yyyy} - {season.EndDate:MMMM d, yyyy}</p>");
-                if (!string.IsNullOrWhiteSpace(_settings.WelcomeMessage))
-                {
-                    html.AppendLine($"                <p class=\"welcome-text\">{_settings.WelcomeMessage}</p>");
-                }
-                html.AppendLine("            </div>");
-            }
-            
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             var completedFixtures = fixtures.Count(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None));
             
-            // Quick Stats
-            if (_settings.HomeShowQuickStats)
-            {
-                var statColumns = _settings.StatsColumns;
-                html.AppendLine($"            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax({(statColumns == 2 ? "280px" : statColumns == 3 ? "200px" : "180px")}, 1fr));\">");
-                html.AppendLine("                <div class=\"stat-card\">");
-                html.AppendLine($"                    <div class=\"stat-number\">{teams.Count}</div>");
-                html.AppendLine("                    <div class=\"stat-label\">Teams</div>");
-                html.AppendLine("                </div>");
-                html.AppendLine("                <div class=\"stat-card\">");
-                html.AppendLine($"                    <div class=\"stat-number\">{players.Count}</div>");
-                html.AppendLine("                    <div class=\"stat-label\">Players</div>");
-                html.AppendLine("                </div>");
-                html.AppendLine("                <div class=\"stat-card\">");
-                html.AppendLine($"                    <div class=\"stat-number\">{completedFixtures}</div>");
-                html.AppendLine("                    <div class=\"stat-label\">Matches Played</div>");
-                html.AppendLine("                </div>");
-                html.AppendLine("                <div class=\"stat-card\">");
-                html.AppendLine($"                    <div class=\"stat-number\">{divisions.Count}</div>");
-                html.AppendLine("                    <div class=\"stat-label\">Divisions</div>");
-                html.AppendLine("                </div>");
-                html.AppendLine("            </div>");
-            }
+            var blocks = _settings.GetEffectiveLayoutBlocks()
+                .Where(b => b.IsEnabled)
+                .OrderBy(b => b.Order)
+                .ToList();
             
-            // League Leaders
-            if (_settings.HomeShowLeagueLeaders && _settings.ShowTopScorers)
+            bool inContentArea = false;
+            bool inTwoColRow = false;
+            
+            for (int i = 0; i < blocks.Count; i++)
             {
-                var playerStats = CalculatePlayerStats(players, teams, fixtures);
+                var block = blocks[i];
+                var dataAttrs = $"data-block-id=\"{block.BlockType}\" data-block-name=\"{block.DisplayName}\" data-block-span=\"{block.ColumnSpan}\" data-structural=\"{(block.IsStructural ? "true" : "false")}\"";
                 
-                // Apply filter based on settings
-                // Priority: Website settings > App settings > No filter
-                int minFramesRequired = 0;
-                if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
+                // Structural blocks render at the top level
+                if (block.IsStructural)
                 {
-                    // Website percentage filter is explicitly configured
-                    var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
-                    minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
-                }
-                else if (_settings.PlayersMinGames > 0)
-                {
-                    // Website fixed minimum games filter
-                    minFramesRequired = _settings.PlayersMinGames;
-                }
-                else if (_league.Settings.MinFramesPercentage > 0)
-                {
-                    // Fall back to app-level MinFramesPercentage setting (e.g., 60%)
-                    var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
-                    minFramesRequired = (int)Math.Ceiling(maxFrames * (_league.Settings.MinFramesPercentage / 100.0));
-                }
-                
-                // Sort by Rating (same as Players/Ratings page), not win percentage
-                var topPlayers = playerStats
-                    .Where(p => p.Played >= minFramesRequired)
-                    .OrderByDescending(s => s.Rating)
-                    .ThenByDescending(s => s.WinPercentage)
-                    .ThenByDescending(s => s.Won)
-                    .Take(_settings.HomeLeagueLeadersCount)
-                    .ToList();
-                
-                if (topPlayers.Any())
-                {
-                    html.AppendLine("            <section class=\"section\">");
-                    html.AppendLine("                <h3>&#127942; League Leaders</h3>");
-                    html.AppendLine("                <div class=\"leaders-list\">");
-                    var rank = 1;
-                    foreach (var player in topPlayers)
+                    // Close any open content area first
+                    if (inTwoColRow) { html.AppendLine("            </div>"); inTwoColRow = false; }
+                    if (inContentArea) { html.AppendLine("        </div>"); html.AppendLine("    </div>"); inContentArea = false; }
+                    
+                    switch (block.BlockType)
                     {
-                        var medal = rank switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => $"#{rank}" };
-                        html.AppendLine("                    <div class=\"leader-item\">");
-                        html.AppendLine($"                        <span class=\"rank\">{medal}</span>");
-                        html.AppendLine($"                        <span class=\"player-name\">{player.PlayerName}</span>");
-                        html.AppendLine($"                        <span class=\"player-team\">{player.TeamName}</span>");
-                        html.AppendLine($"                        <span class=\"player-stat\">{player.Rating}</span>");
-                        html.AppendLine("                    </div>");
-                        rank++;
+                        case "header": AppendHeaderBlock(html, season, dataAttrs); break;
+                        case "nav": AppendNavBlock(html, "Home", dataAttrs); break;
+                        case "footer": AppendFooterBlock(html, dataAttrs); break;
                     }
-                    html.AppendLine("                </div>");
-                    if (_settings.ShowPlayerStats)
-                        html.AppendLine("                <p class=\"view-all\"><a href=\"players.html\">View All Players &#8594;</a></p>");
-                    html.AppendLine("            </section>");
+                    continue;
                 }
-            }
-            
-            // Recent Results
-            if (_settings.HomeShowRecentResults && _settings.ShowResults && completedFixtures > 0)
-            {
-                html.AppendLine("            <section class=\"section\">");
-                html.AppendLine("                <h3>&#127937; Recent Results</h3>");
                 
-                var recentResults = fixtures
-                    .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
-                    .OrderByDescending(f => f.Date)
-                    .Take(_settings.HomeRecentResultsCount)
-                    .ToList();
-                
-                html.AppendLine("                <div class=\"results-list\">");
-                foreach (var fixture in recentResults)
+                // Content blocks go inside a content area container
+                if (!inContentArea)
                 {
-                    var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
-                    var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
-                    var isHomeWin = fixture.HomeScore > fixture.AwayScore;
-                    var isDraw = fixture.HomeScore == fixture.AwayScore;
-                    
-                    html.AppendLine("                    <div class=\"result-item\">");
-                    if (_settings.ResultsShowDate)
-                        html.AppendLine($"                        <span class=\"date\">{fixture.Date.ToString(_settings.ResultsDateFormat)}</span>");
-                    html.AppendLine($"                        <span class=\"team{(_settings.ResultsHighlightWinner && isHomeWin ? " winner" : "")}\">{homeTeam?.Name ?? "Home"}</span>");
-                    html.AppendLine($"                        <span class=\"score\">{fixture.HomeScore} - {fixture.AwayScore}</span>");
-                    html.AppendLine($"                        <span class=\"team{(_settings.ResultsHighlightWinner && !isHomeWin && !isDraw ? " winner" : "")}\">{awayTeam?.Name ?? "Away"}</span>");
-                    html.AppendLine("                    </div>");
+                    html.AppendLine("    <div class=\"content-area\">");
+                    html.AppendLine("        <div class=\"container\">");
+                    inContentArea = true;
                 }
-                html.AppendLine("                </div>");
-                html.AppendLine("                <p class=\"view-all\"><a href=\"results.html\">View All Results &#8594;</a></p>");
-                html.AppendLine("            </section>");
-            }
-            
-            // Upcoming Fixtures
-            if (_settings.HomeShowUpcomingFixtures && _settings.ShowFixtures)
-            {
-                var upcomingFixtures = fixtures
-                    .Where(f => f.Date > DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
-                    .OrderBy(f => f.Date)
-                    .Take(_settings.HomeUpcomingFixturesCount)
-                    .ToList();
                 
-                if (upcomingFixtures.Any())
+                if (block.ColumnSpan == 1)
                 {
-                    html.AppendLine("            <section class=\"section\">");
-                    html.AppendLine("                <h3>&#128197; Upcoming Fixtures</h3>");
-                    html.AppendLine("                <div class=\"fixtures-list\">");
-                    
-                    foreach (var fixture in upcomingFixtures)
+                    if (!inTwoColRow)
                     {
-                        var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
-                        var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
-                        var venue = fixture.VenueId.HasValue ? venues.FirstOrDefault(v => v.Id == fixture.VenueId.Value) : null;
-                        
-                        html.AppendLine("                    <div class=\"fixture-item\">");
-                        if (_settings.FixturesShowDate)
-                        {
-                            var dateStr = _settings.FixturesShowTime 
-                                ? fixture.Date.ToString($"{_settings.FixturesDateFormat} HH:mm")
-                                : fixture.Date.ToString(_settings.FixturesDateFormat);
-                            html.AppendLine($"                        <span class=\"date\">{dateStr}</span>");
-                        }
-                        html.AppendLine($"                        <span class=\"team\">{homeTeam?.Name ?? "Home"}</span>");
-                        html.AppendLine("                        <span class=\"vs\">vs</span>");
-                        html.AppendLine($"                        <span class=\"team\">{awayTeam?.Name ?? "Away"}</span>");
-                        if (_settings.FixturesShowVenue && venue != null)
-                            html.AppendLine($"                        <span class=\"venue\">{venue.Name}</span>");
-                        html.AppendLine("                    </div>");
+                        html.AppendLine("            <div class=\"two-col-row\">");
+                        inTwoColRow = true;
                     }
                     
+                    html.AppendLine($"                <div class=\"col-half\" {dataAttrs}>");
+                    AppendHomeSection(html, block.BlockType, season, divisions, venues, teams, players, fixtures, completedFixtures);
                     html.AppendLine("                </div>");
-                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
-                    html.AppendLine("            </section>");
+                    
+                    var nextBlock = i + 1 < blocks.Count ? blocks[i + 1] : null;
+                    if (nextBlock == null || nextBlock.ColumnSpan != 1 || nextBlock.IsStructural)
+                    {
+                        html.AppendLine("            </div>");
+                        inTwoColRow = false;
+                    }
+                }
+                else
+                {
+                    if (inTwoColRow) { html.AppendLine("            </div>"); inTwoColRow = false; }
+                    
+                    html.AppendLine($"            <div {dataAttrs}>");
+                    AppendHomeSection(html, block.BlockType, season, divisions, venues, teams, players, fixtures, completedFixtures);
+                    html.AppendLine("            </div>");
                 }
             }
             
-            // Sponsors on home page
-            if (_settings.HomeShowSponsors && _settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
-            {
-                AppendSponsorsSection(html);
-            }
-            
-            html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
-            
-            AppendFooter(html);
+            if (inTwoColRow) html.AppendLine("            </div>");
+            if (inContentArea) { html.AppendLine("        </div>"); html.AppendLine("    </div>"); }
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
@@ -338,6 +218,272 @@ namespace Wdpl2.Services
             html.AppendLine("</html>");
             
             return html.ToString();
+        }
+        
+        /// <summary>
+        /// Renders a non-home page using the user's structural block order (header/nav/footer positions)
+        /// </summary>
+        private void RenderPageStructure(StringBuilder html, Season season, string activePage, Action<StringBuilder> renderContent)
+        {
+            var blocks = _settings.GetEffectiveLayoutBlocks()
+                .Where(b => b.IsEnabled)
+                .OrderBy(b => b.Order)
+                .ToList();
+            
+            // Structural blocks + a "content" placeholder
+            var structuralBlocks = blocks.Where(b => b.IsStructural).ToList();
+            int contentOrder = blocks.Where(b => !b.IsStructural && b.IsEnabled).Select(b => b.Order).DefaultIfEmpty(2).Min();
+            
+            var pageElements = structuralBlocks
+                .Select(b => (b.Order, b.BlockType, IsContent: false))
+                .Append((contentOrder, "page-content", true))
+                .OrderBy(e => e.Order)
+                .ToList();
+            
+            foreach (var elem in pageElements)
+            {
+                if (elem.IsContent)
+                {
+                    var dataAttrs = "data-block-id=\"page-content\" data-block-name=\"Page Content\" data-block-span=\"2\" data-structural=\"false\"";
+                    html.AppendLine($"    <div class=\"content-area\" {dataAttrs}>");
+                    html.AppendLine("        <div class=\"container\">");
+                    renderContent(html);
+                    html.AppendLine("        </div>");
+                    html.AppendLine("    </div>");
+                }
+                else
+                {
+                    var dataAttrs = $"data-block-id=\"{elem.BlockType}\" data-block-name=\"{elem.BlockType}\" data-block-span=\"2\" data-structural=\"true\"";
+                    switch (elem.BlockType)
+                    {
+                        case "header": AppendHeaderBlock(html, season, dataAttrs); break;
+                        case "nav": AppendNavBlock(html, activePage, dataAttrs); break;
+                        case "footer": AppendFooterBlock(html, dataAttrs); break;
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Generates a complete page using the structural block ordering.
+        /// </summary>
+        private string GenerateFullPage(string title, Season season, string activePage, Action<StringBuilder> renderContent)
+        {
+            var html = new StringBuilder();
+            AppendDocumentHead(html, title, season);
+            html.AppendLine("<body>");
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+            
+            RenderPageStructure(html, season, activePage, renderContent);
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
+                html.AppendLine(_settings.CustomBodyEndHtml);
+            
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+            return html.ToString();
+        }
+        
+        private void AppendHomeSection(StringBuilder html, string blockType, Season season, 
+            List<Division> divisions, List<Venue> venues, List<Team> teams, 
+            List<Player> players, List<Fixture> fixtures, int completedFixtures)
+        {
+            switch (blockType)
+            {
+                case "welcome":
+                    AppendHomeWelcomeSection(html, season);
+                    break;
+                case "quick-stats":
+                    AppendHomeQuickStatsSection(html, teams, players, divisions, completedFixtures);
+                    break;
+                case "league-leaders":
+                    AppendHomeLeagueLeadersSection(html, players, teams, fixtures);
+                    break;
+                case "recent-results":
+                    AppendHomeRecentResultsSection(html, teams, fixtures, completedFixtures);
+                    break;
+                case "upcoming-fixtures":
+                    AppendHomeUpcomingFixturesSection(html, teams, venues, fixtures);
+                    break;
+                case "latest-news":
+                    break;
+                case "sponsors":
+                    if (_settings.HomeShowSponsors && _settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
+                        AppendSponsorsSection(html);
+                    break;
+            }
+        }
+        
+        private void AppendHomeWelcomeSection(StringBuilder html, Season season)
+        {
+            if (!_settings.HomeShowWelcomeSection) return;
+            
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine($"                <h2>Welcome to {season.Name}</h2>");
+            html.AppendLine($"                <p class=\"hero-dates\">{season.StartDate:MMMM d, yyyy} - {season.EndDate:MMMM d, yyyy}</p>");
+            if (!string.IsNullOrWhiteSpace(_settings.WelcomeMessage))
+            {
+                html.AppendLine($"                <p class=\"welcome-text\">{_settings.WelcomeMessage}</p>");
+            }
+            html.AppendLine("            </div>");
+        }
+        
+        private void AppendHomeQuickStatsSection(StringBuilder html, List<Team> teams, List<Player> players, List<Division> divisions, int completedFixtures)
+        {
+            if (!_settings.HomeShowQuickStats) return;
+            
+            var statColumns = _settings.StatsColumns;
+            html.AppendLine($"            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax({(statColumns == 2 ? "280px" : statColumns == 3 ? "200px" : "180px")}, 1fr));\">");
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{teams.Count}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Teams</div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{players.Count}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Players</div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{completedFixtures}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Matches Played</div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div class=\"stat-card\">");
+            html.AppendLine($"                    <div class=\"stat-number\">{divisions.Count}</div>");
+            html.AppendLine("                    <div class=\"stat-label\">Divisions</div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("            </div>");
+        }
+        
+        private void AppendHomeLeagueLeadersSection(StringBuilder html, List<Player> players, List<Team> teams, List<Fixture> fixtures)
+        {
+            if (!(_settings.HomeShowLeagueLeaders && _settings.ShowTopScorers)) return;
+            
+            var playerStats = CalculatePlayerStats(players, teams, fixtures);
+            
+            int minFramesRequired = 0;
+            if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
+            {
+                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
+            }
+            else if (_settings.PlayersMinGames > 0)
+            {
+                minFramesRequired = _settings.PlayersMinGames;
+            }
+            else if (_league.Settings.MinFramesPercentage > 0)
+            {
+                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                minFramesRequired = (int)Math.Ceiling(maxFrames * (_league.Settings.MinFramesPercentage / 100.0));
+            }
+            
+            var topPlayers = playerStats
+                .Where(p => p.Played >= minFramesRequired)
+                .OrderByDescending(s => s.Rating)
+                .ThenByDescending(s => s.WinPercentage)
+                .ThenByDescending(s => s.Won)
+                .Take(_settings.HomeLeagueLeadersCount)
+                .ToList();
+            
+            if (!topPlayers.Any()) return;
+            
+            html.AppendLine("            <section class=\"section\">");
+            html.AppendLine("                <h3>&#127942; League Leaders</h3>");
+            html.AppendLine("                <div class=\"leaders-list\">");
+            var rank = 1;
+            foreach (var player in topPlayers)
+            {
+                var medal = rank switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => $"#{rank}" };
+                html.AppendLine("                    <div class=\"leader-item\">");
+                html.AppendLine($"                        <span class=\"rank\">{medal}</span>");
+                html.AppendLine($"                        <span class=\"player-name\">{player.PlayerName}</span>");
+                html.AppendLine($"                        <span class=\"player-team\">{player.TeamName}</span>");
+                html.AppendLine($"                        <span class=\"player-stat\">{player.Rating}</span>");
+                html.AppendLine("                    </div>");
+                rank++;
+            }
+            html.AppendLine("                </div>");
+            if (_settings.ShowPlayerStats)
+                html.AppendLine("                <p class=\"view-all\"><a href=\"players.html\">View All Players &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+        
+        private void AppendHomeRecentResultsSection(StringBuilder html, List<Team> teams, List<Fixture> fixtures, int completedFixtures)
+        {
+            if (!(_settings.HomeShowRecentResults && _settings.ShowResults && completedFixtures > 0)) return;
+            
+            html.AppendLine("            <section class=\"section\">");
+            html.AppendLine("                <h3>&#127937; Recent Results</h3>");
+            
+            var recentResults = fixtures
+                .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                .OrderByDescending(f => f.Date)
+                .Take(_settings.HomeRecentResultsCount)
+                .ToList();
+            
+            html.AppendLine("                <div class=\"results-list\">");
+            foreach (var fixture in recentResults)
+            {
+                var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                var isHomeWin = fixture.HomeScore > fixture.AwayScore;
+                var isDraw = fixture.HomeScore == fixture.AwayScore;
+                
+                html.AppendLine("                    <div class=\"result-item\">");
+                if (_settings.ResultsShowDate)
+                    html.AppendLine($"                        <span class=\"date\">{fixture.Date.ToString(_settings.ResultsDateFormat)}</span>");
+                html.AppendLine($"                        <span class=\"team{(_settings.ResultsHighlightWinner && isHomeWin ? " winner" : "")}\">{homeTeam?.Name ?? "Home"}</span>");
+                html.AppendLine($"                        <span class=\"score\">{fixture.HomeScore} - {fixture.AwayScore}</span>");
+                html.AppendLine($"                        <span class=\"team{(_settings.ResultsHighlightWinner && !isHomeWin && !isDraw ? " winner" : "")}\">{awayTeam?.Name ?? "Away"}</span>");
+                html.AppendLine("                    </div>");
+            }
+            html.AppendLine("                </div>");
+            html.AppendLine("                <p class=\"view-all\"><a href=\"results.html\">View All Results &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+        
+        private void AppendHomeUpcomingFixturesSection(StringBuilder html, List<Team> teams, List<Venue> venues, List<Fixture> fixtures)
+        {
+            if (!(_settings.HomeShowUpcomingFixtures && _settings.ShowFixtures)) return;
+            
+            var upcomingFixtures = fixtures
+                .Where(f => f.Date > DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                .OrderBy(f => f.Date)
+                .Take(_settings.HomeUpcomingFixturesCount)
+                .ToList();
+            
+            if (!upcomingFixtures.Any()) return;
+            
+            html.AppendLine("            <section class=\"section\">");
+            html.AppendLine("                <h3>&#128197; Upcoming Fixtures</h3>");
+            html.AppendLine("                <div class=\"fixtures-list\">");
+            
+            
+            foreach (var fixture in upcomingFixtures)
+            {
+                var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                var venue = fixture.VenueId.HasValue ? venues.FirstOrDefault(v => v.Id == fixture.VenueId.Value) : null;
+                
+                html.AppendLine("                    <div class=\"fixture-item\">");
+                if (_settings.FixturesShowDate)
+                {
+                    var dateStr = _settings.FixturesShowTime 
+                        ? fixture.Date.ToString($"{_settings.FixturesDateFormat} HH:mm")
+                        : fixture.Date.ToString(_settings.FixturesDateFormat);
+                    html.AppendLine($"                        <span class=\"date\">{dateStr}</span>");
+                }
+                html.AppendLine($"                        <span class=\"team\">{homeTeam?.Name ?? "Home"}</span>");
+                html.AppendLine("                        <span class=\"vs\">vs</span>");
+                html.AppendLine($"                        <span class=\"team\">{awayTeam?.Name ?? "Away"}</span>");
+                if (_settings.FixturesShowVenue && venue != null)
+                    html.AppendLine($"                        <span class=\"venue\">{venue.Name}</span>");
+                html.AppendLine("                    </div>");
+            }
+            
+            html.AppendLine("                </div>");
+            html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
+            html.AppendLine("            </section>");
         }
         
         private string GenerateStandingsPage(Season season, WebsiteTemplate template)
@@ -354,7 +500,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Standings");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>League Standings</h2>");
@@ -430,11 +576,11 @@ namespace Wdpl2.Services
                 html.AppendLine("                    </tbody>");
                 html.AppendLine("                </table>");
                 html.AppendLine("                </div>");
-                html.AppendLine("            </div>");
+            html.AppendLine("            </div>");
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -461,7 +607,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Fixtures");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128197; Fixtures</h2>");
@@ -535,7 +681,7 @@ namespace Wdpl2.Services
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -673,7 +819,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Results");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#127937; Match Results</h2>");
@@ -757,7 +903,7 @@ namespace Wdpl2.Services
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -784,7 +930,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Players");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#127942; Player Statistics</h2>");
@@ -886,7 +1032,7 @@ namespace Wdpl2.Services
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -913,7 +1059,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Divisions");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#127941; Divisions</h2>");
@@ -999,7 +1145,7 @@ namespace Wdpl2.Services
             
             html.AppendLine("            </div>");
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1025,7 +1171,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Rules");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128214; League Rules</h2>");
@@ -1034,7 +1180,7 @@ namespace Wdpl2.Services
             html.AppendLine($"                {_settings.RulesContent}");
             html.AppendLine("            </div>");
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1060,7 +1206,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Contact");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128231; Contact Us</h2>");
@@ -1115,7 +1261,7 @@ namespace Wdpl2.Services
             
             html.AppendLine("            </div>");
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1142,7 +1288,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Sponsors");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#129309; Our Sponsors</h2>");
@@ -1186,7 +1332,7 @@ namespace Wdpl2.Services
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1212,7 +1358,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "News");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128240; Latest News</h2>");
@@ -1249,7 +1395,7 @@ namespace Wdpl2.Services
             }
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1275,7 +1421,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, page.Title);
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine($"                <h2>{page.Title}</h2>");
@@ -1284,7 +1430,7 @@ namespace Wdpl2.Services
             html.AppendLine($"                {page.Content}");
             html.AppendLine("            </div>");
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1334,7 +1480,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Players");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             
             // Player header
@@ -1433,7 +1579,7 @@ namespace Wdpl2.Services
             html.AppendLine("            </div>");
             
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             
@@ -1603,7 +1749,7 @@ namespace Wdpl2.Services
             AppendHeader(html, season);
             AppendNavigation(html, "Gallery");
             
-            html.AppendLine("    <main>");
+            html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128247; Photo Gallery</h2>");
@@ -1646,7 +1792,7 @@ namespace Wdpl2.Services
             
             html.AppendLine("            </div>");
             html.AppendLine("        </div>");
-            html.AppendLine("    </main>");
+            html.AppendLine("    </div>");
             
             AppendFooter(html);
             

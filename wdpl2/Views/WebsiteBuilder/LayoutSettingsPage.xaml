@@ -8,8 +8,48 @@
         <VerticalStackLayout Padding="20" Spacing="15">
             
             <Label Text="Layout and Styling" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
-            <Label Text="Configure header, navigation, footer, and styling" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            <Label Text="Configure page layout, spacing, header, navigation, footer, and styling" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
             
+            <!-- Page Layout -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Page Layout" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Max Content Width" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="MaxContentWidthPicker" Title="Select Width">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Narrow (960px)</x:String>
+                                <x:String>Standard (1200px)</x:String>
+                                <x:String>Wide (1400px)</x:String>
+                                <x:String>Extra Wide (1600px)</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Page Layout" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="PageLayoutPicker" Title="Select Layout">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>full-width</x:String>
+                                <x:String>sidebar-right</x:String>
+                                <x:String>sidebar-left</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Label Text="Sidebar Width (px)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="SidebarWidthEntry" Placeholder="320" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                    
+                    <Label Text="Section Spacing (px)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="SectionSpacingEntry" Placeholder="24" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                    
+                    <Label Text="Card Spacing (px)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="CardSpacingEntry" Placeholder="24" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Theme Effects -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Theme Effects" FontSize="14" FontAttributes="Bold"/>
@@ -39,6 +79,7 @@
                 </VerticalStackLayout>
             </Frame>
             
+            <!-- Typography -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Typography" FontSize="14" FontAttributes="Bold"/>
@@ -76,6 +117,29 @@
                     
                     <Label Text="Border Radius" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="BorderRadiusEntry" Placeholder="12" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Button Styling -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Button Styling" FontSize="14" FontAttributes="Bold"/>
+                    
+                    <Label Text="Button Style" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="ButtonStylePicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>filled</x:String>
+                                <x:String>outline</x:String>
+                                <x:String>ghost</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="ButtonRoundedCheck" IsChecked="True" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Rounded Buttons" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
             

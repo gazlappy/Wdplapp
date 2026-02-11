@@ -50,10 +50,15 @@ namespace Wdpl2.Services
         
         private void AppendHeader(StringBuilder html, Season season)
         {
+            AppendHeaderBlock(html, season, "");
+        }
+        
+        private void AppendHeaderBlock(StringBuilder html, Season season, string dataAttrs)
+        {
             var logoData = _settings.GetEffectiveLogoData();
             var hasLogo = _settings.UseCustomLogo && logoData != null && logoData.Length > 0;
             
-            html.AppendLine("    <header>");
+            html.AppendLine($"    <header {dataAttrs}>");
             html.AppendLine("        <div class=\"header-content\">");
             
             if (hasLogo)
@@ -77,7 +82,12 @@ namespace Wdpl2.Services
         
         private void AppendNavigation(StringBuilder html, string activePage)
         {
-            html.AppendLine("    <nav>");
+            AppendNavBlock(html, activePage, "");
+        }
+        
+        private void AppendNavBlock(StringBuilder html, string activePage, string dataAttrs)
+        {
+            html.AppendLine($"    <nav {dataAttrs}>");
             html.AppendLine("        <div class=\"nav-container\">");
             
             void NavLink(string href, string text, string page)
@@ -134,7 +144,12 @@ namespace Wdpl2.Services
         
         private void AppendFooter(StringBuilder html)
         {
-            html.AppendLine("    <footer>");
+            AppendFooterBlock(html, "");
+        }
+        
+        private void AppendFooterBlock(StringBuilder html, string dataAttrs)
+        {
+            html.AppendLine($"    <footer {dataAttrs}>");
             html.AppendLine("        <div class=\"footer-content\">");
             
             if (_settings.ShowFooterContact && _settings.HasContactInfo)
