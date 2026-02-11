@@ -41,7 +41,7 @@ public sealed class WebsiteTemplatePageGenerator
         appendHeader(html, season);
         appendNavigation(html, "Players");
 
-        html.AppendLine("    <main>");
+        html.AppendLine("    <div class=\"content-area\">");
         html.AppendLine("        <div class=\"container\">");
 
         // Loading state
@@ -77,7 +77,7 @@ public sealed class WebsiteTemplatePageGenerator
         html.AppendLine("                </div>");
         html.AppendLine("            </div>");
         html.AppendLine("        </div>");
-        html.AppendLine("    </main>");
+        html.AppendLine("    </div>");
 
         appendFooter(html);
 
@@ -161,7 +161,7 @@ public sealed class WebsiteTemplatePageGenerator
         appendHeader(html, season);
         appendNavigation(html, "Divisions");
 
-        html.AppendLine("    <main>");
+        html.AppendLine("    <div class=\"content-area\">");
         html.AppendLine("        <div class=\"container\">");
 
         // Loading state
@@ -210,7 +210,7 @@ public sealed class WebsiteTemplatePageGenerator
         html.AppendLine("                </div>");
         html.AppendLine("            </div>");
         html.AppendLine("        </div>");
-        html.AppendLine("    </main>");
+        html.AppendLine("    </div>");
 
         appendFooter(html);
 

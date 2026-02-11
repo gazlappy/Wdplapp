@@ -182,6 +182,9 @@
 	  <MauiXaml Update="Views\WebsiteBuilder\DivisionsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\WebsiteBuilder\DragDropLayoutPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\WebsiteBuilder\FixturesSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

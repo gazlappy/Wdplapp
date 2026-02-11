@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Wdpl2.Models;
@@ -132,6 +133,7 @@ namespace Wdpl2.Services
         private string GenerateIndexPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();
+            var inv = CultureInfo.InvariantCulture;
             
             AppendDocumentHead(html, $"{_settings.LeagueName} - {season.Name}", season);
             html.AppendLine("<body>");
@@ -147,69 +149,48 @@ namespace Wdpl2.Services
                 .OrderBy(b => b.Order)
                 .ToList();
             
-            bool inContentArea = false;
-            bool inTwoColRow = false;
+            LayoutBlock.AutoPositionBlocks(blocks);
             
-            for (int i = 0; i < blocks.Count; i++)
+            var canvasHeight = blocks.Any()
+                ? blocks.Max(b => b.TopPx + (b.HeightPx > 0 ? b.HeightPx : 350)) + 100
+                : 800;
+            
+            html.AppendLine($"    <div class=\"page-canvas\" style=\"min-height:{canvasHeight.ToString("F0", inv)}px;\">");
+            
+            foreach (var block in blocks)
             {
-                var block = blocks[i];
-                var dataAttrs = $"data-block-id=\"{block.BlockType}\" data-block-name=\"{block.DisplayName}\" data-block-span=\"{block.ColumnSpan}\" data-structural=\"{(block.IsStructural ? "true" : "false")}\"";
+                var left = block.LeftPercent.ToString("F1", inv);
+                var top = block.TopPx.ToString("F0", inv);
+                var width = block.WidthPercent.ToString("F1", inv);
+                var posStyle = $"position:absolute; left:{left}%; top:{top}px; width:{width}%; z-index:{block.ZIndex};";
+                if (block.HeightPx > 0)
+                    posStyle += $" height:{block.HeightPx.ToString("F0", inv)}px; overflow:auto;";
                 
-                // Structural blocks render at the top level
-                if (block.IsStructural)
-                {
-                    // Close any open content area first
-                    if (inTwoColRow) { html.AppendLine("            </div>"); inTwoColRow = false; }
-                    if (inContentArea) { html.AppendLine("        </div>"); html.AppendLine("    </div>"); inContentArea = false; }
-                    
-                    switch (block.BlockType)
-                    {
-                        case "header": AppendHeaderBlock(html, season, dataAttrs); break;
-                        case "nav": AppendNavBlock(html, "Home", dataAttrs); break;
-                        case "footer": AppendFooterBlock(html, dataAttrs); break;
-                    }
-                    continue;
-                }
+                var dataAttrs = $"data-block-id=\"{block.BlockType}\" data-block-name=\"{block.DisplayName}\" data-structural=\"{(block.IsStructural ? "true" : "false")}\"";
+                var allAttrs = $"{dataAttrs} style=\"{posStyle}\"";
                 
-                // Content blocks go inside a content area container
-                if (!inContentArea)
+                switch (block.BlockType)
                 {
-                    html.AppendLine("    <div class=\"content-area\">");
-                    html.AppendLine("        <div class=\"container\">");
-                    inContentArea = true;
-                }
-                
-                if (block.ColumnSpan == 1)
-                {
-                    if (!inTwoColRow)
-                    {
-                        html.AppendLine("            <div class=\"two-col-row\">");
-                        inTwoColRow = true;
-                    }
-                    
-                    html.AppendLine($"                <div class=\"col-half\" {dataAttrs}>");
-                    AppendHomeSection(html, block.BlockType, season, divisions, venues, teams, players, fixtures, completedFixtures);
-                    html.AppendLine("                </div>");
-                    
-                    var nextBlock = i + 1 < blocks.Count ? blocks[i + 1] : null;
-                    if (nextBlock == null || nextBlock.ColumnSpan != 1 || nextBlock.IsStructural)
-                    {
+                    case "header":
+                        AppendHeaderBlock(html, season, allAttrs);
+                        break;
+                    case "nav":
+                        AppendNavBlock(html, "Home", allAttrs);
+                        break;
+                    case "footer":
+                        AppendFooterBlock(html, allAttrs);
+                        break;
+                    default:
+                        html.AppendLine($"        <div {allAttrs}>");
+                        html.AppendLine("            <div class=\"container\">");
+                        AppendHomeSection(html, block.BlockType, season, divisions, venues, teams, players, fixtures, completedFixtures);
                         html.AppendLine("            </div>");
-                        inTwoColRow = false;
-                    }
-                }
-                else
-                {
-                    if (inTwoColRow) { html.AppendLine("            </div>"); inTwoColRow = false; }
-                    
-                    html.AppendLine($"            <div {dataAttrs}>");
-                    AppendHomeSection(html, block.BlockType, season, divisions, venues, teams, players, fixtures, completedFixtures);
-                    html.AppendLine("            </div>");
+                        html.AppendLine("        </div>");
+                        break;
                 }
             }
             
-            if (inTwoColRow) html.AppendLine("            </div>");
-            if (inContentArea) { html.AppendLine("        </div>"); html.AppendLine("    </div>"); }
+            html.AppendLine("    </div>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
@@ -235,8 +216,8 @@ namespace Wdpl2.Services
             int contentOrder = blocks.Where(b => !b.IsStructural && b.IsEnabled).Select(b => b.Order).DefaultIfEmpty(2).Min();
             
             var pageElements = structuralBlocks
-                .Select(b => (b.Order, b.BlockType, IsContent: false))
-                .Append((contentOrder, "page-content", true))
+                .Select(b => (Order: b.Order, BlockType: b.BlockType, IsContent: false))
+                .Append((Order: contentOrder, BlockType: "page-content", IsContent: true))
                 .OrderBy(e => e.Order)
                 .ToList();
             

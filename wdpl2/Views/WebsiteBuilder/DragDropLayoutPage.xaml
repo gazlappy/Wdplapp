@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.DragDropLayoutPage"
+             Title="Visual Layout Editor"
+             Shell.NavBarIsVisible="False">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid Grid.Row="0" Padding="10,6" BackgroundColor="#1E293B"
+              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+            <Picker x:Name="PagePicker" Title="Page" TextColor="White"
+                    TitleColor="#94A3B8" WidthRequest="120"
+                    SelectedIndexChanged="OnPageChanged"/>
+            <Button Grid.Column="1" x:Name="EditToggleBtn" Text="Edit"
+                    Clicked="OnEditToggleClicked" BackgroundColor="#F59E0B"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="2" x:Name="SnapBtn" Text="Snap: ON"
+                    Clicked="OnSnapToggleClicked" BackgroundColor="#6366F1"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="3" Text="Forward"
+                    Clicked="OnBringForwardClicked" BackgroundColor="#475569"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="4" Text="Back"
+                    Clicked="OnSendBackClicked" BackgroundColor="#475569"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Label Grid.Column="5" x:Name="StatusLabel" Text=""
+                   TextColor="#94A3B8" FontSize="11"
+                   VerticalOptions="Center" HorizontalOptions="Center"/>
+            <Button Grid.Column="6" Text="Reset"
+                    Clicked="OnResetClicked" BackgroundColor="#6B7280"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="7" Text="Save"
+                    Clicked="OnSaveClicked" BackgroundColor="#10B981"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="8" Text="X"
+                    Clicked="OnCloseClicked" BackgroundColor="#EF4444"
+                    TextColor="White" FontSize="11" WidthRequest="30"
+                    CornerRadius="6" HeightRequest="30"/>
+        </Grid>
+        <WebView Grid.Row="1" x:Name="EditorWebView"
+                 HorizontalOptions="Fill" VerticalOptions="Fill"
+                 Navigating="OnWebViewNavigating"/>
+        <Grid Grid.Row="2" Padding="8,4" BackgroundColor="#0F172A"
+              ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="16">
+            <Label x:Name="InfoLabel" Text="Click any element to select"
+                   TextColor="#94A3B8" FontSize="11" VerticalOptions="Center"/>
+            <Label Grid.Column="1" x:Name="PosLabel" Text=""
+                   TextColor="#60A5FA" FontSize="11" VerticalOptions="Center"
+                   FontAttributes="Bold"/>
+            <Label Grid.Column="2" x:Name="SizeLabel" Text=""
+                   TextColor="#34D399" FontSize="11" VerticalOptions="Center"
+                   FontAttributes="Bold"/>
+            <Label Grid.Column="3"
+                   Text="Drag=Move | Handles=Resize | Arrows=Nudge | Del=Hide"
+                   TextColor="#475569" FontSize="10" VerticalOptions="Center"
+                   HorizontalOptions="End"/>
+        </Grid>
+    </Grid>
+</ContentPage>

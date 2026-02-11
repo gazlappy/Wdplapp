@@ -13,23 +13,96 @@ namespace Wdpl2.Models
         public string DisplayName { get; set; } = "";
         public string Icon { get; set; } = "";
         public bool IsEnabled { get; set; } = true;
-        public int ColumnSpan { get; set; } = 2; // 1 = half width, 2 = full width
+        public int ColumnSpan { get; set; } = 2;
         public int Order { get; set; }
-        public bool IsStructural { get; set; } // true for header, nav, footer
+        public bool IsStructural { get; set; }
+        
+        // Freeform canvas position (PowerPoint-style)
+        public double LeftPercent { get; set; }
+        public double TopPx { get; set; }
+        public double WidthPercent { get; set; } = 100;
+        public double HeightPx { get; set; } // 0 = auto
+        public int ZIndex { get; set; } = 1;
         
         public static List<LayoutBlock> GetDefaultBlocks() =>
         [
-            new() { Id = "header",             BlockType = "header",             DisplayName = "Header",              Icon = "\U0001F3AF", IsEnabled = true,  ColumnSpan = 2, Order = 0,  IsStructural = true },
-            new() { Id = "nav",                BlockType = "nav",                DisplayName = "Navigation",          Icon = "\U0001F9ED", IsEnabled = true,  ColumnSpan = 2, Order = 1,  IsStructural = true },
-            new() { Id = "welcome",           BlockType = "welcome",           DisplayName = "Welcome / Hero",      Icon = "\U0001F3E0", IsEnabled = true,  ColumnSpan = 2, Order = 2 },
-            new() { Id = "quick-stats",        BlockType = "quick-stats",        DisplayName = "Quick Stats",         Icon = "\U0001F4CA", IsEnabled = true,  ColumnSpan = 2, Order = 3 },
-            new() { Id = "league-leaders",     BlockType = "league-leaders",     DisplayName = "League Leaders",      Icon = "\U0001F3C6", IsEnabled = true,  ColumnSpan = 1, Order = 4 },
-            new() { Id = "recent-results",     BlockType = "recent-results",     DisplayName = "Recent Results",      Icon = "\U0001F3C1", IsEnabled = true,  ColumnSpan = 1, Order = 5 },
-            new() { Id = "upcoming-fixtures",  BlockType = "upcoming-fixtures",  DisplayName = "Upcoming Fixtures",   Icon = "\U0001F4C5", IsEnabled = true,  ColumnSpan = 1, Order = 6 },
-            new() { Id = "latest-news",        BlockType = "latest-news",        DisplayName = "Latest News",         Icon = "\U0001F4F0", IsEnabled = false, ColumnSpan = 1, Order = 7 },
-            new() { Id = "sponsors",           BlockType = "sponsors",           DisplayName = "Sponsors",            Icon = "\u2B50",     IsEnabled = false, ColumnSpan = 2, Order = 8 },
-            new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 9,  IsStructural = true },
+            new() { Id = "header",             BlockType = "header",             DisplayName = "Header",              Icon = "\U0001F3AF", IsEnabled = true,  ColumnSpan = 2, Order = 0,  IsStructural = true,
+                    LeftPercent = 0,  TopPx = 0,    WidthPercent = 100, ZIndex = 10 },
+            new() { Id = "nav",                BlockType = "nav",                DisplayName = "Navigation",          Icon = "\U0001F9ED", IsEnabled = true,  ColumnSpan = 2, Order = 1,  IsStructural = true,
+                    LeftPercent = 0,  TopPx = 120,  WidthPercent = 100, ZIndex = 10 },
+            new() { Id = "welcome",           BlockType = "welcome",           DisplayName = "Welcome / Hero",      Icon = "\U0001F3E0", IsEnabled = true,  ColumnSpan = 2, Order = 2,
+                    LeftPercent = 2,  TopPx = 190,  WidthPercent = 96,  ZIndex = 1 },
+            new() { Id = "quick-stats",        BlockType = "quick-stats",        DisplayName = "Quick Stats",         Icon = "\U0001F4CA", IsEnabled = true,  ColumnSpan = 2, Order = 3,
+                    LeftPercent = 2,  TopPx = 420,  WidthPercent = 96,  ZIndex = 1 },
+            new() { Id = "league-leaders",     BlockType = "league-leaders",     DisplayName = "League Leaders",      Icon = "\U0001F3C6", IsEnabled = true,  ColumnSpan = 1, Order = 4,
+                    LeftPercent = 2,  TopPx = 620,  WidthPercent = 47,  ZIndex = 1 },
+            new() { Id = "recent-results",     BlockType = "recent-results",     DisplayName = "Recent Results",      Icon = "\U0001F3C1", IsEnabled = true,  ColumnSpan = 1, Order = 5,
+                    LeftPercent = 51, TopPx = 620,  WidthPercent = 47,  ZIndex = 1 },
+            new() { Id = "upcoming-fixtures",  BlockType = "upcoming-fixtures",  DisplayName = "Upcoming Fixtures",   Icon = "\U0001F4C5", IsEnabled = true,  ColumnSpan = 1, Order = 6,
+                    LeftPercent = 2,  TopPx = 940,  WidthPercent = 47,  ZIndex = 1 },
+            new() { Id = "latest-news",        BlockType = "latest-news",        DisplayName = "Latest News",         Icon = "\U0001F4F0", IsEnabled = false, ColumnSpan = 1, Order = 7,
+                    LeftPercent = 51, TopPx = 940,  WidthPercent = 47,  ZIndex = 1 },
+            new() { Id = "sponsors",           BlockType = "sponsors",           DisplayName = "Sponsors",            Icon = "\u2B50",     IsEnabled = false, ColumnSpan = 2, Order = 8,
+                    LeftPercent = 2,  TopPx = 1260, WidthPercent = 96,  ZIndex = 1 },
+            new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 9,  IsStructural = true,
+                    LeftPercent = 0,  TopPx = 1460, WidthPercent = 100, ZIndex = 10 },
         ];
+        
+        /// <summary>
+        /// Auto-calculate positions for blocks that haven't been positioned yet
+        /// </summary>
+        public static void AutoPositionBlocks(List<LayoutBlock> blocks)
+        {
+            if (blocks.Any(b => b.IsEnabled && b.TopPx > 0))
+                return; // Already positioned
+            
+            double y = 0;
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                var block = blocks[i];
+                if (!block.IsEnabled) continue;
+                
+                block.TopPx = y;
+                
+                if (block.IsStructural)
+                {
+                    block.LeftPercent = 0;
+                    block.WidthPercent = 100;
+                    block.ZIndex = 10;
+                    y += 120;
+                }
+                else if (block.ColumnSpan == 1)
+                {
+                    var next = (i + 1 < blocks.Count) ? blocks[i + 1] : null;
+                    if (next != null && next.IsEnabled && next.ColumnSpan == 1 && !next.IsStructural)
+                    {
+                        block.LeftPercent = 2;
+                        block.WidthPercent = 47;
+                        block.ZIndex = 1;
+                        next.TopPx = y;
+                        next.LeftPercent = 51;
+                        next.WidthPercent = 47;
+                        next.ZIndex = 1;
+                        i++;
+                        y += 320;
+                    }
+                    else
+                    {
+                        block.LeftPercent = 2;
+                        block.WidthPercent = 96;
+                        block.ZIndex = 1;
+                        y += 320;
+                    }
+                }
+                else
+                {
+                    block.LeftPercent = 2;
+                    block.WidthPercent = 96;
+                    block.ZIndex = 1;
+                    y += 260;
+                }
+            }
+        }
     }
     
     /// <summary>
@@ -363,6 +436,8 @@ namespace Wdpl2.Models
             
             for (int i = 0; i < result.Count; i++)
                 result[i].Order = i;
+            
+            LayoutBlock.AutoPositionBlocks(result);
             
             return result;
         }

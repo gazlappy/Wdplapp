@@ -170,6 +170,17 @@ nav a:hover, nav a.active {{
     padding: var(--spacing) 0;
 }}
 
+/* Freeform canvas layout for home page */
+.page-canvas {{
+    position: relative;
+    overflow: visible;
+}}
+
+.page-canvas > [data-block-id] {{
+    position: absolute;
+    box-sizing: border-box;
+}}
+
 .hero {{
     text-align: center;
     padding: 40px 20px;
@@ -672,11 +683,22 @@ footer a {{
 " : "")}
 
 @media (max-width: 768px) {{
-    header h1 {{ font-size: 1.8rem; }}
-    .hero h2 {{ font-size: 1.5rem; }}
-    nav .nav-container {{ justify-content: center; }}
-    .two-col-row {{ grid-template-columns: 1fr; }}
-    .result-item, .fixture-item {{ 
+header h1 {{ font-size: 1.8rem; }}
+.hero h2 {{ font-size: 1.5rem; }}
+nav .nav-container {{ justify-content: center; }}
+.two-col-row {{ grid-template-columns: 1fr; }}
+/* Mobile: stack freeform canvas blocks vertically */
+.page-canvas {{
+    min-height: auto !important;
+}}
+.page-canvas > [data-block-id] {{
+    position: relative !important;
+    left: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+}}
+.result-item, .fixture-item {{ 
         grid-template-columns: 1fr !important;
         text-align: center;
         gap: 8px;
