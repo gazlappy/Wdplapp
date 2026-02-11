@@ -29,79 +29,92 @@ namespace Wdpl2.Models
             new() { Id = "header",             BlockType = "header",             DisplayName = "Header",              Icon = "\U0001F3AF", IsEnabled = true,  ColumnSpan = 2, Order = 0,  IsStructural = true,
                     LeftPercent = 0,  TopPx = 0,    WidthPercent = 100, ZIndex = 10 },
             new() { Id = "nav",                BlockType = "nav",                DisplayName = "Navigation",          Icon = "\U0001F9ED", IsEnabled = true,  ColumnSpan = 2, Order = 1,  IsStructural = true,
-                    LeftPercent = 0,  TopPx = 120,  WidthPercent = 100, ZIndex = 10 },
+                    LeftPercent = 0,  TopPx = 130,  WidthPercent = 100, ZIndex = 10 },
             new() { Id = "welcome",           BlockType = "welcome",           DisplayName = "Welcome / Hero",      Icon = "\U0001F3E0", IsEnabled = true,  ColumnSpan = 2, Order = 2,
-                    LeftPercent = 2,  TopPx = 190,  WidthPercent = 96,  ZIndex = 1 },
+                    LeftPercent = 2,  TopPx = 210,  WidthPercent = 96,  ZIndex = 1 },
             new() { Id = "quick-stats",        BlockType = "quick-stats",        DisplayName = "Quick Stats",         Icon = "\U0001F4CA", IsEnabled = true,  ColumnSpan = 2, Order = 3,
-                    LeftPercent = 2,  TopPx = 420,  WidthPercent = 96,  ZIndex = 1 },
+                    LeftPercent = 2,  TopPx = 490,  WidthPercent = 96,  ZIndex = 1 },
             new() { Id = "league-leaders",     BlockType = "league-leaders",     DisplayName = "League Leaders",      Icon = "\U0001F3C6", IsEnabled = true,  ColumnSpan = 1, Order = 4,
-                    LeftPercent = 2,  TopPx = 620,  WidthPercent = 47,  ZIndex = 1 },
+                    LeftPercent = 2,  TopPx = 770,  WidthPercent = 47,  ZIndex = 1 },
             new() { Id = "recent-results",     BlockType = "recent-results",     DisplayName = "Recent Results",      Icon = "\U0001F3C1", IsEnabled = true,  ColumnSpan = 1, Order = 5,
-                    LeftPercent = 51, TopPx = 620,  WidthPercent = 47,  ZIndex = 1 },
+                    LeftPercent = 51, TopPx = 770,  WidthPercent = 47,  ZIndex = 1 },
             new() { Id = "upcoming-fixtures",  BlockType = "upcoming-fixtures",  DisplayName = "Upcoming Fixtures",   Icon = "\U0001F4C5", IsEnabled = true,  ColumnSpan = 1, Order = 6,
-                    LeftPercent = 2,  TopPx = 940,  WidthPercent = 47,  ZIndex = 1 },
+                    LeftPercent = 2,  TopPx = 1090, WidthPercent = 47,  ZIndex = 1 },
             new() { Id = "latest-news",        BlockType = "latest-news",        DisplayName = "Latest News",         Icon = "\U0001F4F0", IsEnabled = false, ColumnSpan = 1, Order = 7,
-                    LeftPercent = 51, TopPx = 940,  WidthPercent = 47,  ZIndex = 1 },
+                    LeftPercent = 51, TopPx = 1090, WidthPercent = 47,  ZIndex = 1 },
             new() { Id = "sponsors",           BlockType = "sponsors",           DisplayName = "Sponsors",            Icon = "\u2B50",     IsEnabled = false, ColumnSpan = 2, Order = 8,
-                    LeftPercent = 2,  TopPx = 1260, WidthPercent = 96,  ZIndex = 1 },
+                    LeftPercent = 2,  TopPx = 1410, WidthPercent = 96,  ZIndex = 1 },
             new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 9,  IsStructural = true,
-                    LeftPercent = 0,  TopPx = 1460, WidthPercent = 100, ZIndex = 10 },
+                    LeftPercent = 0,  TopPx = 1430, WidthPercent = 100, ZIndex = 10 },
         ];
         
         /// <summary>
-        /// Auto-calculate positions for blocks that haven't been positioned yet
+        /// Auto-calculate positions for blocks that haven't been positioned yet.
+        /// Produces a clean layout matching the style of other pages:
+        /// header at top, nav below header, content blocks with consistent gaps,
+        /// paired half-width blocks side by side, footer below everything.
         /// </summary>
         public static void AutoPositionBlocks(List<LayoutBlock> blocks)
         {
             if (blocks.Any(b => b.IsEnabled && b.TopPx > 0))
                 return; // Already positioned
             
+            const double headerH = 130;
+            const double navH = 60;
+            const double contentGap = 30;
+            const double fullRowH = 250;
+            const double halfRowH = 300;
+            const double margin = 2;
+            
             double y = 0;
-            for (int i = 0; i < blocks.Count; i++)
+            
+            // Header
+            foreach (var b in blocks.Where(b => b.IsEnabled && b.BlockType == "header"))
+            { b.LeftPercent = 0; b.TopPx = y; b.WidthPercent = 100; b.ZIndex = 10; }
+            y += headerH;
+            
+            // Nav
+            foreach (var b in blocks.Where(b => b.IsEnabled && b.BlockType == "nav"))
+            { b.LeftPercent = 0; b.TopPx = y; b.WidthPercent = 100; b.ZIndex = 10; }
+            y += navH + contentGap;
+            
+            // Content blocks
+            var content = blocks.Where(b => b.IsEnabled && !b.IsStructural).OrderBy(b => b.Order).ToList();
+            for (int i = 0; i < content.Count; i++)
             {
-                var block = blocks[i];
-                if (!block.IsEnabled) continue;
+                var block = content[i];
+                var next = (i + 1 < content.Count) ? content[i + 1] : null;
                 
-                block.TopPx = y;
-                
-                if (block.IsStructural)
+                if (block.ColumnSpan == 1 && next != null && next.ColumnSpan == 1)
                 {
-                    block.LeftPercent = 0;
-                    block.WidthPercent = 100;
-                    block.ZIndex = 10;
-                    y += 120;
-                }
-                else if (block.ColumnSpan == 1)
-                {
-                    var next = (i + 1 < blocks.Count) ? blocks[i + 1] : null;
-                    if (next != null && next.IsEnabled && next.ColumnSpan == 1 && !next.IsStructural)
-                    {
-                        block.LeftPercent = 2;
-                        block.WidthPercent = 47;
-                        block.ZIndex = 1;
-                        next.TopPx = y;
-                        next.LeftPercent = 51;
-                        next.WidthPercent = 47;
-                        next.ZIndex = 1;
-                        i++;
-                        y += 320;
-                    }
-                    else
-                    {
-                        block.LeftPercent = 2;
-                        block.WidthPercent = 96;
-                        block.ZIndex = 1;
-                        y += 320;
-                    }
+                    // Pair side by side
+                    block.LeftPercent = margin;
+                    block.TopPx = y;
+                    block.WidthPercent = 47;
+                    block.ZIndex = 1;
+                    
+                    next.LeftPercent = 51;
+                    next.TopPx = y;
+                    next.WidthPercent = 47;
+                    next.ZIndex = 1;
+                    
+                    i++; // skip next, already placed
+                    y += halfRowH + contentGap;
                 }
                 else
                 {
-                    block.LeftPercent = 2;
+                    // Full width
+                    block.LeftPercent = margin;
+                    block.TopPx = y;
                     block.WidthPercent = 96;
                     block.ZIndex = 1;
-                    y += 260;
+                    y += fullRowH + contentGap;
                 }
             }
+            
+            // Footer
+            foreach (var b in blocks.Where(b => b.IsEnabled && b.BlockType == "footer"))
+            { b.LeftPercent = 0; b.TopPx = y; b.WidthPercent = 100; b.ZIndex = 10; }
         }
     }
     
@@ -182,6 +195,7 @@ namespace Wdpl2.Models
         
         // Header Options
         public string HeaderStyle { get; set; } = "gradient"; // gradient, solid, image, minimal
+        public string HeaderLayout { get; set; } = "centered"; // centered, split, banner, compact, minimal-bar
         public string HeaderBackgroundImage { get; set; } = "";
         public byte[]? HeaderBackgroundImageData { get; set; }
         public bool ShowHeaderPattern { get; set; } = true;

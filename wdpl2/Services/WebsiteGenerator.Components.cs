@@ -50,7 +50,7 @@ namespace Wdpl2.Services
         
         private void AppendHeader(StringBuilder html, Season season)
         {
-            AppendHeaderBlock(html, season, "");
+            AppendHeaderBlock(html, season, "data-block-id=\"header\" data-block-name=\"Header\" data-structural=\"true\"");
         }
         
         private void AppendHeaderBlock(StringBuilder html, Season season, string dataAttrs)
@@ -59,6 +59,7 @@ namespace Wdpl2.Services
             var hasLogo = _settings.UseCustomLogo && logoData != null && logoData.Length > 0;
             var hasSub = !string.IsNullOrWhiteSpace(_settings.LeagueSubtitle);
             var hasBadge = _settings.ShowSeasonBadge;
+            var layout = _settings.HeaderLayout;
             
             // Check if any sub-element has a freeform position set
             bool freeform = !string.IsNullOrEmpty(_settings.HeaderLogoPos)
@@ -66,33 +67,79 @@ namespace Wdpl2.Services
                          || !string.IsNullOrEmpty(_settings.HeaderSubtitlePos)
                          || !string.IsNullOrEmpty(_settings.HeaderBadgePos);
             
-            html.AppendLine($"    <header {dataAttrs}>");
-            html.AppendLine($"        <div class=\"header-content{(freeform ? " header-freeform" : "")}\">");
-            
+            string logoTag = "";
             if (hasLogo)
             {
                 var imageOptimizer = new ImageOptimizationService();
                 var mimeType = imageOptimizer.GetMimeType("logo.png");
                 var dataUrl = imageOptimizer.ToDataUrl(logoData!, mimeType);
-                var posStyle = BuildSubElementStyle(_settings.HeaderLogoPos);
-                html.AppendLine($"            <img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" data-block-id=\"header-logo\" data-block-name=\"Logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;{posStyle}\">");
+                var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderLogoPos) : "";
+                logoTag = $"<img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" data-block-id=\"header-logo\" data-block-name=\"Logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;{posStyle}\">";
             }
             
-            {
-                var posStyle = BuildSubElementStyle(_settings.HeaderTitlePos);
-                html.AppendLine($"            <h1 data-block-id=\"header-title\" data-block-name=\"Title\" style=\"{posStyle}\">{_settings.LeagueName}</h1>");
-            }
+            html.AppendLine($"    <header {dataAttrs}>");
+            html.AppendLine($"        <div class=\"header-content{(freeform ? " header-freeform" : "")}\">");
             
-            if (hasSub)
+            switch (layout)
             {
-                var posStyle = BuildSubElementStyle(_settings.HeaderSubtitlePos);
-                html.AppendLine($"            <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\" style=\"{posStyle}\">{_settings.LeagueSubtitle}</p>");
-            }
-            
-            if (hasBadge)
-            {
-                var posStyle = BuildSubElementStyle(_settings.HeaderBadgePos);
-                html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\" style=\"{posStyle}\">{season.Name}</span>");
+                case "split":
+                    // Logo left, title group right, badge far right
+                    if (hasLogo) html.AppendLine($"            {logoTag}");
+                    html.AppendLine("            <div class=\"header-text-group\">");
+                    html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
+                    if (hasSub)
+                        html.AppendLine($"                <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\">{_settings.LeagueSubtitle}</p>");
+                    html.AppendLine("            </div>");
+                    if (hasBadge)
+                        html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\">{season.Name}</span>");
+                    break;
+
+                case "two-row":
+                    // Row 1: logo + badge, Row 2: title + subtitle
+                    html.AppendLine("            <div class=\"header-row\">");
+                    if (hasLogo) html.AppendLine($"                {logoTag}");
+                    if (hasBadge)
+                        html.AppendLine($"                <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\">{season.Name}</span>");
+                    html.AppendLine("            </div>");
+                    html.AppendLine("            <div class=\"header-row\">");
+                    html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
+                    if (hasSub)
+                        html.AppendLine($"                <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\">{_settings.LeagueSubtitle}</p>");
+                    html.AppendLine("            </div>");
+                    break;
+
+                case "scoreboard":
+                    // Grid: logo | title+subtitle | badge
+                    if (hasLogo) html.AppendLine($"            {logoTag}");
+                    else html.AppendLine("            <div></div>");
+                    html.AppendLine("            <div style=\"text-align:center;\">");
+                    html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
+                    if (hasSub)
+                        html.AppendLine($"                <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\">{_settings.LeagueSubtitle}</p>");
+                    html.AppendLine("            </div>");
+                    if (hasBadge)
+                        html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\">{season.Name}</span>");
+                    else html.AppendLine("            <div></div>");
+                    break;
+
+                default:
+                    // Standard flow: logo, title, subtitle, badge (with optional freeform positioning)
+                    if (hasLogo) html.AppendLine($"            {logoTag}");
+                    {
+                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderTitlePos) : "";
+                        html.AppendLine($"            <h1 data-block-id=\"header-title\" data-block-name=\"Title\" style=\"{posStyle}\">{_settings.LeagueName}</h1>");
+                    }
+                    if (hasSub)
+                    {
+                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderSubtitlePos) : "";
+                        html.AppendLine($"            <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\" style=\"{posStyle}\">{_settings.LeagueSubtitle}</p>");
+                    }
+                    if (hasBadge)
+                    {
+                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderBadgePos) : "";
+                        html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\" style=\"{posStyle}\">{season.Name}</span>");
+                    }
+                    break;
             }
             
             html.AppendLine("        </div>");
@@ -113,7 +160,7 @@ namespace Wdpl2.Services
         
         private void AppendNavigation(StringBuilder html, string activePage)
         {
-            AppendNavBlock(html, activePage, "");
+            AppendNavBlock(html, activePage, "data-block-id=\"nav\" data-block-name=\"Navigation\" data-structural=\"true\"");
         }
         
         private void AppendNavBlock(StringBuilder html, string activePage, string dataAttrs)
@@ -175,7 +222,7 @@ namespace Wdpl2.Services
         
         private void AppendFooter(StringBuilder html)
         {
-            AppendFooterBlock(html, "");
+            AppendFooterBlock(html, "data-block-id=\"footer\" data-block-name=\"Footer\" data-structural=\"true\"");
         }
         
         private void AppendFooterBlock(StringBuilder html, string dataAttrs)

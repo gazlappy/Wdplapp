@@ -6,7 +6,8 @@
              Shell.NavBarIsVisible="False">
     <Grid RowDefinitions="Auto,*,Auto">
         <Grid Grid.Row="0" Padding="10,6" BackgroundColor="#1E293B"
-              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto"
+              ColumnSpacing="6">
             <Picker x:Name="PagePicker" Title="Page" TextColor="White"
                     TitleColor="#94A3B8" WidthRequest="120"
                     SelectedIndexChanged="OnPageChanged"/>
@@ -18,26 +19,38 @@
                     Clicked="OnSnapToggleClicked" BackgroundColor="#6366F1"
                     TextColor="White" FontSize="11" Padding="8,0"
                     CornerRadius="6" HeightRequest="30"/>
-            <Button Grid.Column="3" Text="Forward"
+            <Button Grid.Column="3" x:Name="GridBtn" Text="Grid"
+                    Clicked="OnGridClicked" BackgroundColor="#475569"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="4" Text="Align"
+                    Clicked="OnAlignClicked" BackgroundColor="#0EA5E9"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Button Grid.Column="5" Text="Forward"
                     Clicked="OnBringForwardClicked" BackgroundColor="#475569"
                     TextColor="White" FontSize="11" Padding="8,0"
                     CornerRadius="6" HeightRequest="30"/>
-            <Button Grid.Column="4" Text="Back"
+            <Button Grid.Column="6" Text="Back"
                     Clicked="OnSendBackClicked" BackgroundColor="#475569"
                     TextColor="White" FontSize="11" Padding="8,0"
                     CornerRadius="6" HeightRequest="30"/>
-            <Label Grid.Column="5" x:Name="StatusLabel" Text=""
+            <Button Grid.Column="7" Text="&#x2630; Layout"
+                    Clicked="OnAutoLayoutClicked" BackgroundColor="#8B5CF6"
+                    TextColor="White" FontSize="11" Padding="8,0"
+                    CornerRadius="6" HeightRequest="30"/>
+            <Label Grid.Column="8" x:Name="StatusLabel" Text=""
                    TextColor="#94A3B8" FontSize="11"
                    VerticalOptions="Center" HorizontalOptions="Center"/>
-            <Button Grid.Column="6" Text="Reset"
+            <Button Grid.Column="9" Text="Reset"
                     Clicked="OnResetClicked" BackgroundColor="#6B7280"
                     TextColor="White" FontSize="11" Padding="8,0"
                     CornerRadius="6" HeightRequest="30"/>
-            <Button Grid.Column="7" Text="Save"
+            <Button Grid.Column="10" Text="Save"
                     Clicked="OnSaveClicked" BackgroundColor="#10B981"
                     TextColor="White" FontSize="11" Padding="8,0"
                     CornerRadius="6" HeightRequest="30"/>
-            <Button Grid.Column="8" Text="X"
+            <Button Grid.Column="11" Text="X"
                     Clicked="OnCloseClicked" BackgroundColor="#EF4444"
                     TextColor="White" FontSize="11" WidthRequest="30"
                     CornerRadius="6" HeightRequest="30"/>
@@ -56,7 +69,7 @@
                    TextColor="#34D399" FontSize="11" VerticalOptions="Center"
                    FontAttributes="Bold"/>
             <Label Grid.Column="3"
-                   Text="Drag=Move | Handles=Resize | Arrows=Nudge | Del=Hide"
+                   Text="Drag=Move | Shift+Click=Multi | Ctrl+A=All | Arrows=Nudge | Del=Hide"
                    TextColor="#475569" FontSize="10" VerticalOptions="Center"
                    HorizontalOptions="End"/>
         </Grid>

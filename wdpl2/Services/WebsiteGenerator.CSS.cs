@@ -9,6 +9,318 @@ namespace Wdpl2.Services
     /// </summary>
     public sealed partial class WebsiteGenerator
     {
+        private string GenerateHeaderLayoutCSS()
+        {
+            var layout = _settings.HeaderLayout;
+            var patternSvg = _settings.ShowHeaderPattern
+                ? "background-image: url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\");"
+                : "";
+            var gradient = "linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%)";
+
+            // --- header element ---
+            var headerBg = layout switch
+            {
+                "glass" => "rgba(255,255,255,0.1)",
+                "animated-gradient" or "wave-gradient" => $"linear-gradient(270deg, var(--primary-color), var(--secondary-color), var(--accent-color), var(--primary-color))",
+                "mesh-gradient" => $"var(--primary-color)",
+                "stadium" => "#0a0a0a",
+                "pulse-glow" => gradient,
+                "shimmer" => gradient,
+                "aurora" => "#0a0a2e",
+                "neon" => "#0a0a0a",
+                "spotlight-sweep" => gradient,
+                "breathing" => gradient,
+                "text-only" => "transparent",
+                "underline" => "transparent",
+                "transparent" => "transparent",
+                _ => gradient
+            };
+            var headerPadding = layout switch
+            {
+                "compact" or "minimal-bar" => "12px 20px",
+                "banner" or "stadium" or "aurora" or "neon" => "60px 20px",
+                "text-only" or "underline" or "transparent" => "30px 20px",
+                _ => "40px 20px"
+            };
+            var headerAlign = layout switch
+            {
+                "split" or "minimal-bar" or "scoreboard" => "left",
+                _ => "center"
+            };
+            var headerColor = layout switch
+            {
+                "text-only" or "underline" or "transparent" => "var(--text-color)",
+                _ => "var(--header-text)"
+            };
+            var headerExtra = layout switch
+            {
+                "glass" => "backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.18);",
+                "animated-gradient" => "background-size: 300% 300%; animation: headerGradientShift 8s ease infinite;",
+                "wave-gradient" => "background-size: 300% 300%; animation: headerWaveGradient 6s ease-in-out infinite;",
+                "mesh-gradient" => $"background: radial-gradient(ellipse at 20% 50%, var(--secondary-color) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, var(--accent-color) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, var(--primary-color) 0%, transparent 60%), var(--primary-color);",
+                "stadium" => "background: radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 0%, rgba(255,255,255,0.12) 0%, transparent 50%), radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.05) 0%, transparent 40%), #0a0a0a;",
+                "pulse-glow" => "animation: headerPulseGlow 3s ease-in-out infinite; overflow: hidden;",
+                "shimmer" => "overflow: hidden; position: relative;",
+                "aurora" => "overflow: hidden; background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 100%);",
+                "neon" => "overflow: hidden;",
+                "spotlight-sweep" => "overflow: hidden; position: relative;",
+                "breathing" => "",
+                "card" => "overflow: visible;",
+                "overlay-hero" => "position: relative; z-index: 2; margin-bottom: -40px;",
+                "championship" => "clip-path: polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%); padding-bottom: 60px;",
+                "underline" => $"border-bottom: 4px solid var(--primary-color);",
+                _ => ""
+            };
+            var headerPatternUse = layout switch
+            {
+                "glass" or "text-only" or "underline" or "transparent" or "mesh-gradient"
+                or "animated-gradient" or "wave-gradient" or "pulse-glow" or "shimmer"
+                or "aurora" or "neon" or "spotlight-sweep" or "breathing" => "",
+                _ => patternSvg
+            };
+
+            // --- .header-content ---
+            var contentFlex = layout switch
+            {
+                "split" => "display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;",
+                "banner" => "display: flex; flex-direction: column; align-items: center; gap: 8px;",
+                "compact" => "display: flex; align-items: center; gap: 16px; justify-content: center;",
+                "minimal-bar" => "display: flex; align-items: center; gap: 12px;",
+                "two-row" => "display: flex; flex-direction: column; gap: 8px;",
+                "card" => $"background: var(--card-bg); color: var(--text-color); border-radius: var(--border-radius); padding: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); max-width: 700px;",
+                "scoreboard" => "display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;",
+                "breathing" => "animation: headerBreathe 4s ease-in-out infinite;",
+                _ => ""
+            };
+
+            // --- h1 ---
+            var h1Size = layout switch
+            {
+                "compact" => "1.4rem",
+                "minimal-bar" => "1.2rem",
+                "banner" or "stadium" or "neon" or "aurora" => "3rem",
+                "text-only" => "2.8rem",
+                _ => "2.5rem"
+            };
+            var h1Margin = layout switch
+            {
+                "compact" or "minimal-bar" or "split" or "scoreboard" => "0",
+                _ => "10px"
+            };
+            var h1Extra = layout switch
+            {
+                "banner" => "letter-spacing: 2px; text-transform: uppercase;",
+                "stadium" => "letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 40px rgba(255,255,255,0.3);",
+                "text-only" => $"color: var(--primary-color); font-weight: 800;",
+                "championship" => "letter-spacing: 1px; text-transform: uppercase;",
+                "neon" => $"text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--primary-color), 0 0 80px var(--secondary-color); animation: headerNeonPulse 2s ease-in-out infinite; letter-spacing: 3px; text-transform: uppercase;",
+                "aurora" => "text-shadow: 0 0 30px rgba(255,255,255,0.4); letter-spacing: 2px;",
+                _ => ""
+            };
+
+            // --- subtitle ---
+            var subSize = layout switch
+            {
+                "compact" or "minimal-bar" => "0.85rem",
+                "banner" => "0.9rem",
+                _ => "1.1rem"
+            };
+            var subExtra = layout switch
+            {
+                "compact" or "minimal-bar" => "margin: 0;",
+                "banner" => "letter-spacing: 4px; text-transform: uppercase;",
+                "stadium" => "letter-spacing: 2px; text-transform: uppercase; opacity: 0.7;",
+                "text-only" => "color: var(--text-secondary); opacity: 1;",
+                _ => ""
+            };
+
+            // --- badge ---
+            var badgePad = layout is "compact" or "minimal-bar" ? "3px 10px" : "6px 16px";
+            var badgeMargin = layout is "compact" or "minimal-bar" or "split" or "scoreboard" ? "0" : "15px";
+            var badgeSize = layout is "compact" or "minimal-bar" ? "0.75rem" : "0.9rem";
+            var badgeBg = layout is "text-only" or "underline" or "transparent"
+                ? "rgba(var(--primary-color-rgb, 59,130,246), 0.15)"
+                : "rgba(255,255,255,0.2)";
+            var badgeExtra = layout switch
+            {
+                "minimal-bar" => "margin-left: auto;",
+                "scoreboard" => "justify-self: end;",
+                _ => ""
+            };
+
+            // --- logo ---
+            var logoExtra = layout switch
+            {
+                "compact" or "minimal-bar" => "max-height: 36px; margin: 0;",
+                "split" => "order: -1; margin: 0;",
+                "scoreboard" => "margin: 0; justify-self: start;",
+                _ => "margin-bottom: 15px;"
+            };
+
+            // --- text-group (split layout) ---
+            var textGroupCss = layout == "split" ? "text-align: right; flex: 1;" : "";
+
+            // --- two-row specific ---
+            var twoRowCss = layout == "two-row" ? @"
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+.header-row:first-child {
+    gap: 20px;
+}" : "";
+
+            // --- animations ---
+            var animations = layout switch
+            {
+                "animated-gradient" => @"
+@keyframes headerGradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}",
+                "wave-gradient" => @"
+@keyframes headerWaveGradient {
+    0% { background-position: 0% 50%; background-size: 300% 300%; }
+    25% { background-size: 400% 400%; }
+    50% { background-position: 100% 50%; background-size: 300% 300%; }
+    75% { background-size: 200% 200%; }
+    100% { background-position: 0% 50%; background-size: 300% 300%; }
+}",
+                "pulse-glow" => @"
+@keyframes headerPulseGlow {
+    0%, 100% { filter: brightness(1); box-shadow: 0 0 0 rgba(0,0,0,0); }
+    50% { filter: brightness(1.15); box-shadow: 0 0 40px rgba(255,255,255,0.1); }
+}",
+                "shimmer" => @"
+header::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: headerShimmer 3s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes headerShimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+}",
+                "aurora" => @"
+header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: 
+        linear-gradient(120deg, rgba(0,255,128,0.15) 0%, transparent 40%),
+        linear-gradient(240deg, rgba(0,128,255,0.2) 0%, transparent 40%),
+        linear-gradient(0deg, rgba(128,0,255,0.15) 0%, transparent 50%);
+    animation: headerAurora 8s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+header { position: relative; }
+@keyframes headerAurora {
+    0% { opacity: 0.6; transform: translateX(-5%) scaleY(1); }
+    33% { opacity: 1; transform: translateX(3%) scaleY(1.1); }
+    66% { opacity: 0.8; transform: translateX(-2%) scaleY(0.95); }
+    100% { opacity: 1; transform: translateX(5%) scaleY(1.05); }
+}",
+                "neon" => @"
+@keyframes headerNeonPulse {
+    0%, 100% { text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--primary-color), 0 0 80px var(--secondary-color); }
+    50% { text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--secondary-color); }
+}
+header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(var(--primary-color-rgb, 59,130,246), 0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+header { position: relative; }",
+                "spotlight-sweep" => @"
+header::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -20%; width: 40%; height: 200%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 70%);
+    animation: headerSpotlight 5s ease-in-out infinite;
+    pointer-events: none;
+}
+header { position: relative; }
+@keyframes headerSpotlight {
+    0% { left: -30%; }
+    50% { left: 90%; }
+    100% { left: -30%; }
+}",
+                "breathing" => @"
+@keyframes headerBreathe {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.015); opacity: 0.95; }
+}",
+                _ => ""
+            };
+
+            return $@"
+header {{
+    background: {headerBg};
+    color: {headerColor};
+    padding: {headerPadding};
+    text-align: {headerAlign};
+    {headerPatternUse}
+    {headerExtra}
+}}
+
+.header-content {{
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    {contentFlex}
+}}
+
+header h1 {{
+    font-family: var(--header-font);
+    font-size: {h1Size};
+    margin-bottom: {h1Margin};
+    {h1Extra}
+}}
+
+header .subtitle {{
+    opacity: 0.9;
+    font-size: {subSize};
+    {subExtra}
+}}
+
+header .season-badge {{
+    display: inline-block;
+    background: {badgeBg};
+    padding: {badgePad};
+    border-radius: 20px;
+    margin-top: {badgeMargin};
+    font-size: {badgeSize};
+    {badgeExtra}
+}}
+
+header .logo {{
+    max-width: 200px;
+    {logoExtra}
+}}
+
+.header-text-group {{
+    {textGroupCss}
+}}
+
+.header-text-group h1 {{
+    margin-bottom: 4px;
+}}
+
+.header-text-group .subtitle {{
+    margin: 0;
+}}
+{twoRowCss}
+{animations}";
+        }
+
         private string GenerateStylesheet(WebsiteTemplate template)
         {
             return template.Id switch
@@ -103,37 +415,7 @@ body {{
     padding: 0 20px;
 }}
 
-header {{
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: var(--header-text);
-    padding: 40px 20px;
-    text-align: center;
-}}
-
-header h1 {{
-    font-family: var(--header-font);
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-}}
-
-header .subtitle {{
-    opacity: 0.9;
-    font-size: 1.1rem;
-}}
-
-header .season-badge {{
-    display: inline-block;
-    background: rgba(255,255,255,0.2);
-    padding: 6px 16px;
-    border-radius: 20px;
-    margin-top: 15px;
-    font-size: 0.9rem;
-}}
-
-header .logo {{
-    max-width: 200px;
-    margin-bottom: 15px;
-}}
+{GenerateHeaderLayoutCSS()}
 
 /* Header freeform sub-element layout */
 .header-freeform {{
@@ -193,7 +475,15 @@ nav a:hover, nav a.active {{
 .page-canvas > [data-block-id] {{
     position: absolute;
     box-sizing: border-box;
-    width: fit-content;
+}}
+
+/* On non-home pages, blocks stay in normal flow */
+.page-canvas > header[data-block-id],
+.page-canvas > nav[data-block-id],
+.page-canvas > footer[data-block-id],
+.page-canvas > .content-area[data-block-id] {{
+    position: relative;
+    width: 100%;
 }}
 
 .hero {{
