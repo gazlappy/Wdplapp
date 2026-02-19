@@ -1125,7 +1125,34 @@ nav a:hover, nav a.active {
 }
 ";
             
-            return baseCSS + minimalistOverrides;
+            // Competition page styles (appended to all templates)
+            var competitionCSS = @"
+/* Competition Page */
+.competition-card { margin-bottom: 2rem; }
+.competition-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.competition-header h3 { margin: 0; }
+.competition-meta { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.status-completed { background: #D1FAE5; color: #065F46; }
+.status-active { background: #DBEAFE; color: #1E40AF; }
+.status-draft { background: #F3F4F6; color: #4B5563; }
+.competition-rounds, .competition-groups { margin-top: 1rem; }
+.round-section, .group-section { margin-bottom: 1.5rem; }
+.round-section h4, .group-section h4 { font-size: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 4px; display: inline-block; }
+.match-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; background: #F9FAFB; }
+.match-row.match-complete { background: #F0FDF4; }
+.match-player { font-size: 0.9rem; }
+.match-player:first-child { text-align: right; }
+.match-player.winner { font-weight: 700; }
+.match-score { font-weight: 700; text-align: center; min-width: 50px; }
+tr.qualifying td { background: #EFF6FF; }
+@media (max-width: 768px) {
+    .match-row { grid-template-columns: 1fr; text-align: center; gap: 2px; }
+    .match-player:first-child { text-align: center; }
+}
+";
+
+            return baseCSS + minimalistOverrides + competitionCSS;
         }
     }
 }

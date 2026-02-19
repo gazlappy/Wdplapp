@@ -13,88 +13,36 @@ namespace Wdpl2.Views;
 /// </summary>
 public partial class CompetitionsPage
 {
-    private void OnGenerateBracket()
+    private async void OnGenerateBracket()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null) return;
 
-        int participantCount = _selectedCompetition.Format == CompetitionFormat.DoublesKnockout
-            ? _selectedCompetition.DoublesTeams.Count
-            : _selectedCompetition.ParticipantIds.Count;
-
-        if (participantCount < 2)
+        if (_selectedCompetition?.Rounds.Count > 0)
         {
-            SetStatus("Need at least 2 participants to generate bracket");
-            return;
+            var confirm = await DisplayAlert("Regenerate Bracket",
+                "This will overwrite the existing bracket and any entered scores. Continue?",
+                "Yes, Regenerate", "Cancel");
+            if (!confirm) return;
         }
 
-        List<Guid> participants;
-        
-        if (_selectedCompetition.Format == CompetitionFormat.DoublesKnockout || _selectedCompetition.Format == CompetitionFormat.DoublesGroupStage)
-        {
-            participants = _selectedCompetition.DoublesTeams.Select(t => t.Id).ToList();
-        }
-        else
-        {
-            participants = _selectedCompetition.ParticipantIds;
-        }
-
-        // Generate bracket WITHOUT randomization (maintains input order)
-        List<CompetitionRound> rounds = _selectedCompetition.Format switch
-        {
-            CompetitionFormat.SinglesKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: false),
-            CompetitionFormat.DoublesKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: false),
-            CompetitionFormat.TeamKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: false),
-            CompetitionFormat.RoundRobin => CompetitionGenerator.GenerateRoundRobin(participants, randomize: false),
-            _ => new List<CompetitionRound>()
-        };
-
-        _selectedCompetition.Rounds = rounds;
-        _selectedCompetition.Status = CompetitionStatus.InProgress;
-        DataStore.Save();
-
-        SetStatus($"Generated {rounds.Count} rounds with {rounds.Sum(r => r.Matches.Count)} matches (ordered draw)");
+        await _editorViewModel.GenerateBracketCommand.ExecuteAsync(false);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 
-    private void OnRandomDraw()
+    private async void OnRandomDraw()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null) return;
 
-        int participantCount = _selectedCompetition.Format == CompetitionFormat.DoublesKnockout
-            ? _selectedCompetition.DoublesTeams.Count
-            : _selectedCompetition.ParticipantIds.Count;
-
-        if (participantCount < 2)
+        if (_selectedCompetition?.Rounds.Count > 0)
         {
-            SetStatus("Need at least 2 participants to generate bracket");
-            return;
+            var confirm = await DisplayAlert("Random Draw",
+                "This will overwrite the existing bracket and any entered scores. Continue?",
+                "Yes, Random Draw", "Cancel");
+            if (!confirm) return;
         }
 
-        List<Guid> participants;
-        
-        if (_selectedCompetition.Format == CompetitionFormat.DoublesKnockout || _selectedCompetition.Format == CompetitionFormat.DoublesGroupStage)
-        {
-            participants = _selectedCompetition.DoublesTeams.Select(t => t.Id).ToList();
-        }
-        else
-        {
-            participants = _selectedCompetition.ParticipantIds;
-        }
-
-        // Generate bracket WITH randomization (completely random draw)
-        List<CompetitionRound> rounds = _selectedCompetition.Format switch
-        {
-            CompetitionFormat.SinglesKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: true),
-            CompetitionFormat.DoublesKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: true),
-            CompetitionFormat.TeamKnockout => CompetitionGenerator.GenerateSingleKnockout(participants, randomize: true),
-            CompetitionFormat.RoundRobin => CompetitionGenerator.GenerateRoundRobin(participants, randomize: true),
-            _ => new List<CompetitionRound>()
-        };
-
-        _selectedCompetition.Rounds = rounds;
-        _selectedCompetition.Status = CompetitionStatus.InProgress;
-        DataStore.Save();
-
-        SetStatus($"Generated {rounds.Count} rounds with {rounds.Sum(r => r.Matches.Count)} matches (RANDOM DRAW)");
+        await _editorViewModel.GenerateBracketCommand.ExecuteAsync(true);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 
     private void OnViewBracket()
@@ -352,87 +300,13 @@ public partial class CompetitionsPage
 
     private string? GetParticipantName(Guid? participantId, CompetitionFormat format)
     {
-        if (!participantId.HasValue) return null;
-
-        if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
-        {
-            var team = _selectedCompetition?.DoublesTeams.FirstOrDefault(t => t.Id == participantId.Value);
-            return team?.TeamName;
-        }
-        else if (format == CompetitionFormat.TeamKnockout)
-        {
-            var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == participantId.Value);
-            return team?.Name;
-        }
-        else
-        {
-            var player = DataStore.Data.Players.FirstOrDefault(p => p.Id == participantId.Value);
-            return player?.FullName;
-        }
+        return _editorViewModel?.GetParticipantName(participantId);
     }
 
-    private void ApplyAllScores(Competition competition)
+    private async void ApplyAllScores(Competition competition)
     {
-        bool anyUpdates = false;
-        
-        foreach (var round in competition.Rounds)
-        {
-            foreach (var match in round.Matches)
-            {
-                if (!match.IsComplete && match.Participant1Id.HasValue && match.Participant2Id.HasValue)
-                {
-                    // Determine winner based on scores
-                    if (match.Participant1Score > match.Participant2Score)
-                        match.WinnerId = match.Participant1Id;
-                    else if (match.Participant2Score > match.Participant1Score)
-                        match.WinnerId = match.Participant2Id;
-                    else
-                        continue; // Skip draws - can't determine winner
-
-                    match.IsComplete = true;
-                    anyUpdates = true;
-
-                    // Advance winner to next round
-                    AdvanceWinner(competition, round, match);
-                }
-            }
-        }
-
-        if (anyUpdates)
-        {
-            DataStore.Save();
-            SetStatus("All scores applied - winners advanced to next rounds");
-        }
-        else
-        {
-            SetStatus("No new scores to apply");
-        }
-    }
-
-    private void AdvanceWinner(Competition competition, CompetitionRound round, CompetitionMatch match)
-    {
-        // Find next round
-        var nextRound = competition.Rounds.FirstOrDefault(r => r.RoundNumber == round.RoundNumber + 1);
-        if (nextRound == null || !match.WinnerId.HasValue) return;
-
-        // Find which match slot in previous round (0, 1, 2, 3...)
-        int matchIndex = round.Matches.IndexOf(match);
-        if (matchIndex < 0) return;
-
-        // Determine which match in next round (match 0 and 1 go to next match 0, etc.)
-        int nextMatchIndex = matchIndex / 2;
-        if (nextMatchIndex >= nextRound.Matches.Count) return;
-
-        var nextMatch = nextRound.Matches[nextMatchIndex];
-        
-        // Determine if this goes to participant 1 or 2 slot
-        if (matchIndex % 2 == 0)
-        {
-            nextMatch.Participant1Id = match.WinnerId;
-        }
-        else
-        {
-            nextMatch.Participant2Id = match.WinnerId;
-        }
+        if (_editorViewModel == null) return;
+        await _editorViewModel.ApplyBracketScoresCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 }

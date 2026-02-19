@@ -10,23 +10,24 @@ using Wdpl2.ViewModels;
 namespace Wdpl2.Views;
 
 /// <summary>
-/// Main competition management page - now using MVVM pattern
+/// Main competition management page - uses MVVM pattern with CompetitionEditorViewModel
 /// </summary>
 public partial class CompetitionsPage : ContentPage
 {
     private readonly CompetitionsViewModel _viewModel;
+    private readonly IDataStore _dataStore;
+    internal CompetitionEditorViewModel? _editorViewModel;
 
     // Keep these for backward compatibility with existing partial classes
     private Competition? _selectedCompetition => _viewModel.SelectedCompetition;
     private Guid? _currentSeasonId => _viewModel.CurrentSeasonId;
     
-    // UI Elements for editor (shared across partials) - still needed for existing UI generation code
+    // UI Elements for editor (shared across partials)
     internal Entry? _nameEntry;
     internal Picker? _statusPicker;
     internal DatePicker? _startDatePicker;
     internal Entry? _notesEntry;
     internal CollectionView? _participantsView;
-    internal ObservableCollection<ParticipantItem> _participants = new();
 
     // Default constructor for Shell navigation
     public CompetitionsPage() : this(null)
@@ -38,11 +39,11 @@ public partial class CompetitionsPage : ContentPage
     {
         InitializeComponent();
         
-        // If no ViewModel provided (Shell navigation), create one manually
+        _dataStore = new DataStoreService();
+        
         if (viewModel == null)
         {
-            var dataStore = new DataStoreService();
-            _viewModel = new CompetitionsViewModel(dataStore);
+            _viewModel = new CompetitionsViewModel(_dataStore);
         }
         else
         {
@@ -64,6 +65,7 @@ public partial class CompetitionsPage : ContentPage
         
         if (competition == null)
         {
+            _editorViewModel = null;
             ShowEmptyState();
         }
         else
@@ -80,16 +82,33 @@ public partial class CompetitionsPage : ContentPage
             return;
         }
 
-        // Show setup dialog
-        var setupDialog = new CompetitionSetupDialog(_viewModel.CurrentSeasonId.Value);
-        await Navigation.PushModalAsync(new NavigationPage(setupDialog));
+        var wizard = new CompetitionWizardPage(_viewModel.CurrentSeasonId.Value);
+        await Navigation.PushModalAsync(new NavigationPage(wizard));
         
-        var competition = await setupDialog.GetResultAsync();
+        var competition = await wizard.GetResultAsync();
         
         if (competition != null)
         {
             await _viewModel.CreateCompetitionCommand.ExecuteAsync(competition);
         }
+    }
+
+    private void OnShowActive(object? sender, EventArgs e)
+    {
+        _viewModel.ShowHistory = false;
+        CompetitionsList.ItemsSource = _viewModel.ActiveCompetitions;
+        ActiveTab.BackgroundColor = Color.FromArgb("#3B82F6");
+        HistoryTab.BackgroundColor = Color.FromArgb("#6B7280");
+        NewBtn.IsVisible = true;
+    }
+
+    private void OnShowHistory(object? sender, EventArgs e)
+    {
+        _viewModel.ShowHistory = true;
+        CompetitionsList.ItemsSource = _viewModel.CompletedCompetitions;
+        ActiveTab.BackgroundColor = Color.FromArgb("#6B7280");
+        HistoryTab.BackgroundColor = Color.FromArgb("#3B82F6");
+        NewBtn.IsVisible = false;
     }
 
     private void ShowEmptyState()
@@ -122,12 +141,5 @@ public partial class CompetitionsPage : ContentPage
     internal void SetStatus(string text)
     {
         _viewModel.StatusMessage = $"{DateTime.Now:HH:mm:ss}  {text}";
-    }
-
-    // Helper class for participant display (still needed by existing partial classes)
-    internal class ParticipantItem
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = "";
     }
 }

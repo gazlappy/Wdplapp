@@ -20,6 +20,12 @@ public partial class CompetitionsViewModel : BaseViewModel
     private ObservableCollection<Competition> _competitions = new();
     
     [ObservableProperty]
+    private ObservableCollection<Competition> _activeCompetitions = new();
+    
+    [ObservableProperty]
+    private ObservableCollection<Competition> _completedCompetitions = new();
+    
+    [ObservableProperty]
     private Competition? _selectedCompetition;
     
     [ObservableProperty]
@@ -27,6 +33,12 @@ public partial class CompetitionsViewModel : BaseViewModel
     
     [ObservableProperty]
     private bool _hasSelectedCompetition;
+    
+    [ObservableProperty]
+    private bool _showHistory;
+    
+    [ObservableProperty]
+    private bool _hasCompletedCompetitions;
 
     public CompetitionsViewModel(IDataStore dataStore)
     {
@@ -41,7 +53,7 @@ public partial class CompetitionsViewModel : BaseViewModel
 
     private async Task InitializeAsync()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        CurrentSeasonId = SeasonService.CurrentSeasonId;
         await LoadCompetitionsAsync();
     }
 
@@ -54,20 +66,29 @@ public partial class CompetitionsViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadCompetitionsAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
-            var competitions = await _dataStore.GetCompetitionsAsync(_currentSeasonId);
+            var competitions = await _dataStore.GetCompetitionsAsync(CurrentSeasonId);
             
-            _competitions.Clear();
+            Competitions.Clear();
+            ActiveCompetitions.Clear();
+            CompletedCompetitions.Clear();
+            
             foreach (var comp in competitions)
             {
-                _competitions.Add(comp);
+                Competitions.Add(comp);
+                
+                if (comp.Status == CompetitionStatus.Completed)
+                    CompletedCompetitions.Add(comp);
+                else
+                    ActiveCompetitions.Add(comp);
             }
             
-            _hasNoCompetitions = !_competitions.Any();
-            SetStatus($"{_competitions.Count} competition(s)");
+            HasNoCompetitions = !ActiveCompetitions.Any();
+            HasCompletedCompetitions = CompletedCompetitions.Any();
+            SetStatus($"{ActiveCompetitions.Count} active, {CompletedCompetitions.Count} completed");
         }
         catch (Exception ex)
         {
@@ -75,7 +96,7 @@ public partial class CompetitionsViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
@@ -90,7 +111,7 @@ public partial class CompetitionsViewModel : BaseViewModel
             await _dataStore.SaveAsync();
             await LoadCompetitionsAsync();
             
-            _selectedCompetition = competition;
+            SelectedCompetition = competition;
             SetStatus($"Created competition: {competition.Name}");
         }
         catch (Exception ex)
@@ -113,7 +134,7 @@ public partial class CompetitionsViewModel : BaseViewModel
             await _dataStore.DeleteCompetitionAsync(competition);
             await _dataStore.SaveAsync();
             
-            _selectedCompetition = null;
+            SelectedCompetition = null;
             await LoadCompetitionsAsync();
             
             SetStatus("Competition deleted");
@@ -126,6 +147,6 @@ public partial class CompetitionsViewModel : BaseViewModel
 
     partial void OnSelectedCompetitionChanged(Competition? value)
     {
-        _hasSelectedCompetition = value != null;
+        HasSelectedCompetition = value != null;
     }
 }

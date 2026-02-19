@@ -229,6 +229,7 @@ namespace Wdpl2.Models
         public bool ShowResults { get; set; } = true;
         public bool ShowPlayerStats { get; set; } = true;
         public bool ShowDivisions { get; set; } = true;
+        public bool ShowCompetitions { get; set; } = false;
         public bool ShowGallery { get; set; } = false;
         public bool ShowTopScorers { get; set; } = true;
         public bool ShowRecentForm { get; set; } = true;

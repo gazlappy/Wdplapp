@@ -15,7 +15,7 @@ public partial class CompetitionsPage
 {
     private async void OnAddParticipant()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
         var format = _selectedCompetition.Format;
 
@@ -39,22 +39,9 @@ public partial class CompetitionsPage
 
     private async Task ShowDoublesTeamSelectionDialog()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
-        // Get all player IDs already in doubles teams
-        var usedPlayerIds = new HashSet<Guid>();
-        foreach (var team in _selectedCompetition.DoublesTeams)
-        {
-            usedPlayerIds.Add(team.Player1Id);
-            usedPlayerIds.Add(team.Player2Id);
-        }
-
-        // Filter out already-used players
-        var availablePlayers = DataStore.Data.Players
-            .Where(p => p.SeasonId == _currentSeasonId)
-            .Where(p => !usedPlayerIds.Contains(p.Id))
-            .OrderBy(p => p.FullName)
-            .ToList();
+        var availablePlayers = await _editorViewModel.GetAvailableDoublesPlayersAsync();
 
         if (availablePlayers.Count < 2)
         {
@@ -97,7 +84,7 @@ public partial class CompetitionsPage
 
         var taskCompletionSource = new TaskCompletionSource<bool>();
 
-        addBtn.Clicked += (s, e) =>
+        addBtn.Clicked += async (s, e) =>
         {
             if (player1Picker.SelectedIndex < 0 || player2Picker.SelectedIndex < 0)
             {
@@ -121,9 +108,8 @@ public partial class CompetitionsPage
                 TeamName = $"{p1.FullName} & {p2.FullName}"
             };
 
-            _selectedCompetition.DoublesTeams.Add(team);
-            RefreshParticipants(_selectedCompetition);
-            SetStatus($"Added doubles team: {team.TeamName}");
+            await _editorViewModel!.AddDoublesTeamCommand.ExecuteAsync(team);
+            SetStatus(_editorViewModel.StatusMessage);
 
             taskCompletionSource.SetResult(true);
             Navigation.PopModalAsync();
@@ -172,13 +158,9 @@ public partial class CompetitionsPage
 
     private async Task ShowMultiSelectPlayersDialog()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
-        var availablePlayers = DataStore.Data.Players
-            .Where(p => p.SeasonId == _currentSeasonId)
-            .Where(p => !_selectedCompetition.ParticipantIds.Contains(p.Id))
-            .OrderBy(p => p.FullName)
-            .ToList();
+        var availablePlayers = await _editorViewModel.GetAvailablePlayersAsync();
 
         if (availablePlayers.Count == 0)
         {
@@ -199,24 +181,16 @@ public partial class CompetitionsPage
         
         if (selectedIds != null && selectedIds.Any())
         {
-            foreach (var id in selectedIds)
-            {
-                _selectedCompetition.ParticipantIds.Add(id);
-            }
-            RefreshParticipants(_selectedCompetition);
-            SetStatus($"Added {selectedIds.Count} player(s)");
+            await _editorViewModel!.AddParticipantIdsCommand.ExecuteAsync(selectedIds);
+            SetStatus(_editorViewModel.StatusMessage);
         }
     }
 
     private async Task ShowMultiSelectTeamsDialog()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
-        var availableTeams = DataStore.Data.Teams
-            .Where(t => t.SeasonId == _currentSeasonId)
-            .Where(t => !_selectedCompetition.ParticipantIds.Contains(t.Id))
-            .OrderBy(t => t.Name)
-            .ToList();
+        var availableTeams = await _editorViewModel.GetAvailableTeamsAsync();
 
         if (availableTeams.Count == 0)
         {
@@ -237,12 +211,8 @@ public partial class CompetitionsPage
         
         if (selectedIds != null && selectedIds.Any())
         {
-            foreach (var id in selectedIds)
-            {
-                _selectedCompetition.ParticipantIds.Add(id);
-            }
-            RefreshParticipants(_selectedCompetition);
-            SetStatus($"Added {selectedIds.Count} team(s)");
+            await _editorViewModel!.AddParticipantIdsCommand.ExecuteAsync(selectedIds);
+            SetStatus(_editorViewModel.StatusMessage);
         }
     }
 

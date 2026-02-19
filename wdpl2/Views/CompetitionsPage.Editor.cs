@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using Wdpl2.ViewModels;
 
 namespace Wdpl2.Views;
 
@@ -13,6 +14,9 @@ public partial class CompetitionsPage
 {
     internal void ShowCompetitionEditor(Competition competition)
     {
+        // Create editor ViewModel for this competition
+        _editorViewModel = new CompetitionEditorViewModel(_dataStore, competition, _currentSeasonId);
+
         _nameEntry = new Entry { Text = competition.Name };
         _statusPicker = new Picker
         {
@@ -22,7 +26,6 @@ public partial class CompetitionsPage
         _startDatePicker = new DatePicker { Date = competition.StartDate ?? DateTime.Today };
         _notesEntry = new Entry { Text = competition.Notes ?? "", Placeholder = "Notes..." };
 
-        // Display format (read-only)
         var formatLabel = new Label
         {
             Text = competition.Format.ToString(),
@@ -30,11 +33,10 @@ public partial class CompetitionsPage
             VerticalTextAlignment = TextAlignment.Center
         };
 
-        // Participants list
-        RefreshParticipants(competition);
+        // Participants list - bound to the editor ViewModel's collection
         _participantsView = new CollectionView
         {
-            ItemsSource = _participants,
+            ItemsSource = _editorViewModel.Participants,
             HeightRequest = 250,
             ItemTemplate = new DataTemplate(() =>
             {
@@ -224,19 +226,19 @@ public partial class CompetitionsPage
         });
     }
 
-    private void OnSaveCompetition()
+    private async void OnSaveCompetition()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
-        _selectedCompetition.Name = _nameEntry?.Text ?? _selectedCompetition.Name;
-        _selectedCompetition.Status = _statusPicker?.SelectedIndex >= 0 
+        _editorViewModel.Name = _nameEntry?.Text ?? _editorViewModel.Name;
+        _editorViewModel.Status = _statusPicker?.SelectedIndex >= 0 
             ? (CompetitionStatus)_statusPicker.SelectedIndex 
-            : _selectedCompetition.Status;
-        _selectedCompetition.StartDate = _startDatePicker?.Date;
-        _selectedCompetition.Notes = _notesEntry?.Text;
+            : _editorViewModel.Status;
+        _editorViewModel.StartDate = _startDatePicker?.Date ?? _editorViewModel.StartDate;
+        _editorViewModel.Notes = _notesEntry?.Text ?? _editorViewModel.Notes;
 
-        DataStore.Save();
-        SetStatus("Competition saved");
+        await _editorViewModel.SaveCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 
     private Grid CreateLabeledField(string label, View field)
@@ -266,84 +268,32 @@ public partial class CompetitionsPage
 
     private void RefreshParticipants(Competition competition)
     {
-        _participants.Clear();
-
-        var format = competition.Format;
-
-        if (format == CompetitionFormat.SinglesKnockout || format == CompetitionFormat.RoundRobin || 
-            format == CompetitionFormat.Swiss || format == CompetitionFormat.SinglesGroupStage)
+        // Delegate to the editor ViewModel - participants are loaded in its constructor
+        if (_editorViewModel != null)
         {
-            // Singles - use players
-            foreach (var playerId in competition.ParticipantIds)
-            {
-                var player = DataStore.Data.Players.FirstOrDefault(p => p.Id == playerId);
-                if (player != null)
-                {
-                    _participants.Add(new ParticipantItem
-                    {
-                        Id = player.Id,
-                        Name = player.FullName
-                    });
-                }
-            }
-        }
-        else if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
-        {
-            // Doubles - use doubles teams
-            foreach (var team in competition.DoublesTeams)
-            {
-                var p1 = DataStore.Data.Players.FirstOrDefault(p => p.Id == team.Player1Id);
-                var p2 = DataStore.Data.Players.FirstOrDefault(p => p.Id == team.Player2Id);
-                var name = $"{p1?.FullName ?? "?"} & {p2?.FullName ?? "?"}";
-                
-                _participants.Add(new ParticipantItem
-                {
-                    Id = team.Id,
-                    Name = name
-                });
-            }
-        }
-        else if (format == CompetitionFormat.TeamKnockout)
-        {
-            // Team knockout - use teams
-            foreach (var teamId in competition.ParticipantIds)
-            {
-                var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == teamId);
-                if (team != null)
-                {
-                    _participants.Add(new ParticipantItem
-                    {
-                        Id = team.Id,
-                        Name = team.Name ?? "Unnamed Team"
-                    });
-                }
-            }
+            _ = _editorViewModel.LoadParticipantsCommand.ExecuteAsync(null);
         }
     }
 
-    private void OnRemoveParticipant(object? sender, EventArgs e)
+    private async void OnRemoveParticipant(object? sender, EventArgs e)
     {
-        if (_selectedCompetition == null || sender is not Button btn || btn.CommandParameter is not Guid id)
+        if (_editorViewModel == null || sender is not Button btn || btn.CommandParameter is not Guid id)
             return;
 
-        _selectedCompetition.ParticipantIds.Remove(id);
-        _selectedCompetition.DoublesTeams.RemoveAll(t => t.Id == id);
-        RefreshParticipants(_selectedCompetition);
-        SetStatus("Participant removed");
+        await _editorViewModel.RemoveParticipantCommand.ExecuteAsync(id);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 
     private async void OnClearParticipants()
     {
-        if (_selectedCompetition == null) return;
+        if (_editorViewModel == null || _selectedCompetition == null) return;
 
         var confirm = await DisplayAlert("Clear Participants", 
             "Remove all participants from this competition?", "Yes", "No");
         
         if (!confirm) return;
 
-        _selectedCompetition.ParticipantIds.Clear();
-        _selectedCompetition.DoublesTeams.Clear();
-        RefreshParticipants(_selectedCompetition);
-        SetStatus("Participants cleared");
+        await _editorViewModel.ClearParticipantsCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 }

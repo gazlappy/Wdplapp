@@ -12,46 +12,16 @@ namespace Wdpl2.Views;
 /// </summary>
 public partial class CompetitionsPage
 {
-    private void OnGenerateGroups()
+    private async void OnGenerateGroups()
     {
-        if (_selectedCompetition == null || _selectedCompetition.GroupSettings == null) return;
+        if (_editorViewModel == null) return;
 
-        var participants = _selectedCompetition.Format == CompetitionFormat.DoublesGroupStage
-            ? _selectedCompetition.DoublesTeams.Select(t => t.Id).ToList()
-            : _selectedCompetition.ParticipantIds;
+        await _editorViewModel.GenerateGroupsCommand.ExecuteAsync(null);
+        await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
 
-        if (participants.Count < _selectedCompetition.GroupSettings.NumberOfGroups * 2)
-        {
-            SetStatus($"Need at least {_selectedCompetition.GroupSettings.NumberOfGroups * 2} participants for {_selectedCompetition.GroupSettings.NumberOfGroups} groups");
-            return;
-        }
-
-        // Generate groups with randomization
-        var (groups, plateCompetition) = CompetitionGenerator.GenerateGroupStage(
-            participants,
-            _selectedCompetition.GroupSettings,
-            _selectedCompetition.Format,
-            _selectedCompetition.SeasonId,
-            _selectedCompetition.Name,
-            randomize: true
-        );
-
-        _selectedCompetition.Groups = groups;
-
-        // Create plate competition if requested
-        if (plateCompetition != null)
-        {
-            DataStore.Data.Competitions.Add(plateCompetition);
-            _selectedCompetition.PlateCompetitionId = plateCompetition.Id;
-        }
-
-        _selectedCompetition.Status = CompetitionStatus.InProgress;
-        DataStore.Save();
-
-        SetStatus($"Generated {groups.Count} groups with {groups.Sum(g => g.Matches.Count)} total matches");
-        
-        // Refresh the editor view
-        ShowCompetitionEditor(_selectedCompetition);
+        if (_selectedCompetition != null)
+            ShowCompetitionEditor(_selectedCompetition);
     }
 
     private void ShowGroupsView()
@@ -289,6 +259,7 @@ public partial class CompetitionsPage
 
     private View CreateStandingsView(System.Collections.Generic.List<GroupStanding> standings, CompetitionFormat format)
     {
+        int topAdvance = _selectedCompetition?.GroupSettings?.TopPlayersAdvance ?? 2;
         var standingsLayout = new VerticalStackLayout { Spacing = 2 };
 
         // Header
@@ -326,7 +297,7 @@ public partial class CompetitionsPage
             var rowGrid = new Grid
             {
                 Padding = 8,
-                BackgroundColor = standing.Position <= 2 ? Color.FromArgb("#DBEAFE") : Colors.White,
+                BackgroundColor = standing.Position <= topAdvance ? Color.FromArgb("#DBEAFE") : Colors.White,
                 ColumnDefinitions =
                 {
                     new ColumnDefinition { Width = new GridLength(30) },
@@ -357,53 +328,16 @@ public partial class CompetitionsPage
         };
     }
 
-    private void ApplyAllGroupScores()
+    private async void ApplyAllGroupScores()
     {
-        if (_selectedCompetition == null) return;
-
-        bool anyUpdates = false;
-        
-        foreach (var group in _selectedCompetition.Groups)
-        {
-            foreach (var match in group.Matches)
-            {
-                if (!match.IsComplete && match.Participant1Id.HasValue && match.Participant2Id.HasValue)
-                {
-                    // Determine winner based on scores
-                    if (match.Participant1Score > match.Participant2Score)
-                        match.WinnerId = match.Participant1Id;
-                    else if (match.Participant2Score > match.Participant1Score)
-                        match.WinnerId = match.Participant2Id;
-                    else if (match.Participant1Score > 0 || match.Participant2Score > 0)
-                    {
-                        // It's a draw
-                        match.WinnerId = null;
-                    }
-                    else
-                    {
-                        continue; // No scores entered
-                    }
-
-                    match.IsComplete = true;
-                    anyUpdates = true;
-                }
-            }
-        }
-
-        if (anyUpdates)
-        {
-            DataStore.Save();
-            SetStatus("All group scores applied");
-        }
-        else
-        {
-            SetStatus("No new scores to apply");
-        }
+        if (_editorViewModel == null) return;
+        await _editorViewModel.ApplyGroupScoresCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 
     private async void OnFinalizeGroups()
     {
-        if (_selectedCompetition == null || _selectedCompetition.GroupSettings == null) return;
+        if (_editorViewModel == null || _selectedCompetition?.GroupSettings == null) return;
 
         var confirm = await DisplayAlert(
             "Finalize Groups",
@@ -413,63 +347,11 @@ public partial class CompetitionsPage
 
         if (!confirm) return;
 
-        // Advance participants from groups
-        var (knockoutParticipants, plateParticipants) = CompetitionGenerator.AdvanceFromGroups(
-            _selectedCompetition.Groups,
-            _selectedCompetition.GroupSettings.TopPlayersAdvance,
-            _selectedCompetition.GroupSettings.LowerPlayersToPlate
-        );
-
-        // Create main knockout bracket
-        if (knockoutParticipants.Count >= 2)
-        {
-            _selectedCompetition.Rounds = CompetitionGenerator.GenerateSingleKnockout(
-                knockoutParticipants,
-                randomize: false // Seeded by group position
-            );
-            SetStatus($"Created knockout bracket with {knockoutParticipants.Count} players");
-        }
-
-        // Create plate competition
-        if (plateParticipants.Count >= 2 && _selectedCompetition.PlateCompetitionId.HasValue)
-        {
-            var plateComp = DataStore.Data.Competitions
-                .FirstOrDefault(c => c.Id == _selectedCompetition.PlateCompetitionId.Value);
-
-            if (plateComp != null)
-            {
-                // Assign participants to plate
-                if (_selectedCompetition.Format == CompetitionFormat.DoublesGroupStage)
-                {
-                    plateComp.DoublesTeams = _selectedCompetition.DoublesTeams
-                        .Where(t => plateParticipants.Contains(t.Id))
-                        .ToList();
-                }
-                else
-                {
-                    plateComp.ParticipantIds = plateParticipants;
-                }
-
-                // Generate plate knockout
-                plateComp.Rounds = CompetitionGenerator.GenerateSingleKnockout(
-                    plateParticipants,
-                    randomize: false
-                );
-                plateComp.Status = CompetitionStatus.InProgress;
-
-                SetStatus($"Created plate knockout with {plateParticipants.Count} players");
-            }
-        }
-
-        _selectedCompetition.Status = CompetitionStatus.InProgress;
-        DataStore.Save();
+        await _editorViewModel.FinalizeGroupsCommand.ExecuteAsync(null);
         await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
 
-        await DisplayAlert("Success",
-            $"Knockout brackets created!\nMain: {knockoutParticipants.Count} players\nPlate: {plateParticipants.Count} players",
-            "OK");
-
-        // Refresh view
-        ShowCompetitionEditor(_selectedCompetition);
+        if (_selectedCompetition != null)
+            ShowCompetitionEditor(_selectedCompetition);
     }
 }

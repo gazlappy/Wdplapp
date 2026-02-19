@@ -20,12 +20,12 @@ public abstract partial class BaseViewModel : ObservableObject
 
     protected void SetStatus(string message)
     {
-        _statusMessage = $"{DateTime.Now:HH:mm:ss}  {message}";
+        StatusMessage = $"{DateTime.Now:HH:mm:ss}  {message}";
     }
 
     protected virtual void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
-        _currentSeasonId = e.NewSeasonId;
+        CurrentSeasonId = e.NewSeasonId;
         SetStatus($"Season: {e.NewSeason?.Name ?? "None"}");
     }
 

@@ -98,6 +98,9 @@ namespace Wdpl2.Services
                     GetTableClasses());
             }
             
+            if (_settings.ShowCompetitions)
+                files["competitions.html"] = GenerateCompetitionsPage(season, template);
+            
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 files["gallery.html"] = GenerateGalleryPage(season, template);
             
@@ -1387,6 +1390,167 @@ namespace Wdpl2.Services
             html.AppendLine("</html>");
             
             return html.ToString();
+        }
+        
+        private string GenerateCompetitionsPage(Season season, WebsiteTemplate template)
+        {
+            var html = new StringBuilder();
+            
+            AppendDocumentHead(html, $"Competitions - {_settings.LeagueName}", season);
+            html.AppendLine("<body>");
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+            
+            AppendHeader(html, season);
+            AppendNavigation(html, "Competitions");
+            
+            html.AppendLine("    <div class=\"content-area\">");
+            html.AppendLine("        <div class=\"container\">");
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine("                <h2>&#127942; Competitions</h2>");
+            html.AppendLine($"                <p class=\"hero-dates\">{season.Name}</p>");
+            html.AppendLine("            </div>");
+            
+            var competitions = _league.Competitions
+                .Where(c => c.SeasonId == season.Id)
+                .OrderByDescending(c => c.Status == CompetitionStatus.InProgress)
+                .ThenByDescending(c => c.CreatedDate)
+                .ToList();
+            
+            var (_, _, teams, players, _) = _league.GetSeasonData(season.Id);
+            
+            if (competitions.Count > 0)
+            {
+                foreach (var comp in competitions)
+                {
+                    var statusClass = comp.Status switch
+                    {
+                        CompetitionStatus.Completed => "status-completed",
+                        CompetitionStatus.InProgress => "status-active",
+                        _ => "status-draft"
+                    };
+                    var statusIcon = comp.Status switch
+                    {
+                        CompetitionStatus.Completed => "&#9989;",
+                        CompetitionStatus.InProgress => "&#9889;",
+                        _ => "&#128221;"
+                    };
+                    
+                    html.AppendLine($"            <div class=\"section competition-card\">");
+                    html.AppendLine($"                <div class=\"competition-header\">");
+                    html.AppendLine($"                    <h3>{comp.Name}</h3>");
+                    html.AppendLine($"                    <span class=\"badge {statusClass}\">{statusIcon} {comp.Status}</span>");
+                    html.AppendLine($"                </div>");
+                    html.AppendLine($"                <p class=\"competition-meta\">{comp.Format} &bull; {GetParticipantCount(comp)} entries{(comp.StartDate.HasValue ? $" &bull; {comp.StartDate.Value:dd MMM yyyy}" : "")}</p>");
+                    
+                    // Knockout rounds
+                    if (comp.Rounds.Count > 0)
+                    {
+                        html.AppendLine("                <div class=\"competition-rounds\">");
+                        foreach (var round in comp.Rounds.OrderBy(r => r.RoundNumber))
+                        {
+                            html.AppendLine($"                    <div class=\"round-section\">");
+                            html.AppendLine($"                        <h4>{round.Name}</h4>");
+                            
+                            foreach (var match in round.Matches)
+                            {
+                                var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams);
+                                var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams);
+                                var isP1Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
+                                var isP2Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
+                                
+                                html.AppendLine($"                        <div class=\"match-row{(match.IsComplete ? " match-complete" : "")}\">");
+                                html.AppendLine($"                            <span class=\"match-player{(isP1Winner ? " winner" : "")}\">{p1 ?? "TBD"}</span>");
+                                html.AppendLine($"                            <span class=\"match-score\">{match.Participant1Score} - {match.Participant2Score}</span>");
+                                html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2 ?? "TBD"}</span>");
+                                html.AppendLine($"                        </div>");
+                            }
+                            
+                            html.AppendLine($"                    </div>");
+                        }
+                        html.AppendLine("                </div>");
+                    }
+                    
+                    // Group stage
+                    if (comp.Groups.Count > 0)
+                    {
+                        html.AppendLine("                <div class=\"competition-groups\">");
+                        foreach (var group in comp.Groups.OrderBy(g => g.GroupNumber))
+                        {
+                            var standings = CompetitionGenerator.CalculateGroupStandings(group);
+                            int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
+                            
+                            html.AppendLine($"                    <div class=\"group-section\">");
+                            html.AppendLine($"                        <h4>{group.Name}</h4>");
+                            html.AppendLine($"                        <table class=\"{GetTableClasses()}\">");
+                            html.AppendLine("                            <thead><tr><th>Pos</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>");
+                            html.AppendLine("                            <tbody>");
+                            
+                            foreach (var s in standings)
+                            {
+                                var name = GetWebParticipantName(s.ParticipantId, comp, players, teams);
+                                var rowClass = s.Position <= topAdvance ? " class=\"qualifying\"" : "";
+                                html.AppendLine($"                            <tr{rowClass}><td>{s.Position}</td><td>{name}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
+                            }
+                            
+                            html.AppendLine("                            </tbody>");
+                            html.AppendLine($"                        </table>");
+                            html.AppendLine($"                    </div>");
+                        }
+                        html.AppendLine("                </div>");
+                    }
+                    
+                    html.AppendLine($"            </div>");
+                }
+            }
+            else
+            {
+                html.AppendLine("            <div class=\"section\">");
+                html.AppendLine("                <p class=\"empty-message\">No competitions available for this season.</p>");
+                html.AppendLine("            </div>");
+            }
+            
+            html.AppendLine("        </div>");
+            html.AppendLine("    </div>");
+            
+            AppendFooter(html);
+            
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
+                html.AppendLine(_settings.CustomBodyEndHtml);
+            
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+            
+            return html.ToString();
+        }
+        
+        private static int GetParticipantCount(Competition comp)
+        {
+            return comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage
+                ? comp.DoublesTeams.Count
+                : comp.ParticipantIds.Count;
+        }
+        
+        private static string? GetWebParticipantName(Guid? id, Competition comp, List<Player> players, List<Team> teams)
+        {
+            if (!id.HasValue) return null;
+            
+            if (comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage)
+            {
+                var dt = comp.DoublesTeams.FirstOrDefault(t => t.Id == id.Value);
+                return dt?.TeamName;
+            }
+            else if (comp.Format == CompetitionFormat.TeamKnockout)
+            {
+                var team = teams.FirstOrDefault(t => t.Id == id.Value);
+                return team?.Name;
+            }
+            else
+            {
+                var player = players.FirstOrDefault(p => p.Id == id.Value);
+                return player?.FullName;
+            }
         }
         
         private string GenerateCustomPage(Season season, WebsiteTemplate template, CustomPage page)

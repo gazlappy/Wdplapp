@@ -38,10 +38,31 @@
             <VerticalStackLayout Spacing="8">
                 <Label Text="Competitions" Style="{StaticResource SectionTitle}" />
                 
-                <!-- Competition List -->
+                <!-- Active / History Toggle -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="4" Margin="0,0,0,4">
+                    <Button 
+                        x:Name="ActiveTab" 
+                        Text="Active"
+                        Clicked="OnShowActive"
+                        BackgroundColor="#3B82F6"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="6,4" FontSize="13" />
+                    <Button 
+                        x:Name="HistoryTab" 
+                        Grid.Column="1"
+                        Text="History"
+                        Clicked="OnShowHistory"
+                        BackgroundColor="#6B7280"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="6,4" FontSize="13" />
+                </Grid>
+                
+                <!-- Competition List (Active) -->
                 <CollectionView
                     x:Name="CompetitionsList"
-                    ItemsSource="{Binding Competitions}"
+                    ItemsSource="{Binding ActiveCompetitions}"
                     SelectedItem="{Binding SelectedCompetition}"
                     SelectionMode="Single"
                     SelectionChanged="OnCompetitionSelectionChanged"
@@ -74,6 +95,12 @@
                             </Frame>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8" Padding="20">
+                            <Label Text="No competitions yet" FontSize="15" TextColor="Gray" HorizontalTextAlignment="Center" />
+                            <Label Text="Tap 'New' to create one" FontSize="13" TextColor="Gray" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
                 </CollectionView>
 
                 <!-- Action Buttons -->
