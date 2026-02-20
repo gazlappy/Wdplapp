@@ -23,6 +23,7 @@ public partial class ContentSettingsPage : ContentPage
         ShowResultsCheck.IsChecked = settings.ShowResults;
         ShowPlayerStatsCheck.IsChecked = settings.ShowPlayerStats;
         ShowDivisionsCheck.IsChecked = settings.ShowDivisions;
+        ShowCompetitionsCheck.IsChecked = settings.ShowCompetitions;
         ShowGalleryCheck.IsChecked = settings.ShowGallery;
         ShowTopScorersCheck.IsChecked = settings.ShowTopScorers;
         ShowRecentFormCheck.IsChecked = settings.ShowRecentForm;
@@ -76,6 +77,7 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowResults = ShowResultsCheck.IsChecked;
             settings.ShowPlayerStats = ShowPlayerStatsCheck.IsChecked;
             settings.ShowDivisions = ShowDivisionsCheck.IsChecked;
+            settings.ShowCompetitions = ShowCompetitionsCheck.IsChecked;
             settings.ShowGallery = ShowGalleryCheck.IsChecked;
             settings.ShowTopScorers = ShowTopScorersCheck.IsChecked;
             settings.ShowRecentForm = ShowRecentFormCheck.IsChecked;

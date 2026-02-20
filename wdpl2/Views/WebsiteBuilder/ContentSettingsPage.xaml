@@ -67,6 +67,10 @@
                     
                     <VerticalStackLayout Spacing="6">
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowCompetitionsCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Competitions" VerticalOptions="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
                             <CheckBox x:Name="ShowGalleryCheck" IsChecked="False" VerticalOptions="Center"/>
                             <Label Grid.Column="1" Text="Photo Gallery" VerticalOptions="Center"/>
                         </Grid>

@@ -323,7 +323,7 @@ header .logo {{
 
         private string GenerateStylesheet(WebsiteTemplate template)
         {
-            return template.Id switch
+            var templateCSS = template.Id switch
             {
                 "dark" => GenerateDarkModeCSS(),
                 "sport" => GenerateSportCSS(),
@@ -332,6 +332,7 @@ header .logo {{
                 "minimal" => GenerateModernCSS(),
                 _ => GenerateModernCSS()
             };
+            return templateCSS + GetCompetitionCSS();
         }
         
         private string GetTableClasses()
@@ -1124,9 +1125,13 @@ nav a:hover, nav a.active {
     color: #0F172A;
 }
 ";
-            
-            // Competition page styles (appended to all templates)
-            var competitionCSS = @"
+
+            return baseCSS + minimalistOverrides;
+        }
+
+        private static string GetCompetitionCSS()
+        {
+            return @"
 /* Competition Page */
 .competition-card { margin-bottom: 2rem; }
 .competition-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
@@ -1136,7 +1141,7 @@ nav a:hover, nav a.active {
 .status-completed { background: #D1FAE5; color: #065F46; }
 .status-active { background: #DBEAFE; color: #1E40AF; }
 .status-draft { background: #F3F4F6; color: #4B5563; }
-.competition-rounds, .competition-groups { margin-top: 1rem; }
+.competition-rounds, .competition-groups, .comp-groups, .comp-results { margin-top: 1rem; }
 .round-section, .group-section { margin-bottom: 1.5rem; }
 .round-section h4, .group-section h4 { font-size: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 4px; display: inline-block; }
 .match-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; background: #F9FAFB; }
@@ -1146,13 +1151,77 @@ nav a:hover, nav a.active {
 .match-player.winner { font-weight: 700; }
 .match-score { font-weight: 700; text-align: center; min-width: 50px; }
 tr.qualifying td { background: #EFF6FF; }
+.comp-standings { margin-bottom: 1.5rem; }
+
+/* Competition selector tabs */
+.comp-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.comp-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 20px; border: 2px solid #E5E7EB; border-radius: 10px; background: #fff; cursor: pointer; transition: all .2s; font-family: inherit; font-size: inherit; }
+.comp-tab:hover { border-color: var(--primary); background: #F8FAFC; }
+.comp-tab.active { border-color: var(--primary); background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.comp-tab.active .badge { background: rgba(255,255,255,.25); color: #fff; }
+.comp-tab.active .comp-tab-name { color: #fff; }
+.comp-tab-name { font-weight: 700; font-size: 0.95rem; }
+
+/* Competition info bar */
+.comp-info-bar { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 16px; background: #F8FAFC; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); }
+
+/* Competition panel */
+.comp-panel { animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ═══════════════════════════════════════════════════════════
+   KNOCKOUT BRACKET — columns + connector lines
+   ═══════════════════════════════════════════════════════════ */
+
+.bk-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 12px; }
+.bk-scroll::-webkit-scrollbar { height: 6px; }
+.bk-scroll::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 3px; }
+.bk-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+
+.bk-grid { display: flex; flex-wrap: nowrap; align-items: stretch; min-width: max-content; padding: 8px 0; }
+
+/* Round column */
+.bk-round { min-width: 220px; flex-shrink: 0; display: flex; flex-direction: column; }
+.bk-hdr { text-align: center; padding: 0 4px 6px; }
+.bk-rn { font-size: .8rem; font-weight: 700; color: #6B7280; }
+.bk-rp { font-size: .7rem; }
+.bk-body { display: flex; flex-direction: column; justify-content: space-around; flex: 1; padding: 0 4px; }
+
+/* Match card */
+.bk-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.bk-card.bk-done { border-color: #10B981; border-width: 2px; }
+.bk-player { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; font-size: .88rem; min-height: 34px; }
+.bk-player.bk-w { background: #ECFDF5; font-weight: 700; color: #065F46; }
+.bk-player.bk-tbd .bk-name { color: #9CA3AF; font-style: italic; }
+.bk-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+.bk-sc { font-weight: 700; min-width: 20px; text-align: center; }
+.bk-sc.bk-sw { color: #065F46; }
+.bk-dv { height: 1px; background: #E5E7EB; }
+.bk-card.bk-done .bk-dv { background: #D1FAE5; }
+
+/* ── Connector column between rounds ── */
+.bk-conn { display: flex; flex-direction: column; width: 28px; flex-shrink: 0; }
+.bk-cg { position: relative; flex: 1; }
+.bk-cg span { position: absolute; display: block; }
+
+/* Horizontal lines from source matches to vertical bar */
+.bk-hl { left: 0; width: 50%; height: 2px; background: #CBD5E1; }
+
+/* Vertical bar connecting the pair */
+.bk-vl { left: calc(50% - 1px); top: 25%; bottom: 25%; width: 2px; background: #CBD5E1; }
+
+/* Horizontal line from vertical bar to destination match */
+.bk-rl { left: 50%; right: 0; top: calc(50% - 1px); height: 2px; background: #CBD5E1; }
+
 @media (max-width: 768px) {
     .match-row { grid-template-columns: 1fr; text-align: center; gap: 2px; }
     .match-player:first-child { text-align: center; }
+    .comp-tabs { flex-direction: column; }
+    .comp-info-bar { flex-direction: column; gap: 6px; }
+    .bk-round { min-width: 180px; }
+    .bk-conn { width: 20px; }
 }
 ";
-
-            return baseCSS + minimalistOverrides + competitionCSS;
         }
     }
 }

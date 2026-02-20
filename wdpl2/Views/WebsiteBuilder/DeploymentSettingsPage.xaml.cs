@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Wdpl2.Data;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -88,6 +90,19 @@ public partial class DeploymentSettingsPage : ContentPage
 
     private Dictionary<string, string>? GenerateWebsite()
     {
+        // Competitions live in SQLite, not JSON — load them into LeagueData
+        // so the website generator can include them.
+        try
+        {
+            using var context = new LeagueContext();
+            context.Database.EnsureCreated();
+            League.Competitions = context.Competitions.AsNoTracking().ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WebGen] Error loading competitions: {ex.Message}");
+        }
+
         var generator = new WebsiteGenerator(League, League.WebsiteSettings);
         return generator.GenerateWebsite();
     }

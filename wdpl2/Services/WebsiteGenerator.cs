@@ -1395,35 +1395,41 @@ namespace Wdpl2.Services
         private string GenerateCompetitionsPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();
-            
+
             AppendDocumentHead(html, $"Competitions - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
-            
+
             AppendHeader(html, season);
             AppendNavigation(html, "Competitions");
-            
+
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#127942; Competitions</h2>");
-            html.AppendLine($"                <p class=\"hero-dates\">{season.Name}</p>");
+            html.AppendLine($"                <p class=\"hero-dates\">{_settings.LeagueName}</p>");
             html.AppendLine("            </div>");
-            
+
+            // Show ALL competitions across all seasons (tournaments are standalone events)
             var competitions = _league.Competitions
-                .Where(c => c.SeasonId == season.Id)
+                .Where(c => c.Status != CompetitionStatus.Draft)
                 .OrderByDescending(c => c.Status == CompetitionStatus.InProgress)
                 .ThenByDescending(c => c.CreatedDate)
                 .ToList();
-            
-            var (_, _, teams, players, _) = _league.GetSeasonData(season.Id);
-            
+
+            // Gather players and teams from ALL seasons so name lookups work
+            var players = _league.Players.ToList();
+            var teams = _league.Teams.ToList();
+
             if (competitions.Count > 0)
             {
-                foreach (var comp in competitions)
+                // ── Competition selector tabs ─────────────────────────────
+                html.AppendLine("            <div class=\"comp-tabs\">");
+                for (int i = 0; i < competitions.Count; i++)
                 {
+                    var comp = competitions[i];
                     var statusClass = comp.Status switch
                     {
                         CompetitionStatus.Completed => "status-completed",
@@ -1436,93 +1442,237 @@ namespace Wdpl2.Services
                         CompetitionStatus.InProgress => "&#9889;",
                         _ => "&#128221;"
                     };
-                    
-                    html.AppendLine($"            <div class=\"section competition-card\">");
-                    html.AppendLine($"                <div class=\"competition-header\">");
-                    html.AppendLine($"                    <h3>{comp.Name}</h3>");
+                    var activeClass = i == 0 ? " active" : "";
+
+                    html.AppendLine($"                <button class=\"comp-tab{activeClass}\" onclick=\"showComp({i})\">");
+                    html.AppendLine($"                    <span class=\"comp-tab-name\">{comp.Name}</span>");
                     html.AppendLine($"                    <span class=\"badge {statusClass}\">{statusIcon} {comp.Status}</span>");
+                    html.AppendLine($"                </button>");
+                }
+                html.AppendLine("            </div>");
+
+                // ── Competition panels ────────────────────────────────────
+                for (int i = 0; i < competitions.Count; i++)
+                {
+                    var comp = competitions[i];
+                    var display = i == 0 ? "block" : "none";
+
+                    html.AppendLine($"            <div class=\"comp-panel\" id=\"comp-{i}\" style=\"display:{display}\">");
+
+                    // Meta info bar
+                    var formatLabel = comp.Format.ToString().Replace("Knockout", " Knockout").Replace("GroupStage", " Group Stage").Replace("RoundRobin", "Round Robin");
+                    html.AppendLine($"                <div class=\"comp-info-bar\">");
+                    html.AppendLine($"                    <span>&#127919; {formatLabel}</span>");
+                    html.AppendLine($"                    <span>&#128101; {GetParticipantCount(comp)} entries</span>");
+                    if (comp.StartDate.HasValue)
+                        html.AppendLine($"                    <span>&#128197; {comp.StartDate.Value:dd MMM yyyy}</span>");
+                    var compSeasonName = _league.Seasons.FirstOrDefault(s => s.Id == comp.SeasonId)?.Name;
+                    if (!string.IsNullOrWhiteSpace(compSeasonName))
+                        html.AppendLine($"                    <span>&#127944; {compSeasonName}</span>");
+                    if (!string.IsNullOrWhiteSpace(comp.Notes))
+                        html.AppendLine($"                    <span>&#128221; {comp.Notes}</span>");
                     html.AppendLine($"                </div>");
-                    html.AppendLine($"                <p class=\"competition-meta\">{comp.Format} &bull; {GetParticipantCount(comp)} entries{(comp.StartDate.HasValue ? $" &bull; {comp.StartDate.Value:dd MMM yyyy}" : "")}</p>");
-                    
-                    // Knockout rounds
-                    if (comp.Rounds.Count > 0)
+
+                    // Round Robin → standings + results
+                    if (comp.Format == CompetitionFormat.RoundRobin && comp.Rounds.Count > 0)
                     {
-                        html.AppendLine("                <div class=\"competition-rounds\">");
-                        foreach (var round in comp.Rounds.OrderBy(r => r.RoundNumber))
-                        {
-                            html.AppendLine($"                    <div class=\"round-section\">");
-                            html.AppendLine($"                        <h4>{round.Name}</h4>");
-                            
-                            foreach (var match in round.Matches)
-                            {
-                                var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams);
-                                var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams);
-                                var isP1Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
-                                var isP2Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
-                                
-                                html.AppendLine($"                        <div class=\"match-row{(match.IsComplete ? " match-complete" : "")}\">");
-                                html.AppendLine($"                            <span class=\"match-player{(isP1Winner ? " winner" : "")}\">{p1 ?? "TBD"}</span>");
-                                html.AppendLine($"                            <span class=\"match-score\">{match.Participant1Score} - {match.Participant2Score}</span>");
-                                html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2 ?? "TBD"}</span>");
-                                html.AppendLine($"                        </div>");
-                            }
-                            
-                            html.AppendLine($"                    </div>");
-                        }
-                        html.AppendLine("                </div>");
+                        AppendRoundRobinStandings(html, comp, players, teams);
+                        AppendMatchResults(html, comp, players, teams);
                     }
-                    
-                    // Group stage
-                    if (comp.Groups.Count > 0)
+                    // Knockout → bracket
+                    else if (comp.Rounds.Count > 0 && comp.Groups.Count == 0)
                     {
-                        html.AppendLine("                <div class=\"competition-groups\">");
-                        foreach (var group in comp.Groups.OrderBy(g => g.GroupNumber))
-                        {
-                            var standings = CompetitionGenerator.CalculateGroupStandings(group);
-                            int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
-                            
-                            html.AppendLine($"                    <div class=\"group-section\">");
-                            html.AppendLine($"                        <h4>{group.Name}</h4>");
-                            html.AppendLine($"                        <table class=\"{GetTableClasses()}\">");
-                            html.AppendLine("                            <thead><tr><th>Pos</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>");
-                            html.AppendLine("                            <tbody>");
-                            
-                            foreach (var s in standings)
-                            {
-                                var name = GetWebParticipantName(s.ParticipantId, comp, players, teams);
-                                var rowClass = s.Position <= topAdvance ? " class=\"qualifying\"" : "";
-                                html.AppendLine($"                            <tr{rowClass}><td>{s.Position}</td><td>{name}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
-                            }
-                            
-                            html.AppendLine("                            </tbody>");
-                            html.AppendLine($"                        </table>");
-                            html.AppendLine($"                    </div>");
-                        }
-                        html.AppendLine("                </div>");
+                        AppendKnockoutBracket(html, comp, players, teams);
                     }
-                    
+                    // Group stage → group tables + knockout if present
+                    else if (comp.Groups.Count > 0)
+                    {
+                        AppendGroupStage(html, comp, players, teams);
+                        if (comp.Rounds.Count > 0)
+                        {
+                            html.AppendLine("                <h4 style=\"margin-top:1.5rem\">Knockout Stage</h4>");
+                            AppendKnockoutBracket(html, comp, players, teams);
+                        }
+                    }
+                    else
+                    {
+                        html.AppendLine("                <p class=\"empty-message\">Draw not yet made. Check back soon!</p>");
+                    }
+
                     html.AppendLine($"            </div>");
                 }
             }
             else
             {
                 html.AppendLine("            <div class=\"section\">");
-                html.AppendLine("                <p class=\"empty-message\">No competitions available for this season.</p>");
+                html.AppendLine("                <p class=\"empty-message\">No competitions available yet.</p>");
                 html.AppendLine("            </div>");
             }
-            
+
             html.AppendLine("        </div>");
             html.AppendLine("    </div>");
-            
+
             AppendFooter(html);
-            
+
+            // ── Tab switching JS ──────────────────────────────────────────
+            html.AppendLine("<script>");
+            html.AppendLine("function showComp(idx){");
+            html.AppendLine("  document.querySelectorAll('.comp-panel').forEach(p=>p.style.display='none');");
+            html.AppendLine("  document.querySelectorAll('.comp-tab').forEach(t=>t.classList.remove('active'));");
+            html.AppendLine("  var panel=document.getElementById('comp-'+idx);");
+            html.AppendLine("  if(panel)panel.style.display='block';");
+            html.AppendLine("  document.querySelectorAll('.comp-tab')[idx].classList.add('active');");
+            html.AppendLine("}");
+            html.AppendLine("</script>");
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
-            
+
             html.AppendLine("</body>");
             html.AppendLine("</html>");
-            
+
             return html.ToString();
+        }
+
+        // ── Competition sub-section builders ─────────────────────────────
+
+        private void AppendRoundRobinStandings(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
+        {
+            var standings = CalculateRoundRobinStandings(comp, players, teams);
+            if (standings.Count == 0) return;
+
+            html.AppendLine("                <div class=\"section comp-standings\">");
+            html.AppendLine("                    <h4>Standings</h4>");
+            html.AppendLine($"                    <table class=\"{GetTableClasses()}\">");
+            html.AppendLine("                        <thead><tr><th>#</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>FD</th><th>Pts</th></tr></thead>");
+            html.AppendLine("                        <tbody>");
+            foreach (var s in standings)
+            {
+                html.AppendLine($"                        <tr><td>{s.pos}</td><td>{s.name}</td><td>{s.played}</td><td>{s.won}</td><td>{s.drawn}</td><td>{s.lost}</td><td>{(s.fd >= 0 ? "+" : "")}{s.fd}</td><td><strong>{s.pts}</strong></td></tr>");
+            }
+            html.AppendLine("                        </tbody>");
+            html.AppendLine($"                    </table>");
+            html.AppendLine("                </div>");
+        }
+
+        private void AppendMatchResults(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
+        {
+            html.AppendLine("                <div class=\"comp-results\">");
+            foreach (var round in comp.Rounds.OrderBy(r => r.RoundNumber))
+            {
+                html.AppendLine($"                    <div class=\"round-section\">");
+                html.AppendLine($"                        <h4>{round.Name}</h4>");
+                foreach (var match in round.Matches)
+                    AppendMatchRow(html, match, comp, players, teams);
+                html.AppendLine($"                    </div>");
+            }
+            html.AppendLine("                </div>");
+        }
+
+        private void AppendKnockoutBracket(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
+        {
+            var orderedRounds = comp.Rounds.OrderBy(r => r.RoundNumber).ToList();
+            int totalRounds = orderedRounds.Count;
+            if (totalRounds == 0) return;
+
+            html.AppendLine("                <div class=\"bk-scroll\">");
+            html.AppendLine("                <div class=\"bk-grid\">");
+
+            for (int ri = 0; ri < totalRounds; ri++)
+            {
+                var round = orderedRounds[ri];
+                string label = ri == totalRounds - 1 ? "Final"
+                    : ri == totalRounds - 2 ? "Semi-Finals"
+                    : (round.Name ?? $"Round {round.RoundNumber}");
+                int completed = round.Matches.Count(m => m.IsComplete);
+                int total = round.Matches.Count;
+                var progColor = completed == total && total > 0 ? "#10B981" : "#6B7280";
+
+                html.AppendLine("                    <div class=\"bk-round\">");
+                html.AppendLine($"                        <div class=\"bk-hdr\"><div class=\"bk-rn\">{label}</div><div class=\"bk-rp\" style=\"color:{progColor}\">{completed}/{total}</div></div>");
+                html.AppendLine("                        <div class=\"bk-body\">");
+                foreach (var match in round.Matches)
+                    AppendBracketCard(html, match, comp, players, teams);
+                html.AppendLine("                        </div>");
+                html.AppendLine("                    </div>");
+
+                // Connector column between rounds
+                if (ri < totalRounds - 1)
+                {
+                    int pairs = orderedRounds[ri + 1].Matches.Count;
+                    html.AppendLine("                    <div class=\"bk-conn\">");
+                    for (int p = 0; p < pairs; p++)
+                        html.AppendLine("                        <div class=\"bk-cg\"><span class=\"bk-hl\" style=\"top:25%\"></span><span class=\"bk-hl\" style=\"top:75%\"></span><span class=\"bk-vl\"></span><span class=\"bk-rl\"></span></div>");
+                    html.AppendLine("                    </div>");
+                }
+            }
+
+            html.AppendLine("                </div>");
+            html.AppendLine("                </div>");
+        }
+
+        private void AppendBracketCard(StringBuilder html, CompetitionMatch match, Competition comp, List<Player> players, List<Team> teams)
+        {
+            var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams) ?? "TBD";
+            var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams) ?? "TBD";
+            bool p1w = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
+            bool p2w = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
+
+            var cardClass = match.IsComplete ? "bk-card bk-done" : "bk-card";
+            html.AppendLine($"                        <div class=\"{cardClass}\">");
+            html.AppendLine($"                            <div class=\"bk-player{(p1w ? " bk-w" : "")}{(p1 == "TBD" ? " bk-tbd" : "")}\">");
+            html.AppendLine($"                                <span class=\"bk-name\">{p1}</span><span class=\"bk-sc{(p1w ? " bk-sw" : "")}\">{match.Participant1Score}</span>");
+            html.AppendLine($"                            </div>");
+            html.AppendLine($"                            <div class=\"bk-dv\"></div>");
+            html.AppendLine($"                            <div class=\"bk-player{(p2w ? " bk-w" : "")}{(p2 == "TBD" ? " bk-tbd" : "")}\">");
+            html.AppendLine($"                                <span class=\"bk-name\">{p2}</span><span class=\"bk-sc{(p2w ? " bk-sw" : "")}\">{match.Participant2Score}</span>");
+            html.AppendLine($"                            </div>");
+            html.AppendLine($"                        </div>");
+        }
+
+        private void AppendGroupStage(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
+        {
+            html.AppendLine("                <div class=\"comp-groups\">");
+            foreach (var group in comp.Groups.OrderBy(g => g.GroupNumber))
+            {
+                var standings = CompetitionGenerator.CalculateGroupStandings(group);
+                int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
+
+                html.AppendLine($"                    <div class=\"group-section\">");
+                html.AppendLine($"                        <h4>{group.Name}</h4>");
+                html.AppendLine($"                        <table class=\"{GetTableClasses()}\">");
+                html.AppendLine("                            <thead><tr><th>Pos</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>");
+                html.AppendLine("                            <tbody>");
+                foreach (var s in standings)
+                {
+                    var name = GetWebParticipantName(s.ParticipantId, comp, players, teams);
+                    var rowClass = s.Position <= topAdvance ? " class=\"qualifying\"" : "";
+                    html.AppendLine($"                            <tr{rowClass}><td>{s.Position}</td><td>{name}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
+                }
+                html.AppendLine("                            </tbody>");
+                html.AppendLine($"                        </table>");
+
+                // Group matches
+                foreach (var match in group.Matches)
+                    AppendMatchRow(html, match, comp, players, teams);
+
+                html.AppendLine($"                    </div>");
+            }
+            html.AppendLine("                </div>");
+        }
+
+        private void AppendMatchRow(StringBuilder html, CompetitionMatch match, Competition comp, List<Player> players, List<Team> teams)
+        {
+            var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams);
+            var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams);
+            var isP1Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
+            var isP2Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
+
+            html.AppendLine($"                        <div class=\"match-row{(match.IsComplete ? " match-complete" : "")}\">");
+            html.AppendLine($"                            <span class=\"match-player{(isP1Winner ? " winner" : "")}\">{p1 ?? "TBD"}</span>");
+            html.AppendLine($"                            <span class=\"match-score\">{match.Participant1Score} - {match.Participant2Score}</span>");
+            html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2 ?? "TBD"}</span>");
+            html.AppendLine($"                        </div>");
         }
         
         private static int GetParticipantCount(Competition comp)
@@ -1530,6 +1680,54 @@ namespace Wdpl2.Services
             return comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage
                 ? comp.DoublesTeams.Count
                 : comp.ParticipantIds.Count;
+        }
+
+        private static List<(int pos, string name, int played, int won, int drawn, int lost, int fd, int pts)>
+            CalculateRoundRobinStandings(Competition comp, List<Player> players, List<Team> teams)
+        {
+            var stats = new Dictionary<Guid, (int p, int w, int d, int l, int ff, int fa, int pts)>();
+
+            foreach (var round in comp.Rounds)
+            {
+                foreach (var match in round.Matches)
+                {
+                    if (match.Participant1Id.HasValue && !stats.ContainsKey(match.Participant1Id.Value))
+                        stats[match.Participant1Id.Value] = (0, 0, 0, 0, 0, 0, 0);
+                    if (match.Participant2Id.HasValue && !stats.ContainsKey(match.Participant2Id.Value))
+                        stats[match.Participant2Id.Value] = (0, 0, 0, 0, 0, 0, 0);
+
+                    if (!match.IsComplete || !match.Participant1Id.HasValue || !match.Participant2Id.HasValue) continue;
+
+                    var p1 = match.Participant1Id.Value;
+                    var p2 = match.Participant2Id.Value;
+                    var s1 = stats[p1]; var s2 = stats[p2];
+
+                    s1.p++; s2.p++;
+                    s1.ff += match.Participant1Score; s1.fa += match.Participant2Score;
+                    s2.ff += match.Participant2Score; s2.fa += match.Participant1Score;
+
+                    if (match.Participant1Score > match.Participant2Score)
+                    { s1.w++; s1.pts += match.Participant1Score + 2; s2.l++; s2.pts += match.Participant2Score; }
+                    else if (match.Participant2Score > match.Participant1Score)
+                    { s2.w++; s2.pts += match.Participant2Score + 2; s1.l++; s1.pts += match.Participant1Score; }
+                    else
+                    { s1.d++; s1.pts += match.Participant1Score + 1; s2.d++; s2.pts += match.Participant2Score + 1; }
+
+                    stats[p1] = s1; stats[p2] = s2;
+                }
+            }
+
+            int pos = 1;
+            return stats
+                .OrderByDescending(s => s.Value.pts)
+                .ThenByDescending(s => s.Value.ff - s.Value.fa)
+                .ThenByDescending(s => s.Value.ff)
+                .Select(s =>
+                {
+                    var name = GetWebParticipantName(s.Key, comp, players, teams) ?? "Unknown";
+                    return (pos++, name, s.Value.p, s.Value.w, s.Value.d, s.Value.l, s.Value.ff - s.Value.fa, s.Value.pts);
+                })
+                .ToList();
         }
         
         private static string? GetWebParticipantName(Guid? id, Competition comp, List<Player> players, List<Team> teams)
