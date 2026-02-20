@@ -19,7 +19,7 @@ public partial class CompetitionsPage : ContentPage
     internal CompetitionEditorViewModel? _editorViewModel;
 
     // Keep these for backward compatibility with existing partial classes
-    private Competition? _selectedCompetition => _viewModel.SelectedCompetition;
+    private Competition? _selectedCompetition => _editorViewModel?.Competition ?? _viewModel.SelectedCompetition;
     private Guid? _currentSeasonId => _viewModel.CurrentSeasonId;
     
     // UI Elements for editor (shared across partials)
@@ -38,19 +38,41 @@ public partial class CompetitionsPage : ContentPage
     public CompetitionsPage(CompetitionsViewModel? viewModel)
     {
         InitializeComponent();
-        
-        _dataStore = new DataStoreService();
-        
-        if (viewModel == null)
+
+        if (viewModel != null)
         {
-            _viewModel = new CompetitionsViewModel(_dataStore);
+            _viewModel = viewModel;
+            _dataStore = viewModel.DataStore;
         }
         else
         {
-            _viewModel = viewModel;
+            _dataStore = new DataStoreService();
+            _viewModel = new CompetitionsViewModel(_dataStore);
         }
-        
+
         BindingContext = _viewModel;
+
+        try
+        {
+            RefreshList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CompetitionsPage RefreshList error: {ex.Message}");
+        }
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        try
+        {
+            RefreshList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CompetitionsPage OnAppearing error: {ex.Message}");
+        }
     }
 
     protected override void OnDisappearing()
@@ -59,19 +81,11 @@ public partial class CompetitionsPage : ContentPage
         _viewModel.Cleanup();
     }
 
-    private void OnCompetitionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void OnCompetitionTapped(Competition competition)
     {
-        var competition = e.CurrentSelection?.FirstOrDefault() as Competition;
-        
-        if (competition == null)
-        {
-            _editorViewModel = null;
-            ShowEmptyState();
-        }
-        else
-        {
-            ShowCompetitionEditor(competition);
-        }
+        _viewModel.SelectedCompetition = competition;
+        ShowCompetitionEditor(competition);
+        RefreshList(); // Update selection highlight
     }
 
     private async void OnNewCompetition(object? sender, EventArgs e)
@@ -82,33 +96,135 @@ public partial class CompetitionsPage : ContentPage
             return;
         }
 
-        var wizard = new CompetitionWizardPage(_viewModel.CurrentSeasonId.Value);
-        await Navigation.PushModalAsync(new NavigationPage(wizard));
-        
-        var competition = await wizard.GetResultAsync();
-        
-        if (competition != null)
+        try
         {
-            await _viewModel.CreateCompetitionCommand.ExecuteAsync(competition);
+            var wizard = new CompetitionWizardPage(_viewModel.CurrentSeasonId.Value);
+            await Navigation.PushModalAsync(new NavigationPage(wizard));
+            
+            var competition = await wizard.GetResultAsync();
+            
+            if (competition != null)
+            {
+                await _viewModel.CreateCompetitionCommand.ExecuteAsync(competition);
+                RefreshList();
+                ShowCompetitionEditor(competition);
+                SetStatus($"Created: {competition.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}");
         }
     }
 
     private void OnShowActive(object? sender, EventArgs e)
     {
         _viewModel.ShowHistory = false;
-        CompetitionsList.ItemsSource = _viewModel.ActiveCompetitions;
+        RefreshList();
         ActiveTab.BackgroundColor = Color.FromArgb("#3B82F6");
         HistoryTab.BackgroundColor = Color.FromArgb("#6B7280");
         NewBtn.IsVisible = true;
     }
 
+    private async void OnDeleteCompetition(object? sender, EventArgs e)
+    {
+        var competition = _editorViewModel?.Competition ?? _viewModel.SelectedCompetition;
+        if (competition == null)
+        {
+            SetStatus("No competition selected");
+            return;
+        }
+
+        await _viewModel.DeleteCompetitionCommand.ExecuteAsync(competition);
+        _editorViewModel = null;
+        ShowEmptyState();
+        RefreshList();
+    }
+
     private void OnShowHistory(object? sender, EventArgs e)
     {
         _viewModel.ShowHistory = true;
-        CompetitionsList.ItemsSource = _viewModel.CompletedCompetitions;
+        RefreshList();
         ActiveTab.BackgroundColor = Color.FromArgb("#6B7280");
         HistoryTab.BackgroundColor = Color.FromArgb("#3B82F6");
         NewBtn.IsVisible = false;
+    }
+
+    /// <summary>
+    /// Rebuild the competition list from scratch.
+    /// Uses programmatic UI instead of CollectionView which is unreliable on Windows MAUI.
+    /// </summary>
+    private void RefreshList()
+    {
+        CompetitionsList.Children.Clear();
+
+        var source = _viewModel.ShowHistory
+            ? _viewModel.CompletedCompetitions
+            : _viewModel.ActiveCompetitions;
+
+        if (source == null || source.Count == 0)
+        {
+            CompetitionsList.Children.Add(new VerticalStackLayout
+            {
+                VerticalOptions = LayoutOptions.Center,
+                HorizontalOptions = LayoutOptions.Center,
+                Spacing = 8,
+                Padding = new Thickness(20),
+                Children =
+                {
+                    new Label { Text = "No competitions yet", FontSize = 15, TextColor = Colors.Gray, HorizontalTextAlignment = TextAlignment.Center },
+                    new Label { Text = "Tap 'New' to create one", FontSize = 13, TextColor = Colors.Gray, HorizontalTextAlignment = TextAlignment.Center }
+                }
+            });
+            return;
+        }
+
+        var selected = _editorViewModel?.Competition;
+        foreach (var comp in source)
+        {
+            var isSelected = selected != null && comp.Id == selected.Id;
+            var frame = new Frame
+            {
+                Padding = new Thickness(12, 10),
+                Margin = new Thickness(0, 2),
+                BackgroundColor = isSelected ? Color.FromArgb("#DBEAFE") : Color.FromArgb("#FFFFFF"),
+                BorderColor = isSelected ? Color.FromArgb("#3B82F6") : Colors.Transparent,
+                Content = new Grid
+                {
+                    ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },
+                    ColumnSpacing = 8,
+                    Children =
+                    {
+                        new VerticalStackLayout
+                        {
+                            Children =
+                            {
+                                new Label { Text = comp.Name, FontSize = 15, FontAttributes = FontAttributes.Bold },
+                                new Label { Text = comp.Format.ToString(), FontSize = 12, TextColor = Colors.Gray },
+                                new Label { Text = comp.Status.ToString(), FontSize = 11, TextColor = Colors.Gray }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var countLabel = new Label
+            {
+                Text = $"{comp.ParticipantIds?.Count ?? 0} entries",
+                FontSize = 12,
+                VerticalTextAlignment = TextAlignment.Center,
+                TextColor = Colors.Gray
+            };
+            Grid.SetColumn(countLabel, 1);
+            ((Grid)frame.Content).Children.Add(countLabel);
+
+            var tap = new TapGestureRecognizer();
+            var captured = comp; // capture for closure
+            tap.Tapped += (_, _) => OnCompetitionTapped(captured);
+            frame.GestureRecognizers.Add(tap);
+
+            CompetitionsList.Children.Add(frame);
+        }
     }
 
     private void ShowEmptyState()

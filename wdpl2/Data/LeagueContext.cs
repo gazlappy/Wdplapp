@@ -203,11 +203,14 @@ public class LeagueContext : DbContext
             entity.OwnsMany(e => e.Rounds, rounds =>
             {
                 rounds.ToJson();
+                rounds.OwnsMany(r => r.Matches);
             });
             
             entity.OwnsMany(e => e.Groups, groups =>
             {
                 groups.ToJson();
+                groups.OwnsMany(g => g.Matches);
+                groups.OwnsMany(g => g.Standings);
             });
             
             entity.OwnsOne(e => e.GroupSettings, settings =>

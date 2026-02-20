@@ -88,13 +88,13 @@ public partial class CompetitionsPage
         {
             if (player1Picker.SelectedIndex < 0 || player2Picker.SelectedIndex < 0)
             {
-                DisplayAlert("Error", "Please select both players", "OK");
+                await DisplayAlert("Error", "Please select both players", "OK");
                 return;
             }
 
             if (player1Picker.SelectedIndex == player2Picker.SelectedIndex)
             {
-                DisplayAlert("Error", "Please select different players", "OK");
+                await DisplayAlert("Error", "Please select different players", "OK");
                 return;
             }
 
@@ -112,13 +112,13 @@ public partial class CompetitionsPage
             SetStatus(_editorViewModel.StatusMessage);
 
             taskCompletionSource.SetResult(true);
-            Navigation.PopModalAsync();
+            await Navigation.PopModalAsync();
         };
 
-        cancelBtn.Clicked += (s, e) =>
+        cancelBtn.Clicked += async (s, e) =>
         {
             taskCompletionSource.SetResult(false);
-            Navigation.PopModalAsync();
+            await Navigation.PopModalAsync();
         };
 
         selectionPage.Content = new VerticalStackLayout

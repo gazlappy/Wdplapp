@@ -26,7 +26,7 @@ public class CompetitionWizardPage : ContentPage
     private CompetitionFormat _selectedFormat = CompetitionFormat.SinglesKnockout;
     private string _competitionName = "New Competition";
     private DateTime _startDate = DateTime.Today;
-    private int _framesPerMatch = 8;
+    private int _bestOf = 7;
     private bool _homeAndAway;
     private int _numberOfGroups = 4;
     private int _topAdvance = 2;
@@ -55,8 +55,8 @@ public class CompetitionWizardPage : ContentPage
         _nextBtn.Clicked += (_, _) => GoNext();
         _cancelBtn.Clicked += async (_, _) =>
         {
-            _result.TrySetResult(null);
             await Navigation.PopModalAsync();
+            _result.TrySetResult(null);
         };
 
         BuildLayout();
@@ -229,7 +229,6 @@ public class CompetitionWizardPage : ContentPage
 
     private Entry? _nameEntry;
     private DatePicker? _datePicker;
-    private Entry? _framesEntry;
 
     private void BuildDetailsStep()
     {
@@ -252,10 +251,18 @@ public class CompetitionWizardPage : ContentPage
         _datePicker.DateSelected += (_, e) => _startDate = e.NewDate;
         _contentArea.Children.Add(CreateField("Start Date", _datePicker));
 
-        // Frames per match
-        _framesEntry = new Entry { Text = _framesPerMatch.ToString(), Keyboard = Keyboard.Numeric };
-        _framesEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v > 0) _framesPerMatch = v; };
-        _contentArea.Children.Add(CreateField("Frames Per Match", _framesEntry));
+        // Best Of
+        var bestOfPicker = new Picker
+        {
+            Title = "Best Of",
+            ItemsSource = new List<string> { "Best of 3", "Best of 5", "Best of 7", "Best of 9", "Best of 11", "Best of 13", "Best of 15" },
+            SelectedIndex = _bestOf switch { 3 => 0, 5 => 1, 7 => 2, 9 => 3, 11 => 4, 13 => 5, 15 => 6, _ => 2 }
+        };
+        bestOfPicker.SelectedIndexChanged += (_, _) =>
+        {
+            _bestOf = bestOfPicker.SelectedIndex switch { 0 => 3, 1 => 5, 2 => 7, 3 => 9, 4 => 11, 5 => 13, 6 => 15, _ => 7 };
+        };
+        _contentArea.Children.Add(CreateField($"Best Of (first to {(_bestOf + 1) / 2} wins)", bestOfPicker));
 
         // Group stage settings
         bool isGroupStage = _selectedFormat is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
@@ -329,7 +336,7 @@ public class CompetitionWizardPage : ContentPage
                     ReviewRow("Name", _competitionName),
                     ReviewRow("Format", FormatDisplayName(_selectedFormat)),
                     ReviewRow("Start Date", _startDate.ToString("dd MMM yyyy")),
-                    ReviewRow("Frames Per Match", _framesPerMatch.ToString()),
+                    ReviewRow("Best Of", $"{_bestOf} (first to {(_bestOf + 1) / 2})"),
                 }
             }
         };
@@ -402,10 +409,10 @@ public class CompetitionWizardPage : ContentPage
         }
         else
         {
-            // Create the competition
+            // Create the competition - pop modal first so parent page is ready
             var competition = BuildCompetition();
-            _result.TrySetResult(competition);
             await Navigation.PopModalAsync();
+            _result.TrySetResult(competition);
         }
     }
 
@@ -421,7 +428,7 @@ public class CompetitionWizardPage : ContentPage
             Status = CompetitionStatus.Draft,
             StartDate = _startDate,
             CreatedDate = DateTime.Now,
-            Notes = $"Frames per match: {_framesPerMatch}"
+            Notes = $"Best of {_bestOf} (first to {(_bestOf + 1) / 2})"
         };
 
         if (isGroupStage)

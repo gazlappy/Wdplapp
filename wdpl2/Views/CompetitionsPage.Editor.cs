@@ -128,7 +128,7 @@ public partial class CompetitionsPage
             Padding = new Thickness(8, 6)
         });
 
-        ContentPanel.Content = new ScrollView { Content = content };
+        ContentPanel.Content = content;
     }
 
     private void AddFormatSpecificActions(VerticalStackLayout content, Competition competition)

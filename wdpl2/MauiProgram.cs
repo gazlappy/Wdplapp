@@ -27,13 +27,13 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Register Database Context
-        builder.Services.AddDbContext<LeagueContext>();
-        
+        // Register Database Context (Transient to avoid captive-dependency with data store)
+        builder.Services.AddDbContext<LeagueContext>(ServiceLifetime.Transient);
+
         // Register Data Services
         // Use SqliteDataStore for new implementation, DataStoreService for legacy
-        builder.Services.AddSingleton<IDataStore, SqliteDataStore>();
-        builder.Services.AddSingleton<DataMigrationService>();
+        builder.Services.AddTransient<IDataStore, SqliteDataStore>();
+        builder.Services.AddTransient<DataMigrationService>();
         
         // Register Notification Services (NEW) - Use alias to avoid conflicts
         builder.Services.AddSingleton<WdplNotificationService, LocalNotificationService>();
@@ -64,8 +64,16 @@ public static class MauiProgram
 
         var app = builder.Build();
 
-        // Initialize database and run migration if needed
-        InitializeDatabaseAsync(app.Services).GetAwaiter().GetResult();
+        // Initialize database and run migration if needed.
+        // Use Task.Run to avoid SynchronizationContext deadlock on WinUI main thread.
+        try
+        {
+            Task.Run(() => InitializeDatabaseAsync(app.Services)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Database init failed at top level: {ex.Message}");
+        }
 
         return app;
     }
@@ -75,6 +83,28 @@ public static class MauiProgram
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
         var migrationService = scope.ServiceProvider.GetRequiredService<DataMigrationService>();
+
+        // Delete stale database from previous broken model to force clean recreation
+        var dbPath = LeagueContext.GetDatabasePath();
+        try
+        {
+            if (File.Exists(dbPath))
+            {
+                // Only delete if migration is still needed (DB has no data = safe to delete)
+                await context.Database.EnsureCreatedAsync();
+                if (await migrationService.IsMigrationNeededAsync())
+                {
+                    System.Diagnostics.Debug.WriteLine("Database empty - deleting for clean recreation with updated model...");
+                    await context.Database.EnsureDeletedAsync();
+                }
+            }
+        }
+        catch
+        {
+            // Model validation failed on old DB - delete it
+            System.Diagnostics.Debug.WriteLine("Old database incompatible - deleting...");
+            try { File.Delete(dbPath); } catch { }
+        }
 
         try
         {
@@ -108,7 +138,28 @@ public static class MauiProgram
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Database initialization error: {ex.Message}");
-            // Don't crash the app, but log the error
+            
+            // The database may have been created with an old/broken model.
+            // Delete and recreate it so the new model schema is applied.
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Recreating database with updated model...");
+                await context.Database.EnsureDeletedAsync();
+                await context.Database.EnsureCreatedAsync();
+                
+                // Retry migration after recreating
+                if (await migrationService.IsMigrationNeededAsync())
+                {
+                    var result = await migrationService.MigrateAsync();
+                    System.Diagnostics.Debug.WriteLine(result.Success
+                        ? $"Migration retry successful! {result.TotalRecords} records"
+                        : $"Migration retry failed: {result.ErrorMessage}");
+                }
+            }
+            catch (Exception retryEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Database recreation failed: {retryEx.Message}");
+            }
         }
     }
 }

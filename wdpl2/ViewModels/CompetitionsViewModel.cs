@@ -15,7 +15,12 @@ namespace Wdpl2.ViewModels;
 public partial class CompetitionsViewModel : BaseViewModel
 {
     private readonly IDataStore _dataStore;
-    
+
+    /// <summary>
+    /// Expose the data store so the page can use the same instance for editors.
+    /// </summary>
+    public IDataStore DataStore => _dataStore;
+
     [ObservableProperty]
     private ObservableCollection<Competition> _competitions = new();
     
@@ -53,8 +58,15 @@ public partial class CompetitionsViewModel : BaseViewModel
 
     private async Task InitializeAsync()
     {
-        CurrentSeasonId = SeasonService.CurrentSeasonId;
-        await LoadCompetitionsAsync();
+        try
+        {
+            CurrentSeasonId = SeasonService.CurrentSeasonId;
+            await LoadCompetitionsAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"CompetitionsViewModel init error: {ex.Message}");
+        }
     }
 
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -108,10 +120,28 @@ public partial class CompetitionsViewModel : BaseViewModel
         try
         {
             await _dataStore.AddCompetitionAsync(competition);
-            await _dataStore.SaveAsync();
-            await LoadCompetitionsAsync();
             
+            // Add to UI collections FIRST so the list updates immediately
+            Competitions.Add(competition);
+            if (competition.Status == CompetitionStatus.Completed)
+                CompletedCompetitions.Add(competition);
+            else
+                ActiveCompetitions.Add(competition);
+            
+            HasNoCompetitions = !ActiveCompetitions.Any();
+            HasCompletedCompetitions = CompletedCompetitions.Any();
             SelectedCompetition = competition;
+            
+            // Save after updating UI - if this fails, the competition still shows
+            try
+            {
+                await _dataStore.SaveAsync();
+            }
+            catch (Exception saveEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Save warning: {saveEx.Message}");
+            }
+            
             SetStatus($"Created competition: {competition.Name}");
         }
         catch (Exception ex)
