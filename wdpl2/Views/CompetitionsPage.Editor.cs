@@ -14,8 +14,9 @@ public partial class CompetitionsPage
 {
     internal void ShowCompetitionEditor(Competition competition)
     {
-        // Create editor ViewModel for this competition
-        _editorViewModel = new CompetitionEditorViewModel(_dataStore, competition, _currentSeasonId);
+        // Create editor ViewModel: competition CRUD goes to the ViewModel's store (SQLite via DI),
+        // player/team lookups go to the page's _dataStore (JSON where that data lives).
+        _editorViewModel = new CompetitionEditorViewModel(_viewModel.DataStore, _dataStore, competition, _currentSeasonId);
 
         _nameEntry = new Entry { Text = competition.Name };
         _statusPicker = new Picker

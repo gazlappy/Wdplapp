@@ -37,7 +37,12 @@
         <Frame Grid.Column="0">
             <VerticalStackLayout Spacing="8">
                 <Label Text="Competitions" Style="{StaticResource SectionTitle}" />
-                
+                <Label 
+                    x:Name="SeasonLabel"
+                    FontSize="12"
+                    TextColor="Gray"
+                    Margin="8,0,0,0" />
+
                 <!-- Active / History Toggle -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="4" Margin="0,0,0,4">
                     <Button 

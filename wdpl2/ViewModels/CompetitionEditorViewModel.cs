@@ -14,44 +14,45 @@ namespace Wdpl2.ViewModels;
 /// </summary>
 public partial class CompetitionEditorViewModel : ObservableObject
 {
-    private readonly IDataStore _dataStore;
+    private readonly IDataStore _competitionStore;  // for competition CRUD (SQLite)
+    private readonly IDataStore _playerStore;       // for player/team lookups (JSON)
     private readonly Competition _competition;
     private List<Player> _cachedPlayers = new();
     private List<Team> _cachedTeams = new();
-    
+
     [ObservableProperty]
     private string _name = "";
-    
+
     [ObservableProperty]
     private CompetitionStatus _status;
-    
+
     [ObservableProperty]
     private DateTime _startDate = DateTime.Today;
-    
+
     [ObservableProperty]
     private string _notes = "";
-    
+
     [ObservableProperty]
     private string _formatDisplay = "";
-    
+
     [ObservableProperty]
     private ObservableCollection<ParticipantItem> _participants = new();
-    
+
     [ObservableProperty]
     private bool _isGroupStageFormat;
-    
+
     [ObservableProperty]
     private bool _isKnockoutFormat;
-    
+
     [ObservableProperty]
     private bool _hasGroups;
-    
+
     [ObservableProperty]
     private bool _hasRounds;
-    
+
     [ObservableProperty]
     private string _statusMessage = "";
-    
+
     [ObservableProperty]
     private Guid? _currentSeasonId;
 
@@ -61,12 +62,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
     public int GroupCount => _competition.Groups.Count;
     public int RoundCount => _competition.Rounds.Count;
 
-    public CompetitionEditorViewModel(IDataStore dataStore, Competition competition, Guid? currentSeasonId)
+    public CompetitionEditorViewModel(IDataStore competitionStore, IDataStore playerStore, Competition competition, Guid? currentSeasonId)
     {
-        _dataStore = dataStore;
+        _competitionStore = competitionStore;
+        _playerStore = playerStore;
         _competition = competition;
         _currentSeasonId = currentSeasonId;
-        
+
         LoadCompetitionData();
     }
 
@@ -98,8 +100,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             _competition.StartDate = StartDate;
             _competition.Notes = Notes;
             
-            await _dataStore.UpdateCompetitionAsync(_competition);
-            await _dataStore.SaveAsync();
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
             
             StatusMessage = "Competition saved";
         }
@@ -120,7 +122,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             format == CompetitionFormat.Swiss || format == CompetitionFormat.SinglesGroupStage)
         {
             // Singles - use players
-            _cachedPlayers = await _dataStore.GetPlayersAsync(CurrentSeasonId);
+            _cachedPlayers = await _playerStore.GetPlayersAsync(CurrentSeasonId);
             foreach (var playerId in _competition.ParticipantIds)
             {
                 var player = _cachedPlayers.FirstOrDefault(p => p.Id == playerId);
@@ -137,7 +139,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
         {
             // Doubles - use doubles teams
-            _cachedPlayers = await _dataStore.GetPlayersAsync(CurrentSeasonId);
+            _cachedPlayers = await _playerStore.GetPlayersAsync(CurrentSeasonId);
             foreach (var team in _competition.DoublesTeams)
             {
                 var p1 = _cachedPlayers.FirstOrDefault(p => p.Id == team.Player1Id);
@@ -154,7 +156,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.TeamKnockout)
         {
             // Team knockout - use teams
-            _cachedTeams = await _dataStore.GetTeamsAsync(CurrentSeasonId);
+            _cachedTeams = await _playerStore.GetTeamsAsync(CurrentSeasonId);
             foreach (var teamId in _competition.ParticipantIds)
             {
                 var team = _cachedTeams.FirstOrDefault(t => t.Id == teamId);
@@ -175,8 +177,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
     {
         _competition.ParticipantIds.Remove(participantId);
         _competition.DoublesTeams.RemoveAll(t => t.Id == participantId);
-        
-        await _dataStore.SaveAsync();
+
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
         await LoadParticipantsAsync();
         StatusMessage = "Participant removed";
     }
@@ -186,8 +189,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
     {
         _competition.ParticipantIds.Clear();
         _competition.DoublesTeams.Clear();
-        
-        await _dataStore.SaveAsync();
+
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
         await LoadParticipantsAsync();
         StatusMessage = "Participants cleared";
     }
@@ -224,8 +228,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             _competition.Rounds = rounds;
             _competition.Status = CompetitionStatus.InProgress;
-            
-            await _dataStore.SaveAsync();
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
             
             HasRounds = _competition.Rounds.Count > 0;
             StatusMessage = $"Generated {rounds.Count} rounds with {rounds.Sum(r => r.Matches.Count)} matches {(randomize ? "(RANDOM)" : "(ordered)")}";
@@ -270,12 +275,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             if (plateCompetition != null)
             {
-                await _dataStore.AddCompetitionAsync(plateCompetition);
+                await _competitionStore.AddCompetitionAsync(plateCompetition);
                 _competition.PlateCompetitionId = plateCompetition.Id;
             }
 
             _competition.Status = CompetitionStatus.InProgress;
-            await _dataStore.SaveAsync();
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
 
             HasGroups = _competition.Groups.Count > 0;
             StatusMessage = $"Generated {groups.Count} groups with {groups.Sum(g => g.Matches.Count)} total matches";
@@ -313,8 +319,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             if (plateParticipants.Count >= 2 && _competition.PlateCompetitionId.HasValue)
             {
-                var data = _dataStore.GetData();
-                var plateComp = data.Competitions
+                var plateComps = await _competitionStore.GetCompetitionsAsync(_competition.SeasonId);
+                var plateComp = plateComps
                     .FirstOrDefault(c => c.Id == _competition.PlateCompetitionId.Value);
 
                 if (plateComp != null)
@@ -339,7 +345,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             }
 
             _competition.Status = CompetitionStatus.InProgress;
-            await _dataStore.SaveAsync();
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
 
             HasRounds = _competition.Rounds.Count > 0;
             StatusMessage = $"Knockouts created! Main: {knockoutParticipants.Count}, Plate: {plateParticipants.Count}";
@@ -358,7 +365,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             if (!_competition.ParticipantIds.Contains(id))
                 _competition.ParticipantIds.Add(id);
         }
-        await _dataStore.SaveAsync();
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
         await LoadParticipantsAsync();
         StatusMessage = $"Added {ids.Count} participant(s)";
     }
@@ -367,7 +375,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     private async Task AddDoublesTeamAsync(DoublesTeam team)
     {
         _competition.DoublesTeams.Add(team);
-        await _dataStore.SaveAsync();
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
         await LoadParticipantsAsync();
         StatusMessage = $"Added doubles team: {team.TeamName}";
     }
@@ -395,7 +404,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     public async Task<List<Player>> GetAvailablePlayersAsync()
     {
-        var players = await _dataStore.GetPlayersAsync(CurrentSeasonId);
+        var players = await _playerStore.GetPlayersAsync(CurrentSeasonId);
         return players
             .Where(p => !_competition.ParticipantIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
@@ -410,7 +419,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             usedPlayerIds.Add(team.Player1Id);
             usedPlayerIds.Add(team.Player2Id);
         }
-        var players = await _dataStore.GetPlayersAsync(CurrentSeasonId);
+        var players = await _playerStore.GetPlayersAsync(CurrentSeasonId);
         return players
             .Where(p => !usedPlayerIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
@@ -419,7 +428,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     public async Task<List<Team>> GetAvailableTeamsAsync()
     {
-        var teams = await _dataStore.GetTeamsAsync(CurrentSeasonId);
+        var teams = await _playerStore.GetTeamsAsync(CurrentSeasonId);
         return teams
             .Where(t => !_competition.ParticipantIds.Contains(t.Id))
             .OrderBy(t => t.Name)
@@ -453,7 +462,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (anyUpdates)
         {
-            await _dataStore.SaveAsync();
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
             StatusMessage = "All scores applied - winners advanced to next rounds";
         }
         else
@@ -508,7 +518,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (anyUpdates)
         {
-            await _dataStore.SaveAsync();
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
             StatusMessage = "All group scores applied";
         }
         else

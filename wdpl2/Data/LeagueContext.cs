@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Wdpl2.Models;
 
 namespace Wdpl2.Data;
@@ -193,7 +194,12 @@ public class LeagueContext : DbContext
                 .HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                     v => System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<Guid>()
-                );
+                )
+                .Metadata.SetValueComparer(new ValueComparer<List<Guid>>(
+                    (a, b) => a != null && b != null && a.SequenceEqual(b),
+                    c => c.Aggregate(0, (h, v) => HashCode.Combine(h, v.GetHashCode())),
+                    c => c.ToList()
+                ));
             
             entity.OwnsMany(e => e.DoublesTeams, teams =>
             {

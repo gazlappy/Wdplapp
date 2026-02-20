@@ -38,14 +38,45 @@ public class SqliteDataStore : IDataStore
 
     public async Task UpdateCompetitionAsync(Competition competition)
     {
-        _context.Competitions.Update(competition);
-        await _context.SaveChangesAsync();
+        // Competition may be detached (loaded with AsNoTracking), so re-fetch
+        // the tracked entity and copy values to avoid shadow key errors on
+        // owned JSON collections.
+        var tracked = await _context.Competitions.FindAsync(competition.Id);
+        if (tracked != null)
+        {
+            // Copy scalar properties
+            tracked.Name = competition.Name;
+            tracked.Format = competition.Format;
+            tracked.Status = competition.Status;
+            tracked.StartDate = competition.StartDate;
+            tracked.CreatedDate = competition.CreatedDate;
+            tracked.Notes = competition.Notes;
+            tracked.SeasonId = competition.SeasonId;
+            tracked.PlateCompetitionId = competition.PlateCompetitionId;
+
+            // Create NEW list/object instances so EF Core detects the change
+            // (avoids same-reference issues with the change tracker snapshot)
+            tracked.ParticipantIds = competition.ParticipantIds.ToList();
+            tracked.DoublesTeams = competition.DoublesTeams.ToList();
+            tracked.Rounds = competition.Rounds.ToList();
+            tracked.Groups = competition.Groups.ToList();
+            tracked.GroupSettings = competition.GroupSettings;
+
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteCompetitionAsync(Competition competition)
     {
-        _context.Competitions.Remove(competition);
-        await _context.SaveChangesAsync();
+        // Competition may be detached (loaded with AsNoTracking), so find the
+        // tracked entity by ID instead of attaching the detached graph – this
+        // avoids "shadow key property unknown" errors on owned JSON collections.
+        var tracked = await _context.Competitions.FindAsync(competition.Id);
+        if (tracked != null)
+        {
+            _context.Competitions.Remove(tracked);
+            await _context.SaveChangesAsync();
+        }
     }
 
     // ====== PLAYERS ======

@@ -39,18 +39,27 @@ public partial class CompetitionsPage : ContentPage
     {
         InitializeComponent();
 
-        if (viewModel != null)
+        // Always use DataStoreService (JSON) for the editor since player/team
+        // data lives in the JSON file. The ViewModel may use SqliteDataStore
+        // for the competition list via DI, but cross-entity lookups (players,
+        // teams) need the JSON store where that data is maintained.
+        _dataStore = new DataStoreService();
+
+        if (viewModel == null)
         {
-            _viewModel = viewModel;
-            _dataStore = viewModel.DataStore;
+            _viewModel = new CompetitionsViewModel(_dataStore);
         }
         else
         {
-            _dataStore = new DataStoreService();
-            _viewModel = new CompetitionsViewModel(_dataStore);
+            _viewModel = viewModel;
         }
 
         BindingContext = _viewModel;
+
+        // React when the ViewModel finishes reloading (e.g. after season change)
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+        UpdateSeasonLabel();
 
         try
         {
@@ -62,9 +71,47 @@ public partial class CompetitionsPage : ContentPage
         }
     }
 
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // When the ViewModel finishes loading, rebuild the list
+        if (e.PropertyName == nameof(CompetitionsViewModel.IsLoading) && !_viewModel.IsLoading)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                try
+                {
+                    RefreshList();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"CompetitionsPage season-refresh error: {ex.Message}");
+                }
+            });
+        }
+        // When season changes, update the label and clear the editor
+        else if (e.PropertyName == nameof(CompetitionsViewModel.CurrentSeasonId))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                UpdateSeasonLabel();
+                _editorViewModel = null;
+                ShowEmptyState();
+            });
+        }
+    }
+
+    private void UpdateSeasonLabel()
+    {
+        var season = SeasonService.GetCurrentSeason();
+        SeasonLabel.Text = season != null
+            ? $"Season: {season.Name}"
+            : "No season selected";
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        UpdateSeasonLabel();
         try
         {
             RefreshList();
@@ -78,6 +125,7 @@ public partial class CompetitionsPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel.Cleanup();
     }
 

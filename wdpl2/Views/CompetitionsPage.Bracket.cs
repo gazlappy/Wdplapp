@@ -9,10 +9,26 @@ using Wdpl2.Services;
 namespace Wdpl2.Views;
 
 /// <summary>
-/// Tournament bracket generation and display
+/// Tournament bracket generation and display — professional look with tap-to-score input.
 /// </summary>
 public partial class CompetitionsPage
 {
+    // ── Colour palette ──────────────────────────────────────────────────
+    static readonly Color _accentBlue      = Color.FromArgb("#3B82F6");
+    static readonly Color _accentGreen     = Color.FromArgb("#10B981");
+    static readonly Color _winnerGreenBg   = Color.FromArgb("#ECFDF5");
+    static readonly Color _winnerGreenText = Color.FromArgb("#065F46");
+    static readonly Color _loserGrayBg     = Color.FromArgb("#F9FAFB");
+    static readonly Color _borderDefault   = Color.FromArgb("#E5E7EB");
+    static readonly Color _borderComplete  = Color.FromArgb("#10B981");
+    static readonly Color _headerBg        = Color.FromArgb("#F8FAFC");
+    static readonly Color _subtleText      = Color.FromArgb("#6B7280");
+    static readonly Color _dangerRed       = Color.FromArgb("#EF4444");
+    static readonly Color _scoreBtnBg      = Color.FromArgb("#F3F4F6");
+    static readonly Color _scoreBtnActive  = Color.FromArgb("#DBEAFE");
+
+    // ── Bracket entry points ────────────────────────────────────────────
+
     private async void OnGenerateBracket()
     {
         if (_editorViewModel == null) return;
@@ -55,18 +71,333 @@ public partial class CompetitionsPage
             return;
         }
 
-        ShowTournamentBracket(_selectedCompetition);
+        if (_selectedCompetition.Format == CompetitionFormat.RoundRobin)
+            ShowRoundRobinView(_selectedCompetition);
+        else
+            ShowTournamentBracket(_selectedCompetition);
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  KNOCKOUT BRACKET
+    // ════════════════════════════════════════════════════════════════════
 
     private void ShowTournamentBracket(Competition competition)
     {
-        var mainLayout = new VerticalStackLayout
+        var root = new Grid
         {
-            Spacing = 10
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star }
+            },
+            RowSpacing = 0
         };
 
-        // Header with back button and apply all scores button
-        var headerGrid = new Grid
+        // ── Top bar ─────────────────────────────────────────────────────
+        root.Add(CreateBracketHeader(competition, isRoundRobin: false), 0, 0);
+
+        // ── Bracket area ────────────────────────────────────────────────
+        var bracketGrid = BuildKnockoutBracket(competition);
+        var scroll = new ScrollView
+        {
+            Orientation = ScrollOrientation.Both,
+            Content = bracketGrid
+        };
+        root.Add(scroll, 0, 1);
+
+        ContentPanel.Content = root;
+    }
+
+    private Grid BuildKnockoutBracket(Competition competition)
+    {
+        int totalRounds = competition.Rounds.Count;
+        if (totalRounds == 0) return new Grid();
+
+        var grid = new Grid
+        {
+            ColumnSpacing = 12,
+            RowSpacing = 0,
+            Padding = new Thickness(16, 8)
+        };
+
+        // One column per round
+        for (int r = 0; r < totalRounds; r++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+
+        // Single content row
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // header
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star }); // matches
+
+        // ── Round headers ───────────────────────────────────────────────
+        for (int r = 0; r < totalRounds; r++)
+        {
+            var round = competition.Rounds[r];
+            string label = r == totalRounds - 1
+                ? "Final"
+                : r == totalRounds - 2 ? "Semi-Finals" : round.Name ?? $"Round {r + 1}";
+
+            var completed = round.Matches.Count(m => m.IsComplete);
+            var total = round.Matches.Count;
+
+            var hdrStack = new VerticalStackLayout
+            {
+                Spacing = 2,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            hdrStack.Children.Add(new Label
+            {
+                Text = label,
+                FontSize = 13,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = _subtleText,
+                HorizontalTextAlignment = TextAlignment.Center
+            });
+            hdrStack.Children.Add(new Label
+            {
+                Text = $"{completed}/{total}",
+                FontSize = 11,
+                TextColor = completed == total && total > 0 ? _accentGreen : _subtleText,
+                HorizontalTextAlignment = TextAlignment.Center
+            });
+            grid.Add(hdrStack, r, 0);
+        }
+
+        // ── Matches per round (simple vertical stack with proportional spacing) ─
+        int firstRoundCount = competition.Rounds[0].Matches.Count;
+
+        for (int r = 0; r < totalRounds; r++)
+        {
+            var round = competition.Rounds[r];
+            int matchCount = round.Matches.Count;
+
+            // Spacing to vertically centre later-round matches against their feeders
+            // Each successive round has half as many matches — double the gap.
+            int spacingMultiplier = 1 << r; // 1, 2, 4, 8 …
+            double gap = Math.Max(0, (spacingMultiplier - 1) * 40);
+
+            var stack = new VerticalStackLayout
+            {
+                Spacing = gap,
+                VerticalOptions = LayoutOptions.Center
+            };
+
+            for (int m = 0; m < matchCount; m++)
+                stack.Children.Add(CreateMatchCard(round.Matches[m], competition.Format, competition));
+
+            grid.Add(stack, r, 1);
+        }
+
+        return grid;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ROUND ROBIN
+    // ════════════════════════════════════════════════════════════════════
+
+    private void ShowRoundRobinView(Competition competition)
+    {
+        var root = new Grid
+        {
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star }
+            },
+            RowSpacing = 0
+        };
+
+        root.Add(CreateBracketHeader(competition, isRoundRobin: true), 0, 0);
+
+        var body = new VerticalStackLayout { Spacing = 16, Padding = new Thickness(12, 8) };
+
+        // Standings table
+        body.Children.Add(CreateRoundRobinStandings(competition));
+
+        // Rounds
+        foreach (var round in competition.Rounds)
+        {
+            body.Children.Add(CreateRoundCard(round, competition));
+        }
+
+        root.Add(new ScrollView { Content = body }, 0, 1);
+        ContentPanel.Content = root;
+    }
+
+    private View CreateRoundCard(CompetitionRound round, Competition competition)
+    {
+        var completedCount = round.Matches.Count(m => m.IsComplete);
+        var totalCount = round.Matches.Count;
+
+        var stack = new VerticalStackLayout { Spacing = 6 };
+
+        // Round header row
+        var hdrGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto }
+            },
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        hdrGrid.Add(new Label
+        {
+            Text = round.Name ?? $"Round {round.RoundNumber}",
+            FontSize = 15,
+            FontAttributes = FontAttributes.Bold
+        }, 0, 0);
+        hdrGrid.Add(new Label
+        {
+            Text = $"{completedCount}/{totalCount} played",
+            FontSize = 12,
+            TextColor = completedCount == totalCount ? _accentGreen : _subtleText,
+            VerticalTextAlignment = TextAlignment.Center
+        }, 1, 0);
+        stack.Children.Add(hdrGrid);
+
+        foreach (var match in round.Matches)
+            stack.Children.Add(CreateMatchCard(match, competition.Format, competition));
+
+        return new Border
+        {
+            Stroke = _borderDefault,
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = 12 },
+            BackgroundColor = Colors.White,
+            Padding = 12,
+            Content = stack
+        };
+    }
+
+    private View CreateRoundRobinStandings(Competition competition)
+    {
+        var stats = new Dictionary<Guid, (int played, int won, int drawn, int lost, int ff, int fa, int pts)>();
+
+        foreach (var round in competition.Rounds)
+        {
+            foreach (var match in round.Matches)
+            {
+                if (match.Participant1Id.HasValue && !stats.ContainsKey(match.Participant1Id.Value))
+                    stats[match.Participant1Id.Value] = (0, 0, 0, 0, 0, 0, 0);
+                if (match.Participant2Id.HasValue && !stats.ContainsKey(match.Participant2Id.Value))
+                    stats[match.Participant2Id.Value] = (0, 0, 0, 0, 0, 0, 0);
+
+                if (!match.IsComplete) continue;
+                if (!match.Participant1Id.HasValue || !match.Participant2Id.HasValue) continue;
+
+                var p1 = match.Participant1Id.Value;
+                var p2 = match.Participant2Id.Value;
+                var s1 = stats[p1]; var s2 = stats[p2];
+
+                s1.played++; s2.played++;
+                s1.ff += match.Participant1Score; s1.fa += match.Participant2Score;
+                s2.ff += match.Participant2Score; s2.fa += match.Participant1Score;
+
+                if (match.Participant1Score > match.Participant2Score)
+                { s1.won++; s1.pts += match.Participant1Score + 2; s2.lost++; s2.pts += match.Participant2Score; }
+                else if (match.Participant2Score > match.Participant1Score)
+                { s2.won++; s2.pts += match.Participant2Score + 2; s1.lost++; s1.pts += match.Participant1Score; }
+                else
+                { s1.drawn++; s1.pts += match.Participant1Score + 1; s2.drawn++; s2.pts += match.Participant2Score + 1; }
+
+                stats[p1] = s1; stats[p2] = s2;
+            }
+        }
+
+        var sorted = stats
+            .OrderByDescending(s => s.Value.pts)
+            .ThenByDescending(s => s.Value.ff - s.Value.fa)
+            .ThenByDescending(s => s.Value.ff)
+            .ToList();
+
+        var table = new VerticalStackLayout { Spacing = 0 };
+
+        // Title
+        table.Children.Add(new Label
+        {
+            Text = "STANDINGS",
+            FontSize = 11,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = _subtleText,
+            Margin = new Thickness(8, 0, 0, 6),
+            CharacterSpacing = 1.5
+        });
+
+        // Header
+        table.Children.Add(BuildStandingsRow("#", "Player", "P", "W", "D", "L", "FD", "Pts", isHeader: true, pos: 0));
+
+        int pos = 1;
+        foreach (var entry in sorted)
+        {
+            var name = GetParticipantName(entry.Key, competition.Format) ?? "Unknown";
+            var s = entry.Value;
+            var fd = s.ff - s.fa;
+            table.Children.Add(BuildStandingsRow(
+                pos.ToString(), name,
+                s.played.ToString(), s.won.ToString(), s.drawn.ToString(), s.lost.ToString(),
+                (fd >= 0 ? "+" : "") + fd, s.pts.ToString(),
+                isHeader: false, pos: pos));
+            pos++;
+        }
+
+        return new Border
+        {
+            Stroke = _borderDefault,
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = 12 },
+            BackgroundColor = Colors.White,
+            Padding = 10,
+            Content = table
+        };
+    }
+
+    private static View BuildStandingsRow(string rank, string name,
+        string p, string w, string d, string l, string fd, string pts,
+        bool isHeader, int pos)
+    {
+        var bg = isHeader ? _headerBg : (pos % 2 == 0 ? Color.FromArgb("#F9FAFB") : Colors.White);
+        var fs = isHeader ? 11 : 12;
+        var attr = isHeader ? FontAttributes.Bold : FontAttributes.None;
+        var ptsAttr = FontAttributes.Bold;
+
+        var g = new Grid
+        {
+            Padding = new Thickness(10, 7),
+            BackgroundColor = bg,
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(28) },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(42) },
+                new ColumnDefinition { Width = new GridLength(42) },
+            }
+        };
+
+        g.Add(new Label { Text = rank, FontSize = fs, FontAttributes = attr, TextColor = _subtleText }, 0, 0);
+        g.Add(new Label { Text = name, FontSize = fs, FontAttributes = attr, LineBreakMode = LineBreakMode.TailTruncation }, 1, 0);
+        g.Add(CentredLabel(p, fs, attr), 2, 0);
+        g.Add(CentredLabel(w, fs, attr), 3, 0);
+        g.Add(CentredLabel(d, fs, attr), 4, 0);
+        g.Add(CentredLabel(l, fs, attr), 5, 0);
+        g.Add(CentredLabel(fd, fs, attr), 6, 0);
+        g.Add(CentredLabel(pts, fs, ptsAttr), 7, 0);
+        return g;
+    }
+
+    private static Label CentredLabel(string text, int fs, FontAttributes attr) =>
+        new() { Text = text, FontSize = fs, FontAttributes = attr, HorizontalTextAlignment = TextAlignment.Center };
+
+    // ════════════════════════════════════════════════════════════════════
+    //  SHARED: HEADER BAR
+    // ════════════════════════════════════════════════════════════════════
+
+    private View CreateBracketHeader(Competition competition, bool isRoundRobin)
+    {
+        var grid = new Grid
         {
             ColumnDefinitions =
             {
@@ -74,229 +405,238 @@ public partial class CompetitionsPage
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = GridLength.Auto }
             },
-            ColumnSpacing = 8,
-            Margin = new Thickness(0, 0, 0, 10)
+            ColumnSpacing = 12,
+            Padding = new Thickness(16, 10),
+            BackgroundColor = _headerBg
         };
 
         var backBtn = new Button
         {
-            Text = "? Back",
-            Command = new Command(() => ShowCompetitionEditor(competition)),
+            Text = "\u2190 Back",
+            BackgroundColor = Colors.Transparent,
+            TextColor = _accentBlue,
+            FontAttributes = FontAttributes.Bold,
             Padding = new Thickness(8, 4),
-            FontSize = 13
+            FontSize = 13,
+            BorderWidth = 0
         };
+        backBtn.Clicked += (_, _) => ShowCompetitionEditor(competition);
 
-        var titleLabel = new Label
+        var title = new Label
         {
-            Text = $"{competition.Name}",
-            FontSize = 16,
+            Text = competition.Name,
+            FontSize = 18,
             FontAttributes = FontAttributes.Bold,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.Center
         };
 
-        var applyAllBtn = new Button
+        var subtitle = new Label
         {
-            Text = "Apply All Scores",
-            BackgroundColor = Color.FromArgb("#10B981"),
+            Text = isRoundRobin ? "Round Robin" : "Knockout Bracket",
+            FontSize = 12,
+            TextColor = _subtleText,
+            HorizontalTextAlignment = TextAlignment.Center
+        };
+
+        var titleStack = new VerticalStackLayout { Spacing = 0 };
+        titleStack.Children.Add(title);
+        titleStack.Children.Add(subtitle);
+
+        var saveBtn = new Button
+        {
+            Text = "\u2714 Save Scores",
+            BackgroundColor = _accentGreen,
             TextColor = Colors.White,
-            Padding = new Thickness(12, 6),
-            FontSize = 13
+            FontSize = 13,
+            Padding = new Thickness(14, 8),
+            CornerRadius = 8
         };
-
-        headerGrid.Add(backBtn, 0, 0);
-        headerGrid.Add(titleLabel, 1, 0);
-        headerGrid.Add(applyAllBtn, 2, 0);
-
-        mainLayout.Children.Add(headerGrid);
-
-        // Create horizontal scrollable tournament bracket
-        var bracketGrid = CreateTournamentBracketGrid(competition);
-        
-        var scrollView = new ScrollView
-        {
-            Orientation = ScrollOrientation.Both,
-            Content = bracketGrid
-        };
-
-        mainLayout.Children.Add(scrollView);
-
-        // Apply All Scores button handler
-        applyAllBtn.Clicked += (s, e) =>
+        saveBtn.Clicked += (_, _) =>
         {
             ApplyAllScores(competition);
-            ShowTournamentBracket(competition); // Refresh view
+            if (isRoundRobin) ShowRoundRobinView(competition);
+            else ShowTournamentBracket(competition);
         };
 
-        ContentPanel.Content = mainLayout;
+        grid.Add(backBtn, 0, 0);
+        grid.Add(titleStack, 1, 0);
+        grid.Add(saveBtn, 2, 0);
+
+        return grid;
     }
 
-    private Grid CreateTournamentBracketGrid(Competition competition)
+    // ════════════════════════════════════════════════════════════════════
+    //  SHARED: MATCH CARD  — tap +/− to adjust scores (updates in-place)
+    // ════════════════════════════════════════════════════════════════════
+
+    private View CreateMatchCard(CompetitionMatch match, CompetitionFormat format, Competition competition)
     {
-        var grid = new Grid
+        var p1Name = GetParticipantName(match.Participant1Id, format) ?? "TBD";
+        var p2Name = GetParticipantName(match.Participant2Id, format) ?? "TBD";
+
+        bool hasP1 = match.Participant1Id.HasValue;
+        bool hasP2 = match.Participant2Id.HasValue;
+        bool canScore = hasP1 && hasP2 && !match.IsComplete;
+
+        bool p1Won = match.IsComplete && match.WinnerId == match.Participant1Id;
+        bool p2Won = match.IsComplete && match.WinnerId == match.Participant2Id;
+
+        // Score labels that get updated in-place (no view rebuild)
+        Label? p1ScoreLbl = null;
+        Label? p2ScoreLbl = null;
+
+        var card = new VerticalStackLayout { Spacing = 0 };
+
+        // Player 1 row
+        card.Children.Add(CreatePlayerRow(
+            p1Name, match.Participant1Score, p1Won, match.IsComplete, canScore,
+            onPlus:  () => { match.Participant1Score++; p1ScoreLbl!.Text = match.Participant1Score.ToString(); },
+            onMinus: () => { if (match.Participant1Score > 0) { match.Participant1Score--; p1ScoreLbl!.Text = match.Participant1Score.ToString(); } },
+            isTop: true,
+            scoreLabelOut: out p1ScoreLbl));
+
+        // Divider
+        card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
+
+        // Player 2 row
+        card.Children.Add(CreatePlayerRow(
+            p2Name, match.Participant2Score, p2Won, match.IsComplete, canScore,
+            onPlus:  () => { match.Participant2Score++; p2ScoreLbl!.Text = match.Participant2Score.ToString(); },
+            onMinus: () => { if (match.Participant2Score > 0) { match.Participant2Score--; p2ScoreLbl!.Text = match.Participant2Score.ToString(); } },
+            isTop: false,
+            scoreLabelOut: out p2ScoreLbl));
+
+        var borderColor = match.IsComplete ? _borderComplete : _borderDefault;
+        var border = new Border
         {
-            RowSpacing = 10,
-            ColumnSpacing = 20,
-            Padding = new Thickness(10)
+            Stroke = borderColor,
+            StrokeThickness = match.IsComplete ? 2 : 1,
+            StrokeShape = new RoundRectangle { CornerRadius = 10 },
+            BackgroundColor = Colors.White,
+            Content = card,
+            Shadow = new Shadow
+            {
+                Brush = new SolidColorBrush(Colors.Black),
+                Offset = new Point(0, 1),
+                Radius = 4,
+                Opacity = 0.08f
+            },
+            Margin = new Thickness(4, 3)
         };
 
-        // Calculate bracket dimensions
-        int rounds = competition.Rounds.Count;
-        
-        if (rounds == 0) return grid;
+        return border;
+    }
 
-        // Define row height for each match slot
-        double matchHeight = 80;
+    private View CreatePlayerRow(string name, int score, bool isWinner, bool isComplete,
+        bool canScore, Action onPlus, Action onMinus, bool isTop, out Label? scoreLabelOut)
+    {
+        scoreLabelOut = null;
+        var rowBg = isWinner ? _winnerGreenBg : Colors.Transparent;
 
-        // Create columns for each round
-        for (int i = 0; i < rounds; i++)
+        var grid = new Grid
         {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
-        }
-
-        // Build the bracket from left to right
-        for (int roundIndex = 0; roundIndex < rounds; roundIndex++)
-        {
-            var round = competition.Rounds[roundIndex];
-            int matchCount = round.Matches.Count;
-
-            // Calculate vertical spacing for this round (matches spread out as rounds progress)
-            double roundSpacing = matchHeight * Math.Pow(2, roundIndex);
-
-            for (int matchIndex = 0; matchIndex < matchCount; matchIndex++)
+            BackgroundColor = rowBg,
+            Padding = new Thickness(10, 6),
+            ColumnDefinitions =
             {
-                var match = round.Matches[matchIndex];
+                new ColumnDefinition { Width = GridLength.Star },   // name
+                new ColumnDefinition { Width = GridLength.Auto },   // score area
+            },
+            ColumnSpacing = 8,
+            MinimumHeightRequest = 36
+        };
 
-                // Calculate vertical position
-                double yPosition = (matchIndex * 2 + 1) * roundSpacing / 2;
+        // ── Name ────────────────────────────────────────────────────────
+        var nameLabel = new Label
+        {
+            Text = isWinner ? "\u2714 " + name : name,
+            FontSize = 13,
+            VerticalTextAlignment = TextAlignment.Center,
+            LineBreakMode = LineBreakMode.TailTruncation,
+            FontAttributes = isWinner ? FontAttributes.Bold : FontAttributes.None,
+            TextColor = isWinner ? _winnerGreenText : (name == "TBD" ? _subtleText : Colors.Black)
+        };
+        grid.Add(nameLabel, 0, 0);
 
-                // Create match card
-                var matchCard = CreateMatchCard(match, competition.Format);
+        // ── Score controls ──────────────────────────────────────────────
+        if (canScore)
+        {
+            // [ − ]  score  [ + ]
+            var scoreControls = new HorizontalStackLayout { Spacing = 2, VerticalOptions = LayoutOptions.Center };
 
-                // Add to grid at calculated position
-                grid.Children.Add(matchCard);
-                Grid.SetColumn(matchCard, roundIndex);
-                Grid.SetRow(matchCard, 0);
-                matchCard.Margin = new Thickness(0, yPosition, 0, 0);
-            }
+            var minusBtn = new Button
+            {
+                Text = "\u2212",
+                FontSize = 14,
+                WidthRequest = 30,
+                HeightRequest = 30,
+                Padding = 0,
+                CornerRadius = 6,
+                BackgroundColor = _scoreBtnBg,
+                TextColor = Colors.Black
+            };
+            minusBtn.Clicked += (_, _) => onMinus();
+
+            var scoreLbl = new Label
+            {
+                Text = score.ToString(),
+                FontSize = 15,
+                FontAttributes = FontAttributes.Bold,
+                WidthRequest = 28,
+                HorizontalTextAlignment = TextAlignment.Center,
+                VerticalTextAlignment = TextAlignment.Center
+            };
+            scoreLabelOut = scoreLbl;
+
+            var plusBtn = new Button
+            {
+                Text = "+",
+                FontSize = 14,
+                WidthRequest = 30,
+                HeightRequest = 30,
+                Padding = 0,
+                CornerRadius = 6,
+                BackgroundColor = _scoreBtnActive,
+                TextColor = _accentBlue
+            };
+            plusBtn.Clicked += (_, _) => onPlus();
+
+            scoreControls.Children.Add(minusBtn);
+            scoreControls.Children.Add(scoreLbl);
+            scoreControls.Children.Add(plusBtn);
+
+            grid.Add(scoreControls, 1, 0);
+        }
+        else
+        {
+            // Read-only score pill
+            var scorePill = new Border
+            {
+                StrokeShape = new RoundRectangle { CornerRadius = 6 },
+                Stroke = Colors.Transparent,
+                BackgroundColor = isWinner ? _accentGreen : (isComplete ? _loserGrayBg : _scoreBtnBg),
+                Padding = new Thickness(10, 4),
+                Content = new Label
+                {
+                    Text = score.ToString(),
+                    FontSize = 14,
+                    FontAttributes = FontAttributes.Bold,
+                    HorizontalTextAlignment = TextAlignment.Center,
+                    TextColor = isWinner ? Colors.White : Colors.Black
+                },
+                VerticalOptions = LayoutOptions.Center,
+                MinimumWidthRequest = 32
+            };
+            grid.Add(scorePill, 1, 0);
         }
 
         return grid;
     }
 
-    private View CreateMatchCard(CompetitionMatch match, CompetitionFormat format)
-    {
-        var p1Name = GetParticipantName(match.Participant1Id, format);
-        var p2Name = GetParticipantName(match.Participant2Id, format);
-
-        var cardLayout = new VerticalStackLayout
-        {
-            Spacing = 0
-        };
-
-        // Participant 1 row
-        var p1Grid = new Grid
-        {
-            BackgroundColor = match.WinnerId == match.Participant1Id ? Color.FromArgb("#D1FAE5") : Colors.White,
-            Padding = new Thickness(8, 6),
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(40) }
-            }
-        };
-
-        var p1Label = new Label
-        {
-            Text = p1Name ?? "TBD",
-            FontSize = 12,
-            VerticalTextAlignment = TextAlignment.Center,
-            FontAttributes = match.WinnerId == match.Participant1Id ? FontAttributes.Bold : FontAttributes.None
-        };
-
-        var p1Score = new Entry
-        {
-            Text = match.Participant1Score.ToString(),
-            Keyboard = Keyboard.Numeric,
-            HorizontalTextAlignment = TextAlignment.Center,
-            FontSize = 12,
-            BackgroundColor = Color.FromArgb("#F3F4F6")
-        };
-
-        // Store match reference in command parameter for score updates
-        p1Score.TextChanged += (s, e) =>
-        {
-            if (int.TryParse(e.NewTextValue, out int score))
-            {
-                match.Participant1Score = score;
-            }
-        };
-
-        p1Grid.Add(p1Label, 0, 0);
-        p1Grid.Add(p1Score, 1, 0);
-
-        // Separator
-        var separator = new BoxView
-        {
-            HeightRequest = 1,
-            BackgroundColor = Color.FromArgb("#E5E7EB")
-        };
-
-        // Participant 2 row
-        var p2Grid = new Grid
-        {
-            BackgroundColor = match.WinnerId == match.Participant2Id ? Color.FromArgb("#D1FAE5") : Colors.White,
-            Padding = new Thickness(8, 6),
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(40) }
-            }
-        };
-
-        var p2Label = new Label
-        {
-            Text = p2Name ?? "TBD",
-            FontSize = 12,
-            VerticalTextAlignment = TextAlignment.Center,
-            FontAttributes = match.WinnerId == match.Participant2Id ? FontAttributes.Bold : FontAttributes.None
-        };
-
-        var p2Score = new Entry
-        {
-            Text = match.Participant2Score.ToString(),
-            Keyboard = Keyboard.Numeric,
-            HorizontalTextAlignment = TextAlignment.Center,
-            FontSize = 12,
-            BackgroundColor = Color.FromArgb("#F3F4F6")
-        };
-
-        p2Score.TextChanged += (s, e) =>
-        {
-            if (int.TryParse(e.NewTextValue, out int score))
-            {
-                match.Participant2Score = score;
-            }
-        };
-
-        p2Grid.Add(p2Label, 0, 0);
-        p2Grid.Add(p2Score, 1, 0);
-
-        cardLayout.Children.Add(p1Grid);
-        cardLayout.Children.Add(separator);
-        cardLayout.Children.Add(p2Grid);
-
-        var border = new Border
-        {
-            Stroke = match.IsComplete ? Color.FromArgb("#10B981") : Color.FromArgb("#D1D5DB"),
-            StrokeThickness = match.IsComplete ? 2 : 1,
-            StrokeShape = new RoundRectangle { CornerRadius = 6 },
-            Content = cardLayout,
-            BackgroundColor = Colors.White
-        };
-
-        return border;
-    }
+    // ════════════════════════════════════════════════════════════════════
+    //  HELPERS
+    // ════════════════════════════════════════════════════════════════════
 
     private string? GetParticipantName(Guid? participantId, CompetitionFormat format)
     {
