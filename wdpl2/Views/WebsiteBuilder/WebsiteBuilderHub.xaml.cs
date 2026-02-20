@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
@@ -13,6 +14,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<WebsiteTemplate> _templates = new();
     private Dictionary<string, string>? _generatedFiles;
+    private string _currentPreviewPage = "index.html";
+    private string? _currentQueryString;
+    private bool _syncingPicker;
 
     public WebsiteBuilderHub()
     {
@@ -27,7 +31,7 @@ public partial class WebsiteBuilderHub : ContentPage
         
         PreviewPagePicker.ItemsSource = new[] 
         { 
-            "Home", "Standings", "Fixtures", "Results", "Players", "Divisions" 
+            "Home", "Standings", "Fixtures", "Results", "Players", "Divisions", "Competitions" 
         };
         
         LoadData();
@@ -133,21 +137,36 @@ public partial class WebsiteBuilderHub : ContentPage
                 await DisplayAlert("No Season", "Please select a season first.", "OK");
                 return;
             }
-            
+
             SaveSeasonAndTemplate();
-            
+
             StatusLabel.Text = "Generating preview...";
             StatusLabel.TextColor = Color.FromArgb("#3B82F6");
             StatusLabel.IsVisible = true;
             PreviewBtn.IsEnabled = false;
-            
+            RefreshPreviewBtn.IsEnabled = false;
+
+            // Load competitions from SQLite
+            try
+            {
+                using var context = new Data.LeagueContext();
+                context.Database.EnsureCreated();
+                League.Competitions = context.Competitions.AsNoTracking().ToList();
+            }
+            catch { }
+
             var generator = new WebsiteGenerator(League, League.WebsiteSettings);
             _generatedFiles = generator.GenerateWebsite();
-            
-            PreviewFrame.IsVisible = true;
-            PreviewPagePicker.SelectedIndex = 0;
-            LoadPreviewPage("index.html");
-            
+
+            // Show WebView, hide placeholder
+            PreviewPlaceholder.IsVisible = false;
+            PreviewWebView.IsVisible = true;
+
+            if (PreviewPagePicker.SelectedIndex < 0)
+                PreviewPagePicker.SelectedIndex = 0;
+            else
+                LoadPreviewPage(GetSelectedFileName());
+
             StatusLabel.Text = $"Preview ready ({_generatedFiles.Count} files)";
             StatusLabel.TextColor = Color.FromArgb("#10B981");
         }
@@ -160,6 +179,7 @@ public partial class WebsiteBuilderHub : ContentPage
         finally
         {
             PreviewBtn.IsEnabled = true;
+            RefreshPreviewBtn.IsEnabled = true;
         }
     }
     
@@ -199,10 +219,16 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private void OnPreviewPageChanged(object sender, EventArgs e)
     {
-        if (PreviewPagePicker.SelectedIndex < 0 || _generatedFiles == null) return;
-        
+        if (_syncingPicker || PreviewPagePicker.SelectedIndex < 0 || _generatedFiles == null) return;
+        _currentPreviewPage = GetSelectedFileName();
+        _currentQueryString = null;
+        LoadPreviewPage(_currentPreviewPage);
+    }
+
+    private string GetSelectedFileName()
+    {
         var pageName = PreviewPagePicker.SelectedItem?.ToString();
-        var fileName = pageName?.ToLowerInvariant() switch
+        return pageName?.ToLowerInvariant() switch
         {
             "home" => "index.html",
             "standings" => "standings.html",
@@ -210,38 +236,136 @@ public partial class WebsiteBuilderHub : ContentPage
             "results" => "results.html",
             "players" => "players.html",
             "divisions" => "divisions.html",
+            "competitions" => "competitions.html",
             _ => "index.html"
         };
-        
-        LoadPreviewPage(fileName);
     }
-    
-    private void OnClosePreviewClicked(object sender, EventArgs e)
-    {
-        PreviewFrame.IsVisible = false;
-        _generatedFiles = null;
-    }
-    
+
     private void LoadPreviewPage(string fileName)
     {
-        if (_generatedFiles == null || !_generatedFiles.ContainsKey(fileName))
+        if (_generatedFiles == null || !_generatedFiles.TryGetValue(fileName, out var html))
         {
             PreviewWebView.Source = new HtmlWebViewSource
             {
-                Html = "<html><body><h1>File not found</h1></body></html>"
+                Html = "<html><body style='font-family:sans-serif;padding:40px;color:#6B7280'><h2>Page not found</h2><p>This page wasn't generated. Check your content settings.</p></body></html>"
             };
             return;
         }
-        
-        var html = _generatedFiles[fileName];
-        
-        if (fileName != "style.css" && _generatedFiles.ContainsKey("style.css"))
+
+        // Inline CSS
+        if (_generatedFiles.TryGetValue("style.css", out var css))
+            html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", $"<style>{css}</style>");
+
+        // Inline JSON data so fetch() works in the WebView
+        html = InlineJsonData(html);
+
+        // Inject query string for template pages (player.html?id=xxx)
+        if (!string.IsNullOrEmpty(_currentQueryString))
         {
-            var css = _generatedFiles["style.css"];
-            html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", 
-                               $"<style>{css}</style>");
+            var fakeQs = _currentQueryString.Replace("\\", "\\\\").Replace("'", "\\'");
+            var qsScript = $"<script>if(!window.location.search){{" +
+                           $"Object.defineProperty(window,'_editorQS',{{value:'{fakeQs}'}});" +
+                           $"var _origUSP=URLSearchParams;" +
+                           $"URLSearchParams=function(s){{return new _origUSP(window._editorQS||s);}};" +
+                           $"}}</script>";
+            html = html.Replace("<head>", "<head>" + qsScript);
         }
-        
+
         PreviewWebView.Source = new HtmlWebViewSource { Html = html };
+    }
+
+    private string InlineJsonData(string html)
+    {
+        if (_generatedFiles == null) return html;
+
+        if (_generatedFiles.TryGetValue("players-data.json", out var playersJson))
+        {
+            var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
+                .Replace("\r", "").Replace("\n", "");
+            html = ReplaceFetchPattern(html, "fetch('players-data.json')",
+                ".then(function(r) { return r.json(); })", escaped);
+        }
+
+        if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
+        {
+            var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
+                .Replace("\r", "").Replace("\n", "");
+            html = ReplaceFetchPattern(html, "fetch('teams-data.json')",
+                ".then(function(r) { return r.json(); })", escaped);
+        }
+
+        return html;
+    }
+
+    private static string ReplaceFetchPattern(string html, string fetchPart, string thenPart, string escapedJson)
+    {
+        var idx = html.IndexOf(fetchPart, StringComparison.Ordinal);
+        if (idx < 0) return html;
+
+        var afterFetch = idx + fetchPart.Length;
+        var thenIdx = html.IndexOf(thenPart, afterFetch, StringComparison.Ordinal);
+        if (thenIdx < 0) return html;
+
+        var endIdx = thenIdx + thenPart.Length;
+        return string.Concat(
+            html.AsSpan(0, idx),
+            $"Promise.resolve(JSON.parse('{escapedJson}'))",
+            html.AsSpan(endIdx));
+    }
+
+    private void OnPreviewNavigating(object? sender, WebNavigatingEventArgs e)
+    {
+        // Intercept .html link clicks so navigation stays within the preview
+        var url = e.Url;
+        if (url.StartsWith("app://")) { e.Cancel = true; return; }
+
+        string? targetFile = null;
+        string? queryString = null;
+
+        var lastSlash = url.LastIndexOf('/');
+        var pathPart = lastSlash >= 0 ? url[(lastSlash + 1)..] : url;
+        var qIdx = pathPart.IndexOf('?');
+        if (qIdx >= 0)
+        {
+            queryString = pathPart[qIdx..];
+            pathPart = pathPart[..qIdx];
+        }
+
+        if (pathPart.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            targetFile = pathPart;
+
+        if (targetFile != null && _generatedFiles != null && _generatedFiles.ContainsKey(targetFile))
+        {
+            e.Cancel = true;
+            _currentPreviewPage = targetFile;
+            _currentQueryString = queryString;
+            SyncPagePicker(targetFile);
+            LoadPreviewPage(targetFile);
+        }
+    }
+
+    private void SyncPagePicker(string fileName)
+    {
+        var label = fileName.ToLowerInvariant() switch
+        {
+            "index.html" => "Home",
+            "standings.html" => "Standings",
+            "fixtures.html" => "Fixtures",
+            "results.html" => "Results",
+            "players.html" => "Players",
+            "divisions.html" => "Divisions",
+            "competitions.html" => "Competitions",
+            _ => null
+        };
+        if (label != null && PreviewPagePicker.ItemsSource is IList<string> items)
+        {
+            var idx = items.IndexOf(label);
+            if (idx >= 0)
+            {
+                _syncingPicker = true;
+                PreviewPagePicker.SelectedIndex = idx;
+                _syncingPicker = false;
+            }
+        }
     }
 }
