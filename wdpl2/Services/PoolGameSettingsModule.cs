@@ -56,7 +56,10 @@ const PoolGameSettings = {
         // Match settings
         matchType: 'single',         // 'single', 'best3', 'best5', 'best7'
         player1Frames: 0,
-        player2Frames: 0
+        player2Frames: 0,
+
+        // Lighting
+        lightTemperature: 'warm'     // 'warm', 'neutral', 'cool'
     },
     
     init(game) {
@@ -236,6 +239,17 @@ const PoolGameSettings = {
                                     <button class='color-btn' data-color='#1a1a1a' style='background:#1a1a1a' title='Black'></button>
                                     <input type='color' id='setting-railColor' class='color-picker' title='Custom Color'>
                                 </div>
+                            </div>
+                        </div>
+                        <div class='settings-section'>
+                            <h3>Lighting</h3>
+                            <div class='setting-row'>
+                                <label>Light Temperature:</label>
+                                <select id='setting-lightTemperature'>
+                                    <option value='warm'>?? Warm (Tungsten)</option>
+                                    <option value='neutral'>? Neutral (White)</option>
+                                    <option value='cool'>?? Cool (Fluorescent)</option>
+                                </select>
                             </div>
                         </div>
                         <div class='settings-section'>
@@ -742,6 +756,15 @@ const PoolGameSettings = {
                 this.applySettings();
             });
         }
+
+        // Light temperature select
+        const lightTempSelect = document.getElementById('setting-lightTemperature');
+        if (lightTempSelect) {
+            lightTempSelect.addEventListener('change', () => {
+                this.settings.lightTemperature = lightTempSelect.value;
+                this.applySettings();
+            });
+        }
         
         // Checkbox inputs
         ['showAimLine', 'showTrajectory', 'showGhostBall', 'showSpinIndicator', 'showPowerMeter', 'soundEnabled', 'goldenBall', 'goldenDuck'].forEach(setting => {
@@ -809,6 +832,10 @@ const PoolGameSettings = {
         // Volume
         document.getElementById('setting-soundVolume').value = this.settings.soundVolume;
         document.querySelector('#setting-soundVolume + .range-value').textContent = this.settings.soundVolume + '%';
+
+        // Light temperature
+        const lightTempSelect = document.getElementById('setting-lightTemperature');
+        if (lightTempSelect) lightTempSelect.value = this.settings.lightTemperature || 'warm';
     },
     
     updateFrameScoreDisplay() {
@@ -858,6 +885,11 @@ const PoolGameSettings = {
         if (typeof PoolAudio !== 'undefined') {
             PoolAudio.setEnabled(this.settings.soundEnabled);
             PoolAudio.setVolume(this.settings.soundVolume / 100);
+        }
+
+        // Apply light temperature (#15)
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.lightTemperature = this.settings.lightTemperature || 'warm';
         }
         
         // Apply break rules (Golden Ball / Golden Duck)
@@ -932,7 +964,8 @@ const PoolGameSettings = {
             goldenDuck: false,
             matchType: 'single',
             player1Frames: 0,
-            player2Frames: 0
+            player2Frames: 0,
+            lightTemperature: 'warm'
         };
         this.loadSettingsToUI();
         this.applySettings();

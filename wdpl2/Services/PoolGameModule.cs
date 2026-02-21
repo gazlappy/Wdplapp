@@ -1466,6 +1466,11 @@ class PoolGame {
                 PoolRendering.drawBall(this.ctx, ball);
             }
         });
+
+        // Draw visual effects overlay (particles, flashes, compressions)
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.update(this.ctx, this);
+        }
         
         // Draw aim line
         if (this.isAiming && !moving && this.cueBall && !this.cueBall.potted) {

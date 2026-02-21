@@ -215,13 +215,25 @@ const PoolPhysics = {
         // Apply spin effects on cushion bounce - REALISTIC PHYSICS
         if (bounced) {
             const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-            
+
             // ?? PLAY CUSHION BOUNCE SOUND
             console.log(`?? Cushion bounce! Speed: ${impactSpeed.toFixed(2)}`);
             if (typeof PoolAudio !== 'undefined') {
                 PoolAudio.play('cushionBounce', impactSpeed / 20);
             } else {
                 console.warn('?? PoolAudio not available for cushion bounce');
+            }
+
+            // ?? CUSHION COMPRESSION EFFECT (#7)
+            if (typeof PoolVFX !== 'undefined' && impactSpeed > 1) {
+                let side = '';
+                if (ball.x <= minX + 2) side = 'left';
+                else if (ball.x >= maxX - 2) side = 'right';
+                else if (ball.y <= minY + 2) side = 'top';
+                else if (ball.y >= maxY - 2) side = 'bottom';
+                if (side) {
+                    PoolVFX.spawnCushionCompression(ball.x, ball.y, side, impactSpeed / 15);
+                }
             }
             
             // ===== RAIL GRAB PHYSICS =====
@@ -395,6 +407,13 @@ const PoolPhysics = {
                     PoolAudio.play('ballCollision', collisionVelocity);
                 } else {
                     console.warn('?? PoolAudio not available for collision');
+                }
+
+                // ?? COLLISION FLASH EFFECT (#6)
+                if (typeof PoolVFX !== 'undefined' && collisionVelocity > 0.15) {
+                    const flashX = (b1.x + b2.x) / 2;
+                    const flashY = (b1.y + b2.y) / 2;
+                    PoolVFX.spawnCollisionFlash(flashX, flashY, collisionVelocity);
                 }
                 
                 // Check if b2 is stationary (90-degree rule applies)

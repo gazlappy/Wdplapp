@@ -135,7 +135,12 @@ drawTable(ctx, width, height, cushionMargin, game) {
         
     // ===== PHASE 3: FELT WEAR PATTERNS =====
     this.drawFeltWear(ctx, width, height, feltInset);
-        
+
+    // ===== PRE-RENDERED FELT NOISE TEXTURE (#4) =====
+    if (typeof PoolVFX !== 'undefined') {
+        PoolVFX.drawFeltNoise(ctx, feltInset, feltWidth, feltHeight);
+    }
+
     // ===== ENHANCED FELT TEXTURE =====
     // Realistic baize weave pattern with directional nap
     ctx.save();
@@ -255,6 +260,22 @@ drawTable(ctx, width, height, cushionMargin, game) {
         
         // ===== PHASE 3: TABLE MANUFACTURER LOGO =====
         this.drawTableLogo(ctx, width, height, cushionMargin);
+
+        // ===== CUSHION-CAST SHADOWS (#2) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawCushionShadows(ctx, width, height, cushionMargin);
+        }
+
+        // ===== TABLE EDGE BEVEL (#10) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawTableBevel(ctx, width, height, cushionMargin);
+        }
+
+        // ===== LIGHT TEMPERATURE OVERLAY (#15) =====
+        if (typeof PoolVFX !== 'undefined') {
+            const frameW = 12;
+            PoolVFX.drawLightTemperatureOverlay(ctx, frameW, width - frameW * 2, height - frameW * 2);
+        }
     },
     
     /**
@@ -564,6 +585,26 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.fill();
         
         // ========== 2. RAIL 3D EFFECTS ==========
+        // Wood grain texture on rails (#9)
+        if (typeof PoolVFX !== 'undefined') {
+            // Top rails
+            PoolVFX.drawRailWoodGrain(ctx, corners[0].x + cornerPocketOpening, 0,
+                sides[0].x - sidePocketOpening - corners[0].x - cornerPocketOpening, railWidth);
+            PoolVFX.drawRailWoodGrain(ctx, sides[0].x + sidePocketOpening, 0,
+                corners[1].x - cornerPocketOpening - sides[0].x - sidePocketOpening, railWidth);
+            // Bottom rails
+            PoolVFX.drawRailWoodGrain(ctx, corners[2].x + cornerPocketOpening, height - railWidth,
+                sides[1].x - sidePocketOpening - corners[2].x - cornerPocketOpening, railWidth);
+            PoolVFX.drawRailWoodGrain(ctx, sides[1].x + sidePocketOpening, height - railWidth,
+                corners[3].x - cornerPocketOpening - sides[1].x - sidePocketOpening, railWidth);
+            // Left rail
+            PoolVFX.drawRailWoodGrain(ctx, 0, corners[0].y + cornerPocketOpening,
+                railWidth, corners[2].y - cornerPocketOpening - corners[0].y - cornerPocketOpening);
+            // Right rail
+            PoolVFX.drawRailWoodGrain(ctx, width - railWidth, corners[1].y + cornerPocketOpening,
+                railWidth, corners[3].y - cornerPocketOpening - corners[1].y - cornerPocketOpening);
+        }
+
         // Top edge highlights
         ctx.strokeStyle = railLight;
         ctx.lineWidth = 3;
@@ -788,6 +829,16 @@ drawTable(ctx, width, height, cushionMargin, game) {
      * Draw pockets - simple circles for physics zones
      */
     drawPockets(ctx, pockets, game) {
+        // Draw pocket nets (#3)
+        if (typeof PoolVFX !== 'undefined' && game) {
+            PoolVFX.drawPocketNets(ctx, pockets, game.cushionMargin || 21);
+        }
+
+        // Draw pocket leather stitching (#12)
+        if (typeof PoolVFX !== 'undefined' && game) {
+            PoolVFX.drawPocketStitching(ctx, pockets, game.cushionMargin || 21);
+        }
+
         // Draw pocket debug zones if enabled
         if (game && game.showPocketZones) {
             pockets.forEach(p => {
@@ -809,32 +860,36 @@ drawTable(ctx, width, height, cushionMargin, game) {
      */
     drawBall(ctx, ball) {
         if (ball.potted) return;
-        
+
         // Calculate ball speed for motion effects
         const speed = Math.sqrt((ball.vx || 0) * (ball.vx || 0) + (ball.vy || 0) * (ball.vy || 0));
-        
-        // ===== CONTACT SHADOW (Dark core directly under ball) =====
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.beginPath();
-        ctx.ellipse(ball.x + 1, ball.y + 2, ball.r * 0.5, ball.r * 0.35, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // ===== SOFT SHADOW (Larger diffuse shadow) =====
-        const shadowGrad = ctx.createRadialGradient(
-            ball.x + 3, ball.y + 4, ball.r * 0.3,
-            ball.x + 3, ball.y + 4, ball.r * 1.3
-        );
-        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
-        shadowGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.2)');
-        shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.08)');
-        shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.fillStyle = shadowGrad;
-        ctx.beginPath();
-        ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.3, ball.r * 0.8, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+
+        // ===== DYNAMIC SHADOW (#8 + #14) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawDynamicBallShadow(ctx, ball);
+        } else {
+            // Fallback static shadow
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(ball.x + 1, ball.y + 2, ball.r * 0.5, ball.r * 0.35, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const shadowGrad = ctx.createRadialGradient(
+                ball.x + 3, ball.y + 4, ball.r * 0.3,
+                ball.x + 3, ball.y + 4, ball.r * 1.3
+            );
+            shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+            shadowGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.2)');
+            shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.08)');
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = shadowGrad;
+            ctx.beginPath();
+            ctx.ellipse(ball.x + 3, ball.y + 4, ball.r * 1.3, ball.r * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
         
         // ===== MOTION BLUR HINT FOR FAST BALLS =====
         if (speed > 5) {
@@ -903,6 +958,16 @@ drawTable(ctx, width, height, cushionMargin, game) {
         
         // ===== SPECULAR HIGHLIGHTS =====
         this.drawSpecularHighlights(ctx, ball, lightOffsetX, lightOffsetY);
+
+        // ===== OVERHEAD RECTANGULAR LIGHT REFLECTION (#1) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawOverheadLightReflection(ctx, ball);
+        }
+
+        // ===== ENVIRONMENT MAP REFLECTION BAND (#11) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawEnvironmentReflection(ctx, ball);
+        }
     },
     
     // Red Ball - American style with cream polar caps and maroon center band
@@ -2126,7 +2191,12 @@ drawTable(ctx, width, height, cushionMargin, game) {
             ctx.lineTo(x - perpX * 6, y - perpY * 6);
             ctx.stroke();
         }
-        
+
+        // ===== CUE INLAY PATTERNS (#13) =====
+        if (typeof PoolVFX !== 'undefined') {
+            PoolVFX.drawCueInlays(ctx, cueStartX, cueStartY, cueEndX, cueEndY, aimAngle);
+        }
+
         // ===== FERRULE (white/ivory section before tip) =====
         const ferruleLength = 8;
         const ferruleEndX = cueStartX - Math.cos(aimAngle) * ferruleLength;

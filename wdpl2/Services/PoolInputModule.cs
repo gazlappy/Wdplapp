@@ -201,6 +201,13 @@ setupMouseControls(canvas, game, statusEl) {
                             } else {
                                 console.warn('PoolAudio not available for cue hit');
                             }
+
+                            // ?? CHALK DUST PARTICLES (#5)
+                            if (typeof PoolVFX !== 'undefined' && hitPower > 0.3) {
+                                const tipX = game.cueBall.x - Math.cos(game.aimAngle) * 12;
+                                const tipY = game.cueBall.y - Math.sin(game.aimAngle) * 12;
+                                PoolVFX.spawnChalkDust(tipX, tipY, hitPower);
+                            }
                             
                             game.cueBall.vx = Math.cos(game.aimAngle) * speed;
                             game.cueBall.vy = Math.sin(game.aimAngle) * speed;

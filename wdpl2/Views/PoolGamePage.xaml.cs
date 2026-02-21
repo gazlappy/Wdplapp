@@ -22,9 +22,6 @@ public partial class PoolGamePage : ContentPage
             ? "null" 
             : savedSettings;
         
-        // Get embedded 3D model script
-        var embeddedModelScript = Services.PoolThreeJSModule.GetEmbeddedModelScript();
-        
         // Get current theme for styling
         var isDarkMode = Services.ThemeService.IsDarkModeActive;
         var themeClass = isDarkMode ? "dark-theme" : "light-theme";
@@ -45,9 +42,6 @@ public partial class PoolGamePage : ContentPage
         window.MAUI_THEME = '{(isDarkMode ? "dark" : "light")}';
         console.log('MAUI saved settings injected:', window.MAUI_SAVED_SETTINGS ? 'found' : 'none');
         console.log('MAUI theme:', window.MAUI_THEME);
-        
-        // Inject embedded 3D model data
-        {embeddedModelScript}
     </script>
     <style>
         :root {{
@@ -113,15 +107,6 @@ public partial class PoolGamePage : ContentPage
             border: none;
             box-shadow: none;
             max-width: none;
-        }}
-        #poolTable3D {{
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            z-index: 10;
         }}
         #controls {{
             margin-top: 15px;
@@ -278,8 +263,6 @@ public partial class PoolGamePage : ContentPage
     <div id='controls'>
         <button onclick='game.stopBalls()'>Stop All Balls</button>
         <button onclick='game.resetRack()'>Reset Rack</button>
-        <button id='toggle3DBtn' onclick='if(typeof Pool3DRenderer !== ""undefined"") Pool3DRenderer.toggle()'>?? 3D View</button>
-        <button id='toggleRealisticBtn' onclick='console.log(""[Button] Realistic clicked, PoolThreeJS:"", typeof PoolThreeJS); if(typeof PoolThreeJS !== ""undefined"") {{ PoolThreeJS.toggle(); }} else {{ alert(""PoolThreeJS not loaded!""); }}' title='Photorealistic 3D (Shift+#)'>? Realistic</button>
         <button onclick='if(typeof PoolDevSettings !== ""undefined"") PoolDevSettings.toggle()'>Dev Settings (F2)</button>
     </div>
     
@@ -308,10 +291,6 @@ public partial class PoolGamePage : ContentPage
         </div>
     
         <script>
-        {Services.PoolThreeJSModule.GenerateJavaScript()}
-        </script>
-    
-        <script>
         {Services.PoolAudioModule.GenerateJavaScript()}
         </script>
     
@@ -331,7 +310,11 @@ public partial class PoolGamePage : ContentPage
     <script>
     {Services.PoolRenderingModule.GenerateJavaScript()}
     </script>
-    
+
+    <script>
+    {Services.PoolVisualEffectsModule.GenerateJavaScript()}
+    </script>
+
     <script>
     {Services.PoolSpinControlModule.GenerateJavaScript()}
     </script>
@@ -354,14 +337,6 @@ public partial class PoolGamePage : ContentPage
     </script>
     
     <script>
-    {Services.Pool3DRendererModule.GenerateJavaScript()}
-    </script>
-    
-    <script>
-    {Services.PoolThreeJSModule.GenerateJavaScript()}
-    </script>
-    
-    <script>
     {Services.PoolGameModule.GenerateJavaScript()}
     </script>
     
@@ -373,62 +348,7 @@ public partial class PoolGamePage : ContentPage
                 PoolGameSettings.init(game);
                 PoolGameSettings.applySettings();
             }}
-            
-            // Setup 3D renderer integration
-            if (typeof Pool3DRenderer !== 'undefined' && typeof game !== 'undefined') {{
-                Pool3DRenderer.updateModeIndicator();
-                
-                // Hook into game loop for 3D rendering
-                const originalGameLoop = game.gameLoop ? game.gameLoop.bind(game) : null;
-                if (originalGameLoop) {{
-                    game.gameLoop = function() {{
-                        originalGameLoop();
-                        if (Pool3DRenderer.enabled && Pool3DRenderer.initialized) {{
-                            Pool3DRenderer.updateBalls(game.balls, game.canvas.width, game.canvas.height);
-                            Pool3DRenderer.render();
-                        }}
-                    }};
-                }}
-                
-                // Update button when toggled
-                const btn = document.getElementById('toggle3DBtn');
-                if (btn) {{
-                    const originalToggle = Pool3DRenderer.toggle.bind(Pool3DRenderer);
-                    Pool3DRenderer.toggle = async function() {{
-                        await originalToggle();
-                        btn.textContent = Pool3DRenderer.enabled ? '?? 2D View' : '?? 3D View';
-                        btn.style.background = Pool3DRenderer.enabled ? '#10b981' : '';
-                    }};
-                }}
-            }}
-            
-            // Setup Photorealistic 3D renderer integration
-            if (typeof PoolThreeJS !== 'undefined') {{
-                console.log('[Setup] PoolThreeJS module found!');
-                const realisticBtn = document.getElementById('toggleRealisticBtn');
-                if (realisticBtn) {{
-                    const originalToggle = PoolThreeJS.toggle.bind(PoolThreeJS);
-                    PoolThreeJS.toggle = async function() {{
-                        console.log('[PoolThreeJS] Toggle clicked, EMBEDDED_GLTF_MODEL:', !!window.EMBEDDED_GLTF_MODEL);
-                        await originalToggle();
-                        realisticBtn.textContent = PoolThreeJS.enabled ? '?? Standard' : '? Realistic';
-                        realisticBtn.style.background = PoolThreeJS.enabled ? '#8b5cf6' : '';
-                    }};
-                }}
-            }} else {{
-                console.error('[Setup] PoolThreeJS module NOT FOUND!');
-            }}
         }}, 300);
-    }});
-    
-    // Final verification of all modules
-    window.addEventListener('load', () => {{
-        console.log('=== Module Verification ===');
-        console.log('PoolThreeJS:', typeof PoolThreeJS);
-        console.log('Pool3DRenderer:', typeof Pool3DRenderer);
-        console.log('game:', typeof game);
-        console.log('THREE:', typeof THREE);
-        console.log('===========================');
     }});
     </script>
 </body>
@@ -445,29 +365,11 @@ public PoolGamePage()
     // Handle WebView navigation for settings persistence
     GameWebView.Navigating += OnWebViewNavigating;
         
-    // Load embedded 3D model, then load the game
-    _ = InitializeAsync();
-        
+    // Load the game
+    LoadGame();
+
     // Reset button should only reset the game frame, not reload the entire page
     ResetBtn.Clicked += async (s, e) => await ResetGame();
-    }
-    
-    private async Task InitializeAsync()
-    {
-        System.Diagnostics.Debug.WriteLine("=== PoolGamePage.InitializeAsync() STARTING ===");
-        try
-        {
-            // Preload the embedded 3D model
-            await Services.PoolThreeJSModule.LoadEmbeddedModelAsync();
-            System.Diagnostics.Debug.WriteLine("=== PoolGamePage.InitializeAsync() MODEL LOADED ===");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to preload embedded model: {ex.Message}");
-        }
-        
-        // Load the game after model is ready
-        LoadGame();
     }
 
     

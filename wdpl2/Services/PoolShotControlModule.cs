@@ -323,10 +323,17 @@ const PoolShotControl = {
                 if (typeof this.game.startShot === 'function') {
                     this.game.startShot();
                 }
-                
+
                 this.game.cueBall.vx = Math.cos(angle) * power;
                 this.game.cueBall.vy = Math.sin(angle) * power;
-                
+
+                // ?? CHALK DUST PARTICLES (#5)
+                if (typeof PoolVFX !== 'undefined' && power > 5) {
+                    const tipX = this.game.cueBall.x - Math.cos(angle) * 12;
+                    const tipY = this.game.cueBall.y - Math.sin(angle) * 12;
+                    PoolVFX.spawnChalkDust(tipX, tipY, power / this.game.maxPower);
+                }
+
                 // Apply spin
                 if (typeof PoolSpinControl !== 'undefined') {
                     PoolSpinControl.applySpinToBall(this.game.cueBall, angle);
