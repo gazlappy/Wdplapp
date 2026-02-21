@@ -63,7 +63,7 @@ public partial class MatchDayDashboardPage : ContentPage
 
             _fixtures.Clear();
 
-            if (!fixtures.Any())
+            if (fixtures.Count == 0)
             {
                 EmptyStatePanel.IsVisible = true;
                 StatusLabel.Text = "No matches scheduled for this date";
@@ -83,7 +83,7 @@ public partial class MatchDayDashboardPage : ContentPage
                 var division = DataStore.Data.Divisions.FirstOrDefault(d => d.Id == fixture.DivisionId);
                 var venue = fixture.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == fixture.VenueId) : null;
 
-                bool hasResult = fixture.Frames.Any();
+                bool hasResult = fixture.Frames.Count != 0;
                 if (hasResult) completed++;
                 else upcoming++;
 

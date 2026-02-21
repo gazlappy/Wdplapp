@@ -54,7 +54,7 @@ public partial class SeasonsViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadSeasonsAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -72,7 +72,7 @@ public partial class SeasonsViewModel : ObservableObject
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
@@ -96,9 +96,14 @@ public partial class SeasonsViewModel : ObservableObject
         // If this is being set as active, deactivate others
         if (_isActive)
         {
-            foreach (var s in _dataStore.GetData().Seasons)
+            var allSeasons = await _dataStore.GetSeasonsAsync();
+            foreach (var s in allSeasons)
             {
-                s.IsActive = false;
+                if (s.IsActive)
+                {
+                    s.IsActive = false;
+                    await _dataStore.UpdateSeasonAsync(s);
+                }
             }
         }
 
@@ -132,9 +137,14 @@ public partial class SeasonsViewModel : ObservableObject
         // If setting as active, deactivate others
         if (_isActive && !_selectedSeason.IsActive)
         {
-            foreach (var s in _dataStore.GetData().Seasons)
+            var allSeasons = await _dataStore.GetSeasonsAsync();
+            foreach (var s in allSeasons)
             {
-                s.IsActive = false;
+                if (s.IsActive && s.Id != _selectedSeason.Id)
+                {
+                    s.IsActive = false;
+                    await _dataStore.UpdateSeasonAsync(s);
+                }
             }
             _selectedSeason.IsActive = true;
             SeasonService.CurrentSeasonId = _selectedSeason.Id;
@@ -174,9 +184,14 @@ public partial class SeasonsViewModel : ObservableObject
         if (season == null) return;
 
         // Deactivate all seasons
-        foreach (var s in _dataStore.GetData().Seasons)
+        var allSeasons = await _dataStore.GetSeasonsAsync();
+        foreach (var s in allSeasons)
         {
-            s.IsActive = false;
+            if (s.IsActive)
+            {
+                s.IsActive = false;
+                await _dataStore.UpdateSeasonAsync(s);
+            }
         }
 
         // Activate selected season
@@ -204,23 +219,23 @@ public partial class SeasonsViewModel : ObservableObject
 
     private void LoadEditor(Season season)
     {
-        _seasonName = season.Name ?? "";
-        _startDate = season.StartDate;
-        _endDate = season.EndDate;
-        _isActive = season.IsActive;
+        SeasonName = season.Name ?? "";
+        StartDate = season.StartDate;
+        EndDate = season.EndDate;
+        IsActive = season.IsActive;
     }
 
     private void ClearEditor()
     {
-        _seasonName = "";
-        _startDate = DateTime.Today;
-        _endDate = DateTime.Today.AddMonths(6);
-        _isActive = false;
+        SeasonName = "";
+        StartDate = DateTime.Today;
+        EndDate = DateTime.Today.AddMonths(6);
+        IsActive = false;
     }
 
     private void SetStatus(string message)
     {
-        _statusMessage = $"{DateTime.Now:HH:mm:ss}  {message}";
+        StatusMessage = $"{DateTime.Now:HH:mm:ss}  {message}";
     }
 
     public void Cleanup()

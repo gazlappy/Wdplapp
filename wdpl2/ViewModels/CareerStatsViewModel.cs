@@ -45,7 +45,7 @@ public partial class CareerStatsViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadCareerStatsAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -179,8 +179,10 @@ public partial class CareerStatsViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
+
+        await Task.CompletedTask;
     }
 
     [RelayCommand]

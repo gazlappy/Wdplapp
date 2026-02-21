@@ -128,9 +128,10 @@ public partial class CompetitionsPage
             Children =
             {
                 new Label { Text = "Select 2 Players", FontSize = 18, FontAttributes = FontAttributes.Bold },
-                new Frame
+                new Border
                 {
                     Padding = 10,
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                     Content = new VerticalStackLayout
                     {
                         Spacing = 10,
@@ -179,7 +180,7 @@ public partial class CompetitionsPage
         // Show multi-select dialog
         var selectedIds = await ShowMultiSelectDialog("Select Players", selectionItems);
         
-        if (selectedIds != null && selectedIds.Any())
+        if (selectedIds != null && selectedIds.Count != 0)
         {
             await _editorViewModel!.AddParticipantIdsCommand.ExecuteAsync(selectedIds);
             SetStatus(_editorViewModel.StatusMessage);
@@ -209,7 +210,7 @@ public partial class CompetitionsPage
         // Show multi-select dialog
         var selectedIds = await ShowMultiSelectDialog("Select Teams", selectionItems);
         
-        if (selectedIds != null && selectedIds.Any())
+        if (selectedIds != null && selectedIds.Count != 0)
         {
             await _editorViewModel!.AddParticipantIdsCommand.ExecuteAsync(selectedIds);
             SetStatus(_editorViewModel.StatusMessage);

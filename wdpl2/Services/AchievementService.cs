@@ -70,7 +70,7 @@ public static class AchievementService
             }
         }
 
-        if (!playerFrames.Any())
+        if (playerFrames.Count == 0)
             return GetAllAchievements(); // Return locked achievements
 
         // Win Streaks
@@ -420,7 +420,7 @@ public static class AchievementService
         });
 
         // Long-term consistency: 60%+ win rate over career (min 100 frames)
-        double winRate = frames.Any() ? (double)frames.Count(f => f.won) / frames.Count * 100 : 0;
+        double winRate = frames.Count != 0 ? (double)frames.Count(f => f.won) / frames.Count * 100 : 0;
         bool isConsistent = frames.Count >= 100 && winRate >= 60;
 
         achievements.Add(new Achievement

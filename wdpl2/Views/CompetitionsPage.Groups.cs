@@ -108,11 +108,11 @@ public partial class CompetitionsPage
     {
         var expandedState = new { IsExpanded = true }; // Simple toggle state
 
-        var headerFrame = new Frame
+        var headerFrame = new Border
         {
             Padding = 10,
             BackgroundColor = Color.FromArgb("#3B82F6"),
-            CornerRadius = 6,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
             Margin = new Thickness(0, 5, 0, 0)
         };
 
@@ -150,9 +150,10 @@ public partial class CompetitionsPage
             }
         };
 
-        return new Frame
+        return new Border
         {
             Padding = 10,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
             Content = new VerticalStackLayout
             {
                 Spacing = 5,
@@ -249,10 +250,11 @@ public partial class CompetitionsPage
         matchGrid.Add(p2Entry, 3, 0);
         matchGrid.Add(p2Label, 4, 0);
 
-        return new Frame
+        return new Border
         {
             Padding = 2,
             Margin = new Thickness(0, 2),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
             Content = matchGrid
         };
     }
@@ -321,9 +323,10 @@ public partial class CompetitionsPage
             standingsLayout.Children.Add(rowGrid);
         }
 
-        return new Frame
+        return new Border
         {
             Padding = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
             Content = standingsLayout
         };
     }

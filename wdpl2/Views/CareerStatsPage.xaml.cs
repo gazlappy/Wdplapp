@@ -212,8 +212,8 @@ public partial class CareerStatsPage : ContentPage
                 CareerWinPercentage = (double)totalFramesWon / totalFramesPlayed * 100,
                 TotalEightBalls = totalEightBalls,
                 SeasonBreakdown = seasonBreakdown,
-                FirstSeasonYear = seasons.Any() ? seasons.Min(s => s.StartDate.Year) : DateTime.Now.Year,
-                LastSeasonYear = seasons.Any() ? seasons.Max(s => s.StartDate.Year) : DateTime.Now.Year
+                FirstSeasonYear = seasons.Count != 0 ? seasons.Min(s => s.StartDate.Year) : DateTime.Now.Year,
+                LastSeasonYear = seasons.Count != 0 ? seasons.Max(s => s.StartDate.Year) : DateTime.Now.Year
             });
         }
     }
@@ -287,7 +287,7 @@ public partial class CareerStatsPage : ContentPage
             sb.AppendLine($"\"{player.PlayerName}\",{player.CareerSpan},{player.SeasonsPlayed},{player.TotalFramesPlayed},{player.TotalFramesWon},{player.TotalFramesLost},{player.CareerWinPercentage:F1},{player.TotalEightBalls}");
             
             // Add season breakdown
-            if (player.SeasonBreakdown.Any())
+            if (player.SeasonBreakdown.Count != 0)
             {
                 sb.AppendLine("  Season Breakdown:");
                 foreach (var season in player.SeasonBreakdown)

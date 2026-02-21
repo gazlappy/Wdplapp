@@ -64,7 +64,7 @@ public static class RatingDebugService
         var playerFrames = new List<(DateTime date, int weekNo, Guid oppId, bool won, bool eightBall, int matchNo, int frameNo)>();
 
         var fixturesByWeek = allFixtures
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .GroupBy(f => GetSeasonWeekNumber(f.Date, seasonStartDate))
@@ -203,7 +203,7 @@ public static class RatingDebugService
         var playerFrameData = new Dictionary<Guid, List<(int weekNo, Guid oppId, bool won, bool eightBall)>>();
         var allPlayerIds = new HashSet<Guid>();
 
-        foreach (var fixture in allFixtures.Where(f => f.Frames.Any()))
+        foreach (var fixture in allFixtures.Where(f => f.Frames.Count != 0))
         {
             foreach (var frame in fixture.Frames)
             {
@@ -217,14 +217,14 @@ public static class RatingDebugService
             weeklyRatings[(pid, 1)] = settings.RatingStartValue;
 
         var fixturesByWeek = allFixtures
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .GroupBy(f => GetSeasonWeekNumber(f.Date, seasonStartDate))
             .OrderBy(g => g.Key)
             .ToList();
 
-        int maxWeek = fixturesByWeek.Any() ? fixturesByWeek.Max(g => g.Key) : 0;
+        int maxWeek = fixturesByWeek.Count != 0 ? fixturesByWeek.Max(g => g.Key) : 0;
 
         // Process week by week - this is the VBA algorithm
         for (int wkNo = 1; wkNo <= maxWeek; wkNo++)

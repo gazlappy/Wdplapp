@@ -788,7 +788,7 @@ public partial class FixturesPage : ContentPage
                 result = await recognitionService.RecognizeFromImageAsync(imageData);
             }
 
-            if (result != null && result.Success && result.Frames.Any())
+            if (result != null && result.Success && result.Frames.Count != 0)
             {
                 // Show preview of recognized data and ask for confirmation
                 await ShowRecognitionResultsAsync(result, useAzure);
@@ -797,7 +797,7 @@ public partial class FixturesPage : ContentPage
             {
                 // Recognition failed or no frames found - offer manual entry mode
                 var message = result.Message;
-                if (result.Errors.Any())
+                if (result.Errors.Count != 0)
                     message += "\n\n" + string.Join("\n", result.Errors);
                 if (result.Warnings.Any())
                     message += "\n\n" + string.Join("\n", result.Warnings);
@@ -889,7 +889,7 @@ public partial class FixturesPage : ContentPage
             sb.AppendLine($"  ... and {result.Frames.Count - 5} more frames");
         }
 
-        if (result.Warnings.Any())
+        if (result.Warnings.Count != 0)
         {
             sb.AppendLine();
             sb.AppendLine("Warnings:");

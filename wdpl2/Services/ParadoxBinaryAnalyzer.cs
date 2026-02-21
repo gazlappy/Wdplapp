@@ -193,7 +193,7 @@ public static class ParadoxBinaryAnalyzer
             while (recordsRead < header.RecordCount && offset + header.RecordSize <= bytes.Length)
             {
                 var record = ReadRecord(bytes, offset, header);
-                if (record != null && record.Any())
+                if (record != null && record.Count != 0)
                 {
                     records.Add(record);
                     recordsRead++;
@@ -484,7 +484,7 @@ public static class ParadoxBinaryAnalyzer
         var records = ReadRecords(filePath);
         sb.AppendLine($"RECORDS READ: {records.Count}");
         
-        if (records.Any())
+        if (records.Count != 0)
         {
             sb.AppendLine();
             sb.AppendLine("SAMPLE DATA (first 5 records):");

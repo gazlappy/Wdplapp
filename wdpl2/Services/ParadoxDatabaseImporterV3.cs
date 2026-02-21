@@ -72,7 +72,7 @@ public class ParadoxDatabaseImporterV3
                 ImportSingles(data, summary);
                 ImportDoubles(data, summary);
 
-                if (data.Fixtures.Any())
+                if (data.Fixtures.Count != 0)
                 {
                     var minDate = data.Fixtures.Min(f => f.Date);
                     var maxDate = data.Fixtures.Max(f => f.Date);
@@ -222,7 +222,7 @@ public class ParadoxDatabaseImporterV3
             // After processing all venues, add default table to venues without any tables
             foreach (var venue in venuesByBaseName.Values)
             {
-                if (!venue.Tables.Any())
+                if (venue.Tables.Count == 0)
                 {
                     var defaultTable = new VenueTable
                     {
@@ -876,7 +876,7 @@ public class ParadoxDatabaseImporterV3
             if (framesPartialPlayers > 0) summary.Errors.Add($"  ({framesPartialPlayers} partial - one player from 'Void Frame' range, still imported)");
             
             // Log unmapped player IDs (condensed)
-            if (unmappedPlayerIds.Any())
+            if (unmappedPlayerIds.Count != 0)
             {
                 var sortedIds = unmappedPlayerIds.OrderBy(x => x).ToList();
                 var voidRangeCount = sortedIds.Count(id => id >= 1 && id <= 16);
@@ -1091,7 +1091,7 @@ public class ParadoxDatabaseImporterV3
                 sb.AppendLine($"  ✓ {fileName} ({fileSize / 1024:N0} KB)");
             }
 
-            return files.Any() ? (true, sb.ToString(), files) : (false, "No .DB files found", files);
+            return files.Count != 0 ? (true, sb.ToString(), files) : (false, "No .DB files found", files);
         }
         catch (Exception ex) { return (false, $"Error: {ex.Message}", files); }
     }

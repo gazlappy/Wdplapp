@@ -56,7 +56,7 @@ public partial class PlayersViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadPlayersAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -89,14 +89,14 @@ public partial class PlayersViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
     [RelayCommand]
     private async Task SearchPlayersAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadPlayersAsync();
     }
 
@@ -169,8 +169,8 @@ public partial class PlayersViewModel : BaseViewModel
     [RelayCommand]
     private void ToggleMultiSelect()
     {
-        _isMultiSelectMode = !_isMultiSelectMode;
-        SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
+        IsMultiSelectMode = !IsMultiSelectMode;
+        SetStatus(IsMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
     [RelayCommand]
@@ -206,13 +206,13 @@ public partial class PlayersViewModel : BaseViewModel
 
     private void LoadEditor(Player player)
     {
-        _firstName = player.FirstName ?? "";
-        _lastName = player.LastName ?? "";
+        FirstName = player.FirstName ?? "";
+        LastName = player.LastName ?? "";
     }
 
     private void ClearEditor()
     {
-        _firstName = "";
-        _lastName = "";
+        FirstName = "";
+        LastName = "";
     }
 }

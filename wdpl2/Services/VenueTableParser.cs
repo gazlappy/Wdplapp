@@ -9,7 +9,7 @@ namespace Wdpl2.Services;
 /// Shared helper for parsing venue names that may contain table identifiers.
 /// Used by all importers to ensure consistent venue/table parsing.
 /// </summary>
-public static class VenueTableParser
+public static partial class VenueTableParser
 {
     /// <summary>
     /// Default table label for venues without explicit table suffixes
@@ -39,7 +39,7 @@ public static class VenueTableParser
     private static readonly (Regex pattern, int baseGroup, int tableGroup)[] TablePatterns = 
     {
         // "VENUE T1", "VENUE T2" - table number pattern
-        (new Regex(@"^(.+?)\s+(T\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled), 1, 2),
+        (MyRegex(), 1, 2),
         
         // "VENUE TB1", "VENUE TB2" - table with TB prefix
         (new Regex(@"^(.+?)\s+(TB\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled), 1, 2),
@@ -175,7 +175,7 @@ public static class VenueTableParser
         {
             foreach (var venue in venuesByBaseName.Values)
             {
-                if (!venue.Tables.Any())
+                if (venue.Tables.Count == 0)
                 {
                     var defaultTable = new VenueTable
                     {
@@ -217,7 +217,7 @@ public static class VenueTableParser
     /// </summary>
     public static void EnsureHasTable(Venue venue)
     {
-        if (!venue.Tables.Any())
+        if (venue.Tables.Count == 0)
         {
             venue.Tables.Add(new VenueTable
             {
@@ -227,4 +227,7 @@ public static class VenueTableParser
             });
         }
     }
+
+    [GeneratedRegex(@"^(.+?)\s+(T\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
+    private static partial Regex MyRegex();
 }

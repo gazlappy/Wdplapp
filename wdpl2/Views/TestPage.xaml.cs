@@ -455,7 +455,7 @@ public partial class TestPage : ContentPage
         }
 
         // Extract words and count frequency
-        var words = Regex.Matches(_currentOcrText.ToLower(), @"\b[a-zA-Z]{2,}\b")
+        var words = MyRegex().Matches(_currentOcrText.ToLower())
             .Select(m => m.Value)
             .GroupBy(w => w)
             .OrderByDescending(g => g.Count())
@@ -812,4 +812,7 @@ public partial class TestPage : ContentPage
     {
         ErrorOverlay.IsVisible = false;
     }
+
+    [GeneratedRegex(@"\b[a-zA-Z]{2,}\b")]
+    private static partial Regex MyRegex();
 }

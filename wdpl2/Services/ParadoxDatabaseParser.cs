@@ -324,8 +324,7 @@ public static class ParadoxDatabaseParser
         // Data starts at block 1 (offset 2048)
         // Each block has a 6-byte header
         int blockSize = BLOCK_SIZE;
-        int dataStart = DATA_START + BLOCK_HEADER_SIZE;
-        
+
         // Calculate records per block
         int recordsPerBlock = (blockSize - BLOCK_HEADER_SIZE) / recordSize;
         if (recordsPerBlock <= 0) recordsPerBlock = 1;
@@ -810,7 +809,7 @@ public static class ParadoxDatabaseParser
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (!csvFiles.Any())
+        if (csvFiles.Count == 0)
             return false;
 
         foreach (var csvFile in csvFiles)
@@ -822,32 +821,32 @@ public static class ParadoxDatabaseParser
                 if (fileName.Contains("DIVISION"))
                 {
                     result.Divisions = LoadDivisionsFromCsv(csvFile);
-                    if (result.Divisions.Any()) foundAny = true;
+                    if (result.Divisions.Count != 0) foundAny = true;
                 }
                 else if (fileName.Contains("TEAM") && !fileName.Contains("PLAYER"))
                 {
                     result.Teams = LoadTeamsFromCsv(csvFile);
-                    if (result.Teams.Any()) foundAny = true;
+                    if (result.Teams.Count != 0) foundAny = true;
                 }
                 else if (fileName.Contains("PLAYER"))
                 {
                     result.Players = LoadPlayersFromCsv(csvFile);
-                    if (result.Players.Any()) foundAny = true;
+                    if (result.Players.Count != 0) foundAny = true;
                 }
                 else if (fileName.Contains("MATCH"))
                 {
                     result.Matches = LoadMatchesFromCsv(csvFile);
-                    if (result.Matches.Any()) foundAny = true;
+                    if (result.Matches.Count != 0) foundAny = true;
                 }
                 else if (fileName.Contains("SINGLE"))
                 {
                     result.Singles = LoadSinglesFromCsv(csvFile);
-                    if (result.Singles.Any()) foundAny = true;
+                    if (result.Singles.Count != 0) foundAny = true;
                 }
                 else if (fileName.Contains("VENUE"))
                 {
                     result.Venues = LoadVenuesFromCsv(csvFile);
-                    if (result.Venues.Any()) foundAny = true;
+                    if (result.Venues.Count != 0) foundAny = true;
                 }
             }
             catch { }
@@ -1019,7 +1018,7 @@ public static class ParadoxDatabaseParser
         var exportedFiles = new List<string>();
         Directory.CreateDirectory(outputFolder);
 
-        if (parseResult.Divisions.Any())
+        if (parseResult.Divisions.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Division_Export.csv");
             var sb = new StringBuilder("Id,Abbreviated,FullDivisionName\n");
@@ -1029,7 +1028,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Division_Export.csv");
         }
 
-        if (parseResult.Teams.Any())
+        if (parseResult.Teams.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Team_Export.csv");
             var sb = new StringBuilder("Id,TeamName,VenueId,DivisionId,Contact,Wins,Losses,Points\n");
@@ -1039,7 +1038,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Team_Export.csv");
         }
 
-        if (parseResult.Players.Any())
+        if (parseResult.Players.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Player_Export.csv");
             var sb = new StringBuilder("Id,PlayerName,TeamId,Wins,Losses,Rating\n");
@@ -1049,7 +1048,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Player_Export.csv");
         }
 
-        if (parseResult.Matches.Any())
+        if (parseResult.Matches.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Match_Export.csv");
             var sb = new StringBuilder("Id,HomeTeam,AwayTeam,Date,HSWins,ASWins,HDWins,ADWins,Division\n");
@@ -1059,7 +1058,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Match_Export.csv");
         }
 
-        if (parseResult.Singles.Any())
+        if (parseResult.Singles.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Single_Export.csv");
             var sb = new StringBuilder("MatchNo,FrameNo,HomePlayer,AwayPlayer,Winner,EightBall\n");
@@ -1069,7 +1068,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Single_Export.csv");
         }
 
-        if (parseResult.Venues.Any())
+        if (parseResult.Venues.Count != 0)
         {
             var file = Path.Combine(outputFolder, "Venue_Export.csv");
             var sb = new StringBuilder("Id,VenueName,Address\n");
@@ -1079,7 +1078,7 @@ public static class ParadoxDatabaseParser
             exportedFiles.Add("Venue_Export.csv");
         }
 
-        return exportedFiles.Any() 
+        return exportedFiles.Count != 0
             ? $"Exported {exportedFiles.Count} files:\n• {string.Join("\n• ", exportedFiles)}"
             : "No data to export";
     }

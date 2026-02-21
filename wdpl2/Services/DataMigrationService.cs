@@ -216,7 +216,7 @@ public class DataMigrationService
                 Path.GetFileName(_jsonFilePath) + ".backup_*"
             ).OrderByDescending(f => f).ToList();
 
-            if (backupFiles.Any())
+            if (backupFiles.Count != 0)
             {
                 // Restore most recent backup
                 File.Copy(backupFiles.First(), _jsonFilePath, overwrite: true);

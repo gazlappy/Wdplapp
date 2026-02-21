@@ -70,7 +70,7 @@ public partial class FixturesViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadFixturesAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -121,7 +121,7 @@ public partial class FixturesViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
@@ -149,7 +149,7 @@ public partial class FixturesViewModel : BaseViewModel
     [RelayCommand]
     private async Task SearchFixturesAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadFixturesAsync();
     }
 

@@ -86,7 +86,7 @@ public partial class WhatIfSimulatorPage : ContentPage
 
         var teams = DataStore.Data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
         var fixtures = DataStore.Data.Fixtures
-            .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
+            .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 
@@ -114,7 +114,7 @@ public partial class WhatIfSimulatorPage : ContentPage
         
         var remaining = DataStore.Data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
-            .Where(f => !f.Frames.Any()) // No results yet
+            .Where(f => f.Frames.Count == 0) // No results yet
             .Where(f => teamIds.Contains(f.HomeTeamId) && teamIds.Contains(f.AwayTeamId))
             .OrderBy(f => f.Date)
             .ToList();
@@ -220,7 +220,7 @@ public partial class WhatIfSimulatorPage : ContentPage
         
         // Get actual completed fixtures
         var completedFixtures = DataStore.Data.Fixtures
-            .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
+            .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 

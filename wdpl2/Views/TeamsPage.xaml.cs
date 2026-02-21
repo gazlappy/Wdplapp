@@ -315,7 +315,7 @@ public partial class TeamsPage : ContentPage
             var fixtures = DataStore.Data.Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
-                .Where(f => f.Frames.Any()) // Only completed matches
+                .Where(f => f.Frames.Count != 0) // Only completed matches
                 .ToList();
 
             int totalMatches = 0;
@@ -469,7 +469,7 @@ public partial class TeamsPage : ContentPage
                 .Where(p => p.TeamId == _selectedTeam.Id)
                 .ToList();
 
-            if (!teamPlayers.Any())
+            if (teamPlayers.Count == 0)
             {
                 TeamPlayersCountLabel.Text = "0 players";
                 return;
@@ -479,7 +479,7 @@ public partial class TeamsPage : ContentPage
             var fixtures = DataStore.Data.Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
-                .Where(f => f.Frames.Any())
+                .Where(f => f.Frames.Count != 0)
                 .ToList();
 
             // Get season start date for rating calculation
@@ -706,12 +706,12 @@ public partial class TeamsPage : ContentPage
                 });
             }
 
-            if (_showAllSeasons && teams.Any())
+            if (_showAllSeasons && teams.Count != 0)
             {
                 var seasonGroups = teams.GroupBy(t => t.SeasonId).Count();
                 SetStatus($"{_teamItems.Count} team(s) across {seasonGroups} season(s)");
             }
-            else if (teams.Any())
+            else if (teams.Count != 0)
             {
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";

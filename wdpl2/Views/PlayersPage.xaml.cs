@@ -455,13 +455,13 @@ public partial class PlayersPage : ContentPage
                     Last = p.LastName,
                     TeamLabel = teamLabel,
                     IsActive = p.IsActive,
-                    HasTransfers = p.TransferHistory != null && p.TransferHistory.Any()
+                    HasTransfers = p.TransferHistory != null && p.TransferHistory.Count != 0
                 });
             }
 
-            if (_showAllSeasons && players.Any())
+            if (_showAllSeasons && players.Count != 0)
                 SetStatus($"{_items.Count} player(s) across {players.GroupBy(p => p.SeasonId).Count()} season(s)");
-            else if (players.Any())
+            else if (players.Count != 0)
             {
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 SetStatus($"{_items.Count} player(s){(season != null ? $" in {season.Name}" : "")}{(season != null && !season.IsActive ? " (Imported)" : "")}");
@@ -546,7 +546,7 @@ public partial class PlayersPage : ContentPage
     {
         _transferHistory.Clear();
         TransferHistorySection.IsVisible = false;
-        if (player.TransferHistory == null || !player.TransferHistory.Any()) return;
+        if (player.TransferHistory == null || player.TransferHistory.Count == 0) return;
 
         TransferHistorySection.IsVisible = true;
         foreach (var transfer in player.TransferHistory.OrderByDescending(t => t.TransferDate))
@@ -814,7 +814,7 @@ public partial class PlayersPage : ContentPage
                 .Where(t => t != null && t.SeasonId == _selected.SeasonId && t.Id != currentTeam.Id)
                 .OrderBy(t => t.Name).ToList() ?? new List<Team>();
 
-            if (!availableTeams.Any())
+            if (availableTeams.Count == 0)
             {
                 await DisplayAlert($"{Emojis.Info} No Teams Available", "There are no other teams in this season to transfer to.", "OK");
                 return;
@@ -841,7 +841,7 @@ public partial class PlayersPage : ContentPage
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _selected.SeasonId);
                 var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
 
-                if (fixtures.Any())
+                if (fixtures.Count != 0)
                 {
                     var allPlayers = DataStore.Data.Players?.ToList() ?? new List<Player>();
                     var allTeams = DataStore.Data.Teams?.ToList() ?? new List<Team>();

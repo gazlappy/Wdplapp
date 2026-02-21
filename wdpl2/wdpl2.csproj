@@ -31,7 +31,11 @@
 		<!-- CS8618: Non-nullable field initialization -->
 		<!-- CA1416: Platform-specific APIs -->
 		<!-- XC0022/XC0025: Compiled binding warnings - partially fixed, suppress remaining -->
-		<NoWarn>$(NoWarn);MVVMTK0034;MVVMTK0035;MVVMTK0045;CS0618;CS8618;CA1416;XC0022;XC0025</NoWarn>
+		<!-- XA0141: 16KB page size warnings from third-party NuGet native libraries -->
+		<!-- XA4301: Duplicate native library entries from NuGet packages -->
+		<!-- CA1860: Prefer Count to 0 vs Any() - noisy across LINQ-heavy codebase -->
+		<!-- SYSLIB1045: GeneratedRegex - requires partial classes, too invasive for existing code -->
+		<NoWarn>$(NoWarn);MVVMTK0034;MVVMTK0035;MVVMTK0045;CS0618;CS8618;CA1416;XC0022;XC0025;XA0141;XA4301;CA1860;SYSLIB1045</NoWarn>
 	</PropertyGroup>
 
 	<!-- Keep default MAUI resources so Android icons/splash generate -->

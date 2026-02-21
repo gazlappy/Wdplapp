@@ -108,7 +108,7 @@ public sealed class WebsiteJsonDataGenerator
 
             // Calculate team stats
             var teamFixtures = fixtures
-                .Where(f => f.Frames.Any() && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
+                .Where(f => f.Frames.Count != 0 && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                 .OrderByDescending(f => f.Date)
                 .ToList();
 
@@ -243,7 +243,7 @@ public sealed class WebsiteJsonDataGenerator
         var teamById = teams.ToDictionary(t => t.Id, t => t);
         var playerById = allPlayers.ToDictionary(p => p.Id, p => p);
 
-        foreach (var fixture in fixtures.Where(f => f.Frames.Any() && f.Frames.Any(fr => fr.Winner != FrameWinner.None)))
+        foreach (var fixture in fixtures.Where(f => f.Frames.Count != 0 && f.Frames.Any(fr => fr.Winner != FrameWinner.None)))
         {
             foreach (var frame in fixture.Frames.Where(f => f.Winner != FrameWinner.None))
             {

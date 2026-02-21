@@ -13,7 +13,7 @@ namespace Wdpl2.Services;
 /// Universal Word document parser supporting both .doc and .docx formats
 /// Automatically converts .doc to .docx for parsing
 /// </summary>
-public static class WordDocumentParser
+public static partial class WordDocumentParser
 {
     public class WordParseResult
     {
@@ -100,7 +100,7 @@ public static class WordDocumentParser
     /// <summary>
     /// Parse modern .docx file using OpenXml
     /// </summary>
-    private static async Task<WordParseResult> ParseDocxAsync(string filePath)
+    private static Task<WordParseResult> ParseDocxAsync(string filePath)
     {
         var result = new WordParseResult
         {
@@ -115,7 +115,7 @@ public static class WordDocumentParser
             if (body == null)
             {
                 result.Errors.Add("Document body not found");
-                return result;
+                return Task.FromResult(result);
             }
 
             // Extract paragraphs
@@ -137,7 +137,7 @@ public static class WordDocumentParser
                 var wordTable = ExtractTable(table);
                 wordTable.Name = $"Table {tableIndex}";
                 
-                if (wordTable.Rows.Any())
+                if (wordTable.Rows.Count != 0)
                 {
                     result.Tables.Add(wordTable);
                     tableIndex++;
@@ -145,12 +145,12 @@ public static class WordDocumentParser
             }
 
             result.Success = true;
-            return result;
+            return Task.FromResult(result);
         }
         catch (Exception ex)
         {
             result.Errors.Add($"DOCX parse error: {ex.Message}");
-            return result;
+            return Task.FromResult(result);
         }
     }
 
@@ -333,7 +333,7 @@ public static class WordDocumentParser
 
             // Clean up extracted text
             var text = sb.ToString();
-            text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+            text = MyRegex().Replace(text, "\n\n");
             
             return text;
         }
@@ -370,7 +370,7 @@ public static class WordDocumentParser
 
                 // Try to detect tables from text
                 var table = DetectTableInText(lines);
-                if (table.Rows.Any())
+                if (table.Rows.Count != 0)
                 {
                     result.Tables.Add(table);
                 }
@@ -495,7 +495,7 @@ public static class WordDocumentParser
         var headerRow = string.Join(" ", table.Rows.First()).ToLower();
         return (headerRow.Contains("team") || headerRow.Contains("position")) &&
                (headerRow.Contains("points") || headerRow.Contains("pts")) &&
-               (headerRow.Contains("played") || headerRow.Contains("p"));
+               (headerRow.Contains("played") || headerRow.Contains('p'));
     }
 
     /// <summary>
@@ -524,4 +524,7 @@ public static class WordDocumentParser
         return headerRow.Contains("player") && 
                (headerRow.Contains("team") || headerRow.Contains("name"));
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\n{3,}")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

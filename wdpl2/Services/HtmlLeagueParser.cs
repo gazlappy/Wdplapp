@@ -11,7 +11,7 @@ namespace Wdpl2.Services;
 /// Specialized parser for WDPL HTML webpages containing league data
 /// Extracts tables, standings, results, and player information
 /// </summary>
-public static class HtmlLeagueParser
+public static partial class HtmlLeagueParser
 {
     /// <summary>
     /// Result of parsing an HTML file
@@ -225,13 +225,13 @@ public static class HtmlLeagueParser
             }
             
             // Set flags based on what was extracted
-            result.HasLeagueTable = result.Teams.Any();
-            result.HasResults = result.Results.Any();
-            result.HasPlayerStats = result.Players.Any();
+            result.HasLeagueTable = result.Teams.Count != 0;
+            result.HasResults = result.Results.Count != 0;
+            result.HasPlayerStats = result.Players.Count != 0;
             result.HasPlayerProfile = result.PlayerProfile != null;
             
             // Validate
-            if (!result.Tables.Any())
+            if (result.Tables.Count == 0)
             {
                 result.Warnings.Add("No tables found in HTML file");
             }
@@ -288,7 +288,7 @@ public static class HtmlLeagueParser
     private static string? ExtractDivision(string heading)
     {
         // Look for division patterns like "Red Division", "Yellow Division"
-        var match = Regex.Match(heading, @"(\w+)\s+Division", RegexOptions.IgnoreCase);
+        var match = MyRegex().Match(heading);
         if (match.Success)
         {
             return match.Groups[1].Value + " Division";
@@ -301,7 +301,7 @@ public static class HtmlLeagueParser
     /// </summary>
     private static void ProcessLeagueTable(HtmlParseResult result)
     {
-        if (!result.Tables.Any()) return;
+        if (result.Tables.Count == 0) return;
         
         var table = result.Tables.First();
         var division = result.DetectedDivision ?? "Unknown Division";
@@ -339,7 +339,7 @@ public static class HtmlLeagueParser
     /// </summary>
     private static void ProcessResults(HtmlParseResult result)
     {
-        if (!result.Tables.Any()) return;
+        if (result.Tables.Count == 0) return;
         
         var table = result.Tables.First();
         
@@ -377,7 +377,7 @@ public static class HtmlLeagueParser
     /// </summary>
     private static void ProcessPlayerRatings(HtmlParseResult result)
     {
-        if (!result.Tables.Any()) return;
+        if (result.Tables.Count == 0) return;
         
         var table = result.Tables.First();
         var division = result.DetectedDivision ?? "Unknown Division";
@@ -573,7 +573,7 @@ public static class HtmlLeagueParser
                     cells.Add(cellContent);
                 }
 
-                if (cells.Any())
+                if (cells.Count != 0)
                 {
                     // First row is usually header
                     if (isFirstRow)
@@ -778,6 +778,9 @@ public static class HtmlLeagueParser
 
         return results;
     }
+
+    [GeneratedRegex(@"(\w+)\s+Division", RegexOptions.IgnoreCase, "en-GB")]
+    private static partial Regex MyRegex();
 }
 
 /// <summary>

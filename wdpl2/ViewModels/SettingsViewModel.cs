@@ -135,10 +135,11 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ClearAllDataAsync()
+    private Task ClearAllDataAsync()
     {
         // This would need confirmation dialog in the view
         SetStatus("Clear all data requested");
+        return Task.CompletedTask;
     }
     
     // Notification Commands (NEW)

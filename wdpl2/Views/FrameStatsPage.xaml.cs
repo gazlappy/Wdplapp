@@ -151,7 +151,7 @@ public partial class FrameStatsPage : ContentPage
             {
                 // Get ALL fixtures from ALL seasons
                 fixtures = DataStore.Data.Fixtures
-                    .Where(f => f.Frames.Any())
+                    .Where(f => f.Frames.Count != 0)
                     .OrderBy(f => f.Date)
                     .ToList();
             }
@@ -159,7 +159,7 @@ public partial class FrameStatsPage : ContentPage
             {
                 var currentSeasonId = SeasonService.CurrentSeasonId;
                 fixtures = DataStore.Data.Fixtures
-                    .Where(f => f.SeasonId == currentSeasonId && f.Frames.Any())
+                    .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
                     .OrderBy(f => f.Date)
                     .ToList();
             }
@@ -182,7 +182,7 @@ public partial class FrameStatsPage : ContentPage
                 }
             }
 
-            if (!playerFrames.Any())
+            if (playerFrames.Count == 0)
             {
                 StatusLabel.Text = "No frame data available";
                 ClearStats();
@@ -192,13 +192,13 @@ public partial class FrameStatsPage : ContentPage
             // First frame performance
             var firstFrames = playerFrames.Where(f => f.frameNum == 1).ToList();
             var firstWins = firstFrames.Count(f => f.won);
-            FirstFrameLabel.Text = firstFrames.Any() ? $"{(double)firstWins / firstFrames.Count * 100:F1}%" : "0.0%";
+            FirstFrameLabel.Text = firstFrames.Count != 0 ? $"{(double)firstWins / firstFrames.Count * 100:F1}%" : "0.0%";
             FirstFrameStatsLabel.Text = $"{firstWins}/{firstFrames.Count}";
 
             // Last frame performance (approximation - frames with high numbers)
             var lastFrames = playerFrames.Where(f => f.frameNum >= 8).ToList();
             var lastWins = lastFrames.Count(f => f.won);
-            LastFrameLabel.Text = lastFrames.Any() ? $"{(double)lastWins / lastFrames.Count * 100:F1}%" : "0.0%";
+            LastFrameLabel.Text = lastFrames.Count != 0 ? $"{(double)lastWins / lastFrames.Count * 100:F1}%" : "0.0%";
             LastFrameStatsLabel.Text = $"{lastWins}/{lastFrames.Count}";
 
             // Calculate comebacks (simplified: won after losing first frame)

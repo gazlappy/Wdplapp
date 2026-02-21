@@ -225,7 +225,7 @@ public partial class DivisionsPage : ContentPage
                         .Select(g => new { SeasonId = g.Key, Count = g.Count() })
                         .ToList();
                     
-                    if (otherSeasons.Any())
+                    if (otherSeasons.Count != 0)
                     {
                         var otherSeasonInfo = string.Join(", ", otherSeasons.Select(s => $"{s.Count} in season {s.SeasonId}"));
                         SetStatus($"No divisions in current season. Found: {otherSeasonInfo}. Check 'Show all seasons' or go to Seasons page to switch.");
@@ -551,7 +551,7 @@ public partial class DivisionsPage : ContentPage
         DivisionFixtureCountStat.Text = fixtures.Count.ToString();
         
         // Count completed fixtures (those with frame results)
-        var completedFixtures = fixtures.Count(f => f.Frames != null && f.Frames.Any());
+        var completedFixtures = fixtures.Count(f => f.Frames != null && f.Frames.Count != 0);
         DivisionCompletedStat.Text = completedFixtures.ToString();
         
         // Populate teams list
@@ -579,7 +579,7 @@ public partial class DivisionsPage : ContentPage
             
             var homeScore = fixture.Frames?.Count(f => f.Winner == FrameWinner.Home) ?? 0;
             var awayScore = fixture.Frames?.Count(f => f.Winner == FrameWinner.Away) ?? 0;
-            var hasResults = fixture.Frames != null && fixture.Frames.Any();
+            var hasResults = fixture.Frames != null && fixture.Frames.Count != 0;
             
             _divisionFixtures.Add(new DivisionFixtureItem
             {
@@ -648,7 +648,7 @@ public partial class DivisionsPage : ContentPage
             sb.AppendLine($"Active Season ID: {DataStore.Data.ActiveSeasonId?.ToString() ?? "NOT SET"}");
             sb.AppendLine($"Current Season ID (page): {_currentSeasonId?.ToString() ?? "NOT SET"}");
             
-            if (DataStore.Data.Seasons != null && DataStore.Data.Seasons.Any())
+            if (DataStore.Data.Seasons != null && DataStore.Data.Seasons.Count != 0)
             {
                 sb.AppendLine($"\nSeason List:");
                 foreach (var season in DataStore.Data.Seasons.OrderByDescending(s => s.IsActive))
@@ -663,7 +663,7 @@ public partial class DivisionsPage : ContentPage
             sb.AppendLine($"\n🏆 DIVISIONS:");
             sb.AppendLine($"Total Divisions: {DataStore.Data.Divisions?.Count ?? 0}");
             
-            if (DataStore.Data.Divisions != null && DataStore.Data.Divisions.Any())
+            if (DataStore.Data.Divisions != null && DataStore.Data.Divisions.Count != 0)
             {
                 sb.AppendLine($"\nDivision List:");
                 foreach (var div in DataStore.Data.Divisions.OrderBy(d => d.Name))

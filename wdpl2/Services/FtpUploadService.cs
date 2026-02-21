@@ -456,7 +456,7 @@ namespace Wdpl2.Services
             errorDetails.AppendLine($"Passive error: {passiveResult.message}");
             errorDetails.AppendLine($"Active error: {activeResult.message}");
             
-            if (discoveredPaths.Any())
+            if (discoveredPaths.Count != 0)
             {
                 errorDetails.AppendLine();
                 errorDetails.AppendLine("?? Available paths found at root:");

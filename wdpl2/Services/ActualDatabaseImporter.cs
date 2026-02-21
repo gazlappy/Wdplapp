@@ -245,7 +245,7 @@ namespace Wdpl2.Services
                         else
                         {
                             // Single table venue - create default "Main" table
-                            if (!venue.Tables.Any())
+                            if (venue.Tables.Count == 0)
                             {
                                 var table = new VenueTable
                                 {

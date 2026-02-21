@@ -51,7 +51,7 @@ public static class FixtureValidator
         }
 
         // Validate frames if any exist
-        if (fixture.Frames.Any())
+        if (fixture.Frames.Count != 0)
         {
             ValidateFrames(fixture, settings, result);
         }
@@ -275,7 +275,7 @@ public static class FixtureValidator
 
         // Check all frames have players assigned
         var framesWithoutPlayers = fixture.Frames.Where(f => !f.HomePlayerId.HasValue || !f.AwayPlayerId.HasValue).ToList();
-        if (framesWithoutPlayers.Any())
+        if (framesWithoutPlayers.Count != 0)
         {
             result.Warnings.Add($"{framesWithoutPlayers.Count} frame(s) missing player assignments");
         }

@@ -11,7 +11,7 @@ namespace Wdpl2.Services;
 /// <summary>
 /// Multi-format historical data importer - handles CSV, Excel, Images, and HTML
 /// </summary>
-public class HistoricalDataImporter
+public partial class HistoricalDataImporter
 {
     public enum ImportFormat
     {
@@ -31,8 +31,8 @@ public class HistoricalDataImporter
     {
         public bool Success { get; set; }
         public int RecordsImported { get; set; }
-        public List<string> Errors { get; set; } = new();
-        public List<string> Warnings { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
+        public List<string> Warnings { get; set; } = [];
         public string Summary { get; set; } = "";
     }
 
@@ -81,24 +81,14 @@ public class HistoricalDataImporter
             var headers = lines[0].Split(',').Select(h => h.Trim().Trim('"')).ToArray();
             var dataType = DetectDataType(headers);
 
-            switch (dataType)
+            result = dataType switch
             {
-                case "LeagueTable":
-                    result = await ImportLeagueTableAsync(lines, seasonId, data);
-                    break;
-                case "Results":
-                    result = await ImportResultsAsync(lines, seasonId, data);
-                    break;
-                case "Players":
-                    result = await ImportPlayersAsync(lines, seasonId, data);
-                    break;
-                case "Fixtures":
-                    result = await ImportFixturesAsync(lines, seasonId, data);
-                    break;
-                default:
-                    result = await ImportGenericDataAsync(lines, seasonId, data);
-                    break;
-            }
+                "LeagueTable" => await ImportLeagueTableAsync(lines, seasonId, data),
+                "Results" => await ImportResultsAsync(lines, seasonId, data),
+                "Players" => await ImportPlayersAsync(lines, seasonId, data),
+                "Fixtures" => await ImportFixturesAsync(lines, seasonId, data),
+                _ => await ImportGenericDataAsync(lines, seasonId, data)
+            };
 
             result.Success = result.Errors.Count == 0;
             return result;
@@ -158,10 +148,10 @@ public class HistoricalDataImporter
     /// <summary>
     /// Import from image (OCR-based extraction)
     /// </summary>
-    public static async Task<ImportResult> ImportFromImageAsync(
+    public static Task<ImportResult> ImportFromImageAsync(
         string filePath,
-        Guid seasonId,
-        LeagueData data)
+        Guid _,
+        LeagueData __)
     {
         var result = new ImportResult();
 
@@ -169,23 +159,23 @@ public class HistoricalDataImporter
         {
             // Note: Full OCR requires external library (Tesseract.NET)
             // For now, we'll provide structure for manual data entry from image
-            
+
             result.Warnings.Add("Image import requires manual verification");
             result.Warnings.Add($"Image: {Path.GetFileName(filePath)}");
             result.Warnings.Add("Please review extracted data and confirm accuracy");
-            
+
             // Placeholder: In production, use Tesseract OCR here
             // var text = await PerformOCR(filePath);
             // result = await ParseExtractedText(text, seasonId, data);
-            
+
             result.Success = false; // Manual review required
             result.Summary = "Image loaded - manual data entry mode";
-            return result;
+            return Task.FromResult(result);
         }
         catch (Exception ex)
         {
             result.Errors.Add($"Image import error: {ex.Message}");
-            return result;
+            return Task.FromResult(result);
         }
     }
 
@@ -235,7 +225,7 @@ public class HistoricalDataImporter
             }
 
             // If no tables found, try to parse text content
-            if (!parsedDoc.Tables.Any() && parsedDoc.TextContent.Any())
+            if (parsedDoc.Tables.Count == 0 && parsedDoc.TextContent.Count > 0)
             {
                 result.Warnings.Add("No tables found - extracted text content");
                 result.Summary = $"Extracted {parsedDoc.TextContent.Count} lines of text";
@@ -273,7 +263,7 @@ public class HistoricalDataImporter
         return "Generic";
     }
 
-    private static async Task<ImportResult> ImportLeagueTableAsync(
+    private static Task<ImportResult> ImportLeagueTableAsync(
         string[] lines,
         Guid seasonId,
         LeagueData data)
@@ -328,10 +318,10 @@ public class HistoricalDataImporter
         }
 
         result.Summary = $"Imported {result.RecordsImported} teams from league table";
-        return result;
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ImportResultsAsync(
+    private static Task<ImportResult> ImportResultsAsync(
         string[] lines,
         Guid seasonId,
         LeagueData data)
@@ -400,10 +390,10 @@ public class HistoricalDataImporter
         }
 
         result.Summary = $"Imported {result.RecordsImported} match results";
-        return result;
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ImportPlayersAsync(
+    private static Task<ImportResult> ImportPlayersAsync(
         string[] lines,
         Guid seasonId,
         LeagueData data)
@@ -454,38 +444,35 @@ public class HistoricalDataImporter
         }
 
         result.Summary = $"Imported {result.RecordsImported} players";
-        return result;
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ImportFixturesAsync(
-        string[] lines,
-        Guid seasonId,
-        LeagueData data)
+    private static Task<ImportResult> ImportFixturesAsync(
+        string[] _,
+        Guid __,
+        LeagueData ___)
     {
         // Similar to ImportResultsAsync but without scores
-        var result = new ImportResult();
-        result.Summary = "Fixture import - use results import for historical data";
-        return result;
+        var result = new ImportResult { Summary = "Fixture import - use results import for historical data" };
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ImportGenericDataAsync(
+    private static Task<ImportResult> ImportGenericDataAsync(
         string[] lines,
-        Guid seasonId,
-        LeagueData data)
+        Guid _,
+        LeagueData __)
     {
-        var result = new ImportResult();
+        var result = new ImportResult { Summary = $"File has {lines.Length} lines - manual review required" };
         result.Warnings.Add("Could not auto-detect data type");
         result.Warnings.Add("Please use specific import template or manual entry");
-        result.Summary = $"File has {lines.Length} lines - manual review required";
-        return result;
+        return Task.FromResult(result);
     }
 
     // HTML Parsing Helpers
     private static List<string> ExtractHTMLTables(string html)
     {
         var tables = new List<string>();
-        var tableRegex = new Regex(@"<table[^>]*>(.*?)</table>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        var matches = tableRegex.Matches(html);
+        var matches = HtmlTableRegex().Matches(html);
 
         foreach (Match match in matches)
         {
@@ -495,33 +482,34 @@ public class HistoricalDataImporter
         return tables;
     }
 
+    [GeneratedRegex(@"<table[^>]*>(.*?)</table>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlTableRegex();
+
     private static bool IsLeagueTable(string tableHtml)
     {
         var lower = tableHtml.ToLower();
         return (lower.Contains("points") || lower.Contains("pts")) &&
-               (lower.Contains("played") || lower.Contains("p")) &&
-               (lower.Contains("won") || lower.Contains("w"));
+               (lower.Contains("played") || lower.Contains('p')) &&
+               (lower.Contains("won") || lower.Contains('w'));
     }
 
     private static bool IsResultsTable(string tableHtml)
     {
         var lower = tableHtml.ToLower();
-        return lower.Contains("score") || lower.Contains("result") || 
+        return lower.Contains("score") || lower.Contains("result") ||
                (lower.Contains("home") && lower.Contains("away"));
     }
 
-    private static ImportResult ParseLeagueTableFromHTML(string tableHtml, Guid seasonId, LeagueData data)
+    private static ImportResult ParseLeagueTableFromHTML(string tableHtml, Guid _, LeagueData __)
     {
         var result = new ImportResult();
         
         // Extract rows
-        var rowRegex = new Regex(@"<tr[^>]*>(.*?)</tr>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-        var rows = rowRegex.Matches(tableHtml);
+        var rows = HtmlRowRegex().Matches(tableHtml);
 
         foreach (Match row in rows.Skip(1)) // Skip header
         {
-            var cellRegex = new Regex(@"<t[dh][^>]*>(.*?)</t[dh]>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-            var cells = cellRegex.Matches(row.Value);
+            var cells = HtmlCellRegex().Matches(row.Value);
 
             if (cells.Count >= 2)
             {
@@ -536,18 +524,26 @@ public class HistoricalDataImporter
         return result;
     }
 
-    private static ImportResult ParseResultsFromHTML(string tableHtml, Guid seasonId, LeagueData data)
+    private static ImportResult ParseResultsFromHTML(string _, Guid __, LeagueData ___)
     {
         // Similar logic to ParseLeagueTableFromHTML
-        var result = new ImportResult();
-        result.Summary = "Results extracted from HTML";
+        var result = new ImportResult { Summary = "Results extracted from HTML" };
         return result;
     }
 
     private static string StripHTML(string html)
     {
-        return Regex.Replace(html, "<.*?>", string.Empty).Trim();
+        return HtmlTagRegex().Replace(html, string.Empty).Trim();
     }
+
+    [GeneratedRegex(@"<tr[^>]*>(.*?)</tr>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlRowRegex();
+
+    [GeneratedRegex(@"<t[dh][^>]*>(.*?)</t[dh]>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlCellRegex();
+
+    [GeneratedRegex(@"<.*?>")]
+    private static partial Regex HtmlTagRegex();
 
     private static Team GetOrCreateTeam(string teamName, Guid seasonId, Guid? divisionId, LeagueData data)
     {
@@ -603,7 +599,7 @@ public class HistoricalDataImporter
         var headerRow = string.Join(" ", table.Rows.First()).ToLower();
         return (headerRow.Contains("team") || headerRow.Contains("position")) &&
                (headerRow.Contains("points") || headerRow.Contains("pts")) &&
-               (headerRow.Contains("played") || headerRow.Contains("p"));
+               (headerRow.Contains("played") || headerRow.Contains('p'));
     }
 
     private static bool IsResultsTableFromData(DocumentParser.TableData table)
@@ -616,7 +612,7 @@ public class HistoricalDataImporter
                headerRow.Contains("fixture");
     }
 
-    private static async Task<ImportResult> ProcessLeagueTableAsync(
+    private static Task<ImportResult> ProcessLeagueTableAsync(
         DocumentParser.TableData table,
         Guid seasonId,
         LeagueData data)
@@ -654,10 +650,10 @@ public class HistoricalDataImporter
             }
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ProcessResultsTableAsync(
+    private static Task<ImportResult> ProcessResultsTableAsync(
         DocumentParser.TableData table,
         Guid seasonId,
         LeagueData data)
@@ -723,10 +719,10 @@ public class HistoricalDataImporter
             }
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
-    private static async Task<ImportResult> ProcessPlayersTableAsync(
+    private static Task<ImportResult> ProcessPlayersTableAsync(
         DocumentParser.TableData table,
         Guid seasonId,
         LeagueData data)
@@ -772,6 +768,6 @@ public class HistoricalDataImporter
             }
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 }

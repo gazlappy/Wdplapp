@@ -4,7 +4,7 @@ using Wdpl2.Models;
 
 namespace Wdpl2.Services
 {
-    public class SqlFileImporter
+    public partial class SqlFileImporter
     {
         public class SqlImportResult
         {
@@ -103,7 +103,7 @@ namespace Wdpl2.Services
                 BuildTeamLookups(result);
                 
                 // If no team names found in SQL, try loading from VBA_Data files
-                if (!result.TeamIdToName.Any())
+                if (result.TeamIdToName.Count == 0)
                 {
                     LoadVbaTeamData(result, Path.GetDirectoryName(sqlFilePath));
                 }
@@ -372,7 +372,7 @@ namespace Wdpl2.Services
             }
 
             var cleaned = string.Join("\n", cleanedLines);
-            cleaned = Regex.Replace(cleaned, @"b'([01])'", m => m.Groups[1].Value);
+            cleaned = MyRegex().Replace(cleaned, m => m.Groups[1].Value);
             
             return cleaned;
         }
@@ -577,7 +577,7 @@ namespace Wdpl2.Services
             bool replaceExisting,
             SqlImportResult result)
         {
-            if (!tableData.ContainsKey("tblleague") || !tableData["tblleague"].Any())
+            if (!tableData.ContainsKey("tblleague") || tableData["tblleague"].Count == 0)
             {
                 result.Warnings.Add("No tblleague data found - season information not imported");
                 return Task.CompletedTask;
@@ -652,7 +652,7 @@ namespace Wdpl2.Services
             result.VbaDivisionIdToGuid.Clear();
             
             // Debug: show columns in tbldivisions
-            if (tableData["tbldivisions"].Any())
+            if (tableData["tbldivisions"].Count != 0)
             {
                 var columns = string.Join(", ", tableData["tbldivisions"].First().Keys);
                 result.Warnings.Add($"tbldivisions columns: {columns}");
@@ -740,7 +740,7 @@ namespace Wdpl2.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (!rawVenueNames.Any())
+            if (rawVenueNames.Count == 0)
             {
                 result.Warnings.Add("No venue data found in tblteams");
                 return Task.CompletedTask;
@@ -844,7 +844,7 @@ namespace Wdpl2.Services
             // After processing all venues, add default table to venues without any tables
             foreach (var venue in venuesByBaseName.Values)
             {
-                if (!venue.Tables.Any())
+                if (venue.Tables.Count == 0)
                 {
                     var defaultTable = new VenueTable
                     {
@@ -888,7 +888,7 @@ namespace Wdpl2.Services
                 result.Warnings.Add($"Found {teamIds.Count} teams in tblteams table");
                 
                 // Debug: show columns in tblteams
-                if (tableData["tblteams"].Any())
+                if (tableData["tblteams"].Count != 0)
                 {
                     var columns = string.Join(", ", tableData["tblteams"].First().Keys);
                     result.Warnings.Add($"tblteams columns: {columns}");
@@ -924,14 +924,14 @@ namespace Wdpl2.Services
                     result.Warnings.Add($"Found {playerTeamCount} additional teams from players");
             }
 
-            if (!teamIds.Any())
+            if (teamIds.Count == 0)
             {
                 result.Warnings.Add("No teams found in SQL data");
                 return Task.CompletedTask;
             }
 
             // Debug: Show TeamIdToDivision mapping
-            if (parsed.TeamIdToDivision.Any())
+            if (parsed.TeamIdToDivision.Count != 0)
             {
                 var divMappings = string.Join(", ", parsed.TeamIdToDivision.Select(kvp => $"Team{kvp.Key}?Div{kvp.Value}"));
                 result.Warnings.Add($"Team-Division mappings from SQL: {divMappings}");
@@ -942,7 +942,7 @@ namespace Wdpl2.Services
             }
             
             // Debug: Show VbaDivisionIdToGuid mapping
-            if (result.VbaDivisionIdToGuid.Any())
+            if (result.VbaDivisionIdToGuid.Count != 0)
             {
                 var vbaDivs = string.Join(", ", result.VbaDivisionIdToGuid.Keys.OrderBy(k => k));
                 result.Warnings.Add($"VBA Division IDs mapped: {vbaDivs}");
@@ -957,7 +957,7 @@ namespace Wdpl2.Services
                           ?? existingData.Divisions.FirstOrDefault(d => d.SeasonId == result.DetectedSeason?.Id)?.Id 
                           ?? Guid.Empty;
             
-            if (defaultDivisionId == Guid.Empty && !result.VbaDivisionIdToGuid.Any())
+            if (defaultDivisionId == Guid.Empty && result.VbaDivisionIdToGuid.Count == 0)
             {
                 result.Errors.Add("No division available for teams");
                 return Task.CompletedTask;
@@ -1044,7 +1044,7 @@ namespace Wdpl2.Services
             }
 
             // Report teams per division
-            if (teamsPerDivision.Any())
+            if (teamsPerDivision.Count != 0)
             {
                 var divisionReport = string.Join(", ", teamsPerDivision.Select(kvp =>
                 {
@@ -1081,7 +1081,7 @@ namespace Wdpl2.Services
             var tableData = parsed.Tables;
             
             // First, try to get players from tblplayers (has actual names)
-            if (tableData.ContainsKey("tblplayers") && tableData["tblplayers"].Any())
+            if (tableData.ContainsKey("tblplayers") && tableData["tblplayers"].Count != 0)
             {
                 foreach (var row in tableData["tblplayers"])
                 {
@@ -1526,14 +1526,14 @@ namespace Wdpl2.Services
                     }
                 }
                 
-                if (playerResultLookup.Any())
+                if (playerResultLookup.Count != 0)
                 {
                     result.Warnings.Add($"Imported {playerResultLookup.Count} pre-calculated VBA ratings from tblplayerresult");
                 }
             }
             
             // If no match headers, try to map by fixture order (fallback)
-            if (!matchNoToFixture.Any() && importedData.Fixtures.Any())
+            if (matchNoToFixture.Count == 0 && importedData.Fixtures.Count != 0)
             {
                 result.Warnings.Add("No tblmatchheader found - mapping results by fixture order (may be inaccurate)");
                 for (int i = 0; i < importedData.Fixtures.Count; i++)
@@ -1569,7 +1569,7 @@ namespace Wdpl2.Services
                     continue;
                 }
 
-                var hadExistingFrames = fixture.Frames.Any();
+                var hadExistingFrames = fixture.Frames.Count != 0;
                 fixture.Frames.Clear();
                 
                 // Get week number for this match
@@ -1961,7 +1961,7 @@ namespace Wdpl2.Services
                             competition.ParticipantIds.Add(p2Guid.Value);
                     }
 
-                    if (round.Matches.Any())
+                    if (round.Matches.Count != 0)
                     {
                         competition.Rounds.Add(round);
                     }
@@ -2119,5 +2119,8 @@ namespace Wdpl2.Services
             data.Divisions.RemoveAll(d => result.ImportedDivisionIds.Contains(d.Id));
             data.Seasons.RemoveAll(s => result.ImportedSeasonIds.Contains(s.Id));
         }
+
+        [GeneratedRegex(@"b'([01])'")]
+        private static partial Regex MyRegex();
     }
 }

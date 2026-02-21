@@ -56,9 +56,9 @@ public partial class SeasonAwardsPage : ContentPage
 
             // Get all players and their stats for this season
             var players = DataStore.Data.Players.Where(p => p.SeasonId == _currentSeasonId).ToList();
-            var fixtures = DataStore.Data.Fixtures.Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any()).ToList();
+            var fixtures = DataStore.Data.Fixtures.Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0).ToList();
 
-            if (!players.Any() || !fixtures.Any())
+            if (players.Count == 0 || fixtures.Count == 0)
             {
                 StatusLabel.Text = "No data available for awards";
                 ClearAwards();

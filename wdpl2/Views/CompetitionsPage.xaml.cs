@@ -231,12 +231,13 @@ public partial class CompetitionsPage : ContentPage
         foreach (var comp in source)
         {
             var isSelected = selected != null && comp.Id == selected.Id;
-            var frame = new Frame
+            var frame = new Border
             {
                 Padding = new Thickness(12, 10),
                 Margin = new Thickness(0, 2),
                 BackgroundColor = isSelected ? Color.FromArgb("#DBEAFE") : Color.FromArgb("#FFFFFF"),
-                BorderColor = isSelected ? Color.FromArgb("#3B82F6") : Colors.Transparent,
+                Stroke = isSelected ? Color.FromArgb("#3B82F6") : Colors.Transparent,
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                 Content = new Grid
                 {
                     ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },

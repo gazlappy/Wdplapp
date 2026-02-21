@@ -20,7 +20,7 @@ namespace Wdpl2.Services;
 /// 
 /// Repeats for each frame. Same player can appear multiple times.
 /// </summary>
-public sealed class ScoreCardRecognitionService
+public sealed partial class ScoreCardRecognitionService
 {
     public sealed class RecognitionResult
     {
@@ -462,7 +462,7 @@ public sealed class ScoreCardRecognitionService
     private (string cleanedLine, int? score) ExtractEmbeddedScore(string line)
     {
         // Pattern: "NAME 0" or "NAME O" at end
-        var endMatch = Regex.Match(line, @"^(.+?)\s+([0OoDQ1lI!|])$");
+        var endMatch = MyRegex().Match(line);
         if (endMatch.Success)
         {
             var scoreChar = endMatch.Groups[2].Value;
@@ -627,4 +627,7 @@ public sealed class ScoreCardRecognitionService
         }
         catch { return ""; }
     }
+
+    [GeneratedRegex(@"^(.+?)\s+([0OoDQ1lI!|])$")]
+    private static partial Regex MyRegex();
 }

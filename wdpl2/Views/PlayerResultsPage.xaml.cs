@@ -64,12 +64,12 @@ public partial class PlayerResultsPage : ContentPage
 
         // Get all fixtures for this season
         var fixtures = data.Fixtures
-            .Where(f => f.SeasonId == currentSeasonId && f.Frames.Any())
+            .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .ToList();
 
-        if (!fixtures.Any())
+        if (fixtures.Count == 0)
         {
             LastUpdatedLabel.Text = "No results available";
             return;
@@ -101,7 +101,7 @@ public partial class PlayerResultsPage : ContentPage
             }
         }
 
-        if (!playerFrames.Any())
+        if (playerFrames.Count == 0)
         {
             LastUpdatedLabel.Text = "No frames found for this player";
             return;
@@ -239,7 +239,7 @@ public partial class PlayerResultsPage : ContentPage
         var playerFrameData = new System.Collections.Generic.Dictionary<Guid, System.Collections.Generic.List<(int weekNo, Guid oppId, bool won, bool eightBall)>>();
         var allPlayerIds = new System.Collections.Generic.HashSet<Guid>();
 
-        foreach (var fixture in allFixtures.Where(f => f.Frames.Any()))
+        foreach (var fixture in allFixtures.Where(f => f.Frames.Count != 0))
         {
             foreach (var frame in fixture.Frames)
             {
@@ -253,14 +253,14 @@ public partial class PlayerResultsPage : ContentPage
             weeklyRatings[(pid, 1)] = settings.RatingStartValue;
 
         var fixturesByWeek = allFixtures
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .GroupBy(f => GetSeasonWeekNumber(f.Date, seasonStartDate))
             .OrderBy(g => g.Key)
             .ToList();
 
-        int maxWeek = fixturesByWeek.Any() ? fixturesByWeek.Max(g => g.Key) : 0;
+        int maxWeek = fixturesByWeek.Count != 0 ? fixturesByWeek.Max(g => g.Key) : 0;
 
         // VBA Algorithm - Process week by week:
         // For each week, calculate ratings using the CURRENT week's opponent ratings

@@ -966,7 +966,7 @@ public partial class SqlImportPage : ContentPage
             }
 
             // Update player preview
-            if (_parsedData.PlayerIdToName.Any())
+            if (_parsedData.PlayerIdToName.Count != 0)
             {
                 var playerFrame = FindElement<Border>("PlayerPreviewFrame");
                 var playerText = FindElement<Label>("PlayerPreviewText");
@@ -1147,9 +1147,9 @@ public partial class SqlImportPage : ContentPage
         var warningsText = FindElement<Label>("WarningsText");
         if (warningsFrame != null && warningsText != null)
         {
-            warningsFrame.IsVisible = result.Warnings.Any() || result.Errors.Any();
+            warningsFrame.IsVisible = result.Warnings.Count != 0 || result.Errors.Count != 0;
             
-            if (result.Warnings.Any() || result.Errors.Any())
+            if (result.Warnings.Count != 0 || result.Errors.Count != 0)
             {
                 var sb = new System.Text.StringBuilder();
                 foreach (var warning in result.Warnings)

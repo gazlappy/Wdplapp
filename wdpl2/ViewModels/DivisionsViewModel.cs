@@ -50,7 +50,7 @@ public partial class DivisionsViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadDivisionsAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -83,14 +83,14 @@ public partial class DivisionsViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
     [RelayCommand]
     private async Task SearchDivisionsAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadDivisionsAsync();
     }
 
@@ -172,11 +172,11 @@ public partial class DivisionsViewModel : BaseViewModel
 
     private void LoadEditor(Division division)
     {
-        _divisionName = division.Name ?? "";
+        DivisionName = division.Name ?? "";
     }
 
     private void ClearEditor()
     {
-        _divisionName = "";
+        DivisionName = "";
     }
 }

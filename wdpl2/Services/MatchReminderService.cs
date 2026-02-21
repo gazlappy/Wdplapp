@@ -147,7 +147,7 @@ public class MatchReminderService
                 .OrderBy(f => f.Date)
                 .ToList();
 
-            if (upcomingFixtures == null || !upcomingFixtures.Any())
+            if (upcomingFixtures == null || upcomingFixtures.Count == 0)
                 return;
 
             foreach (var fixture in upcomingFixtures)
@@ -186,7 +186,7 @@ public class MatchReminderService
                 .Where(p => p.TeamId == teamId)
                 .ToList();
 
-            if (players == null || !players.Any())
+            if (players == null || players.Count == 0)
                 return;
 
             foreach (var player in players)
@@ -316,7 +316,7 @@ public class MatchReminderService
                 .Take(5)
                 .ToList();
 
-            if (upcomingFixtures == null || !upcomingFixtures.Any())
+            if (upcomingFixtures == null || upcomingFixtures.Count == 0)
                 return;
 
             var title = "?? This Week's Fixtures";

@@ -193,7 +193,7 @@ public partial class LeagueTablesPage : ContentPage
         var tById = teams.ToDictionary(t => t.Id, t => t);
 
         var fixtures = data.Fixtures
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .Where(f => f.SeasonId == _currentSeasonId)
             .ToList();
 
@@ -435,12 +435,12 @@ public partial class LeagueTablesPage : ContentPage
         // Get ALL fixtures for the season (not just this division!)
         var allSeasonFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .ToList();
 
-        if (!allSeasonFixtures.Any())
+        if (allSeasonFixtures.Count == 0)
         {
             SetStatus($"{_teamRows.Count} teams | 0 players (no results)");
             return;
@@ -633,7 +633,7 @@ public partial class LeagueTablesPage : ContentPage
         }
 
         // Calculate minimum frames required
-        int maxFramesInSeason = rows.Any() ? rows.Max(r => r.Played) : 0;
+        int maxFramesInSeason = rows.Count != 0 ? rows.Max(r => r.Played) : 0;
         int minFramesRequired = Settings.CalculateMinimumFrames(maxFramesInSeason);
 
         // Filter by minimum frames
@@ -900,7 +900,7 @@ public partial class LeagueTablesPage : ContentPage
 
             // Get fixtures
             var fixtures = DataStore.Data.Fixtures
-                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
+                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
                 .OrderBy(f => f.Date)
                 .ToList();
 

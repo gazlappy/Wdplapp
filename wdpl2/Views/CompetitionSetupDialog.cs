@@ -198,14 +198,15 @@ public class CompetitionSetupDialog : ContentPage
                     CreateFieldRow("Frames per Match:", _framesPerMatchEntry),
                     CreateFieldRow("Home & Away:", _homeAndAwaySwitch),
                     
-                    new Frame
+                    new Border
                     {
                         Padding = 8,
                         BackgroundColor = Color.FromArgb("#FEF3C7"),
-                        BorderColor = Color.FromArgb("#F59E0B"),
+                        Stroke = Color.FromArgb("#F59E0B"),
+                        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                         Content = new Label
                         {
-                            Text = "?? Home & Away: Each pair plays twice (once at each venue)",
+                            Text = "⚠️ Home & Away: Each pair plays twice (once at each venue)",
                             FontSize = 12,
                             TextColor = Color.FromArgb("#92400E")
                         }

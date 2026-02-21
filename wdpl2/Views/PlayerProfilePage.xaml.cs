@@ -49,7 +49,7 @@ public partial class PlayerProfilePage : ContentPage
                 .Where(p => p.GlobalPlayerId == _globalPlayerId || p.Id == _globalPlayerId)
                 .ToList();
 
-            if (!playerInstances.Any())
+            if (playerInstances.Count == 0)
             {
                 StatusLabel.Text = "Player data not found";
                 return;
@@ -85,7 +85,7 @@ public partial class PlayerProfilePage : ContentPage
             foreach (var season in seasons)
             {
                 var playersInSeason = playerInstances.Where(p => p.SeasonId == season.Id).ToList();
-                if (!playersInSeason.Any()) continue;
+                if (playersInSeason.Count == 0) continue;
 
                 var seasonStats = CalculateSeasonStats(playersInSeason, allPlayerIds, season);
                 if (seasonStats != null)
@@ -101,7 +101,7 @@ public partial class PlayerProfilePage : ContentPage
             // Update career summary
             CareerSpanLabel.Text = seasons.Count > 1 
                 ? $"Career: {seasons.Min(s => s.StartDate.Year)}-{seasons.Max(s => s.StartDate.Year)}"
-                : seasons.Any() ? $"Career: {seasons.First().StartDate.Year}" : "Career: -";
+                : seasons.Count != 0 ? $"Career: {seasons.First().StartDate.Year}" : "Career: -";
 
             var currentPlayer = playerInstances.OrderByDescending(p => DataStore.Data.Seasons.FirstOrDefault(s => s.Id == p.SeasonId)?.StartDate).FirstOrDefault();
             var currentTeam = currentPlayer?.TeamId.HasValue == true ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == currentPlayer.TeamId) : null;
@@ -146,7 +146,7 @@ public partial class PlayerProfilePage : ContentPage
     private SeasonHistory? CalculateSeasonStats(List<Player> playersInSeason, HashSet<Guid> allPlayerIds, Season season)
     {
         var fixtures = DataStore.Data.Fixtures
-            .Where(f => f.SeasonId == season.Id && f.Frames.Any())
+            .Where(f => f.SeasonId == season.Id && f.Frames.Count != 0)
             .ToList();
 
         int framesPlayed = 0;
@@ -214,7 +214,7 @@ public partial class PlayerProfilePage : ContentPage
         _headToHead.Clear();
 
         var opponentStats = new System.Collections.Generic.Dictionary<Guid, HeadToHeadRecord>();
-        var fixtures = DataStore.Data.Fixtures.Where(f => f.Frames.Any()).ToList();
+        var fixtures = DataStore.Data.Fixtures.Where(f => f.Frames.Count != 0).ToList();
         var playerIds = new System.Collections.Generic.HashSet<Guid>(playerInstances.Select(p => p.Id));
 
         foreach (var fixture in fixtures)

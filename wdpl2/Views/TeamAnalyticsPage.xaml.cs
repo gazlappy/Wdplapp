@@ -83,11 +83,11 @@ public partial class TeamAnalyticsPage : ContentPage
         try
         {
             var fixtures = DataStore.Data.Fixtures
-                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Any())
+                .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
                 .ToList();
 
-            if (!fixtures.Any())
+            if (fixtures.Count == 0)
             {
                 StatusLabel.Text = "No match data available";
                 return;
@@ -223,7 +223,7 @@ public partial class TeamAnalyticsPage : ContentPage
                 .Where(p => p.TeamId == _selectedTeam.Id && p.SeasonId == _currentSeasonId)
                 .ToList();
 
-            if (activePlayers.Any() && playerStats.Any())
+            if (activePlayers.Count != 0 && playerStats.Count != 0)
             {
                 var ratingSum = activePlayers
                     .Where(p => playerStats.ContainsKey(p.Id))
@@ -234,7 +234,7 @@ public partial class TeamAnalyticsPage : ContentPage
                     })
                     .ToList();
 
-                if (ratingSum.Any())
+                if (ratingSum.Count != 0)
                 {
                     int avgRating = (int)ratingSum.Average();
                     TeamRatingLabel.Text = avgRating.ToString();

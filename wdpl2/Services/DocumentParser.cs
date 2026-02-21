@@ -12,7 +12,7 @@ namespace Wdpl2.Services;
 /// Multi-format document parser for Word, Excel, PowerPoint, PDF, and more
 /// Extracts tables and text from various document formats
 /// </summary>
-public static class DocumentParser
+public static partial class DocumentParser
 {
     public enum DocumentFormat
     {
@@ -250,7 +250,7 @@ public static class DocumentParser
                 var xml = await reader.ReadToEndAsync();
                 
                 var table = ExtractTableFromExcelXml(xml, sheetEntry.Name);
-                if (table.Rows.Any())
+                if (table.Rows.Count != 0)
                     result.Tables.Add(table);
             }
             
@@ -404,7 +404,7 @@ public static class DocumentParser
             
             // Try to detect tables in text (tab or space-separated)
             var table = DetectTableInText(lines);
-            if (table.Rows.Any())
+            if (table.Rows.Count != 0)
                 result.Tables.Add(table);
             
             result.Success = true;
@@ -490,7 +490,7 @@ public static class DocumentParser
         var text = new List<string>();
         
         // Extract text from <w:t> tags
-        var matches = Regex.Matches(xml, @"<w:t[^>]*>(.*?)</w:t>");
+        var matches = MyRegex().Matches(xml);
         foreach (Match match in matches)
         {
             var content = match.Groups[1].Value;
@@ -532,11 +532,11 @@ public static class DocumentParser
                     row.Add(cellContent);
                 }
                 
-                if (row.Any())
+                if (row.Count != 0)
                     table.Rows.Add(row);
             }
             
-            if (table.Rows.Any())
+            if (table.Rows.Count != 0)
                 tables.Add(table);
         }
         
@@ -561,7 +561,7 @@ public static class DocumentParser
                 row.Add(cellMatch.Groups[1].Value);
             }
             
-            if (row.Any())
+            if (row.Count != 0)
                 table.Rows.Add(row);
         }
         
@@ -661,4 +661,7 @@ public static class DocumentParser
         
         return table;
     }
+
+    [GeneratedRegex(@"<w:t[^>]*>(.*?)</w:t>")]
+    private static partial Regex MyRegex();
 }

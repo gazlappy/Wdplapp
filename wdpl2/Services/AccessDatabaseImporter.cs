@@ -324,7 +324,7 @@ namespace Wdpl2.Services
                 // After processing all venues, add default table to venues without any tables
                 foreach (var venue in venuesByBaseName.Values)
                 {
-                    if (!venue.Tables.Any())
+                    if (venue.Tables.Count == 0)
                     {
                         var defaultTable = new VenueTable
                         {

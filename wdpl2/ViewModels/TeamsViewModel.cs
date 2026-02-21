@@ -67,7 +67,7 @@ public partial class TeamsViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadTeamsAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -100,7 +100,7 @@ public partial class TeamsViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
@@ -123,7 +123,7 @@ public partial class TeamsViewModel : BaseViewModel
     [RelayCommand]
     private async Task SearchTeamsAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadTeamsAsync();
     }
 
@@ -198,8 +198,8 @@ public partial class TeamsViewModel : BaseViewModel
     [RelayCommand]
     private void ToggleMultiSelect()
     {
-        _isMultiSelectMode = !_isMultiSelectMode;
-        SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
+        IsMultiSelectMode = !IsMultiSelectMode;
+        SetStatus(IsMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
     [RelayCommand]
@@ -235,15 +235,15 @@ public partial class TeamsViewModel : BaseViewModel
 
     private void LoadEditor(Team team)
     {
-        _teamName = team.Name ?? "";
-        _captain = team.Captain ?? "";
-        _captainPlayerId = team.CaptainPlayerId;
+        TeamName = team.Name ?? "";
+        Captain = team.Captain ?? "";
+        CaptainPlayerId = team.CaptainPlayerId;
     }
 
     private void ClearEditor()
     {
-        _teamName = "";
-        _captain = "";
-        _captainPlayerId = null;
+        TeamName = "";
+        Captain = "";
+        CaptainPlayerId = null;
     }
 }

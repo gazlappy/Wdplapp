@@ -110,8 +110,8 @@ public class ParadoxImportOrchestrator
             ReportProgress("Parsing Paradox files...", 0);
             var parseResult = await Task.Run(() => ParadoxDatabaseParser.ParseFolder(_folderPath));
             
-            if (!parseResult.Success && !parseResult.Divisions.Any() && !parseResult.Teams.Any() && 
-                !parseResult.Players.Any() && !parseResult.Matches.Any())
+            if (!parseResult.Success && parseResult.Divisions.Count == 0 && parseResult.Teams.Count == 0 && 
+                parseResult.Players.Count == 0 && parseResult.Matches.Count == 0)
             {
                 summary.Errors.AddRange(parseResult.Errors);
                 summary.Warnings.AddRange(parseResult.Warnings);
@@ -157,7 +157,7 @@ public class ParadoxImportOrchestrator
             // Save all changes
             DataStore.Save();
 
-            summary.Success = !summary.Errors.Any();
+            summary.Success = summary.Errors.Count == 0;
         }
         catch (Exception ex)
         {

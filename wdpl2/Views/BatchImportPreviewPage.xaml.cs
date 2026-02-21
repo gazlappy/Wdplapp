@@ -407,7 +407,7 @@ public partial class BatchImportPreviewPage : ContentPage
     {
         _seasons.Clear();
         var seasons = DataStore.Data?.Seasons;
-        if (seasons == null || !seasons.Any()) return;
+        if (seasons == null || seasons.Count == 0) return;
 
         foreach (var season in seasons.OrderByDescending(s => s.StartDate))
             _seasons.Add(season);
@@ -512,7 +512,7 @@ public partial class BatchImportPreviewPage : ContentPage
 
         // Show potential duplicates that need review
         var pendingMerges = _playerMergeSuggestions.Where(s => !s.ShouldMerge).ToList();
-        if (pendingMerges.Any())
+        if (pendingMerges.Count != 0)
         {
             hasIssues = true;
             AlertsStack.Children.Add(new Label
@@ -1022,7 +1022,7 @@ public partial class BatchImportPreviewPage : ContentPage
             .OrderBy(d => d)
             .ToList();
 
-        if (!fixtureDates.Any()) return;
+        if (fixtureDates.Count == 0) return;
 
         var earliestDate = fixtureDates.First();
         var latestDate = fixtureDates.Last();
@@ -1125,7 +1125,7 @@ public partial class BatchImportPreviewPage : ContentPage
                    .Replace("&", "AND");
         
         // Remove extra spaces
-        name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ").Trim();
+        name = MyRegex().Replace(name, " ").Trim();
         
         return name;
     }
@@ -1178,7 +1178,7 @@ public partial class BatchImportPreviewPage : ContentPage
                    .Replace("-", " ");
         
         // Remove extra spaces
-        name = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", " ").Trim();
+        name = MyRegex().Replace(name, " ").Trim();
         
         return name;
     }
@@ -1365,7 +1365,7 @@ public partial class BatchImportPreviewPage : ContentPage
         return d[a.Length, b.Length];
     }
 
-    private Player FindExistingPlayerFuzzy(System.Collections.Generic.List<Player> players, Guid seasonId, string firstName, string lastName)
+    private Player? FindExistingPlayerFuzzy(System.Collections.Generic.List<Player> players, Guid seasonId, string firstName, string lastName)
     {
         // Normalize input
         var targetFirst = NormalizePlayerNameForKey(firstName);
@@ -1423,4 +1423,7 @@ public partial class BatchImportPreviewPage : ContentPage
         }
         return string.Join(" ", parts);
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s+")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

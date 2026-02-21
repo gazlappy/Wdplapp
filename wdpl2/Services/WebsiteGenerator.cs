@@ -154,7 +154,7 @@ namespace Wdpl2.Services
             
             LayoutBlock.AutoPositionBlocks(blocks);
             
-            var canvasHeight = blocks.Any()
+            var canvasHeight = blocks.Count != 0
                 ? blocks.Max(b => b.TopPx + (b.HeightPx > 0 ? b.HeightPx : 350)) + 100
                 : 800;
             
@@ -348,7 +348,7 @@ namespace Wdpl2.Services
             int minFramesRequired = 0;
             if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
             {
-                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                var maxFrames = playerStats.Count != 0 ? playerStats.Max(p => p.Played) : 0;
                 minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
             }
             else if (_settings.PlayersMinGames > 0)
@@ -357,7 +357,7 @@ namespace Wdpl2.Services
             }
             else if (_league.Settings.MinFramesPercentage > 0)
             {
-                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                var maxFrames = playerStats.Count != 0 ? playerStats.Max(p => p.Played) : 0;
                 minFramesRequired = (int)Math.Ceiling(maxFrames * (_league.Settings.MinFramesPercentage / 100.0));
             }
             
@@ -369,7 +369,7 @@ namespace Wdpl2.Services
                 .Take(_settings.HomeLeagueLeadersCount)
                 .ToList();
             
-            if (!topPlayers.Any()) return;
+            if (topPlayers.Count == 0) return;
             
             html.AppendLine("            <section class=\"section\">");
             html.AppendLine("                <h3>&#127942; League Leaders</h3>");
@@ -436,7 +436,7 @@ namespace Wdpl2.Services
                 .Take(_settings.HomeUpcomingFixturesCount)
                 .ToList();
             
-            if (!upcomingFixtures.Any()) return;
+            if (upcomingFixtures.Count == 0) return;
             
             html.AppendLine("            <section class=\"section\">");
             html.AppendLine("                <h3>&#128197; Upcoming Fixtures</h3>");
@@ -494,7 +494,7 @@ namespace Wdpl2.Services
             foreach (var division in divisions.OrderBy(d => d.Name))
             {
                 var divisionTeams = teams.Where(t => t.DivisionId == division.Id).ToList();
-                if (!divisionTeams.Any()) continue;
+                if (divisionTeams.Count == 0) continue;
                 
                 html.AppendLine("            <div class=\"section\">");
                 html.AppendLine($"                <h3>{division.Name}</h3>");
@@ -928,7 +928,7 @@ namespace Wdpl2.Services
             if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
             {
                 // Calculate max frames available in the season
-                var maxFrames = playerStats.Any() ? playerStats.Max(p => p.Played) : 0;
+                var maxFrames = playerStats.Count != 0 ? playerStats.Max(p => p.Played) : 0;
                 minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
             }
             else
@@ -952,7 +952,7 @@ namespace Wdpl2.Services
             
             playerStats = playerStats.Take(_settings.PlayersPerPage).ToList();
             
-            if (playerStats.Any())
+            if (playerStats.Count != 0)
             {
                 html.AppendLine("            <div class=\"section\">");
                 html.AppendLine("                <h3>Top Performers</h3>");
@@ -1092,14 +1092,14 @@ namespace Wdpl2.Services
                     html.AppendLine("                </div>");
                 }
                 
-                if (_settings.DivisionsShowMiniStandings && divisionTeams.Any())
+                if (_settings.DivisionsShowMiniStandings && divisionTeams.Count != 0)
                 {
                     var standings = CalculateStandings(divisionTeams, fixtures)
                         .OrderByDescending(s => s.Points)
                         .Take(5)
                         .ToList();
                     
-                    if (standings.Any())
+                    if (standings.Count != 0)
                     {
                         html.AppendLine("                <h4>Current Standings</h4>");
                         html.AppendLine("                <div class=\"mini-standings\">");
@@ -1112,7 +1112,7 @@ namespace Wdpl2.Services
                     }
                 }
                 
-                if (_settings.DivisionsShowTeamList && divisionTeams.Any())
+                if (_settings.DivisionsShowTeamList && divisionTeams.Count != 0)
                 {
                     html.AppendLine("                <h4>Teams</h4>");
                     html.AppendLine("                <ul class=\"team-list\">");
@@ -1285,7 +1285,7 @@ namespace Wdpl2.Services
             foreach (var tier in tiers)
             {
                 var tierSponsors = activeSponsors.Where(s => s.Tier == tier).ToList();
-                if (!tierSponsors.Any()) continue;
+                if (tierSponsors.Count == 0) continue;
                 
                 html.AppendLine("            <div class=\"section\">");
                 html.AppendLine($"                <h3>{tier} Sponsors</h3>");
@@ -1355,7 +1355,7 @@ namespace Wdpl2.Services
                 .Take(_settings.NewsItemsToShow)
                 .ToList();
             
-            if (publishedNews.Any())
+            if (publishedNews.Count != 0)
             {
                 foreach (var news in publishedNews)
                 {
@@ -1873,7 +1873,7 @@ namespace Wdpl2.Services
             // Match history
             var playerHistory = GetPlayerMatchHistory(player.Id, fixtures, teams, allPlayers);
             
-            if (playerHistory.Any())
+            if (playerHistory.Count != 0)
             {
                 html.AppendLine("            <div class=\"section\">");
                 html.AppendLine("                <h3>&#128203; Full Record</h3>");
@@ -1941,7 +1941,7 @@ namespace Wdpl2.Services
             var teamById = teams.ToDictionary(t => t.Id, t => t);
             var playerById = allPlayers.ToDictionary(p => p.Id, p => p);
             
-            foreach (var fixture in fixtures.Where(f => f.Frames.Any() && f.Frames.Any(fr => fr.Winner != FrameWinner.None)))
+            foreach (var fixture in fixtures.Where(f => f.Frames.Count != 0 && f.Frames.Any(fr => fr.Winner != FrameWinner.None)))
             {
                 foreach (var frame in fixture.Frames.Where(f => f.Winner != FrameWinner.None))
                 {
@@ -2036,7 +2036,7 @@ namespace Wdpl2.Services
                 
                 // Get all completed fixtures for this team
                 var teamFixtures = fixtures
-                    .Where(f => f.Frames.Any() && ( f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
+                    .Where(f => f.Frames.Count != 0 && ( f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                     .OrderByDescending(f => f.Date)
                     .ToList();
                 

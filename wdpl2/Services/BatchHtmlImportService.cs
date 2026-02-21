@@ -10,7 +10,7 @@ namespace Wdpl2.Services;
 /// <summary>
 /// Service for batch importing multiple HTML files with preview
 /// </summary>
-public static class BatchHtmlImportService
+public static partial class BatchHtmlImportService
 {
     /// <summary>
     /// Process multiple HTML files and create batch preview
@@ -135,7 +135,7 @@ public static class BatchHtmlImportService
     {
         var standings = HtmlLeagueParser.ParseLeagueStandings(table);
 
-        if (!standings.Any())
+        if (standings.Count == 0)
             return;
 
         // Create division from table caption or default
@@ -298,9 +298,7 @@ public static class BatchHtmlImportService
         var seasonInfo = new SeasonInfo();
 
         // Look for year patterns
-        var yearMatch = System.Text.RegularExpressions.Regex.Match(
-            title, 
-            @"(\d{4})(?:/(\d{2,4})|[-\s](\d{4}))?");
+        var yearMatch = MyRegex().Match(title);
 
         if (yearMatch.Success)
         {
@@ -425,4 +423,7 @@ public static class BatchHtmlImportService
 
         return result;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(\d{4})(?:/(\d{2,4})|[-\s](\d{4}))?")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

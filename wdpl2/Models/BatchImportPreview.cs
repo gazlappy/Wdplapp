@@ -19,7 +19,7 @@ public class BatchImportPreview
     public int TotalRecords => Files.Where(f => f.Include).Sum(f => f.TotalRecords);
     public bool HasErrors => Files.Any(f => f.HasErrors);
     public bool HasWarnings => Files.Any(f => f.HasWarnings);
-    public bool IsEmpty => !Files.Any();
+    public bool IsEmpty => Files.Count == 0;
 }
 
 /// <summary>
@@ -54,8 +54,8 @@ public class ImportFilePreview
     public bool HasFixtures { get; set; }
     
     public int TotalRecords => (Preview?.TotalRecords ?? 0);
-    public bool HasErrors => Errors.Any() || (Preview?.HasErrors ?? false);
-    public bool HasWarnings => Warnings.Any() || (Preview?.HasWarnings ?? false);
+    public bool HasErrors => Errors.Count != 0 || (Preview?.HasErrors ?? false);
+    public bool HasWarnings => Warnings.Count != 0 || (Preview?.HasWarnings ?? false);
     
     public string FileSizeFormatted
     {
@@ -89,7 +89,7 @@ public class ImportFilePreview
             if (HasPlayerStats) items.Add("Player Stats");
             if (HasFixtures) items.Add("Fixtures");
             
-            return items.Any() ? string.Join(", ", items) : "Unknown Content";
+            return items.Count != 0 ? string.Join(", ", items) : "Unknown Content";
         }
     }
 }

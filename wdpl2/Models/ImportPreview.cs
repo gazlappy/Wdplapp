@@ -23,8 +23,8 @@ public class ImportPreview
     public List<string> Errors { get; set; } = new();
     
     public int TotalRecords => Divisions.Count + Teams.Count + Players.Count + Competitions.Count;
-    public bool HasErrors => Errors.Any();
-    public bool HasWarnings => Warnings.Any();
+    public bool HasErrors => Errors.Count != 0;
+    public bool HasWarnings => Warnings.Count != 0;
     public bool IsEmpty => TotalRecords == 0;
 }
 

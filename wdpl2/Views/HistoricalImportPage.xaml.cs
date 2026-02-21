@@ -509,7 +509,7 @@ public partial class HistoricalImportPage : ContentPage
                 foundFiles.AddRange(files);
             }
 
-            if (foundFiles.Any())
+            if (foundFiles.Count != 0)
             {
                 // Show confirmation with file count
                 var proceed = await DisplayAlert(
@@ -611,7 +611,7 @@ public partial class HistoricalImportPage : ContentPage
                 }
             }
 
-            if (foundFiles.Any())
+            if (foundFiles.Count != 0)
             {
                 // Group by source location for display
                 var summary = foundFiles
@@ -858,7 +858,7 @@ public partial class HistoricalImportPage : ContentPage
         {
             var result = await DocumentParser.ParseDocumentAsync(file.FilePath);
             
-            if (result.Success && result.Tables.Any())
+            if (result.Success && result.Tables.Count != 0)
             {
                 // Show preview of found tables
                 var tableInfo = string.Join("\n", result.Tables.Select(t => 
@@ -903,7 +903,7 @@ public partial class HistoricalImportPage : ContentPage
             }
             else
             {
-                var errorMsg = result.Errors.Any() 
+                var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
                     : "No tables found in spreadsheet";
                 await DisplayAlert("Import Failed", errorMsg, "OK");
@@ -928,7 +928,7 @@ public partial class HistoricalImportPage : ContentPage
         {
             var result = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
             
-            if (result.Success && (result.Tables.Any() || result.DetectedCompetitions.Any()))
+            if (result.Success && (result.Tables.Count != 0 || result.DetectedCompetitions.Count != 0))
             {
                 var summary = new System.Text.StringBuilder();
                 summary.AppendLine($"Page: {result.PageTitle}");
@@ -973,7 +973,7 @@ public partial class HistoricalImportPage : ContentPage
                     }
                     
                     // Import detected competitions
-                    if (result.DetectedCompetitions.Any())
+                    if (result.DetectedCompetitions.Count != 0)
                     {
                         await ImportDetectedCompetitions(result.DetectedCompetitions, importStats);
                     }
@@ -1039,12 +1039,12 @@ public partial class HistoricalImportPage : ContentPage
         {
             var result = await DocumentParser.ParseDocumentAsync(file.FilePath);
             
-            if (result.Success && (result.TextContent.Any() || result.Tables.Any()))
+            if (result.Success && (result.TextContent.Count != 0 || result.Tables.Count != 0))
             {
                 var summary = new System.Text.StringBuilder();
                 summary.AppendLine($"File: {result.FileName}");
                 
-                if (result.TextContent.Any())
+                if (result.TextContent.Count != 0)
                 {
                     summary.AppendLine($"Text lines: {result.TextContent.Count}");
                     
@@ -1110,7 +1110,7 @@ public partial class HistoricalImportPage : ContentPage
             else
             {
                 // PDF parsing had errors or no content
-                var errorMsg = result.Errors.Any() 
+                var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
                     : "Could not extract readable text from this PDF.";
                 
@@ -1138,7 +1138,7 @@ public partial class HistoricalImportPage : ContentPage
             var stats = new ImportStats();
             
             // If we have tables, try to import them
-            if (pdfResult.Tables.Any())
+            if (pdfResult.Tables.Count != 0)
             {
                 foreach (var table in pdfResult.Tables)
                 {
@@ -1158,7 +1158,7 @@ public partial class HistoricalImportPage : ContentPage
             }
             
             // Also try to parse text content for structured data
-            if (pdfResult.TextContent.Any())
+            if (pdfResult.TextContent.Count != 0)
             {
                 var textTable = TryParseTextAsTable(pdfResult.TextContent);
                 if (textTable != null && textTable.Rows.Count > 0)
@@ -1691,9 +1691,9 @@ public partial class HistoricalImportPage : ContentPage
                 table.Rows.Add(line.Split('\t').Select(s => s.Trim()).ToList());
             }
             // Try multiple spaces (common in PDFs)
-            else if (System.Text.RegularExpressions.Regex.IsMatch(line, @"\s{2,}"))
+            else if (MyRegex().IsMatch(line))
             {
-                var parts = System.Text.RegularExpressions.Regex.Split(line, @"\s{2,}")
+                var parts = MyRegex().Split(line)
                     .Select(s => s.Trim())
                     .Where(s => !string.IsNullOrEmpty(s))
                     .ToList();
@@ -1703,7 +1703,7 @@ public partial class HistoricalImportPage : ContentPage
             }
         }
         
-        return table.Rows.Any() ? table : null;
+        return table.Rows.Count != 0 ? table : null;
     }
 
     private async Task ProcessSqlFileAsync()
@@ -1716,7 +1716,7 @@ public partial class HistoricalImportPage : ContentPage
         await Navigation.PushAsync(sqlImportPage);
     }
 
-    private async Task ProcessParadoxFolderAsync(string folderPath)
+    private Task ProcessParadoxFolderAsync(string folderPath)
     {
         _currentStep = 3;
         Step3Title.Text = "Processing Paradox Database...";
@@ -1755,7 +1755,7 @@ public partial class HistoricalImportPage : ContentPage
                 };
                 retryButton.Clicked += (s, e) => ResetWizard();
                 ResultsArea.Children.Add(retryButton);
-                return;
+                return Task.CompletedTask;
             }
 
             ProgressPanel.IsVisible = false;
@@ -1888,6 +1888,8 @@ public partial class HistoricalImportPage : ContentPage
             retryButton.Clicked += (s, e) => ResetWizard();
             ResultsArea.Children.Add(retryButton);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -1938,7 +1940,7 @@ public partial class HistoricalImportPage : ContentPage
                 ResultsArea.Children.Add(summaryLabel);
 
                 // Show diagnostic log if there are messages
-                if (summary.Errors.Any())
+                if (summary.Errors.Count != 0)
                 {
                     var logExpander = new Border
                     {
@@ -1996,7 +1998,7 @@ public partial class HistoricalImportPage : ContentPage
                 ResultsArea.Children.Add(errorLabel);
 
                 // Show error log
-                if (summary.Errors.Any())
+                if (summary.Errors.Count != 0)
                 {
                     var logLabel = new Label
                     {
@@ -2145,6 +2147,9 @@ public partial class HistoricalImportPage : ContentPage
             await Navigation.PopAsync();
         }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s{2,}")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }
 
 // Helper class for selected files

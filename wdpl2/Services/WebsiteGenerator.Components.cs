@@ -276,7 +276,7 @@ namespace Wdpl2.Services
         private void AppendSponsorsSection(StringBuilder html)
         {
             var activeSponsors = _settings.Sponsors.Where(s => s.IsActive).Take(6).ToList();
-            if (!activeSponsors.Any()) return;
+            if (activeSponsors.Count == 0) return;
             
             var imageOptimizer = new ImageOptimizationService();
             

@@ -73,10 +73,11 @@ public partial class CompetitionsPage
                 grid.Add(nameLabel, 0, 0);
                 grid.Add(removeBtn, 1, 0);
 
-                return new Frame
+                return new Border
                 {
                     Padding = 2,
                     Margin = new Thickness(0, 1),
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                     Content = grid
                 };
             })
@@ -107,9 +108,10 @@ public partial class CompetitionsPage
                         new Button { Text = "Clear", Command = new Command(OnClearParticipants), BackgroundColor = Color.FromArgb("#EF4444"), TextColor = Colors.White, Padding = new Thickness(8, 4) }
                     }
                 },
-                new Frame
+                new Border
                 {
                     Padding = 4,
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                     Content = _participantsView
                 }
             }
@@ -152,10 +154,11 @@ public partial class CompetitionsPage
         // Show group settings summary
         if (competition.GroupSettings != null)
         {
-            var settingsSummary = new Frame
+            var settingsSummary = new Border
             {
                 Padding = 10,
                 BackgroundColor = Color.FromArgb("#F3F4F6"),
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
                 Content = new VerticalStackLayout
                 {
                     Spacing = 4,

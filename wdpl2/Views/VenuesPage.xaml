@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
     Title="Venues"
-    AutomationProperties.Name="Venues management page">
+    SemanticProperties.Description="Venues management page">
 
     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
         
@@ -21,15 +21,15 @@
                 Margin="0,0,12,0"
                 BackgroundColor="{StaticResource PrimaryColor}"
                 TextColor="White"
-                AutomationProperties.Name="Open menu"
-                AutomationProperties.HelpText="Opens the venue controls and actions menu" />
+                SemanticProperties.Description="Open menu"
+                SemanticProperties.Hint="Opens the venue controls and actions menu" />
             
             <Label 
                 Grid.Column="1"
                 Text="Manage Venues" 
                 Style="{StaticResource PageTitleStyle}"
                 VerticalOptions="Center"
-                AutomationProperties.Name="Manage Venues" />
+                SemanticProperties.Description="Manage Venues" />
         </Grid>
 
         <!-- Flyout Menu Overlay -->
@@ -40,7 +40,7 @@
             IsVisible="False"
             BackgroundColor="#80000000"
             ZIndex="100"
-            AutomationProperties.Name="Menu overlay">
+            SemanticProperties.Description="Menu overlay">
             <Border.GestureRecognizers>
                 <TapGestureRecognizer x:Name="OverlayTap" />
             </Border.GestureRecognizers>
@@ -60,7 +60,7 @@
             StrokeShape="RoundRectangle 0,12,12,0"
             Padding="{StaticResource LargePadding}"
             ZIndex="101"
-            AutomationProperties.Name="Venue controls menu">
+            SemanticProperties.Description="Venue controls menu">
             <ScrollView>
                 <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
                     
@@ -76,7 +76,7 @@
                             HorizontalOptions="EndAndExpand"
                             Style="{StaticResource DangerButtonStyle}"
                             CornerRadius="20"
-                            AutomationProperties.Name="Close menu" />
+                            SemanticProperties.Description="Close menu" />
                     </HorizontalStackLayout>
                     
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
@@ -85,17 +85,17 @@
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Venue Name" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="VenueNameEntry" AutomationProperties.Name="Venue name" />
+                        <Entry x:Name="VenueNameEntry" SemanticProperties.Description="Venue name" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Address" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="AddressEntry" AutomationProperties.Name="Venue address" />
+                        <Entry x:Name="AddressEntry" SemanticProperties.Description="Venue address" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Notes" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="NotesEntry" AutomationProperties.Name="Venue notes" />
+                        <Entry x:Name="NotesEntry" SemanticProperties.Description="Venue notes" />
                     </VerticalStackLayout>
 
                     <!-- Tables Section -->
@@ -107,7 +107,7 @@
                         Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
                         StrokeThickness="1"
                         BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}">
-                        <CollectionView x:Name="TablesList" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Tables list">
+                        <CollectionView x:Name="TablesList" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables list">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Padding="8" ColumnDefinitions="*,Auto">
@@ -123,37 +123,37 @@
                     </Border>
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Entry x:Name="NewTableEntry" Placeholder="New table name..." HorizontalOptions="FillAndExpand" AutomationProperties.Name="New table name" />
-                        <Button x:Name="AddTableBtn" Text="+ Add Table" AutomationProperties.Name="Add table" />
+                        <Entry x:Name="NewTableEntry" Placeholder="New table name..." HorizontalOptions="FillAndExpand" SemanticProperties.Description="New table name" />
+                        <Button x:Name="AddTableBtn" Text="+ Add Table" SemanticProperties.Description="Add table" />
                     </HorizontalStackLayout>
 
-                    <Button x:Name="RemoveTableBtn" Text="Remove Selected Table" Style="{StaticResource DangerButtonStyle}" AutomationProperties.Name="Remove selected table" />
+                    <Button x:Name="RemoveTableBtn" Text="Remove Selected Table" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Remove selected table" />
 
                     <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="AddVenueBtn" Text="+ Add" AutomationProperties.Name="Add new venue" />
-                        <Button x:Name="UpdateVenueBtn" Text="Update" AutomationProperties.Name="Update venue" />
-                        <Button x:Name="DeleteVenueBtn" Text="Delete" Style="{StaticResource DangerButtonStyle}" AutomationProperties.Name="Delete venue" />
+                        <Button x:Name="AddVenueBtn" Text="+ Add" SemanticProperties.Description="Add new venue" />
+                        <Button x:Name="UpdateVenueBtn" Text="Update" SemanticProperties.Description="Update venue" />
+                        <Button x:Name="DeleteVenueBtn" Text="Delete" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Delete venue" />
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="MultiSelectBtn" Text="Multi-Select OFF" BackgroundColor="{StaticResource Gray500}" TextColor="White" AutomationProperties.Name="Toggle multi-select mode" />
-                        <Button x:Name="BulkDeleteBtn" Text="Delete Selected" Style="{StaticResource DangerButtonStyle}" IsVisible="False" AutomationProperties.Name="Delete selected venues" />
+                        <Button x:Name="MultiSelectBtn" Text="Multi-Select OFF" BackgroundColor="{StaticResource Gray500}" TextColor="White" SemanticProperties.Description="Toggle multi-select mode" />
+                        <Button x:Name="BulkDeleteBtn" Text="Delete Selected" Style="{StaticResource DangerButtonStyle}" IsVisible="False" SemanticProperties.Description="Delete selected venues" />
                     </HorizontalStackLayout>
 
                     <Label Text="Data Management" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SaveBtn" Text="Save" AutomationProperties.Name="Save changes" />
-                        <Button x:Name="ReloadBtn" Text="Reload" AutomationProperties.Name="Reload data" />
+                        <Button x:Name="SaveBtn" Text="Save" SemanticProperties.Description="Save changes" />
+                        <Button x:Name="ReloadBtn" Text="Reload" SemanticProperties.Description="Reload data" />
                     </HorizontalStackLayout>
 
-                    <Button x:Name="ExportBtn" Text="Export CSV" AutomationProperties.Name="Export venues to CSV" />
+                    <Button x:Name="ExportBtn" Text="Export CSV" SemanticProperties.Description="Export venues to CSV" />
 
-                    <ctrls:CsvImportBox x:Name="VenuesImport" Title="Import Venues (.csv)" AutomationProperties.Name="Import venues from CSV" />
+                    <ctrls:CsvImportBox x:Name="VenuesImport" Title="Import Venues (.csv)" SemanticProperties.Description="Import venues from CSV" />
 
-                    <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Status message" />
+                    <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" SemanticProperties.Description="Status message" />
                     
                 </VerticalStackLayout>
             </ScrollView>
@@ -167,16 +167,16 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
-            AutomationProperties.Name="Venues list panel">
+            SemanticProperties.Description="Venues list panel">
             <Grid RowDefinitions="Auto,*" RowSpacing="{StaticResource StandardSpacing}">
-                <Entry x:Name="SearchEntry" Placeholder="Search venues..." AutomationProperties.Name="Search venues" />
+                <Entry x:Name="SearchEntry" Placeholder="Search venues..." SemanticProperties.Description="Search venues" />
                 
                 <CollectionView 
                     x:Name="VenuesList" 
                     Grid.Row="1"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always"
-                    AutomationProperties.Name="Venues list">
+                    SemanticProperties.Description="Venues list">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border
@@ -226,7 +226,7 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
-            AutomationProperties.Name="Venue details panel">
+            SemanticProperties.Description="Venue details panel">
             <ScrollView>
                 <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
                     
@@ -238,7 +238,7 @@
                         VerticalOptions="Center"
                         Padding="40"
                         IsVisible="True"
-                        AutomationProperties.Name="No venue selected">
+                        SemanticProperties.Description="No venue selected">
                         <Label 
                             Text="🏢"
                             FontSize="48"
@@ -258,7 +258,7 @@
                     </VerticalStackLayout>
 
                     <!-- Venue Info Panel (initially hidden) -->
-                    <VerticalStackLayout x:Name="VenueInfoPanel" IsVisible="False" Spacing="16" AutomationProperties.Name="Selected venue details">
+                    <VerticalStackLayout x:Name="VenueInfoPanel" IsVisible="False" Spacing="16" SemanticProperties.Description="Selected venue details">
                         
                         <!-- Header with venue name -->
                         <Grid ColumnDefinitions="*,Auto">
@@ -354,7 +354,7 @@
                             StrokeThickness="1"
                             BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
                             HeightRequest="120">
-                            <CollectionView x:Name="VenueTablesDisplay" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Tables at this venue">
+                            <CollectionView x:Name="VenueTablesDisplay" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables at this venue">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -400,7 +400,7 @@
                             StrokeThickness="1"
                             BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
                             HeightRequest="100">
-                            <CollectionView x:Name="VenueTeamsDisplay" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Teams at this venue">
+                            <CollectionView x:Name="VenueTeamsDisplay" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Teams at this venue">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">

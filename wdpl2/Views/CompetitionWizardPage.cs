@@ -27,7 +27,6 @@ public class CompetitionWizardPage : ContentPage
     private string _competitionName = "New Competition";
     private DateTime _startDate = DateTime.Today;
     private int _bestOf = 7;
-    private bool _homeAndAway;
     private int _numberOfGroups = 4;
     private int _topAdvance = 2;
     private int _lowerToPlate = 2;

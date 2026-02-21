@@ -11,7 +11,7 @@ namespace Wdpl2.Services;
 /// Service to extract and preview data from Word documents before importing
 /// Handles season winners, division results, and competition data
 /// </summary>
-public static class ImportPreviewService
+public static partial class ImportPreviewService
 {
     /// <summary>
     /// Extract preview data from Word document
@@ -127,12 +127,10 @@ public static class ImportPreviewService
         LeagueData existingData)
     {
         // Look for division headers: "Premier division", "First division", etc.
-        var divisionPattern = @"(Premier|First|Second|Third|Fourth|Division\s+\d+)\s+division";
-        
         for (int i = 0; i < wordResult.Paragraphs.Count; i++)
         {
             var paragraph = wordResult.Paragraphs[i];
-            var match = Regex.Match(paragraph, divisionPattern, RegexOptions.IgnoreCase);
+            var match = DivisionPatternRegex().Match(paragraph);
             
             if (match.Success)
             {
@@ -210,7 +208,7 @@ public static class ImportPreviewService
     private static void ExtractCompetitions(
         WordDocumentParser.WordParseResult wordResult,
         ImportPreview preview,
-        LeagueData existingData)
+        LeagueData _)
     {
         // Look for competition headers
         var competitionPatterns = new Dictionary<string, CompetitionType>
@@ -307,7 +305,7 @@ public static class ImportPreviewService
     /// <summary>
     /// Validate preview data and detect conflicts
     /// </summary>
-    internal static async Task ValidatePreviewAsync(
+    internal static Task ValidatePreviewAsync(
         ImportPreview preview,
         LeagueData existingData)
     {
@@ -317,7 +315,7 @@ public static class ImportPreviewService
             .Where(g => g.Count() > 1)
             .ToList();
 
-        if (duplicateTeams.Any())
+        if (duplicateTeams.Count > 0)
         {
             preview.Warnings.Add($"Found {duplicateTeams.Count} duplicate team name(s) in document");
         }
@@ -384,12 +382,14 @@ public static class ImportPreviewService
             preview.Warnings.Add($"{newTeams} new team(s) will be created");
         if (newPlayers > 0)
             preview.Warnings.Add($"{newPlayers} new player(s) will be created");
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Apply the preview to the database
     /// </summary>
-    public static async Task<ImportApplyResult> ApplyPreviewAsync(
+    public static Task<ImportApplyResult> ApplyPreviewAsync(
         ImportPreview preview,
         Guid seasonId,
         LeagueData data)
@@ -505,7 +505,7 @@ public static class ImportPreviewService
             result.Errors.Add($"Import failed: {ex.Message}");
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
     // ========== HELPER METHODS ==========
@@ -513,7 +513,7 @@ public static class ImportPreviewService
     private static string ExtractTeamName(string line)
     {
         // Pattern: "Winners: Team Name" or "Winners: Team Name (Venue)"
-        var match = Regex.Match(line, @":\s*([^(]+)");
+        var match = TeamNameAfterColonRegex().Match(line);
         if (match.Success)
         {
             return match.Groups[1].Value.Trim();
@@ -521,34 +521,35 @@ public static class ImportPreviewService
         return "";
     }
 
+    [GeneratedRegex(@":\s*([^(]+)")]
+    private static partial Regex TeamNameAfterColonRegex();
+
     private static string ExtractPlayerName(string line)
     {
-        // Extract player name from various formats
-        // "Winner Richard Forward"
-        // "Alison Brooks (Reprobates)"
-        // "Ian Oliver & Trudie Townsend (Haywain Hustlers)"
-        
-        var match = Regex.Match(line, @"(?:Winner|Champion|Runner\s+up)[:\s]+(.+)", RegexOptions.IgnoreCase);
+        var match = PlayerNameRegex().Match(line);
         if (match.Success)
         {
             return match.Groups[1].Value.Trim();
         }
-        
+
         // Try to extract everything before line end or newline
         return line.Trim();
     }
 
+    [GeneratedRegex(@"(?:Winner|Champion|Runner\s+up)[:\s]+(.+)", RegexOptions.IgnoreCase)]
+    private static partial Regex PlayerNameRegex();
+
     private static List<(string firstName, string lastName)> ParsePlayerName(string fullName)
     {
         var players = new List<(string, string)>();
-        
+
         // Remove team name in parentheses
-        fullName = Regex.Replace(fullName, @"\([^)]+\)", "").Trim();
-        
+        fullName = ParenthesesRegex().Replace(fullName, "").Trim();
+
         // Check for multiple players (doubles): "Name1 & Name2" or "Name1 and Name2"
         if (fullName.Contains('&') || fullName.Contains(" and ", StringComparison.OrdinalIgnoreCase))
         {
-            var names = Regex.Split(fullName, @"\s+&\s+|\s+and\s+", RegexOptions.IgnoreCase);
+            var names = AmpersandOrAndRegex().Split(fullName);
             foreach (var name in names)
             {
                 players.Add(SplitName(name.Trim()));
@@ -577,7 +578,19 @@ public static class ImportPreviewService
 
     private static string ExtractTeamFromParentheses(string text)
     {
-        var match = Regex.Match(text, @"\(([^)]+)\)");
+        var match = ParenthesesCaptureRegex().Match(text);
         return match.Success ? match.Groups[1].Value.Trim() : "";
     }
+
+    [GeneratedRegex(@"\([^)]+\)")]
+    private static partial Regex ParenthesesRegex();
+
+    [GeneratedRegex(@"\(([^)]+)\)")]
+    private static partial Regex ParenthesesCaptureRegex();
+
+    [GeneratedRegex(@"\s+&\s+|\s+and\s+", RegexOptions.IgnoreCase)]
+    private static partial Regex AmpersandOrAndRegex();
+
+    [GeneratedRegex(@"(Premier|First|Second|Third|Fourth|Division\s+\d+)\s+division", RegexOptions.IgnoreCase)]
+    private static partial Regex DivisionPatternRegex();
 }

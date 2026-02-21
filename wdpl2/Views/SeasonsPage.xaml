@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:models="clr-namespace:Wdpl2.Models"
     Title="Seasons"
-    AutomationProperties.Name="Seasons management page">
+    SemanticProperties.Description="Seasons management page">
 
     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
         
@@ -21,15 +21,15 @@
                 Margin="0,0,12,0"
                 BackgroundColor="{StaticResource PrimaryColor}"
                 TextColor="White"
-                AutomationProperties.Name="Open menu"
-                AutomationProperties.HelpText="Opens the season controls menu" />
+                SemanticProperties.Description="Open menu"
+                SemanticProperties.Hint="Opens the season controls menu" />
             
             <Label 
                 Grid.Column="1"
                 Text="Manage Seasons" 
                 Style="{StaticResource PageTitleStyle}"
                 VerticalOptions="Center"
-                AutomationProperties.Name="Manage Seasons" />
+                SemanticProperties.Description="Manage Seasons" />
         </Grid>
 
         <!-- Flyout Menu Overlay -->
@@ -40,7 +40,7 @@
             IsVisible="False"
             BackgroundColor="#80000000"
             ZIndex="100"
-            AutomationProperties.Name="Menu overlay">
+            SemanticProperties.Description="Menu overlay">
             <Border.GestureRecognizers>
                 <TapGestureRecognizer x:Name="OverlayTap" />
             </Border.GestureRecognizers>
@@ -60,7 +60,7 @@
             StrokeShape="RoundRectangle 0,12,12,0"
             Padding="{StaticResource LargePadding}"
             ZIndex="101"
-            AutomationProperties.Name="Season controls menu">
+            SemanticProperties.Description="Season controls menu">
             <ScrollView>
                 <Grid
                     RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
@@ -80,7 +80,7 @@
                             HorizontalOptions="EndAndExpand"
                             Style="{StaticResource DangerButtonStyle}"
                             CornerRadius="20"
-                            AutomationProperties.Name="Close menu" />
+                            SemanticProperties.Description="Close menu" />
                     </HorizontalStackLayout>
                     
                     <BoxView Grid.Row="1" Grid.ColumnSpan="2" HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
@@ -88,27 +88,27 @@
                     <Label Grid.Row="2" Grid.ColumnSpan="2" Text="Season Details" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
 
                     <Label Grid.Row="3" Grid.Column="0" Text="Name:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
-                    <Entry x:Name="NameEntry" Grid.Row="3" Grid.Column="1" Placeholder="e.g. Winter 2025" AutomationProperties.Name="Season name" />
+                    <Entry x:Name="NameEntry" Grid.Row="3" Grid.Column="1" Placeholder="e.g. Winter 2025" SemanticProperties.Description="Season name" />
 
                     <Label Grid.Row="4" Grid.Column="0" Text="Start date:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
-                    <DatePicker x:Name="StartPicker" Grid.Row="4" Grid.Column="1" AutomationProperties.Name="Season start date" />
+                    <DatePicker x:Name="StartPicker" Grid.Row="4" Grid.Column="1" SemanticProperties.Description="Season start date" />
 
                     <Label Grid.Row="5" Grid.Column="0" Text="End date:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
-                    <DatePicker x:Name="EndPicker" Grid.Row="5" Grid.Column="1" AutomationProperties.Name="Season end date" />
+                    <DatePicker x:Name="EndPicker" Grid.Row="5" Grid.Column="1" SemanticProperties.Description="Season end date" />
 
                     <Label Grid.Row="6" Grid.Column="0" Text="Active:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
-                    <Switch x:Name="ActiveSwitch" Grid.Row="6" Grid.Column="1" AutomationProperties.Name="Season is active" />
+                    <Switch x:Name="ActiveSwitch" Grid.Row="6" Grid.Column="1" SemanticProperties.Description="Season is active" />
 
                     <Label Grid.Row="7" Grid.ColumnSpan="2" Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Grid.Row="8" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SaveBtn" Text="Save" Clicked="OnSaveClicked" Style="{StaticResource PrimaryButtonStyle}" AutomationProperties.Name="Save season" />
-                        <Button x:Name="DeleteBtn" Text="Delete" Clicked="OnDeleteClicked" Style="{StaticResource DangerButtonStyle}" AutomationProperties.Name="Delete season" />
+                        <Button x:Name="SaveBtn" Text="Save" Clicked="OnSaveClicked" Style="{StaticResource PrimaryButtonStyle}" SemanticProperties.Description="Save season" />
+                        <Button x:Name="DeleteBtn" Text="Delete" Clicked="OnDeleteClicked" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Delete season" />
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Grid.Row="9" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SetActiveBtn" Text="Set Active" Clicked="OnSetActiveClicked" Style="{StaticResource SuccessButtonStyle}" AutomationProperties.Name="Set as active season" />
-                        <Button x:Name="GenerateBtn" Text="Generate Fixtures" Clicked="OnGenerateClicked" AutomationProperties.Name="Generate fixtures" />
+                        <Button x:Name="SetActiveBtn" Text="Set Active" Clicked="OnSetActiveClicked" Style="{StaticResource SuccessButtonStyle}" SemanticProperties.Description="Set as active season" />
+                        <Button x:Name="GenerateBtn" Text="Generate Fixtures" Clicked="OnGenerateClicked" SemanticProperties.Description="Generate fixtures" />
                     </HorizontalStackLayout>
 
                     <Button x:Name="ImportHistoricalBtn" 
@@ -118,7 +118,7 @@
                             Clicked="OnImportHistoricalClicked"
                             BackgroundColor="{StaticResource WarningColor}"
                             TextColor="White"
-                            AutomationProperties.Name="Import from previous seasons" />
+                            SemanticProperties.Description="Import from previous seasons" />
                     
                     <Button x:Name="FixDataBtn" 
                             Grid.Row="11"
@@ -127,7 +127,7 @@
                             Clicked="OnFixMissingSeasonIdsClicked"
                             BackgroundColor="#FF6B00"
                             TextColor="White"
-                            AutomationProperties.Name="Fix missing season IDs" />
+                            SemanticProperties.Description="Fix missing season IDs" />
 
                     <Button x:Name="FixVbaDateBtn" 
                             Grid.Row="12"
@@ -136,7 +136,7 @@
                             Clicked="OnFixVbaFixtureDatesClicked"
                             BackgroundColor="#2563EB"
                             TextColor="White"
-                            AutomationProperties.Name="Fix fixture dates from VBA data" />
+                            SemanticProperties.Description="Fix fixture dates from VBA data" />
                         
                     <BoxView Grid.Row="13" Grid.ColumnSpan="2" HeightRequest="1" 
                              Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
@@ -151,18 +151,18 @@
                         <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
                             <DatePicker x:Name="ExclusionDatePicker" 
                                        HorizontalOptions="FillAndExpand"
-                                       AutomationProperties.Name="Exclusion date to add" />
+                                       SemanticProperties.Description="Exclusion date to add" />
                             <Button x:Name="AddExclusionBtn" 
                                    Text="+ Add" 
                                    Clicked="OnAddExclusionClicked"
                                    Style="{StaticResource PrimaryButtonStyle}"
-                                   AutomationProperties.Name="Add exclusion date" />
+                                   SemanticProperties.Description="Add exclusion date" />
                         </HorizontalStackLayout>
 
                         <Border 
                             Style="{StaticResource CardBorderStyle}"
                             HeightRequest="120">
-                            <CollectionView x:Name="ExclusionDatesList" SelectionMode="None" VerticalScrollBarVisibility="Always" AutomationProperties.Name="Exclusion dates list">
+                            <CollectionView x:Name="ExclusionDatesList" SelectionMode="None" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Exclusion dates list">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate x:DataType="{x:Type x:String}">
                                         <Border
@@ -183,7 +183,7 @@
                                                        CommandParameter="{Binding}"
                                                        Style="{StaticResource DangerButtonStyle}"
                                                        CornerRadius="4"
-                                                       AutomationProperties.Name="Remove exclusion date" />
+                                                       SemanticProperties.Description="Remove exclusion date" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -197,7 +197,7 @@
                             </CollectionView>
                         </Border>
 
-                        <Label x:Name="StatusLabel" Style="{StaticResource StatusTextStyle}" AutomationProperties.Name="Status message" />
+                        <Label x:Name="StatusLabel" Style="{StaticResource StatusTextStyle}" SemanticProperties.Description="Status message" />
                     </VerticalStackLayout>
                     
                 </Grid>
@@ -213,7 +213,7 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
-            AutomationProperties.Name="Seasons list panel">
+            SemanticProperties.Description="Seasons list panel">
             <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
                 <Label Text="Seasons" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
                 <CollectionView
@@ -222,7 +222,7 @@
                     SelectionMode="Single"
                     SelectionChanged="OnSelectionChanged"
                     VerticalScrollBarVisibility="Always"
-                    AutomationProperties.Name="Seasons list">
+                    SemanticProperties.Description="Seasons list">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:Season">
                             <Border
@@ -258,13 +258,13 @@
                         Text="🔄 Refresh" 
                         Clicked="OnRefreshListClicked"
                         HorizontalOptions="FillAndExpand"
-                        AutomationProperties.Name="Refresh seasons list" />
+                        SemanticProperties.Description="Refresh seasons list" />
                     <Button 
                         Text="+ New Season" 
                         Clicked="OnNewClicked" 
                         Style="{StaticResource PrimaryButtonStyle}"
                         HorizontalOptions="FillAndExpand"
-                        AutomationProperties.Name="Create new season" />
+                        SemanticProperties.Description="Create new season" />
                 </HorizontalStackLayout>
             </Grid>
         </Border>
@@ -278,7 +278,7 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
-            AutomationProperties.Name="Season details panel">
+            SemanticProperties.Description="Season details panel">
             <ScrollView>
                 <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
                     
@@ -290,7 +290,7 @@
                         VerticalOptions="Center"
                         Padding="40"
                         IsVisible="True"
-                        AutomationProperties.Name="No season selected">
+                        SemanticProperties.Description="No season selected">
                         <Label 
                             Text="📅"
                             FontSize="48"
@@ -309,7 +309,7 @@
                     </VerticalStackLayout>
 
                     <!-- Season Info Panel (initially hidden) -->
-                    <VerticalStackLayout x:Name="SeasonInfoPanel" IsVisible="False" Spacing="16" AutomationProperties.Name="Selected season details">
+                    <VerticalStackLayout x:Name="SeasonInfoPanel" IsVisible="False" Spacing="16" SemanticProperties.Description="Selected season details">
                         
                         <!-- Header -->
                         <VerticalStackLayout Spacing="4">
@@ -458,13 +458,13 @@
                                 Clicked="OnBurgerMenuClicked"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 HorizontalOptions="Fill"
-                                AutomationProperties.Name="Edit season details" />
+                                SemanticProperties.Description="Edit season details" />
 
                         <Button Text="Generate Fixtures"
                                 Clicked="OnGenerateClicked"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 HorizontalOptions="Fill"
-                                AutomationProperties.Name="Generate fixtures for season" />
+                                SemanticProperties.Description="Generate fixtures for season" />
 
                     </VerticalStackLayout>
 

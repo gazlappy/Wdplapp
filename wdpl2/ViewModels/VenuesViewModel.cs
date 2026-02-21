@@ -65,7 +65,7 @@ public partial class VenuesViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadVenuesAsync()
     {
-        _isLoading = true;
+        IsLoading = true;
         
         try
         {
@@ -98,14 +98,14 @@ public partial class VenuesViewModel : BaseViewModel
         }
         finally
         {
-            _isLoading = false;
+            IsLoading = false;
         }
     }
 
     [RelayCommand]
     private async Task SearchVenuesAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadVenuesAsync();
     }
 
@@ -216,8 +216,8 @@ public partial class VenuesViewModel : BaseViewModel
     [RelayCommand]
     private void ToggleMultiSelect()
     {
-        _isMultiSelectMode = !_isMultiSelectMode;
-        SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
+        IsMultiSelectMode = !IsMultiSelectMode;
+        SetStatus(IsMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
     [RelayCommand]
@@ -253,9 +253,9 @@ public partial class VenuesViewModel : BaseViewModel
 
     private void LoadEditor(Venue venue)
     {
-        _venueName = venue.Name ?? "";
-        _address = venue.Address ?? "";
-        _notes = venue.Notes ?? "";
+        VenueName = venue.Name ?? "";
+        Address = venue.Address ?? "";
+        Notes = venue.Notes ?? "";
 
         _tables.Clear();
         foreach (var table in venue.Tables)
@@ -264,10 +264,10 @@ public partial class VenuesViewModel : BaseViewModel
 
     private void ClearEditor()
     {
-        _venueName = "";
-        _address = "";
-        _notes = "";
-        _newTableName = "";
+        VenueName = "";
+        Address = "";
+        Notes = "";
+        NewTableName = "";
         _tables.Clear();
     }
 }

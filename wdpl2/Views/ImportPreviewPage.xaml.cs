@@ -108,7 +108,7 @@ public partial class ImportPreviewPage : ContentPage
                            $"Competitions: {_preview.Competitions.Count}";
 
         // Divisions
-        if (_preview.Divisions.Any())
+        if (_preview.Divisions.Count != 0)
         {
             DivisionsBorder.IsVisible = true;
             DivisionsCountLabel.Text = $"({_preview.Divisions.Count})";
@@ -120,7 +120,7 @@ public partial class ImportPreviewPage : ContentPage
         }
 
         // Teams
-        if (_preview.Teams.Any())
+        if (_preview.Teams.Count != 0)
         {
             TeamsBorder.IsVisible = true;
             TeamsCountLabel.Text = $"({_preview.Teams.Count})";
@@ -132,7 +132,7 @@ public partial class ImportPreviewPage : ContentPage
         }
 
         // Players
-        if (_preview.Players.Any())
+        if (_preview.Players.Count != 0)
         {
             PlayersBorder.IsVisible = true;
             PlayersCountLabel.Text = $"({_preview.Players.Count})";
@@ -144,7 +144,7 @@ public partial class ImportPreviewPage : ContentPage
         }
 
         // Competitions
-        if (_preview.Competitions.Any())
+        if (_preview.Competitions.Count != 0)
         {
             CompetitionsBorder.IsVisible = true;
             CompetitionsCountLabel.Text = $"({_preview.Competitions.Count})";

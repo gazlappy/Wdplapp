@@ -132,7 +132,7 @@ public partial class AchievementsPage : ContentPage
             {
                 // Get ALL fixtures from ALL seasons
                 fixtures = DataStore.Data.Fixtures
-                    .Where(f => f.Frames.Any())
+                    .Where(f => f.Frames.Count != 0)
                     .ToList();
                 allPlayers = DataStore.Data.Players.ToList();
             }
@@ -140,7 +140,7 @@ public partial class AchievementsPage : ContentPage
             {
                 var currentSeasonId = SeasonService.CurrentSeasonId;
                 fixtures = DataStore.Data.Fixtures
-                    .Where(f => f.SeasonId == currentSeasonId && f.Frames.Any())
+                    .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
                     .ToList();
                 allPlayers = DataStore.Data.Players
                     .Where(p => p.SeasonId == currentSeasonId)

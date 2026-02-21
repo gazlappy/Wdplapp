@@ -467,7 +467,7 @@ namespace Wdpl2.Views
                 var fixtures = League.Fixtures.Where(f => f.SeasonId == _selected.Id).ToList();
                 var teams = League.Teams.Where(t => t.SeasonId == _selected.Id).ToList();
 
-                if (!fixtures.Any())
+                if (fixtures.Count == 0)
                 {
                     await DisplayAlert("No Fixtures", $"No fixtures found for this season.\n\nDiagnostics:\n{diagnostics}", "OK");
                     return;
@@ -516,14 +516,14 @@ namespace Wdpl2.Views
                     message.AppendLine($"❌ {result.FixturesNotFound} fixture(s) could not be matched");
                 }
 
-                if (result.Errors.Any())
+                if (result.Errors.Count != 0)
                 {
                     message.AppendLine("\nErrors:");
                     foreach (var err in result.Errors.Take(5))
                         message.AppendLine($"• {err}");
                 }
 
-                if (result.Warnings.Any())
+                if (result.Warnings.Count != 0)
                 {
                     message.AppendLine("\nWarnings:");
                     foreach (var warn in result.Warnings.Take(10))

@@ -342,6 +342,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
                         randomize: false
                     );
                     plateComp.Status = CompetitionStatus.InProgress;
+
+                    await _competitionStore.UpdateCompetitionAsync(plateComp);
                 }
             }
 

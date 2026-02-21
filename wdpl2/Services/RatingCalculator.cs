@@ -52,7 +52,7 @@ public static class RatingCalculator
 
         // Order fixtures by date for proper processing
         var orderedFixtures = fixtures
-            .Where(f => f.Frames.Any())
+            .Where(f => f.Frames.Count != 0)
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .ToList();
@@ -86,7 +86,7 @@ public static class RatingCalculator
             .OrderBy(g => g.Key)
             .ToList();
 
-        int maxWeek = fixturesByWeek.Any() ? fixturesByWeek.Max(g => g.Key) : 0;
+        int maxWeek = fixturesByWeek.Count != 0 ? fixturesByWeek.Max(g => g.Key) : 0;
 
         // VBA Algorithm - Process week by week
         for (int wkNo = 1; wkNo <= maxWeek; wkNo++)

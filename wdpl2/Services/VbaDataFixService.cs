@@ -11,7 +11,7 @@ namespace Wdpl2.Services;
 /// Service to fix fixture dates based on VBA database exports.
 /// Uses tblmatchdates and tblmatchheader to correct dates.
 /// </summary>
-public static class VbaDataFixService
+public static partial class VbaDataFixService
 {
     /// <summary>
     /// Parsed match date from VBA tblmatchdates
@@ -98,7 +98,7 @@ public static class VbaDataFixService
             result.Log.Add($"Loaded {_vbaTeamNames.Count} teams from VBA tblteams.txt");
             
             // Log VBA teams for debugging
-            if (_vbaTeamNames.Any())
+            if (_vbaTeamNames.Count != 0)
             {
                 result.Log.Add("VBA Teams: " + string.Join(", ", _vbaTeamNames.Take(5).Select(kvp => $"{kvp.Key}:{kvp.Value}")) + "...");
             }
@@ -125,7 +125,7 @@ public static class VbaDataFixService
             var matchDates = ParseMatchDates(File.ReadAllText(matchDatesPath));
             result.Log.Add($"Parsed {matchDates.Count} match dates from VBA");
             
-            if (!matchDates.Any())
+            if (matchDates.Count == 0)
             {
                 result.Success = false;
                 result.Errors.Add("No match dates parsed from file");
@@ -136,7 +136,7 @@ public static class VbaDataFixService
             var matchHeaders = ParseMatchHeaders(File.ReadAllText(matchHeaderPath));
             result.Log.Add($"Parsed {matchHeaders.Count} match headers from VBA");
             
-            if (!matchHeaders.Any())
+            if (matchHeaders.Count == 0)
             {
                 result.Success = false;
                 result.Errors.Add("No match headers parsed from file");
@@ -311,7 +311,7 @@ public static class VbaDataFixService
             .Replace("&", "AND");
         
         // Remove extra spaces
-        normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\s+", " ").Trim();
+        normalized = MyRegex().Replace(normalized, " ").Trim();
         
         return normalized;
     }
@@ -593,7 +593,7 @@ public static class VbaDataFixService
             }
 
             // Show warnings
-            if (result.Warnings.Any())
+            if (result.Warnings.Count != 0)
             {
                 sb.AppendLine("\nWarnings:");
                 foreach (var w in result.Warnings)
@@ -607,4 +607,7 @@ public static class VbaDataFixService
 
         return sb.ToString();
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s+")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }
