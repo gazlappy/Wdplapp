@@ -482,31 +482,20 @@ public partial class CompetitionsPage
         bool p1Won = match.IsComplete && match.WinnerId == match.Participant1Id;
         bool p2Won = match.IsComplete && match.WinnerId == match.Participant2Id;
 
-        // Max score is the frames-to-win value (e.g. best of 15 → max 8)
-        int ftw = competition.FramesToWin; // 0 = unlimited
-
         // Score labels that get updated in-place (no view rebuild)
         Label? p1ScoreLbl = null;
         Label? p2ScoreLbl = null;
+
+        // Max total frames is BestOf (e.g. best of 15 = 15 frames max).
+        // Combined score can't exceed this. 0 = no limit.
+        int maxFrames = competition.BestOf;
 
         var card = new VerticalStackLayout { Spacing = 0 };
 
         // Player 1 row
         card.Children.Add(CreatePlayerRow(
             p1Name, match.Participant1Score, p1Won, match.IsComplete, canScore,
-            onPlus:  () =>
-            {
-                if (ftw <= 0 || match.Participant1Score < ftw)
-                {
-                    // If opponent already has the winning score, can't increase further
-                    if (ftw > 0 && match.Participant2Score >= ftw) return;
-                    match.Participant1Score++;
-                    // If this player just reached the winning score, cap opponent at ftw-1
-                    if (ftw > 0 && match.Participant1Score >= ftw && match.Participant2Score >= ftw)
-                    { match.Participant2Score = ftw - 1; p2ScoreLbl!.Text = match.Participant2Score.ToString(); }
-                    p1ScoreLbl!.Text = match.Participant1Score.ToString();
-                }
-            },
+            onPlus:  () => { if (maxFrames <= 0 || match.Participant1Score + match.Participant2Score < maxFrames) { match.Participant1Score++; p1ScoreLbl!.Text = match.Participant1Score.ToString(); } },
             onMinus: () => { if (match.Participant1Score > 0) { match.Participant1Score--; p1ScoreLbl!.Text = match.Participant1Score.ToString(); } },
             isTop: true,
             scoreLabelOut: out p1ScoreLbl));
@@ -517,17 +506,7 @@ public partial class CompetitionsPage
         // Player 2 row
         card.Children.Add(CreatePlayerRow(
             p2Name, match.Participant2Score, p2Won, match.IsComplete, canScore,
-            onPlus:  () =>
-            {
-                if (ftw <= 0 || match.Participant2Score < ftw)
-                {
-                    if (ftw > 0 && match.Participant1Score >= ftw) return;
-                    match.Participant2Score++;
-                    if (ftw > 0 && match.Participant2Score >= ftw && match.Participant1Score >= ftw)
-                    { match.Participant1Score = ftw - 1; p1ScoreLbl!.Text = match.Participant1Score.ToString(); }
-                    p2ScoreLbl!.Text = match.Participant2Score.ToString();
-                }
-            },
+            onPlus:  () => { if (maxFrames <= 0 || match.Participant1Score + match.Participant2Score < maxFrames) { match.Participant2Score++; p2ScoreLbl!.Text = match.Participant2Score.ToString(); } },
             onMinus: () => { if (match.Participant2Score > 0) { match.Participant2Score--; p2ScoreLbl!.Text = match.Participant2Score.ToString(); } },
             isTop: false,
             scoreLabelOut: out p2ScoreLbl));
