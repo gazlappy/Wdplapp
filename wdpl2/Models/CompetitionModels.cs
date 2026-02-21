@@ -126,6 +126,12 @@ namespace Wdpl2.Models
         /// <summary>Groups for group stage competitions</summary>
         public List<CompetitionGroup> Groups { get; set; } = new();
 
+        /// <summary>Best-of frame count for matches (e.g. 15 means first to 8 wins). 0 = unlimited.</summary>
+        public int BestOf { get; set; }
+
+        /// <summary>The score needed to win a match. Calculated from BestOf: (BestOf + 1) / 2. Returns 0 if unlimited.</summary>
+        public int FramesToWin => BestOf > 0 ? (BestOf + 1) / 2 : 0;
+
         /// <summary>Linked plate competition ID (for group stage lower-ranked players)</summary>
         public Guid? PlateCompetitionId { get; set; }
 
@@ -461,7 +467,9 @@ namespace Wdpl2.Models
         }
 
         /// <summary>
-        /// Generate a single elimination knockout bracket with random seeding
+        /// Generate a single elimination knockout bracket with random seeding.
+        /// Byes are distributed using standard tournament seeding positions so
+        /// they spread evenly across the bracket instead of clustering at the bottom.
         /// </summary>
         public static List<CompetitionRound> GenerateSingleKnockout(List<Guid> participants, bool randomize = true)
         {
@@ -470,22 +478,31 @@ namespace Wdpl2.Models
 
             var rounds = new List<CompetitionRound>();
             var participantCount = participants.Count;
-            
+
             // Find next power of 2
             int bracketSize = 1;
             while (bracketSize < participantCount)
                 bracketSize *= 2;
 
             // Randomize participants if requested
-            var seededParticipants = randomize 
-                ? new List<Guid?>(participants.OrderBy(_ => Random.Shared.Next()).Cast<Guid?>())
-                : new List<Guid?>(participants.Cast<Guid?>());
-            
-            // Add byes if needed
-            while (seededParticipants.Count < bracketSize)
-                seededParticipants.Add(null);
+            var seeded = randomize 
+                ? participants.OrderBy(_ => Random.Shared.Next()).ToList()
+                : new List<Guid>(participants);
 
-            var currentRound = seededParticipants;
+            // Build the bracket slots using proper seeding order so byes are
+            // distributed evenly. Standard seeding places seed 1 vs last seed,
+            // seed 2 vs second-to-last, etc.  We generate the seed positions
+            // for the bracket size and then map our participants into those slots.
+            var seedOrder = GetBracketSeedOrder(bracketSize);
+
+            var slots = new Guid?[bracketSize];
+            for (int i = 0; i < bracketSize; i++)
+            {
+                int seedIndex = seedOrder[i]; // 0-based seed position
+                slots[i] = seedIndex < seeded.Count ? seeded[seedIndex] : null;
+            }
+
+            var currentRound = slots.ToList();
             int roundNum = 1;
             int totalRounds = (int)Math.Log2(bracketSize);
 
@@ -499,27 +516,43 @@ namespace Wdpl2.Models
                 };
 
                 var nextRound = new List<Guid?>();
+                bool isFirstRound = roundNum == 1;
 
                 for (int i = 0; i < currentRound.Count; i += 2)
                 {
+                    var p1 = currentRound[i];
+                    var p2 = currentRound[i + 1];
+
+                    // In Round 1 only: skip completely empty slots (null vs null)
+                    // where no real participant exists on either side.
+                    // In later rounds null means "winner not yet determined" so we
+                    // must still create the match as a placeholder.
+                    if (isFirstRound && p1 == null && p2 == null)
+                    {
+                        nextRound.Add(null);
+                        continue;
+                    }
+
                     var match = new CompetitionMatch
                     {
-                        Participant1Id = currentRound[i],
-                        Participant2Id = currentRound[i + 1]
+                        Participant1Id = p1,
+                        Participant2Id = p2
                     };
 
-                    // Handle byes
-                    if (match.Participant1Id == null && match.Participant2Id != null)
+                    // Byes only apply in the first round. A null in Round 1 means
+                    // "no opponent" (bye). In later rounds null means "winner not
+                    // yet determined" — the match should wait for scores.
+                    if (isFirstRound && p1 == null)
                     {
-                        match.WinnerId = match.Participant2Id;
+                        match.WinnerId = p2;
                         match.IsComplete = true;
-                        nextRound.Add(match.Participant2Id);
+                        nextRound.Add(p2);
                     }
-                    else if (match.Participant2Id == null && match.Participant1Id != null)
+                    else if (isFirstRound && p2 == null)
                     {
-                        match.WinnerId = match.Participant1Id;
+                        match.WinnerId = p1;
                         match.IsComplete = true;
-                        nextRound.Add(match.Participant1Id);
+                        nextRound.Add(p1);
                     }
                     else
                     {
@@ -535,6 +568,34 @@ namespace Wdpl2.Models
             }
 
             return rounds;
+        }
+
+        /// <summary>
+        /// Generates the standard bracket seed ordering for a given bracket size.
+        /// This ensures seed 1 plays seed N, seed 2 plays seed N-1, etc.,
+        /// and byes (high seed numbers with no real participant) are distributed
+        /// evenly across both halves of the bracket.
+        /// </summary>
+        private static int[] GetBracketSeedOrder(int bracketSize)
+        {
+            // Start with seed positions [0] (just the top seed)
+            var order = new List<int> { 0 };
+
+            // Iteratively build the bracket ordering by interleaving
+            // complementary seeds at each level
+            while (order.Count < bracketSize)
+            {
+                var nextOrder = new List<int>(order.Count * 2);
+                int currentSize = order.Count * 2;
+                foreach (var seed in order)
+                {
+                    nextOrder.Add(seed);
+                    nextOrder.Add(currentSize - 1 - seed);
+                }
+                order = nextOrder;
+            }
+
+            return order.ToArray();
         }
 
         /// <summary>

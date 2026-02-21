@@ -311,7 +311,8 @@ public class CompetitionSetupDialog : ContentPage
             Format = format,
             Status = CompetitionStatus.Draft,
             CreatedDate = DateTime.Now,
-            Notes = $"Frames per match: {framesPerMatch}\nHome & Away: {(_homeAndAwaySwitch.IsToggled ? "Yes" : "No")}"
+            BestOf = framesPerMatch,
+            Notes = $"Best of {framesPerMatch} (first to {(framesPerMatch + 1) / 2})\nHome & Away: {(_homeAndAwaySwitch.IsToggled ? "Yes" : "No")}"
         };
 
         // Add group stage settings if applicable

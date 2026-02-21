@@ -238,6 +238,45 @@ public class LeagueContext : DbContext
     public async Task InitializeDatabaseAsync()
     {
         await Database.EnsureCreatedAsync();
+        await ApplyManualMigrationsAsync();
+    }
+
+    /// <summary>
+    /// Adds columns that were introduced after the initial schema.
+    /// Each statement uses IF NOT EXISTS / safe checks so it's idempotent.
+    /// </summary>
+    private async Task ApplyManualMigrationsAsync()
+    {
+        var conn = Database.GetDbConnection();
+        await conn.OpenAsync();
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            // Check if BestOf column exists on Competitions table
+            cmd.CommandText = "PRAGMA table_info(Competitions)";
+            bool hasBestOf = false;
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    if (reader.GetString(1).Equals("BestOf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasBestOf = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasBestOf)
+            {
+                using var alter = conn.CreateCommand();
+                alter.CommandText = "ALTER TABLE Competitions ADD COLUMN BestOf INTEGER NOT NULL DEFAULT 0";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+        finally
+        {
+            await conn.CloseAsync();
+        }
     }
 
     /// <summary>

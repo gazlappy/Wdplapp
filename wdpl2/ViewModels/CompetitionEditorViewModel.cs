@@ -115,14 +115,15 @@ public partial class CompetitionEditorViewModel : ObservableObject
     private async Task LoadParticipantsAsync()
     {
         Participants.Clear();
-        
+
         var format = _competition.Format;
-        
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+
         if (format == CompetitionFormat.SinglesKnockout || format == CompetitionFormat.RoundRobin ||
             format == CompetitionFormat.Swiss || format == CompetitionFormat.SinglesGroupStage)
         {
             // Singles - use players
-            _cachedPlayers = await _playerStore.GetPlayersAsync(CurrentSeasonId);
+            _cachedPlayers = await _playerStore.GetPlayersAsync(seasonId);
             foreach (var playerId in _competition.ParticipantIds)
             {
                 var player = _cachedPlayers.FirstOrDefault(p => p.Id == playerId);
@@ -139,13 +140,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
         {
             // Doubles - use doubles teams
-            _cachedPlayers = await _playerStore.GetPlayersAsync(CurrentSeasonId);
+            _cachedPlayers = await _playerStore.GetPlayersAsync(seasonId);
             foreach (var team in _competition.DoublesTeams)
             {
                 var p1 = _cachedPlayers.FirstOrDefault(p => p.Id == team.Player1Id);
                 var p2 = _cachedPlayers.FirstOrDefault(p => p.Id == team.Player2Id);
                 var name = $"{p1?.FullName ?? "?"} & {p2?.FullName ?? "?"}";
-                
+
                 Participants.Add(new ParticipantItem
                 {
                     Id = team.Id,
@@ -156,7 +157,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.TeamKnockout)
         {
             // Team knockout - use teams
-            _cachedTeams = await _playerStore.GetTeamsAsync(CurrentSeasonId);
+            _cachedTeams = await _playerStore.GetTeamsAsync(seasonId);
             foreach (var teamId in _competition.ParticipantIds)
             {
                 var team = _cachedTeams.FirstOrDefault(t => t.Id == teamId);
@@ -404,7 +405,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     public async Task<List<Player>> GetAvailablePlayersAsync()
     {
-        var players = await _playerStore.GetPlayersAsync(CurrentSeasonId);
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        var players = await _playerStore.GetPlayersAsync(seasonId);
         return players
             .Where(p => !_competition.ParticipantIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
@@ -419,7 +421,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             usedPlayerIds.Add(team.Player1Id);
             usedPlayerIds.Add(team.Player2Id);
         }
-        var players = await _playerStore.GetPlayersAsync(CurrentSeasonId);
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        var players = await _playerStore.GetPlayersAsync(seasonId);
         return players
             .Where(p => !usedPlayerIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
@@ -428,7 +431,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     public async Task<List<Team>> GetAvailableTeamsAsync()
     {
-        var teams = await _playerStore.GetTeamsAsync(CurrentSeasonId);
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        var teams = await _playerStore.GetTeamsAsync(seasonId);
         return teams
             .Where(t => !_competition.ParticipantIds.Contains(t.Id))
             .OrderBy(t => t.Name)
@@ -439,6 +443,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     private async Task ApplyBracketScoresAsync()
     {
         bool anyUpdates = false;
+        int ftw = _competition.FramesToWin; // 0 = unlimited / not set
 
         foreach (var round in _competition.Rounds)
         {
@@ -446,13 +451,30 @@ public partial class CompetitionEditorViewModel : ObservableObject
             {
                 if (!match.IsComplete && match.Participant1Id.HasValue && match.Participant2Id.HasValue)
                 {
-                    if (match.Participant1Score > match.Participant2Score)
-                        match.WinnerId = match.Participant1Id;
-                    else if (match.Participant2Score > match.Participant1Score)
-                        match.WinnerId = match.Participant2Id;
-                    else
-                        continue;
+                    Guid? winnerId = null;
 
+                    if (ftw > 0)
+                    {
+                        // Best-of mode: only complete when a player reaches the winning score
+                        if (match.Participant1Score >= ftw)
+                            winnerId = match.Participant1Id;
+                        else if (match.Participant2Score >= ftw)
+                            winnerId = match.Participant2Id;
+                        else
+                            continue; // Neither player has reached the winning score yet
+                    }
+                    else
+                    {
+                        // Unlimited mode: whoever is ahead wins (scores must differ)
+                        if (match.Participant1Score > match.Participant2Score)
+                            winnerId = match.Participant1Id;
+                        else if (match.Participant2Score > match.Participant1Score)
+                            winnerId = match.Participant2Id;
+                        else
+                            continue; // Tied — can't determine a winner
+                    }
+
+                    match.WinnerId = winnerId;
                     match.IsComplete = true;
                     anyUpdates = true;
                     AdvanceWinner(round, match);

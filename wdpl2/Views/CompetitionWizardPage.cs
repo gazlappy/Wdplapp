@@ -428,6 +428,7 @@ public class CompetitionWizardPage : ContentPage
             Status = CompetitionStatus.Draft,
             StartDate = _startDate,
             CreatedDate = DateTime.Now,
+            BestOf = _bestOf,
             Notes = $"Best of {_bestOf} (first to {(_bestOf + 1) / 2})"
         };
 

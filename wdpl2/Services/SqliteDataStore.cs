@@ -53,6 +53,7 @@ public class SqliteDataStore : IDataStore
             tracked.Notes = competition.Notes;
             tracked.SeasonId = competition.SeasonId;
             tracked.PlateCompetitionId = competition.PlateCompetitionId;
+            tracked.BestOf = competition.BestOf;
 
             // Create NEW list/object instances so EF Core detects the change
             // (avoids same-reference issues with the change tracker snapshot)
