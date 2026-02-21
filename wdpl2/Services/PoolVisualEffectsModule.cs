@@ -19,15 +19,36 @@ const PoolVFX = {
     chalkParticles: [],
     collisionFlashes: [],
     cushionCompressions: [],
-    
+
     // Pre-rendered felt noise texture (OffscreenCanvas)
     feltNoiseCanvas: null,
     feltNoiseReady: false,
     woodGrainCanvas: null,
     woodGrainReady: false,
-    
+
     // Light temperature setting
     lightTemperature: 'warm', // 'warm', 'cool', 'neutral'
+
+    // Feature toggles (controlled from dev settings)
+    enableFeltNoise: true,
+    enableCushionShadows: true,
+    enablePocketNets: true,
+    enablePocketStitching: true,
+    enableWoodGrain: true,
+    enableTableBevel: true,
+    enableOverheadReflection: true,
+    enableEnvironmentReflection: true,
+    enableDynamicShadows: true,
+    enableBallSettle: true,
+    enableChalkDust: true,
+    enableCollisionFlash: true,
+    enableCushionCompression: true,
+    enableCueInlays: true,
+
+    // Intensity controls
+    cushionShadowAlpha: 0.22,
+    cushionShadowDepth: 18,
+    feltNoiseAlpha: 0.12,
     
     /**
      * Initialize the effects system and pre-render textures
@@ -137,10 +158,10 @@ const PoolVFX = {
      * Draw the pre-rendered felt noise texture onto the table
      */
     drawFeltNoise(ctx, feltInset, feltWidth, feltHeight) {
-        if (!this.feltNoiseReady || !this.feltNoiseCanvas) return;
+        if (!this.enableFeltNoise || !this.feltNoiseReady || !this.feltNoiseCanvas) return;
         
         ctx.save();
-        ctx.globalAlpha = 0.12;
+        ctx.globalAlpha = this.feltNoiseAlpha;
         ctx.drawImage(this.feltNoiseCanvas, feltInset, feltInset, feltWidth, feltHeight);
         ctx.restore();
     },
@@ -149,7 +170,7 @@ const PoolVFX = {
      * Draw pre-rendered wood grain on a rail segment
      */
     drawRailWoodGrain(ctx, x, y, width, height) {
-        if (!this.woodGrainReady || !this.woodGrainCanvas) return;
+        if (!this.enableWoodGrain || !this.woodGrainReady || !this.woodGrainCanvas) return;
         
         ctx.save();
         ctx.globalAlpha = 0.35;
@@ -168,6 +189,7 @@ const PoolVFX = {
     // #5  CHALK DUST PARTICLES
     // ==========================================
     spawnChalkDust(x, y, power) {
+        if (!this.enableChalkDust) return;
         const count = Math.floor(power * 8) + 3;
         for (let i = 0; i < count; i++) {
             this.chalkParticles.push({
@@ -211,6 +233,7 @@ const PoolVFX = {
     // #6  BALL COLLISION FLASH
     // ==========================================
     spawnCollisionFlash(x, y, intensity) {
+        if (!this.enableCollisionFlash) return;
         this.collisionFlashes.push({
             x, y,
             life: 1.0,
@@ -251,6 +274,7 @@ const PoolVFX = {
     // #7  CUSHION COMPRESSION ANIMATION
     // ==========================================
     spawnCushionCompression(x, y, side, intensity) {
+        if (!this.enableCushionCompression) return;
         this.cushionCompressions.push({
             x, y, side,
             life: 1.0,
@@ -298,8 +322,9 @@ const PoolVFX = {
     // #2  CUSHION-CAST SHADOWS ONTO FELT
     // ==========================================
     drawCushionShadows(ctx, width, height, cushionMargin) {
-        const shadowDepth = 18;
-        const alpha = 0.22;
+        if (!this.enableCushionShadows) return;
+        const shadowDepth = this.cushionShadowDepth;
+        const alpha = this.cushionShadowAlpha;
         
         // Top cushion shadow (falls downward)
         const topShadow = ctx.createLinearGradient(0, cushionMargin, 0, cushionMargin + shadowDepth);
@@ -334,7 +359,7 @@ const PoolVFX = {
     // #3  POCKET NETS / BALL CATCHERS
     // ==========================================
     drawPocketNets(ctx, pockets, cushionMargin) {
-        if (!pockets) return;
+        if (!this.enablePocketNets || !pockets) return;
         
         pockets.forEach((p, idx) => {
             const isCorner = idx < 4;
@@ -390,6 +415,7 @@ const PoolVFX = {
     // #10  TABLE EDGE BEVEL / CHAMFER
     // ==========================================
     drawTableBevel(ctx, width, height, cushionMargin) {
+        if (!this.enableTableBevel) return;
         ctx.save();
         
         // Inner bevel highlight (where rail meets cushion)
@@ -441,7 +467,7 @@ const PoolVFX = {
     // #12  POCKET LEATHER STITCHING
     // ==========================================
     drawPocketStitching(ctx, pockets, cushionMargin) {
-        if (!pockets) return;
+        if (!this.enablePocketStitching || !pockets) return;
         
         ctx.save();
         ctx.strokeStyle = 'rgba(120, 80, 40, 0.4)';
@@ -477,7 +503,7 @@ const PoolVFX = {
     // #1  OVERHEAD RECTANGULAR LIGHT REFLECTION
     // ==========================================
     drawOverheadLightReflection(ctx, ball) {
-        if (ball.potted) return;
+        if (!this.enableOverheadReflection || ball.potted) return;
         
         ctx.save();
         ctx.beginPath();
@@ -527,7 +553,7 @@ const PoolVFX = {
     // #11  ENVIRONMENT MAP REFLECTION BAND
     // ==========================================
     drawEnvironmentReflection(ctx, ball) {
-        if (ball.potted) return;
+        if (!this.enableEnvironmentReflection || ball.potted) return;
         
         ctx.save();
         ctx.beginPath();
@@ -560,8 +586,8 @@ const PoolVFX = {
     // #8  DYNAMIC SHADOW (speed-based softness)
     // ==========================================
     drawDynamicBallShadow(ctx, ball) {
-        if (ball.potted) return;
-        
+        if (!this.enableDynamicShadows || ball.potted) return;
+
         const speed = Math.sqrt((ball.vx || 0) ** 2 + (ball.vy || 0) ** 2);
         
         // Shadow gets softer and more offset at higher speeds
@@ -576,7 +602,7 @@ const PoolVFX = {
         
         // #14  BALL SETTLE MICRO-BOUNCE
         let settleOffset = 0;
-        if (speed > 0.01 && speed < 0.8) {
+        if (this.enableBallSettle && speed > 0.01 && speed < 0.8) {
             // Micro-oscillation as ball settles
             const settlePhase = Date.now() * 0.015;
             settleOffset = Math.sin(settlePhase) * speed * 0.5;
@@ -618,6 +644,7 @@ const PoolVFX = {
     // #13  CUE STICK INLAY PATTERNS
     // ==========================================
     drawCueInlays(ctx, cueStartX, cueStartY, cueEndX, cueEndY, aimAngle) {
+        if (!this.enableCueInlays) return;
         const perpX = -Math.sin(aimAngle);
         const perpY = Math.cos(aimAngle);
         const dirX = -Math.cos(aimAngle);
@@ -665,8 +692,8 @@ const PoolVFX = {
     },
     
     drawLightTemperatureOverlay(ctx, feltInset, feltWidth, feltHeight) {
-        const tint = this.getLightTint();
         if (this.lightTemperature === 'neutral') return;
+        const tint = this.getLightTint();
         
         ctx.save();
         ctx.fillStyle = tint.overlay;

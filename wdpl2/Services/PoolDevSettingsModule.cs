@@ -390,7 +390,110 @@ const PoolDevSettings = {
                         <input type='checkbox' id='tableTexture' checked>
                     </div>
                 </div>
-                
+
+                <div class='dev-section'>
+                    <h4>VFX Module</h4>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Table Effects</div>
+                        <div class='dev-control'>
+                            <label>Felt Noise Texture:</label>
+                            <input type='checkbox' id='vfxFeltNoise' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Felt Noise Intensity:</label>
+                            <input type='range' id='vfxFeltNoiseAlpha' min='0.02' max='0.30' value='0.12' step='0.02'>
+                            <span id='vfxFeltNoiseAlphaValue'>0.12</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Cushion Shadows:</label>
+                            <input type='checkbox' id='vfxCushionShadows' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Shadow Depth:</label>
+                            <input type='range' id='vfxCushionShadowDepth' min='5' max='35' value='18' step='1'>
+                            <span id='vfxCushionShadowDepthValue'>18</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Shadow Alpha:</label>
+                            <input type='range' id='vfxCushionShadowAlpha' min='0.05' max='0.50' value='0.22' step='0.02'>
+                            <span id='vfxCushionShadowAlphaValue'>0.22</span>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Wood Grain Rails:</label>
+                            <input type='checkbox' id='vfxWoodGrain' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Table Edge Bevel:</label>
+                            <input type='checkbox' id='vfxTableBevel' checked>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Pocket Effects</div>
+                        <div class='dev-control'>
+                            <label>Pocket Nets:</label>
+                            <input type='checkbox' id='vfxPocketNets' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Pocket Stitching:</label>
+                            <input type='checkbox' id='vfxPocketStitching' checked>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Ball Effects</div>
+                        <div class='dev-control'>
+                            <label>Dynamic Shadows:</label>
+                            <input type='checkbox' id='vfxDynamicShadows' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Overhead Light Refl:</label>
+                            <input type='checkbox' id='vfxOverheadReflection' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Environment Refl:</label>
+                            <input type='checkbox' id='vfxEnvironmentReflection' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Settle Micro-bounce:</label>
+                            <input type='checkbox' id='vfxBallSettle' checked>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Particle Effects</div>
+                        <div class='dev-control'>
+                            <label>Chalk Dust:</label>
+                            <input type='checkbox' id='vfxChalkDust' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Collision Flashes:</label>
+                            <input type='checkbox' id='vfxCollisionFlash' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Cushion Compression:</label>
+                            <input type='checkbox' id='vfxCushionCompression' checked>
+                        </div>
+                    </div>
+                    <div class='dev-subsection'>
+                        <div class='dev-subsection-title'>Cue & Lighting</div>
+                        <div class='dev-control'>
+                            <label>Cue Stick Inlays:</label>
+                            <input type='checkbox' id='vfxCueInlays' checked>
+                        </div>
+                        <div class='dev-control'>
+                            <label>Light Temperature:</label>
+                            <select id='vfxLightTemperature' style='flex:1;padding:4px;background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:4px;'>
+                                <option value='warm'>Warm (Tungsten)</option>
+                                <option value='neutral'>Neutral (White)</option>
+                                <option value='cool'>Cool (Fluorescent)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='vfxAllOn' class='dev-btn'>All VFX On</button>
+                        <button id='vfxAllOff' class='dev-btn'>All VFX Off</button>
+                        <button id='vfxDefaults' class='dev-btn'>VFX Defaults</button>
+                    </div>
+                </div>
+
                 <div class='dev-section'>
                     <h4>Advanced Physics</h4>
                     <div class='dev-control'>
@@ -1017,6 +1120,83 @@ const PoolDevSettings = {
         this.addRangeListener('airResistance', (val) => {
             self.game.airResistance = parseFloat(val);
         });
+
+        // --- VFX Module controls ---
+        const vfxCheckboxMap = {
+            vfxFeltNoise: 'enableFeltNoise',
+            vfxCushionShadows: 'enableCushionShadows',
+            vfxPocketNets: 'enablePocketNets',
+            vfxPocketStitching: 'enablePocketStitching',
+            vfxWoodGrain: 'enableWoodGrain',
+            vfxTableBevel: 'enableTableBevel',
+            vfxOverheadReflection: 'enableOverheadReflection',
+            vfxEnvironmentReflection: 'enableEnvironmentReflection',
+            vfxDynamicShadows: 'enableDynamicShadows',
+            vfxBallSettle: 'enableBallSettle',
+            vfxChalkDust: 'enableChalkDust',
+            vfxCollisionFlash: 'enableCollisionFlash',
+            vfxCushionCompression: 'enableCushionCompression',
+            vfxCueInlays: 'enableCueInlays'
+        };
+
+        Object.keys(vfxCheckboxMap).forEach(inputId => {
+            self.addCheckboxListener(inputId, (checked) => {
+                if (typeof PoolVFX !== 'undefined') {
+                    PoolVFX[vfxCheckboxMap[inputId]] = checked;
+                    console.log('[VFX]', vfxCheckboxMap[inputId], '=', checked);
+                }
+            });
+        });
+
+        this.addRangeListener('vfxFeltNoiseAlpha', (val) => {
+            if (typeof PoolVFX !== 'undefined') PoolVFX.feltNoiseAlpha = parseFloat(val);
+        });
+
+        this.addRangeListener('vfxCushionShadowDepth', (val) => {
+            if (typeof PoolVFX !== 'undefined') PoolVFX.cushionShadowDepth = parseFloat(val);
+        });
+
+        this.addRangeListener('vfxCushionShadowAlpha', (val) => {
+            if (typeof PoolVFX !== 'undefined') PoolVFX.cushionShadowAlpha = parseFloat(val);
+        });
+
+        const vfxLightTempSelect = document.getElementById('vfxLightTemperature');
+        if (vfxLightTempSelect) {
+            vfxLightTempSelect.addEventListener('change', (e) => {
+                if (typeof PoolVFX !== 'undefined') {
+                    PoolVFX.lightTemperature = e.target.value;
+                    console.log('[VFX] lightTemperature =', e.target.value);
+                }
+            });
+        }
+
+        // VFX bulk buttons
+        document.getElementById('vfxAllOn').addEventListener('click', () => {
+            Object.keys(vfxCheckboxMap).forEach(inputId => {
+                const cb = document.getElementById(inputId);
+                if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+            });
+        });
+        document.getElementById('vfxAllOff').addEventListener('click', () => {
+            Object.keys(vfxCheckboxMap).forEach(inputId => {
+                const cb = document.getElementById(inputId);
+                if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+            });
+        });
+        document.getElementById('vfxDefaults').addEventListener('click', () => {
+            Object.keys(vfxCheckboxMap).forEach(inputId => {
+                const cb = document.getElementById(inputId);
+                if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+            });
+            const feltAlpha = document.getElementById('vfxFeltNoiseAlpha');
+            if (feltAlpha) { feltAlpha.value = 0.12; feltAlpha.dispatchEvent(new Event('input')); }
+            const shadowDepth = document.getElementById('vfxCushionShadowDepth');
+            if (shadowDepth) { shadowDepth.value = 18; shadowDepth.dispatchEvent(new Event('input')); }
+            const shadowAlpha = document.getElementById('vfxCushionShadowAlpha');
+            if (shadowAlpha) { shadowAlpha.value = 0.22; shadowAlpha.dispatchEvent(new Event('input')); }
+            const lightTemp = document.getElementById('vfxLightTemperature');
+            if (lightTemp) { lightTemp.value = 'warm'; lightTemp.dispatchEvent(new Event('change')); }
+        });
         
         this.addRangeListener('angularDamping', (val) => {
             self.game.angularDamping = parseFloat(val);
@@ -1239,7 +1419,27 @@ const PoolDevSettings = {
                 showFps: this.game.showFps || false,
                 ballShadows: this.game.ballShadows !== false,
                 tableTexture: this.game.tableTexture !== false
-            }
+            },
+            vfx: typeof PoolVFX !== 'undefined' ? {
+                enableFeltNoise: PoolVFX.enableFeltNoise,
+                enableCushionShadows: PoolVFX.enableCushionShadows,
+                enablePocketNets: PoolVFX.enablePocketNets,
+                enablePocketStitching: PoolVFX.enablePocketStitching,
+                enableWoodGrain: PoolVFX.enableWoodGrain,
+                enableTableBevel: PoolVFX.enableTableBevel,
+                enableOverheadReflection: PoolVFX.enableOverheadReflection,
+                enableEnvironmentReflection: PoolVFX.enableEnvironmentReflection,
+                enableDynamicShadows: PoolVFX.enableDynamicShadows,
+                enableBallSettle: PoolVFX.enableBallSettle,
+                enableChalkDust: PoolVFX.enableChalkDust,
+                enableCollisionFlash: PoolVFX.enableCollisionFlash,
+                enableCushionCompression: PoolVFX.enableCushionCompression,
+                enableCueInlays: PoolVFX.enableCueInlays,
+                feltNoiseAlpha: PoolVFX.feltNoiseAlpha,
+                cushionShadowAlpha: PoolVFX.cushionShadowAlpha,
+                cushionShadowDepth: PoolVFX.cushionShadowDepth,
+                lightTemperature: PoolVFX.lightTemperature
+            } : {}
         };
         
         const json = JSON.stringify(settings, null, 2);
@@ -1313,7 +1513,13 @@ const PoolDevSettings = {
             showBallNumbers: true, ballShadows: true, tableTexture: true, showSpinArrows: true,
             showTrajectory: false, showVelocities: false, showFps: false, soundEffects: false,
             autoAimAssist: false, showShotPreview: true, showJawCollisionZones: false,
-            ballInHandTouchFoul: true
+            ballInHandTouchFoul: true,
+            // VFX toggles
+            vfxFeltNoise: true, vfxCushionShadows: true, vfxPocketNets: true,
+            vfxPocketStitching: true, vfxWoodGrain: true, vfxTableBevel: true,
+            vfxOverheadReflection: true, vfxEnvironmentReflection: true,
+            vfxDynamicShadows: true, vfxBallSettle: true, vfxChalkDust: true,
+            vfxCollisionFlash: true, vfxCushionCompression: true, vfxCueInlays: true
         };
         
         Object.keys(checkboxDefaults).forEach(key => {
@@ -1323,7 +1529,28 @@ const PoolDevSettings = {
                 checkbox.dispatchEvent(new Event('change'));
             }
         });
-        
+
+        // Reset VFX range controls
+        const vfxRangeDefaults = {
+            vfxFeltNoiseAlpha: 0.12,
+            vfxCushionShadowDepth: 18,
+            vfxCushionShadowAlpha: 0.22
+        };
+        Object.keys(vfxRangeDefaults).forEach(key => {
+            const input = document.getElementById(key);
+            if (input) {
+                input.value = vfxRangeDefaults[key];
+                input.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // Reset VFX light temperature
+        const lightTemp = document.getElementById('vfxLightTemperature');
+        if (lightTemp) {
+            lightTemp.value = 'warm';
+            lightTemp.dispatchEvent(new Event('change'));
+        }
+
         console.log('Reset to defaults');
     },
     
@@ -1372,7 +1599,27 @@ const PoolDevSettings = {
             spinDecayRate: this.game.spinDecayRate || 0.98,
             
             // Audio
-            volume: (this.game.volume || 0.5) * 100
+            volume: (this.game.volume || 0.5) * 100,
+
+            // VFX settings
+            vfxFeltNoise: typeof PoolVFX !== 'undefined' ? PoolVFX.enableFeltNoise : true,
+            vfxCushionShadows: typeof PoolVFX !== 'undefined' ? PoolVFX.enableCushionShadows : true,
+            vfxPocketNets: typeof PoolVFX !== 'undefined' ? PoolVFX.enablePocketNets : true,
+            vfxPocketStitching: typeof PoolVFX !== 'undefined' ? PoolVFX.enablePocketStitching : true,
+            vfxWoodGrain: typeof PoolVFX !== 'undefined' ? PoolVFX.enableWoodGrain : true,
+            vfxTableBevel: typeof PoolVFX !== 'undefined' ? PoolVFX.enableTableBevel : true,
+            vfxOverheadReflection: typeof PoolVFX !== 'undefined' ? PoolVFX.enableOverheadReflection : true,
+            vfxEnvironmentReflection: typeof PoolVFX !== 'undefined' ? PoolVFX.enableEnvironmentReflection : true,
+            vfxDynamicShadows: typeof PoolVFX !== 'undefined' ? PoolVFX.enableDynamicShadows : true,
+            vfxBallSettle: typeof PoolVFX !== 'undefined' ? PoolVFX.enableBallSettle : true,
+            vfxChalkDust: typeof PoolVFX !== 'undefined' ? PoolVFX.enableChalkDust : true,
+            vfxCollisionFlash: typeof PoolVFX !== 'undefined' ? PoolVFX.enableCollisionFlash : true,
+            vfxCushionCompression: typeof PoolVFX !== 'undefined' ? PoolVFX.enableCushionCompression : true,
+            vfxCueInlays: typeof PoolVFX !== 'undefined' ? PoolVFX.enableCueInlays : true,
+            vfxFeltNoiseAlpha: typeof PoolVFX !== 'undefined' ? PoolVFX.feltNoiseAlpha : 0.12,
+            vfxCushionShadowDepth: typeof PoolVFX !== 'undefined' ? PoolVFX.cushionShadowDepth : 18,
+            vfxCushionShadowAlpha: typeof PoolVFX !== 'undefined' ? PoolVFX.cushionShadowAlpha : 0.22,
+            vfxLightTemperature: typeof PoolVFX !== 'undefined' ? PoolVFX.lightTemperature : 'warm'
         };
         
         const jsonStr = JSON.stringify(settings);
