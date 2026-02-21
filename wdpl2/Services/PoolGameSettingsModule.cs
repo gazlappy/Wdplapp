@@ -17,6 +17,7 @@ public static class PoolGameSettingsModule
 const PoolGameSettings = {
     isVisible: false,
     game: null,
+    _devOverride: false,
     
     
     // Default settings
@@ -779,6 +780,9 @@ const PoolGameSettings = {
     },
     
     toggle() {
+        // Block opening if dev override is active
+        if (this._devOverride && !this.isVisible) return;
+
         this.isVisible = !this.isVisible;
         const panel = document.getElementById('gameSettingsPanel');
         if (this.isVisible) {
@@ -847,6 +851,12 @@ const PoolGameSettings = {
     
     applySettings() {
         if (!this.game) return;
+
+        // If dev settings override is active, skip applying player settings
+        if (this._devOverride) {
+            this.saveSettings();
+            return;
+        }
         
         // Apply player names
         if (this.game.players) {

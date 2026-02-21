@@ -343,6 +343,11 @@ const PoolDevSettings = {
                         <input type='checkbox' id='ballInHandTouchFoul' checked>
                     </div>
                     <div class='dev-hint'>When enabled, touching a ball while placing the cue ball is a foul</div>
+                    <div class='dev-control' style='margin-top:10px;padding:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;'>
+                        <label style='color:#fca5a5;'>Disable Game Settings:</label>
+                        <input type='checkbox' id='devOverrideGameSettings'>
+                    </div>
+                    <div class='dev-hint' style='color:#fca5a5;'>When enabled, the player Settings panel is locked and dev settings take priority</div>
                 </div>
                 
                 
@@ -1090,6 +1095,26 @@ const PoolDevSettings = {
             self.game.ballInHandTouchFoul = checked;
             console.log('Ball in hand touch foul:', checked ? 'enabled' : 'disabled');
         });
+
+        // Override Game Settings toggle
+        this.addCheckboxListener('devOverrideGameSettings', (checked) => {
+            if (typeof PoolGameSettings !== 'undefined') {
+                PoolGameSettings._devOverride = checked;
+
+                // Hide or show the player settings button
+                const settingsBtn = document.getElementById('gameSettingsBtn');
+                if (settingsBtn) {
+                    settingsBtn.style.display = checked ? 'none' : '';
+                }
+
+                // If enabling override, close the player settings panel
+                if (checked && PoolGameSettings.isVisible) {
+                    PoolGameSettings.toggle();
+                }
+
+                console.log('[Dev] Game Settings override:', checked ? 'ON (dev controls only)' : 'OFF (player settings active)');
+            }
+        });
         
         // Visual Effects
         this.addCheckboxListener('showAimLine', (checked) => {
@@ -1514,6 +1539,7 @@ const PoolDevSettings = {
             showTrajectory: false, showVelocities: false, showFps: false, soundEffects: false,
             autoAimAssist: false, showShotPreview: true, showJawCollisionZones: false,
             ballInHandTouchFoul: true,
+            devOverrideGameSettings: false,
             // VFX toggles
             vfxFeltNoise: true, vfxCushionShadows: true, vfxPocketNets: true,
             vfxPocketStitching: true, vfxWoodGrain: true, vfxTableBevel: true,
@@ -1600,6 +1626,9 @@ const PoolDevSettings = {
             
             // Audio
             volume: (this.game.volume || 0.5) * 100,
+
+            // Dev override
+            devOverrideGameSettings: typeof PoolGameSettings !== 'undefined' ? (PoolGameSettings._devOverride || false) : false,
 
             // VFX settings
             vfxFeltNoise: typeof PoolVFX !== 'undefined' ? PoolVFX.enableFeltNoise : true,
