@@ -195,43 +195,75 @@ const PoolPhysics = {
     },
     
     /**
-     * Handle cushion collisions with rotation and spin effects
+     * Handle cushion collisions with pocket gaps
+     * The cushion has openings at each pocket — balls pass through into the pocket
      */
-    handleCushionBounce(ball, tableWidth, tableHeight, cushionMargin = 20.8) {
+    handleCushionBounce(ball, tableWidth, tableHeight, cushionMargin = 20.8, pockets = null) {
         const minX = cushionMargin + ball.r;
         const maxX = tableWidth - cushionMargin - ball.r;
         const minY = cushionMargin + ball.r;
         const maxY = tableHeight - cushionMargin - ball.r;
-        
+        const cm = cushionMargin;
+        const w = tableWidth;
+        const h = tableHeight;
+
+        // Get pocket opening half-widths from the pocket objects
+        const cGap = (pockets && pockets[0]) ? (pockets[0].gapHalf || 22) : 22;
+        const sGap = (pockets && pockets[4]) ? (pockets[4].gapHalf || 24) : 24;
+
+        // Per-wall gap checks using actual pocket opening sizes
+        // TOP wall gap: ball.x near TL corner OR near top-center side pocket OR near TR corner
+        const inTopGap =
+            ball.x < cm + cGap ||
+            ball.x > w - cm - cGap ||
+            Math.abs(ball.x - w / 2) < sGap;
+
+        // BOTTOM wall gap: same pattern
+        const inBotGap = inTopGap; // symmetric
+
+        // LEFT wall gap: ball.y near TL corner OR near BL corner
+        const inLeftGap =
+            ball.y < cm + cGap ||
+            ball.y > h - cm - cGap;
+
+        // RIGHT wall gap: same pattern
+        const inRightGap = inLeftGap; // symmetric
+
         let bounced = false;
-        let bounceAxis = ''; // Track which axis bounced
-        
-        // Only negate velocity on bounce — restitution is applied once
-        // in the rail grab section below to avoid double-damping
-        if (ball.x < minX) {
+        let bounceAxis = '';
+
+        // Each wall only skips bounce if ball is in THAT wall's gap
+        if (ball.x < minX && !inLeftGap) {
             ball.x = minX;
             ball.vx = -ball.vx;
             bounced = true;
             bounceAxis = 'vertical';
         }
-        if (ball.x > maxX) {
+        if (ball.x > maxX && !inRightGap) {
             ball.x = maxX;
             ball.vx = -ball.vx;
             bounced = true;
             bounceAxis = 'vertical';
         }
-        if (ball.y < minY) {
+        if (ball.y < minY && !inTopGap) {
             ball.y = minY;
             ball.vy = -ball.vy;
             bounced = true;
             bounceAxis = 'horizontal';
         }
-        if (ball.y > maxY) {
+        if (ball.y > maxY && !inBotGap) {
             ball.y = maxY;
             ball.vy = -ball.vy;
             bounced = true;
             bounceAxis = 'horizontal';
         }
+
+        // Safety: keep ball on canvas
+        const edge = ball.r * 0.5;
+        if (ball.x < -edge) { ball.x = -edge; ball.vx = 0; }
+        if (ball.x > w + edge) { ball.x = w + edge; ball.vx = 0; }
+        if (ball.y < -edge) { ball.y = -edge; ball.vy = 0; }
+        if (ball.y > h + edge) { ball.y = h + edge; ball.vy = 0; }
         
         // Apply spin effects on cushion bounce - REALISTIC PHYSICS
         if (bounced) {
@@ -750,57 +782,49 @@ const PoolPhysics = {
         const cm = game.cushionMargin || 21;
         const w = game.width || 1000;
         const h = game.height || 500;
-        const restitution = (game.cushionRestitution || 0.78) * 0.85; // Jaws absorb a bit more
+        const restitution = (game.cushionRestitution || 0.78) * 0.8;
 
-        // Corner pocket jaw lines
-        // Each corner has two jaw faces — one horizontal-side, one vertical-side
-        const cornerPocketOpening = cm * (game.cornerPocketOpeningMult || 1.6);
-        const jawLen = cm * 0.9 * 0.7; // cornerPocketR * 0.7
-        const diag = cm * 0.9 * 0.75;
+        // Pocket opening half-widths
+        const cornerHalf = (game.cornerPocketOpening || 45) / 2;
+        const sideHalf = (game.sidePocketOpening || 49) / 2;
 
-        const cornerJaws = [
-            // Top-left corner (idx 0)
-            { x1: pockets[0].x + diag, y1: pockets[0].y,
-              x2: pockets[0].x + cornerPocketOpening * 0.55, y2: pockets[0].y - jawLen * 0.15 },
-            { x1: pockets[0].x, y1: pockets[0].y + diag,
-              x2: pockets[0].x - jawLen * 0.15, y2: pockets[0].y + cornerPocketOpening * 0.55 },
-            // Top-right corner (idx 1)
-            { x1: pockets[1].x - diag, y1: pockets[1].y,
-              x2: pockets[1].x - cornerPocketOpening * 0.55, y2: pockets[1].y - jawLen * 0.15 },
-            { x1: pockets[1].x, y1: pockets[1].y + diag,
-              x2: pockets[1].x + jawLen * 0.15, y2: pockets[1].y + cornerPocketOpening * 0.55 },
-            // Bottom-left corner (idx 2)
-            { x1: pockets[2].x + diag, y1: pockets[2].y,
-              x2: pockets[2].x + cornerPocketOpening * 0.55, y2: pockets[2].y + jawLen * 0.15 },
-            { x1: pockets[2].x, y1: pockets[2].y - diag,
-              x2: pockets[2].x - jawLen * 0.15, y2: pockets[2].y - cornerPocketOpening * 0.55 },
-            // Bottom-right corner (idx 3)
-            { x1: pockets[3].x - diag, y1: pockets[3].y,
-              x2: pockets[3].x - cornerPocketOpening * 0.55, y2: pockets[3].y + jawLen * 0.15 },
-            { x1: pockets[3].x, y1: pockets[3].y - diag,
-              x2: pockets[3].x + jawLen * 0.15, y2: pockets[3].y - cornerPocketOpening * 0.55 }
-        ];
+        // Build jaw lines from cushion endpoints toward pocket centers
+        const jawDepth = cm * 0.6;
+        const allJaws = [];
 
-        // Side pocket jaw lines
-        const sidePocketOpening = cm * (game.sidePocketOpeningMult || 1.3);
-        const sideR = cm * 0.75;
-        const sideJawLen = sideR * 0.6;
-        const jawSpread = sidePocketOpening * 0.5;
+        // Corner pocket jaws — from the end of each cushion segment toward the pocket
+        // Top-left
+        allJaws.push(
+            {x1: cm + cornerHalf, y1: cm, x2: cm + cornerHalf * 0.3, y2: cm - jawDepth * 0.5},
+            {x1: cm, y1: cm + cornerHalf, x2: cm - jawDepth * 0.5, y2: cm + cornerHalf * 0.3}
+        );
+        // Top-right
+        allJaws.push(
+            {x1: w - cm - cornerHalf, y1: cm, x2: w - cm - cornerHalf * 0.3, y2: cm - jawDepth * 0.5},
+            {x1: w - cm, y1: cm + cornerHalf, x2: w - cm + jawDepth * 0.5, y2: cm + cornerHalf * 0.3}
+        );
+        // Bottom-left
+        allJaws.push(
+            {x1: cm + cornerHalf, y1: h - cm, x2: cm + cornerHalf * 0.3, y2: h - cm + jawDepth * 0.5},
+            {x1: cm, y1: h - cm - cornerHalf, x2: cm - jawDepth * 0.5, y2: h - cm - cornerHalf * 0.3}
+        );
+        // Bottom-right
+        allJaws.push(
+            {x1: w - cm - cornerHalf, y1: h - cm, x2: w - cm - cornerHalf * 0.3, y2: h - cm + jawDepth * 0.5},
+            {x1: w - cm, y1: h - cm - cornerHalf, x2: w - cm + jawDepth * 0.5, y2: h - cm - cornerHalf * 0.3}
+        );
 
-        const sideJaws = [
-            // Top-middle (idx 4)
-            { x1: pockets[4].x - sideR * 0.95, y1: pockets[4].y,
-              x2: pockets[4].x - jawSpread, y2: pockets[4].y - sideJawLen * 0.5 },
-            { x1: pockets[4].x + sideR * 0.95, y1: pockets[4].y,
-              x2: pockets[4].x + jawSpread, y2: pockets[4].y - sideJawLen * 0.5 },
-            // Bottom-middle (idx 5)
-            { x1: pockets[5].x - sideR * 0.95, y1: pockets[5].y,
-              x2: pockets[5].x - jawSpread, y2: pockets[5].y + sideJawLen * 0.5 },
-            { x1: pockets[5].x + sideR * 0.95, y1: pockets[5].y,
-              x2: pockets[5].x + jawSpread, y2: pockets[5].y + sideJawLen * 0.5 }
-        ];
-
-        const allJaws = cornerJaws.concat(sideJaws);
+        // Side pocket jaws
+        // Top-center
+        allJaws.push(
+            {x1: w / 2 - sideHalf, y1: cm, x2: w / 2 - sideHalf * 0.4, y2: cm - jawDepth * 0.6},
+            {x1: w / 2 + sideHalf, y1: cm, x2: w / 2 + sideHalf * 0.4, y2: cm - jawDepth * 0.6}
+        );
+        // Bottom-center
+        allJaws.push(
+            {x1: w / 2 - sideHalf, y1: h - cm, x2: w / 2 - sideHalf * 0.4, y2: h - cm + jawDepth * 0.6},
+            {x1: w / 2 + sideHalf, y1: h - cm, x2: w / 2 + sideHalf * 0.4, y2: h - cm + jawDepth * 0.6}
+        );
 
         for (let i = 0; i < allJaws.length; i++) {
             const jaw = allJaws[i];

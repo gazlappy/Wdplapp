@@ -31,19 +31,17 @@ class PoolGame {
         this.standardBallRadius = (2.0 / 2) * this.pixelsPerInch;
         this.cueBallRadius = (1.875 / 2) * this.pixelsPerInch;
         
-        // Pocket sizes
-        this.cornerPocketRadius = 1.675 * this.pixelsPerInch + (3.0 * 0.1 * this.pixelsPerInch);
-        this.middlePocketRadius = 1.87 * this.pixelsPerInch + (2.5 * 0.1 * this.pixelsPerInch);
-        
-        // Pocket openings (visual) - controls the gap in the cushions/rails
-        // These are multipliers relative to the cushion margin
-        this.cornerPocketOpeningMult = 1.6;    // Corner pocket opening multiplier (1.0-2.5)
-        this.sidePocketOpeningMult = 1.3;      // Side pocket opening multiplier (1.0-2.0)
-        this.pocketDepth = 1.0;
-        
-        // Legacy properties (kept for compatibility)
-        this.cornerPocketOpening = 32;
-        this.middlePocketOpening = 34;
+        // Pocket sizes — based on real UK 8-ball table (SuperLeague/Riley)
+        // Corner pocket opening: ~3.25 inches across the mouth
+        // Side pocket opening: ~3.5 inches across the mouth
+        // Capture radius = how far from pocket center the ball drops
+        this.cornerPocketRadius = 1.6 * this.pixelsPerInch;    // ~22px
+        this.middlePocketRadius = 1.7 * this.pixelsPerInch;    // ~24px
+
+        // Pocket opening gap in cushions (how wide the cushion gap is)
+        // Real UK table: corner ~3.25 inches, side ~3.5 inches across the opening
+        this.cornerPocketOpening = 3.25 * this.pixelsPerInch;  // ~45px
+        this.sidePocketOpening = 3.5 * this.pixelsPerInch;     // ~49px
         
         // Cushion margin
         this.cushionMargin = 1.5 * this.pixelsPerInch;
@@ -1155,17 +1153,18 @@ class PoolGame {
     }
     
     repositionPockets() {
-        // Pocket positions aligned with visual rendering in drawSimpleCushions
-        // Corners: railWidth * 0.7 from each edge (railWidth == cushionMargin)
-        // Sides: centered horizontally, railWidth * 0.4 from edge
         const cm = this.cushionMargin;
+        const cHalf = this.cornerPocketOpening / 2;
+        const sHalf = this.sidePocketOpening / 2;
         this.pockets = [
-            {x: cm * 0.7, y: cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width - cm * 0.7, y: cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: cm * 0.7, y: this.height - cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width - cm * 0.7, y: this.height - cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width / 2, y: cm * 0.4, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5},
-            {x: this.width / 2, y: this.height - cm * 0.4, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5}
+            // Corner pockets — center at the cushion corner
+            {x: cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
+            {x: this.width - cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
+            {x: cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
+            {x: this.width - cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
+            // Side pockets — center halfway into the rail
+            {x: this.width / 2, y: cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf},
+            {x: this.width / 2, y: this.height - cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf}
         ];
     }
     
@@ -1402,7 +1401,7 @@ class PoolGame {
             }
 
             // Cushion bounces
-            const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin);
+            const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin, this.pockets);
             if (cushionHit && this.shotInProgress) {
                 this.recordCushionHit();
             }
@@ -1413,17 +1412,16 @@ class PoolGame {
                 moving = true;
             }
 
-            // Pocket detection
+            // Pocket detection - ball must reach the pocket center zone to drop
             for (let i = 0; i < this.pockets.length; i++) {
                 const p = this.pockets[i];
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                const pocketRadius = p.r || 29.5;
-                const captureThreshold = ball.r * this.captureThresholdPercent;
+                const pocketRadius = p.r || 24;
 
-                if (dist <= pocketRadius - captureThreshold) {
+                if (dist <= pocketRadius) {
                     if (!ball.potted) {
                         ball.potted = true;
                         ball.vx = 0;

@@ -778,7 +778,8 @@ const PoolDevSettings = {
     },
     
     makeDraggable(panel) {
-        const header = panel.querySelector('.dev-header');
+        const header = panel.querySelector('.dev-header') || panel.querySelector('.inspector-header');
+        if (!header) return;
         let isDragging = false;
         let startX, startY, initialX, initialY;
         
@@ -1775,11 +1776,17 @@ const PoolDevSettings = {
             panel = document.getElementById('ballInspectorPanel');
         }
 
+        if (!panel) {
+            return;
+        }
+
         if (this._ballInspectorVisible) {
             panel.classList.add('visible');
+            panel.style.display = 'block';
             this.startInspectorLoop();
         } else {
             panel.classList.remove('visible');
+            panel.style.display = 'none';
             this.stopInspectorLoop();
         }
     },
@@ -1965,10 +1972,10 @@ const PoolDevSettings = {
     },
 
     renderInspector() {
-        try {
         var ctx = this._inspectorCtx;
         var canvas = this._inspectorCanvas;
         var balls = this._inspectorBalls;
+
         if (!ctx || !canvas || !balls) return;
 
         var W = canvas.width;
@@ -1985,11 +1992,9 @@ const PoolDevSettings = {
         // Auto-rotate
         if (this._inspectorAutoRotate && typeof PoolBallRotation !== 'undefined' && !this._inspectorDrag) {
             for (var i = 0; i < balls.length; i++) {
-                PoolBallRotation.updateQuaternion(balls[i], { x: 0.2, y: 1, z: 0.1 }, 0.015);
+                try { PoolBallRotation.updateQuaternion(balls[i], { x: 0.2, y: 1, z: 0.1 }, 0.015); } catch(e) {}
             }
         }
-
-        var colorMap = { red: '#b22222', yellow: '#daa520', black: '#222' };
 
         for (var bi = 0; bi < balls.length; bi++) {
             var ball = balls[bi];
@@ -1997,89 +2002,75 @@ const PoolDevSettings = {
             var bx = ball.x;
             var by = ball.y;
 
-            // Build a scaled ball object for PoolRendering
+            // Build a scaled ball with all rotation properties
             var sb = {
                 x: bx, y: by, r: r,
                 color: ball.color, num: ball.num,
                 vx: 0, vy: 0, potted: false,
-                rotQ: ball.rotQ || { w: 1, x: 0, y: 0, z: 0 },
-                numPosX: ball.numPosX || 0, numPosY: ball.numPosY || 0, numPosZ: ball.numPosZ || 1,
-                polePosX: ball.polePosX || 0, polePosY: ball.polePosY || -1, polePosZ: ball.polePosZ || 0,
-                eqPosX: ball.eqPosX || 1, eqPosY: ball.eqPosY || 0, eqPosZ: ball.eqPosZ || 0
+                rotQ: ball.rotQ,
+                numPosX: ball.numPosX, numPosY: ball.numPosY, numPosZ: ball.numPosZ,
+                polePosX: ball.polePosX, polePosY: ball.polePosY, polePosZ: ball.polePosZ,
+                eqPosX: ball.eqPosX, eqPosY: ball.eqPosY, eqPosZ: ball.eqPosZ
             };
 
-            var rendered = false;
+            var lx = -r * 0.4;
+            var ly = -r * 0.4;
 
-            // Try using PoolRendering methods
-            if (typeof PoolRendering !== 'undefined') {
-                try {
-                    var lx = -r * 0.4;
-                    var ly = -r * 0.4;
-
-                    // Shadow
-                    ctx.save();
-                    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-                    ctx.beginPath();
-                    ctx.ellipse(bx + 2, by + 3, r * 0.6, r * 0.35, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-
-                    // Ball body
-                    if (sb.color === 'red' && PoolRendering.drawUKRedBall) {
-                        PoolRendering.drawUKRedBall(ctx, sb, lx, ly);
-                    } else if (sb.color === 'yellow' && PoolRendering.drawUKYellowBall) {
-                        PoolRendering.drawUKYellowBall(ctx, sb, lx, ly);
-                    } else if (sb.color === 'black' && PoolRendering.drawBlackBall) {
-                        PoolRendering.drawBlackBall(ctx, sb, lx, ly);
-                    }
-
-                    // Number
-                    if (PoolRendering.drawBallNumber) {
-                        PoolRendering.drawBallNumber(ctx, sb);
-                    }
-
-                    // Specular
-                    if (PoolRendering.drawSpecularHighlights) {
-                        PoolRendering.drawSpecularHighlights(ctx, sb, lx, ly);
-                    }
-
-                    rendered = true;
-                } catch (renderErr) {
-                    console.error('Inspector ball render error:', renderErr);
-                    rendered = false;
-                }
-            }
-
-            // Fallback: simple gradient ball
-            if (!rendered) {
+            try {
                 // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
                 ctx.beginPath();
                 ctx.ellipse(bx + 2, by + 3, r * 0.6, r * 0.35, 0, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
-                // Ball gradient
-                var grad = ctx.createRadialGradient(bx - r * 0.3, by - r * 0.3, r * 0.1, bx, by, r);
-                var baseCol = colorMap[ball.color] || '#888';
-                grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.3, baseCol);
-                grad.addColorStop(1, '#111');
-                ctx.fillStyle = grad;
+                // Felt reflection
+                ctx.save();
                 ctx.beginPath();
-                ctx.arc(bx, by, r, 0, Math.PI * 2);
+                ctx.arc(sb.x, sb.y, sb.r, 0, Math.PI * 2);
+                ctx.clip();
+                var feltGrad = ctx.createRadialGradient(sb.x, sb.y + sb.r * 0.5, 0, sb.x, sb.y + sb.r * 0.5, sb.r * 0.7);
+                feltGrad.addColorStop(0, 'rgba(27, 139, 61, 0.15)');
+                feltGrad.addColorStop(0.5, 'rgba(27, 139, 61, 0.08)');
+                feltGrad.addColorStop(1, 'rgba(27, 139, 61, 0)');
+                ctx.fillStyle = feltGrad;
+                ctx.beginPath();
+                ctx.arc(sb.x, sb.y + sb.r * 0.5, sb.r * 0.7, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
-                // Number
-                ctx.fillStyle = ball.color === 'black' ? '#fff' : '#000';
-                ctx.font = 'bold ' + Math.round(r * 0.5) + 'px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(ball.num, bx, by);
+                // Ball body - same methods the game uses
+                if (sb.color === 'red') {
+                    PoolRendering.drawUKRedBall(ctx, sb, lx, ly);
+                } else if (sb.color === 'yellow') {
+                    PoolRendering.drawUKYellowBall(ctx, sb, lx, ly);
+                } else if (sb.color === 'black') {
+                    PoolRendering.drawBlackBall(ctx, sb, lx, ly);
+                }
+
+                // Number circle
+                PoolRendering.drawBallNumber(ctx, sb);
+
+                // Specular highlights
+                PoolRendering.drawSpecularHighlights(ctx, sb, lx, ly);
+
+                // Overhead light reflection
+                if (typeof PoolVFX !== 'undefined' && PoolVFX.enableOverheadReflection) {
+                    PoolVFX.drawOverheadLightReflection(ctx, sb);
+                }
+
+                // Environment reflection
+                if (typeof PoolVFX !== 'undefined' && PoolVFX.enableEnvironmentReflection) {
+                    PoolVFX.drawEnvironmentReflection(ctx, sb);
+                }
+            } catch (renderErr) {
+                console.error('Inspector ball render error for ' + ball.color + ':', renderErr);
             }
         }
 
         // Divider lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.setLineDash([4, 4]);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -2087,10 +2078,6 @@ const PoolDevSettings = {
         ctx.moveTo(400, 10); ctx.lineTo(400, H - 10);
         ctx.stroke();
         ctx.setLineDash([]);
-
-        } catch (outerErr) {
-            console.error('Inspector render fatal:', outerErr);
-        }
     },
 
     showNotification(message, type) {

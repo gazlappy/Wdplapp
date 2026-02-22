@@ -35,7 +35,7 @@ const PoolGameSettings = {
         
         // Table colors
         clothColor: '#1a7f37',      // Green baize
-        railColor: '#8B4513',        // Wood brown
+        railColor: '#5C3317',        // Dark walnut
         pocketColor: '#1a1a1a',      // Dark pocket
         
         // Ball style
@@ -962,7 +962,7 @@ const PoolGameSettings = {
             showGhostBall: true,
             fineTuneSensitivity: 15,
             clothColor: '#1a7f37',
-            railColor: '#8B4513',
+            railColor: '#5C3317',
             pocketColor: '#1a1a1a',
             ballStyle: 'uk',
             cueBallColor: '#f5f5f5',
