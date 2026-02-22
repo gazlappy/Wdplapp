@@ -869,26 +869,26 @@ class PoolGame {
         this.ballInHand = true;
         this.ballInHandBaulk = false; // Regular fouls allow placement anywhere
         this.ballInHandTouchFoulTriggered = false; // Reset for new ball in hand
-        
+
         console.log('FOUL:', reason);
-        
-        
-        
-        this.showFoulMessage(reason, false);
+
+        // Switch turn FIRST so the foul message shows the correct recipient
         this.switchTurn();
+        this.showFoulMessage(reason, false);
     }
     
     commitScratchFoul(reason, restrictToBaulk = false) {
         this.foulCommitted = true;
         this.foulReason = reason;
-        
+
         console.log('SCRATCH FOUL:', reason, restrictToBaulk ? '(baulk restricted)' : '(anywhere)');
-        
+
         // Handle cue ball respawn - only restrict to baulk on break
         this.handleCueBallPotted(restrictToBaulk);
-        
-        this.showFoulMessage(reason, restrictToBaulk);
+
+        // Switch turn FIRST so the foul message shows the correct recipient
         this.switchTurn();
+        this.showFoulMessage(reason, restrictToBaulk);
     }
     
     commitBallInHandTouchFoul(touchedBall) {
@@ -1155,13 +1155,17 @@ class PoolGame {
     }
     
     repositionPockets() {
+        // Pocket positions aligned with visual rendering in drawSimpleCushions
+        // Corners: railWidth * 0.7 from each edge (railWidth == cushionMargin)
+        // Sides: centered horizontally, railWidth * 0.4 from edge
+        const cm = this.cushionMargin;
         this.pockets = [
-            {x: this.cushionMargin * 0.5, y: this.cushionMargin * 0.5, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width - this.cushionMargin * 0.5, y: this.cushionMargin * 0.5, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.cushionMargin * 0.5, y: this.height - this.cushionMargin * 0.5, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width - this.cushionMargin * 0.5, y: this.height - this.cushionMargin * 0.5, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
-            {x: this.width / 2, y: this.cushionMargin * 0.3, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5},
-            {x: this.width / 2, y: this.height - this.cushionMargin * 0.3, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5}
+            {x: cm * 0.7, y: cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
+            {x: this.width - cm * 0.7, y: cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
+            {x: cm * 0.7, y: this.height - cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
+            {x: this.width - cm * 0.7, y: this.height - cm * 0.7, r: this.cornerPocketRadius, type: 'corner', taperDist: 3.0},
+            {x: this.width / 2, y: cm * 0.4, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5},
+            {x: this.width / 2, y: this.height - cm * 0.4, r: this.middlePocketRadius, type: 'middle', taperDist: 2.5}
         ];
     }
     
@@ -1353,96 +1357,92 @@ class PoolGame {
         // Draw table with custom colors from settings
         PoolRendering.drawTable(this.ctx, this.width, this.height, this.cushionMargin, this);
         PoolRendering.drawPockets(this.ctx, this.pockets, this);
-        
-        // Physics
+
+        // ===== PHYSICS STEP =====
         let moving = false;
         let activeBalls = 0;
         const centerX = this.width / 2;
-        
+
+        // 1. Apply friction and spin to all balls (updates velocities, NOT positions)
         this.balls.forEach(ball => {
             if (ball.potted) return;
-            
             activeBalls++;
-            
-            // Track balls crossing center line during break (for 3-point rule)
-            // Once a ball crosses, it counts even if it rolls back
+
+            // Store position history for trail effect (if ball has spin)
+            if ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05)) {
+                if (!ball.trail) ball.trail = [];
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 20) ball.trail.shift();
+            } else {
+                ball.trail = [];
+            }
+
+            // Apply friction (updates velocity and spin, does NOT move ball)
+            if (PoolPhysics.applyFriction(ball)) {
+                moving = true;
+            }
+        });
+
+        // 2. Move balls with sub-stepped collision detection (prevents tunneling)
+        const collision = PoolPhysics.processCollisions(this.balls, this);
+        if (collision && collision.firstBallHit && this.shotInProgress && !this.firstBallHit) {
+            this.recordFirstBallHit(collision.firstBallHit);
+        }
+
+        // 3. Post-movement checks (cushions, pockets, jaws) on final positions
+        this.balls.forEach(ball => {
+            if (ball.potted) return;
+
+            // Track balls crossing center line during break
             if (this.gamePhase === 'break' && this.shotInProgress && ball.num !== 0) {
                 if (ball.x < centerX && !this.ballsCrossedCenter.has(ball.num)) {
                     this.ballsCrossedCenter.add(ball.num);
                     console.log('Ball', ball.num, 'crossed center line! Total crossed:', this.ballsCrossedCenter.size);
                 }
             }
-            
-            // Store position history for trail effect (if ball has spin)
-            if ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05)) {
-                if (!ball.trail) ball.trail = [];
-                ball.trail.push({ x: ball.x, y: ball.y });
-                if (ball.trail.length > 20) ball.trail.shift(); // Keep last 20 positions
-            } else {
-                ball.trail = []; // Clear trail when no spin
-            }
-            
-            // Apply physics
-            if (PoolPhysics.applyFriction(ball)) {
-                moving = true;
-            }
-            
-            // Track cushion hits for rule enforcement
+
+            // Cushion bounces
             const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin);
             if (cushionHit && this.shotInProgress) {
                 this.recordCushionHit();
             }
-            
-            // Check pocket jaw collisions (balls bouncing off angled pocket edges)
+
+            // Pocket jaw collisions
             const jawHit = PoolPhysics.handlePocketJawCollision(ball, this.pockets, this);
             if (jawHit) {
-                moving = true; // Ball is still moving after jaw bounce
+                moving = true;
             }
-            
-            // Check pockets
+
+            // Pocket detection
             for (let i = 0; i < this.pockets.length; i++) {
                 const p = this.pockets[i];
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                
+
                 const pocketRadius = p.r || 29.5;
                 const captureThreshold = ball.r * this.captureThresholdPercent;
-                
+
                 if (dist <= pocketRadius - captureThreshold) {
                     if (!ball.potted) {
                         ball.potted = true;
                         ball.vx = 0;
                         ball.vy = 0;
-                        
-                        // ?? PLAY POCKET SOUND
-                        console.log(`?? Ball ${ball.num} potted!`);
+
+                        console.log(`Ball ${ball.num} potted!`);
                         if (typeof PoolAudio !== 'undefined') {
                             PoolAudio.play('pocket', 1.0);
-                        } else {
-                            console.warn('?? PoolAudio not available for pocket sound');
                         }
-                        
-                        // Update ball return tray
+
                         this.updateBallReturnTray(ball);
-                        
-                        // Track for rule enforcement
                         this.recordBallPotted(ball);
-                        
+
                         console.log('Ball potted:', ball.color, ball.num);
                     }
                     break;
                 }
             }
         });
-        
-        
-        // Handle collisions (with first ball hit tracking)
-        const collision = PoolPhysics.processCollisions(this.balls, this);
-        if (collision && collision.firstBallHit && this.shotInProgress && !this.firstBallHit) {
-            this.recordFirstBallHit(collision.firstBallHit);
-        }
         
         // Draw trails first (under balls)
         this.balls.forEach(ball => {
@@ -1474,7 +1474,7 @@ class PoolGame {
         
         // Draw aim line
         if (this.isAiming && !moving && this.cueBall && !this.cueBall.potted) {
-            PoolRendering.drawAimLine(this.ctx, this.cueBall, this.aimAngle);
+            PoolRendering.drawAimLine(this.ctx, this.cueBall, this.aimAngle, 300, this.balls);
             
             // Draw trajectory predictions for object balls
             if (this.showTrajectoryPrediction) {

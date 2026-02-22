@@ -143,18 +143,36 @@ const PoolPhysics = {
                     ball.omega = speed / (ball.r || 14);
                 }
             }
-            
-            
+
+            // NATURAL ROLLING TRANSITION (center-contact shots)
+            // On a real table, even without applied spin, cloth friction
+            // gradually converts a sliding ball to pure rolling.
+            // This ensures the 30-degree rule correctly kicks in
+            // only after the ball has traveled sufficient distance.
+            if (!ball.slidingComplete && (ball.spinY === undefined || Math.abs(ball.spinY) <= 0.01)) {
+                if (!ball.naturalRollProgress) ball.naturalRollProgress = 0;
+                // Transition takes ~40 frames (~0.67s at 60fps)
+                // Faster balls transition sooner (more friction contact)
+                const transitionRate = 0.025 * (1 + speed * 0.02);
+                ball.naturalRollProgress += transitionRate;
+                if (ball.naturalRollProgress >= 1.0) {
+                    ball.slidingComplete = true;
+                    ball.omega = speed / (ball.r || 14);
+                    ball.naturalRollProgress = 1.0;
+                }
+            }
+
+
             // ===== BALL ROTATION (delegated to PoolBallRotation module) =====
             // Uses proper kinematic rolling and Rodrigues' rotation formula
             if (typeof PoolBallRotation !== 'undefined') {
                 PoolBallRotation.updateRotation(ball);
             }
-            
-            // Update position
-            ball.x += ball.vx;
-            ball.y += ball.vy;
-            
+
+            // NOTE: Position update (ball.x += ball.vx) is handled by
+            // processCollisions() sub-stepping to prevent tunneling.
+            // Do NOT move the ball here.
+
             // Store speed for visual effects
             ball.speed = speed;
             
@@ -171,6 +189,7 @@ const PoolPhysics = {
             // Reset parabolic tracking
             ball.slideDistance = 0;
             ball.englishDistance = 0;
+            ball.naturalRollProgress = 0;
             return false; // Ball has stopped
         }
     },
@@ -187,27 +206,29 @@ const PoolPhysics = {
         let bounced = false;
         let bounceAxis = ''; // Track which axis bounced
         
+        // Only negate velocity on bounce — restitution is applied once
+        // in the rail grab section below to avoid double-damping
         if (ball.x < minX) {
             ball.x = minX;
-            ball.vx = -ball.vx * this.CUSHION_RESTITUTION;
+            ball.vx = -ball.vx;
             bounced = true;
             bounceAxis = 'vertical';
         }
         if (ball.x > maxX) {
             ball.x = maxX;
-            ball.vx = -ball.vx * this.CUSHION_RESTITUTION;
+            ball.vx = -ball.vx;
             bounced = true;
             bounceAxis = 'vertical';
         }
         if (ball.y < minY) {
             ball.y = minY;
-            ball.vy = -ball.vy * this.CUSHION_RESTITUTION;
+            ball.vy = -ball.vy;
             bounced = true;
             bounceAxis = 'horizontal';
         }
         if (ball.y > maxY) {
             ball.y = maxY;
-            ball.vy = -ball.vy * this.CUSHION_RESTITUTION;
+            ball.vy = -ball.vy;
             bounced = true;
             bounceAxis = 'horizontal';
         }
@@ -237,82 +258,52 @@ const PoolPhysics = {
             }
             
             // ===== RAIL GRAB PHYSICS =====
-            // Reference: Rail Grab - Speed and Spin - Harder shots or more spin create non-linear rebounds
-            // The cushion response changes based on impact speed and spin
-            
+            // Restitution is applied ONCE here (not in the initial flip above)
+
             const speedFactor = Math.min(impactSpeed / 20, 1.0); // 0 to 1 scale
-            
-            // Cushion compression: harder hits compress cushion more
-            const compressionFactor = 1 + (speedFactor * 0.15); // Up to 15 percent more compression
-            
-            // Apply compression to restitution
-            const adjustedRestitution = this.CUSHION_RESTITUTION * compressionFactor;
-            
-            // SIDE SPIN (English) - This is WHERE English REALLY matters in real pool
-            if (ball.spinX !== undefined && Math.abs(ball.spinX) > 0.01) {
-                // English effect enhanced by rail grab
-                // Faster shots with English = more dramatic angle changes
-                const railGrabEnglish = ball.spinX * (0.8 + speedFactor * 0.4); // Speed amplifies English
-                
-                if (bounceAxis === 'vertical') {
-                    // Hitting vertical cushion - English changes the angle significantly
-                    const currentAngle = Math.atan2(ball.vy, ball.vx);
-                    const newAngle = currentAngle + (railGrabEnglish * 0.5);
-                    const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                    
-                    ball.vx = Math.cos(newAngle) * speed * adjustedRestitution;
-                    ball.vy = Math.sin(newAngle) * speed * adjustedRestitution;
-                    
-                    console.log('RAIL GRAB! Speed:', impactSpeed.toFixed(1), 'English effect:', (railGrabEnglish * 100).toFixed(0) + '%, Angle change:', (railGrabEnglish * 0.5 * 180 / Math.PI).toFixed(1), 'deg');
-                } else if (bounceAxis === 'horizontal') {
-                    // Hitting horizontal cushion - English changes the angle significantly
-                    const currentAngle = Math.atan2(ball.vy, ball.vx);
-                    const newAngle = currentAngle + (railGrabEnglish * 0.5);
-                    const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                    
-                    ball.vx = Math.cos(newAngle) * speed * adjustedRestitution;
-                    ball.vy = Math.sin(newAngle) * speed * adjustedRestitution;
-                    
-                    console.log('RAIL GRAB! Speed:', impactSpeed.toFixed(1), 'English effect:', (railGrabEnglish * 100).toFixed(0) + '%, Angle change:', (railGrabEnglish * 0.5 * 180 / Math.PI).toFixed(1), 'deg');
-                }
-                
-                // English decay affected by speed - faster hits preserve more spin
-                ball.spinX *= (0.85 + speedFactor * 0.1); // Up to 95% retention on hard hits
-            } else {
-                // No English - just apply rail grab to restitution
-                if (bounceAxis === 'vertical') {
-                    ball.vx *= adjustedRestitution;
-                } else if (bounceAxis === 'horizontal') {
-                    ball.vy *= adjustedRestitution;
-                }
+
+            // Base restitution — apply once to the bounced component
+            const restitution = this.CUSHION_RESTITUTION;
+            if (bounceAxis === 'vertical') {
+                ball.vx *= restitution;
+            } else if (bounceAxis === 'horizontal') {
+                ball.vy *= restitution;
             }
-            
-            // TOP/BACK SPIN - Affects rebound speed dramatically
-            // Rail grab amplifies spin effects on hard hits
-            if (ball.spinY !== undefined && Math.abs(ball.spinY) > 0.01) {
+
+            // SIDE SPIN (English) — changes rebound angle, not speed
+            if (ball.spinX !== undefined && Math.abs(ball.spinX) > 0.01) {
+                const railGrabEnglish = ball.spinX * (0.6 + speedFactor * 0.3);
+
+                // English adjusts the rebound angle
+                const currentAngle = Math.atan2(ball.vy, ball.vx);
+                const angleDelta = railGrabEnglish * 0.35; // Max ~20 degrees at full english
+                const newAngle = currentAngle + angleDelta;
                 const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                
-                // Top spin: ball grips and accelerates off cushion
-                // Back spin: ball stops dead or even reverses
-                // Rail grab: effect scales with impact speed
-                const spinEffect = ball.spinY * (1.5 + speedFactor * 0.5); // Speed amplifies effect
-                
-                if (bounceAxis === 'vertical') {
-                    ball.vx = ball.vx * (1 + spinEffect);
-                } else if (bounceAxis === 'horizontal') {
-                    ball.vy = ball.vy * (1 + spinEffect);
-                }
-                
-                // With max back spin on hard hit, ball can reverse more dramatically
-                if (ball.spinY < -0.8 && speedFactor > 0.5) {
-                    if (bounceAxis === 'vertical') {
-                        ball.vx *= -0.4; // Enhanced reverse on hard hit
-                    } else {
-                        ball.vy *= -0.4; // Enhanced reverse on hard hit
-                    }
-                    console.log('RAIL GRAB + BACK SPIN! Hard hit reversal');
-                }
-                
+
+                ball.vx = Math.cos(newAngle) * speed;
+                ball.vy = Math.sin(newAngle) * speed;
+
+                // English decay
+                ball.spinX *= (0.8 + speedFactor * 0.1);
+            }
+
+            // TOP/BACK SPIN — adjusts rebound angle, capped speed effect
+            if (ball.spinY !== undefined && Math.abs(ball.spinY) > 0.01) {
+                // Top spin: shallower angle off cushion (more forward)
+                // Back spin: steeper angle (more perpendicular)
+                // Effect is an angle change, speed stays close to restitution value
+                const spinAngleEffect = ball.spinY * 0.25; // Modest angle adjustment
+                const currentAngle = Math.atan2(ball.vy, ball.vx);
+                const newAngle = currentAngle + spinAngleEffect;
+                const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+
+                // Slight speed adjustment: top spin adds a little, back spin takes a little
+                // Capped so it never exceeds ±15% of current speed
+                const speedAdj = 1 + Math.max(-0.15, Math.min(0.15, ball.spinY * 0.2));
+
+                ball.vx = Math.cos(newAngle) * speed * speedAdj;
+                ball.vy = Math.sin(newAngle) * speed * speedAdj;
+
                 // Spin mostly lost after cushion impact
                 ball.spinY *= 0.3;
             }
@@ -360,40 +351,62 @@ const PoolPhysics = {
     /**
      * Handle ball-to-ball collision with rotation and spin transfer
      * ENHANCED: Implements 90-degree rule for equal-mass collisions
+     * @param {boolean} canResolveVelocity - If false, only separate (don't change velocity)
+     * @returns {{ resolved: boolean }} - resolved=true if velocity was changed
      */
-    handleBallCollision(b1, b2) {
+    handleBallCollision(b1, b2, canResolveVelocity = true) {
         const dx = b2.x - b1.x;
         const dy = b2.y - b1.y;
         const distSq = dx * dx + dy * dy;
         const minDist = b1.r + b2.r;
-        
+
         // Check if balls are colliding
         if (distSq < minDist * minDist) {
             const dist = Math.sqrt(distSq);
-            
+
             // Prevent division by zero
             if (dist < 0.001) {
-                // Balls are exactly on top of each other - separate them
                 b2.x += 0.1;
                 b2.y += 0.1;
-                return false;
+                return { resolved: false };
             }
-            
+
             // Normalize collision vector (line of centers)
             const nx = dx / dist;
             const ny = dy / dist;
-            
+
+            // ===== ALWAYS SEPARATE OVERLAPPING BALLS =====
+            // Do this first, before velocity resolution, to prevent interpenetration
+            const overlap = minDist - dist;
+            if (overlap > 0) {
+                // Cap separation to prevent wild jumps in packed clusters
+                const maxSep = Math.min(overlap, b1.r * 0.5);
+                const separationX = nx * maxSep * 0.5;
+                const separationY = ny * maxSep * 0.5;
+
+                b1.x -= separationX;
+                b1.y -= separationY;
+                b2.x += separationX;
+                b2.y += separationY;
+            }
+
+            // If velocity resolution is blocked (ball already resolved this sub-step),
+            // just do position correction above and return
+            if (!canResolveVelocity) {
+                return { resolved: false };
+            }
+
             // Tangent vector (perpendicular to collision)
             const tx = -ny;
             const ty = nx;
-            
+
             // Relative velocity
             const dvx = b2.vx - b1.vx;
             const dvy = b2.vy - b1.vy;
-            
+
             // Relative velocity in collision normal direction
             const dvn = dvx * nx + dvy * ny;
-            
+
             // Only resolve if balls are moving toward each other
             if (dvn < 0) {
                 // Store pre-collision info
@@ -430,7 +443,8 @@ const PoolPhysics = {
                 const b1vt = b1.vx * tx + b1.vy * ty; // Tangent component (along surface)
                 
                 // Calculate contact thickness (how much of ball overlaps)
-                const contactThickness = Math.abs(b1vt) / b1Speed; // 0 = head-on, 1 = glancing
+                // Guard against division by zero when b1 is stationary
+                const contactThickness = b1Speed > 0.001 ? Math.abs(b1vt) / b1Speed : 0; // 0 = head-on, 1 = glancing
                 
                 // Store original velocities before modification
                 const b1vx_orig = b1.vx;
@@ -442,7 +456,10 @@ const PoolPhysics = {
                 // For stationary equal-mass collisions
                 if (b2Stationary && Math.abs(b1.r - b2.r) < 0.1) {
                     // Check if ball is rolling (not sliding/stunned)
-                    const isRolling = !b1.slidingComplete || (b1.spinY === undefined || Math.abs(b1.spinY) < 0.5);
+                    // Only true when the sliding-to-rolling transition has genuinely completed.
+                    // A freshly-shot ball (even with center contact) starts SLIDING
+                    // and only becomes rolling after traveling sufficient distance.
+                    const isRolling = b1.slidingComplete === true;
                     
                     // Transfer normal component to b2, keep tangent with b1
                     const normalSpeed = Math.abs(b1vn) * this.COLLISION_DAMPING;
@@ -474,7 +491,7 @@ const PoolPhysics = {
                         const deflectionAngle = originalAngle + (Math.sign(angleDiff) * Math.PI / 6); // 30 degrees
                         
                         // Apply the 30-degree rule velocity
-                        const cueSpeed = Math.sqrt(tangentSpeed * tangentSpeed);
+                        const cueSpeed = Math.abs(tangentSpeed);
                         b1.vx = Math.cos(deflectionAngle) * cueSpeed;
                         b1.vy = Math.sin(deflectionAngle) * cueSpeed;
                         
@@ -562,18 +579,23 @@ const PoolPhysics = {
                 // If b1 has top spin, it follows through (works on all cuts)
                 if (b1.spinY !== undefined && b1.spinY > 0.3) {
                     const followStrength = b1.spinY * 0.4 * Math.max(0.3, spinEffectiveness);
-                    
+
                     // Continue in roughly the original direction
                     const currentSpeed = Math.sqrt(b1.vx * b1.vx + b1.vy * b1.vy);
                     const currentAngle = Math.atan2(b1.vy, b1.vx);
-                    
-                    // Blend between current direction and original direction
-                    const targetAngle = b1Angle * 0.6 + currentAngle * 0.4;
-                    
-                    b1.vx = Math.cos(targetAngle) * currentSpeed * (1 + followStrength);
-                    b1.vy = Math.sin(targetAngle) * currentSpeed * (1 + followStrength);
-                    
-                    console.log('?? FOLLOW! Cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg');
+
+                    // Proper angular interpolation (handles ±PI wrapping)
+                    let angleDelta = b1Angle - currentAngle;
+                    while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                    while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+                    const targetAngle = currentAngle + angleDelta * followStrength;
+
+                    // Follow changes DIRECTION toward the original approach,
+                    // but does NOT increase speed (energy was transferred to object ball)
+                    b1.vx = Math.cos(targetAngle) * currentSpeed;
+                    b1.vy = Math.sin(targetAngle) * currentSpeed;
+
+                    console.log('FOLLOW! Cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg');
                 }
                 
                 // Side spin creates throw on the object ball - THIS IS KEY!
@@ -590,7 +612,7 @@ const PoolPhysics = {
                     
                     // Throw curve: peaks at 30 degrees, reduces at thin and thick hits
                     const cutAngleFactor = 1 - Math.abs(cutAngleDegrees - optimalCutAngle) / optimalCutAngle;
-                    const fitFactor = Math.max(0, cutAngleFactor) * this.BALL_TO_BALL_FRICTION * 8.0; // WPA friction scaled
+                    const fitFactor = Math.max(0, cutAngleFactor) * this.BALL_TO_BALL_FRICTION * 1.5; // Realistic: ~3-5 deg max throw
                     
                     // SIT (Spin-Induced Throw): English effect
                     const sitFactor = b1.spinX * 0.15 * spinEffectiveness; // SIT contribution
@@ -614,9 +636,10 @@ const PoolPhysics = {
                 if (speed1 > 0) {
                     b1.rotationAxisX = -b1.vy / speed1;
                     b1.rotationAxisY = b1.vx / speed1;
-                    
+
                     // Reset sliding phase for draw/follow to work again
                     b1.slidingComplete = false;
+                    b1.naturalRollProgress = 0;
                 }
                 
                 if (speed2 > 0) {
@@ -627,40 +650,31 @@ const PoolPhysics = {
                 // Spin is mostly lost after collision
                 if (b1.spinY !== undefined) b1.spinY *= 0.1; // Top/back spin mostly gone
                 if (b1.spinX !== undefined) b1.spinX *= 0.5; // English more preserved
+
+                return { resolved: true };
             }
-            
-            // ===== PROPER BALL SEPARATION =====
-            // Separate overlapping balls to prevent them from getting stuck
-            const overlap = minDist - dist;
-            if (overlap > 0) {
-                // Push balls apart equally in opposite directions
-                // Each ball moves half the overlap distance
-                const separationX = nx * overlap * 0.5;
-                const separationY = ny * overlap * 0.5;
-                
-                b1.x -= separationX;
-                b1.y -= separationY;
-                b2.x += separationX;
-                b2.y += separationY;
-            }
-            
-            return true;
+
+            // Balls overlapping but moving apart — separation was already done above
+            return { resolved: false };
         }
-        
-        return false;
+
+        return { resolved: false };
     },
     
     
     /**
-     * Process all ball collisions with continuous collision detection (CCD)
-     * Prevents tunneling at high speeds by checking along the path of movement
+     * Process all ball collisions with integrated sub-stepped movement.
+     * Moves balls in small increments and checks for collisions at each step
+     * to prevent tunneling at high speeds.
+     * Limits each ball to one velocity-resolving collision per sub-step
+     * to prevent cascading energy amplification in packed clusters.
      * @param {Array} balls - Array of ball objects
      * @param {Object} game - Game instance for tracking first ball hit
      */
     processCollisions(balls, game = null) {
         let collisionOccurred = false;
         let firstBallHit = null;
-        
+
         // Find the maximum speed of any ball
         let maxSpeed = 0;
         for (const ball of balls) {
@@ -668,24 +682,44 @@ const PoolPhysics = {
             const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
             if (speed > maxSpeed) maxSpeed = speed;
         }
-        
+
         // Calculate number of sub-steps needed based on speed
-        // If a ball moves more than half its radius per frame, we need sub-stepping
+        // Each sub-step should move a ball no more than 40% of its radius
         const minBallRadius = balls.reduce((min, b) => b.potted ? min : Math.min(min, b.r), Infinity);
-        const subSteps = Math.max(1, Math.ceil(maxSpeed / (minBallRadius * 0.5)));
-        
-        // Perform collision detection in sub-steps for high-speed scenarios
+        const subSteps = Math.max(1, Math.ceil(maxSpeed / (minBallRadius * 0.4)));
+        const dt = 1.0 / subSteps;
+
+        // Sub-stepped integration: move + detect at each step
         for (let step = 0; step < subSteps; step++) {
+            // Move all balls by fractional step
+            for (const ball of balls) {
+                if (ball.potted) continue;
+                ball.x += ball.vx * dt;
+                ball.y += ball.vy * dt;
+            }
+
+            // Track which balls have had velocity resolved this sub-step.
+            // A ball that was already resolved only gets position separation,
+            // not another velocity change. This prevents cascading in clusters.
+            const resolvedThisStep = new Set();
+
+            // Check all ball-ball collisions at this sub-position
             for (let i = 0; i < balls.length; i++) {
                 if (balls[i].potted) continue;
-                
+
                 for (let j = i + 1; j < balls.length; j++) {
                     if (balls[j].potted) continue;
-                    
-                    // Check for collision using swept sphere test for fast balls
-                    if (this.checkAndHandleCollision(balls[i], balls[j], subSteps)) {
+
+                    // Allow velocity resolution only if neither ball was already resolved
+                    const canResolve = !resolvedThisStep.has(i) && !resolvedThisStep.has(j);
+
+                    const result = this.handleBallCollision(balls[i], balls[j], canResolve);
+
+                    if (result.resolved) {
+                        resolvedThisStep.add(i);
+                        resolvedThisStep.add(j);
                         collisionOccurred = true;
-                        
+
                         // Track first ball hit by cue ball for rule enforcement
                         if (game && !firstBallHit) {
                             if (balls[i].num === 0) {
@@ -698,94 +732,96 @@ const PoolPhysics = {
                 }
             }
         }
-        
+
         return { occurred: collisionOccurred, firstBallHit: firstBallHit };
     },
     
     /**
-     * Check for collision between two balls, considering their velocities
-     * Uses swept collision detection for high-speed balls
-     */
-    checkAndHandleCollision(b1, b2, subSteps) {
-        // First do a quick distance check
-        const dx = b2.x - b1.x;
-        const dy = b2.y - b1.y;
-        const distSq = dx * dx + dy * dy;
-        const minDist = b1.r + b2.r;
-        
-        // If already colliding, handle it
-        if (distSq < minDist * minDist) {
-            return this.handleBallCollision(b1, b2);
-        }
-        
-        // For high speed balls, check if they will collide along their paths
-        const relVx = b1.vx - b2.vx;
-        const relVy = b1.vy - b2.vy;
-        const relSpeed = Math.sqrt(relVx * relVx + relVy * relVy);
-        
-        // If relative speed is high enough to potentially tunnel
-        if (relSpeed > minDist * 0.3) {
-            // Use swept sphere collision detection
-            // Check if the balls will collide within this frame
-            
-            // Vector from b2 to b1
-            const cx = b1.x - b2.x;
-            const cy = b1.y - b2.y;
-            
-            // Relative velocity (b1 relative to b2)
-            const vx = b1.vx - b2.vx;
-            const vy = b1.vy - b2.vy;
-            
-            // Quadratic equation coefficients for finding collision time
-            const a = vx * vx + vy * vy;
-            const b = 2 * (cx * vx + cy * vy);
-            const c = cx * cx + cy * cy - minDist * minDist;
-            
-            const discriminant = b * b - 4 * a * c;
-            
-            if (discriminant >= 0 && a > 0.0001) {
-                // Find the earliest collision time
-                const t = (-b - Math.sqrt(discriminant)) / (2 * a);
-                
-                // Check if collision happens within this sub-step (0 to 1/subSteps of a frame)
-                if (t >= 0 && t <= 1.0 / subSteps) {
-                    // Move balls to collision point
-                    const oldB1x = b1.x, oldB1y = b1.y;
-                    const oldB2x = b2.x, oldB2y = b2.y;
-                    
-                    b1.x += b1.vx * t;
-                    b1.y += b1.vy * t;
-                    b2.x += b2.vx * t;
-                    b2.y += b2.vy * t;
-                    
-                    // Handle the collision
-                    const result = this.handleBallCollision(b1, b2);
-                    
-                    // Move balls for remaining time
-                    const remainingTime = (1.0 / subSteps) - t;
-                    b1.x += b1.vx * remainingTime;
-                    b1.y += b1.vy * remainingTime;
-                    b2.x += b2.vx * remainingTime;
-                    b2.y += b2.vy * remainingTime;
-                    
-                    return result;
-                }
-            }
-        }
-        
-        return false;
-    },
-    
-    /**
-     * Handle pocket jaw collisions - DISABLED for simplified table
-     * The simplified table doesn't have angled jaws, just round pockets
+     * Handle pocket jaw collisions - angled jaw faces at pocket openings
+     * Balls that hit the jaw edges bounce off at realistic angles
      * @param {Object} ball - The ball to check
      * @param {Array} pockets - Array of pocket objects
      * @param {Object} game - Game instance for settings
-     * @returns {boolean} - Always false (disabled)
+     * @returns {boolean} - Whether a jaw collision occurred
      */
     handlePocketJawCollision(ball, pockets, game) {
-        // Jaw collisions disabled - simplified table uses round pockets without angled jaws
+        if (!pockets || !game) return false;
+
+        const cm = game.cushionMargin || 21;
+        const w = game.width || 1000;
+        const h = game.height || 500;
+        const restitution = (game.cushionRestitution || 0.78) * 0.85; // Jaws absorb a bit more
+
+        // Corner pocket jaw lines
+        // Each corner has two jaw faces — one horizontal-side, one vertical-side
+        const cornerPocketOpening = cm * (game.cornerPocketOpeningMult || 1.6);
+        const jawLen = cm * 0.9 * 0.7; // cornerPocketR * 0.7
+        const diag = cm * 0.9 * 0.75;
+
+        const cornerJaws = [
+            // Top-left corner (idx 0)
+            { x1: pockets[0].x + diag, y1: pockets[0].y,
+              x2: pockets[0].x + cornerPocketOpening * 0.55, y2: pockets[0].y - jawLen * 0.15 },
+            { x1: pockets[0].x, y1: pockets[0].y + diag,
+              x2: pockets[0].x - jawLen * 0.15, y2: pockets[0].y + cornerPocketOpening * 0.55 },
+            // Top-right corner (idx 1)
+            { x1: pockets[1].x - diag, y1: pockets[1].y,
+              x2: pockets[1].x - cornerPocketOpening * 0.55, y2: pockets[1].y - jawLen * 0.15 },
+            { x1: pockets[1].x, y1: pockets[1].y + diag,
+              x2: pockets[1].x + jawLen * 0.15, y2: pockets[1].y + cornerPocketOpening * 0.55 },
+            // Bottom-left corner (idx 2)
+            { x1: pockets[2].x + diag, y1: pockets[2].y,
+              x2: pockets[2].x + cornerPocketOpening * 0.55, y2: pockets[2].y + jawLen * 0.15 },
+            { x1: pockets[2].x, y1: pockets[2].y - diag,
+              x2: pockets[2].x - jawLen * 0.15, y2: pockets[2].y - cornerPocketOpening * 0.55 },
+            // Bottom-right corner (idx 3)
+            { x1: pockets[3].x - diag, y1: pockets[3].y,
+              x2: pockets[3].x - cornerPocketOpening * 0.55, y2: pockets[3].y + jawLen * 0.15 },
+            { x1: pockets[3].x, y1: pockets[3].y - diag,
+              x2: pockets[3].x + jawLen * 0.15, y2: pockets[3].y - cornerPocketOpening * 0.55 }
+        ];
+
+        // Side pocket jaw lines
+        const sidePocketOpening = cm * (game.sidePocketOpeningMult || 1.3);
+        const sideR = cm * 0.75;
+        const sideJawLen = sideR * 0.6;
+        const jawSpread = sidePocketOpening * 0.5;
+
+        const sideJaws = [
+            // Top-middle (idx 4)
+            { x1: pockets[4].x - sideR * 0.95, y1: pockets[4].y,
+              x2: pockets[4].x - jawSpread, y2: pockets[4].y - sideJawLen * 0.5 },
+            { x1: pockets[4].x + sideR * 0.95, y1: pockets[4].y,
+              x2: pockets[4].x + jawSpread, y2: pockets[4].y - sideJawLen * 0.5 },
+            // Bottom-middle (idx 5)
+            { x1: pockets[5].x - sideR * 0.95, y1: pockets[5].y,
+              x2: pockets[5].x - jawSpread, y2: pockets[5].y + sideJawLen * 0.5 },
+            { x1: pockets[5].x + sideR * 0.95, y1: pockets[5].y,
+              x2: pockets[5].x + jawSpread, y2: pockets[5].y + sideJawLen * 0.5 }
+        ];
+
+        const allJaws = cornerJaws.concat(sideJaws);
+
+        for (let i = 0; i < allJaws.length; i++) {
+            const jaw = allJaws[i];
+            const angle = Math.atan2(jaw.y2 - jaw.y1, jaw.x2 - jaw.x1);
+            if (this.checkLineCollision(ball, jaw.x1, jaw.y1, jaw.x2, jaw.y2, angle, restitution)) {
+                // Play cushion sound for jaw hit
+                const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                if (typeof PoolAudio !== 'undefined') {
+                    PoolAudio.play('cushionBounce', impactSpeed / 25);
+                }
+                if (typeof PoolVFX !== 'undefined' && impactSpeed > 1) {
+                    PoolVFX.spawnCushionCompression(
+                        (jaw.x1 + jaw.x2) / 2, (jaw.y1 + jaw.y2) / 2,
+                        jaw.y1 === jaw.y2 ? (jaw.y1 < h / 2 ? 'top' : 'bottom') : (jaw.x1 < w / 2 ? 'left' : 'right'),
+                        impactSpeed / 20
+                    );
+                }
+                return true;
+            }
+        }
+
         return false;
     },
     

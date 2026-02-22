@@ -371,7 +371,7 @@ const PoolDevSettings = {
                     </div>
                     <div class='dev-control'>
                         <label>Trajectory Length:</label>
-                        <input type='range' id='trajectoryLength' min='50' max='400' value='200' step='10'>
+                        <input type='range' id='trajectoryLength' min='50' max='500' value='200' step='25'>
                         <span id='trajectoryLengthValue'>200</span>
                     </div>
                     <div class='dev-control'>
@@ -557,6 +557,9 @@ const PoolDevSettings = {
                         <button id='randomShot' class='dev-btn'>Random Shot</button>
                         <button id='exportSettings' class='dev-btn'>Export</button>
                         <button id='resetDefaults' class='dev-btn'>Reset All</button>
+                    </div>
+                    <div class='dev-buttons' style='margin-top:8px;'>
+                        <button id='ballInspectorBtn' class='dev-btn' style='background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);grid-column:span 3;'>&#127913; Ball Inspector (F4)</button>
                     </div>
                     <div class='dev-buttons' style='margin-top:8px;'>
                         <button id='saveDefaults' class='dev-btn' style='background:linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);grid-column:span 2;'>Save as Defaults</button>
@@ -1127,6 +1130,10 @@ const PoolDevSettings = {
         
         this.addCheckboxListener('showTrajectory', (checked) => {
             self.game.showTrajectoryPrediction = checked;
+            // Sync to in-game prediction HUD
+            if (typeof PoolInput !== 'undefined' && PoolInput.updatePredictionHud) {
+                PoolInput.updatePredictionHud(self.game);
+            }
         });
         
         this.addCheckboxListener('showCollisionPoints', (checked) => {
@@ -1135,12 +1142,32 @@ const PoolDevSettings = {
         
         this.addRangeListener('trajectoryLength', (val) => {
             self.game.trajectoryLength = parseFloat(val);
+            // Sync to in-game prediction HUD
+            if (typeof PoolInput !== 'undefined' && PoolInput.updatePredictionHud) {
+                PoolInput.updatePredictionHud(self.game);
+            }
         });
         
         this.addCheckboxListener('showVelocities', (checked) => {
             self.game.showVelocities = checked;
         });
-        
+
+        this.addCheckboxListener('showBallNumbers', (checked) => {
+            self.game.showBallNumbers = checked;
+        });
+
+        this.addCheckboxListener('showFps', (checked) => {
+            self.game.showFps = checked;
+        });
+
+        this.addCheckboxListener('ballShadows', (checked) => {
+            self.game.ballShadows = checked;
+        });
+
+        this.addCheckboxListener('tableTexture', (checked) => {
+            self.game.tableTexture = checked;
+        });
+
         // Advanced Physics
         this.addRangeListener('airResistance', (val) => {
             self.game.airResistance = parseFloat(val);
@@ -1263,7 +1290,16 @@ const PoolDevSettings = {
         // Save/Clear defaults buttons
         document.getElementById('saveDefaults').addEventListener('click', () => self.saveAsDefaults());
         document.getElementById('clearDefaults').addEventListener('click', () => self.clearSavedDefaults());
-        
+
+        // Ball Inspector
+        document.getElementById('ballInspectorBtn').addEventListener('click', () => self.toggleBallInspector());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F4') {
+                e.preventDefault();
+                self.toggleBallInspector();
+            }
+        });
+
         // Load saved defaults on init
         this.loadSavedDefaults();
     },
@@ -1707,10 +1743,10 @@ const PoolDevSettings = {
     
     clearSavedDefaults() {
         if (!confirm('Clear saved default settings?')) return;
-        
+
         // Use MAUI bridge to clear settings
         window.location.href = 'poolsettings://clear';
-        
+
         // Also clear window object
         if (window.poolGameSavedDefaults) {
             delete window.poolGameSavedDefaults;
@@ -1719,7 +1755,344 @@ const PoolDevSettings = {
             window.MAUI_SAVED_SETTINGS = null;
         }
     },
-    
+
+    // ===== BALL INSPECTOR =====
+    _ballInspectorVisible: false,
+    _inspectorBalls: null,
+    _inspectorCanvas: null,
+    _inspectorCtx: null,
+    _inspectorZoom: 3.0,
+    _inspectorDrag: null,
+    _inspectorAnimId: null,
+    _inspectorAutoRotate: true,
+
+    toggleBallInspector() {
+        this._ballInspectorVisible = !this._ballInspectorVisible;
+        let panel = document.getElementById('ballInspectorPanel');
+
+        if (!panel) {
+            this.createBallInspector();
+            panel = document.getElementById('ballInspectorPanel');
+        }
+
+        if (this._ballInspectorVisible) {
+            panel.classList.add('visible');
+            this.startInspectorLoop();
+        } else {
+            panel.classList.remove('visible');
+            this.stopInspectorLoop();
+        }
+    },
+
+    createBallInspector() {
+        try {
+        const panel = document.createElement('div');
+        panel.id = 'ballInspectorPanel';
+        panel.innerHTML = `
+            <div class='inspector-header'>
+                <h3>Ball Inspector</h3>
+                <div class='inspector-controls'>
+                    <label style='font-size:11px;color:rgba(255,255,255,0.8);display:flex;align-items:center;gap:4px;'>
+                        <input type='checkbox' id='inspectorAutoRotate' checked style='width:14px;height:14px;accent-color:#8b5cf6;'>
+                        Auto-rotate
+                    </label>
+                    <button id='inspectorResetBtn' class='inspector-btn'>Reset</button>
+                    <button id='ballInspectorClose' class='dev-close-btn'>&times;</button>
+                </div>
+            </div>
+            <div class='inspector-body'>
+                <canvas id='ballInspectorCanvas' width='600' height='240'></canvas>
+                <div class='inspector-labels'>
+                    <span class='inspector-label' style='color:#dc2626;'>Red (1)</span>
+                    <span class='inspector-label' style='color:#eab308;'>Yellow (9)</span>
+                    <span class='inspector-label' style='color:#a0a0a0;'>Black (8)</span>
+                </div>
+                <div class='inspector-hint'>Drag to rotate - Scroll to zoom</div>
+                <div class='inspector-info' id='inspectorInfo'>Zoom: 3.0x</div>
+            </div>
+        `;
+
+        const style = document.createElement('style');
+        style.id = 'ballInspectorStyle';
+        style.textContent = `
+            #ballInspectorPanel {
+                position: fixed; bottom: 30px; right: 30px; width: 630px;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                border: 2px solid #8b5cf6; border-radius: 12px;
+                box-shadow: 0 15px 50px rgba(0,0,0,0.8);
+                z-index: 10001; display: none; font-family: Arial, sans-serif; overflow: hidden;
+            }
+            #ballInspectorPanel.visible { display: block; }
+            .inspector-header {
+                background: rgba(0,0,0,0.4); padding: 10px 16px;
+                display: flex; justify-content: space-between; align-items: center;
+                border-bottom: 2px solid #8b5cf6; cursor: move; user-select: none;
+            }
+            .inspector-header h3 { margin: 0; color: white; font-size: 14px; font-weight: bold; }
+            .inspector-controls { display: flex; align-items: center; gap: 10px; }
+            .inspector-btn {
+                padding: 4px 10px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;
+                background: rgba(255,255,255,0.1); color: white; font-size: 11px; cursor: pointer;
+            }
+            .inspector-btn:hover { background: rgba(255,255,255,0.2); }
+            .inspector-body { padding: 12px; text-align: center; }
+            #ballInspectorCanvas {
+                background: #0d4f2b; border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.15); cursor: grab; display: block; margin: 0 auto;
+            }
+            #ballInspectorCanvas:active { cursor: grabbing; }
+            .inspector-labels { display: flex; justify-content: space-around; margin-top: 8px; font-weight: bold; font-size: 12px; }
+            .inspector-label { flex: 1; text-align: center; }
+            .inspector-hint { color: rgba(255,255,255,0.4); font-size: 10px; margin-top: 6px; }
+            .inspector-info { color: #8b5cf6; font-size: 11px; font-weight: bold; margin-top: 4px; }
+        `;
+
+        if (!document.getElementById('ballInspectorStyle')) {
+            document.head.appendChild(style);
+        }
+        document.body.appendChild(panel);
+
+        this.makeDraggable(panel);
+
+        // Init canvas
+        this._inspectorCanvas = document.getElementById('ballInspectorCanvas');
+        if (!this._inspectorCanvas) { console.error('Ball inspector: canvas not found'); return; }
+        this._inspectorCtx = this._inspectorCanvas.getContext('2d');
+
+        // Create 3 mock balls
+        const baseR = 14;
+        this._inspectorBalls = [
+            { x: 100, y: 120, r: baseR, color: 'red', num: 1, vx: 0, vy: 0, potted: false },
+            { x: 300, y: 120, r: baseR, color: 'yellow', num: 9, vx: 0, vy: 0, potted: false },
+            { x: 500, y: 120, r: baseR, color: 'black', num: 8, vx: 0, vy: 0, potted: false }
+        ];
+
+        // Init rotation for each ball
+        if (typeof PoolBallRotation !== 'undefined') {
+            this._inspectorBalls.forEach(b => PoolBallRotation.initBall(b));
+        }
+
+        console.log('Ball inspector created OK, canvas:', this._inspectorCanvas.width, 'x', this._inspectorCanvas.height);
+
+        // Event listeners
+        const self = this;
+        const canvas = this._inspectorCanvas;
+
+        document.getElementById('ballInspectorClose').addEventListener('click', () => self.toggleBallInspector());
+
+        document.getElementById('inspectorResetBtn').addEventListener('click', () => {
+            if (typeof PoolBallRotation !== 'undefined') {
+                self._inspectorBalls.forEach(b => PoolBallRotation.initBall(b));
+            }
+            self._inspectorZoom = 3.0;
+            self.updateInspectorInfo();
+        });
+
+        const autoRotCb = document.getElementById('inspectorAutoRotate');
+        if (autoRotCb) {
+            autoRotCb.addEventListener('change', (e) => {
+                self._inspectorAutoRotate = e.target.checked;
+            });
+        }
+
+        // Mouse drag to rotate
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            self._inspectorDrag = {
+                startX: e.clientX,
+                startY: e.clientY,
+                ballIndex: mx < 200 ? 0 : mx < 400 ? 1 : 2
+            };
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!self._inspectorDrag) return;
+            const dx = e.clientX - self._inspectorDrag.startX;
+            const dy = e.clientY - self._inspectorDrag.startY;
+            self._inspectorDrag.startX = e.clientX;
+            self._inspectorDrag.startY = e.clientY;
+
+            const ball = self._inspectorBalls[self._inspectorDrag.ballIndex];
+            if (ball && ball.rotQ && typeof PoolBallRotation !== 'undefined') {
+                if (Math.abs(dx) > 0) {
+                    PoolBallRotation.updateQuaternion(ball, { x: 0, y: 1, z: 0 }, dx * 0.02);
+                }
+                if (Math.abs(dy) > 0) {
+                    PoolBallRotation.updateQuaternion(ball, { x: 1, y: 0, z: 0 }, dy * 0.02);
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            self._inspectorDrag = null;
+        });
+
+        // Scroll to zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            self._inspectorZoom = Math.max(1.0, Math.min(8.0, self._inspectorZoom + (e.deltaY > 0 ? -0.3 : 0.3)));
+            self.updateInspectorInfo();
+        }, { passive: false });
+
+        } catch (ex) {
+            console.error('Ball inspector creation failed:', ex);
+        }
+    },
+
+    updateInspectorInfo() {
+        const info = document.getElementById('inspectorInfo');
+        if (info) info.textContent = 'Zoom: ' + this._inspectorZoom.toFixed(1) + 'x';
+    },
+
+    startInspectorLoop() {
+        const self = this;
+
+        function loop() {
+            if (!self._ballInspectorVisible) return;
+            self.renderInspector();
+            self._inspectorAnimId = requestAnimationFrame(loop);
+        }
+        loop();
+    },
+
+    stopInspectorLoop() {
+        if (this._inspectorAnimId) {
+            cancelAnimationFrame(this._inspectorAnimId);
+            this._inspectorAnimId = null;
+        }
+    },
+
+    renderInspector() {
+        try {
+        var ctx = this._inspectorCtx;
+        var canvas = this._inspectorCanvas;
+        var balls = this._inspectorBalls;
+        if (!ctx || !canvas || !balls) return;
+
+        var W = canvas.width;
+        var H = canvas.height;
+
+        // Clear and draw felt
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0d4f2b';
+        ctx.fillRect(0, 0, W, H);
+
+        var zoom = this._inspectorZoom;
+        var baseR = 14;
+
+        // Auto-rotate
+        if (this._inspectorAutoRotate && typeof PoolBallRotation !== 'undefined' && !this._inspectorDrag) {
+            for (var i = 0; i < balls.length; i++) {
+                PoolBallRotation.updateQuaternion(balls[i], { x: 0.2, y: 1, z: 0.1 }, 0.015);
+            }
+        }
+
+        var colorMap = { red: '#b22222', yellow: '#daa520', black: '#222' };
+
+        for (var bi = 0; bi < balls.length; bi++) {
+            var ball = balls[bi];
+            var r = baseR * zoom;
+            var bx = ball.x;
+            var by = ball.y;
+
+            // Build a scaled ball object for PoolRendering
+            var sb = {
+                x: bx, y: by, r: r,
+                color: ball.color, num: ball.num,
+                vx: 0, vy: 0, potted: false,
+                rotQ: ball.rotQ || { w: 1, x: 0, y: 0, z: 0 },
+                numPosX: ball.numPosX || 0, numPosY: ball.numPosY || 0, numPosZ: ball.numPosZ || 1,
+                polePosX: ball.polePosX || 0, polePosY: ball.polePosY || -1, polePosZ: ball.polePosZ || 0,
+                eqPosX: ball.eqPosX || 1, eqPosY: ball.eqPosY || 0, eqPosZ: ball.eqPosZ || 0
+            };
+
+            var rendered = false;
+
+            // Try using PoolRendering methods
+            if (typeof PoolRendering !== 'undefined') {
+                try {
+                    var lx = -r * 0.4;
+                    var ly = -r * 0.4;
+
+                    // Shadow
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                    ctx.beginPath();
+                    ctx.ellipse(bx + 2, by + 3, r * 0.6, r * 0.35, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Ball body
+                    if (sb.color === 'red' && PoolRendering.drawUKRedBall) {
+                        PoolRendering.drawUKRedBall(ctx, sb, lx, ly);
+                    } else if (sb.color === 'yellow' && PoolRendering.drawUKYellowBall) {
+                        PoolRendering.drawUKYellowBall(ctx, sb, lx, ly);
+                    } else if (sb.color === 'black' && PoolRendering.drawBlackBall) {
+                        PoolRendering.drawBlackBall(ctx, sb, lx, ly);
+                    }
+
+                    // Number
+                    if (PoolRendering.drawBallNumber) {
+                        PoolRendering.drawBallNumber(ctx, sb);
+                    }
+
+                    // Specular
+                    if (PoolRendering.drawSpecularHighlights) {
+                        PoolRendering.drawSpecularHighlights(ctx, sb, lx, ly);
+                    }
+
+                    rendered = true;
+                } catch (renderErr) {
+                    console.error('Inspector ball render error:', renderErr);
+                    rendered = false;
+                }
+            }
+
+            // Fallback: simple gradient ball
+            if (!rendered) {
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(bx + 2, by + 3, r * 0.6, r * 0.35, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ball gradient
+                var grad = ctx.createRadialGradient(bx - r * 0.3, by - r * 0.3, r * 0.1, bx, by, r);
+                var baseCol = colorMap[ball.color] || '#888';
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, baseCol);
+                grad.addColorStop(1, '#111');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(bx, by, r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Number
+                ctx.fillStyle = ball.color === 'black' ? '#fff' : '#000';
+                ctx.font = 'bold ' + Math.round(r * 0.5) + 'px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(ball.num, bx, by);
+            }
+        }
+
+        // Divider lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(200, 10); ctx.lineTo(200, H - 10);
+        ctx.moveTo(400, 10); ctx.lineTo(400, H - 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        } catch (outerErr) {
+            console.error('Inspector render fatal:', outerErr);
+        }
+    },
+
     showNotification(message, type) {
         const notification = document.createElement('div');
         notification.textContent = message;

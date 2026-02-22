@@ -480,6 +480,16 @@ drawTable(ctx, width, height, cushionMargin, game) {
     },
     
     /**
+     * Draw a small rounded cap at a rail endpoint (where rail meets pocket)
+     */
+    drawRailCap(ctx, cx, cy, r, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    /**
      * Draw UK-style pool table with proper pocket cutouts
      * Based on reference image - cream rails, black pockets, green cushions
      */
@@ -584,7 +594,30 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.closePath();
         ctx.fill();
         
-        // ========== 2. RAIL 3D EFFECTS ==========
+        // ========== 2. RAIL-POCKET TRANSITIONS ==========
+        // Round off the hard-cut rail ends where they meet pocket openings
+        const transR = railWidth * 0.35;
+        ctx.fillStyle = railColor;
+
+        // Top rail — left ends
+        this.drawRailCap(ctx, corners[0].x + cornerPocketOpening, railWidth / 2, transR, railColor);
+        this.drawRailCap(ctx, sides[0].x - sidePocketOpening, railWidth / 2, transR, railColor);
+        // Top rail — right ends
+        this.drawRailCap(ctx, sides[0].x + sidePocketOpening, railWidth / 2, transR, railColor);
+        this.drawRailCap(ctx, corners[1].x - cornerPocketOpening, railWidth / 2, transR, railColor);
+        // Bottom rail
+        this.drawRailCap(ctx, corners[2].x + cornerPocketOpening, height - railWidth / 2, transR, railColor);
+        this.drawRailCap(ctx, sides[1].x - sidePocketOpening, height - railWidth / 2, transR, railColor);
+        this.drawRailCap(ctx, sides[1].x + sidePocketOpening, height - railWidth / 2, transR, railColor);
+        this.drawRailCap(ctx, corners[3].x - cornerPocketOpening, height - railWidth / 2, transR, railColor);
+        // Left rail
+        this.drawRailCap(ctx, railWidth / 2, corners[0].y + cornerPocketOpening, transR, railColor);
+        this.drawRailCap(ctx, railWidth / 2, corners[2].y - cornerPocketOpening, transR, railColor);
+        // Right rail
+        this.drawRailCap(ctx, width - railWidth / 2, corners[1].y + cornerPocketOpening, transR, railColor);
+        this.drawRailCap(ctx, width - railWidth / 2, corners[3].y - cornerPocketOpening, transR, railColor);
+
+        // ========== 2b. RAIL 3D EFFECTS ==========
         // Wood grain texture on rails (#9)
         if (typeof PoolVFX !== 'undefined') {
             // Top rails
@@ -633,115 +666,187 @@ drawTable(ctx, width, height, cushionMargin, game) {
         ctx.lineTo(corners[3].x - cornerPocketOpening, height - railWidth + 1);
         ctx.stroke();
         
-        // ========== 3. DRAW POCKET HOLES ==========
-        // Realistic pockets with leather/rubber linings and depth
-        
-        // Corner pockets - with realistic depth and leather surround
-        corners.forEach(p => {
-            // Deepest part - absolute black
-            ctx.fillStyle = '#000000';
+        // ========== 3. DRAW POCKET MOUTH OPENINGS ON FELT ==========
+        // These are the visible pocket entries from the playing surface.
+        // On a real table, you see a dark opening at each pocket through the cushion gap.
+
+        // Corner pocket mouths (quarter-circle facing into the corner)
+        corners.forEach((p, idx) => {
+            const mouthR = cornerPocketR * 0.65;
+            const mouthGrad = ctx.createRadialGradient(p.x, p.y, mouthR * 0.2, p.x, p.y, mouthR);
+            mouthGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+            mouthGrad.addColorStop(0.4, 'rgba(5, 5, 5, 0.7)');
+            mouthGrad.addColorStop(0.7, 'rgba(15, 12, 8, 0.45)');
+            mouthGrad.addColorStop(1, 'rgba(20, 18, 12, 0)');
+
+            ctx.fillStyle = mouthGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, cornerPocketR * 0.5, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, mouthR, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Depth gradient - creates 3D hole effect
-            const depthGrad = ctx.createRadialGradient(
-                p.x, p.y, cornerPocketR * 0.3,
-                p.x, p.y, cornerPocketR * 1.1
-            );
-            depthGrad.addColorStop(0, '#050505');
-            depthGrad.addColorStop(0.3, '#0a0a0a');
-            depthGrad.addColorStop(0.6, '#151515');
-            depthGrad.addColorStop(0.85, '#252525');
-            depthGrad.addColorStop(1, '#353535');
-            
-            ctx.fillStyle = depthGrad;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, cornerPocketR, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Leather/rubber surround ring
-            const leatherGrad = ctx.createRadialGradient(
-                p.x - 2, p.y - 2, cornerPocketR * 0.85,
-                p.x, p.y, cornerPocketR * 1.15
-            );
-            leatherGrad.addColorStop(0, '#1a1a1a');
-            leatherGrad.addColorStop(0.3, '#252015');  // Dark brown leather
-            leatherGrad.addColorStop(0.6, '#302820');
-            leatherGrad.addColorStop(0.9, '#201810');
-            leatherGrad.addColorStop(1, '#100805');
-            
-            ctx.strokeStyle = leatherGrad;
-            ctx.lineWidth = cornerPocketR * 0.25;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, cornerPocketR * 1.02, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Highlight on leather edge (catches light)
-            ctx.strokeStyle = 'rgba(255, 240, 220, 0.08)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(p.x - 1, p.y - 1, cornerPocketR * 1.1, Math.PI * 0.8, Math.PI * 1.5);
-            ctx.stroke();
         });
-        
-        // Side pockets - slightly different shape and depth
-        sides.forEach(p => {
-            // Deepest part
-            ctx.fillStyle = '#000000';
+
+        // Side pocket mouths (half-ellipse facing into the rail)
+        sides.forEach((p, idx) => {
+            const mouthRx = sidePocketR * 0.7;
+            const mouthRy = sidePocketR * 0.45;
+            const mouthGrad = ctx.createRadialGradient(p.x, p.y, mouthRy * 0.15, p.x, p.y, mouthRx);
+            mouthGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+            mouthGrad.addColorStop(0.35, 'rgba(5, 5, 5, 0.65)');
+            mouthGrad.addColorStop(0.65, 'rgba(15, 12, 8, 0.35)');
+            mouthGrad.addColorStop(1, 'rgba(20, 18, 12, 0)');
+
+            ctx.fillStyle = mouthGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, sidePocketR * 0.4, 0, Math.PI * 2);
+            ctx.ellipse(p.x, p.y, mouthRx, mouthRy, 0, 0, Math.PI * 2);
             ctx.fill();
-            
+        });
+
+        // ========== 4. DRAW POCKET DEPTH (CLIPPED TO RAIL ZONE) ==========
+        // The deep pocket visuals (leather, depth gradient, jaws) are clipped
+        // to the rail area so they don't bleed onto the playing surface.
+        ctx.save();
+        ctx.beginPath();
+        // Outer rect — full canvas
+        ctx.rect(0, 0, width, height);
+        // Inner rect — playing surface (counterclockwise to cut a hole via evenodd)
+        ctx.rect(railWidth, height - railWidth, width - 2 * railWidth, -(height - 2 * railWidth));
+        ctx.clip('evenodd');
+
+        // Corner pockets — depth and leather (now clipped to rail zone)
+        corners.forEach((p, idx) => {
+            const isLeft = (idx === 0 || idx === 2);
+            const isTop = (idx === 0 || idx === 1);
+            const pocketR = cornerPocketR * 1.15;
+
             // Depth gradient
             const depthGrad = ctx.createRadialGradient(
-                p.x, p.y, sidePocketR * 0.25,
-                p.x, p.y, sidePocketR * 1.05
+                p.x, p.y, cornerPocketR * 0.15,
+                p.x, p.y, pocketR
             );
-            depthGrad.addColorStop(0, '#050505');
-            depthGrad.addColorStop(0.35, '#0c0c0c');
-            depthGrad.addColorStop(0.65, '#181818');
-            depthGrad.addColorStop(0.9, '#282828');
-            depthGrad.addColorStop(1, '#383838');
-            
+            depthGrad.addColorStop(0, '#020202');
+            depthGrad.addColorStop(0.3, '#080808');
+            depthGrad.addColorStop(0.6, '#121212');
+            depthGrad.addColorStop(1, '#282420');
+
             ctx.fillStyle = depthGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, sidePocketR, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, pocketR, 0, Math.PI * 2);
             ctx.fill();
-            
+
+            // Leather/rubber surround
+            const leatherGrad = ctx.createRadialGradient(
+                p.x - 1, p.y - 1, cornerPocketR * 0.85,
+                p.x, p.y, pocketR
+            );
+            leatherGrad.addColorStop(0, '#1a1a1a');
+            leatherGrad.addColorStop(0.3, '#2a2015');
+            leatherGrad.addColorStop(0.7, '#352a20');
+            leatherGrad.addColorStop(1, '#151008');
+
+            ctx.strokeStyle = leatherGrad;
+            ctx.lineWidth = cornerPocketR * 0.22;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, pocketR - 1, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Jaw facets
+            const jawLen = cornerPocketR * 0.7;
+            const jawWidth = 3;
+            const diag = cornerPocketR * 0.75;
+
+            ctx.strokeStyle = '#1a1410';
+            ctx.lineWidth = jawWidth;
+            ctx.lineCap = 'round';
+
+            // Jaw 1 (horizontal side)
+            const jaw1StartX = p.x + (isLeft ? diag : -diag);
+            const jaw1StartY = p.y;
+            const jaw1EndX = p.x + (isLeft ? cornerPocketOpening * 0.55 : -cornerPocketOpening * 0.55);
+            const jaw1EndY = p.y + (isTop ? -jawLen * 0.15 : jawLen * 0.15);
+            ctx.beginPath();
+            ctx.moveTo(jaw1StartX, jaw1StartY);
+            ctx.lineTo(jaw1EndX, jaw1EndY);
+            ctx.stroke();
+
+            // Jaw 2 (vertical side)
+            const jaw2StartX = p.x;
+            const jaw2StartY = p.y + (isTop ? diag : -diag);
+            const jaw2EndX = p.x + (isLeft ? -jawLen * 0.15 : jawLen * 0.15);
+            const jaw2EndY = p.y + (isTop ? cornerPocketOpening * 0.55 : -cornerPocketOpening * 0.55);
+            ctx.beginPath();
+            ctx.moveTo(jaw2StartX, jaw2StartY);
+            ctx.lineTo(jaw2EndX, jaw2EndY);
+            ctx.stroke();
+        });
+
+        // Side pockets — depth and leather (clipped to rail zone)
+        sides.forEach((p, idx) => {
+            const isTop = (idx === 0);
+            const pocketRx = sidePocketR * 1.25;
+            const pocketRy = sidePocketR * 0.9;
+
+            // Depth gradient
+            const depthGrad = ctx.createRadialGradient(
+                p.x, p.y, sidePocketR * 0.1,
+                p.x, p.y, pocketRx
+            );
+            depthGrad.addColorStop(0, '#020202');
+            depthGrad.addColorStop(0.35, '#0a0a0a');
+            depthGrad.addColorStop(0.65, '#181818');
+            depthGrad.addColorStop(1, '#302a24');
+
+            ctx.fillStyle = depthGrad;
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, pocketRx, pocketRy, 0, 0, Math.PI * 2);
+            ctx.fill();
+
             // Leather surround
             const leatherGrad = ctx.createRadialGradient(
-                p.x - 2, p.y - 2, sidePocketR * 0.8,
-                p.x, p.y, sidePocketR * 1.1
+                p.x - 1, p.y - 1, sidePocketR * 0.75,
+                p.x, p.y, pocketRx
             );
             leatherGrad.addColorStop(0, '#1a1a1a');
             leatherGrad.addColorStop(0.4, '#282018');
-            leatherGrad.addColorStop(0.7, '#352820');
+            leatherGrad.addColorStop(0.7, '#352a20');
             leatherGrad.addColorStop(1, '#151010');
-            
+
             ctx.strokeStyle = leatherGrad;
-            ctx.lineWidth = sidePocketR * 0.22;
+            ctx.lineWidth = sidePocketR * 0.2;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, sidePocketR * 0.98, 0, Math.PI * 2);
+            ctx.ellipse(p.x, p.y, pocketRx - 2, pocketRy - 2, 0, 0, Math.PI * 2);
             ctx.stroke();
-            
-            // Leather highlight
-            ctx.strokeStyle = 'rgba(255, 240, 220, 0.06)';
-            ctx.lineWidth = 1;
+
+            // Side pocket jaw facets
+            const jawLen = sidePocketR * 0.6;
+            const jawWidth = 3;
+            const jawSpread = sidePocketOpening * 0.5;
+
+            ctx.strokeStyle = '#1a1410';
+            ctx.lineWidth = jawWidth;
+            ctx.lineCap = 'round';
+
             ctx.beginPath();
-            ctx.arc(p.x - 1, p.y - 1, sidePocketR * 1.05, Math.PI * 0.7, Math.PI * 1.4);
+            ctx.moveTo(p.x - sidePocketR * 0.95, p.y);
+            ctx.lineTo(p.x - jawSpread, p.y + (isTop ? -jawLen * 0.5 : jawLen * 0.5));
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(p.x + sidePocketR * 0.95, p.y);
+            ctx.lineTo(p.x + jawSpread, p.y + (isTop ? -jawLen * 0.5 : jawLen * 0.5));
             ctx.stroke();
         });
+
+        ctx.restore(); // Remove rail-zone clip
         
         
         // ========== 4. DRAW GREEN CUSHIONS ==========
-        // Realistic rubber bumpers with 3D profile
-        
-        const cushionWidth = 8;  // Slightly thicker for better 3D effect
+        // Realistic rubber bumpers with 3D profile and tapered ends
+
+        const cushionWidth = 8;
         const cushionInset = railWidth - cushionWidth / 2 - 1;
-        
-        // Helper function to draw a cushion segment with 3D effect
-        const drawCushionSegment = (x1, y1, x2, y2, isHorizontal) => {
+
+        // Helper: draw a cushion segment with 3D effect and optional tapered ends
+        const drawCushionSegment = (x1, y1, x2, y2, isHorizontal, taperStart, taperEnd) => {
             // Shadow underneath cushion
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.lineWidth = cushionWidth + 2;
@@ -750,7 +855,7 @@ drawTable(ctx, width, height, cushionMargin, game) {
             ctx.moveTo(x1 + (isHorizontal ? 0 : 1), y1 + (isHorizontal ? 1 : 0));
             ctx.lineTo(x2 + (isHorizontal ? 0 : 1), y2 + (isHorizontal ? 1 : 0));
             ctx.stroke();
-            
+
             // Main cushion body (darker rubber base)
             ctx.strokeStyle = this.darkenColor(cushionColor, 15);
             ctx.lineWidth = cushionWidth;
@@ -758,69 +863,108 @@ drawTable(ctx, width, height, cushionMargin, game) {
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
             ctx.stroke();
-            
+
             // Top highlight (rubber shine)
             ctx.strokeStyle = this.lightenColor(cushionColor, 20);
             ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.moveTo(x1, y1 - (isHorizontal ? 2 : 0) + (isHorizontal ? 0 : 0));
-            ctx.lineTo(x2, y2 - (isHorizontal ? 2 : 0) + (isHorizontal ? 0 : 0));
+            ctx.moveTo(x1, y1 - (isHorizontal ? 2 : 0));
+            ctx.lineTo(x2, y2 - (isHorizontal ? 2 : 0));
             if (!isHorizontal) {
                 ctx.moveTo(x1 - 2, y1);
                 ctx.lineTo(x2 - 2, y2);
             }
             ctx.stroke();
-            
+
             // Subtle rubber texture line
             ctx.strokeStyle = this.darkenColor(cushionColor, 8);
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(x1, y1 + (isHorizontal ? 1 : 0) - (isHorizontal ? 0 : 0));
-            ctx.lineTo(x2, y2 + (isHorizontal ? 1 : 0) - (isHorizontal ? 0 : 0));
+            ctx.moveTo(x1, y1 + (isHorizontal ? 1 : 0));
+            ctx.lineTo(x2, y2 + (isHorizontal ? 1 : 0));
             if (!isHorizontal) {
                 ctx.moveTo(x1 + 1, y1);
                 ctx.lineTo(x2 + 1, y2);
             }
             ctx.stroke();
+
+            // Draw tapered/curved nose at each end (where cushion meets pocket)
+            const taperLen = 8;
+            const taperColor = this.darkenColor(cushionColor, 10);
+
+            if (taperStart) {
+                ctx.fillStyle = taperColor;
+                ctx.beginPath();
+                if (isHorizontal) {
+                    // Taper curves inward toward the felt
+                    ctx.moveTo(x1, y1 - cushionWidth / 2);
+                    ctx.quadraticCurveTo(x1 - taperLen * 0.6, y1, x1 - taperLen, y1 + cushionWidth * 0.4);
+                    ctx.lineTo(x1, y1 + cushionWidth / 2);
+                    ctx.closePath();
+                } else {
+                    ctx.moveTo(x1 - cushionWidth / 2, y1);
+                    ctx.quadraticCurveTo(x1, y1 - taperLen * 0.6, x1 + cushionWidth * 0.4, y1 - taperLen);
+                    ctx.lineTo(x1 + cushionWidth / 2, y1);
+                    ctx.closePath();
+                }
+                ctx.fill();
+            }
+
+            if (taperEnd) {
+                ctx.fillStyle = taperColor;
+                ctx.beginPath();
+                if (isHorizontal) {
+                    ctx.moveTo(x2, y2 - cushionWidth / 2);
+                    ctx.quadraticCurveTo(x2 + taperLen * 0.6, y2, x2 + taperLen, y2 + cushionWidth * 0.4);
+                    ctx.lineTo(x2, y2 + cushionWidth / 2);
+                    ctx.closePath();
+                } else {
+                    ctx.moveTo(x2 - cushionWidth / 2, y2);
+                    ctx.quadraticCurveTo(x2, y2 + taperLen * 0.6, x2 + cushionWidth * 0.4, y2 + taperLen);
+                    ctx.lineTo(x2 + cushionWidth / 2, y2);
+                    ctx.closePath();
+                }
+                ctx.fill();
+            }
         };
-        
-        // Top cushions (2 segments with gap for side pocket)
+
+        // Top cushions (tapered at both ends — pocket side)
         drawCushionSegment(
             corners[0].x + cornerPocketOpening + 3, cushionInset,
             sides[0].x - sidePocketOpening - 3, cushionInset,
-            true
+            true, true, true
         );
         drawCushionSegment(
             sides[0].x + sidePocketOpening + 3, cushionInset,
             corners[1].x - cornerPocketOpening - 3, cushionInset,
-            true
+            true, true, true
         );
-        
+
         // Bottom cushions
         drawCushionSegment(
             corners[2].x + cornerPocketOpening + 3, height - cushionInset,
             sides[1].x - sidePocketOpening - 3, height - cushionInset,
-            true
+            true, true, true
         );
         drawCushionSegment(
             sides[1].x + sidePocketOpening + 3, height - cushionInset,
             corners[3].x - cornerPocketOpening - 3, height - cushionInset,
-            true
+            true, true, true
         );
-        
+
         // Left cushion
-            drawCushionSegment(
-                cushionInset, corners[0].y + cornerPocketOpening + 3,
-                cushionInset, corners[2].y - cornerPocketOpening - 3,
-                false
-            );
-        
-            // Right cushion
-            drawCushionSegment(
-                width - cushionInset, corners[1].y + cornerPocketOpening + 3,
-                width - cushionInset, corners[3].y - cornerPocketOpening - 3,
-                false
-            );
+        drawCushionSegment(
+            cushionInset, corners[0].y + cornerPocketOpening + 3,
+            cushionInset, corners[2].y - cornerPocketOpening - 3,
+            false, true, true
+        );
+
+        // Right cushion
+        drawCushionSegment(
+            width - cushionInset, corners[1].y + cornerPocketOpening + 3,
+            width - cushionInset, corners[3].y - cornerPocketOpening - 3,
+            false, true, true
+        );
         
             ctx.restore();
         },
@@ -970,18 +1114,13 @@ drawTable(ctx, width, height, cushionMargin, game) {
         }
     },
     
-    // Red Ball - American style with cream polar caps and maroon center band
-    drawUKRedBall(ctx, ball, lightOffsetX, lightOffsetY) {
+    // Ball with cream base and colored center band (American/UK style)
+    drawBallWithBand(ctx, ball, lightOffsetX, lightOffsetY, colorBase, colorRange) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.clip();
-        
-        // Get stripe offset from rotation module (uses pole position tracking)
-        const stripeOffset = typeof PoolBallRotation !== 'undefined' 
-            ? PoolBallRotation.getStripeOffset(ball) 
-            : 0;
-        
+
         // Base cream/ivory color (the polar caps)
         const baseGrad = ctx.createRadialGradient(
             ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.1,
@@ -992,62 +1131,107 @@ drawTable(ctx, width, height, cushionMargin, game) {
         baseGrad.addColorStop(0.5, '#f0e8d8');
         baseGrad.addColorStop(0.8, '#d8d0c0');
         baseGrad.addColorStop(1, '#b8b0a0');
-        
+
         ctx.fillStyle = baseGrad;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Draw the maroon center band - uses proper 3D rotation tracking
-        this.drawRedBallMaroonBand(ctx, ball, lightOffsetX, lightOffsetY, stripeOffset);
-        
+
+        // Draw the colored center band — uses pole orientation for 3D wrapping
+        this.drawColorBand(ctx, ball, lightOffsetX, lightOffsetY, colorBase, colorRange, 0.55);
+
         ctx.restore();
     },
+
+    // Red Ball - cream base with maroon band
+    drawUKRedBall(ctx, ball, lightOffsetX, lightOffsetY) {
+        this.drawBallWithBand(ctx, ball, lightOffsetX, lightOffsetY,
+            { r: 45, g: 8, b: 18 }, { r: 115, g: 32, b: 48 });
+    },
     
-    // Draw the maroon band - fixed width horizontal stripe that rolls with the ball
-    drawRedBallMaroonBand(ctx, ball, lightOffsetX, lightOffsetY, stripeOffset) {
+    // Draw a colored region as proper 3D surface quads on the sphere.
+    // The region is defined in the ball's LOCAL coordinate system
+    // and rotated into world space by the ball's quaternion. Each visible quad
+    // is shaded by the overhead light, giving proper sphere curvature.
+    // colorBase/colorRange define the color: rgb = base + diffuse * range
+    // bandH controls coverage: 0.55 = equator band, 0.98 = full sphere (solid)
+    drawColorBand(ctx, ball, lightOffsetX, lightOffsetY, colorBase, colorRange, bandH) {
         ctx.save();
-        
-        // Calculate band position from rotation module's stripe offset
-        // stripeOffset is -1 to 1, representing how far the pole has tilted
-        const bandOffset = stripeOffset * ball.r * 0.85;
-        const bandCenterY = ball.y + bandOffset;
-        
-        // Create maroon gradient centered on the band
-        const maroonGrad = ctx.createRadialGradient(
-            ball.x + lightOffsetX * 0.5, bandCenterY + lightOffsetY * 0.5, ball.r * 0.1,
-            ball.x, bandCenterY, ball.r * 1.1
-        );
-        maroonGrad.addColorStop(0, '#a04555');
-        maroonGrad.addColorStop(0.15, '#8b2538');
-        maroonGrad.addColorStop(0.4, '#6d1a2d');
-        maroonGrad.addColorStop(0.7, '#5a1525');
-        maroonGrad.addColorStop(1, '#3a0815');
-        
-        // Draw band as a fixed width horizontal stripe - same width all the way around
-        // Band height is 60% of ball diameter (30% above and below center)
-        const bandHalfHeight = ball.r * 0.60;
-        
-        ctx.fillStyle = maroonGrad;
-        ctx.beginPath();
-        ctx.rect(ball.x - ball.r, bandCenterY - bandHalfHeight, ball.r * 2, bandHalfHeight * 2);
-        ctx.fill();
-        
-        // Add subtle shading to the band for 3D effect
-        const bandShadow = ctx.createLinearGradient(
-            ball.x, bandCenterY - bandHalfHeight,
-            ball.x, bandCenterY + bandHalfHeight
-        );
-        bandShadow.addColorStop(0, 'rgba(255,200,200,0.15)');
-        bandShadow.addColorStop(0.3, 'rgba(0,0,0,0)');
-        bandShadow.addColorStop(0.7, 'rgba(0,0,0,0.1)');
-        bandShadow.addColorStop(1, 'rgba(0,0,0,0.2)');
-        
-        ctx.fillStyle = bandShadow;
-        ctx.beginPath();
-        ctx.rect(ball.x - ball.r, bandCenterY - bandHalfHeight, ball.r * 2, bandHalfHeight * 2);
-        ctx.fill();
-        
+
+        const hasRotation = typeof PoolBallRotation !== 'undefined' && ball.rotQ;
+        const q = hasRotation ? ball.rotQ : { w: 1, x: 0, y: 0, z: 0 };
+        const r = ball.r;
+
+        // Region covers local Y from -bandH to +bandH
+        if (bandH === undefined) bandH = 0.55;
+
+        // Light direction (normalized) for shading
+        const lx = lightOffsetX / r, ly = lightOffsetY / r, lz = 0.85;
+        const lLen = Math.sqrt(lx * lx + ly * ly + lz * lz);
+        const ldx = lx / lLen, ldy = ly / lLen, ldz = lz / lLen;
+
+        // Number of segments around the ball and across the region
+        const stepsAround = 28;
+        const stepsAcross = bandH > 0.8 ? 12 : 6; // more slices for full-sphere coverage
+
+        // Pre-compute ring points for each latitude stripe in the band
+        // rings[row][col] = rotated 3D point on unit sphere
+        const rings = new Array(stepsAcross + 1);
+        for (let row = 0; row <= stepsAcross; row++) {
+            rings[row] = new Array(stepsAround + 1);
+            const localY = -bandH + (row / stepsAcross) * (bandH * 2);
+            const ringR = Math.sqrt(Math.max(0, 1 - localY * localY));
+
+            for (let col = 0; col <= stepsAround; col++) {
+                const t = (col / stepsAround) * Math.PI * 2;
+                const localPt = {
+                    x: ringR * Math.cos(t),
+                    y: localY,
+                    z: ringR * Math.sin(t)
+                };
+                rings[row][col] = PoolBallRotation.rotatePointByQuaternion(localPt, q);
+            }
+        }
+
+        // Draw visible quads with per-quad lighting
+        for (let row = 0; row < stepsAcross; row++) {
+            for (let col = 0; col < stepsAround; col++) {
+                const p00 = rings[row][col];
+                const p10 = rings[row][col + 1];
+                const p01 = rings[row + 1][col];
+                const p11 = rings[row + 1][col + 1];
+
+                // Average depth — skip quads on the back of the ball
+                const avgZ = (p00.z + p10.z + p01.z + p11.z) * 0.25;
+                if (avgZ < -0.08) continue;
+
+                // Surface normal ≈ average position (points on unit sphere)
+                const nx = (p00.x + p10.x + p01.x + p11.x) * 0.25;
+                const ny = (p00.y + p10.y + p01.y + p11.y) * 0.25;
+                const nz = (p00.z + p10.z + p01.z + p11.z) * 0.25;
+
+                // Diffuse lighting
+                const diffuse = Math.max(0.12, nx * ldx + ny * ldy + nz * ldz);
+
+                // Band color modulated by light
+                const cr = Math.round(colorBase.r + diffuse * colorRange.r);
+                const cg = Math.round(colorBase.g + diffuse * colorRange.g);
+                const cb = Math.round(colorBase.b + diffuse * colorRange.b);
+
+                // Fade quads near the silhouette edge
+                const alpha = Math.min(1, Math.max(0.15, (avgZ + 0.1) / 0.35));
+
+                ctx.fillStyle = `rgba(${cr},${cg},${cb},${alpha})`;
+                ctx.beginPath();
+                ctx.moveTo(ball.x + p00.x * r, ball.y + p00.y * r);
+                ctx.lineTo(ball.x + p10.x * r, ball.y + p10.y * r);
+                ctx.lineTo(ball.x + p11.x * r, ball.y + p11.y * r);
+                ctx.lineTo(ball.x + p01.x * r, ball.y + p01.y * r);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
         ctx.restore();
     },
     
@@ -1060,82 +1244,31 @@ drawTable(ctx, width, height, cushionMargin, game) {
     
     
     
-    // UK Yellow Ball - Solid bright yellow with phenolic resin look
+    // UK Yellow Ball - solid yellow using 3D quad rendering with per-quad lighting
     drawUKYellowBall(ctx, ball, lightOffsetX, lightOffsetY) {
-        // Base gradient with more depth
-        const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.05,
-            ball.x, ball.y, ball.r * 1.05
-        );
-        grad.addColorStop(0, '#fff8a0');  // Bright highlight
-        grad.addColorStop(0.1, '#ffed70');
-        grad.addColorStop(0.25, '#ffe033');
-        grad.addColorStop(0.5, '#ffd700');
-        grad.addColorStop(0.7, '#e6b800');
-        grad.addColorStop(0.85, '#cc9900');
-        grad.addColorStop(1, '#8a6500');
-        
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Subsurface scattering simulation - warm glow on shadow side
-        const sssGrad = ctx.createRadialGradient(
-            ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, 0,
-            ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, ball.r * 0.7
-        );
-        sssGrad.addColorStop(0, 'rgba(255, 200, 50, 0.15)');
-        sssGrad.addColorStop(0.5, 'rgba(255, 180, 30, 0.08)');
-        sssGrad.addColorStop(1, 'rgba(255, 180, 30, 0)');
-        
         ctx.save();
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.clip();
-        ctx.fillStyle = sssGrad;
-        ctx.beginPath();
-        ctx.arc(ball.x - lightOffsetX * 0.8, ball.y - lightOffsetY * 0.8, ball.r * 0.7, 0, Math.PI * 2);
+        // Base fill to cover polar gaps where quads don't reach
+        ctx.fillStyle = '#8a6e00';
         ctx.fill();
+        this.drawColorBand(ctx, ball, lightOffsetX, lightOffsetY,
+            { r: 130, g: 100, b: 0 }, { r: 125, g: 100, b: 8 }, 0.98);
         ctx.restore();
     },
     
-    // Black Ball - Deep glossy black with rich reflections
+    // Black Ball - solid black using 3D quad rendering with per-quad lighting
     drawBlackBall(ctx, ball, lightOffsetX, lightOffsetY) {
-        // Deep black base with subtle blue tint (like real phenolic balls)
-        const grad = ctx.createRadialGradient(
-            ball.x + lightOffsetX, ball.y + lightOffsetY, ball.r * 0.05,
-            ball.x, ball.y, ball.r * 1.05
-        );
-        grad.addColorStop(0, '#606875');   // Slight blue-gray highlight
-        grad.addColorStop(0.15, '#404550');
-        grad.addColorStop(0.3, '#2a2d33');
-        grad.addColorStop(0.5, '#1a1c20');
-        grad.addColorStop(0.7, '#0f1012');
-        grad.addColorStop(1, '#050506');
-        
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Environment reflection hint (shows depth)
-        const envReflect = ctx.createLinearGradient(
-            ball.x - ball.r, ball.y - ball.r * 0.3,
-            ball.x + ball.r, ball.y + ball.r * 0.3
-        );
-        envReflect.addColorStop(0, 'rgba(80, 100, 80, 0)');
-        envReflect.addColorStop(0.3, 'rgba(80, 100, 80, 0.05)');
-        envReflect.addColorStop(0.5, 'rgba(80, 100, 80, 0.08)');
-        envReflect.addColorStop(0.7, 'rgba(80, 100, 80, 0.05)');
-        envReflect.addColorStop(1, 'rgba(80, 100, 80, 0)');
-        
         ctx.save();
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.clip();
-        ctx.fillStyle = envReflect;
-        ctx.fillRect(ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
+        // Base fill to cover polar gaps where quads don't reach
+        ctx.fillStyle = '#0a0a10';
+        ctx.fill();
+        this.drawColorBand(ctx, ball, lightOffsetX, lightOffsetY,
+            { r: 5, g: 5, b: 8 }, { r: 38, g: 40, b: 46 }, 0.98);
         ctx.restore();
     },
     
@@ -1178,109 +1311,80 @@ drawTable(ctx, width, height, cushionMargin, game) {
     },
     
     // Draw the characteristic dark spots on a cue ball
+    // Uses the ball's quaternion rotation to place spots accurately on the sphere surface
     drawCueBallSpots(ctx, ball) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
         ctx.clip();
-        
-        // Get the 3D rotation state (default to facing viewer)
-        const numX = ball.numPosX !== undefined ? ball.numPosX : 0;
-        const numY = ball.numPosY !== undefined ? ball.numPosY : 0;
-        const numZ = ball.numPosZ !== undefined ? ball.numPosZ : 1;
-        
-        // Define 6 spots positioned on a sphere (like dice positions)
-        // These are unit vectors pointing to spot positions
-        const spotPositions = [
-            { x: 0, y: 0, z: 1 },    // Front
-            { x: 0, y: 0, z: -1 },   // Back
-            { x: 1, y: 0, z: 0 },    // Right
-            { x: -1, y: 0, z: 0 },   // Left
-            { x: 0, y: 1, z: 0 },    // Bottom
-            { x: 0, y: -1, z: 0 }    // Top
+
+        const hasRotation = typeof PoolBallRotation !== 'undefined' && ball.rotQ;
+        const q = hasRotation ? ball.rotQ : { w: 1, x: 0, y: 0, z: 0 };
+
+        // 6 spots fixed on the ball surface (unit sphere, like dice faces)
+        const spotDefs = [
+            { x: 0, y: 0, z: 1 },     // Front
+            { x: 0, y: 0, z: -1 },    // Back
+            { x: 1, y: 0, z: 0 },     // Right
+            { x: -1, y: 0, z: 0 },    // Left
+            { x: 0, y: 1, z: 0 },     // Bottom
+            { x: 0, y: -1, z: 0 }     // Top
         ];
-        
-        // Get rotation matrix from the tracked position
-        // We use the numPos as the Z-axis of our rotation
-        const zx = numX, zy = numY, zz = numZ;
-        
-        // Create orthonormal basis (simplified rotation)
-        let yx, yy, yz;
-        if (Math.abs(zz) > 0.9) {
-            // Z is pointing mostly up/down, use X as reference
-            yx = 0; yy = 1; yz = 0;
-        } else {
-            // Cross product with up vector to get Y
-            const upX = 0, upY = 0, upZ = 1;
-            yx = zy * upZ - zz * upY;
-            yy = zz * upX - zx * upZ;
-            yz = zx * upY - zy * upX;
-            const yLen = Math.sqrt(yx*yx + yy*yy + yz*yz);
-            if (yLen > 0.001) { yx /= yLen; yy /= yLen; yz /= yLen; }
-        }
-        
-        // X axis = Y cross Z
-        const xx = yy * zz - yz * zy;
-        const xy = yz * zx - yx * zz;
-        const xz = yx * zy - yy * zx;
-        
-        // Draw each spot
-        const spotRadius = ball.r * 0.12;
-        const depthFactor = 0.7;
-        
-        spotPositions.forEach((spot, index) => {
-            // Transform spot position by rotation matrix
-            const rotX = spot.x * xx + spot.y * yx + spot.z * zx;
-            const rotY = spot.x * xy + spot.y * yy + spot.z * zy;
-            const rotZ = spot.x * xz + spot.y * yz + spot.z * zz;
-            
-            // Only draw if spot is on visible hemisphere
-            if (rotZ > -0.1) {
-                const screenX = ball.x + rotX * ball.r * depthFactor;
-                const screenY = ball.y + rotY * ball.r * depthFactor;
-                
-                // Perspective scaling and alpha based on depth
-                const perspective = Math.max(0.3, (rotZ + 0.1) / 1.1);
-                const scale = 0.6 + perspective * 0.4;
-                const alpha = Math.max(0.1, Math.min(0.9, (rotZ + 0.2) / 0.8));
-                
-                // Draw bowtie/cross shaped spot
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.translate(screenX, screenY);
-                ctx.scale(scale, scale);
-                
-                // Dark blue-gray color like real cue ball spots
-                ctx.fillStyle = '#2a3a4a';
-                
-                // Draw bowtie shape (two triangles pointing at each other)
-                const spotSize = spotRadius * 1.5;
-                
-                // First triangle (left half)
-                ctx.beginPath();
-                ctx.moveTo(-spotSize, -spotSize * 0.6);
-                ctx.lineTo(0, 0);
-                ctx.lineTo(-spotSize, spotSize * 0.6);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Second triangle (right half)
-                ctx.beginPath();
-                ctx.moveTo(spotSize, -spotSize * 0.6);
-                ctx.lineTo(0, 0);
-                ctx.lineTo(spotSize, spotSize * 0.6);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Small center dot
-                ctx.beginPath();
-                ctx.arc(0, 0, spotSize * 0.2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.restore();
-            }
+
+        const spotRadius = ball.r * 0.13;
+        const depthFactor = 0.75;
+        const rotFn = hasRotation ? PoolBallRotation.rotatePointByQuaternion.bind(PoolBallRotation) : null;
+
+        spotDefs.forEach(localPos => {
+            // Rotate spot from ball-local to world space using the quaternion
+            const world = rotFn 
+                ? rotFn(localPos, q) 
+                : localPos; // fallback: no rotation
+
+            // Only draw spots on the visible hemisphere
+            if (world.z < -0.05) return;
+
+            const screenX = ball.x + world.x * ball.r * depthFactor;
+            const screenY = ball.y + world.y * ball.r * depthFactor;
+
+            // Perspective: spots further from viewer are smaller and fainter
+            const facing = Math.max(0, (world.z + 0.1) / 1.1);
+            const scale = 0.5 + facing * 0.5;
+            const alpha = Math.max(0.05, Math.min(0.85, facing));
+
+            // Draw as a small filled circle with 3D shading
+            const sr = spotRadius * scale;
+
+            ctx.globalAlpha = alpha;
+
+            // Spot shadow (slightly offset)
+            ctx.fillStyle = 'rgba(10, 20, 30, 0.3)';
+            ctx.beginPath();
+            ctx.arc(screenX + 0.5, screenY + 0.5, sr * 1.05, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Main spot - dark blue-gray like real Aramith cue balls
+            const spotGrad = ctx.createRadialGradient(
+                screenX - sr * 0.25, screenY - sr * 0.25, 0,
+                screenX, screenY, sr
+            );
+            spotGrad.addColorStop(0, '#3a4a5a');
+            spotGrad.addColorStop(0.6, '#2a3848');
+            spotGrad.addColorStop(1, '#1a2838');
+
+            ctx.fillStyle = spotGrad;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, sr, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tiny highlight on each spot for gloss
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(screenX - sr * 0.2, screenY - sr * 0.2, sr * 0.3, 0, Math.PI * 2);
+            ctx.fill();
         });
-        
+
+        ctx.globalAlpha = 1;
         ctx.restore();
     },
     
@@ -1321,7 +1425,7 @@ drawTable(ctx, width, height, cushionMargin, game) {
             
             if (numberVisible) {
                 const screenOffset = PoolBallRotation.getNumberScreenOffset(ball);
-                const depthFactor = 0.65;
+                const depthFactor = 0.78;
                 
                 numberX = ball.x + screenOffset.x * ball.r * depthFactor;
                 numberY = ball.y + screenOffset.y * ball.r * depthFactor;
@@ -1579,81 +1683,97 @@ drawTable(ctx, width, height, cushionMargin, game) {
         // Draw collision point indicator
         if (game.showCollisionPoints) {
             ctx.save();
-            
-            // Pulsing collision point
-            const pulseSize = 3 + Math.sin(Date.now() / 200) * 2;
-            
-            // Outer glow
+
+            // Small precise contact point marker
+            const pulse = 0.7 + Math.sin(Date.now() / 300) * 0.3;
+
+            // Subtle glow
             const glowGrad = ctx.createRadialGradient(
                 collisionPoint.x, collisionPoint.y, 0,
-                collisionPoint.x, collisionPoint.y, 25
+                collisionPoint.x, collisionPoint.y, 14
             );
-            glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
-            glowGrad.addColorStop(0.5, 'rgba(255, 215, 0, 0.3)');
+            glowGrad.addColorStop(0, `rgba(255, 215, 0, ${0.5 * pulse})`);
             glowGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
             ctx.fillStyle = glowGrad;
             ctx.beginPath();
-            ctx.arc(collisionPoint.x, collisionPoint.y, 25, 0, Math.PI * 2);
+            ctx.arc(collisionPoint.x, collisionPoint.y, 14, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Collision point cross
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)';
-            ctx.lineWidth = 3;
+
+            // Diamond marker at contact point
+            const s = 4;
+            ctx.fillStyle = `rgba(255, 215, 0, ${0.85 * pulse})`;
             ctx.beginPath();
-            ctx.moveTo(collisionPoint.x - pulseSize * 3, collisionPoint.y);
-            ctx.lineTo(collisionPoint.x + pulseSize * 3, collisionPoint.y);
-            ctx.moveTo(collisionPoint.x, collisionPoint.y - pulseSize * 3);
-            ctx.lineTo(collisionPoint.x, collisionPoint.y + pulseSize * 3);
-            ctx.stroke();
-            
-            // Center dot
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.beginPath();
-            ctx.arc(collisionPoint.x, collisionPoint.y, pulseSize, 0, Math.PI * 2);
+            ctx.moveTo(collisionPoint.x, collisionPoint.y - s);
+            ctx.lineTo(collisionPoint.x + s, collisionPoint.y);
+            ctx.lineTo(collisionPoint.x, collisionPoint.y + s);
+            ctx.lineTo(collisionPoint.x - s, collisionPoint.y);
+            ctx.closePath();
             ctx.fill();
-            
+
             ctx.restore();
         }
         
         // Draw ghost ball at collision point
         if (game.showGhostBalls) {
             ctx.save();
-            ctx.globalAlpha = 0.4;
-            
+
             // Ghost ball for cue ball position at impact
-            // Use the precise position calculated in findFirstBallHit
-            const ghostCueBallX = collisionPoint.cueBallX || (collisionPoint.x - Math.cos(impactAngle) * cueBall.r);
-            const ghostCueBallY = collisionPoint.cueBallY || (collisionPoint.y - Math.sin(impactAngle) * cueBall.r);
-            
-            // Draw ghost cue ball (where cue ball will be at impact)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            const ghostCueBallX = collisionPoint.cueBallX != null ? collisionPoint.cueBallX : (collisionPoint.x - Math.cos(impactAngle) * cueBall.r);
+            const ghostCueBallY = collisionPoint.cueBallY != null ? collisionPoint.cueBallY : (collisionPoint.y - Math.sin(impactAngle) * cueBall.r);
+
+            // Ghost cue ball — filled semi-transparent with dashed outline
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath();
+            ctx.arc(ghostCueBallX, ghostCueBallY, cueBall.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
             ctx.beginPath();
             ctx.arc(ghostCueBallX, ghostCueBallY, cueBall.r, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            
-            // Draw ghost object ball (where object ball will go)
-            // The impact angle points from cue ball to object ball at collision
-            ctx.strokeStyle = this.getBallColor(objectBall) || 'rgba(255, 200, 100, 0.8)';
+
+            // Highlighted ring on object ball
+            const objColor = this.getBallColor(objectBall) || 'rgba(255, 200, 100, 0.8)';
+            ctx.strokeStyle = objColor;
             ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.arc(objectBall.x, objectBall.y, objectBall.r, 0, Math.PI * 2);
+            ctx.arc(objectBall.x, objectBall.y, objectBall.r + 3, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Connection line from cue ball to ghost position
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+
+            // Line of centers (ghost cue ball → object ball) — thin solid
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
             ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
             ctx.beginPath();
-            ctx.moveTo(cueBall.x, cueBall.y);
-            ctx.lineTo(ghostCueBallX, ghostCueBallY);
+            ctx.moveTo(ghostCueBallX, ghostCueBallY);
+            ctx.lineTo(objectBall.x, objectBall.y);
             ctx.stroke();
-            ctx.setLineDash([]);
-            
+
+            // === CUT ANGLE indicator ===
+            const cutDx = objectBall.x - ghostCueBallX;
+            const cutDy = objectBall.y - ghostCueBallY;
+            const lineOfCentersAngle = Math.atan2(cutDy, cutDx);
+            let cutAngleRad = Math.abs(aimAngle - lineOfCentersAngle);
+            while (cutAngleRad > Math.PI) cutAngleRad = 2 * Math.PI - cutAngleRad;
+            const cutAngleDeg = cutAngleRad * 180 / Math.PI;
+
+            // Show cut fraction (full = 0°, half = 30°, quarter = ~49°, thin = 60°+)
+            let cutLabel;
+            if (cutAngleDeg < 5) cutLabel = 'FULL';
+            else if (cutAngleDeg < 20) cutLabel = '3/4';
+            else if (cutAngleDeg < 35) cutLabel = '1/2';
+            else if (cutAngleDeg < 52) cutLabel = '1/4';
+            else cutLabel = 'THIN';
+
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.85)';
+            const labelX = (ghostCueBallX + objectBall.x) / 2;
+            const labelY = (ghostCueBallY + objectBall.y) / 2 - 12;
+            ctx.fillText(cutLabel + ' (' + Math.round(cutAngleDeg) + '°)', labelX, labelY);
+
             ctx.restore();
         }
         
@@ -1661,8 +1781,8 @@ drawTable(ctx, width, height, cushionMargin, game) {
         // The object ball travels along the line connecting the ball centers at impact
         const ghostCueBallX = collisionPoint.cueBallX;
         const ghostCueBallY = collisionPoint.cueBallY;
-        
-        if (!ghostCueBallX || !ghostCueBallY) return;
+
+        if (ghostCueBallX == null || ghostCueBallY == null) return;
         
         // The object ball trajectory is along the line from ghost cue ball to object ball center
         // This is the fundamental physics of pool - object ball travels along line of centers
@@ -1678,7 +1798,63 @@ drawTable(ctx, width, height, cushionMargin, game) {
             // Object ball trajectory angle - this is the key physics!
             // Object ball travels along the line of centers at impact
             const trajectoryAngle = Math.atan2(objNy, objNx);
-            
+
+            // === POCKET TARGETING ===
+            // Check if object ball path leads toward a pocket and highlight it
+            if (game.pockets) {
+                let bestPocket = null;
+                let bestPocketDist = Infinity;
+                const trajDirX = objNx;
+                const trajDirY = objNy;
+
+                for (const pocket of game.pockets) {
+                    const toPocketX = pocket.x - objectBall.x;
+                    const toPocketY = pocket.y - objectBall.y;
+                    const proj = toPocketX * trajDirX + toPocketY * trajDirY;
+                    if (proj < 0) continue; // Pocket is behind the trajectory
+
+                    // Perpendicular distance from pocket center to trajectory line
+                    const closestX = objectBall.x + trajDirX * proj;
+                    const closestY = objectBall.y + trajDirY * proj;
+                    const perpDist = Math.sqrt((pocket.x - closestX) ** 2 + (pocket.y - closestY) ** 2);
+                    const pocketR = pocket.r || 28;
+
+                    // Ball goes in if its center passes within capture range of pocket center
+                    if (perpDist < pocketR * 0.8 && proj < bestPocketDist) {
+                        bestPocketDist = proj;
+                        bestPocket = pocket;
+                    }
+                }
+
+                if (bestPocket) {
+                    ctx.save();
+                    const pr = (bestPocket.r || 28) + 6;
+                    const pulse = 1 + Math.sin(Date.now() / 250) * 0.15;
+
+                    // Green glow around target pocket
+                    const pGrad = ctx.createRadialGradient(
+                        bestPocket.x, bestPocket.y, pr * 0.3 * pulse,
+                        bestPocket.x, bestPocket.y, pr * pulse
+                    );
+                    pGrad.addColorStop(0, 'rgba(74, 222, 128, 0.4)');
+                    pGrad.addColorStop(0.6, 'rgba(74, 222, 128, 0.15)');
+                    pGrad.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                    ctx.fillStyle = pGrad;
+                    ctx.beginPath();
+                    ctx.arc(bestPocket.x, bestPocket.y, pr * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pocket ring
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.6)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(bestPocket.x, bestPocket.y, (bestPocket.r || 28) * pulse, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+            }
+
             // Draw predicted trajectory path starting from object ball's CURRENT position
             // (The ball will move in this direction after being hit)
             this.drawPredictedPath(
@@ -1688,7 +1864,8 @@ drawTable(ctx, width, height, cushionMargin, game) {
                 tableWidth,
                 tableHeight,
                 cushionMargin,
-                game
+                game,
+                allBalls
             );
             
             // Also draw cue ball deflection path (90 degrees for stun shot, varies with spin)
@@ -1711,64 +1888,148 @@ drawTable(ctx, width, height, cushionMargin, game) {
      * Draw the predicted cue ball path after collision
      */
     drawCueBallDeflection(ctx, cueBall, ghostX, ghostY, aimAngle, objectAngle, tableWidth, tableHeight, cushionMargin, game) {
-        // For a stun shot (no top/bottom spin), the cue ball deflects at 90 degrees to the object ball path
-        // The tangent line is perpendicular to the line of centers
-        
-        // Calculate the deflection angle (perpendicular to object ball direction)
-        // Cue ball goes in the direction that conserves momentum
-        let deflectionAngle;
-        
-        // Determine which side of the object ball path the cue ball goes
-        // Based on the approach angle relative to the contact line
-        const angleDiff = aimAngle - objectAngle;
-        
-        // Normalize angle difference to -PI to PI
-        let normalizedDiff = angleDiff;
-        while (normalizedDiff > Math.PI) normalizedDiff -= 2 * Math.PI;
-        while (normalizedDiff < -Math.PI) normalizedDiff += 2 * Math.PI;
-        
-        // Cue ball deflects perpendicular to object ball path
-        // Direction depends on which side of center the cue ball hits
-        if (normalizedDiff >= 0) {
-            deflectionAngle = objectAngle - Math.PI / 2;
+        // Determine active spin from the spin control
+        const spinY = (typeof PoolSpinControl !== 'undefined') ? (PoolSpinControl.spinY || 0) : 0;
+
+        // Angle between aim direction and line of centers
+        let angleDiff = aimAngle - objectAngle;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        const cutAngle = Math.abs(angleDiff);
+
+        // ===== STUN deflection: tangent component (perpendicular to line of centers) =====
+        // This is the base 90-degree rule component
+        let tangentAngle;
+        if (angleDiff >= 0) {
+            tangentAngle = objectAngle - Math.PI / 2;
         } else {
-            deflectionAngle = objectAngle + Math.PI / 2;
+            tangentAngle = objectAngle + Math.PI / 2;
         }
-        
-        // For a cut shot, the cue ball path is shorter (energy transferred to object ball)
-        // The thinner the cut, the more the cue ball continues forward
-        const cutAngle = Math.abs(normalizedDiff);
-        const deflectionStrength = Math.sin(cutAngle); // 0 for straight shot, 1 for 90-degree cut
-        
-        // Only show deflection line if it's a significant cut (not a straight-on shot)
-        if (deflectionStrength > 0.1) {
-            ctx.save();
-            
-            const deflectionLength = (game.trajectoryLength || 200) * 0.6 * deflectionStrength;
-            const endX = ghostX + Math.cos(deflectionAngle) * deflectionLength;
-            const endY = ghostY + Math.sin(deflectionAngle) * deflectionLength;
-            
-            // Clamp to table bounds
-            const minX = cushionMargin + cueBall.r;
-            const maxX = tableWidth - cushionMargin - cueBall.r;
-            const minY = cushionMargin + cueBall.r;
-            const maxY = tableHeight - cushionMargin - cueBall.r;
-            
-            const clampedEndX = Math.max(minX, Math.min(maxX, endX));
-            const clampedEndY = Math.max(minY, Math.min(maxY, endY));
-            
-            // Draw cue ball deflection path
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        const tangentStrength = Math.sin(cutAngle); // 0 at full ball, 1 at 90° cut
+
+        // ===== SPIN adjusts the deflection angle =====
+        // Top spin (follow): cue ball curves toward the original aim direction
+        //   → blends between tangent (90°) and follow-through (aim direction)
+        // Back spin (draw): cue ball reverses along the approach line
+        //   → overrides tangent with a draw-back direction
+        // No spin (stun): pure tangent at 90° to object ball path
+
+        let deflectionAngle;
+        let showDeflection = true;
+
+        if (spinY > 0.15) {
+            // FOLLOW: blend from tangent toward the aim direction
+            // Strength of follow depends on spin amount and cut angle
+            const followBlend = Math.min(1, spinY * 2); // 0-1 blend factor
+            // At full follow, the cue ball continues roughly in the aim direction
+            // The cut angle still affects it — thinner cuts = less follow effect
+            const followAngle = aimAngle;
+            deflectionAngle = tangentAngle + (followAngle - tangentAngle) * followBlend * (1 - tangentStrength * 0.3);
+        } else if (spinY < -0.15) {
+            // DRAW: cue ball comes back toward the player
+            const drawBlend = Math.min(1, Math.abs(spinY) * 2);
+            if (cutAngle < Math.PI / 6) {
+                // Thick hit: draw straight back
+                deflectionAngle = aimAngle + Math.PI;
+            } else {
+                // Cut with draw: blend between tangent and back-direction
+                const backAngle = aimAngle + Math.PI;
+                deflectionAngle = tangentAngle + (backAngle - tangentAngle) * drawBlend * 0.6;
+            }
+        } else {
+            // STUN: pure tangent (90-degree rule)
+            deflectionAngle = tangentAngle;
+            // Don't show for nearly straight shots (cue ball stops)
+            if (tangentStrength < 0.1) showDeflection = false;
+        }
+
+        if (!showDeflection) return;
+
+        // Use drawPredictedPath for proper cushion bounces on the cue ball path
+        // Create a temporary ball object at the ghost position
+        const tempCueBall = { x: ghostX, y: ghostY, r: cueBall.r, color: 'white' };
+
+        // Scale prediction length: thinner cuts = more cue ball movement
+        const baseLength = (game.trajectoryLength || 200) * 0.5;
+        const lengthScale = Math.max(0.2, tangentStrength + Math.abs(spinY) * 0.5);
+        const savedLength = game.trajectoryLength;
+        game.trajectoryLength = baseLength * lengthScale;
+
+        this.drawCueBallPredictedPath(ctx, tempCueBall, deflectionAngle, tableWidth, tableHeight, cushionMargin, game);
+
+        game.trajectoryLength = savedLength;
+    },
+
+    /**
+     * Draw predicted cue ball path (white dashed line with bounces)
+     */
+    drawCueBallPredictedPath(ctx, ball, angle, tableWidth, tableHeight, cushionMargin, game) {
+        ctx.save();
+
+        const minX = cushionMargin + ball.r;
+        const maxX = tableWidth - cushionMargin - ball.r;
+        const minY = cushionMargin + ball.r;
+        const maxY = tableHeight - cushionMargin - ball.r;
+
+        let x = ball.x;
+        let y = ball.y;
+        let dirX = Math.cos(angle);
+        let dirY = Math.sin(angle);
+        let remainingLength = game.trajectoryLength || 100;
+
+        const maxBounces = 2;
+        let bounceCount = 0;
+        let segIdx = 0;
+
+        while (remainingLength > 0 && bounceCount <= maxBounces) {
+            let distToWall = Infinity;
+            let hitWall = null;
+
+            if (dirX > 0) { const d = (maxX - x) / dirX; if (d > 0 && d < distToWall) { distToWall = d; hitWall = 'right'; } }
+            else if (dirX < 0) { const d = (minX - x) / dirX; if (d > 0 && d < distToWall) { distToWall = d; hitWall = 'left'; } }
+            if (dirY > 0) { const d = (maxY - y) / dirY; if (d > 0 && d < distToWall) { distToWall = d; hitWall = 'bottom'; } }
+            else if (dirY < 0) { const d = (minY - y) / dirY; if (d > 0 && d < distToWall) { distToWall = d; hitWall = 'top'; } }
+
+            const segLen = Math.min(distToWall, remainingLength);
+            const endX = x + dirX * segLen;
+            const endY = y + dirY * segLen;
+
+            // Draw segment
+            const alpha = Math.max(0.15, 0.55 - segIdx * 0.15);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.lineWidth = 2;
-            ctx.setLineDash([6, 4]);
+            ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.moveTo(ghostX, ghostY);
-            ctx.lineTo(clampedEndX, clampedEndY);
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
             ctx.stroke();
-            ctx.setLineDash([]);
-            
-            ctx.restore();
+
+            x = endX;
+            y = endY;
+            remainingLength -= segLen;
+            segIdx++;
+
+            if (hitWall && remainingLength > 0.1) {
+                bounceCount++;
+                if (hitWall === 'left' || hitWall === 'right') dirX = -dirX * 0.78;
+                else dirY = -dirY * 0.78;
+                const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+                if (mag > 0) { dirX /= mag; dirY /= mag; }
+                remainingLength *= 0.78;
+            }
         }
+
+        // End-point circle
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(x, y, ball.r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.restore();
     },
     
     /**
@@ -1867,31 +2128,55 @@ drawTable(ctx, width, height, cushionMargin, game) {
     /**
      * Draw predicted path for a ball including cushion bounces
      */
-    drawPredictedPath(ctx, ball, angle, tableWidth, tableHeight, cushionMargin, game) {
+    drawPredictedPath(ctx, ball, angle, tableWidth, tableHeight, cushionMargin, game, allBalls) {
         ctx.save();
-        
+
         const minX = cushionMargin + ball.r;
         const maxX = tableWidth - cushionMargin - ball.r;
         const minY = cushionMargin + ball.r;
         const maxY = tableHeight - cushionMargin - ball.r;
-        
+
         let x = ball.x;
         let y = ball.y;
         let dirX = Math.cos(angle);
         let dirY = Math.sin(angle);
         let remainingLength = game.trajectoryLength || 200;
-        
+
         const segments = [];
-        const maxBounces = 3; // Limit number of bounces to predict
+        const maxBounces = 3;
         let bounceCount = 0;
-        
-        // Trace path with cushion bounces
-        while (remainingLength > 0 && bounceCount < maxBounces) {
+        let hitBall = false;
+
+        // Trace path with cushion bounces and ball-blocking
+        while (remainingLength > 0 && bounceCount < maxBounces && !hitBall) {
+            // Check for blocking balls along this direction
+            let distToBlocker = Infinity;
+            if (allBalls) {
+                for (const other of allBalls) {
+                    if (other === ball || other.potted) continue;
+                    // Ray from (x,y) in (dirX,dirY) direction, check circle intersection
+                    const dx = other.x - x;
+                    const dy = other.y - y;
+                    const proj = dx * dirX + dy * dirY;
+                    if (proj < 0) continue; // Behind us
+                    const closestX = x + dirX * proj;
+                    const closestY = y + dirY * proj;
+                    const perpDistSq = (other.x - closestX) ** 2 + (other.y - closestY) ** 2;
+                    const combinedR = ball.r + other.r;
+                    if (perpDistSq < combinedR * combinedR) {
+                        const halfChord = Math.sqrt(combinedR * combinedR - perpDistSq);
+                        const hitDist = proj - halfChord;
+                        if (hitDist > 1 && hitDist < distToBlocker) {
+                            distToBlocker = hitDist;
+                        }
+                    }
+                }
+            }
+
             // Calculate distance to nearest cushion
             let distToWall = Infinity;
             let hitWall = null;
-            
-            // Check all four walls
+
             if (dirX > 0) {
                 const d = (maxX - x) / dirX;
                 if (d > 0 && d < distToWall) {
@@ -1905,7 +2190,7 @@ drawTable(ctx, width, height, cushionMargin, game) {
                     hitWall = 'left';
                 }
             }
-            
+
             if (dirY > 0) {
                 const d = (maxY - y) / dirY;
                 if (d > 0 && d < distToWall) {
@@ -1919,6 +2204,15 @@ drawTable(ctx, width, height, cushionMargin, game) {
                     hitWall = 'top';
                 }
             }
+
+            // If a ball blocks before the wall, terminate at that ball
+            if (distToBlocker < distToWall && distToBlocker < remainingLength) {
+                const endX = x + dirX * distToBlocker;
+                const endY = y + dirY * distToBlocker;
+                segments.push({ startX: x, startY: y, endX, endY, bounce: bounceCount });
+                hitBall = true;
+                break;
+            }
             
             // Determine segment length
             const segmentLength = Math.min(distToWall, remainingLength);
@@ -1931,23 +2225,27 @@ drawTable(ctx, width, height, cushionMargin, game) {
             y = endY;
             remainingLength -= segmentLength;
             
-            // Handle cushion bounce
-            if (distToWall < remainingLength && hitWall) {
+            // Handle cushion bounce — only if we actually reached the wall
+            // and still have remaining prediction length
+            if (hitWall && remainingLength > 0.1) {
                 bounceCount++;
-                
-                // Reflect direction based on which wall was hit
+
+                // Reflect direction: flip normal component, apply restitution to angle
                 if (hitWall === 'left' || hitWall === 'right') {
-                    dirX = -dirX * 0.78; // Apply restitution
+                    dirX = -dirX * 0.78;
                 } else {
                     dirY = -dirY * 0.78;
                 }
-                
-                // Normalize direction
+
+                // Normalize direction back to unit length
                 const mag = Math.sqrt(dirX * dirX + dirY * dirY);
                 if (mag > 0) {
                     dirX /= mag;
                     dirY /= mag;
                 }
+
+                // Shorten remaining length to account for energy loss on bounce
+                remainingLength *= 0.78;
             }
         }
         
@@ -2020,33 +2318,44 @@ drawTable(ctx, width, height, cushionMargin, game) {
     /**
      * Draw aim line with fade and trajectory prediction
      */
-    drawAimLine(ctx, cueBall, aimAngle, length = 300) {
-        // Main aim line with gradient fade
+    drawAimLine(ctx, cueBall, aimAngle, length = 300, allBalls) {
+        // Calculate how far the aim line should extend
+        // If there's a ball in the way, terminate at the ghost cue ball position
+        let aimLength = length;
+
+        if (allBalls) {
+            const hitResult = this.findFirstBallHit(cueBall, aimAngle, allBalls);
+            if (hitResult && hitResult.collisionPoint.cueBallX != null) {
+                const dx = hitResult.collisionPoint.cueBallX - cueBall.x;
+                const dy = hitResult.collisionPoint.cueBallY - cueBall.y;
+                aimLength = Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        // Main aim line with gradient fade — terminates at first ball
+        const endX = cueBall.x + Math.cos(aimAngle) * aimLength;
+        const endY = cueBall.y + Math.sin(aimAngle) * aimLength;
+
         const lineGrad = ctx.createLinearGradient(
-            cueBall.x, cueBall.y,
-            cueBall.x + Math.cos(aimAngle) * length,
-            cueBall.y + Math.sin(aimAngle) * length
+            cueBall.x, cueBall.y, endX, endY
         );
         lineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        lineGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.4)');
-        lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
+        lineGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
+        lineGrad.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
+
         ctx.strokeStyle = lineGrad;
         ctx.lineWidth = 3;
         ctx.setLineDash([12, 8]);
         ctx.beginPath();
         ctx.moveTo(cueBall.x, cueBall.y);
-        ctx.lineTo(
-            cueBall.x + Math.cos(aimAngle) * length,
-            cueBall.y + Math.sin(aimAngle) * length
-        );
+        ctx.lineTo(endX, endY);
         ctx.stroke();
         ctx.setLineDash([]);
-        
-        // Target point indicator
+
+        // Target point indicator (close to cue ball for aiming reference)
         const targetX = cueBall.x + Math.cos(aimAngle) * 40;
         const targetY = cueBall.y + Math.sin(aimAngle) * 40;
-        
+
         ctx.strokeStyle = 'rgba(255, 255, 100, 0.6)';
         ctx.lineWidth = 2;
         ctx.beginPath();

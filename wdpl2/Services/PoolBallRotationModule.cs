@@ -28,9 +28,9 @@ const PoolBallRotation = {
 SURFACE_NORMAL: { x: 0, y: 0, z: 1 },
     
 // ===== VISUAL SENSITIVITY SETTINGS =====
-// Single multiplier for BOTH stripe and number - they must move together!
-VISUAL_MULTIPLIER: 2.5,         // How much to amplify rotation for visibility
-MIN_VISIBLE_SPEED: 0.05,        // Minimum speed to show rotation
+// 1.0 = physically accurate rolling (rotation matches distance traveled)
+VISUAL_MULTIPLIER: 1.0,
+MIN_VISIBLE_SPEED: 0.05,
     
 /**
  * Initialize rotation properties on a ball

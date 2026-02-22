@@ -23,11 +23,26 @@ fineTuneActive: false,
 fineTuneSensitivity: 0.15, // 15% of normal sensitivity when fine tuning
 microAdjustStep: 0.002, // Configurable micro-adjustment step
 lastAimAngle: 0,
+
+// Prediction line HUD state
+predictionHudVisible: false,
+predictionLengthStep: 25,
+predictionPresets: [
+    { label: 'OFF', length: 0, show: false },
+    { label: 'SHORT', length: 100, show: true },
+    { label: 'MEDIUM', length: 200, show: true },
+    { label: 'LONG', length: 350, show: true },
+    { label: 'FULL', length: 500, show: true }
+],
+predictionPresetIndex: 2, // Start on MEDIUM
     
 /**
  * Setup keyboard controls for fine-tune aiming
  */
 setupKeyboardControls(game) {
+    // Create prediction HUD (hidden by default)
+    this.createPredictionHud(game);
+
     // Track fine-tune key state
     document.addEventListener('keydown', (e) => {
         // Period key (.) or > key for fine-tune aiming
@@ -36,12 +51,46 @@ setupKeyboardControls(game) {
                 this.fineTuneActive = true;
                 this.lastAimAngle = game.aimAngle;
                 console.log('Fine-tune aim: ON (15% sensitivity)');
-                
+
                 // Show indicator
                 this.showFineTuneIndicator(true);
             }
         }
-        
+
+        // P key: toggle prediction line on/off
+        // Shift+P: cycle through presets (OFF / SHORT / MEDIUM / LONG / FULL)
+        if (e.key === 'p' || e.key === 'P') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                // Cycle through presets
+                this.predictionPresetIndex = (this.predictionPresetIndex + 1) % this.predictionPresets.length;
+                const preset = this.predictionPresets[this.predictionPresetIndex];
+                game.showTrajectoryPrediction = preset.show;
+                if (preset.show) game.trajectoryLength = preset.length;
+                this.updatePredictionHud(game);
+                this.showPredictionToast(preset.label);
+            } else {
+                // Simple toggle
+                game.showTrajectoryPrediction = !game.showTrajectoryPrediction;
+                // Sync preset index
+                if (!game.showTrajectoryPrediction) {
+                    this.predictionPresetIndex = 0;
+                } else {
+                    // Find nearest preset
+                    const len = game.trajectoryLength;
+                    let best = 2;
+                    let bestDiff = Infinity;
+                    for (let i = 1; i < this.predictionPresets.length; i++) {
+                        const diff = Math.abs(this.predictionPresets[i].length - len);
+                        if (diff < bestDiff) { bestDiff = diff; best = i; }
+                    }
+                    this.predictionPresetIndex = best;
+                }
+                this.updatePredictionHud(game);
+                this.showPredictionToast(game.showTrajectoryPrediction ? 'PREDICTION ON' : 'PREDICTION OFF');
+            }
+        }
+
         // Arrow keys for micro-adjustments when fine-tuning
         if (this.fineTuneActive && game.isAiming && !game.isShooting) {
             const microStep = this.microAdjustStep; // Use configurable step
@@ -69,7 +118,7 @@ setupKeyboardControls(game) {
  */
 showFineTuneIndicator(show) {
     let indicator = document.getElementById('fineTuneIndicator');
-    
+
     if (show) {
         const sensitivityPercent = Math.round(this.fineTuneSensitivity * 100);
         if (!indicator) {
@@ -92,7 +141,7 @@ showFineTuneIndicator(show) {
                 animation: pulse 1s infinite;
             `;
             document.body.appendChild(indicator);
-            
+
             // Add pulse animation if not exists
             if (!document.getElementById('fineTuneStyles')) {
                 const style = document.createElement('style');
@@ -106,11 +155,147 @@ showFineTuneIndicator(show) {
                 document.head.appendChild(style);
             }
         }
-        indicator.innerHTML = `?? FINE AIM (${sensitivityPercent}%)<br><small>? ? for micro-adjust</small>`;
+        indicator.innerHTML = `🎯 FINE AIM (${sensitivityPercent}%)<br><small>← → for micro-adjust</small>`;
         indicator.style.display = 'block';
     } else if (indicator) {
         indicator.style.display = 'none';
     }
+},
+
+/**
+ * Create the in-game prediction length HUD
+ */
+createPredictionHud(game) {
+    if (document.getElementById('predictionHud')) return;
+
+    const hud = document.createElement('div');
+    hud.id = 'predictionHud';
+    hud.style.cssText = `
+        position: fixed;
+        bottom: 50px;
+        right: 15px;
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(100, 200, 255, 0.35);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        z-index: 9990;
+        min-width: 170px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        user-select: none;
+        transition: opacity 0.2s;
+    `;
+    hud.innerHTML = `
+        <div style=""display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"">
+            <span style=""font-weight:bold;color:rgba(100,200,255,0.9);"">Prediction Line</span>
+            <span id=""predictionPresetLabel"" style=""font-size:11px;color:rgba(74,222,128,0.9);font-weight:bold;"">MEDIUM</span>
+        </div>
+        <div style=""display:flex;align-items:center;gap:8px;"">
+            <input type=""range"" id=""predictionLengthSlider"" min=""50"" max=""500"" value=""200"" step=""25""
+                style=""flex:1;height:6px;accent-color:rgba(100,200,255,0.8);cursor:pointer;"">
+            <span id=""predictionLengthLabel"" style=""min-width:32px;text-align:right;font-weight:bold;"">200</span>
+        </div>
+        <div style=""margin-top:6px;font-size:10px;color:rgba(255,255,255,0.4);text-align:center;"">
+            P = toggle &nbsp;|&nbsp; Shift+P = cycle preset
+        </div>
+    `;
+    document.body.appendChild(hud);
+
+    // Slider event
+    const slider = document.getElementById('predictionLengthSlider');
+    slider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        game.trajectoryLength = val;
+        document.getElementById('predictionLengthLabel').textContent = val;
+
+        // Update dev settings slider if open
+        const devSlider = document.getElementById('trajectoryLength');
+        if (devSlider) {
+            devSlider.value = val;
+            const devLabel = document.getElementById('trajectoryLengthValue');
+            if (devLabel) devLabel.textContent = val;
+        }
+
+        // Find nearest preset
+        let best = 1;
+        let bestDiff = Infinity;
+        for (let i = 1; i < this.predictionPresets.length; i++) {
+            const diff = Math.abs(this.predictionPresets[i].length - val);
+            if (diff < bestDiff) { bestDiff = diff; best = i; }
+        }
+        this.predictionPresetIndex = best;
+        document.getElementById('predictionPresetLabel').textContent = this.predictionPresets[best].label;
+    });
+
+    this.updatePredictionHud(game);
+},
+
+/**
+ * Sync prediction HUD with current game state
+ */
+updatePredictionHud(game) {
+    const hud = document.getElementById('predictionHud');
+    if (!hud) return;
+
+    const visible = game.showTrajectoryPrediction;
+    hud.style.opacity = visible ? '1' : '0.45';
+
+    const slider = document.getElementById('predictionLengthSlider');
+    if (slider) {
+        slider.value = game.trajectoryLength;
+        slider.disabled = !visible;
+    }
+
+    const label = document.getElementById('predictionLengthLabel');
+    if (label) label.textContent = visible ? game.trajectoryLength : 'OFF';
+
+    const preset = document.getElementById('predictionPresetLabel');
+    if (preset) preset.textContent = this.predictionPresets[this.predictionPresetIndex].label;
+
+    // Also sync dev settings slider
+    const devSlider = document.getElementById('trajectoryLength');
+    if (devSlider) {
+        devSlider.value = game.trajectoryLength;
+        const devLabel = document.getElementById('trajectoryLengthValue');
+        if (devLabel) devLabel.textContent = game.trajectoryLength;
+    }
+    const devCheckbox = document.getElementById('showTrajectory');
+    if (devCheckbox) devCheckbox.checked = visible;
+},
+
+/**
+ * Show a brief toast for prediction state changes
+ */
+showPredictionToast(text) {
+    let toast = document.getElementById('predictionToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'predictionToast';
+        toast.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(100, 200, 255, 0.5);
+            color: rgba(100, 200, 255, 1);
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+            z-index: 20000;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        `;
+        document.body.appendChild(toast);
+    }
+    toast.textContent = text;
+    toast.style.opacity = '1';
+    clearTimeout(this._predToastTimeout);
+    this._predToastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 800);
 },
 
 /**
@@ -449,11 +634,30 @@ setupMouseControls(canvas, game, statusEl) {
                 if (typeof game.startShot === 'function') {
                     game.startShot();
                 }
-                
+
                 const power = Math.min(dist / 15, 20);
+                const angle = Math.atan2(dy, dx);
                 cueBall.vx = (dx / dist) * power;
                 cueBall.vy = (dy / dist) * power;
-                
+
+                // Apply spin from spin control (same as mouse handler)
+                if (typeof PoolSpinControl !== 'undefined') {
+                    PoolSpinControl.applySpinToBall(cueBall, angle);
+                }
+
+                // Play cue hit sound
+                const hitPower = power / (game.maxPower || 40);
+                if (typeof PoolAudio !== 'undefined') {
+                    PoolAudio.play('cueHit', hitPower);
+                }
+
+                // Chalk dust particles
+                if (typeof PoolVFX !== 'undefined' && hitPower > 0.3) {
+                    const tipX = cueBall.x - Math.cos(angle) * 12;
+                    const tipY = cueBall.y - Math.sin(angle) * 12;
+                    PoolVFX.spawnChalkDust(tipX, tipY, hitPower);
+                }
+
                 statusEl.textContent = `Shot fired! Power: ${power.toFixed(1)}`;
                 statusEl.style.background = 'rgba(251, 191, 36, 0.9)';
             }
