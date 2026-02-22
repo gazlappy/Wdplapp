@@ -41,6 +41,7 @@ public static class ParadoxDatabaseParser
         public List<ParadoxSingle> Singles { get; set; } = new();
         public List<ParadoxDouble> Doubles { get; set; } = new();
         public List<ParadoxVenue> Venues { get; set; } = new();
+        public List<ParadoxDateRate> DateRates { get; set; } = new();
         
         // Raw diagnostic data
         public string DiagnosticReport { get; set; } = "";
@@ -128,6 +129,8 @@ public static class ParadoxDatabaseParser
         public int AwayPlayer1No { get; set; }
         public int AwayPlayer2No { get; set; }
         public string Winner { get; set; } = ""; // "Home" or "Away"
+        public bool EightBall1 { get; set; }
+        public bool EightBall2 { get; set; }
     }
 
     public class ParadoxVenue
@@ -139,6 +142,20 @@ public static class ParadoxDatabaseParser
         public string AddressLine2 { get; set; } = "";
         public string AddressLine3 { get; set; } = "";
         public string AddressLine4 { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Per-frame rating data from the VBA DateRate table.
+    /// Each row represents one player's rating contribution for one frame.
+    /// </summary>
+    public class ParadoxDateRate
+    {
+        public int DateRateKey { get; set; }
+        public int PlayerNo { get; set; }
+        public bool Won { get; set; }
+        public int AgainstPlayerNo { get; set; }
+        public int Rating { get; set; }
+        public DateTime RatingDate { get; set; }
     }
 
     /// <summary>
@@ -228,6 +245,14 @@ public static class ParadoxDatabaseParser
                 result.Warnings.Add($"? Doubles: {result.Doubles.Count} frames parsed");
             }
 
+            // Parse Daterate.DB (per-frame rating data from VBA)
+            var dateRatePath = FindFile(folderPath, "Daterate.DB");
+            if (dateRatePath != null)
+            {
+                result.DateRates = ParseDateRateDb(dateRatePath, result);
+                result.Warnings.Add($"? DateRates: {result.DateRates.Count} rating entries parsed");
+            }
+
             result.Success = result.Divisions.Count > 0 || result.Teams.Count > 0 || 
                            result.Players.Count > 0 || result.Matches.Count > 0;
                           
@@ -261,11 +286,8 @@ public static class ParadoxDatabaseParser
         var fieldNames = new List<string>();
 
         // Read field types (at offset 78)
-        // Note: Based on analysis, types might be at different offset in some files
-        // Let's scan for them based on field count
         int typeOffset = 78;
-        
-        // Some files have field info at different location - scan for it
+
         for (int i = 0; i < numFields; i++)
         {
             if (typeOffset + i < bytes.Length)
@@ -279,33 +301,43 @@ public static class ParadoxDatabaseParser
                 fieldSizes.Add(bytes[typeOffset + numFields + i]);
         }
 
-        // Find field names in header (usually after offset 200)
-        // Scan for readable ASCII text patterns
-        var nameBytes = new StringBuilder();
-        for (int i = 200; i < Math.Min(bytes.Length, DATA_START); i++)
+        // Field names start after types+sizes arrays, preceded by the table name.
+        // Correct offset: 78 + numFields * 2 (types array + sizes array)
+        int nameStart = 78 + numFields * 2;
+
+        // Skip the table name (null-terminated string, e.g. "Player.DB\0")
+        while (nameStart < bytes.Length && bytes[nameStart] != 0)
+            nameStart++;
+        nameStart++; // skip the null terminator
+
+        // Calculate header end using header size and block info
+        var headerSize = bytes.Length >= 4 ? BitConverter.ToInt16(bytes, 2) : 1;
+        var maxTableSize = bytes.Length > 5 ? bytes[5] : 4;
+        int blockSize = maxTableSize * 0x400;
+        if (blockSize == 0) blockSize = BLOCK_SIZE;
+        int headerEnd = headerSize * blockSize;
+        if (headerEnd == 0 || headerEnd > bytes.Length) headerEnd = Math.Min(bytes.Length, DATA_START);
+
+        // Read null-terminated field names
+        var currentName = new StringBuilder();
+        for (int i = nameStart; i < headerEnd && fieldNames.Count < numFields; i++)
         {
-            if (bytes[i] >= 32 && bytes[i] < 127)
+            if (bytes[i] == 0)
             {
-                nameBytes.Append((char)bytes[i]);
+                if (currentName.Length > 0)
+                {
+                    fieldNames.Add(currentName.ToString());
+                    currentName.Clear();
+                }
             }
-            else if (nameBytes.Length > 0)
+            else if (bytes[i] >= 32 && bytes[i] < 127)
             {
-                nameBytes.Append('\0');
+                currentName.Append((char)bytes[i]);
             }
         }
-
-        // Split on nulls and filter
-        var allText = nameBytes.ToString();
-        var parts = allText.Split('\0', StringSplitOptions.RemoveEmptyEntries)
-            .Where(s => s.Length >= 2 && s.Length <= 30 && !s.Contains("ascii") && !s.All(char.IsDigit))
-            .ToList();
-
-        // Skip table name (usually first) and take field names
-        if (parts.Count > 1)
-        {
-            var skipFirst = parts.First().EndsWith(".DB", StringComparison.OrdinalIgnoreCase);
-            fieldNames = (skipFirst ? parts.Skip(1) : parts).Take(numFields).ToList();
-        }
+        // Capture last name if file ended without a null terminator
+        if (currentName.Length > 0 && fieldNames.Count < numFields)
+            fieldNames.Add(currentName.ToString());
 
         return (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames);
     }
@@ -521,7 +553,7 @@ public static class ParadoxDatabaseParser
                 var team = new ParadoxTeam
                 {
                     ItemId = GetInt(rec, "Item_id", "ItemId") ?? teams.Count + 1,
-                    TeamName = (GetString(rec, "TeamName", "Name") ?? "").ToUpperInvariant(),
+                    TeamName = GetString(rec, "TeamName", "Name") ?? "",
                     VenueId = GetInt(rec, "Venue", "VenueId"),
                     DivisionId = GetInt(rec, "Division", "DivisionId"),
                     Contact = GetString(rec, "Contact") ?? "",
@@ -576,9 +608,9 @@ public static class ParadoxDatabaseParser
                 var player = new ParadoxPlayer
                 {
                     PlayerNo = GetInt(rec, "PlayerNo", "Id") ?? players.Count + 1,
-                    PlayerName = name.ToUpperInvariant(),
-                    FirstName = nameParts.FirstOrDefault()?.ToUpperInvariant() ?? "",
-                    LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)).ToUpperInvariant() : "",
+                    PlayerName = name,
+                    FirstName = nameParts.FirstOrDefault() ?? "",
+                    LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "",
                     PlayerTeam = GetInt(rec, "PlayerTeam", "Team", "TeamId"),
                     Played = GetInt(rec, "Played") ?? 0,
                     Wins = GetInt(rec, "Wins") ?? 0,
@@ -702,7 +734,9 @@ public static class ParadoxDatabaseParser
                     HomePlayer2No = GetInt(rec, "HomePlayer2No", "HP2") ?? 0,
                     AwayPlayer1No = GetInt(rec, "AwayPlayer1No", "AP1") ?? 0,
                     AwayPlayer2No = GetInt(rec, "AwayPlayer2No", "AP2") ?? 0,
-                    Winner = winner
+                    Winner = winner,
+                    EightBall1 = GetBool(rec, "EightBall1", "8Ball1"),
+                    EightBall2 = GetBool(rec, "EightBall2", "8Ball2")
                 };
 
                 doubles.Add(dbl);
@@ -713,6 +747,41 @@ public static class ParadoxDatabaseParser
             result.Warnings.Add($"? Error parsing Dbls.DB: {ex.Message}");
         }
         return doubles;
+    }
+
+    private static List<ParadoxDateRate> ParseDateRateDb(string filePath, ParadoxParseResult result)
+    {
+        var dateRates = new List<ParadoxDateRate>();
+        try
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            var (recordSize, numRecords, numFields, fieldTypes, fieldSizes, fieldNames) = ReadParadoxHeader(bytes);
+            var records = ReadRecords(bytes, recordSize, numRecords, fieldTypes, fieldSizes, fieldNames);
+
+            foreach (var rec in records)
+            {
+                var playerNo = GetInt(rec, "PlayerNo") ?? 0;
+                if (playerNo == 0) continue;
+
+                var dateRate = new ParadoxDateRate
+                {
+                    DateRateKey = GetInt(rec, "DateRateKey", "Key", "Id") ?? dateRates.Count + 1,
+                    PlayerNo = playerNo,
+                    Won = GetBool(rec, "Won"),
+                    AgainstPlayerNo = GetInt(rec, "Against") ?? 0,
+                    Rating = GetInt(rec, "Rating") ?? 0,
+                    RatingDate = GetDate(rec, "RatingDate", "Date") ?? DateTime.MinValue
+                };
+
+                if (dateRate.Rating > 0)
+                    dateRates.Add(dateRate);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Warnings.Add($"? Error parsing Daterate.DB: {ex.Message}");
+        }
+        return dateRates;
     }
 
     #endregion
@@ -848,8 +917,16 @@ public static class ParadoxDatabaseParser
                     result.Venues = LoadVenuesFromCsv(csvFile);
                     if (result.Venues.Count != 0) foundAny = true;
                 }
+                else if (fileName.Contains("DATERATE") || fileName.Contains("DATE_RATE"))
+                {
+                    result.DateRates = LoadDateRatesFromCsv(csvFile);
+                    if (result.DateRates.Count != 0) foundAny = true;
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"? Error loading CSV {Path.GetFileName(csvFile)}: {ex.Message}");
+            }
         }
 
         return foundAny;
@@ -883,17 +960,49 @@ public static class ParadoxDatabaseParser
         var lines = File.ReadAllLines(filePath);
         if (lines.Length < 2) return teams;
 
+        // Parse header to find columns by name
+        var header = ParseCsvLine(lines[0]);
+        int IdxOf(params string[] names) {
+            for (int c = 0; c < header.Count; c++)
+                foreach (var n in names)
+                    if (header[c].Equals(n, StringComparison.OrdinalIgnoreCase)) return c;
+            return -1;
+        }
+        string Col(List<string> f, int idx) => idx >= 0 && idx < f.Count ? f[idx] : "";
+        int? IntCol(List<string> f, int idx) => idx >= 0 && idx < f.Count && int.TryParse(f[idx], out var v) ? v : null;
+
+        var idCol = IdxOf("Id", "Item_id", "ItemId");
+        var nameCol = IdxOf("TeamName", "Name");
+        var venueCol = IdxOf("VenueId", "Venue");
+        var divCol = IdxOf("DivisionId", "Division");
+        var contactCol = IdxOf("Contact", "Captain");
+        var winsCol = IdxOf("Wins");
+        var lossesCol = IdxOf("Losses", "Loses");
+        var pointsCol = IdxOf("Points");
+
+        // Fallback: if no header match, use positional (Id, TeamName)
+        if (nameCol < 0) nameCol = header.Count > 1 ? 1 : 0;
+        if (idCol < 0) idCol = 0;
+
         for (int i = 1; i < lines.Length; i++)
         {
             var fields = ParseCsvLine(lines[i]);
-            if (fields.Count >= 2)
+            if (fields.Count < 2) continue;
+
+            var name = Col(fields, nameCol);
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            teams.Add(new ParadoxTeam
             {
-                teams.Add(new ParadoxTeam
-                {
-                    ItemId = int.TryParse(fields[0], out var id) ? id : i,
-                    TeamName = fields.Count > 1 ? fields[1].ToUpperInvariant() : ""
-                });
-            }
+                ItemId = IntCol(fields, idCol) ?? i,
+                TeamName = name,
+                VenueId = IntCol(fields, venueCol),
+                DivisionId = IntCol(fields, divCol),
+                Contact = Col(fields, contactCol),
+                Wins = IntCol(fields, winsCol) ?? 0,
+                Losses = IntCol(fields, lossesCol) ?? 0,
+                Points = IntCol(fields, pointsCol) ?? 0
+            });
         }
         return teams;
     }
@@ -904,22 +1013,47 @@ public static class ParadoxDatabaseParser
         var lines = File.ReadAllLines(filePath);
         if (lines.Length < 2) return players;
 
+        var header = ParseCsvLine(lines[0]);
+        int IdxOf(params string[] names) {
+            for (int c = 0; c < header.Count; c++)
+                foreach (var n in names)
+                    if (header[c].Equals(n, StringComparison.OrdinalIgnoreCase)) return c;
+            return -1;
+        }
+        int? IntCol(List<string> f, int idx) => idx >= 0 && idx < f.Count && int.TryParse(f[idx], out var v) ? v : null;
+        string Col(List<string> f, int idx) => idx >= 0 && idx < f.Count ? f[idx] : "";
+
+        var idCol = IdxOf("Id", "PlayerNo");
+        var nameCol = IdxOf("PlayerName", "Name");
+        var teamCol = IdxOf("TeamId", "Team", "PlayerTeam");
+        var winsCol = IdxOf("Wins");
+        var lossesCol = IdxOf("Losses");
+        var ratingCol = IdxOf("Rating", "CurrentRating");
+
+        if (nameCol < 0) nameCol = header.Count > 1 ? 1 : 0;
+        if (idCol < 0) idCol = 0;
+
         for (int i = 1; i < lines.Length; i++)
         {
             var fields = ParseCsvLine(lines[i]);
-            if (fields.Count >= 2)
+            if (fields.Count < 2) continue;
+
+            var name = Col(fields, nameCol);
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            var nameParts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            players.Add(new ParadoxPlayer
             {
-                var name = fields.Count > 1 ? fields[1] : "";
-                var nameParts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                
-                players.Add(new ParadoxPlayer
-                {
-                    PlayerNo = int.TryParse(fields[0], out var id) ? id : i,
-                    PlayerName = name.ToUpperInvariant(),
-                    FirstName = nameParts.FirstOrDefault()?.ToUpperInvariant() ?? "",
-                    LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)).ToUpperInvariant() : ""
-                });
-            }
+                PlayerNo = IntCol(fields, idCol) ?? i,
+                PlayerName = name,
+                FirstName = nameParts.FirstOrDefault() ?? "",
+                LastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "",
+                PlayerTeam = IntCol(fields, teamCol),
+                Wins = IntCol(fields, winsCol) ?? 0,
+                Losses = IntCol(fields, lossesCol) ?? 0,
+                CurrentRating = IntCol(fields, ratingCol)
+            });
         }
         return players;
     }
@@ -930,19 +1064,53 @@ public static class ParadoxDatabaseParser
         var lines = File.ReadAllLines(filePath);
         if (lines.Length < 2) return matches;
 
+        var header = ParseCsvLine(lines[0]);
+        int IdxOf(params string[] names) {
+            for (int c = 0; c < header.Count; c++)
+                foreach (var n in names)
+                    if (header[c].Equals(n, StringComparison.OrdinalIgnoreCase)) return c;
+            return -1;
+        }
+        int? IntCol(List<string> f, int idx) => idx >= 0 && idx < f.Count && int.TryParse(f[idx], out var v) ? v : null;
+        string Col(List<string> f, int idx) => idx >= 0 && idx < f.Count ? f[idx] : "";
+
+        var idCol = IdxOf("Id", "MatchNo");
+        var homeCol = IdxOf("HomeTeam", "Home");
+        var awayCol = IdxOf("AwayTeam", "Away");
+        var dateCol = IdxOf("Date", "MatchDate");
+        var hsCol = IdxOf("HSWins", "HomeSinglesWins");
+        var asCol = IdxOf("ASWins", "AwaySinglesWins");
+        var hdCol = IdxOf("HDWins", "HomeDoublesWins");
+        var adCol = IdxOf("ADWins", "AwayDoublesWins");
+        var divCol = IdxOf("Division", "DivName");
+
+        // Fallback positional: Id, HomeTeam, AwayTeam, Date
+        if (idCol < 0) idCol = 0;
+        if (homeCol < 0) homeCol = 1;
+        if (awayCol < 0) awayCol = 2;
+        if (dateCol < 0) dateCol = 3;
+
         for (int i = 1; i < lines.Length; i++)
         {
             var fields = ParseCsvLine(lines[i]);
-            if (fields.Count >= 4)
+            if (fields.Count < 4) continue;
+
+            var home = IntCol(fields, homeCol) ?? 0;
+            var away = IntCol(fields, awayCol) ?? 0;
+            if (home == 0 || away == 0) continue;
+
+            matches.Add(new ParadoxMatch
             {
-                matches.Add(new ParadoxMatch
-                {
-                    MatchNo = int.TryParse(fields[0], out var id) ? id : i,
-                    HomeTeam = int.TryParse(fields[1], out var h) ? h : 0,
-                    AwayTeam = int.TryParse(fields[2], out var a) ? a : 0,
-                    MatchDate = DateTime.TryParse(fields[3], out var d) ? d : DateTime.MinValue
-                });
-            }
+                MatchNo = IntCol(fields, idCol) ?? i,
+                HomeTeam = home,
+                AwayTeam = away,
+                MatchDate = DateTime.TryParse(Col(fields, dateCol), out var d) ? d : DateTime.MinValue,
+                HomeSinglesWins = IntCol(fields, hsCol) ?? 0,
+                AwaySinglesWins = IntCol(fields, asCol) ?? 0,
+                HomeDoublesWins = IntCol(fields, hdCol) ?? 0,
+                AwayDoublesWins = IntCol(fields, adCol) ?? 0,
+                DivisionName = Col(fields, divCol)
+            });
         }
         return matches;
     }
@@ -990,6 +1158,56 @@ public static class ParadoxDatabaseParser
             }
         }
         return venues;
+    }
+
+    private static List<ParadoxDateRate> LoadDateRatesFromCsv(string filePath)
+    {
+        var dateRates = new List<ParadoxDateRate>();
+        var lines = File.ReadAllLines(filePath);
+        if (lines.Length < 2) return dateRates;
+
+        var header = ParseCsvLine(lines[0]);
+        int IdxOf(params string[] names) {
+            for (int c = 0; c < header.Count; c++)
+                foreach (var n in names)
+                    if (header[c].Equals(n, StringComparison.OrdinalIgnoreCase)) return c;
+            return -1;
+        }
+        int? IntCol(List<string> f, int idx) => idx >= 0 && idx < f.Count && int.TryParse(f[idx], out var v) ? v : null;
+        string Col(List<string> f, int idx) => idx >= 0 && idx < f.Count ? f[idx] : "";
+
+        var keyCol = IdxOf("DateRateKey", "Key", "Id");
+        var playerCol = IdxOf("PlayerNo", "Player");
+        var wonCol = IdxOf("Won");
+        var againstCol = IdxOf("Against", "AgainstPlayerNo");
+        var ratingCol = IdxOf("Rating");
+        var dateCol = IdxOf("RatingDate", "Date");
+
+        if (playerCol < 0) playerCol = 1;
+        if (ratingCol < 0) ratingCol = 4;
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var fields = ParseCsvLine(lines[i]);
+            if (fields.Count < 3) continue;
+
+            var playerNo = IntCol(fields, playerCol) ?? 0;
+            var rating = IntCol(fields, ratingCol) ?? 0;
+            if (playerNo == 0 || rating == 0) continue;
+
+            var wonStr = Col(fields, wonCol).ToLowerInvariant();
+
+            dateRates.Add(new ParadoxDateRate
+            {
+                DateRateKey = IntCol(fields, keyCol) ?? i,
+                PlayerNo = playerNo,
+                Won = wonStr == "1" || wonStr == "true" || wonStr == "yes",
+                AgainstPlayerNo = IntCol(fields, againstCol) ?? 0,
+                Rating = rating,
+                RatingDate = DateTime.TryParse(Col(fields, dateCol), out var d) ? d : DateTime.MinValue
+            });
+        }
+        return dateRates;
     }
 
     private static List<string> ParseCsvLine(string line)

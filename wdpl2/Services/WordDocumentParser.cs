@@ -495,7 +495,7 @@ public static partial class WordDocumentParser
         var headerRow = string.Join(" ", table.Rows.First()).ToLower();
         return (headerRow.Contains("team") || headerRow.Contains("position")) &&
                (headerRow.Contains("points") || headerRow.Contains("pts")) &&
-               (headerRow.Contains("played") || headerRow.Contains('p'));
+               (headerRow.Contains("played") || headerRow.Contains("won"));
     }
 
     /// <summary>

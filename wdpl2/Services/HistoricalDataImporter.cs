@@ -77,8 +77,15 @@ public partial class HistoricalDataImporter
                 return result;
             }
 
-            // Try to detect data type from headers
-            var headers = lines[0].Split(',').Select(h => h.Trim().Trim('"')).ToArray();
+            // Parse headers using proper CSV-aware splitting to handle quoted fields
+            string[] headers;
+            using (var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(lines[0])))
+            {
+                var parsed = Csv.Read(ms);
+                headers = parsed.Count > 0
+                    ? parsed[0].Keys.ToArray()
+                    : lines[0].Split(',').Select(h => h.Trim().Trim('"')).ToArray();
+            }
             var dataType = DetectDataType(headers);
 
             result = dataType switch
@@ -340,8 +347,12 @@ public partial class HistoricalDataImporter
                 var dateStr = parts[0];
                 var homeTeamName = parts[1];
                 var awayTeamName = parts[2];
-                var homeScore = int.Parse(parts[3]);
-                var awayScore = int.Parse(parts[4]);
+                if (!int.TryParse(parts[3], out var homeScore) ||
+                    !int.TryParse(parts[4], out var awayScore))
+                {
+                    result.Warnings.Add($"Line {i}: Invalid score values");
+                    continue;
+                }
 
                 // Find or create teams
                 var homeTeam = GetOrCreateTeam(homeTeamName, seasonId, division?.Id, data);
@@ -408,12 +419,26 @@ public partial class HistoricalDataImporter
                 if (parts.Length < 2) continue;
 
                 var playerName = parts[0];
-                var teamName = parts.Length > 1 ? parts[1] : "";
+                if (string.IsNullOrWhiteSpace(playerName)) continue;
+
+                var teamName = parts[1];
 
                 // Split name
-                var nameParts = playerName.Split(' ');
+                var nameParts = playerName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var firstName = nameParts.FirstOrDefault() ?? "";
                 var lastName = string.Join(" ", nameParts.Skip(1));
+
+                // Check if player already exists in this season
+                var existingPlayer = data.Players.FirstOrDefault(p =>
+                    p.SeasonId == seasonId &&
+                    p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
+                    p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true);
+
+                if (existingPlayer != null)
+                {
+                    result.Warnings.Add($"Line {i}: Player '{playerName}' already exists, skipping");
+                    continue;
+                }
 
                 // Find team
                 Team? team = null;
@@ -489,8 +514,8 @@ public partial class HistoricalDataImporter
     {
         var lower = tableHtml.ToLower();
         return (lower.Contains("points") || lower.Contains("pts")) &&
-               (lower.Contains("played") || lower.Contains('p')) &&
-               (lower.Contains("won") || lower.Contains('w'));
+               lower.Contains("played") &&
+               (lower.Contains("won") || lower.Contains("wins"));
     }
 
     private static bool IsResultsTable(string tableHtml)
@@ -595,11 +620,11 @@ public partial class HistoricalDataImporter
     private static bool IsLeagueTableFromData(DocumentParser.TableData table)
     {
         if (table.Rows.Count < 2) return false;
-        
+
         var headerRow = string.Join(" ", table.Rows.First()).ToLower();
         return (headerRow.Contains("team") || headerRow.Contains("position")) &&
                (headerRow.Contains("points") || headerRow.Contains("pts")) &&
-               (headerRow.Contains("played") || headerRow.Contains('p'));
+               (headerRow.Contains("played") || headerRow.Contains("won"));
     }
 
     private static bool IsResultsTableFromData(DocumentParser.TableData table)
@@ -668,6 +693,7 @@ public partial class HistoricalDataImporter
                 if (row.Count < 3) continue;
 
                 // Try to parse: Date, HomeTeam, AwayTeam, Score
+                var dateStr = row.Count > 0 ? row[0] : "";
                 var homeTeam = row.Count > 1 ? row[1] : "";
                 var awayTeam = row.Count > 2 ? row[2] : "";
                 var scoreStr = row.Count > 3 ? row[3] : "";
@@ -679,6 +705,8 @@ public partial class HistoricalDataImporter
                 if (!int.TryParse(scoreParts[0].Trim(), out var homeScore)) continue;
                 if (!int.TryParse(scoreParts[1].Trim(), out var awayScore)) continue;
 
+                var matchDate = ParseDate(dateStr);
+
                 var home = GetOrCreateTeam(homeTeam, seasonId, division?.Id, data);
                 var away = GetOrCreateTeam(awayTeam, seasonId, division?.Id, data);
 
@@ -687,7 +715,7 @@ public partial class HistoricalDataImporter
                     Id = Guid.NewGuid(),
                     SeasonId = seasonId,
                     DivisionId = division?.Id,
-                    Date = DateTime.Now,
+                    Date = matchDate,
                     HomeTeamId = home.Id,
                     AwayTeamId = away.Id
                 };
@@ -736,11 +764,25 @@ public partial class HistoricalDataImporter
                 if (row.Count < 1) continue;
 
                 var playerName = row[0];
+                if (string.IsNullOrWhiteSpace(playerName)) continue;
+
                 var teamName = row.Count > 1 ? row[1] : "";
 
-                var nameParts = playerName.Split(' ');
+                var nameParts = playerName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var firstName = nameParts.FirstOrDefault() ?? "";
                 var lastName = string.Join(" ", nameParts.Skip(1));
+
+                // Check if player already exists in this season
+                var existingPlayer = data.Players.FirstOrDefault(p =>
+                    p.SeasonId == seasonId &&
+                    p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
+                    p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true);
+
+                if (existingPlayer != null)
+                {
+                    result.Warnings.Add($"Player '{playerName}' already exists, skipping");
+                    continue;
+                }
 
                 Team? team = null;
                 if (!string.IsNullOrWhiteSpace(teamName))

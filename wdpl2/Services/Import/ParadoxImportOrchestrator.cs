@@ -26,7 +26,7 @@ public class ParadoxImportOrchestrator
     public class ImportProgress
     {
         public string CurrentStep { get; set; } = "";
-        public int TotalSteps { get; set; } = 7;
+        public int TotalSteps { get; set; } = 8;
         public int CurrentStepNumber { get; set; }
         public int ItemsProcessed { get; set; }
         public int TotalItems { get; set; }
@@ -109,7 +109,7 @@ public class ParadoxImportOrchestrator
             // First, parse all files using the working parser
             ReportProgress("Parsing Paradox files...", 0);
             var parseResult = await Task.Run(() => ParadoxDatabaseParser.ParseFolder(_folderPath));
-            
+
             if (!parseResult.Success && parseResult.Divisions.Count == 0 && parseResult.Teams.Count == 0 && 
                 parseResult.Players.Count == 0 && parseResult.Matches.Count == 0)
             {
@@ -140,13 +140,20 @@ public class ParadoxImportOrchestrator
             ReportProgress("Importing Fixtures...", 5);
             await Task.Run(() => ImportMatches(parseResult.Matches, summary));
 
-            // Step 6: Import Singles Frames
+            // Step 6: Import Singles Frames (with rating data from DateRate)
             ReportProgress("Importing Singles Frames...", 6);
             await Task.Run(() => ImportSingles(parseResult.Singles, summary));
 
             // Step 7: Import Doubles Frames
             ReportProgress("Importing Doubles Frames...", 7);
             await Task.Run(() => ImportDoubles(parseResult.Doubles, summary));
+
+            // Step 8: Apply VBA rating data from DateRate table to imported frames
+            if (parseResult.DateRates.Count > 0)
+            {
+                ReportProgress("Applying VBA rating data...", 8);
+                await Task.Run(() => ApplyDateRateData(parseResult, summary));
+            }
 
             // Update season dates if we imported fixtures
             if (summary.SeasonStartDate.HasValue || summary.SeasonEndDate.HasValue)
@@ -266,11 +273,10 @@ public class ParadoxImportOrchestrator
     {
         foreach (var team in teams)
         {
-            var normalizedName = team.TeamName.ToUpperInvariant();
             var existing = DataStore.Data.Teams.FirstOrDefault(t =>
                 t.SeasonId == _seasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
-                t.Name.Equals(normalizedName, StringComparison.OrdinalIgnoreCase));
+                t.Name.Equals(team.TeamName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
             {
@@ -295,7 +301,7 @@ public class ParadoxImportOrchestrator
                 {
                     Id = Guid.NewGuid(),
                     SeasonId = _seasonId,
-                    Name = normalizedName,
+                    Name = team.TeamName,
                     DivisionId = divisionId,
                     VenueId = venueId,
                     Captain = team.Contact
@@ -311,13 +317,10 @@ public class ParadoxImportOrchestrator
     {
         foreach (var player in players)
         {
-            var normalizedFirst = player.FirstName.ToUpperInvariant();
-            var normalizedLast = player.LastName.ToUpperInvariant();
-
             var existing = DataStore.Data.Players.FirstOrDefault(p =>
                 p.SeasonId == _seasonId &&
-                p.FirstName?.Equals(normalizedFirst, StringComparison.OrdinalIgnoreCase) == true &&
-                p.LastName?.Equals(normalizedLast, StringComparison.OrdinalIgnoreCase) == true);
+                p.FirstName?.Equals(player.FirstName, StringComparison.OrdinalIgnoreCase) == true &&
+                p.LastName?.Equals(player.LastName, StringComparison.OrdinalIgnoreCase) == true);
 
             if (existing != null)
             {
@@ -336,8 +339,8 @@ public class ParadoxImportOrchestrator
                 {
                     Id = Guid.NewGuid(),
                     SeasonId = _seasonId,
-                    FirstName = normalizedFirst,
-                    LastName = normalizedLast,
+                    FirstName = player.FirstName,
+                    LastName = player.LastName,
                     TeamId = teamId
                 };
                 DataStore.Data.Players.Add(newPlayer);
@@ -363,6 +366,7 @@ public class ParadoxImportOrchestrator
                 continue;
             }
 
+            // Resolve division: try match's DivisionName first
             Guid? divisionId = null;
             if (!string.IsNullOrWhiteSpace(match.DivisionName) &&
                 _divisionNameMap.TryGetValue(match.DivisionName, out var divId))
@@ -370,43 +374,59 @@ public class ParadoxImportOrchestrator
                 divisionId = divId;
             }
 
+            // Fallback: use home team's division if match doesn't specify one
+            if (!divisionId.HasValue)
+            {
+                var homeTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+                if (homeTeam?.DivisionId.HasValue == true)
+                {
+                    divisionId = homeTeam.DivisionId;
+                }
+            }
+
             // Find the home team's venue
             Guid? venueId = null;
-            var homeTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
-            if (homeTeam?.VenueId.HasValue == true)
+            var homeTeamForVenue = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+            if (homeTeamForVenue?.VenueId.HasValue == true)
             {
-                venueId = homeTeam.VenueId;
+                venueId = homeTeamForVenue.VenueId;
             }
 
-            var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
-                f.SeasonId == _seasonId &&
-                f.Date.Date == match.MatchDate.Date &&
-                f.HomeTeamId == homeTeamId &&
-                f.AwayTeamId == awayTeamId);
+            // Only dedup if the match has a real date (not MinValue)
+            if (match.MatchDate > DateTime.MinValue)
+            {
+                var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
+                    f.SeasonId == _seasonId &&
+                    f.Date.Date == match.MatchDate.Date &&
+                    f.HomeTeamId == homeTeamId &&
+                    f.AwayTeamId == awayTeamId);
 
-            if (existingFixture != null)
-            {
-                _matchMap[match.MatchNo] = existingFixture.Id;
-                summary.FixturesSkipped++;
-            }
-            else
-            {
-                var fixtureId = Guid.NewGuid();
-                var fixture = new Fixture
+                if (existingFixture != null)
                 {
-                    Id = fixtureId,
-                    SeasonId = _seasonId,
-                    DivisionId = divisionId,
-                    Date = match.MatchDate,
-                    HomeTeamId = homeTeamId,
-                    AwayTeamId = awayTeamId,
-                    VenueId = venueId
-                };
+                    _matchMap[match.MatchNo] = existingFixture.Id;
+                    summary.FixturesSkipped++;
+                    continue;
+                }
+            }
 
-                DataStore.Data.Fixtures.Add(fixture);
-                _matchMap[match.MatchNo] = fixtureId;
-                summary.FixturesImported++;
+            var fixtureId = Guid.NewGuid();
+            var fixture = new Fixture
+            {
+                Id = fixtureId,
+                SeasonId = _seasonId,
+                DivisionId = divisionId,
+                Date = match.MatchDate,
+                HomeTeamId = homeTeamId,
+                AwayTeamId = awayTeamId,
+                VenueId = venueId
+            };
 
+            DataStore.Data.Fixtures.Add(fixture);
+            _matchMap[match.MatchNo] = fixtureId;
+            summary.FixturesImported++;
+
+            if (match.MatchDate > DateTime.MinValue)
+            {
                 if (!minDate.HasValue || match.MatchDate < minDate) minDate = match.MatchDate;
                 if (!maxDate.HasValue || match.MatchDate > maxDate) maxDate = match.MatchDate;
             }
@@ -450,7 +470,7 @@ public class ParadoxImportOrchestrator
                 awayPlayerId = apId;
 
             // Determine winner
-            var winner = single.Winner.ToLowerInvariant() switch
+            var winner = (single.Winner ?? "").ToLowerInvariant() switch
             {
                 "home" => FrameWinner.Home,
                 "away" => FrameWinner.Away,
@@ -463,7 +483,8 @@ public class ParadoxImportOrchestrator
                 HomePlayerId = homePlayerId,
                 AwayPlayerId = awayPlayerId,
                 Winner = winner,
-                EightBall = single.EightBall
+                EightBall = single.EightBall,
+                WeekNo = GetWeekNumber(fixture.Date)
             };
 
             fixture.Frames.Add(frame);
@@ -473,9 +494,6 @@ public class ParadoxImportOrchestrator
 
     private void ImportDoubles(List<ParadoxDatabaseParser.ParadoxDouble> doubles, ImportSummary summary)
     {
-        // Note: The current Fixture model primarily supports singles frames.
-        // Doubles results are typically captured in match totals (HomeDoublesWins/AwayDoublesWins).
-        // For now, we just count them as imported to provide feedback.
         foreach (var dbl in doubles)
         {
             if (!_matchMap.TryGetValue(dbl.MatchNo, out var fixtureId))
@@ -484,19 +502,163 @@ public class ParadoxImportOrchestrator
                 continue;
             }
 
-            // Doubles are tracked at the match level, not as individual frames
-            // The import is considered successful if we found the match
+            var fixture = DataStore.Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
+            if (fixture == null)
+            {
+                summary.DoublesSkipped++;
+                continue;
+            }
+
+            // Offset frame number to come after singles (typically 8 singles frames)
+            var singlesCount = fixture.Frames.Count(f => !f.IsDoubles);
+            var frameNumber = singlesCount + dbl.DoubleNo;
+
+            // Check if frame already exists
+            if (fixture.Frames.Any(f => f.Number == frameNumber))
+            {
+                summary.DoublesSkipped++;
+                continue;
+            }
+
+            // Map players (use first player from each pair)
+            Guid? homePlayerId = null;
+            Guid? awayPlayerId = null;
+
+            if (dbl.HomePlayer1No > 0 && _playerMap.TryGetValue(dbl.HomePlayer1No, out var hp1Id))
+                homePlayerId = hp1Id;
+            if (dbl.AwayPlayer1No > 0 && _playerMap.TryGetValue(dbl.AwayPlayer1No, out var ap1Id))
+                awayPlayerId = ap1Id;
+
+            // Determine winner
+            var winner = (dbl.Winner ?? "").ToLowerInvariant() switch
+            {
+                "home" => FrameWinner.Home,
+                "away" => FrameWinner.Away,
+                _ => FrameWinner.None
+            };
+
+            var frame = new FrameResult
+            {
+                Number = frameNumber,
+                HomePlayerId = homePlayerId,
+                AwayPlayerId = awayPlayerId,
+                Winner = winner,
+                EightBall = dbl.EightBall1 || dbl.EightBall2,
+                IsDoubles = true,
+                WeekNo = GetWeekNumber(fixture.Date)
+            };
+
+            fixture.Frames.Add(frame);
             summary.DoublesImported++;
         }
     }
 
     #endregion
 
+    /// <summary>
+    /// Apply VBA DateRate rating data to imported frames.
+    /// The DateRate table stores per-player per-frame rating contributions that
+    /// were calculated by the Delphi app during its "Update" process.
+    /// By mapping these back onto the imported FrameResult objects, the
+    /// RatingCalculator can reproduce the original VBA ratings exactly.
+    /// </summary>
+    private void ApplyDateRateData(
+        ParadoxDatabaseParser.ParadoxParseResult parseResult,
+        ImportSummary summary)
+    {
+        if (parseResult.DateRates.Count == 0) return;
+
+        // Build a lookup: (PlayerNo, OpponentNo, RatingDate) -> Rating
+        // DateRate records come in pairs (home + away for each frame), ordered by DateRateKey.
+        // We group by PlayerNo and date to match against frames.
+        var ratingsByPlayerDate = parseResult.DateRates
+            .GroupBy(dr => (dr.PlayerNo, dr.RatingDate.Date))
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(dr => dr.DateRateKey).ToList());
+
+        int ratingsApplied = 0;
+
+        // Build reverse player map: GUID -> Paradox PlayerNo
+        var reversePlayerMap = _playerMap.ToDictionary(kv => kv.Value, kv => kv.Key);
+
+        foreach (var fixture in DataStore.Data.Fixtures.Where(f => f.SeasonId == _seasonId))
+        {
+            var matchDate = fixture.Date.Date;
+
+            foreach (var frame in fixture.Frames)
+            {
+                if (frame.HomePlayerId == null || frame.AwayPlayerId == null)
+                    continue;
+
+                // Get Paradox player numbers
+                if (!reversePlayerMap.TryGetValue(frame.HomePlayerId.Value, out var homePlayerNo))
+                    continue;
+                if (!reversePlayerMap.TryGetValue(frame.AwayPlayerId.Value, out var awayPlayerNo))
+                    continue;
+
+                // Look up home player's rating for this date
+                if (ratingsByPlayerDate.TryGetValue((homePlayerNo, matchDate), out var homeRatings))
+                {
+                    // Find the matching entry (against the away player)
+                    var homeEntry = homeRatings.FirstOrDefault(dr => dr.AgainstPlayerNo == awayPlayerNo);
+                    if (homeEntry != null)
+                    {
+                        frame.HomePlayerRating = homeEntry.Rating;
+                        homeRatings.Remove(homeEntry); // consume so next frame finds the next entry
+                        ratingsApplied++;
+                    }
+                }
+
+                // Look up away player's rating for this date
+                if (ratingsByPlayerDate.TryGetValue((awayPlayerNo, matchDate), out var awayRatings))
+                {
+                    var awayEntry = awayRatings.FirstOrDefault(dr => dr.AgainstPlayerNo == homePlayerNo);
+                    if (awayEntry != null)
+                    {
+                        frame.AwayPlayerRating = awayEntry.Rating;
+                        awayRatings.Remove(awayEntry);
+                        ratingsApplied++;
+                    }
+                }
+            }
+        }
+
+        summary.Warnings.Add($"Applied {ratingsApplied} VBA rating values to imported frames");
+    }
+
+    /// <summary>
+    /// Calculate week number from match date relative to the season start.
+    /// </summary>
+    private int GetWeekNumber(DateTime matchDate)
+    {
+        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
+        if (season == null) return 1;
+
+        var daysSinceStart = (matchDate.Date - season.StartDate.Date).Days;
+        if (daysSinceStart < 0) return 1;
+        return (daysSinceStart / 7) + 1;
+    }
+
     private void UpdateSeasonDates(DateTime? startDate, DateTime? endDate)
     {
         var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
-        if (season != null)
+        if (season == null) return;
+
+        // For seasons that still have default dates (Today / Today+3months),
+        // set the dates directly from the imported data
+        var isDefaultDates = season.StartDate.Date == DateTime.Today ||
+                             (season.StartDate.Date >= DateTime.Today.AddDays(-7) && 
+                              season.EndDate.Date <= DateTime.Today.AddMonths(4));
+
+        if (isDefaultDates && startDate.HasValue && endDate.HasValue)
         {
+            season.StartDate = startDate.Value;
+            season.EndDate = endDate.Value;
+        }
+        else
+        {
+            // Expand existing range if needed
             if (startDate.HasValue && startDate.Value < season.StartDate)
                 season.StartDate = startDate.Value;
             if (endDate.HasValue && endDate.Value > season.EndDate)
@@ -559,6 +721,10 @@ public class ParadoxImportOrchestrator
                         result.HasDoubles = true;
                         result.DoubleFileSize = fileSize;
                         break;
+                    case "DATERATE.DB":
+                        result.HasDateRates = true;
+                        result.DateRateFileSize = fileSize;
+                        break;
                 }
             }
 
@@ -588,8 +754,9 @@ public class ParadoxImportOrchestrator
         public bool HasMatches { get; set; }
         public bool HasSingles { get; set; }
         public bool HasDoubles { get; set; }
+        public bool HasDateRates { get; set; }
         public bool HasCsvFiles { get; set; }
-        
+
         public long DivisionFileSize { get; set; }
         public long VenueFileSize { get; set; }
         public long TeamFileSize { get; set; }
@@ -597,10 +764,11 @@ public class ParadoxImportOrchestrator
         public long MatchFileSize { get; set; }
         public long SingleFileSize { get; set; }
         public long DoubleFileSize { get; set; }
+        public long DateRateFileSize { get; set; }
 
         public bool HasAnyData => HasDivisions || HasVenues || HasTeams || 
                                   HasPlayers || HasMatches || HasSingles || HasDoubles ||
-                                  HasCsvFiles;
+                                  HasDateRates || HasCsvFiles;
 
         public string GetSummary()
         {
@@ -613,6 +781,7 @@ public class ParadoxImportOrchestrator
             if (HasMatches) sb.AppendLine($"  ? Match.DB ({MatchFileSize / 1024:N0} KB)");
             if (HasSingles) sb.AppendLine($"  ? Single.DB ({SingleFileSize / 1024:N0} KB)");
             if (HasDoubles) sb.AppendLine($"  ? Dbls.DB ({DoubleFileSize / 1024:N0} KB)");
+            if (HasDateRates) sb.AppendLine($"  ? Daterate.DB ({DateRateFileSize / 1024:N0} KB) - VBA ratings");
             if (HasCsvFiles) sb.AppendLine($"  ? CSV files found (preferred)");
             return sb.ToString();
         }

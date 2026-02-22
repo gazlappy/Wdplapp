@@ -129,54 +129,76 @@ namespace Wdpl2.Views
         {
             await Task.Run(() =>
             {
-                // Merge divisions
-                foreach (var div in importedData.Divisions)
-                {
-                    if (!DataStore.Data.Divisions.Any(d => d.Name.Equals(div.Name, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        DataStore.Data.Divisions.Add(div);
-                    }
-                }
-
-                // Merge venues
-                foreach (var venue in importedData.Venues)
-                {
-                    if (!DataStore.Data.Venues.Any(v => v.Name.Equals(venue.Name, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        DataStore.Data.Venues.Add(venue);
-                    }
-                }
-
-                // Merge teams
-                foreach (var team in importedData.Teams)
-                {
-                    if (!DataStore.Data.Teams.Any(t => t.Name != null && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        DataStore.Data.Teams.Add(team);
-                    }
-                }
-
-                // Merge players
-                foreach (var player in importedData.Players)
-                {
-                    var fullName = player.FullName;
-                    if (!DataStore.Data.Players.Any(p => p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        DataStore.Data.Players.Add(player);
-                    }
-                }
-
-                // Merge seasons
+                // Merge seasons first (globally unique by name)
                 foreach (var season in importedData.Seasons)
                 {
-                    if (!DataStore.Data.Seasons.Any(s => s.Name.Equals(season.Name, StringComparison.OrdinalIgnoreCase)))
+                    if (!DataStore.Data.Seasons.Any(s => s.Name != null && s.Name.Equals(season.Name, StringComparison.OrdinalIgnoreCase)))
                     {
                         DataStore.Data.Seasons.Add(season);
                     }
                 }
 
-                // Add all fixtures (no deduplication needed - each is unique)
-                DataStore.Data.Fixtures.AddRange(importedData.Fixtures);
+                // Merge divisions (scoped to season)
+                foreach (var div in importedData.Divisions)
+                {
+                    if (!DataStore.Data.Divisions.Any(d =>
+                        d.SeasonId == div.SeasonId &&
+                        !string.IsNullOrWhiteSpace(d.Name) &&
+                        d.Name.Equals(div.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        DataStore.Data.Divisions.Add(div);
+                    }
+                }
+
+                // Merge venues (scoped to season)
+                foreach (var venue in importedData.Venues)
+                {
+                    if (!DataStore.Data.Venues.Any(v =>
+                        v.SeasonId == venue.SeasonId &&
+                        !string.IsNullOrWhiteSpace(v.Name) &&
+                        v.Name.Equals(venue.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        DataStore.Data.Venues.Add(venue);
+                    }
+                }
+
+                // Merge teams (scoped to season)
+                foreach (var team in importedData.Teams)
+                {
+                    if (!DataStore.Data.Teams.Any(t =>
+                        t.SeasonId == team.SeasonId &&
+                        !string.IsNullOrWhiteSpace(t.Name) &&
+                        t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        DataStore.Data.Teams.Add(team);
+                    }
+                }
+
+                // Merge players (scoped to season)
+                foreach (var player in importedData.Players)
+                {
+                    var fullName = player.FullName;
+                    if (!string.IsNullOrWhiteSpace(fullName) &&
+                        !DataStore.Data.Players.Any(p =>
+                            p.SeasonId == player.SeasonId &&
+                            p.FullName.Equals(fullName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        DataStore.Data.Players.Add(player);
+                    }
+                }
+
+                // Merge fixtures (deduplicate by season + date + teams)
+                foreach (var fixture in importedData.Fixtures)
+                {
+                    if (!DataStore.Data.Fixtures.Any(f =>
+                        f.SeasonId == fixture.SeasonId &&
+                        f.Date.Date == fixture.Date.Date &&
+                        f.HomeTeamId == fixture.HomeTeamId &&
+                        f.AwayTeamId == fixture.AwayTeamId))
+                    {
+                        DataStore.Data.Fixtures.Add(fixture);
+                    }
+                }
 
                 // Save merged data
                 DataStore.Save();

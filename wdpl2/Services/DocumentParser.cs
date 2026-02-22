@@ -237,7 +237,18 @@ public static partial class DocumentParser
         try
         {
             using var archive = System.IO.Compression.ZipFile.OpenRead(filePath);
-            
+
+            // Load shared strings table (text values are stored here, referenced by index)
+            var sharedStrings = new List<string>();
+            var sharedStringsEntry = archive.GetEntry("xl/sharedStrings.xml");
+            if (sharedStringsEntry != null)
+            {
+                using var ssStream = sharedStringsEntry.Open();
+                using var ssReader = new StreamReader(ssStream);
+                var ssXml = await ssReader.ReadToEndAsync();
+                sharedStrings = ParseSharedStrings(ssXml);
+            }
+
             // Excel stores data in xl/worksheets/sheet*.xml
             var sheetEntries = archive.Entries
                 .Where(e => e.FullName.StartsWith("xl/worksheets/sheet") && e.FullName.EndsWith(".xml"))
@@ -248,12 +259,12 @@ public static partial class DocumentParser
                 using var stream = sheetEntry.Open();
                 using var reader = new StreamReader(stream);
                 var xml = await reader.ReadToEndAsync();
-                
-                var table = ExtractTableFromExcelXml(xml, sheetEntry.Name);
+
+                var table = ExtractTableFromExcelXml(xml, sheetEntry.Name, sharedStrings);
                 if (table.Rows.Count != 0)
                     result.Tables.Add(table);
             }
-            
+
             result.Success = true;
             return result;
         }
@@ -262,6 +273,23 @@ public static partial class DocumentParser
             result.Errors.Add($"XLSX parse error: {ex.Message}");
             return result;
         }
+    }
+
+    /// <summary>
+    /// Parse the shared strings table from xl/sharedStrings.xml
+    /// </summary>
+    private static List<string> ParseSharedStrings(string xml)
+    {
+        var strings = new List<string>();
+        // Each <si> element is a shared string; text is in <t> sub-elements
+        var siMatches = Regex.Matches(xml, @"<si>(.*?)</si>", RegexOptions.Singleline);
+        foreach (Match si in siMatches)
+        {
+            var tMatches = Regex.Matches(si.Groups[1].Value, @"<t[^>]*>(.*?)</t>", RegexOptions.Singleline);
+            var combined = string.Join("", tMatches.Cast<Match>().Select(m => m.Groups[1].Value));
+            strings.Add(combined);
+        }
+        return strings;
     }
 
     /// <summary>
@@ -543,28 +571,48 @@ public static partial class DocumentParser
         return tables;
     }
 
-    private static TableData ExtractTableFromExcelXml(string xml, string sheetName)
+    private static TableData ExtractTableFromExcelXml(string xml, string sheetName, List<string>? sharedStrings = null)
     {
         var table = new TableData { Name = sheetName };
-        
-        // Simplified Excel parsing - would need shared strings lookup for production
+        sharedStrings ??= new List<string>();
+
         var rowMatches = Regex.Matches(xml, @"<row[^>]*>(.*?)</row>", RegexOptions.Singleline);
-        
+
         foreach (Match rowMatch in rowMatches)
         {
             var row = new List<string>();
             var rowXml = rowMatch.Groups[1].Value;
-            
-            var cellMatches = Regex.Matches(rowXml, @"<c[^>]*><v>(.*?)</v></c>");
+
+            // Match cells: capture the cell attributes and value
+            var cellMatches = Regex.Matches(rowXml, @"<c([^>]*)>(?:<v>(.*?)</v>)?(?:<is><t>(.*?)</t></is>)?</c>", RegexOptions.Singleline);
             foreach (Match cellMatch in cellMatches)
             {
-                row.Add(cellMatch.Groups[1].Value);
+                var attrs = cellMatch.Groups[1].Value;
+                var rawValue = cellMatch.Groups[2].Value;
+                var inlineStr = cellMatch.Groups[3].Value;
+
+                // Inline string (t="inlineStr")
+                if (!string.IsNullOrEmpty(inlineStr))
+                {
+                    row.Add(inlineStr);
+                }
+                // Shared string reference (t="s")
+                else if (attrs.Contains("t=\"s\"") && int.TryParse(rawValue, out var ssIndex) 
+                         && ssIndex >= 0 && ssIndex < sharedStrings.Count)
+                {
+                    row.Add(sharedStrings[ssIndex]);
+                }
+                // Numeric or other inline value
+                else
+                {
+                    row.Add(rawValue);
+                }
             }
-            
+
             if (row.Count != 0)
                 table.Rows.Add(row);
         }
-        
+
         return table;
     }
 
@@ -608,25 +656,56 @@ public static partial class DocumentParser
 
     private static string ExtractTextFromPdfBytes(byte[] bytes)
     {
-        // Very basic PDF text extraction
+        // Basic PDF text extraction
         // For production use iTextSharp or PdfPig
         var text = Encoding.UTF8.GetString(bytes);
-        
+        var sb = new StringBuilder();
+
         // PDF stores text between BT/ET operators
         var matches = Regex.Matches(text, @"BT(.*?)ET", RegexOptions.Singleline);
-        var sb = new StringBuilder();
-        
+
         foreach (Match match in matches)
         {
             var content = match.Groups[1].Value;
-            // Extract text from Tj operators
-            var textMatches = Regex.Matches(content, @"\((.*?)\)\s*Tj");
-            foreach (Match textMatch in textMatches)
+
+            // Extract text from Tj operator: (text) Tj
+            var tjMatches = Regex.Matches(content, @"\((.*?)\)\s*Tj");
+            foreach (Match tjMatch in tjMatches)
             {
-                sb.AppendLine(textMatch.Groups[1].Value);
+                sb.Append(tjMatch.Groups[1].Value);
             }
+
+            // Extract text from TJ array operator: [(text1) 0 (text2) -11] TJ
+            var tjArrayMatches = Regex.Matches(content, @"\[(.*?)\]\s*TJ", RegexOptions.Singleline);
+            foreach (Match arrMatch in tjArrayMatches)
+            {
+                var arrContent = arrMatch.Groups[1].Value;
+                var stringParts = Regex.Matches(arrContent, @"\((.*?)\)");
+                foreach (Match sp in stringParts)
+                {
+                    sb.Append(sp.Groups[1].Value);
+                }
+            }
+
+            // Extract hex-encoded strings: <hex> Tj
+            var hexMatches = Regex.Matches(content, @"<([0-9A-Fa-f]+)>\s*Tj");
+            foreach (Match hexMatch in hexMatches)
+            {
+                var hex = hexMatch.Groups[1].Value;
+                for (int i = 0; i + 1 < hex.Length; i += 2)
+                {
+                    if (byte.TryParse(hex.Substring(i, 2), System.Globalization.NumberStyles.HexNumber, null, out var b) && b >= 32)
+                    {
+                        sb.Append((char)b);
+                    }
+                }
+            }
+
+            // Add line break after each BT/ET text block
+            if (sb.Length > 0 && sb[sb.Length - 1] != '\n')
+                sb.AppendLine();
         }
-        
+
         return sb.ToString();
     }
 

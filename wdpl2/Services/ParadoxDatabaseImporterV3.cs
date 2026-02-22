@@ -72,6 +72,12 @@ public class ParadoxDatabaseImporterV3
                 ImportSingles(data, summary);
                 ImportDoubles(data, summary);
 
+                // Assign players to teams using frame data.
+                // Each frame encodes the player→team relationship:
+                // HomePlayerId plays for the fixture's HomeTeamId,
+                // AwayPlayerId plays for the fixture's AwayTeamId.
+                AssignPlayerTeamsFromFrames(data, summary);
+
                 if (data.Fixtures.Count != 0)
                 {
                     var minDate = data.Fixtures.Min(f => f.Date);
@@ -415,37 +421,90 @@ public class ParadoxDatabaseImporterV3
             var bytes = File.ReadAllBytes(filePath);
             var recordSize = BitConverter.ToInt16(bytes, 0);
             var numRecords = BitConverter.ToInt32(bytes, 6);
-            
-            summary.Errors.Add($"[Player.DB] recordSize={recordSize}, numRecords={numRecords}");
+            var numFields = bytes[33];
+
+            summary.Errors.Add($"[Player.DB] recordSize={recordSize}, numRecords={numRecords}, numFields={numFields}");
+
+            // Read field types and sizes from header to locate PlayerTeam correctly
+            var fieldTypes = new List<byte>();
+            var fieldSizes = new List<int>();
+            for (int i = 0; i < numFields; i++)
+            {
+                if (78 + i < bytes.Length)
+                    fieldTypes.Add(bytes[78 + i]);
+                if (78 + numFields + i < bytes.Length)
+                    fieldSizes.Add(bytes[78 + numFields + i]);
+            }
+
+            // Player.DB expected layout (from Delphi schema):
+            // Field 0: PlayerNo    (type 0x06 Number/Double, 8 bytes)
+            // Field 1: PlayerName  (type 0x01 Alpha, ~30 bytes)
+            // Field 2: PlayerTeam  (type 0x04 Long, 4 bytes)
+            // Field 3+: Played, Wins, Losses, CurrentRating, BestRating, BestRatingDate, EightBalls
+
+            // Calculate the byte offset of each field within a record
+            var fieldOffsets = new List<int>();
+            int runningOffset = 0;
+            for (int i = 0; i < fieldSizes.Count; i++)
+            {
+                fieldOffsets.Add(runningOffset);
+                runningOffset += fieldSizes[i];
+            }
+
+            // Find PlayerTeam field: it's the first integer (type 0x03 or 0x04) field after the name
+            int playerTeamFieldIdx = -1;
+            int nameFieldSize = 0;
+            for (int i = 0; i < fieldTypes.Count; i++)
+            {
+                if (fieldTypes[i] == 0x01) // Alpha (name field)
+                {
+                    nameFieldSize = fieldSizes[i];
+                }
+                // First integer field after field 1 (after the name)
+                if (i >= 2 && (fieldTypes[i] == 0x03 || fieldTypes[i] == 0x04))
+                {
+                    playerTeamFieldIdx = i;
+                    break;
+                }
+            }
+
+            int playerTeamOffset = playerTeamFieldIdx >= 0 && playerTeamFieldIdx < fieldOffsets.Count
+                ? fieldOffsets[playerTeamFieldIdx] : -1;
+            int playerTeamSize = playerTeamFieldIdx >= 0 && playerTeamFieldIdx < fieldSizes.Count
+                ? fieldSizes[playerTeamFieldIdx] : 0;
+
+            summary.Errors.Add($"  Field layout: PlayerNo={fieldSizes.ElementAtOrDefault(0)}B, Name={nameFieldSize}B, TeamField@idx{playerTeamFieldIdx}(offset={playerTeamOffset}, size={playerTeamSize}B)");
 
             // Debug: show first record structure
             int dataStart = 2048;
             if (numRecords > 0)
             {
                 int debugOffset = dataStart + 6;
-                if (debugOffset + Math.Min((int)recordSize, 40) <= bytes.Length)
+                if (debugOffset + Math.Min((int)recordSize, 60) <= bytes.Length)
                 {
-                    var rawBytes = new byte[Math.Min((int)recordSize, 40)];
+                    var rawBytes = new byte[Math.Min((int)recordSize, 60)];
                     Array.Copy(bytes, debugOffset, rawBytes, 0, rawBytes.Length);
                     summary.Errors.Add($"  [Player #1] Raw: {BitConverter.ToString(rawBytes).Replace("-", " ")}");
                 }
             }
-            
+
             // Parse players with their record IDs
             int skippedDuplicates = 0;
             int skippedVoid = 0;
-            
+            int teamAssigned = 0;
+            int teamMissing = 0;
+
             for (int rec = 0; rec < numRecords; rec++)
             {
                 int blockSize = 2048;
                 int usableBlock = blockSize - 6;
                 int recsPerBlock = usableBlock / recordSize;
                 if (recsPerBlock <= 0) recsPerBlock = 1;
-                
+
                 int blockNum = rec / recsPerBlock;
                 int recInBlock = rec % recsPerBlock;
                 int offset = dataStart + (blockNum * blockSize) + 6 + (recInBlock * recordSize);
-                
+
                 if (offset + recordSize > bytes.Length) break;
 
                 // Player.DB structure - try parsing PlayerNo as a double first
@@ -456,13 +515,40 @@ public class ParadoxDatabaseImporterV3
                     recordId = rec + 1;
                 }
 
-                // Extract player name - skip first 8 bytes (PlayerNo double)
-                var playerName = ExtractTextAfterOffset(bytes, offset + 8, recordSize - 8);
-                
+                // Extract player name - skip first field (PlayerNo)
+                int nameOffset = fieldOffsets.Count > 1 ? fieldOffsets[1] : 8;
+                int nameLen = nameFieldSize > 0 ? nameFieldSize : (recordSize - 8);
+                var playerName = ExtractTextAfterOffset(bytes, offset + nameOffset, nameLen);
+
+                // Extract PlayerTeam integer
+                int playerTeamId = 0;
+                if (playerTeamOffset >= 0 && offset + playerTeamOffset + playerTeamSize <= bytes.Length)
+                {
+                    if (playerTeamSize == 4) // Long integer
+                    {
+                        var b0 = bytes[offset + playerTeamOffset];
+                        if ((b0 & 0x80) == 0x80)
+                        {
+                            playerTeamId = ((b0 & 0x7F) << 24) | 
+                                          (bytes[offset + playerTeamOffset + 1] << 16) | 
+                                          (bytes[offset + playerTeamOffset + 2] << 8) | 
+                                           bytes[offset + playerTeamOffset + 3];
+                        }
+                    }
+                    else if (playerTeamSize == 2) // Short integer
+                    {
+                        var b0 = bytes[offset + playerTeamOffset];
+                        if ((b0 & 0x80) == 0x80)
+                        {
+                            playerTeamId = ((b0 & 0x7F) << 8) | bytes[offset + playerTeamOffset + 1];
+                        }
+                    }
+                }
+
                 // Debug first few
                 if (rec < 3)
                 {
-                    summary.Errors.Add($"  Raw Player #{rec+1}: ID={recordId}, Name='{playerName}'");
+                    summary.Errors.Add($"  Raw Player #{rec+1}: ID={recordId}, Name='{playerName}', TeamId={playerTeamId}");
                 }
                 
                 if (string.IsNullOrWhiteSpace(playerName)) continue;
@@ -497,12 +583,25 @@ public class ParadoxDatabaseImporterV3
                 var firstName = nameParts.FirstOrDefault() ?? "";
                 var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "";
 
+                // Resolve team GUID from the Paradox team ID
+                Guid? teamGuid = null;
+                if (playerTeamId > 0 && _teamMap.TryGetValue(playerTeamId, out var tg))
+                {
+                    teamGuid = tg;
+                    teamAssigned++;
+                }
+                else if (playerTeamId > 0)
+                {
+                    teamMissing++;
+                }
+
                 var player = new Player
                 {
                     Id = Guid.NewGuid(),
                     SeasonId = _seasonId,
                     FirstName = firstName.ToUpperInvariant(),
                     LastName = lastName.ToUpperInvariant(),
+                    TeamId = teamGuid,
                     Notes = "[IMPORTED]"
                 };
 
@@ -519,13 +618,14 @@ public class ParadoxDatabaseImporterV3
             summary.Errors.Add($"  Player map has {_playerMap.Count} entries");
             var allIds = _playerMap.Keys.OrderBy(k => k).ToList();
             summary.Errors.Add($"  Player ID range: {allIds.FirstOrDefault()} - {allIds.LastOrDefault()}");
-            
+            summary.Errors.Add($"  Teams assigned: {teamAssigned}, Teams not found: {teamMissing}");
+
             if (skippedVoid > 0)
                 summary.Errors.Add($"  (Skipped {skippedVoid} 'Void Frame' entries)");
             if (skippedDuplicates > 0)
                 summary.Errors.Add($"  (Skipped {skippedDuplicates} duplicate names)");
-            
-            summary.Errors.Add($"✓ Imported {summary.PlayersImported} players");
+
+            summary.Errors.Add($"✓ Imported {summary.PlayersImported} players ({teamAssigned} with team assignments)");
         }
         catch (Exception ex) { summary.Errors.Add($"❌ Player error: {ex.Message}"); }
     }
@@ -955,6 +1055,65 @@ public class ParadoxDatabaseImporterV3
             summary.Errors.Add($"✓ Found {numRecords} doubles records (not imported as individual frames)");
         }
         catch (Exception ex) { summary.Errors.Add($"❌ Doubles error: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// Assign players to teams by analysing the imported frame results.
+    /// Every frame encodes the player→team relationship:
+    ///   HomePlayerId plays for the fixture's HomeTeamId
+    ///   AwayPlayerId plays for the fixture's AwayTeamId
+    /// We count appearances per team and assign the most frequent one.
+    /// </summary>
+    private void AssignPlayerTeamsFromFrames(LeagueData data, ImportSummary summary)
+    {
+        // Build a tally: PlayerId → { TeamId → count }
+        var playerTeamCounts = new Dictionary<Guid, Dictionary<Guid, int>>();
+
+        foreach (var fixture in data.Fixtures)
+        {
+            foreach (var frame in fixture.Frames)
+            {
+                if (frame.HomePlayerId.HasValue && fixture.HomeTeamId != Guid.Empty)
+                {
+                    if (!playerTeamCounts.ContainsKey(frame.HomePlayerId.Value))
+                        playerTeamCounts[frame.HomePlayerId.Value] = new Dictionary<Guid, int>();
+
+                    var counts = playerTeamCounts[frame.HomePlayerId.Value];
+                    counts[fixture.HomeTeamId] = counts.GetValueOrDefault(fixture.HomeTeamId) + 1;
+                }
+
+                if (frame.AwayPlayerId.HasValue && fixture.AwayTeamId != Guid.Empty)
+                {
+                    if (!playerTeamCounts.ContainsKey(frame.AwayPlayerId.Value))
+                        playerTeamCounts[frame.AwayPlayerId.Value] = new Dictionary<Guid, int>();
+
+                    var counts = playerTeamCounts[frame.AwayPlayerId.Value];
+                    counts[fixture.AwayTeamId] = counts.GetValueOrDefault(fixture.AwayTeamId) + 1;
+                }
+            }
+        }
+
+        int assigned = 0;
+        int alreadySet = 0;
+
+        foreach (var player in data.Players)
+        {
+            if (player.TeamId.HasValue)
+            {
+                alreadySet++;
+                continue;
+            }
+
+            if (playerTeamCounts.TryGetValue(player.Id, out var teamCounts) && teamCounts.Count > 0)
+            {
+                // Assign the team the player appeared on most often
+                var bestTeam = teamCounts.OrderByDescending(kv => kv.Value).First();
+                player.TeamId = bestTeam.Key;
+                assigned++;
+            }
+        }
+
+        summary.Errors.Add($"✓ Team assignments: {assigned} from frame data, {alreadySet} already set");
     }
 
     #endregion

@@ -838,13 +838,11 @@ public partial class HistoricalImportPage : ContentPage
 
         ProgressMessage.Text = "Extracting data from Word document...";
 
-        // Navigate to preview page
+        // Navigate to preview page — it handles its own navigation
+        // back when the user completes or cancels the import
         var previewPage = new ImportPreviewPage();
         await Navigation.PushAsync(previewPage);
         await previewPage.LoadPreviewAsync(file.FilePath);
-        
-        // Return to main page after preview
-        await Navigation.PopToRootAsync();
     }
 
     private async Task ProcessExcelSpreadsheetAsync()
@@ -1246,72 +1244,155 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportLeagueTableFromTable(DocumentParser.TableData table, ImportStats stats)
     {
+        var currentSeasonId = SeasonService.CurrentSeasonId;
+        if (!currentSeasonId.HasValue) return Task.CompletedTask;
+
         // Skip header row
         var dataRows = table.Rows.Skip(1).ToList();
         var headerRow = table.Rows.FirstOrDefault();
         if (headerRow == null) return Task.CompletedTask;
-        
+
         // Find column indices
         var teamCol = FindColumnIndex(headerRow, "team", "name", "club");
         var venueCol = FindColumnIndex(headerRow, "venue", "pub", "home");
-        
+
+        // Get or create a default division for this season
+        var division = DataStore.Data.Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
+        if (division == null)
+        {
+            division = new Division
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                Name = "Imported Division"
+            };
+            DataStore.Data.Divisions.Add(division);
+        }
+
         foreach (var row in dataRows)
         {
             if (row.Count <= teamCol) continue;
-            
+
             var teamName = row[teamCol]?.Trim();
             if (string.IsNullOrWhiteSpace(teamName)) continue;
-            
+
+            // Check if team already exists in this season
+            var existingTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+                t.SeasonId == currentSeasonId &&
+                !string.IsNullOrWhiteSpace(t.Name) &&
+                t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingTeam != null) continue;
+
+            Guid? venueId = null;
+
             // Extract venue if available
             if (venueCol >= 0 && row.Count > venueCol)
             {
                 var venueName = row[venueCol]?.Trim();
                 if (!string.IsNullOrWhiteSpace(venueName))
                 {
-                    // Create venue if it doesn't exist
                     var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
-                        v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
-                    
+                        v.SeasonId == currentSeasonId &&
+                        !string.IsNullOrWhiteSpace(v.Name) &&
+                        v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+
                     if (existingVenue == null)
                     {
                         var venue = new Venue
                         {
                             Id = Guid.NewGuid(),
                             Name = venueName,
-                            SeasonId = SeasonService.CurrentSeasonId
+                            SeasonId = currentSeasonId
                         };
                         DataStore.Data.Venues.Add(venue);
+                        venueId = venue.Id;
                         stats.VenuesImported++;
+                    }
+                    else
+                    {
+                        venueId = existingVenue.Id;
                     }
                 }
             }
-            
+
+            var team = new Team
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                Name = teamName,
+                DivisionId = division.Id,
+                VenueId = venueId
+            };
+            DataStore.Data.Teams.Add(team);
             stats.TeamsImported++;
         }
-        
+
         DataStore.Save();
         return Task.CompletedTask;
     }
 
     private Task ImportPlayersFromTable(DocumentParser.TableData table, ImportStats stats)
     {
+        var currentSeasonId = SeasonService.CurrentSeasonId;
+        if (!currentSeasonId.HasValue) return Task.CompletedTask;
+
         var dataRows = table.Rows.Skip(1).ToList();
         var headerRow = table.Rows.FirstOrDefault();
         if (headerRow == null) return Task.CompletedTask;
-        
+
         var playerCol = FindColumnIndex(headerRow, "player", "name");
         var teamCol = FindColumnIndex(headerRow, "team", "club");
-        
+
         foreach (var row in dataRows)
         {
             if (row.Count <= playerCol) continue;
-            
+
             var playerName = row[playerCol]?.Trim();
             if (string.IsNullOrWhiteSpace(playerName)) continue;
-            
+
+            var nameParts = playerName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var firstName = nameParts.FirstOrDefault() ?? "";
+            var lastName = string.Join(" ", nameParts.Skip(1));
+
+            // Check if player already exists in this season
+            var existingPlayer = DataStore.Data.Players.FirstOrDefault(p =>
+                p.SeasonId == currentSeasonId &&
+                p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
+                p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (existingPlayer != null) continue;
+
+            // Try to match team
+            Guid? teamId = null;
+            if (teamCol >= 0 && row.Count > teamCol)
+            {
+                var teamName = row[teamCol]?.Trim();
+                if (!string.IsNullOrWhiteSpace(teamName))
+                {
+                    var team = DataStore.Data.Teams.FirstOrDefault(t =>
+                        t.SeasonId == currentSeasonId &&
+                        !string.IsNullOrWhiteSpace(t.Name) &&
+                        t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
+                    teamId = team?.Id;
+                }
+            }
+
+            var player = new Player
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                FirstName = firstName,
+                LastName = lastName,
+                TeamId = teamId
+            };
+            DataStore.Data.Players.Add(player);
             stats.PlayersImported++;
         }
-        
+
+        if (stats.PlayersImported > 0)
+            DataStore.Save();
+
         return Task.CompletedTask;
     }
 

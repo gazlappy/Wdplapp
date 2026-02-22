@@ -66,35 +66,43 @@ public static class ParadoxBinaryReader
                 header.FieldSizes.Add(bytes[typeOffset + header.FieldCount + i]);
         }
 
-        // Find field names in header (usually after offset 200)
-        // Scan for readable ASCII text patterns
-        var nameBytes = new StringBuilder();
-        for (int i = 200; i < Math.Min(bytes.Length, DATA_START); i++)
+        // Field names start after types+sizes arrays, preceded by the table name.
+        // Correct offset: 78 + fieldCount * 2
+        int nameStart = 78 + header.FieldCount * 2;
+
+        // Skip the table name (null-terminated string, e.g. "Single.DB\0")
+        while (nameStart < bytes.Length && bytes[nameStart] != 0)
+            nameStart++;
+        nameStart++; // skip the null terminator
+
+        // Calculate header end using header size and block info
+        var headerSize = bytes.Length >= 4 ? BitConverter.ToInt16(bytes, 2) : 1;
+        var maxTableSize = bytes.Length > 5 ? bytes[5] : 4;
+        int blockSize = maxTableSize * 0x400;
+        if (blockSize == 0) blockSize = BLOCK_SIZE;
+        int headerEnd = headerSize * blockSize;
+        if (headerEnd == 0 || headerEnd > bytes.Length) headerEnd = Math.Min(bytes.Length, DATA_START);
+
+        // Read null-terminated field names
+        var currentName = new StringBuilder();
+        for (int i = nameStart; i < headerEnd && header.FieldNames.Count < header.FieldCount; i++)
         {
-            if (bytes[i] >= 32 && bytes[i] < 127)
+            if (bytes[i] == 0)
             {
-                nameBytes.Append((char)bytes[i]);
+                if (currentName.Length > 0)
+                {
+                    header.FieldNames.Add(currentName.ToString());
+                    currentName.Clear();
+                }
             }
-            else if (nameBytes.Length > 0)
+            else if (bytes[i] >= 32 && bytes[i] < 127)
             {
-                nameBytes.Append('\0');
+                currentName.Append((char)bytes[i]);
             }
         }
-
-        // Split on nulls and filter
-        var allText = nameBytes.ToString();
-        var parts = allText.Split('\0', StringSplitOptions.RemoveEmptyEntries)
-            .Where(s => s.Length >= 2 && s.Length <= 30 && 
-                        !s.Contains("ascii", StringComparison.OrdinalIgnoreCase) && 
-                        !s.All(char.IsDigit))
-            .ToList();
-
-        // Skip table name (usually first if ends with .DB) and take field names
-        if (parts.Count > 1)
-        {
-            var skipFirst = parts.FirstOrDefault()?.EndsWith(".DB", StringComparison.OrdinalIgnoreCase) == true;
-            header.FieldNames = (skipFirst ? parts.Skip(1) : parts).Take(header.FieldCount).ToList();
-        }
+        // Capture last name if file ended without a null terminator
+        if (currentName.Length > 0 && header.FieldNames.Count < header.FieldCount)
+            header.FieldNames.Add(currentName.ToString());
 
         return header;
     }

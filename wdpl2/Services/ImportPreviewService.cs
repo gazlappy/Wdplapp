@@ -69,14 +69,16 @@ public static partial class ImportPreviewService
 
         // Look for year in text
         var allText = string.Join(" ", wordResult.Paragraphs);
-        
-        // Pattern: "1994 Winners", "2023/24 Season", "Season 2023-2024", etc.
+
+        // Patterns ordered from most specific to least specific
         var yearPatterns = new[]
         {
-            @"(\d{4})\s+(Winners|Season|League)",
-            @"(\d{4})/(\d{2,4})",
-            @"(\d{4})-(\d{4})",
-            @"Season\s+(\d{4})"
+            @"(\d{4})\s*/\s*(\d{2,4})",                          // 2023/24 or 2023/2024
+            @"(\d{4})\s*-\s*(\d{2,4})",                          // 2023-24 or 2023-2024
+            @"Season\s+(\d{4})",                                  // Season 2023
+            @"(\d{4})\s+(?:Winners|Season|League|Results)",       // 2023 Winners, 2023 Season
+            @"(?:Winners|Season|League|Results)\s+(\d{4})",       // Winners 2023, League 2023
+            @"\b(\d{4})\b"                                        // Bare 4-digit year as fallback
         };
 
         foreach (var pattern in yearPatterns)
@@ -84,11 +86,21 @@ public static partial class ImportPreviewService
             var match = Regex.Match(allText, pattern, RegexOptions.IgnoreCase);
             if (match.Success)
             {
-                if (int.TryParse(match.Groups[1].Value, out var year))
+                if (int.TryParse(match.Groups[1].Value, out var year) && year >= 1900 && year <= 2100)
                 {
                     seasonInfo.Year = year;
-                    seasonInfo.Name = match.Value;
-                    
+
+                    // Build a descriptive season name from the match
+                    if (match.Groups.Count > 2 && match.Groups[2].Success)
+                    {
+                        // Range format: 2023/24 or 2023-2024
+                        seasonInfo.Name = $"{year}/{match.Groups[2].Value}";
+                    }
+                    else
+                    {
+                        seasonInfo.Name = match.Value.Trim();
+                    }
+
                     // Try to find existing season
                     var existingSeason = existingData.Seasons
                         .FirstOrDefault(s => s.Name != null && 
@@ -591,6 +603,6 @@ public static partial class ImportPreviewService
     [GeneratedRegex(@"\s+&\s+|\s+and\s+", RegexOptions.IgnoreCase)]
     private static partial Regex AmpersandOrAndRegex();
 
-    [GeneratedRegex(@"(Premier|First|Second|Third|Fourth|Division\s+\d+)\s+division", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(Premier|First|Second|Third|Fourth|Division\s+(?:One|Two|Three|Four|Five|\d+)|Red|Yellow|Blue|Green)\s*(?:division)?", RegexOptions.IgnoreCase)]
     private static partial Regex DivisionPatternRegex();
 }
