@@ -170,12 +170,19 @@ public partial class SeasonsViewModel : ObservableObject
             return;
         }
 
+        // Cascade delete from IDataStore (SQLite)
         await _dataStore.DeleteSeasonAsync(season);
         await _dataStore.SaveAsync();
+
+        // Also cascade delete from JSON data store and clean up orphans
+        DataStore.Data.DeleteSeasonCascade(season.Id);
+        DataStore.Data.CleanupOrphans();
+        DataStore.Save();
+
         await LoadSeasonsAsync();
 
         ClearEditor();
-        SetStatus("Deleted season");
+        SetStatus("Deleted season and all associated data");
     }
 
     [RelayCommand]

@@ -220,7 +220,7 @@ public class DataStoreService : IDataStore
 
     public Task DeleteSeasonAsync(Season season)
     {
-        DataStore.Data.Seasons.Remove(season);
+        DataStore.Data.DeleteSeasonCascade(season.Id);
         return Task.CompletedTask;
     }
 

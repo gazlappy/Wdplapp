@@ -59,6 +59,7 @@ namespace Wdpl2.Views
             "Fixture Defaults",
             "Notifications",
             "Import Data",
+            "Data Management",
             "About"
         };
 
@@ -108,6 +109,7 @@ namespace Wdpl2.Views
                 "Fixture Defaults" => CreateFixtureDefaultsPanel(),
                 "Notifications" => CreateNotificationsPanel(),
                 "Import Data" => CreateImportDataPanel(),
+                "Data Management" => CreateDataManagementPanel(),
                 "About" => CreateAboutPanel(),
                 _ => null
             };
@@ -1585,6 +1587,156 @@ namespace Wdpl2.Views
                 System.Diagnostics.Debug.WriteLine($"  Fixtures: {beforeCounts.Fixtures} ? {DataStore.Data.Fixtures.Count} (added: {importedData.Fixtures.Count})");
                 System.Diagnostics.Debug.WriteLine("=== END MERGE ===");
             });
+        }
+
+        private View CreateDataManagementPanel()
+        {
+            var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
+
+            // ========== ORPHAN SCAN RESULTS ==========
+            var orphanResultsLabel = new Label { Text = "", FontSize = 12, LineHeight = 1.4 };
+            var orphanResultsBorder = new Border
+            {
+                IsVisible = false,
+                Padding = 12,
+                Margin = new Thickness(0, 12, 0, 0),
+                StrokeThickness = 1,
+                StrokeShape = new RoundRectangle { CornerRadius = 8 }
+            };
+            orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
+            orphanResultsBorder.SetAppThemeColor(Border.BackgroundColorProperty, CardBackground, CardBackground);
+            orphanResultsBorder.Content = orphanResultsLabel;
+
+            var cleanButton = new Button
+            {
+                Text = "??? Remove Orphaned Data",
+                BackgroundColor = Color.FromArgb("#EF4444"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Start,
+                IsVisible = false,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+
+            // ========== SCAN BUTTON ==========
+            var scanButton = new Button
+            {
+                Text = "?? Scan for Orphaned Data",
+                BackgroundColor = Color.FromArgb("#F59E0B"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            scanButton.Clicked += (s, e) =>
+            {
+                var data = DataStore.Data;
+                var validSeasonIds = new HashSet<Guid>(data.Seasons.Select(s2 => s2.Id));
+
+                int orphanFixtures = data.Fixtures.Count(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value));
+                int orphanPlayers = data.Players.Count(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value));
+                int orphanTeams = data.Teams.Count(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value));
+                int orphanVenues = data.Venues.Count(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
+                int orphanDivisions = data.Divisions.Count(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
+                int orphanCompetitions = data.Competitions.Count(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
+
+                int totalOrphans = orphanFixtures + orphanPlayers + orphanTeams + orphanVenues + orphanDivisions + orphanCompetitions;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Seasons in database: {data.Seasons.Count}");
+                sb.AppendLine();
+                sb.AppendLine("Orphaned records (no valid season):");
+                sb.AppendLine($"  • Divisions: {orphanDivisions}");
+                sb.AppendLine($"  • Venues: {orphanVenues}");
+                sb.AppendLine($"  • Teams: {orphanTeams}");
+                sb.AppendLine($"  • Players: {orphanPlayers}");
+                sb.AppendLine($"  • Fixtures: {orphanFixtures}");
+                sb.AppendLine($"  • Competitions: {orphanCompetitions}");
+                sb.AppendLine();
+                sb.AppendLine($"Total orphaned records: {totalOrphans}");
+
+                if (totalOrphans == 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("? Storage is clean — no orphaned data found.");
+                }
+
+                orphanResultsLabel.Text = sb.ToString();
+                orphanResultsBorder.IsVisible = true;
+                cleanButton.IsVisible = totalOrphans > 0;
+
+                if (totalOrphans > 0)
+                {
+                    orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#F59E0B"), Color.FromArgb("#F59E0B"));
+                    statusLabel.Text = $"?? Found {totalOrphans} orphaned records.";
+                    statusLabel.TextColor = Color.FromArgb("#F59E0B");
+                }
+                else
+                {
+                    orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
+                    statusLabel.Text = "? No orphaned data found.";
+                    statusLabel.TextColor = Color.FromArgb("#10B981");
+                }
+            };
+
+            cleanButton.Clicked += async (s, e) =>
+            {
+                var data = DataStore.Data;
+                var validSeasonIds = new HashSet<Guid>(data.Seasons.Select(s2 => s2.Id));
+
+                int orphanFixtures = data.Fixtures.Count(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value));
+                int orphanPlayers = data.Players.Count(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value));
+                int orphanTeams = data.Teams.Count(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value));
+                int orphanVenues = data.Venues.Count(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
+                int orphanDivisions = data.Divisions.Count(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
+                int orphanCompetitions = data.Competitions.Count(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
+                int total = orphanFixtures + orphanPlayers + orphanTeams + orphanVenues + orphanDivisions + orphanCompetitions;
+
+                var confirm = await DisplayAlert(
+                    "Clean Storage",
+                    $"This will permanently remove {total} orphaned records:\n\n" +
+                    $"• {orphanDivisions} Division(s)\n" +
+                    $"• {orphanVenues} Venue(s)\n" +
+                    $"• {orphanTeams} Team(s)\n" +
+                    $"• {orphanPlayers} Player(s)\n" +
+                    $"• {orphanFixtures} Fixture(s)\n" +
+                    $"• {orphanCompetitions} Competition(s)\n\n" +
+                    "This cannot be undone!",
+                    "Yes, Clean Storage",
+                    "Cancel");
+
+                if (!confirm) return;
+
+                data.CleanupOrphans();
+                DataStore.Save();
+
+                orphanResultsLabel.Text = $"? Removed {total} orphaned records.\n\nStorage is now clean.";
+                orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
+                cleanButton.IsVisible = false;
+                statusLabel.Text = $"? Cleaned {total} orphaned records.";
+                statusLabel.TextColor = Color.FromArgb("#10B981");
+            };
+
+            return new VerticalStackLayout
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new Label { Text = "Data Management", FontSize = 20, FontAttributes = FontAttributes.Bold },
+                    new Label
+                    {
+                        Text = "Scan and remove data that is not associated with any season. " +
+                               "This can happen when seasons are deleted but some records were left behind.",
+                        FontSize = 14,
+                        TextColor = SubtitleText,
+                        Margin = new Thickness(0, 0, 0, 8)
+                    },
+                    scanButton,
+                    orphanResultsBorder,
+                    cleanButton,
+                    statusLabel
+                }
+            };
         }
 
         private View CreateAboutPanel()

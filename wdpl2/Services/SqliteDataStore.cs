@@ -259,7 +259,17 @@ public class SqliteDataStore : IDataStore
 
     public async Task DeleteSeasonAsync(Season season)
     {
+        // Cascade delete all entities belonging to this season
+        var seasonId = season.Id;
+
+        _context.Fixtures.RemoveRange(_context.Fixtures.Where(f => f.SeasonId == seasonId));
+        _context.Players.RemoveRange(_context.Players.Where(p => p.SeasonId == seasonId));
+        _context.Teams.RemoveRange(_context.Teams.Where(t => t.SeasonId == seasonId));
+        _context.Venues.RemoveRange(_context.Venues.Where(v => v.SeasonId == seasonId));
+        _context.Divisions.RemoveRange(_context.Divisions.Where(d => d.SeasonId == seasonId));
+        _context.Competitions.RemoveRange(_context.Competitions.Where(c => c.SeasonId == seasonId));
         _context.Seasons.Remove(season);
+
         await _context.SaveChangesAsync();
     }
 

@@ -289,8 +289,11 @@ namespace Wdpl2.Views
 
             if (!confirm) return;
 
-            // Cascade delete
+            // Cascade delete all data for this season
             DataStore.Data.DeleteSeasonCascade(_selected.Id);
+
+            // Also clean up any orphaned entities (null or invalid SeasonId)
+            DataStore.Data.CleanupOrphans();
             DataStore.Save();
 
             _selected = null;

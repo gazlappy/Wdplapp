@@ -29,8 +29,7 @@ namespace Wdpl2.Services
 
         public void RemoveSeason(Guid seasonId)
         {
-            League.Seasons.RemoveAll(s => s.Id == seasonId);
-            League.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
+            League.DeleteSeasonCascade(seasonId);
         }
 
         public void SetActiveSeason(Guid activeSeasonId)

@@ -52,25 +52,44 @@ namespace Wdpl2.Models
         {
             // Remove all fixtures for this season
             Fixtures.RemoveAll(f => f.SeasonId == seasonId);
-            
+
             // Remove all players for this season
             Players.RemoveAll(p => p.SeasonId == seasonId);
-            
+
             // Remove all teams for this season
             Teams.RemoveAll(t => t.SeasonId == seasonId);
-            
+
             // Remove all venues for this season
             Venues.RemoveAll(v => v.SeasonId == seasonId);
-            
+
             // Remove all divisions for this season
             Divisions.RemoveAll(d => d.SeasonId == seasonId);
-            
+
+            // Remove all competitions for this season
+            Competitions.RemoveAll(c => c.SeasonId == seasonId);
+
             // Finally remove the season itself
             Seasons.RemoveAll(s => s.Id == seasonId);
-            
+
             // If this was the active season, clear it
             if (ActiveSeasonId == seasonId)
                 ActiveSeasonId = null;
+        }
+
+        /// <summary>
+        /// Remove any orphaned entities that have no valid season reference.
+        /// Call after deleting seasons to clean up stale data.
+        /// </summary>
+        public void CleanupOrphans()
+        {
+            var validSeasonIds = new HashSet<Guid>(Seasons.Select(s => s.Id));
+
+            Fixtures.RemoveAll(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value));
+            Players.RemoveAll(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value));
+            Teams.RemoveAll(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value));
+            Venues.RemoveAll(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
+            Divisions.RemoveAll(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
+            Competitions.RemoveAll(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
         }
     }
 

@@ -62,6 +62,10 @@ public partial class FixturesPage : ContentPage
     private int _currentFrameIndex = 0; // Which frame is being edited (0-based)
     private bool _selectingHomePlayer = true; // Are we selecting home or away player?
     private bool _isFlyoutOpen = false;
+
+    // Two-phase entry: Home lineup → Away lineup → Results
+    private enum EntryPhase { HomeLineup, AwayLineup, Results }
+    private EntryPhase _entryPhase = EntryPhase.HomeLineup;
     
     // Services for notification management
     private MatchReminderService? _reminderService;
@@ -173,7 +177,7 @@ public partial class FixturesPage : ContentPage
 
     private void OnQuickPlayerTapped(Guid playerId, string playerName, bool isHomeTeam)
     {
-        System.Diagnostics.Debug.WriteLine($"=== QUICK PLAYER TAP: {playerName} (Home={isHomeTeam}) ===");
+        System.Diagnostics.Debug.WriteLine($"=== QUICK PLAYER TAP: {playerName} (Home={isHomeTeam}, Phase={_entryPhase}) ===");
 
         if (_selectedFixture == null || _currentFrameIndex < 0 || _currentFrameIndex >= _frameRows.Count)
         {
@@ -187,7 +191,7 @@ public partial class FixturesPage : ContentPage
         int playerFrameCount = _frameRows.Count(f => 
             (isHomeTeam && f.HomePlayerId == playerId) || 
             (!isHomeTeam && f.AwayPlayerId == playerId));
-        
+
         if (playerFrameCount >= 3)
         {
             System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {playerName} already has {playerFrameCount} frames (max 3)");
@@ -197,7 +201,6 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        // Assign player to the appropriate slot based on their team
         if (isHomeTeam)
         {
             // Check for duplicate pairing if away player is already set
@@ -207,7 +210,7 @@ public partial class FixturesPage : ContentPage
                     f != frameRow && 
                     f.HomePlayerId == playerId && 
                     f.AwayPlayerId == frameRow.AwayPlayerId);
-                
+
                 if (duplicatePairing)
                 {
                     var awayName = frameRow.AwayPlayerName;
@@ -219,38 +222,14 @@ public partial class FixturesPage : ContentPage
                 }
             }
 
-            // Assign home player
             frameRow.HomePlayerId = playerId;
             frameRow.HomePlayerName = playerName;
-            
             if (frameRow.HomePlayerLabel != null)
             {
                 frameRow.HomePlayerLabel.Text = playerName;
                 frameRow.HomePlayerLabel.TextColor = Colors.Black;
             }
             System.Diagnostics.Debug.WriteLine($"  => Assigned HOME player to frame {_currentFrameIndex + 1}");
-
-            // If away is already filled, advance to next frame
-            if (frameRow.AwayPlayerId.HasValue)
-            {
-                if (_currentFrameIndex < _frameRows.Count - 1)
-                {
-                    _currentFrameIndex++;
-                    _selectingHomePlayer = true;
-                    HighlightCurrentFrame();
-                }
-                else
-                {
-                    CurrentFrameIndicator.IsVisible = false;
-                }
-            }
-            else
-            {
-                // Now expect away player for same frame
-                _selectingHomePlayer = false;
-            }
-            UpdateCurrentFrameIndicator();
-            UpdatePlayerFrameCounts();
         }
         else
         {
@@ -261,7 +240,7 @@ public partial class FixturesPage : ContentPage
                     f != frameRow && 
                     f.HomePlayerId == frameRow.HomePlayerId && 
                     f.AwayPlayerId == playerId);
-                
+
                 if (duplicatePairing)
                 {
                     var homeName = frameRow.HomePlayerName;
@@ -273,38 +252,93 @@ public partial class FixturesPage : ContentPage
                 }
             }
 
-            // Assign away player
             frameRow.AwayPlayerId = playerId;
             frameRow.AwayPlayerName = playerName;
-            
             if (frameRow.AwayPlayerLabel != null)
             {
                 frameRow.AwayPlayerLabel.Text = playerName;
                 frameRow.AwayPlayerLabel.TextColor = Colors.Black;
             }
             System.Diagnostics.Debug.WriteLine($"  => Assigned AWAY player to frame {_currentFrameIndex + 1}");
+        }
 
-            // If home is already filled, advance to next frame
-            if (frameRow.HomePlayerId.HasValue)
+        // Phase-aware auto-advance
+        AdvanceToNextSlot(isHomeTeam);
+        UpdateCurrentFrameIndicator();
+        UpdatePlayerFrameCounts();
+        HighlightCurrentFrame();
+    }
+
+    /// <summary>
+    /// Advances to the next empty slot based on the current entry phase.
+    /// HomeLineup: steps through all home slots, then transitions to AwayLineup.
+    /// AwayLineup: steps through all away slots, then transitions to Results.
+    /// Results: no auto-advance (free editing).
+    /// </summary>
+    private void AdvanceToNextSlot(bool justFilledHome)
+    {
+        if (_entryPhase == EntryPhase.HomeLineup)
+        {
+            // Find the next empty home slot (from current position forward, then wrap)
+            for (int offset = 1; offset <= _frameRows.Count; offset++)
             {
-                if (_currentFrameIndex < _frameRows.Count - 1)
+                int idx = (_currentFrameIndex + offset) % _frameRows.Count;
+                if (!_frameRows[idx].HomePlayerId.HasValue)
                 {
-                    _currentFrameIndex++;
+                    _currentFrameIndex = idx;
                     _selectingHomePlayer = true;
-                    HighlightCurrentFrame();
-                }
-                else
-                {
-                    CurrentFrameIndicator.IsVisible = false;
+                    return;
                 }
             }
-            else
+            // All home slots filled — transition to away lineup
+            _entryPhase = EntryPhase.AwayLineup;
+            _selectingHomePlayer = false;
+            // Find first empty away slot
+            for (int i = 0; i < _frameRows.Count; i++)
             {
-                // Now expect home player for same frame
+                if (!_frameRows[i].AwayPlayerId.HasValue)
+                {
+                    _currentFrameIndex = i;
+                    return;
+                }
+            }
+            // All away slots also filled — go to results
+            _entryPhase = EntryPhase.Results;
+            _currentFrameIndex = 0;
+        }
+        else if (_entryPhase == EntryPhase.AwayLineup)
+        {
+            // Find the next empty away slot
+            for (int offset = 1; offset <= _frameRows.Count; offset++)
+            {
+                int idx = (_currentFrameIndex + offset) % _frameRows.Count;
+                if (!_frameRows[idx].AwayPlayerId.HasValue)
+                {
+                    _currentFrameIndex = idx;
+                    _selectingHomePlayer = false;
+                    return;
+                }
+            }
+            // All away slots filled — transition to results
+            _entryPhase = EntryPhase.Results;
+            _currentFrameIndex = 0;
+        }
+        else // Results phase — advance to next frame after both players + winner set
+        {
+            var current = _frameRows[_currentFrameIndex];
+            if (justFilledHome && !current.AwayPlayerId.HasValue)
+            {
+                _selectingHomePlayer = false;
+            }
+            else if (!justFilledHome && !current.HomePlayerId.HasValue)
+            {
                 _selectingHomePlayer = true;
             }
-            UpdateCurrentFrameIndicator();
-            UpdatePlayerFrameCounts();
+            else if (_currentFrameIndex < _frameRows.Count - 1)
+            {
+                _currentFrameIndex++;
+                _selectingHomePlayer = true;
+            }
         }
     }
 
@@ -506,6 +540,7 @@ public partial class FixturesPage : ContentPage
             frame.Winner = FrameWinner.Home;
             UpdateFrameScoreButtons(frame);
             UpdateScoreDisplay();
+            AdvanceAfterScore(_currentFrameIndex);
             return;
         }
 
@@ -515,6 +550,7 @@ public partial class FixturesPage : ContentPage
             frame.Winner = FrameWinner.Away;
             UpdateFrameScoreButtons(frame);
             UpdateScoreDisplay();
+            AdvanceAfterScore(_currentFrameIndex);
             return;
         }
 
@@ -1184,7 +1220,9 @@ public partial class FixturesPage : ContentPage
         AwayPlayersQuickPanel.Children.Clear();
         _currentFrameIndex = 0;
         _selectingHomePlayer = true;
+        _entryPhase = EntryPhase.HomeLineup;
         CurrentFrameIndicator.IsVisible = false;
+        PhaseIndicator.IsVisible = false;
         
         HomeTeamHeader.Text = "Home Team";
         AwayTeamHeader.Text = "Away";
@@ -1204,6 +1242,7 @@ public partial class FixturesPage : ContentPage
         _frameRows.Clear();
         _currentFrameIndex = 0;
         _selectingHomePlayer = true;
+        _entryPhase = EntryPhase.HomeLineup;
 
         // Get team info
         var data = DataStore.Data;
@@ -1265,13 +1304,13 @@ public partial class FixturesPage : ContentPage
             var divider = new Border
             {
                 BackgroundColor = Color.FromArgb("#1A1A1A"),
-                HeightRequest = 24,
-                Padding = new Thickness(8, 4)
+                HeightRequest = 18,
+                Padding = new Thickness(4, 2)
             };
             divider.Content = new Label
             {
-                Text = "Before start of game 11 all names, games 11 - 15 to be completed, home and away.",
-                FontSize = 10,
+                Text = "Games 11–15: complete home and away names",
+                FontSize = 8,
                 TextColor = Color.FromArgb("#FFD700"),
                 HorizontalTextAlignment = TextAlignment.Center
             };
@@ -1282,9 +1321,45 @@ public partial class FixturesPage : ContentPage
             }
         }
 
+        // Detect the correct starting phase based on existing frame data
+        DetectEntryPhase();
+
         // Show frame indicator
         UpdateCurrentFrameIndicator();
         HighlightCurrentFrame();
+    }
+
+    /// <summary>
+    /// Detects the correct entry phase based on which slots are already filled.
+    /// Positions the cursor at the first empty slot in that phase.
+    /// </summary>
+    private void DetectEntryPhase()
+    {
+        // Check if all home slots are filled
+        bool allHomeFilled = _frameRows.All(f => f.HomePlayerId.HasValue);
+        bool allAwayFilled = _frameRows.All(f => f.AwayPlayerId.HasValue);
+
+        if (!allHomeFilled)
+        {
+            _entryPhase = EntryPhase.HomeLineup;
+            _selectingHomePlayer = true;
+            _currentFrameIndex = _frameRows.FindIndex(f => !f.HomePlayerId.HasValue);
+            if (_currentFrameIndex < 0) _currentFrameIndex = 0;
+        }
+        else if (!allAwayFilled)
+        {
+            _entryPhase = EntryPhase.AwayLineup;
+            _selectingHomePlayer = false;
+            _currentFrameIndex = _frameRows.FindIndex(f => !f.AwayPlayerId.HasValue);
+            if (_currentFrameIndex < 0) _currentFrameIndex = 0;
+        }
+        else
+        {
+            _entryPhase = EntryPhase.Results;
+            // Position at first frame without a winner
+            _currentFrameIndex = _frameRows.FindIndex(f => f.Winner == FrameWinner.None);
+            if (_currentFrameIndex < 0) _currentFrameIndex = 0;
+        }
     }
 
     private void LoadPlayerLists()
@@ -1367,13 +1442,13 @@ public partial class FixturesPage : ContentPage
         var border = new Border
         {
             BackgroundColor = Colors.White,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 3 },
             Stroke = isHome 
                 ? Color.FromArgb("#90CAF9") 
                 : Color.FromArgb("#EF9A9A"),
             StrokeThickness = 1,
-            Padding = new Thickness(4, 6),
-            Margin = new Thickness(0, 0, 0, 2),
+            Padding = new Thickness(2, 3),
+            Margin = new Thickness(0, 0, 0, 1),
             BindingContext = listItem
         };
 
@@ -1381,11 +1456,11 @@ public partial class FixturesPage : ContentPage
         {
             ColumnDefinitions =
             {
-                new ColumnDefinition { Width = new GridLength(22) },
+                new ColumnDefinition { Width = new GridLength(18) },
                 new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(24) }
+                new ColumnDefinition { Width = new GridLength(18) }
             },
-            ColumnSpacing = 4
+            ColumnSpacing = 2
         };
 
         // Key number badge
@@ -1395,16 +1470,16 @@ public partial class FixturesPage : ContentPage
                 ? Color.FromArgb("#1976D2") 
                 : Color.FromArgb("#D32F2F"),
             StrokeThickness = 0,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 3 },
-            WidthRequest = 20,
-            HeightRequest = 20,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 2 },
+            WidthRequest = 16,
+            HeightRequest = 16,
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center
         };
         keyBadge.Content = new Label
         {
             Text = keyLabel,
-            FontSize = 10,
+            FontSize = 8,
             FontAttributes = FontAttributes.Bold,
             TextColor = Colors.White,
             HorizontalTextAlignment = TextAlignment.Center,
@@ -1417,7 +1492,7 @@ public partial class FixturesPage : ContentPage
         var nameLabel = new Label
         {
             Text = shortName,
-            FontSize = 10,
+            FontSize = 8,
             TextColor = Colors.Black,
             VerticalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation
@@ -1429,7 +1504,7 @@ public partial class FixturesPage : ContentPage
         var countLabel = new Label
         {
             Text = "(0)",
-            FontSize = 9,
+            FontSize = 7,
             TextColor = Colors.Gray,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.End
@@ -1497,7 +1572,7 @@ public partial class FixturesPage : ContentPage
         // Create the row UI - columns match header: #(30), HomePlayer(*), HomeScore(36), AwayScore(36), AwayPlayer(*), 8Ball(36)
         var rowBorder = new Border
         {
-            BackgroundColor = index % 2 == 0 ? Colors.White : Color.FromArgb("#F5F5F5"),
+            BackgroundColor = GetFrameRowBackground(index),
             Padding = new Thickness(0),
             StrokeThickness = 0
         };
@@ -1506,15 +1581,15 @@ public partial class FixturesPage : ContentPage
         {
             ColumnDefinitions =
             {
-                new ColumnDefinition { Width = new GridLength(30) },  // Frame #
+                new ColumnDefinition { Width = new GridLength(22) },  // Frame #
                 new ColumnDefinition { Width = GridLength.Star },     // Home player
-                new ColumnDefinition { Width = new GridLength(36) },  // Home score
-                new ColumnDefinition { Width = new GridLength(36) },  // Away score
+                new ColumnDefinition { Width = new GridLength(28) },  // Home score
+                new ColumnDefinition { Width = new GridLength(28) },  // Away score
                 new ColumnDefinition { Width = GridLength.Star },     // Away player
-                new ColumnDefinition { Width = new GridLength(36) }   // 8-ball
+                new ColumnDefinition { Width = new GridLength(28) }   // 8-ball
             },
-            Padding = new Thickness(2, 4),
-            ColumnSpacing = 2
+            Padding = new Thickness(1, 1),
+            ColumnSpacing = 1
         };
 
         // Frame number
@@ -1522,7 +1597,7 @@ public partial class FixturesPage : ContentPage
         {
             Text = (index + 1).ToString(),
             FontAttributes = FontAttributes.Bold,
-            FontSize = 12,
+            FontSize = 10,
             HorizontalTextAlignment = TextAlignment.Center,
             VerticalTextAlignment = TextAlignment.Center
         };
@@ -1532,9 +1607,9 @@ public partial class FixturesPage : ContentPage
         // Home player name (tappable to edit)
         var homePlayerLabel = new Label
         {
-            Text = string.IsNullOrEmpty(homePlayerName) ? "Tap to select..." : homePlayerName,
+            Text = string.IsNullOrEmpty(homePlayerName) ? "Tap..." : homePlayerName,
             TextColor = string.IsNullOrEmpty(homePlayerName) ? Colors.Gray : Colors.Black,
-            FontSize = 11,
+            FontSize = 9,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation
@@ -1542,10 +1617,10 @@ public partial class FixturesPage : ContentPage
         var homePlayerBorder = new Border
         {
             BackgroundColor = Color.FromArgb("#E3F2FD"),
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 3 },
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 2 },
             Stroke = Color.FromArgb("#90CAF9"),
             StrokeThickness = 1,
-            Padding = new Thickness(3, 2),
+            Padding = new Thickness(2, 1),
             Content = homePlayerLabel
         };
         var homeTap = new TapGestureRecognizer();
@@ -1553,6 +1628,9 @@ public partial class FixturesPage : ContentPage
         {
             _currentFrameIndex = index;
             _selectingHomePlayer = true;
+            // Tapping a specific cell switches to free-edit (Results phase)
+            if (_entryPhase != EntryPhase.HomeLineup)
+                _entryPhase = EntryPhase.Results;
             UpdateCurrentFrameIndicator();
             HighlightCurrentFrame();
             RefocusKeyboardCapture();
@@ -1567,12 +1645,12 @@ public partial class FixturesPage : ContentPage
             Text = fr.Winner == FrameWinner.Home ? "1" : "0",
             BackgroundColor = fr.Winner == FrameWinner.Home ? Color.FromArgb("#4CAF50") : Color.FromArgb("#E0E0E0"),
             TextColor = fr.Winner == FrameWinner.Home ? Colors.White : Color.FromArgb("#757575"),
-            FontSize = 14,
+            FontSize = 12,
             FontAttributes = FontAttributes.Bold,
-            CornerRadius = 3,
+            CornerRadius = 2,
             Padding = new Thickness(0),
-            WidthRequest = 32,
-            HeightRequest = 28
+            WidthRequest = 24,
+            HeightRequest = 22
         };
         homeScoreBtn.Clicked += (s, e) =>
         {
@@ -1598,6 +1676,7 @@ public partial class FixturesPage : ContentPage
                 frameRow.Winner = FrameWinner.None;
             }
             UpdateScoreDisplay();
+            AdvanceAfterScore(index);
             RefocusKeyboardCapture();
         };
         Grid.SetColumn(homeScoreBtn, 2);
@@ -1609,12 +1688,12 @@ public partial class FixturesPage : ContentPage
             Text = fr.Winner == FrameWinner.Away ? "1" : "0",
             BackgroundColor = fr.Winner == FrameWinner.Away ? Color.FromArgb("#F44336") : Color.FromArgb("#E0E0E0"),
             TextColor = fr.Winner == FrameWinner.Away ? Colors.White : Color.FromArgb("#757575"),
-            FontSize = 14,
+            FontSize = 12,
             FontAttributes = FontAttributes.Bold,
-            CornerRadius = 3,
+            CornerRadius = 2,
             Padding = new Thickness(0),
-            WidthRequest = 32,
-            HeightRequest = 28
+            WidthRequest = 24,
+            HeightRequest = 22
         };
         awayScoreBtn.Clicked += (s, e) =>
         {
@@ -1640,6 +1719,7 @@ public partial class FixturesPage : ContentPage
                 frameRow.Winner = FrameWinner.None;
             }
             UpdateScoreDisplay();
+            AdvanceAfterScore(index);
             RefocusKeyboardCapture();
         };
         Grid.SetColumn(awayScoreBtn, 3);
@@ -1648,9 +1728,9 @@ public partial class FixturesPage : ContentPage
         // Away player name (tappable to edit)
         var awayPlayerLabel = new Label
         {
-            Text = string.IsNullOrEmpty(awayPlayerName) ? "Tap to select..." : awayPlayerName,
+            Text = string.IsNullOrEmpty(awayPlayerName) ? "Tap..." : awayPlayerName,
             TextColor = string.IsNullOrEmpty(awayPlayerName) ? Colors.Gray : Colors.Black,
-            FontSize = 11,
+            FontSize = 9,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation
@@ -1658,10 +1738,10 @@ public partial class FixturesPage : ContentPage
         var awayPlayerBorder = new Border
         {
             BackgroundColor = Color.FromArgb("#FFEBEE"),
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 3 },
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 2 },
             Stroke = Color.FromArgb("#EF9A9A"),
             StrokeThickness = 1,
-            Padding = new Thickness(3, 2),
+            Padding = new Thickness(2, 1),
             Content = awayPlayerLabel
         };
         var awayTap = new TapGestureRecognizer();
@@ -1669,6 +1749,9 @@ public partial class FixturesPage : ContentPage
         {
             _currentFrameIndex = index;
             _selectingHomePlayer = false;
+            // Tapping a specific cell switches to free-edit (Results phase)
+            if (_entryPhase != EntryPhase.AwayLineup)
+                _entryPhase = EntryPhase.Results;
             UpdateCurrentFrameIndicator();
             HighlightCurrentFrame();
             RefocusKeyboardCapture();
@@ -1684,7 +1767,7 @@ public partial class FixturesPage : ContentPage
             Color = Color.FromArgb("#FF9800"),
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
-            Scale = 0.9
+            Scale = 0.75
         };
         eightBallCheck.CheckedChanged += (s, e) =>
         {
@@ -1711,12 +1794,40 @@ public partial class FixturesPage : ContentPage
         if (_selectedFixture == null)
         {
             CurrentFrameIndicator.IsVisible = false;
+            PhaseIndicator.IsVisible = false;
             return;
         }
 
         CurrentFrameIndicator.IsVisible = true;
-        var side = _selectingHomePlayer ? "HOME" : "AWAY";
-        CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Select {side} player";
+        PhaseIndicator.IsVisible = true;
+
+        switch (_entryPhase)
+        {
+            case EntryPhase.HomeLineup:
+            {
+                int filled = _frameRows.Count(f => f.HomePlayerId.HasValue);
+                CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Select HOME player ({filled}/{_frameRows.Count})";
+                PhaseLabel.Text = $"📋 Phase 1 of 3: Home Lineup";
+                PhaseLabel.TextColor = Color.FromArgb("#1976D2");
+                break;
+            }
+            case EntryPhase.AwayLineup:
+            {
+                int filled = _frameRows.Count(f => f.AwayPlayerId.HasValue);
+                CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Select AWAY player ({filled}/{_frameRows.Count})";
+                PhaseLabel.Text = $"📋 Phase 2 of 3: Away Lineup";
+                PhaseLabel.TextColor = Color.FromArgb("#D32F2F");
+                break;
+            }
+            case EntryPhase.Results:
+            {
+                int scored = _frameRows.Count(f => f.Winner != FrameWinner.None);
+                CurrentFrameLabel.Text = $"Frame {_currentFrameIndex + 1} - Enter results ({scored}/{_frameRows.Count})";
+                PhaseLabel.Text = $"📋 Phase 3 of 3: Results";
+                PhaseLabel.TextColor = Color.FromArgb("#2E7D32");
+                break;
+            }
+        }
     }
 
     private void HighlightCurrentFrame()
@@ -1728,9 +1839,42 @@ public partial class FixturesPage : ContentPage
             {
                 row.RowBorder.BackgroundColor = (i == _currentFrameIndex)
                     ? Color.FromArgb("#FFF9C4") // Highlighted yellow
-                    : (i % 2 == 0 ? Colors.White : Color.FromArgb("#F5F5F5"));
+                    : GetFrameRowBackground(i);
+            }
+
+            // Highlight the active column (home or away player label border)
+            if (row.HomePlayerLabel?.Parent is Border homeBorder)
+            {
+                bool activeHome = i == _currentFrameIndex && _selectingHomePlayer;
+                homeBorder.StrokeThickness = activeHome ? 2.5 : 1;
+                homeBorder.Stroke = activeHome ? Color.FromArgb("#1976D2") : Color.FromArgb("#90CAF9");
+            }
+            if (row.AwayPlayerLabel?.Parent is Border awayBorder)
+            {
+                bool activeAway = i == _currentFrameIndex && !_selectingHomePlayer;
+                awayBorder.StrokeThickness = activeAway ? 2.5 : 1;
+                awayBorder.Stroke = activeAway ? Color.FromArgb("#D32F2F") : Color.FromArgb("#EF9A9A");
             }
         }
+    }
+
+    /// <summary>
+    /// Returns a background colour for the frame row based on which set of 5 it belongs to.
+    /// Set 1 (frames 1-5): white/light grey alternating
+    /// Set 2 (frames 6-10): light blue tint alternating
+    /// Set 3 (frames 11-15): light green tint alternating
+    /// </summary>
+    private static Color GetFrameRowBackground(int index)
+    {
+        int set = index / 5; // 0, 1, or 2
+        bool even = index % 2 == 0;
+
+        return set switch
+        {
+            0 => even ? Colors.White : Color.FromArgb("#F5F5F5"),             // Set 1: white / light grey
+            1 => even ? Color.FromArgb("#E8F0FE") : Color.FromArgb("#D2E3FC"), // Set 2: light blue tint
+            _ => even ? Color.FromArgb("#E6F4EA") : Color.FromArgb("#CEEAD6"), // Set 3: light green tint
+        };
     }
 
     private void UpdateScoreDisplay()
@@ -1738,6 +1882,31 @@ public partial class FixturesPage : ContentPage
         int homeScore = _frameRows.Count(f => f.Winner == FrameWinner.Home);
         int awayScore = _frameRows.Count(f => f.Winner == FrameWinner.Away);
         ScoreLbl.Text = $"{homeScore} - {awayScore}";
+    }
+
+    /// <summary>
+    /// After setting a winner on a frame, advance to the next unscored frame.
+    /// </summary>
+    private void AdvanceAfterScore(int scoredIndex)
+    {
+        if (_entryPhase != EntryPhase.Results) return;
+
+        // Find the next frame without a winner (searching forward, then wrapping)
+        for (int offset = 1; offset <= _frameRows.Count; offset++)
+        {
+            int idx = (scoredIndex + offset) % _frameRows.Count;
+            if (_frameRows[idx].Winner == FrameWinner.None)
+            {
+                _currentFrameIndex = idx;
+                UpdateCurrentFrameIndicator();
+                HighlightCurrentFrame();
+                return;
+            }
+        }
+
+        // All frames scored
+        UpdateCurrentFrameIndicator();
+        HighlightCurrentFrame();
     }
 
     // ========== SAVE & CLEAR ==========
@@ -1784,12 +1953,12 @@ public partial class FixturesPage : ContentPage
 
             if (row.HomePlayerLabel != null)
             {
-                row.HomePlayerLabel.Text = "Tap to select...";
+                row.HomePlayerLabel.Text = "Tap...";
                 row.HomePlayerLabel.TextColor = Colors.Gray;
             }
             if (row.AwayPlayerLabel != null)
             {
-                row.AwayPlayerLabel.Text = "Tap to select...";
+                row.AwayPlayerLabel.Text = "Tap...";
                 row.AwayPlayerLabel.TextColor = Colors.Gray;
             }
             if (row.HomeScoreBtn != null)
@@ -1812,6 +1981,7 @@ public partial class FixturesPage : ContentPage
 
         _currentFrameIndex = 0;
         _selectingHomePlayer = true;
+        _entryPhase = EntryPhase.HomeLineup;
         UpdateCurrentFrameIndicator();
         HighlightCurrentFrame();
         UpdatePlayerFrameCounts();
