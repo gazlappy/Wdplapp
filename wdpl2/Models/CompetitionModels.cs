@@ -132,6 +132,9 @@ namespace Wdpl2.Models
         /// <summary>The score needed to win a match. Calculated from BestOf: (BestOf + 1) / 2. Returns 0 if unlimited.</summary>
         public int FramesToWin => BestOf > 0 ? (BestOf + 1) / 2 : 0;
 
+        /// <summary>Whether the draw should be randomised (true) or use the order participants were added (false).</summary>
+        public bool RandomDraw { get; set; } = true;
+
         /// <summary>Linked plate competition ID (for group stage lower-ranked players)</summary>
         public Guid? PlateCompetitionId { get; set; }
 
@@ -164,6 +167,19 @@ namespace Wdpl2.Models
 
         /// <summary>Name suffix for plate competition (e.g., "Plate")</summary>
         public string PlateNameSuffix { get; set; } = "Plate";
+
+        /// <summary>Selected venues with table counts for this competition night.</summary>
+        public List<CompetitionVenue> SelectedVenues { get; set; } = new();
+    }
+
+    /// <summary>
+    /// A venue selected for a group stage competition, with the number of tables in use.
+    /// </summary>
+    public sealed class CompetitionVenue
+    {
+        public Guid VenueId { get; set; }
+        public string VenueName { get; set; } = "";
+        public int TableCount { get; set; } = 1;
     }
 
     /// <summary>
@@ -630,6 +646,46 @@ namespace Wdpl2.Models
             };
             grandFinal.Matches.Add(new CompetitionMatch());
             rounds.Add(grandFinal);
+
+            return rounds;
+        }
+
+        /// <summary>
+        /// Generate an empty knockout bracket for manual participant assignment.
+        /// Creates the correct number of rounds and match placeholders with all
+        /// participant slots set to null (TBD).
+        /// </summary>
+        public static List<CompetitionRound> GenerateManualKnockout(int participantCount)
+        {
+            if (participantCount < 2)
+                return new List<CompetitionRound>();
+
+            var rounds = new List<CompetitionRound>();
+
+            // Find next power of 2
+            int bracketSize = 1;
+            while (bracketSize < participantCount)
+                bracketSize *= 2;
+
+            int totalRounds = (int)Math.Log2(bracketSize);
+            int matchesInRound = bracketSize / 2;
+
+            for (int r = 1; r <= totalRounds; r++)
+            {
+                var round = new CompetitionRound
+                {
+                    Name = GetRoundName(totalRounds, r, matchesInRound),
+                    RoundNumber = r
+                };
+
+                for (int m = 0; m < matchesInRound; m++)
+                {
+                    round.Matches.Add(new CompetitionMatch());
+                }
+
+                rounds.Add(round);
+                matchesInRound /= 2;
+            }
 
             return rounds;
         }

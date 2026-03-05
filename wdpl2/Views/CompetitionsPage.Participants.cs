@@ -35,6 +35,13 @@ public partial class CompetitionsPage
             // Add teams with multi-select
             await ShowMultiSelectTeamsDialog();
         }
+
+        // Rebuild the editor so group stage steps (venues, groups) update
+        // based on the new participant count
+        if (format is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage)
+        {
+            ShowCompetitionEditor(_selectedCompetition);
+        }
     }
 
     private async Task ShowDoublesTeamSelectionDialog()

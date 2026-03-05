@@ -222,13 +222,13 @@ public class LeagueContext : DbContext
             entity.OwnsOne(e => e.GroupSettings, settings =>
             {
                 settings.ToJson();
+                settings.OwnsMany(s => s.SelectedVenues);
             });
-            
-            // Relationships
-            entity.HasOne<Season>()
-                .WithMany()
-                .HasForeignKey(e => e.SeasonId)
-                .OnDelete(DeleteBehavior.Cascade);
+
+            // NOTE: No FK relationship to Season. Seasons are managed in the
+            // JSON data store while competitions live in SQLite, so a database-
+            // level FK constraint would always fail. SeasonId is kept as an
+            // indexed column for filtering only.
         });
     }
 
@@ -272,10 +272,120 @@ public class LeagueContext : DbContext
                 alter.CommandText = "ALTER TABLE Competitions ADD COLUMN BestOf INTEGER NOT NULL DEFAULT 0";
                 await alter.ExecuteNonQueryAsync();
             }
+
+            // Check if RandomDraw column exists on Competitions table
+            bool hasRandomDraw = false;
+            using (var cmd2 = conn.CreateCommand())
+            {
+                cmd2.CommandText = "PRAGMA table_info(Competitions)";
+                using var reader2 = await cmd2.ExecuteReaderAsync();
+                while (await reader2.ReadAsync())
+                {
+                    if (reader2.GetString(1).Equals("RandomDraw", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasRandomDraw = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasRandomDraw)
+            {
+                using var alter2 = conn.CreateCommand();
+                alter2.CommandText = "ALTER TABLE Competitions ADD COLUMN RandomDraw INTEGER NOT NULL DEFAULT 1";
+                await alter2.ExecuteNonQueryAsync();
+            }
+
+            // Remove the SeasonId FK constraint from Competitions.
+            // Seasons live in the JSON store, so the FK always fails.
+            // SQLite can't drop constraints, so we recreate the table.
+            await RemoveCompetitionsForeignKeysAsync(conn);
         }
         finally
         {
             await conn.CloseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Recreates the Competitions table without FOREIGN KEY constraints.
+    /// Seasons are managed in the JSON data store, so the FK to Seasons
+    /// is invalid and causes 'FOREIGN KEY constraint failed' errors.
+    /// This is idempotent — it checks for the FK before doing anything.
+    /// </summary>
+    private static async Task RemoveCompetitionsForeignKeysAsync(System.Data.Common.DbConnection conn)
+    {
+        // Check whether the table actually has a FK to Seasons
+        bool hasFk = false;
+        using (var fkCmd = conn.CreateCommand())
+        {
+            fkCmd.CommandText = "PRAGMA foreign_key_list(Competitions)";
+            using var fkReader = await fkCmd.ExecuteReaderAsync();
+            while (await fkReader.ReadAsync())
+            {
+                // Column 2 is the referenced table name
+                if (fkReader.GetString(2).Equals("Seasons", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasFk = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasFk) return; // Already clean
+
+        // Temporarily disable FK enforcement so the table swap doesn't fail
+        using (var pragma = conn.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA foreign_keys = OFF";
+            await pragma.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            // Get the current CREATE TABLE statement
+            string? createSql = null;
+            using (var schemaCmd = conn.CreateCommand())
+            {
+                schemaCmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name='Competitions'";
+                createSql = (string?)await schemaCmd.ExecuteScalarAsync();
+            }
+
+            if (string.IsNullOrEmpty(createSql)) return;
+
+            // Remove the FK clause from the CREATE TABLE statement.
+            // The clause looks like:
+            //   FOREIGN KEY ("SeasonId") REFERENCES "Seasons" ("Id") ON DELETE CASCADE
+            // or similar variations with/without quotes.
+            var fkPattern = new System.Text.RegularExpressions.Regex(
+                @",?\s*FOREIGN\s+KEY\s*\([^)]+\)\s*REFERENCES\s*[""']?Seasons[""']?\s*\([^)]+\)(\s*ON\s+DELETE\s+\w+)?",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var cleanSql = fkPattern.Replace(createSql, "");
+
+            // Swap to the new table name
+            var newTableSql = cleanSql.Replace("CREATE TABLE \"Competitions\"", "CREATE TABLE \"Competitions_new\"");
+
+            using var transaction = conn.BeginTransaction();
+            try
+            {
+                using (var c1 = conn.CreateCommand()) { c1.Transaction = transaction; c1.CommandText = newTableSql; await c1.ExecuteNonQueryAsync(); }
+                using (var c2 = conn.CreateCommand()) { c2.Transaction = transaction; c2.CommandText = "INSERT INTO \"Competitions_new\" SELECT * FROM \"Competitions\""; await c2.ExecuteNonQueryAsync(); }
+                using (var c3 = conn.CreateCommand()) { c3.Transaction = transaction; c3.CommandText = "DROP TABLE \"Competitions\""; await c3.ExecuteNonQueryAsync(); }
+                using (var c4 = conn.CreateCommand()) { c4.Transaction = transaction; c4.CommandText = "ALTER TABLE \"Competitions_new\" RENAME TO \"Competitions\""; await c4.ExecuteNonQueryAsync(); }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+        finally
+        {
+            // Re-enable FK enforcement
+            using var pragmaOn = conn.CreateCommand();
+            pragmaOn.CommandText = "PRAGMA foreign_keys = ON";
+            await pragmaOn.ExecuteNonQueryAsync();
         }
     }
 

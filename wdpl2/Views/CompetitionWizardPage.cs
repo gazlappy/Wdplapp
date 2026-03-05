@@ -32,6 +32,7 @@ public class CompetitionWizardPage : ContentPage
     private int _lowerToPlate = 2;
     private bool _createPlate = true;
     private string _plateSuffix = "Plate";
+    private bool _randomDraw = true;
 
     // UI refs
     private readonly VerticalStackLayout _contentArea = new() { Spacing = 16 };
@@ -263,21 +264,46 @@ public class CompetitionWizardPage : ContentPage
         };
         _contentArea.Children.Add(CreateField($"Best Of (first to {(_bestOf + 1) / 2} wins)", bestOfPicker));
 
+        // Draw order
+        var drawHintLabel = new Label
+        {
+            Text = _randomDraw
+                ? "\U0001F3B2 Participants will be shuffled randomly when the bracket is generated."
+                : "\U0001F4CB Participants will be placed in the order they are added.",
+            FontSize = 12,
+            TextColor = Colors.Gray,
+            Margin = new Thickness(0, -4, 0, 0)
+        };
+        var randomDrawSwitch = new Switch { IsToggled = _randomDraw };
+        randomDrawSwitch.Toggled += (_, e) =>
+        {
+            _randomDraw = e.Value;
+            drawHintLabel.Text = _randomDraw
+                ? "\U0001F3B2 Participants will be shuffled randomly when the bracket is generated."
+                : "\U0001F4CB Participants will be placed in the order they are added.";
+        };
+        _contentArea.Children.Add(CreateField("Random Draw", randomDrawSwitch));
+        _contentArea.Children.Add(drawHintLabel);
+
         // Group stage settings
         bool isGroupStage = _selectedFormat is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
         if (isGroupStage)
         {
             _contentArea.Children.Add(new Label
             {
-                Text = "Group Stage Settings",
+                Text = "Knockout Stage Settings",
                 FontSize = 18,
                 FontAttributes = FontAttributes.Bold,
                 Margin = new Thickness(0, 16, 0, 4)
             });
 
-            var groupsEntry = new Entry { Text = _numberOfGroups.ToString(), Keyboard = Keyboard.Numeric };
-            groupsEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 2) _numberOfGroups = v; };
-            _contentArea.Children.Add(CreateField("Number of Groups", groupsEntry));
+            _contentArea.Children.Add(new Label
+            {
+                Text = "Groups and venues are configured in the editor after adding participants.",
+                FontSize = 12,
+                TextColor = Colors.Gray,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
 
             var topEntry = new Entry { Text = _topAdvance.ToString(), Keyboard = Keyboard.Numeric };
             topEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _topAdvance = v; };
@@ -336,6 +362,7 @@ public class CompetitionWizardPage : ContentPage
                     ReviewRow("Format", FormatDisplayName(_selectedFormat)),
                     ReviewRow("Start Date", _startDate.ToString("dd MMM yyyy")),
                     ReviewRow("Best Of", $"{_bestOf} (first to {(_bestOf + 1) / 2})"),
+                    ReviewRow("Draw Order", _randomDraw ? "Random" : "Manual (as added)"),
                 }
             }
         };
@@ -343,7 +370,6 @@ public class CompetitionWizardPage : ContentPage
         if (isGroupStage && summary.Content is VerticalStackLayout layout)
         {
             layout.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = Color.FromArgb("#E5E7EB"), Margin = new Thickness(0, 4) });
-            layout.Children.Add(ReviewRow("Groups", _numberOfGroups.ToString()));
             layout.Children.Add(ReviewRow("Top Advance", _topAdvance.ToString()));
             layout.Children.Add(ReviewRow("Plate Players", _lowerToPlate.ToString()));
             layout.Children.Add(ReviewRow("Plate Competition", _createPlate ? "Yes" : "No"));
@@ -351,9 +377,13 @@ public class CompetitionWizardPage : ContentPage
 
         _contentArea.Children.Add(summary);
 
+        var hintText = isGroupStage
+            ? "After creation, add participants, select venues, and configure groups from the editor."
+            : "After creation, you can add participants and generate the bracket from the editor.";
+
         _contentArea.Children.Add(new Label
         {
-            Text = "After creation, you can add participants and generate the bracket from the editor.",
+            Text = hintText,
             FontSize = 13,
             TextColor = Colors.Gray,
             HorizontalTextAlignment = TextAlignment.Center,
@@ -428,6 +458,7 @@ public class CompetitionWizardPage : ContentPage
             StartDate = _startDate,
             CreatedDate = DateTime.Now,
             BestOf = _bestOf,
+            RandomDraw = _randomDraw,
             Notes = $"Best of {_bestOf} (first to {(_bestOf + 1) / 2})"
         };
 
@@ -435,7 +466,7 @@ public class CompetitionWizardPage : ContentPage
         {
             competition.GroupSettings = new GroupStageSettings
             {
-                NumberOfGroups = _numberOfGroups,
+                NumberOfGroups = 0,
                 TopPlayersAdvance = _topAdvance,
                 LowerPlayersToPlate = _lowerToPlate,
                 CreatePlateCompetition = _createPlate,

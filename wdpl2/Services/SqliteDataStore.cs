@@ -54,6 +54,7 @@ public class SqliteDataStore : IDataStore
             tracked.SeasonId = competition.SeasonId;
             tracked.PlateCompetitionId = competition.PlateCompetitionId;
             tracked.BestOf = competition.BestOf;
+            tracked.RandomDraw = competition.RandomDraw;
 
             // Create NEW list/object instances so EF Core detects the change
             // (avoids same-reference issues with the change tracker snapshot)

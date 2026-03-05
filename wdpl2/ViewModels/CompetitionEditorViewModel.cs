@@ -62,6 +62,110 @@ public partial class CompetitionEditorViewModel : ObservableObject
     public int GroupCount => _competition.Groups.Count;
     public int RoundCount => _competition.Rounds.Count;
 
+    /// <summary>
+    /// Get all venues for the current season (for venue selection in group stage).
+    /// </summary>
+    public async Task<List<Venue>> GetAvailableVenuesAsync()
+    {
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        return await _playerStore.GetVenuesAsync(seasonId);
+    }
+
+    /// <summary>
+    /// Save the selected venues to the competition's group settings and persist.
+    /// </summary>
+    public async Task SaveSelectedVenuesAsync(List<CompetitionVenue> venues)
+    {
+        if (_competition.GroupSettings == null)
+            _competition.GroupSettings = new GroupStageSettings();
+
+        _competition.GroupSettings.SelectedVenues = venues;
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+        StatusMessage = $"Saved {venues.Count} venue(s) with {venues.Sum(v => v.TableCount)} total tables";
+    }
+
+    /// <summary>
+    /// Save the number of groups to group settings and persist.
+    /// </summary>
+    public async Task SaveGroupCountAsync(int groupCount)
+    {
+        if (_competition.GroupSettings == null)
+            _competition.GroupSettings = new GroupStageSettings();
+
+        _competition.GroupSettings.NumberOfGroups = groupCount;
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+        StatusMessage = $"Group count set to {groupCount}";
+    }
+
+    /// <summary>
+    /// Calculate the recommended number of groups based on participants, tables,
+    /// and ensuring groups × topAdvance produces a power-of-2 for the KO bracket.
+    /// </summary>
+    public (int recommended, int totalTables, int participantCount, string explanation) GetGroupRecommendation()
+    {
+        int participantCount = _competition.Format == CompetitionFormat.DoublesGroupStage
+            ? _competition.DoublesTeams.Count
+            : _competition.ParticipantIds.Count;
+
+        int totalTables = _competition.GroupSettings?.SelectedVenues.Sum(v => v.TableCount) ?? 0;
+        int topAdvance = _competition.GroupSettings?.TopPlayersAdvance ?? 2;
+
+        if (participantCount < 4 || totalTables < 1)
+            return (0, totalTables, participantCount, "Add participants and select venues first.");
+
+        // Max groups limited by tables (1 group per table)
+        int maxGroups = totalTables;
+
+        // Find the best group count where:
+        //  1. groups × topAdvance is a power of 2 (valid KO bracket)
+        //  2. groups ≤ tables
+        //  3. each group has ≥ 3 participants (meaningful round-robin)
+        //  4. target ~4 per group for ideal group size
+        int recommended = 0;
+        int bestDiff = int.MaxValue;
+
+        for (int g = 2; g <= maxGroups; g++)
+        {
+            int koTotal = g * topAdvance;
+            int perGroup = participantCount / g;
+
+            // Must be a power of 2 for the KO bracket
+            if ((koTotal & (koTotal - 1)) != 0) continue;
+            // Each group needs at least 3 participants
+            if (perGroup < 3) continue;
+
+            // Prefer groups closest to 4 per group
+            int diff = Math.Abs(perGroup - 4);
+            if (diff < bestDiff)
+            {
+                bestDiff = diff;
+                recommended = g;
+            }
+        }
+
+        // Fallback: if no power-of-2 combo found, pick nearest valid bracket
+        if (recommended == 0)
+        {
+            int idealGroups = Math.Max(2, participantCount / 4);
+            recommended = Math.Min(idealGroups, maxGroups);
+        }
+
+        int recPerGroup = participantCount / recommended;
+        int remainder = participantCount % recommended;
+        int recKoTotal = recommended * topAdvance;
+        bool koValid = recKoTotal >= 2 && (recKoTotal & (recKoTotal - 1)) == 0;
+
+        var explanation = $"{participantCount} participants across {totalTables} tables\n" +
+                          $"Recommended: {recommended} groups of ~{recPerGroup}" +
+                          (remainder > 0 ? $" ({remainder} group(s) with {recPerGroup + 1})" : "") +
+                          $"\n→ {recKoTotal} advance to knockout (top {topAdvance} per group)" +
+                          (koValid ? " ✅" : " ⚠️ not a power of 2");
+
+        return (recommended, totalTables, participantCount, explanation);
+    }
+
     public CompetitionEditorViewModel(IDataStore competitionStore, IDataStore playerStore, Competition competition, Guid? currentSeasonId)
     {
         _competitionStore = competitionStore;
@@ -99,16 +203,25 @@ public partial class CompetitionEditorViewModel : ObservableObject
             _competition.Status = Status;
             _competition.StartDate = StartDate;
             _competition.Notes = Notes;
-            
+
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
-            
+
             StatusMessage = "Competition saved";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error saving: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Persist the current competition state (e.g. after updating group selections).
+    /// </summary>
+    public async Task SaveCompetitionAsync()
+    {
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
     }
 
     [RelayCommand]
@@ -243,11 +356,98 @@ public partial class CompetitionEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task GenerateManualBracketAsync()
+    {
+        try
+        {
+            int participantCount = _competition.Format == CompetitionFormat.DoublesKnockout
+                ? _competition.DoublesTeams.Count
+                : _competition.ParticipantIds.Count;
+
+            if (participantCount < 2)
+            {
+                StatusMessage = "Need at least 2 participants to generate bracket";
+                return;
+            }
+
+            var rounds = CompetitionGenerator.GenerateManualKnockout(participantCount);
+
+            _competition.Rounds = rounds;
+            _competition.Status = CompetitionStatus.InProgress;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            HasRounds = _competition.Rounds.Count > 0;
+            StatusMessage = $"Manual bracket created — {rounds[0].Matches.Count} first-round slots to fill";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error generating manual bracket: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Assign a participant to a specific slot in a match.
+    /// </summary>
+    public async Task AssignParticipantToMatchAsync(Guid matchId, bool isSlot1, Guid participantId)
+    {
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match != null)
+                {
+                    if (isSlot1)
+                        match.Participant1Id = participantId;
+                    else
+                        match.Participant2Id = participantId;
+
+                    await _competitionStore.UpdateCompetitionAsync(_competition);
+                    await _competitionStore.SaveAsync();
+                    StatusMessage = $"Assigned {GetParticipantName(participantId) ?? "participant"} to match";
+                    return;
+                }
+            }
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error assigning participant: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Get all participants that haven't been assigned to any first-round match yet.
+    /// </summary>
+    public List<ParticipantItem> GetUnassignedParticipants()
+    {
+        var firstRound = _competition.Rounds.FirstOrDefault();
+        if (firstRound == null) return Participants.ToList();
+
+        var assignedIds = new HashSet<Guid>();
+        foreach (var match in firstRound.Matches)
+        {
+            if (match.Participant1Id.HasValue) assignedIds.Add(match.Participant1Id.Value);
+            if (match.Participant2Id.HasValue) assignedIds.Add(match.Participant2Id.Value);
+        }
+
+        return Participants.Where(p => !assignedIds.Contains(p.Id)).ToList();
+    }
+
+    [RelayCommand]
     private async Task GenerateGroupsAsync()
     {
         if (_competition.GroupSettings == null)
         {
             StatusMessage = "No group settings configured";
+            return;
+        }
+
+        if (_competition.GroupSettings.NumberOfGroups < 2)
+        {
+            StatusMessage = "Choose the number of groups first";
             return;
         }
 
@@ -304,47 +504,98 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         try
         {
-            var (knockoutParticipants, plateParticipants) = CompetitionGenerator.AdvanceFromGroups(
-                _competition.Groups,
-                _competition.GroupSettings.TopPlayersAdvance,
-                _competition.GroupSettings.LowerPlayersToPlate
-            );
+            int topAdvance = _competition.GroupSettings.TopPlayersAdvance;
 
-            if (knockoutParticipants.Count >= 2)
+            // Collect winners from the manually-set standings (Position 1..topAdvance)
+            var knockoutParticipants = new List<Guid>();
+            var plateParticipants = new List<Guid>();
+            int lowerToPlate = _competition.GroupSettings.LowerPlayersToPlate;
+
+            foreach (var group in _competition.Groups)
             {
-                _competition.Rounds = CompetitionGenerator.GenerateSingleKnockout(
-                    knockoutParticipants,
-                    randomize: false
-                );
+                // Winners: standings with Position 1..topAdvance
+                var winners = group.Standings
+                    .Where(s => s.Position > 0 && s.Position <= topAdvance)
+                    .OrderBy(s => s.Position)
+                    .Select(s => s.ParticipantId)
+                    .ToList();
+
+                knockoutParticipants.AddRange(winners);
+
+                // Plate: everyone else from the group (not selected as winners)
+                if (lowerToPlate > 0)
+                {
+                    var losers = group.ParticipantIds
+                        .Where(p => !winners.Contains(p))
+                        .Take(lowerToPlate)
+                        .ToList();
+                    plateParticipants.AddRange(losers);
+                }
             }
 
-            if (plateParticipants.Count >= 2 && _competition.PlateCompetitionId.HasValue)
+            if (knockoutParticipants.Count < 2)
             {
-                var plateComps = await _competitionStore.GetCompetitionsAsync(_competition.SeasonId);
-                var plateComp = plateComps
-                    .FirstOrDefault(c => c.Id == _competition.PlateCompetitionId.Value);
+                StatusMessage = "Not enough winners selected to create a knockout bracket";
+                return;
+            }
 
-                if (plateComp != null)
+            _competition.Rounds = CompetitionGenerator.GenerateSingleKnockout(
+                knockoutParticipants,
+                randomize: _competition.RandomDraw
+            );
+
+            // Handle plate competition for group-stage losers
+            if (plateParticipants.Count >= 2 && _competition.GroupSettings.CreatePlateCompetition)
+            {
+                Competition? plateComp = null;
+
+                // Try to find existing plate comp
+                if (_competition.PlateCompetitionId.HasValue)
                 {
-                    if (_competition.Format == CompetitionFormat.DoublesGroupStage)
-                    {
-                        plateComp.DoublesTeams = _competition.DoublesTeams
-                            .Where(t => plateParticipants.Contains(t.Id))
-                            .ToList();
-                    }
-                    else
-                    {
-                        plateComp.ParticipantIds = plateParticipants;
-                    }
-
-                    plateComp.Rounds = CompetitionGenerator.GenerateSingleKnockout(
-                        plateParticipants,
-                        randomize: false
-                    );
-                    plateComp.Status = CompetitionStatus.InProgress;
-
-                    await _competitionStore.UpdateCompetitionAsync(plateComp);
+                    var plateComps = await _competitionStore.GetCompetitionsAsync(_competition.SeasonId);
+                    plateComp = plateComps
+                        .FirstOrDefault(c => c.Id == _competition.PlateCompetitionId.Value);
                 }
+
+                // Create plate comp if it doesn't exist yet
+                if (plateComp == null)
+                {
+                    var plateSuffix = _competition.GroupSettings.PlateNameSuffix ?? "Plate";
+                    plateComp = new Competition
+                    {
+                        Name = $"{_competition.Name} {plateSuffix}",
+                        Format = _competition.Format == CompetitionFormat.DoublesGroupStage
+                            ? CompetitionFormat.DoublesKnockout
+                            : CompetitionFormat.SinglesKnockout,
+                        Status = CompetitionStatus.InProgress,
+                        SeasonId = _competition.SeasonId,
+                        StartDate = _competition.StartDate,
+                        CreatedDate = DateTime.Now,
+                        BestOf = _competition.BestOf,
+                        RandomDraw = _competition.RandomDraw
+                    };
+                    await _competitionStore.AddCompetitionAsync(plateComp);
+                    _competition.PlateCompetitionId = plateComp.Id;
+                }
+
+                if (_competition.Format == CompetitionFormat.DoublesGroupStage)
+                {
+                    plateComp.DoublesTeams = _competition.DoublesTeams
+                        .Where(t => plateParticipants.Contains(t.Id))
+                        .ToList();
+                }
+                else
+                {
+                    plateComp.ParticipantIds = plateParticipants;
+                }
+
+                plateComp.Rounds = CompetitionGenerator.GenerateSingleKnockout(
+                    plateParticipants,
+                    randomize: _competition.RandomDraw
+                );
+                plateComp.Status = CompetitionStatus.InProgress;
+
+                await _competitionStore.UpdateCompetitionAsync(plateComp);
             }
 
             _competition.Status = CompetitionStatus.InProgress;
@@ -352,7 +603,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             await _competitionStore.SaveAsync();
 
             HasRounds = _competition.Rounds.Count > 0;
-            StatusMessage = $"Knockouts created! Main: {knockoutParticipants.Count}, Plate: {plateParticipants.Count}";
+            StatusMessage = $"Knockout created! {knockoutParticipants.Count} in main draw" +
+                           (plateParticipants.Count > 0 ? $", {plateParticipants.Count} in plate" : "");
         }
         catch (Exception ex)
         {
@@ -513,6 +765,121 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else
             nextMatch.Participant2Id = match.WinnerId;
     }
+
+    /// <summary>
+    /// Creates a new "Losers Cup" competition populated with the losers
+    /// from the first round of this knockout bracket.
+    /// </summary>
+    [RelayCommand]
+    private async Task CreateLosersCupAsync()
+    {
+        try
+        {
+            var firstRound = _competition.Rounds.FirstOrDefault();
+            if (firstRound == null)
+            {
+                StatusMessage = "No bracket generated yet";
+                return;
+            }
+
+            if (_competition.PlateCompetitionId.HasValue)
+            {
+                StatusMessage = "A Losers Cup has already been created for this competition";
+                return;
+            }
+
+            // Collect losers from completed first-round matches
+            var loserIds = new List<Guid>();
+            foreach (var match in firstRound.Matches)
+            {
+                if (!match.IsComplete || !match.WinnerId.HasValue) continue;
+                if (!match.Participant1Id.HasValue || !match.Participant2Id.HasValue) continue;
+
+                // The loser is whichever participant is NOT the winner
+                var loserId = match.WinnerId == match.Participant1Id
+                    ? match.Participant2Id.Value
+                    : match.Participant1Id.Value;
+                loserIds.Add(loserId);
+            }
+
+            if (loserIds.Count < 2)
+            {
+                StatusMessage = $"Need at least 2 first-round losers to create a Losers Cup (found {loserIds.Count}). Complete more first-round matches first.";
+                return;
+            }
+
+            // Create the losers cup competition with the same settings
+            var losersCup = new Competition
+            {
+                Name = $"{_competition.Name} - Losers Cup",
+                SeasonId = _competition.SeasonId,
+                Format = _competition.Format,
+                Status = CompetitionStatus.Draft,
+                StartDate = _competition.StartDate,
+                CreatedDate = DateTime.Now,
+                BestOf = _competition.BestOf,
+                RandomDraw = _competition.RandomDraw,
+                Notes = $"Losers Cup for {_competition.Name}"
+            };
+
+            // Add participants based on format
+            if (_competition.Format == CompetitionFormat.DoublesKnockout)
+            {
+                // For doubles, copy the DoublesTeam objects that lost
+                var loserTeams = _competition.DoublesTeams
+                    .Where(t => loserIds.Contains(t.Id))
+                    .Select(t => new DoublesTeam
+                    {
+                        Id = t.Id,
+                        Player1Id = t.Player1Id,
+                        Player2Id = t.Player2Id,
+                        TeamName = t.TeamName
+                    })
+                    .ToList();
+                losersCup.DoublesTeams = loserTeams;
+            }
+            else
+            {
+                losersCup.ParticipantIds = loserIds;
+            }
+
+            // Save to data store
+            await _competitionStore.AddCompetitionAsync(losersCup);
+
+            // Link the losers cup back to the parent
+            _competition.PlateCompetitionId = losersCup.Id;
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            StatusMessage = $"Losers Cup created with {loserIds.Count} participants: \"{losersCup.Name}\"";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating Losers Cup: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Returns true if first-round losers exist and no Losers Cup has been created yet.
+    /// </summary>
+    public bool CanCreateLosersCup
+    {
+        get
+        {
+            if (_competition.PlateCompetitionId.HasValue) return false;
+            var firstRound = _competition.Rounds.FirstOrDefault();
+            if (firstRound == null) return false;
+            int loserCount = firstRound.Matches.Count(m =>
+                m.IsComplete && m.WinnerId.HasValue &&
+                m.Participant1Id.HasValue && m.Participant2Id.HasValue);
+            return loserCount >= 2;
+        }
+    }
+
+    /// <summary>
+    /// Returns true if a Losers Cup already exists for this competition.
+    /// </summary>
+    public bool HasLosersCup => _competition.PlateCompetitionId.HasValue;
 
     [RelayCommand]
     private async Task ApplyGroupScoresAsync()

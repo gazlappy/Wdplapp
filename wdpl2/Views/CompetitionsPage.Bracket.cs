@@ -77,6 +77,77 @@ public partial class CompetitionsPage
             ShowTournamentBracket(_selectedCompetition);
     }
 
+    private async void OnManualDraw()
+    {
+        if (_editorViewModel == null) return;
+
+        if (_selectedCompetition?.Rounds.Count > 0)
+        {
+            var confirm = await DisplayAlert("Manual Draw",
+                "This will create an empty bracket for you to assign matchups. Any existing bracket will be overwritten. Continue?",
+                "Yes, Manual Draw", "Cancel");
+            if (!confirm) return;
+        }
+
+        await _editorViewModel.GenerateManualBracketCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
+
+        // Jump straight into the bracket view so the user can start assigning
+        if (_selectedCompetition?.Rounds.Count > 0)
+            ShowTournamentBracket(_selectedCompetition);
+    }
+
+    private async void OnCreateLosersCup(object? sender, EventArgs e)
+    {
+        if (_editorViewModel == null || _selectedCompetition == null) return;
+
+        var confirm = await DisplayAlert(
+            "Create Losers Cup",
+            "This will create a new competition with all first-round losers automatically entered. Continue?",
+            "Yes, Create",
+            "Cancel");
+
+        if (!confirm) return;
+
+        await _editorViewModel.CreateLosersCupCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
+
+        // Refresh the competition list so the new entry appears
+        await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+        RefreshList();
+
+        // Refresh the editor to show the "Losers Cup created" state
+        ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    private async void OnOpenLosersCup(object? sender, EventArgs e)
+    {
+        if (_editorViewModel == null || _selectedCompetition?.PlateCompetitionId == null) return;
+
+        var plateId = _selectedCompetition.PlateCompetitionId.Value;
+
+        // Find the losers cup in the loaded competitions
+        var losersCup = _viewModel.Competitions.FirstOrDefault(c => c.Id == plateId)
+                     ?? _viewModel.ActiveCompetitions.FirstOrDefault(c => c.Id == plateId);
+
+        if (losersCup == null)
+        {
+            // It might not be loaded yet — reload and try again
+            await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+            RefreshList();
+            losersCup = _viewModel.Competitions.FirstOrDefault(c => c.Id == plateId);
+        }
+
+        if (losersCup != null)
+        {
+            OnCompetitionTapped(losersCup);
+        }
+        else
+        {
+            SetStatus("Losers Cup competition not found");
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  KNOCKOUT BRACKET
     // ════════════════════════════════════════════════════════════════════
@@ -482,6 +553,10 @@ public partial class CompetitionsPage
         bool p1Won = match.IsComplete && match.WinnerId == match.Participant1Id;
         bool p2Won = match.IsComplete && match.WinnerId == match.Participant2Id;
 
+        // Check if this match is in the first round (allows manual assignment)
+        bool isFirstRound = competition.Rounds.Count > 0 &&
+                            competition.Rounds[0].Matches.Any(m => m.Id == match.Id);
+
         // Score labels that get updated in-place (no view rebuild)
         Label? p1ScoreLbl = null;
         Label? p2ScoreLbl = null;
@@ -493,23 +568,43 @@ public partial class CompetitionsPage
         var card = new VerticalStackLayout { Spacing = 0 };
 
         // Player 1 row
-        card.Children.Add(CreatePlayerRow(
+        var p1Row = CreatePlayerRow(
             p1Name, match.Participant1Score, p1Won, match.IsComplete, canScore,
             onPlus:  () => { if (maxFrames <= 0 || match.Participant1Score + match.Participant2Score < maxFrames) { match.Participant1Score++; p1ScoreLbl!.Text = match.Participant1Score.ToString(); } },
             onMinus: () => { if (match.Participant1Score > 0) { match.Participant1Score--; p1ScoreLbl!.Text = match.Participant1Score.ToString(); } },
             isTop: true,
-            scoreLabelOut: out p1ScoreLbl));
+            scoreLabelOut: out p1ScoreLbl);
+
+        // Make TBD slots tappable in first-round matches
+        if (isFirstRound && !hasP1)
+        {
+            var tap1 = new TapGestureRecognizer();
+            tap1.Tapped += async (_, _) => await OnTbdSlotTapped(match, isSlot1: true, competition);
+            p1Row.GestureRecognizers.Add(tap1);
+        }
+
+        card.Children.Add(p1Row);
 
         // Divider
         card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
 
         // Player 2 row
-        card.Children.Add(CreatePlayerRow(
+        var p2Row = CreatePlayerRow(
             p2Name, match.Participant2Score, p2Won, match.IsComplete, canScore,
             onPlus:  () => { if (maxFrames <= 0 || match.Participant1Score + match.Participant2Score < maxFrames) { match.Participant2Score++; p2ScoreLbl!.Text = match.Participant2Score.ToString(); } },
             onMinus: () => { if (match.Participant2Score > 0) { match.Participant2Score--; p2ScoreLbl!.Text = match.Participant2Score.ToString(); } },
             isTop: false,
-            scoreLabelOut: out p2ScoreLbl));
+            scoreLabelOut: out p2ScoreLbl);
+
+        // Make TBD slots tappable in first-round matches
+        if (isFirstRound && !hasP2)
+        {
+            var tap2 = new TapGestureRecognizer();
+            tap2.Tapped += async (_, _) => await OnTbdSlotTapped(match, isSlot1: false, competition);
+            p2Row.GestureRecognizers.Add(tap2);
+        }
+
+        card.Children.Add(p2Row);
 
         var borderColor = match.IsComplete ? _borderComplete : _borderDefault;
         var border = new Border
@@ -552,14 +647,15 @@ public partial class CompetitionsPage
         };
 
         // ── Name ────────────────────────────────────────────────────────
+        bool isTbd = name == "TBD";
         var nameLabel = new Label
         {
-            Text = isWinner ? "\u2714 " + name : name,
+            Text = isWinner ? "\u2714 " + name : (isTbd ? "TBD \u2014 tap to assign" : name),
             FontSize = 13,
             VerticalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation,
-            FontAttributes = isWinner ? FontAttributes.Bold : FontAttributes.None,
-            TextColor = isWinner ? _winnerGreenText : (name == "TBD" ? _subtleText : Colors.Black)
+            FontAttributes = isWinner ? FontAttributes.Bold : (isTbd ? FontAttributes.Italic : FontAttributes.None),
+            TextColor = isWinner ? _winnerGreenText : (isTbd ? _accentBlue : Colors.Black)
         };
         grid.Add(nameLabel, 0, 0);
 
@@ -645,6 +741,36 @@ public partial class CompetitionsPage
     private string? GetParticipantName(Guid? participantId, CompetitionFormat format)
     {
         return _editorViewModel?.GetParticipantName(participantId);
+    }
+
+    /// <summary>
+    /// Shows a picker to let the user assign an unassigned participant to a TBD match slot.
+    /// After assignment the bracket view refreshes so the name appears immediately.
+    /// </summary>
+    private async Task OnTbdSlotTapped(CompetitionMatch match, bool isSlot1, Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        var unassigned = _editorViewModel.GetUnassignedParticipants();
+        if (unassigned.Count == 0)
+        {
+            await DisplayAlert("No Players Available", "All participants have been assigned to matches.", "OK");
+            return;
+        }
+
+        var names = unassigned.Select(p => p.Name).ToArray();
+        var chosen = await DisplayActionSheet("Select Participant", "Cancel", null, names);
+
+        if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+
+        var selected = unassigned.FirstOrDefault(p => p.Name == chosen);
+        if (selected == null) return;
+
+        await _editorViewModel.AssignParticipantToMatchAsync(match.Id, isSlot1, selected.Id);
+        SetStatus(_editorViewModel.StatusMessage);
+
+        // Refresh the bracket view to show the assignment
+        ShowTournamentBracket(competition);
     }
 
     private async void ApplyAllScores(Competition competition)
