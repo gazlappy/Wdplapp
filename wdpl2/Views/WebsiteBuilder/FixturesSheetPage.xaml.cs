@@ -41,6 +41,13 @@ public partial class FixturesSheetPage : ContentPage
         LoadLogoCatalog();
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        // Refresh the shared catalog in case logos were added/removed in Site Branding
+        LoadLogoCatalog();
+    }
+
     private void LoadData()
     {
         _seasons.Clear();
@@ -59,26 +66,32 @@ public partial class FixturesSheetPage : ContentPage
         LeagueNameEntry.Text = settings.LeagueName;
         WebsiteUrlEntry.Text = settings.WebsiteUrl;
         EmailEntry.Text = settings.ContactEmail;
-        
-        // Load logo from website settings if available
-        if (settings.UseCustomLogo && settings.LogoImageData != null)
+
+        // Load logo from website settings if available (supports both uploaded and catalog logos)
+        var effectiveLogo = settings.GetEffectiveLogoData();
+        if (settings.UseCustomLogo && effectiveLogo != null && effectiveLogo.Length > 0)
         {
-            _currentLogoData = settings.LogoImageData;
+            _currentLogoData = effectiveLogo;
+            _usingCatalogLogo = !string.IsNullOrEmpty(settings.SelectedCatalogLogoId);
+            _currentCatalogLogoId = settings.SelectedCatalogLogoId;
+            ShowLogoCheck.IsChecked = true;
             UpdateLogoPreview();
+        }
+
+        // Auto-load saved design settings if available
+        if (settings.FixturesSheetDesign != null)
+        {
+            OnLoadDesignClicked(this, EventArgs.Empty);
         }
     }
 
     private void LoadLogoCatalog()
     {
         _logoCatalog.Clear();
-        
-        // Load from app settings (we'll store in WebsiteSettings for persistence)
-        // For now, create display items from any stored catalog
-        var settings = League.WebsiteSettings;
-        
-        // Check if we have the fixtures sheet logo catalog stored
-        // We'll use a simple approach - store in a separate property we'll add
-        // For now, let's just show an empty catalog that can be built up
+        foreach (var item in League.WebsiteSettings.LogoCatalog)
+        {
+            _logoCatalog.Add(LogoCatalogDisplayItem.FromModel(item));
+        }
     }
 
     private void OnSeasonChanged(object? sender, EventArgs e)
@@ -198,19 +211,13 @@ public partial class FixturesSheetPage : ContentPage
         var category = await DisplayPromptAsync("Save to Catalog", "Enter a category (optional):", placeholder: "General");
         if (string.IsNullOrEmpty(category)) category = "General";
 
-        var newItem = new LogoCatalogDisplayItem
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = name,
-            Category = category,
-            ImageData = _currentLogoData
-        };
+        // Add to the shared catalog in WebsiteSettings
+        League.WebsiteSettings.AddLogoCatalogItem(name, _currentLogoData, "", category);
+        DataStore.Save();
 
-        _logoCatalog.Add(newItem);
-        
-        // Save to persistent storage (WebsiteSettings or similar)
-        SaveLogoCatalog();
-        
+        // Refresh the display list
+        LoadLogoCatalog();
+
         SetStatus($"Logo saved to catalog: {name}");
     }
 
@@ -233,8 +240,9 @@ public partial class FixturesSheetPage : ContentPage
             var confirm = await DisplayAlert("Delete Logo", $"Delete '{item.Name}' from catalog?", "Delete", "Cancel");
             if (confirm)
             {
+                League.WebsiteSettings.RemoveLogoCatalogItem(item.Id);
                 _logoCatalog.Remove(item);
-                
+
                 // If this was the current logo, clear it
                 if (_currentCatalogLogoId == item.Id)
                 {
@@ -244,8 +252,8 @@ public partial class FixturesSheetPage : ContentPage
                     LogoPreviewFrame.IsVisible = false;
                     SaveToCatalogBtn.IsEnabled = false;
                 }
-                
-                SaveLogoCatalog();
+
+                DataStore.Save();
                 SetStatus($"Logo removed from catalog: {item.Name}");
             }
         }
@@ -276,20 +284,6 @@ public partial class FixturesSheetPage : ContentPage
         }
     }
 
-    private void SaveLogoCatalog()
-    {
-        // Save to DataStore for persistence
-        // We'll store as a simple list in WebsiteSettings or create a dedicated store
-        try
-        {
-            DataStore.Save();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to save logo catalog: {ex.Message}");
-        }
-    }
-
     private LogoPosition GetSelectedLogoPosition()
     {
         return LogoPositionPicker.SelectedIndex switch
@@ -306,6 +300,189 @@ public partial class FixturesSheetPage : ContentPage
         };
     }
 
+    private string GetSelectedAccentColor()
+    {
+        return AccentColorPicker.SelectedIndex switch
+        {
+            1 => "#1E3A5F",
+            2 => "#1B4332",
+            3 => "#6B1D2A",
+            4 => "#334155",
+            5 => "#1D4ED8",
+            6 => "#047857",
+            7 => "#B91C1C",
+            _ => "#1a1a1a"
+        };
+    }
+
+    private TitleStyle GetSelectedTitleStyle()
+    {
+        return TitleStylePicker.SelectedIndex switch
+        {
+            1 => TitleStyle.SingleRule,
+            2 => TitleStyle.BoxBorder,
+            3 => TitleStyle.None,
+            _ => TitleStyle.DoubleRule
+        };
+    }
+
+    private GridBorderWeight GetSelectedGridBorders()
+    {
+        return GridBorderPicker.SelectedIndex switch
+        {
+            0 => GridBorderWeight.Fine,
+            2 => GridBorderWeight.Bold,
+            _ => GridBorderWeight.Medium
+        };
+    }
+
+    private HomeBadgeStyle GetSelectedHomeBadge()
+    {
+        return HomeBadgePicker.SelectedIndex switch
+        {
+            1 => HomeBadgeStyle.BoldOnly,
+            _ => HomeBadgeStyle.Pill
+        };
+    }
+
+    private SheetFontFamily GetSelectedFontFamily()
+    {
+        return FontFamilyPicker.SelectedIndex switch
+        {
+            1 => SheetFontFamily.Classic,
+            2 => SheetFontFamily.Mono,
+            _ => SheetFontFamily.Modern
+        };
+    }
+
+    private MonthPalette GetSelectedMonthPalette()
+    {
+        return MonthPalettePicker.SelectedIndex switch
+        {
+            1 => MonthPalette.Vibrant,
+            2 => MonthPalette.Monochrome,
+            3 => MonthPalette.Earth,
+            4 => MonthPalette.Ocean,
+            _ => MonthPalette.Muted
+        };
+    }
+
+    private ColumnBanding GetSelectedColumnBanding()
+    {
+        return ColumnBandingPicker.SelectedIndex switch
+        {
+            0 => ColumnBanding.None,
+            2 => ColumnBanding.Strong,
+            _ => ColumnBanding.Subtle
+        };
+    }
+
+    private SubtitleStyle GetSelectedSubtitleStyle()
+    {
+        return SubtitleStylePicker.SelectedIndex switch
+        {
+            1 => SubtitleStyle.Outline,
+            2 => SubtitleStyle.TextOnly,
+            _ => SubtitleStyle.FilledBar
+        };
+    }
+
+    private DivisionLayout GetSelectedDivisionLayout()
+    {
+        return DivisionLayoutPicker.SelectedIndex switch
+        {
+            1 => DivisionLayout.Stacked,
+            2 => DivisionLayout.Compact,
+            _ => DivisionLayout.Auto
+        };
+    }
+
+    private TextDensity GetSelectedTextDensity()
+    {
+        return TextDensityPicker.SelectedIndex switch
+        {
+            0 => TextDensity.Compact,
+            2 => TextDensity.Spacious,
+            _ => TextDensity.Normal
+        };
+    }
+
+    private CardStyle GetSelectedCardStyle()
+    {
+        return CardStylePicker.SelectedIndex switch
+        {
+            1 => CardStyle.Frosted,
+            2 => CardStyle.Translucent,
+            _ => CardStyle.Solid
+        };
+    }
+
+    private void OnSaveDesignClicked(object sender, EventArgs e)
+    {
+        var design = new SavedFixturesSheetDesign
+        {
+            AccentColorIndex = AccentColorPicker.SelectedIndex,
+            TitleStyleIndex = TitleStylePicker.SelectedIndex,
+            GridBordersIndex = GridBorderPicker.SelectedIndex,
+            HomeBadgeIndex = HomeBadgePicker.SelectedIndex,
+            FontFamilyIndex = FontFamilyPicker.SelectedIndex,
+            SubtitleStyleIndex = SubtitleStylePicker.SelectedIndex,
+            MonthPaletteIndex = MonthPalettePicker.SelectedIndex,
+            ColumnBandingIndex = ColumnBandingPicker.SelectedIndex,
+            DivisionLayoutIndex = DivisionLayoutPicker.SelectedIndex,
+            TextDensityIndex = TextDensityPicker.SelectedIndex,
+            CardStyleIndex = CardStylePicker.SelectedIndex,
+            ShowMatchNight = ShowMatchNightCheck.IsChecked,
+            TitleUppercase = TitleUppercaseCheck.IsChecked,
+            MonthUppercase = MonthUppercaseCheck.IsChecked,
+            ShowGridLegend = ShowGridLegendCheck.IsChecked,
+            ShowTeamNumbers = ShowTeamNumbersCheck.IsChecked,
+            ShowVenueInfo = ShowVenueInfoCheck.IsChecked,
+            ShowDivisionLists = ShowDivisionListsCheck.IsChecked,
+            IsLandscape = LandscapeRadio.IsChecked
+        };
+
+        League.WebsiteSettings.FixturesSheetDesign = design;
+        DataStore.Save();
+        SetStatus("Design settings saved");
+    }
+
+    private void OnLoadDesignClicked(object sender, EventArgs e)
+    {
+        var design = League.WebsiteSettings.FixturesSheetDesign;
+        if (design == null)
+        {
+            SetStatus("No saved design found");
+            return;
+        }
+
+        AccentColorPicker.SelectedIndex = Clamp(design.AccentColorIndex, 0, 7);
+        TitleStylePicker.SelectedIndex = Clamp(design.TitleStyleIndex, 0, 3);
+        GridBorderPicker.SelectedIndex = Clamp(design.GridBordersIndex, 0, 2);
+        HomeBadgePicker.SelectedIndex = Clamp(design.HomeBadgeIndex, 0, 1);
+        FontFamilyPicker.SelectedIndex = Clamp(design.FontFamilyIndex, 0, 2);
+        SubtitleStylePicker.SelectedIndex = Clamp(design.SubtitleStyleIndex, 0, 2);
+        MonthPalettePicker.SelectedIndex = Clamp(design.MonthPaletteIndex, 0, 4);
+        ColumnBandingPicker.SelectedIndex = Clamp(design.ColumnBandingIndex, 0, 2);
+        DivisionLayoutPicker.SelectedIndex = Clamp(design.DivisionLayoutIndex, 0, 2);
+        TextDensityPicker.SelectedIndex = Clamp(design.TextDensityIndex, 0, 2);
+        CardStylePicker.SelectedIndex = Clamp(design.CardStyleIndex, 0, 2);
+        ShowMatchNightCheck.IsChecked = design.ShowMatchNight;
+        TitleUppercaseCheck.IsChecked = design.TitleUppercase;
+        MonthUppercaseCheck.IsChecked = design.MonthUppercase;
+        ShowGridLegendCheck.IsChecked = design.ShowGridLegend;
+        ShowTeamNumbersCheck.IsChecked = design.ShowTeamNumbers;
+        ShowVenueInfoCheck.IsChecked = design.ShowVenueInfo;
+        ShowDivisionListsCheck.IsChecked = design.ShowDivisionLists;
+        LandscapeRadio.IsChecked = design.IsLandscape;
+        PortraitRadio.IsChecked = !design.IsLandscape;
+
+        SetStatus("Design settings loaded");
+    }
+
+    private static int Clamp(int value, int min, int max) =>
+        value < min ? min : value > max ? max : value;
+
     #endregion
 
     private async void OnPreviewClicked(object sender, EventArgs e)
@@ -314,10 +491,11 @@ public partial class FixturesSheetPage : ContentPage
         {
             _generatedHtml = GenerateSheet();
             if (_generatedHtml == null) return;
-            
+
             PreviewWebView.Source = new HtmlWebViewSource { Html = _generatedHtml };
-            PreviewFrame.IsVisible = true;
-            
+            PreviewPlaceholder.IsVisible = false;
+            PreviewWebView.IsVisible = true;
+
             SetStatus("Preview generated");
         }
         catch (Exception ex)
@@ -427,7 +605,24 @@ public partial class FixturesSheetPage : ContentPage
             LogoPosition = GetSelectedLogoPosition(),
             LogoWidth = logoWidth,
             LogoHeight = logoHeight,
-            LogoMaintainAspectRatio = MaintainAspectRatioCheck.IsChecked
+            LogoMaintainAspectRatio = MaintainAspectRatioCheck.IsChecked,
+
+            // Design settings
+            AccentColor = GetSelectedAccentColor(),
+            TitleStyle = GetSelectedTitleStyle(),
+            GridBorders = GetSelectedGridBorders(),
+            HomeBadge = GetSelectedHomeBadge(),
+            FontFamily = GetSelectedFontFamily(),
+            ShowMatchNight = ShowMatchNightCheck.IsChecked,
+            MonthColors = GetSelectedMonthPalette(),
+            ColumnBanding = GetSelectedColumnBanding(),
+            SubtitleStyle = GetSelectedSubtitleStyle(),
+            DivisionLayout = GetSelectedDivisionLayout(),
+            TextDensity = GetSelectedTextDensity(),
+            TitleUppercase = TitleUppercaseCheck.IsChecked,
+            MonthUppercase = MonthUppercaseCheck.IsChecked,
+            ShowGridLegend = ShowGridLegendCheck.IsChecked,
+            CardStyle = GetSelectedCardStyle()
         };
         
         // Add special events
@@ -525,11 +720,6 @@ public partial class FixturesSheetPage : ContentPage
         }
     }
 
-    private void OnClosePreviewClicked(object sender, EventArgs e)
-    {
-        PreviewFrame.IsVisible = false;
-    }
-
     private void SetStatus(string message)
     {
         StatusLabel.Text = $"{DateTime.Now:HH:mm:ss} - {message}";
@@ -557,16 +747,4 @@ public class VenuePhoneItem
 {
     public string VenueName { get; set; } = "";
     public string PhoneNumber { get; set; } = "";
-}
-
-public class LogoCatalogDisplayItem
-{
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string Category { get; set; } = "General";
-    public byte[] ImageData { get; set; } = Array.Empty<byte>();
-    
-    public ImageSource? ImageSource => ImageData.Length > 0 
-        ? Microsoft.Maui.Controls.ImageSource.FromStream(() => new MemoryStream(ImageData)) 
-        : null;
 }

@@ -79,6 +79,7 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         base.OnAppearing();
         UpdateGalleryCount();
+        UpdateSummaryLabels();
 
         // Auto-refresh preview when returning from settings sub-pages
         if (_generatedFiles != null)
@@ -139,6 +140,7 @@ public partial class WebsiteBuilderHub : ContentPage
         TemplatePicker.SelectedItem = selectedTemplate ?? _templates.FirstOrDefault();
 
         UpdateGalleryCount();
+        UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
 
@@ -167,6 +169,115 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         var count = League.WebsiteSettings.GalleryImages.Count;
         GalleryCountLabel.Text = $"Manage photos ({count} image{(count == 1 ? "" : "s")})";
+    }
+
+    private void UpdateSummaryLabels()
+    {
+        var s = League.WebsiteSettings;
+
+        // Branding
+        var brandingParts = new List<string>();
+        if (s.LeagueName != "My Pool League") brandingParts.Add(s.LeagueName);
+        if (s.UseCustomLogo) brandingParts.Add("Logo ✓");
+        if (!string.IsNullOrWhiteSpace(s.FaviconUrl)) brandingParts.Add("Favicon ✓");
+        BrandingSummaryLabel.Text = brandingParts.Count > 0 
+            ? string.Join(" · ", brandingParts) 
+            : "Name, logo, favicon";
+
+        // Contact
+        var contactParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(s.ContactEmail)) contactParts.Add("Email");
+        if (!string.IsNullOrWhiteSpace(s.ContactPhone)) contactParts.Add("Phone");
+        if (s.HasSocialLinks) contactParts.Add("Social");
+        ContactSummaryLabel.Text = contactParts.Count > 0 
+            ? string.Join(" · ", contactParts) + " configured" 
+            : "Not configured yet";
+
+        // Colors
+        ColorsSummaryLabel.Text = $"Primary: {s.PrimaryColor}";
+
+        // Layout
+        LayoutSummaryLabel.Text = $"{Capitalize(s.HeaderLayout)} header · {s.HeaderFontFamily} font";
+
+        // Content — count enabled pages
+        var pageCount = 0;
+        if (s.ShowStandings) pageCount++;
+        if (s.ShowFixtures) pageCount++;
+        if (s.ShowResults) pageCount++;
+        if (s.ShowPlayerStats) pageCount++;
+        if (s.ShowDivisions) pageCount++;
+        if (s.ShowCompetitions) pageCount++;
+        if (s.ShowGallery) pageCount++;
+        if (s.ShowNews) pageCount++;
+        if (s.ShowSponsors) pageCount++;
+        if (s.ShowRules) pageCount++;
+        if (s.ShowContactPage) pageCount++;
+        ContentSummaryLabel.Text = $"{pageCount} page{(pageCount == 1 ? "" : "s")} enabled · {Capitalize(s.HomeLayout)} home";
+
+        // SEO
+        var seoParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(s.MetaDescription)) seoParts.Add("Meta");
+        if (!string.IsNullOrWhiteSpace(s.CustomCss)) seoParts.Add("CSS");
+        if (!string.IsNullOrWhiteSpace(s.CustomHeadHtml) || !string.IsNullOrWhiteSpace(s.CustomBodyStartHtml) || !string.IsNullOrWhiteSpace(s.CustomBodyEndHtml))
+            seoParts.Add("HTML");
+        if (s.GenerateSitemap) seoParts.Add("Sitemap");
+        SeoSummaryLabel.Text = seoParts.Count > 0 
+            ? string.Join(" · ", seoParts) + " configured" 
+            : "Not configured yet";
+
+        UpdateSetupProgress();
+    }
+
+    private void UpdateSetupProgress()
+    {
+        var s = League.WebsiteSettings;
+        var steps = 0;
+        var total = 6;
+
+        // 1. League name set
+        if (s.LeagueName != "My Pool League") steps++;
+        // 2. Template chosen (always done)
+        if (!string.IsNullOrWhiteSpace(s.SelectedTemplate)) steps++;
+        // 3. Colors customized
+        if (s.PrimaryColor != "#3B82F6") steps++;
+        // 4. At least one page enabled
+        if (s.ShowStandings || s.ShowFixtures || s.ShowResults || s.ShowPlayerStats) steps++;
+        // 5. Logo uploaded
+        if (s.UseCustomLogo) steps++;
+        // 6. Has been previewed at least once
+        if (s.LastGenerated != default) steps++;
+
+        var progress = (double)steps / total;
+        SetupProgressBar.Progress = progress;
+        SetupProgressLabel.Text = $"{steps}/{total}";
+
+        if (steps >= total)
+        {
+            SetupHintLabel.Text = "All set! Your website is ready to deploy.";
+            SetupProgressBar.ProgressColor = Color.FromArgb("#10B981");
+            SetupProgressLabel.TextColor = Color.FromArgb("#10B981");
+        }
+        else
+        {
+            var hint = steps switch
+            {
+                0 => "Start by setting your league name in Site Branding",
+                1 => "Choose a color scheme in Colors and Theme",
+                2 => "Upload your league logo in Site Branding",
+                3 => "Configure your pages in Pages and Content",
+                4 => "Click Preview to see how your site looks",
+                _ => "Almost there! Complete the remaining steps"
+            };
+            SetupHintLabel.Text = hint;
+            SetupProgressBar.ProgressColor = Color.FromArgb("#3B82F6");
+            SetupProgressLabel.TextColor = Color.FromArgb("#3B82F6");
+        }
+    }
+
+    private static string Capitalize(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        return char.ToUpperInvariant(value[0]) + value[1..];
     }
     
     private void OnTemplateChanged(object? sender, EventArgs e)

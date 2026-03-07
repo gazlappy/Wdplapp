@@ -10,7 +10,7 @@ public partial class BrandingSettingsPage : ContentPage
 {
     private static LeagueData League => DataStore.Data;
     private byte[]? _uploadedLogoData;
-    private readonly ObservableCollection<BrandingLogoCatalogItem> _logoCatalog = new();
+    private readonly ObservableCollection<LogoCatalogDisplayItem> _logoCatalog = new();
     private bool _usingCatalogLogo;
     private string? _currentCatalogLogoId;
 
@@ -19,6 +19,12 @@ public partial class BrandingSettingsPage : ContentPage
         InitializeComponent();
         LogoCatalogCollection.ItemsSource = _logoCatalog;
         LoadSettings();
+        LoadLogoCatalog();
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
         LoadLogoCatalog();
     }
 
@@ -55,13 +61,7 @@ public partial class BrandingSettingsPage : ContentPage
         _logoCatalog.Clear();
         foreach (var item in League.WebsiteSettings.LogoCatalog)
         {
-            _logoCatalog.Add(new BrandingLogoCatalogItem
-            {
-                Id = item.Id,
-                Name = item.Name,
-                Category = item.Category,
-                ImageData = item.ImageData
-            });
+            _logoCatalog.Add(LogoCatalogDisplayItem.FromModel(item));
         }
     }
 
@@ -191,7 +191,7 @@ public partial class BrandingSettingsPage : ContentPage
 
     private void OnUseCatalogLogoClicked(object sender, EventArgs e)
     {
-        if (sender is Button btn && btn.CommandParameter is BrandingLogoCatalogItem item)
+        if (sender is Button btn && btn.CommandParameter is LogoCatalogDisplayItem item)
         {
             _uploadedLogoData = item.ImageData;
             _usingCatalogLogo = true;
@@ -202,7 +202,7 @@ public partial class BrandingSettingsPage : ContentPage
 
     private async void OnDeleteCatalogLogoClicked(object sender, EventArgs e)
     {
-        if (sender is Button btn && btn.CommandParameter is BrandingLogoCatalogItem item)
+        if (sender is Button btn && btn.CommandParameter is LogoCatalogDisplayItem item)
         {
             var confirm = await DisplayAlert("Delete Logo", $"Delete '{item.Name}' from catalog?", "Delete", "Cancel");
             if (confirm)
@@ -302,19 +302,4 @@ public partial class BrandingSettingsPage : ContentPage
             await DisplayAlert("Error", $"Failed to save: {ex.Message}", "OK");
         }
     }
-}
-
-/// <summary>
-/// Display item for logo catalog in the Branding settings UI
-/// </summary>
-public class BrandingLogoCatalogItem
-{
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string Category { get; set; } = "General";
-    public byte[] ImageData { get; set; } = Array.Empty<byte>();
-    
-    public ImageSource? ImageSource => ImageData.Length > 0 
-        ? Microsoft.Maui.Controls.ImageSource.FromStream(() => new MemoryStream(ImageData)) 
-        : null;
 }

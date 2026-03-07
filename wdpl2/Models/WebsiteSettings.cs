@@ -307,6 +307,9 @@ namespace Wdpl2.Models
         public bool FixturesShowPrintableSheet { get; set; } = false;
         public bool FixturesSheetDefaultExpanded { get; set; } = false;
         public string FixturesSheetTitle { get; set; } = "Printable Fixtures Sheet";
+
+        // Saved fixtures sheet design settings (persisted across sessions)
+        public SavedFixturesSheetDesign? FixturesSheetDesign { get; set; }
         
         // Players Page Options
         public bool PlayersShowPosition { get; set; } = true;
@@ -888,7 +891,7 @@ namespace Wdpl2.Models
     }
     
     /// <summary>
-    /// Logo catalog item for website (separate from fixtures sheet to allow independent catalogs)
+    /// Logo catalog item for website — the single shared catalog across all features.
     /// </summary>
     public sealed class WebsiteLogoCatalogItem
     {
@@ -898,6 +901,29 @@ namespace Wdpl2.Models
         public byte[] ImageData { get; set; } = Array.Empty<byte>();
         public string Category { get; set; } = "General";
         public DateTime DateAdded { get; set; } = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Shared UI display item for the logo catalog, used by all pages that show the catalog.
+    /// </summary>
+    public sealed class LogoCatalogDisplayItem
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "General";
+        public byte[] ImageData { get; set; } = Array.Empty<byte>();
+
+        public ImageSource? ImageSource => ImageData.Length > 0
+            ? ImageSource.FromStream(() => new MemoryStream(ImageData))
+            : null;
+
+        public static LogoCatalogDisplayItem FromModel(WebsiteLogoCatalogItem item) => new()
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Category = item.Category,
+            ImageData = item.ImageData
+        };
     }
     
     /// <summary>
@@ -985,5 +1011,36 @@ namespace Wdpl2.Models
         public bool ShowInNav { get; set; } = true;
         public int NavOrder { get; set; }
         public bool IsPublished { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Persisted fixtures sheet design settings — all picker/toggle values saved as ints/bools/strings
+    /// </summary>
+    public sealed class SavedFixturesSheetDesign
+    {
+        // Design pickers (stored as int indices for forward-compat)
+        public int AccentColorIndex { get; set; }
+        public int TitleStyleIndex { get; set; }
+        public int GridBordersIndex { get; set; }
+        public int HomeBadgeIndex { get; set; }
+        public int FontFamilyIndex { get; set; }
+        public int SubtitleStyleIndex { get; set; }
+        public int MonthPaletteIndex { get; set; }
+        public int ColumnBandingIndex { get; set; } = 1;
+        public int DivisionLayoutIndex { get; set; }
+        public int TextDensityIndex { get; set; } = 1;
+        public int CardStyleIndex { get; set; }
+
+        // Toggles
+        public bool ShowMatchNight { get; set; } = true;
+        public bool TitleUppercase { get; set; } = true;
+        public bool MonthUppercase { get; set; } = true;
+        public bool ShowGridLegend { get; set; } = true;
+        public bool ShowTeamNumbers { get; set; } = true;
+        public bool ShowVenueInfo { get; set; } = true;
+        public bool ShowDivisionLists { get; set; } = true;
+
+        // Orientation (false = portrait, true = landscape)
+        public bool IsLandscape { get; set; }
     }
 }
