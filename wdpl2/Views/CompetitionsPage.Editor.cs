@@ -169,32 +169,89 @@ public partial class CompetitionsPage
         {
             content.Children.Add(new Label { Text = $"? {competition.Groups.Count} groups generated", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
 
-            var viewGroupsBtn = new Button
+            // Group action buttons
+            var groupActionBar = new HorizontalStackLayout
             {
-                Text = $"View Groups & Select Winners ({competition.Groups.Count} groups)",
-                BackgroundColor = Color.FromArgb("#6366F1"),
-                TextColor = Colors.White,
-                Padding = new Thickness(8, 4),
+                Spacing = 6,
                 Margin = new Thickness(0, 4, 0, 0)
             };
+
+            var viewGroupsBtn = new Button
+            {
+                Text = $"View Groups ({competition.Groups.Count})",
+                BackgroundColor = Color.FromArgb("#6366F1"),
+                TextColor = Colors.White,
+                Padding = new Thickness(8, 4)
+            };
             viewGroupsBtn.Clicked += (s, e) => ShowGroupsView();
-            content.Children.Add(viewGroupsBtn);
+            groupActionBar.Children.Add(viewGroupsBtn);
+
+            // Only show randomise before KO rounds are created
+            if (competition.Rounds.Count == 0)
+            {
+                var randomiseBtn = new Button
+                {
+                    Text = "?? Randomise",
+                    BackgroundColor = Color.FromArgb("#F59E0B"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(8, 4)
+                };
+                randomiseBtn.Clicked += async (s, e) =>
+                {
+                    await _editorViewModel.RandomiseGroupsAsync();
+                    await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    if (_selectedCompetition != null)
+                        ShowCompetitionEditor(_selectedCompetition);
+                };
+                groupActionBar.Children.Add(randomiseBtn);
+            }
+
+            content.Children.Add(groupActionBar);
 
             // Show how many have been selected so far
             int selectedCount = competition.Groups.Sum(g =>
                 g.Standings.Count(s => s.Position > 0 && s.Position <= settings.TopPlayersAdvance));
             int targetCount = competition.Groups.Count * settings.TopPlayersAdvance;
 
-            var finalizeBtn = new Button
+            // Only show finalize options before KO rounds are created
+            if (competition.Rounds.Count == 0)
             {
-                Text = $"Finalize & Create Knockout ({selectedCount}/{targetCount} selected)",
-                BackgroundColor = Color.FromArgb("#10B981"),
-                TextColor = Colors.White,
-                Padding = new Thickness(8, 4),
-                Margin = new Thickness(0, 4, 0, 0)
-            };
-            finalizeBtn.Clicked += (s, e) => OnFinalizeGroups();
-            content.Children.Add(finalizeBtn);
+                int currentRound = competition.Groups.Max(g => g.GroupRound);
+                string roundLabel = currentRound > 1 ? $" (Round {currentRound})" : "";
+
+                content.Children.Add(new Label
+                {
+                    Text = $"Selected: {selectedCount}/{targetCount} winners{roundLabel}",
+                    FontSize = 13,
+                    FontAttributes = FontAttributes.Bold,
+                    Margin = new Thickness(0, 6, 0, 2)
+                });
+
+                var finalizeBar = new VerticalStackLayout { Spacing = 4, Margin = new Thickness(0, 2, 0, 0) };
+
+                var koBtn = new Button
+                {
+                    Text = $"?? Create Knockout Bracket ({selectedCount} players)",
+                    BackgroundColor = Color.FromArgb("#10B981"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(8, 4)
+                };
+                koBtn.Clicked += (s, e) => OnFinalizeGroups();
+                finalizeBar.Children.Add(koBtn);
+
+                var nextGroupBtn = new Button
+                {
+                    Text = "?? Another Round of Groups",
+                    BackgroundColor = Color.FromArgb("#6366F1"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(8, 4)
+                };
+                nextGroupBtn.Clicked += (s, e) => OnAdvanceToNextGroupRound();
+                finalizeBar.Children.Add(nextGroupBtn);
+
+                content.Children.Add(finalizeBar);
+            }
 
             // If knockout rounds have already been created from groups, show bracket controls
             if (competition.Rounds.Count > 0)
@@ -212,37 +269,83 @@ public partial class CompetitionsPage
                 };
                 viewBracketBtn.Clicked += (s, e) => OnViewBracket();
                 content.Children.Add(viewBracketBtn);
+            }
 
-                // Plate competition link
-                if (competition.PlateCompetitionId.HasValue)
+            // Plate competition section — show after groups exist, regardless of KO status
+            if (competition.PlateCompetitionId.HasValue)
+            {
+                content.Children.Add(new Border
                 {
-                    content.Children.Add(new Border
+                    Padding = 10,
+                    BackgroundColor = Color.FromArgb("#F0FDF4"),
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+                    Stroke = Color.FromArgb("#10B981"),
+                    Margin = new Thickness(0, 4, 0, 0),
+                    Content = new HorizontalStackLayout
                     {
-                        Padding = 10,
-                        BackgroundColor = Color.FromArgb("#F0FDF4"),
-                        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-                        Stroke = Color.FromArgb("#10B981"),
-                        Margin = new Thickness(0, 4, 0, 0),
-                        Content = new HorizontalStackLayout
+                        Spacing = 8,
+                        Children =
                         {
-                            Spacing = 8,
-                            Children =
+                            new Label { Text = "\u2705 Plate competition created", FontSize = 13, VerticalTextAlignment = TextAlignment.Center },
+                            new Button
                             {
-                                new Label { Text = "\u2705 Plate competition created", FontSize = 13, VerticalTextAlignment = TextAlignment.Center },
-                                new Button
-                                {
-                                    Text = "Open Plate",
-                                    BackgroundColor = Color.FromArgb("#3B82F6"),
-                                    TextColor = Colors.White,
-                                    Padding = new Thickness(10, 4),
-                                    FontSize = 12,
-                                    Command = new Command(() => OnOpenLosersCup(null, EventArgs.Empty))
-                                }
+                                Text = "Open Plate",
+                                BackgroundColor = Color.FromArgb("#3B82F6"),
+                                TextColor = Colors.White,
+                                Padding = new Thickness(10, 4),
+                                FontSize = 12,
+                                Command = new Command(() => OnOpenLosersCup(null, EventArgs.Empty))
                             }
                         }
-                    });
+                    }
+                });
+            }
+            else if (!competition.ParentCompetitionId.HasValue)
+            {
+                var createPlateBtn = new Button
+                {
+                    Text = "?? Create Plate Competition (losers)",
+                    BackgroundColor = Color.FromArgb("#F59E0B"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(8, 4),
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+                createPlateBtn.Clicked += async (s, e) =>
+                {
+                    await _editorViewModel.CreatePlateFromGroupsAsync();
+                    await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    if (_selectedCompetition != null)
+                        ShowCompetitionEditor(_selectedCompetition);
+                };
+                content.Children.Add(createPlateBtn);
+            }
+
+            // Show previous group rounds if any
+            if (competition.PreviousGroups.Count > 0)
+            {
+                var previousRounds = competition.PreviousGroups
+                    .GroupBy(g => g.GroupRound)
+                    .OrderBy(r => r.Key);
+
+                foreach (var round in previousRounds)
+                {
+                    var roundNum = round.Key;
+                    var viewPrevBtn = new Button
+                    {
+                        Text = $"?? View Round {roundNum} ({round.Count()} groups — completed)",
+                        FontSize = 12,
+                        TextColor = Colors.Gray,
+                        BackgroundColor = Colors.Transparent,
+                        Padding = new Thickness(0, 4),
+                        Margin = new Thickness(0, 2, 0, 0),
+                        HorizontalOptions = LayoutOptions.Start
+                    };
+                    viewPrevBtn.Clicked += (s, e) => ShowPreviousGroupRound(roundNum);
+                    content.Children.Add(viewPrevBtn);
                 }
             }
+
             return;
         }
 
@@ -277,21 +380,27 @@ public partial class CompetitionsPage
             Title = "Number of Groups",
             FontSize = 14
         };
-        for (int i = 2; i <= maxGroups; i++)
+        for (int i = 1; i <= maxGroups; i++)
         {
             int perGroup = participantCount / i;
             int rem = participantCount % i;
             int koTotal = i * topAdvance;
             bool koValid = koTotal >= 2 && (koTotal & (koTotal - 1)) == 0;
-            var label = $"{i} groups (~{perGroup}{(rem > 0 ? $"-{perGroup + 1}" : "")} per group) ? {koTotal} to KO";
-            if (!koValid) label += " ??";
+            string label;
+            if (i == 1)
+                label = $"1 group ({participantCount} players)";
+            else
+            {
+                label = $"{i} groups (~{perGroup}{(rem > 0 ? $"-{perGroup + 1}" : "")} per group) ? {koTotal} to KO";
+                if (!koValid) label += " ??";
+            }
             groupCountPicker.Items.Add(label);
         }
-        if (currentGroups >= 2)
-            groupCountPicker.SelectedIndex = Math.Min(currentGroups - 2, maxGroups - 2);
+        if (currentGroups >= 1)
+            groupCountPicker.SelectedIndex = Math.Min(currentGroups - 1, maxGroups - 1);
         groupCountPicker.SelectedIndexChanged += async (s, e) =>
         {
-            int newCount = groupCountPicker.SelectedIndex + 2;
+            int newCount = groupCountPicker.SelectedIndex + 1;
             await _editorViewModel.SaveGroupCountAsync(newCount);
             SetStatus(_editorViewModel.StatusMessage);
             // Refresh editor to update KO indicator
@@ -300,7 +409,7 @@ public partial class CompetitionsPage
         content.Children.Add(CreateLabeledField("Groups:", groupCountPicker));
 
         // KO bracket validity
-        if (currentGroups >= 2)
+        if (currentGroups >= 1)
         {
             int koTotal = currentGroups * topAdvance;
             bool koValid = koTotal >= 2 && (koTotal & (koTotal - 1)) == 0;
@@ -317,6 +426,12 @@ public partial class CompetitionsPage
         }
 
         // Settings summary
+        string plateDesc = !settings.CreatePlateCompetition
+            ? "No plate"
+            : settings.AllLosersToPlate
+                ? "All losers go to plate"
+                : $"Next {settings.LowerPlayersToPlate} per group go to plate";
+
         content.Children.Add(new Border
         {
             Padding = 8,
@@ -329,8 +444,7 @@ public partial class CompetitionsPage
                 Children =
                 {
                     new Label { Text = $"?? Top {settings.TopPlayersAdvance} from each group advance", FontSize = 12 },
-                    new Label { Text = $"?? Next {settings.LowerPlayersToPlate} go to plate", FontSize = 12 },
-                    new Label { Text = $"?? Plate competition: {(settings.CreatePlateCompetition ? "Yes" : "No")}", FontSize = 12 },
+                    new Label { Text = $"?? {plateDesc}", FontSize = 12 },
                     new Label { Text = "Players do their own draw within groups and report who got through", FontSize = 11, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic }
                 }
             }
@@ -385,8 +499,8 @@ public partial class CompetitionsPage
             }
         });
 
-        // Losers Cup section — only for knockout formats with a bracket
-        if (competition.Rounds.Count > 0)
+        // Losers Cup section — only for main competitions with a bracket (not plates)
+        if (competition.Rounds.Count > 0 && !competition.ParentCompetitionId.HasValue)
         {
             content.Children.Add(new Label { Text = "Losers Cup", FontSize = 16, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 4) });
 

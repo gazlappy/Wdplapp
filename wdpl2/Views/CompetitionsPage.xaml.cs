@@ -183,6 +183,14 @@ public partial class CompetitionsPage : ContentPage
             return;
         }
 
+        var confirm = await DisplayAlert(
+            "Delete Competition",
+            $"Are you sure you want to delete \"{competition.Name}\"?\n\nThis will permanently remove all groups, rounds, and results. This cannot be undone.",
+            "Delete",
+            "Cancel");
+
+        if (!confirm) return;
+
         await _viewModel.DeleteCompetitionCommand.ExecuteAsync(competition);
         _editorViewModel = null;
         ShowEmptyState();

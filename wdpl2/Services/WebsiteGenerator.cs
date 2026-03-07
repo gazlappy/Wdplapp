@@ -1632,33 +1632,93 @@ namespace Wdpl2.Services
 
         private void AppendGroupStage(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
         {
+            int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
+
+            // Render previous group rounds first (archived)
+            if (comp.PreviousGroups.Count > 0)
+            {
+                var previousRounds = comp.PreviousGroups
+                    .GroupBy(g => g.GroupRound)
+                    .OrderBy(r => r.Key);
+
+                foreach (var round in previousRounds)
+                {
+                    // Infer how many advanced per group from the stored standings
+                    // (the TopPlayersAdvance setting may have changed for later rounds)
+                    int roundAdvance = round.Max(g => g.Standings.Count(s => s.Position > 0));
+                    if (roundAdvance < 1) roundAdvance = topAdvance;
+
+                    html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {round.Key}</h3>");
+                    html.AppendLine("                <div class=\"comp-groups\">");
+                    foreach (var group in round.OrderBy(g => g.GroupNumber))
+                    {
+                        AppendGroupSection(html, group, comp, players, teams, roundAdvance, hasSelections: true);
+                    }
+                    html.AppendLine("                </div>");
+                }
+            }
+
+            // Current groups
+            int currentRound = comp.Groups.Count > 0 ? comp.Groups.Max(g => g.GroupRound) : 1;
+            bool hasSelections = comp.Groups.Any(g => g.Standings.Any(s => s.Position > 0));
+
+            if (comp.PreviousGroups.Count > 0)
+            {
+                html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {currentRound}</h3>");
+            }
+
             html.AppendLine("                <div class=\"comp-groups\">");
             foreach (var group in comp.Groups.OrderBy(g => g.GroupNumber))
             {
-                var standings = CompetitionGenerator.CalculateGroupStandings(group);
-                int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
-
-                html.AppendLine($"                    <div class=\"group-section\">");
-                html.AppendLine($"                        <h4>{group.Name}</h4>");
-                html.AppendLine($"                        <table class=\"{GetTableClasses()}\">");
-                html.AppendLine("                            <thead><tr><th>Pos</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>");
-                html.AppendLine("                            <tbody>");
-                foreach (var s in standings)
-                {
-                    var name = GetWebParticipantName(s.ParticipantId, comp, players, teams);
-                    var rowClass = s.Position <= topAdvance ? " class=\"qualifying\"" : "";
-                    html.AppendLine($"                            <tr{rowClass}><td>{s.Position}</td><td>{name}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
-                }
-                html.AppendLine("                            </tbody>");
-                html.AppendLine($"                        </table>");
-
-                // Group matches
-                foreach (var match in group.Matches)
-                    AppendMatchRow(html, match, comp, players, teams);
-
-                html.AppendLine($"                    </div>");
+                AppendGroupSection(html, group, comp, players, teams, topAdvance, hasSelections);
             }
             html.AppendLine("                </div>");
+        }
+
+        private void AppendGroupSection(StringBuilder html, CompetitionGroup group, Competition comp,
+            List<Player> players, List<Team> teams, int topAdvance, bool hasSelections)
+        {
+            html.AppendLine($"                    <div class=\"group-section\">");
+            html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} players)</span></h4>");
+            html.AppendLine($"                        <div class=\"group-players\">");
+
+            foreach (var pid in group.ParticipantIds)
+            {
+                var name = GetWebParticipantName(pid, comp, players, teams);
+
+                var standing = group.Standings.FirstOrDefault(s => s.ParticipantId == pid);
+                bool isAdvancing = standing != null && standing.Position > 0 && standing.Position <= topAdvance;
+                bool isNoShow = comp.NoShowIds.Contains(pid);
+                bool isEliminated = hasSelections && !isAdvancing && !isNoShow;
+
+                string cssClass;
+                string badge;
+                if (isNoShow)
+                {
+                    cssClass = "group-player gp-noshow";
+                    badge = " <span class=\"gp-badge gp-badge-ns\">No Show</span>";
+                }
+                else if (isAdvancing)
+                {
+                    cssClass = "group-player gp-winner";
+                    badge = " <span class=\"gp-badge gp-badge-w\">✓ Through</span>";
+                }
+                else if (isEliminated)
+                {
+                    cssClass = "group-player gp-loser";
+                    badge = " <span class=\"gp-badge gp-badge-l\">✗ Out</span>";
+                }
+                else
+                {
+                    cssClass = "group-player";
+                    badge = "";
+                }
+
+                html.AppendLine($"                            <div class=\"{cssClass}\">{name}{badge}</div>");
+            }
+
+            html.AppendLine($"                        </div>");
+            html.AppendLine($"                    </div>");
         }
 
         private void AppendMatchRow(StringBuilder html, CompetitionMatch match, Competition comp, List<Player> players, List<Team> teams)

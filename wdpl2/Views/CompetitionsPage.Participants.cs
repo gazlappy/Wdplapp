@@ -176,21 +176,356 @@ public partial class CompetitionsPage
             return;
         }
 
-        // Create selection items
-        var selectionItems = availablePlayers.Select(p => new SelectionItem<Guid>
+        // Load teams for the season
+        var seasonId = _selectedCompetition.SeasonId ?? _currentSeasonId;
+        var allTeams = await _dataStore.GetTeamsAsync(seasonId);
+
+        // Create selection items for all available players
+        var allItems = availablePlayers.Select(p => new SelectionItem<Guid>
         {
             Id = p.Id,
             Name = p.FullName,
-            IsSelected = false
+            IsSelected = false,
+            Tag = p.TeamId  // Store team ID for filtering
         }).ToList();
 
-        // Show multi-select dialog
-        var selectedIds = await ShowMultiSelectDialog("Select Players", selectionItems);
-        
+        // Build team list: "All Players", then each team, then "No Team"
+        var teamEntries = new List<(Guid? id, string name)> { (null, "All Players") };
+        var teamsWithPlayers = allTeams
+            .Where(t => availablePlayers.Any(p => p.TeamId == t.Id))
+            .OrderBy(t => t.Name)
+            .ToList();
+        foreach (var team in teamsWithPlayers)
+            teamEntries.Add((team.Id, team.Name ?? "Unnamed Team"));
+        if (availablePlayers.Any(p => p.TeamId == null))
+            teamEntries.Add((Guid.Empty, "No Team"));
+
+        // ── Build the UI ─────────────────────────────────────────────────
+        Guid? currentTeamFilter = null; // null = show all
+
+        var teamListLayout = new VerticalStackLayout { Spacing = 0 };
+        var playerListView = new CollectionView
+        {
+            SelectionMode = SelectionMode.None,
+            ItemsSource = new ObservableCollection<SelectionItem<Guid>>(allItems)
+        };
+
+        var selectedCountLabel = new Label
+        {
+            Text = "0 selected",
+            FontSize = 13,
+            FontAttributes = FontAttributes.Bold,
+            HorizontalTextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 4)
+        };
+
+        void UpdateSelectedCount()
+        {
+            var count = allItems.Count(i => i.IsSelected);
+            selectedCountLabel.Text = $"{count} selected";
+        }
+
+        void ApplyTeamFilter(Guid? teamId)
+        {
+            currentTeamFilter = teamId;
+            IEnumerable<SelectionItem<Guid>> filtered;
+            if (teamId == null)
+                filtered = allItems;
+            else if (teamId == Guid.Empty)
+                filtered = allItems.Where(i => i.Tag == null);
+            else
+                filtered = allItems.Where(i => i.Tag is Guid tid && tid == teamId);
+            playerListView.ItemsSource = new ObservableCollection<SelectionItem<Guid>>(filtered.ToList());
+
+            // Rebuild team buttons to show active state
+            RebuildTeamList(teamListLayout, teamEntries, allItems, teamId, ApplyTeamFilter, UpdateSelectedCount);
+        }
+
+        // Player item template
+        playerListView.ItemTemplate = new DataTemplate(() =>
+        {
+            var grid = new Grid
+            {
+                Padding = new Thickness(8, 4),
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = new GridLength(36) },
+                    new ColumnDefinition { Width = GridLength.Star }
+                }
+            };
+
+            var checkBox = new CheckBox { VerticalOptions = LayoutOptions.Center };
+            checkBox.SetBinding(CheckBox.IsCheckedProperty, nameof(SelectionItem<Guid>.IsSelected), BindingMode.TwoWay);
+
+            var nameLabel = new Label { VerticalTextAlignment = TextAlignment.Center, FontSize = 14 };
+            nameLabel.SetBinding(Label.TextProperty, nameof(SelectionItem<Guid>.Name));
+
+            grid.Add(checkBox, 0, 0);
+            grid.Add(nameLabel, 1, 0);
+
+            var tapGesture = new TapGestureRecognizer();
+            tapGesture.Tapped += (s, e) =>
+            {
+                if (grid.BindingContext is SelectionItem<Guid> item)
+                    item.IsSelected = !item.IsSelected;
+            };
+            grid.GestureRecognizers.Add(tapGesture);
+
+            return grid;
+        });
+
+        // Monitor selection changes
+        foreach (var item in allItems)
+            item.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SelectionItem<Guid>.IsSelected)) UpdateSelectedCount(); };
+
+        // Build team sidebar
+        RebuildTeamList(teamListLayout, teamEntries, allItems, null, ApplyTeamFilter, UpdateSelectedCount);
+
+        // Team panel (left)
+        var teamPanel = new Border
+        {
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Padding = 0,
+            Content = new ScrollView { Content = teamListLayout }
+        };
+
+        // Player panel (right)
+        var playerPanel = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new HorizontalStackLayout
+                {
+                    Spacing = 6,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    Children =
+                    {
+                        new Button
+                        {
+                            Text = "Select All Visible",
+                            BackgroundColor = Color.FromArgb("#3B82F6"),
+                            TextColor = Colors.White,
+                            Padding = new Thickness(8, 4),
+                            FontSize = 12,
+                            Command = new Command(() =>
+                            {
+                                var visible = (playerListView.ItemsSource as ObservableCollection<SelectionItem<Guid>>);
+                                if (visible != null) foreach (var item in visible) item.IsSelected = true;
+                                UpdateSelectedCount();
+                            })
+                        },
+                        new Button
+                        {
+                            Text = "Deselect All",
+                            BackgroundColor = Color.FromArgb("#6B7280"),
+                            TextColor = Colors.White,
+                            Padding = new Thickness(8, 4),
+                            FontSize = 12,
+                            Command = new Command(() =>
+                            {
+                                foreach (var item in allItems) item.IsSelected = false;
+                                UpdateSelectedCount();
+                            })
+                        }
+                    }
+                },
+                selectedCountLabel,
+                new Border
+                {
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+                    Stroke = Color.FromArgb("#E5E7EB"),
+                    Padding = 0,
+                    Content = playerListView,
+                    VerticalOptions = LayoutOptions.FillAndExpand
+                }
+            }
+        };
+
+        // Split layout: teams left, players right
+        var splitGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) }
+            },
+            ColumnSpacing = 8,
+            RowDefinitions = { new RowDefinition { Height = GridLength.Star } },
+            VerticalOptions = LayoutOptions.FillAndExpand
+        };
+        splitGrid.Add(teamPanel, 0, 0);
+        splitGrid.Add(playerPanel, 1, 0);
+
+        // Action buttons
+        var tcs = new TaskCompletionSource<List<Guid>?>();
+
+        var doneBtn = new Button
+        {
+            Text = "Add Selected",
+            BackgroundColor = Color.FromArgb("#10B981"),
+            TextColor = Colors.White,
+            Padding = new Thickness(12, 6),
+            FontSize = 14
+        };
+        doneBtn.Clicked += (s, e) =>
+        {
+            var selected = allItems.Where(i => i.IsSelected).Select(i => i.Id).ToList();
+            tcs.TrySetResult(selected);
+            Navigation.PopModalAsync();
+        };
+
+        var cancelBtn = new Button
+        {
+            Text = "Cancel",
+            BackgroundColor = Color.FromArgb("#EF4444"),
+            TextColor = Colors.White,
+            Padding = new Thickness(12, 6),
+            FontSize = 14
+        };
+        cancelBtn.Clicked += (s, e) =>
+        {
+            tcs.TrySetResult(null);
+            Navigation.PopModalAsync();
+        };
+
+        var bottomBar = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            HorizontalOptions = LayoutOptions.Center,
+            Children = { doneBtn, cancelBtn }
+        };
+
+        var rootGrid = new Grid
+        {
+            Padding = 12,
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Star },
+                new RowDefinition { Height = GridLength.Auto }
+            },
+            RowSpacing = 8
+        };
+        rootGrid.Add(splitGrid, 0, 0);
+        rootGrid.Add(bottomBar, 0, 1);
+
+        var page = new ContentPage
+        {
+            Title = "Select Players",
+            Content = rootGrid
+        };
+
+        await Navigation.PushModalAsync(new NavigationPage(page));
+
+        var selectedIds = await tcs.Task;
         if (selectedIds != null && selectedIds.Count != 0)
         {
             await _editorViewModel!.AddParticipantIdsCommand.ExecuteAsync(selectedIds);
             SetStatus(_editorViewModel.StatusMessage);
+        }
+    }
+
+    private static void RebuildTeamList(
+        VerticalStackLayout layout,
+        List<(Guid? id, string name)> teamEntries,
+        List<SelectionItem<Guid>> allItems,
+        Guid? activeTeamId,
+        Action<Guid?> onTeamTapped,
+        Action updateCount)
+    {
+        layout.Children.Clear();
+
+        layout.Children.Add(new Label
+        {
+            Text = "Teams",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Padding = new Thickness(10, 8, 10, 4)
+        });
+
+        foreach (var (teamId, teamName) in teamEntries)
+        {
+            bool isActive = teamId == activeTeamId;
+
+            // Count: total available in this team + how many are selected
+            int total, selected;
+            if (teamId == null)
+            {
+                total = allItems.Count;
+                selected = allItems.Count(i => i.IsSelected);
+            }
+            else if (teamId == Guid.Empty)
+            {
+                total = allItems.Count(i => i.Tag == null);
+                selected = allItems.Count(i => i.Tag == null && i.IsSelected);
+            }
+            else
+            {
+                total = allItems.Count(i => i.Tag is Guid t && t == teamId);
+                selected = allItems.Count(i => i.Tag is Guid t && t == teamId && i.IsSelected);
+            }
+
+            var teamBtn = new Border
+            {
+                Padding = new Thickness(10, 8),
+                BackgroundColor = isActive ? Color.FromArgb("#DBEAFE") : Colors.Transparent,
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new Label
+                        {
+                            Text = teamName,
+                            FontSize = 13,
+                            FontAttributes = isActive ? FontAttributes.Bold : FontAttributes.None,
+                            TextColor = isActive ? Color.FromArgb("#1D4ED8") : Colors.Black,
+                            LineBreakMode = LineBreakMode.TailTruncation
+                        },
+                        new Label
+                        {
+                            Text = selected > 0 ? $"{selected}/{total} selected" : $"{total} players",
+                            FontSize = 10,
+                            TextColor = selected > 0 ? Color.FromArgb("#059669") : Colors.Gray
+                        }
+                    }
+                }
+            };
+
+            var tid = teamId; // capture
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => onTeamTapped(tid);
+            teamBtn.GestureRecognizers.Add(tap);
+
+            layout.Children.Add(teamBtn);
+
+            // Add "Select all team" shortcut
+            if (teamId != null)
+            {
+                var selectTeamBtn = new Label
+                {
+                    Text = "  ＋ select all",
+                    FontSize = 10,
+                    TextColor = Color.FromArgb("#3B82F6"),
+                    Padding = new Thickness(10, 0, 10, 4)
+                };
+                var stap = new TapGestureRecognizer();
+                var capturedId = teamId;
+                stap.Tapped += (_, _) =>
+                {
+                    IEnumerable<SelectionItem<Guid>> teamPlayers;
+                    if (capturedId == Guid.Empty)
+                        teamPlayers = allItems.Where(i => i.Tag == null);
+                    else
+                        teamPlayers = allItems.Where(i => i.Tag is Guid t && t == capturedId);
+                    foreach (var p in teamPlayers) p.IsSelected = true;
+                    updateCount();
+                    onTeamTapped(capturedId); // refresh
+                };
+                selectTeamBtn.GestureRecognizers.Add(stap);
+                layout.Children.Add(selectTeamBtn);
+            }
         }
     }
 
@@ -417,7 +752,10 @@ public partial class CompetitionsPage
 
         public T Id { get; set; } = default!;
         public string Name { get; set; } = "";
-        
+
+        /// <summary>Optional tag for grouping/filtering (e.g. team ID).</summary>
+        public object? Tag { get; set; }
+
         public bool IsSelected
         {
             get => _isSelected;

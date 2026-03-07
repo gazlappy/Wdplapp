@@ -200,6 +200,17 @@ public class LeagueContext : DbContext
                     c => c.Aggregate(0, (h, v) => HashCode.Combine(h, v.GetHashCode())),
                     c => c.ToList()
                 ));
+
+            entity.Property(e => e.NoShowIds)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<Guid>()
+                )
+                .Metadata.SetValueComparer(new ValueComparer<List<Guid>>(
+                    (a, b) => a != null && b != null && a.SequenceEqual(b),
+                    c => c.Aggregate(0, (h, v) => HashCode.Combine(h, v.GetHashCode())),
+                    c => c.ToList()
+                ));
             
             entity.OwnsMany(e => e.DoublesTeams, teams =>
             {
@@ -213,6 +224,13 @@ public class LeagueContext : DbContext
             });
             
             entity.OwnsMany(e => e.Groups, groups =>
+            {
+                groups.ToJson();
+                groups.OwnsMany(g => g.Matches);
+                groups.OwnsMany(g => g.Standings);
+            });
+
+            entity.OwnsMany(e => e.PreviousGroups, groups =>
             {
                 groups.ToJson();
                 groups.OwnsMany(g => g.Matches);
@@ -293,6 +311,72 @@ public class LeagueContext : DbContext
                 using var alter2 = conn.CreateCommand();
                 alter2.CommandText = "ALTER TABLE Competitions ADD COLUMN RandomDraw INTEGER NOT NULL DEFAULT 1";
                 await alter2.ExecuteNonQueryAsync();
+            }
+
+            // Check if ParentCompetitionId column exists on Competitions table
+            bool hasParentCompId = false;
+            using (var cmd3 = conn.CreateCommand())
+            {
+                cmd3.CommandText = "PRAGMA table_info(Competitions)";
+                using var reader3 = await cmd3.ExecuteReaderAsync();
+                while (await reader3.ReadAsync())
+                {
+                    if (reader3.GetString(1).Equals("ParentCompetitionId", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasParentCompId = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasParentCompId)
+            {
+                using var alter3 = conn.CreateCommand();
+                alter3.CommandText = "ALTER TABLE Competitions ADD COLUMN ParentCompetitionId TEXT";
+                await alter3.ExecuteNonQueryAsync();
+            }
+
+            // Check if PreviousGroups JSON column exists on Competitions table
+            bool hasPreviousGroups = false;
+            using (var cmd4 = conn.CreateCommand())
+            {
+                cmd4.CommandText = "PRAGMA table_info(Competitions)";
+                using var reader4 = await cmd4.ExecuteReaderAsync();
+                while (await reader4.ReadAsync())
+                {
+                    if (reader4.GetString(1).Equals("PreviousGroups", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasPreviousGroups = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasPreviousGroups)
+            {
+                using var alter4 = conn.CreateCommand();
+                alter4.CommandText = "ALTER TABLE Competitions ADD COLUMN PreviousGroups TEXT DEFAULT '[]'";
+                await alter4.ExecuteNonQueryAsync();
+            }
+
+            // Check if NoShowIds column exists on Competitions table
+            bool hasNoShowIds = false;
+            using (var cmd5 = conn.CreateCommand())
+            {
+                cmd5.CommandText = "PRAGMA table_info(Competitions)";
+                using var reader5 = await cmd5.ExecuteReaderAsync();
+                while (await reader5.ReadAsync())
+                {
+                    if (reader5.GetString(1).Equals("NoShowIds", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasNoShowIds = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasNoShowIds)
+            {
+                using var alter5 = conn.CreateCommand();
+                alter5.CommandText = "ALTER TABLE Competitions ADD COLUMN NoShowIds TEXT DEFAULT '[]'";
+                await alter5.ExecuteNonQueryAsync();
             }
 
             // Remove the SeasonId FK constraint from Competitions.

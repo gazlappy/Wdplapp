@@ -1142,8 +1142,20 @@ nav a:hover, nav a.active {
 .status-active { background: #DBEAFE; color: #1E40AF; }
 .status-draft { background: #F3F4F6; color: #4B5563; }
 .competition-rounds, .competition-groups, .comp-groups, .comp-results { margin-top: 1rem; }
+.comp-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.group-round-title { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; padding-bottom: 4px; border-bottom: 2px solid var(--primary); display: inline-block; }
 .round-section, .group-section { margin-bottom: 1.5rem; }
 .round-section h4, .group-section h4 { font-size: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 4px; display: inline-block; }
+.group-count { font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); }
+.group-players { display: flex; flex-direction: column; gap: 4px; }
+.group-player { padding: 6px 10px; border-radius: 6px; background: #F9FAFB; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+.group-player.gp-winner { background: #D1FAE5; font-weight: 700; color: #065F46; }
+.group-player.gp-loser { background: #FEE2E2; color: #991B1B; }
+.group-player.gp-noshow { background: #FEE2E2; color: #991B1B; text-decoration: line-through; opacity: 0.7; }
+.gp-badge { font-size: 0.75rem; font-weight: 600; }
+.gp-badge-w { color: #059669; }
+.gp-badge-l { color: #DC2626; }
+.gp-badge-ns { color: #DC2626; font-style: italic; }
 .match-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; background: #F9FAFB; }
 .match-row.match-complete { background: #F0FDF4; }
 .match-player { font-size: 0.9rem; }

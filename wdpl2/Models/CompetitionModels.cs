@@ -126,6 +126,9 @@ namespace Wdpl2.Models
         /// <summary>Groups for group stage competitions</summary>
         public List<CompetitionGroup> Groups { get; set; } = new();
 
+        /// <summary>Archived groups from previous group rounds (round 1, round 2, etc.)</summary>
+        public List<CompetitionGroup> PreviousGroups { get; set; } = new();
+
         /// <summary>Best-of frame count for matches (e.g. 15 means first to 8 wins). 0 = unlimited.</summary>
         public int BestOf { get; set; }
 
@@ -137,6 +140,12 @@ namespace Wdpl2.Models
 
         /// <summary>Linked plate competition ID (for group stage lower-ranked players)</summary>
         public Guid? PlateCompetitionId { get; set; }
+
+        /// <summary>If this competition is a plate/losers cup, the ID of the parent competition that created it.</summary>
+        public Guid? ParentCompetitionId { get; set; }
+
+        /// <summary>Participant IDs marked as no-shows. These players are excluded from the plate competition.</summary>
+        public List<Guid> NoShowIds { get; set; } = new();
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -159,8 +168,11 @@ namespace Wdpl2.Models
         /// <summary>Number of top players from each group advancing to knockout</summary>
         public int TopPlayersAdvance { get; set; } = 2;
 
-        /// <summary>Number of lower players from each group going to plate competition</summary>
+        /// <summary>Number of lower players from each group going to plate competition (ignored when AllLosersToPlate is true)</summary>
         public int LowerPlayersToPlate { get; set; } = 2;
+
+        /// <summary>When true, all non-winners go into the plate instead of a fixed count per group.</summary>
+        public bool AllLosersToPlate { get; set; } = true;
 
         /// <summary>Whether to create a plate competition automatically</summary>
         public bool CreatePlateCompetition { get; set; } = true;
@@ -190,7 +202,10 @@ namespace Wdpl2.Models
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "";
         public int GroupNumber { get; set; }
-        
+
+        /// <summary>Which round of groups this belongs to (1 = first round, 2 = second, etc.)</summary>
+        public int GroupRound { get; set; } = 1;
+
         /// <summary>Participants in this group</summary>
         public List<Guid> ParticipantIds { get; set; } = new();
         
@@ -292,7 +307,7 @@ namespace Wdpl2.Models
             string competitionName,
             bool randomize = true)
         {
-            if (participants == null || participants.Count < settings.NumberOfGroups * 2)
+            if (participants == null || participants.Count < 2)
                 return (new List<CompetitionGroup>(), null);
 
             // Randomize if requested
@@ -329,20 +344,7 @@ namespace Wdpl2.Models
                 groups.Add(group);
             }
 
-            // Create plate competition if requested
-            Competition? plateCompetition = null;
-            if (settings.CreatePlateCompetition && settings.LowerPlayersToPlate > 0)
-            {
-                plateCompetition = new Competition
-                {
-                    Name = $"{competitionName} {settings.PlateNameSuffix}",
-                    Format = format,
-                    Status = CompetitionStatus.Draft,
-                    SeasonId = seasonId
-                };
-            }
-
-            return (groups, plateCompetition);
+            return (groups, null);
         }
 
         /// <summary>

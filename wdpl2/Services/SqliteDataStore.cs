@@ -53,6 +53,7 @@ public class SqliteDataStore : IDataStore
             tracked.Notes = competition.Notes;
             tracked.SeasonId = competition.SeasonId;
             tracked.PlateCompetitionId = competition.PlateCompetitionId;
+            tracked.ParentCompetitionId = competition.ParentCompetitionId;
             tracked.BestOf = competition.BestOf;
             tracked.RandomDraw = competition.RandomDraw;
 
@@ -62,7 +63,9 @@ public class SqliteDataStore : IDataStore
             tracked.DoublesTeams = competition.DoublesTeams.ToList();
             tracked.Rounds = competition.Rounds.ToList();
             tracked.Groups = competition.Groups.ToList();
+            tracked.PreviousGroups = competition.PreviousGroups.ToList();
             tracked.GroupSettings = competition.GroupSettings;
+            tracked.NoShowIds = competition.NoShowIds.ToList();
 
             await _context.SaveChangesAsync();
         }

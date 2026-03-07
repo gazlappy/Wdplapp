@@ -445,7 +445,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             return;
         }
 
-        if (_competition.GroupSettings.NumberOfGroups < 2)
+        if (_competition.GroupSettings.NumberOfGroups < 1)
         {
             StatusMessage = "Choose the number of groups first";
             return;
@@ -457,13 +457,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 ? _competition.DoublesTeams.Select(t => t.Id).ToList()
                 : _competition.ParticipantIds;
 
-            if (participants.Count < _competition.GroupSettings.NumberOfGroups * 2)
+            if (participants.Count < Math.Max(2, _competition.GroupSettings.NumberOfGroups * 2))
             {
-                StatusMessage = $"Need at least {_competition.GroupSettings.NumberOfGroups * 2} participants";
+                StatusMessage = $"Need at least {Math.Max(2, _competition.GroupSettings.NumberOfGroups * 2)} participants";
                 return;
             }
 
-            var (groups, plateCompetition) = CompetitionGenerator.GenerateGroupStage(
+            var (groups, _) = CompetitionGenerator.GenerateGroupStage(
                 participants,
                 _competition.GroupSettings,
                 _competition.Format,
@@ -474,22 +474,139 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             _competition.Groups = groups;
 
-            if (plateCompetition != null)
-            {
-                await _competitionStore.AddCompetitionAsync(plateCompetition);
-                _competition.PlateCompetitionId = plateCompetition.Id;
-            }
-
             _competition.Status = CompetitionStatus.InProgress;
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
 
             HasGroups = _competition.Groups.Count > 0;
-            StatusMessage = $"Generated {groups.Count} groups with {groups.Sum(g => g.Matches.Count)} total matches";
+            StatusMessage = $"Generated {groups.Count} groups";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error generating groups: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Re-shuffle all participants across the existing groups randomly.
+    /// Clears any previous winner selections.
+    /// </summary>
+    public async Task RandomiseGroupsAsync()
+    {
+        if (_competition.Groups.Count == 0 || _competition.GroupSettings == null)
+        {
+            StatusMessage = "No groups to randomise";
+            return;
+        }
+
+        try
+        {
+            // Collect all participant IDs from every group
+            var allParticipants = _competition.Groups
+                .SelectMany(g => g.ParticipantIds)
+                .OrderBy(_ => Random.Shared.Next())
+                .ToList();
+
+            int numberOfGroups = _competition.Groups.Count;
+            int perGroup = allParticipants.Count / numberOfGroups;
+            int remainder = allParticipants.Count % numberOfGroups;
+            int idx = 0;
+
+            for (int i = 0; i < numberOfGroups; i++)
+            {
+                int size = perGroup + (i < remainder ? 1 : 0);
+                _competition.Groups[i].ParticipantIds = allParticipants.GetRange(idx, size);
+                _competition.Groups[i].Standings.Clear();
+                _competition.Groups[i].Matches.Clear();
+                idx += size;
+            }
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+            StatusMessage = "Groups randomised";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error randomising groups: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Archive the current groups, take the selected winners, and create a new round of groups.
+    /// </summary>
+    public async Task AdvanceToNextGroupRoundAsync(int newGroupCount, int advancePerGroup)
+    {
+        if (_competition.GroupSettings == null || _competition.Groups.Count == 0)
+        {
+            StatusMessage = "No groups to advance from";
+            return;
+        }
+
+        try
+        {
+            int topAdvance = _competition.GroupSettings.TopPlayersAdvance;
+
+            // Collect winners from the current groups
+            var winners = new List<Guid>();
+            foreach (var group in _competition.Groups)
+            {
+                var groupWinners = group.Standings
+                    .Where(s => s.Position > 0 && s.Position <= topAdvance)
+                    .OrderBy(s => s.Position)
+                    .Select(s => s.ParticipantId)
+                    .ToList();
+                winners.AddRange(groupWinners);
+            }
+
+            if (winners.Count < newGroupCount * 2)
+            {
+                StatusMessage = $"Not enough winners ({winners.Count}) for {newGroupCount} groups";
+                return;
+            }
+
+            // Work out the next group round number
+            int currentRound = _competition.Groups.Max(g => g.GroupRound);
+            int nextRound = currentRound + 1;
+
+            // Archive current groups into PreviousGroups
+            _competition.PreviousGroups.AddRange(_competition.Groups);
+
+            // Randomise winners
+            var shuffled = winners.OrderBy(_ => Random.Shared.Next()).ToList();
+
+            // Create new groups
+            var newGroups = new List<CompetitionGroup>();
+            int perGroup = shuffled.Count / newGroupCount;
+            int remainder = shuffled.Count % newGroupCount;
+            int idx = 0;
+
+            for (int i = 0; i < newGroupCount; i++)
+            {
+                int size = perGroup + (i < remainder ? 1 : 0);
+                var group = new CompetitionGroup
+                {
+                    Name = $"Group {(char)('A' + i)} (R{nextRound})",
+                    GroupNumber = i + 1,
+                    GroupRound = nextRound,
+                    ParticipantIds = shuffled.GetRange(idx, size)
+                };
+                newGroups.Add(group);
+                idx += size;
+            }
+
+            _competition.Groups = newGroups;
+            _competition.GroupSettings.NumberOfGroups = newGroupCount;
+            _competition.GroupSettings.TopPlayersAdvance = advancePerGroup;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            HasGroups = true;
+            StatusMessage = $"Round {nextRound}: {newGroups.Count} groups created with {winners.Count} players";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating next group round: {ex.Message}";
         }
     }
 
@@ -508,12 +625,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             // Collect winners from the manually-set standings (Position 1..topAdvance)
             var knockoutParticipants = new List<Guid>();
-            var plateParticipants = new List<Guid>();
-            int lowerToPlate = _competition.GroupSettings.LowerPlayersToPlate;
 
             foreach (var group in _competition.Groups)
             {
-                // Winners: standings with Position 1..topAdvance
                 var winners = group.Standings
                     .Where(s => s.Position > 0 && s.Position <= topAdvance)
                     .OrderBy(s => s.Position)
@@ -521,16 +635,6 @@ public partial class CompetitionEditorViewModel : ObservableObject
                     .ToList();
 
                 knockoutParticipants.AddRange(winners);
-
-                // Plate: everyone else from the group (not selected as winners)
-                if (lowerToPlate > 0)
-                {
-                    var losers = group.ParticipantIds
-                        .Where(p => !winners.Contains(p))
-                        .Take(lowerToPlate)
-                        .ToList();
-                    plateParticipants.AddRange(losers);
-                }
             }
 
             if (knockoutParticipants.Count < 2)
@@ -544,67 +648,12 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 randomize: _competition.RandomDraw
             );
 
-            // Handle plate competition for group-stage losers
-            if (plateParticipants.Count >= 2 && _competition.GroupSettings.CreatePlateCompetition)
-            {
-                Competition? plateComp = null;
-
-                // Try to find existing plate comp
-                if (_competition.PlateCompetitionId.HasValue)
-                {
-                    var plateComps = await _competitionStore.GetCompetitionsAsync(_competition.SeasonId);
-                    plateComp = plateComps
-                        .FirstOrDefault(c => c.Id == _competition.PlateCompetitionId.Value);
-                }
-
-                // Create plate comp if it doesn't exist yet
-                if (plateComp == null)
-                {
-                    var plateSuffix = _competition.GroupSettings.PlateNameSuffix ?? "Plate";
-                    plateComp = new Competition
-                    {
-                        Name = $"{_competition.Name} {plateSuffix}",
-                        Format = _competition.Format == CompetitionFormat.DoublesGroupStage
-                            ? CompetitionFormat.DoublesKnockout
-                            : CompetitionFormat.SinglesKnockout,
-                        Status = CompetitionStatus.InProgress,
-                        SeasonId = _competition.SeasonId,
-                        StartDate = _competition.StartDate,
-                        CreatedDate = DateTime.Now,
-                        BestOf = _competition.BestOf,
-                        RandomDraw = _competition.RandomDraw
-                    };
-                    await _competitionStore.AddCompetitionAsync(plateComp);
-                    _competition.PlateCompetitionId = plateComp.Id;
-                }
-
-                if (_competition.Format == CompetitionFormat.DoublesGroupStage)
-                {
-                    plateComp.DoublesTeams = _competition.DoublesTeams
-                        .Where(t => plateParticipants.Contains(t.Id))
-                        .ToList();
-                }
-                else
-                {
-                    plateComp.ParticipantIds = plateParticipants;
-                }
-
-                plateComp.Rounds = CompetitionGenerator.GenerateSingleKnockout(
-                    plateParticipants,
-                    randomize: _competition.RandomDraw
-                );
-                plateComp.Status = CompetitionStatus.InProgress;
-
-                await _competitionStore.UpdateCompetitionAsync(plateComp);
-            }
-
             _competition.Status = CompetitionStatus.InProgress;
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
 
             HasRounds = _competition.Rounds.Count > 0;
-            StatusMessage = $"Knockout created! {knockoutParticipants.Count} in main draw" +
-                           (plateParticipants.Count > 0 ? $", {plateParticipants.Count} in plate" : "");
+            StatusMessage = $"Knockout created with {knockoutParticipants.Count} players";
         }
         catch (Exception ex)
         {
@@ -634,6 +683,123 @@ public partial class CompetitionEditorViewModel : ObservableObject
         await _competitionStore.SaveAsync();
         await LoadParticipantsAsync();
         StatusMessage = $"Added doubles team: {team.TeamName}";
+    }
+
+    /// <summary>
+    /// Toggle a participant's no-show status. No-shows are excluded from the plate.
+    /// </summary>
+    public async Task ToggleNoShowAsync(Guid participantId)
+    {
+        if (_competition.NoShowIds.Contains(participantId))
+            _competition.NoShowIds.Remove(participantId);
+        else
+            _competition.NoShowIds.Add(participantId);
+
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+
+        var name = GetParticipantName(participantId) ?? "Player";
+        bool isNoShow = _competition.NoShowIds.Contains(participantId);
+        StatusMessage = isNoShow ? $"{name} marked as No Show" : $"{name} unmarked as No Show";
+    }
+
+    /// <summary>
+    /// Check if a participant is marked as a no-show.
+    /// </summary>
+    public bool IsNoShow(Guid participantId) => _competition.NoShowIds.Contains(participantId);
+
+    /// <summary>
+    /// Manually create a plate competition from the group stage losers.
+    /// Collects all non-winners from every group round (current + previous).
+    /// </summary>
+    public async Task CreatePlateFromGroupsAsync()
+    {
+        if (_competition.PlateCompetitionId.HasValue)
+        {
+            StatusMessage = "A plate competition already exists for this competition";
+            return;
+        }
+
+        if (_competition.ParentCompetitionId.HasValue)
+        {
+            StatusMessage = "This is already a plate — cannot create a sub-plate";
+            return;
+        }
+
+        try
+        {
+            // Collect all winners across all group rounds (current + previous)
+            var allWinnerIds = new HashSet<Guid>();
+
+            foreach (var group in _competition.Groups.Concat(_competition.PreviousGroups))
+            {
+                foreach (var standing in group.Standings.Where(s => s.Position > 0))
+                    allWinnerIds.Add(standing.ParticipantId);
+            }
+
+            // All participants from the initial round who are NOT winners
+            // Use the full participant list from the competition
+            List<Guid> allParticipantIds;
+            if (_competition.Format == CompetitionFormat.DoublesGroupStage)
+                allParticipantIds = _competition.DoublesTeams.Select(t => t.Id).ToList();
+            else
+                allParticipantIds = _competition.ParticipantIds;
+
+            var plateParticipants = allParticipantIds
+                .Where(p => !allWinnerIds.Contains(p) && !_competition.NoShowIds.Contains(p))
+                .ToList();
+
+            if (plateParticipants.Count < 2)
+            {
+                StatusMessage = $"Not enough losers for a plate ({plateParticipants.Count} found, need at least 2)";
+                return;
+            }
+
+            var plateSuffix = _competition.GroupSettings?.PlateNameSuffix ?? "Plate";
+            var plateComp = new Competition
+            {
+                Name = $"{_competition.Name} {plateSuffix}",
+                Format = _competition.Format,
+                Status = CompetitionStatus.Draft,
+                SeasonId = _competition.SeasonId,
+                StartDate = _competition.StartDate,
+                CreatedDate = DateTime.Now,
+                BestOf = _competition.BestOf,
+                RandomDraw = _competition.RandomDraw,
+                ParentCompetitionId = _competition.Id,
+                GroupSettings = new GroupStageSettings
+                {
+                    NumberOfGroups = 0,
+                    TopPlayersAdvance = _competition.GroupSettings?.TopPlayersAdvance ?? 2,
+                    LowerPlayersToPlate = 0,
+                    AllLosersToPlate = false,
+                    CreatePlateCompetition = false,
+                    PlateNameSuffix = "Plate"
+                }
+            };
+
+            if (_competition.Format == CompetitionFormat.DoublesGroupStage)
+            {
+                plateComp.DoublesTeams = _competition.DoublesTeams
+                    .Where(t => plateParticipants.Contains(t.Id))
+                    .ToList();
+            }
+            else
+            {
+                plateComp.ParticipantIds = plateParticipants;
+            }
+
+            await _competitionStore.AddCompetitionAsync(plateComp);
+            _competition.PlateCompetitionId = plateComp.Id;
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            StatusMessage = $"Plate created with {plateParticipants.Count} players: \"{plateComp.Name}\"";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating plate: {ex.Message}";
+        }
     }
 
     public string? GetParticipantName(Guid? participantId)
@@ -788,6 +954,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 return;
             }
 
+            // Don't allow plates to create their own sub-plates
+            if (_competition.ParentCompetitionId.HasValue)
+            {
+                StatusMessage = "This competition is already a plate/losers cup — cannot create a sub-plate";
+                return;
+            }
+
             // Collect losers from completed first-round matches
             var loserIds = new List<Guid>();
             foreach (var match in firstRound.Matches)
@@ -819,7 +992,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 CreatedDate = DateTime.Now,
                 BestOf = _competition.BestOf,
                 RandomDraw = _competition.RandomDraw,
-                Notes = $"Losers Cup for {_competition.Name}"
+                Notes = $"Losers Cup for {_competition.Name}",
+                ParentCompetitionId = _competition.Id
             };
 
             // Add participants based on format

@@ -30,6 +30,7 @@ public class CompetitionWizardPage : ContentPage
     private int _numberOfGroups = 4;
     private int _topAdvance = 2;
     private int _lowerToPlate = 2;
+    private bool _allLosersToPlate = true;
     private bool _createPlate = true;
     private string _plateSuffix = "Plate";
     private bool _randomDraw = true;
@@ -309,13 +310,46 @@ public class CompetitionWizardPage : ContentPage
             topEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _topAdvance = v; };
             _contentArea.Children.Add(CreateField("Top Players Advance", topEntry));
 
-            var plateEntry = new Entry { Text = _lowerToPlate.ToString(), Keyboard = Keyboard.Numeric };
-            plateEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 0) _lowerToPlate = v; };
-            _contentArea.Children.Add(CreateField("Lower to Plate", plateEntry));
-
             var plateSwitch = new Switch { IsToggled = _createPlate };
-            plateSwitch.Toggled += (_, e) => _createPlate = e.Value;
+            var plateLosersLayout = new VerticalStackLayout { Spacing = 4, IsVisible = _createPlate };
+
+            plateSwitch.Toggled += (_, e) =>
+            {
+                _createPlate = e.Value;
+                plateLosersLayout.IsVisible = e.Value;
+            };
             _contentArea.Children.Add(CreateField("Create Plate Competition", plateSwitch));
+
+            // Plate losers options (only visible when plate is enabled)
+            var allLosersSwitch = new Switch { IsToggled = _allLosersToPlate };
+
+            var plateCountEntry = new Entry
+            {
+                Text = _lowerToPlate.ToString(),
+                Keyboard = Keyboard.Numeric,
+                IsEnabled = !_allLosersToPlate
+            };
+            plateCountEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _lowerToPlate = v; };
+
+            allLosersSwitch.Toggled += (_, e) =>
+            {
+                _allLosersToPlate = e.Value;
+                plateCountEntry.IsEnabled = !e.Value;
+            };
+
+            plateLosersLayout.Children.Add(CreateField("All Losers to Plate", allLosersSwitch));
+            plateLosersLayout.Children.Add(new Label
+            {
+                Text = _allLosersToPlate
+                    ? "Everyone who doesn't advance goes into the plate"
+                    : "Only a fixed number of losers per group go to the plate",
+                FontSize = 11,
+                TextColor = Colors.Gray,
+                FontAttributes = FontAttributes.Italic
+            });
+            plateLosersLayout.Children.Add(CreateField("Losers Per Group (if not all)", plateCountEntry));
+
+            _contentArea.Children.Add(plateLosersLayout);
         }
     }
 
@@ -371,8 +405,11 @@ public class CompetitionWizardPage : ContentPage
         {
             layout.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = Color.FromArgb("#E5E7EB"), Margin = new Thickness(0, 4) });
             layout.Children.Add(ReviewRow("Top Advance", _topAdvance.ToString()));
-            layout.Children.Add(ReviewRow("Plate Players", _lowerToPlate.ToString()));
             layout.Children.Add(ReviewRow("Plate Competition", _createPlate ? "Yes" : "No"));
+            if (_createPlate)
+            {
+                layout.Children.Add(ReviewRow("Plate Mode", _allLosersToPlate ? "All losers" : $"{_lowerToPlate} per group"));
+            }
         }
 
         _contentArea.Children.Add(summary);
@@ -469,6 +506,7 @@ public class CompetitionWizardPage : ContentPage
                 NumberOfGroups = 0,
                 TopPlayersAdvance = _topAdvance,
                 LowerPlayersToPlate = _lowerToPlate,
+                AllLosersToPlate = _allLosersToPlate,
                 CreatePlateCompetition = _createPlate,
                 PlateNameSuffix = _plateSuffix
             };

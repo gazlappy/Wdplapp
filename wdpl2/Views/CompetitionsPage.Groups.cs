@@ -27,7 +27,26 @@ public partial class CompetitionsPage
 
     private void ShowGroupsView()
     {
-        if (_selectedCompetition == null || _selectedCompetition.Groups.Count == 0) return;
+        ShowGroupsView(_selectedCompetition?.Groups, editable: true);
+    }
+
+    private void ShowPreviousGroupRound(int roundNumber)
+    {
+        if (_selectedCompetition == null) return;
+
+        var roundGroups = _selectedCompetition.PreviousGroups
+            .Where(g => g.GroupRound == roundNumber)
+            .OrderBy(g => g.GroupNumber)
+            .ToList();
+
+        if (roundGroups.Count == 0) return;
+
+        ShowGroupsView(roundGroups, editable: false, roundLabel: $" — Round {roundNumber}");
+    }
+
+    private void ShowGroupsView(List<CompetitionGroup>? groups, bool editable, string roundLabel = "")
+    {
+        if (_selectedCompetition == null || groups == null || groups.Count == 0) return;
 
         var settings = _selectedCompetition.GroupSettings ?? new GroupStageSettings();
         int topAdvance = settings.TopPlayersAdvance;
@@ -56,7 +75,9 @@ public partial class CompetitionsPage
 
         var titleLabel = new Label
         {
-            Text = $"{_selectedCompetition.Name} — Select Winners",
+            Text = editable
+                ? $"{_selectedCompetition.Name}{roundLabel} — Select Winners"
+                : $"{_selectedCompetition.Name}{roundLabel} — Results",
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             VerticalTextAlignment = TextAlignment.Center,
@@ -67,9 +88,21 @@ public partial class CompetitionsPage
         headerGrid.Add(titleLabel, 1, 0);
         mainLayout.Children.Add(headerGrid);
 
+        // For previous rounds, determine the topAdvance that was used for that round
+        // by counting the max selected per group in the standings
+        int effectiveTopAdvance = topAdvance;
+        if (!editable && groups.Count > 0)
+        {
+            int maxSelected = groups.Max(g => g.Standings.Count(s => s.Position > 0));
+            if (maxSelected > 0)
+                effectiveTopAdvance = maxSelected;
+        }
+
         mainLayout.Children.Add(new Label
         {
-            Text = $"Tap the top {topAdvance} player(s) in each group who got through. Selected players advance to the knockout stage.",
+            Text = editable
+                ? $"Tap the top {effectiveTopAdvance} player(s) in each group who got through."
+                : $"Top {effectiveTopAdvance} from each group advanced.",
             FontSize = 12,
             TextColor = Colors.Gray,
             Margin = new Thickness(0, 0, 0, 4)
@@ -78,9 +111,9 @@ public partial class CompetitionsPage
         // Build each group as a selection list
         var groupsLayout = new VerticalStackLayout { Spacing = 12 };
 
-        foreach (var group in _selectedCompetition.Groups)
+        foreach (var group in groups)
         {
-            groupsLayout.Children.Add(CreateGroupSelectionView(group, _selectedCompetition.Format, topAdvance));
+            groupsLayout.Children.Add(CreateGroupSelectionView(group, _selectedCompetition.Format, effectiveTopAdvance, editable));
         }
 
         var scrollView = new ScrollView { Content = groupsLayout };
@@ -89,7 +122,7 @@ public partial class CompetitionsPage
         ContentPanel.Content = mainLayout;
     }
 
-    private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance)
+    private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance, bool editable = true)
     {
         // Track which participants are selected as winners
         var selectedIds = new HashSet<Guid>(
@@ -120,11 +153,14 @@ public partial class CompetitionsPage
         {
             var name = GetParticipantName(participantId, format) ?? "Unknown";
             bool isSelected = selectedIds.Contains(participantId);
+            bool isNoShow = _selectedCompetition != null && _selectedCompetition.NoShowIds.Contains(participantId);
 
             var rowBorder = new Border
             {
                 Padding = new Thickness(12, 8),
-                BackgroundColor = isSelected ? Color.FromArgb("#DBEAFE") : Colors.White,
+                BackgroundColor = isNoShow ? Color.FromArgb("#FEE2E2")
+                    : isSelected ? Color.FromArgb("#DBEAFE")
+                    : Colors.White,
                 Margin = new Thickness(0, 1),
             };
 
@@ -135,13 +171,14 @@ public partial class CompetitionsPage
                     new ColumnDefinition { Width = GridLength.Auto },
                     new ColumnDefinition { Width = GridLength.Star },
                     new ColumnDefinition { Width = GridLength.Auto },
+                    new ColumnDefinition { Width = GridLength.Auto },
                 },
                 ColumnSpacing = 10
             };
 
             var checkLabel = new Label
             {
-                Text = isSelected ? "✅" : "⬜",
+                Text = isNoShow ? "🚫" : isSelected ? "✅" : "⬜",
                 FontSize = 18,
                 VerticalTextAlignment = TextAlignment.Center
             };
@@ -152,14 +189,17 @@ public partial class CompetitionsPage
                 FontSize = 14,
                 VerticalTextAlignment = TextAlignment.Center,
                 FontAttributes = isSelected ? FontAttributes.Bold : FontAttributes.None,
-                TextColor = isSelected ? Color.FromArgb("#1D4ED8") : Colors.Black
+                TextColor = isNoShow ? Color.FromArgb("#991B1B")
+                    : isSelected ? Color.FromArgb("#1D4ED8")
+                    : Colors.Black,
+                TextDecorations = isNoShow ? TextDecorations.Strikethrough : TextDecorations.None
             };
 
             var statusLabel = new Label
             {
-                Text = isSelected ? "Through" : "",
+                Text = isNoShow ? "No Show" : isSelected ? "Through" : "",
                 FontSize = 11,
-                TextColor = Color.FromArgb("#059669"),
+                TextColor = isNoShow ? Color.FromArgb("#DC2626") : Color.FromArgb("#059669"),
                 VerticalTextAlignment = TextAlignment.Center,
                 FontAttributes = FontAttributes.Italic
             };
@@ -167,37 +207,77 @@ public partial class CompetitionsPage
             rowGrid.Add(checkLabel, 0, 0);
             rowGrid.Add(nameLabel, 1, 0);
             rowGrid.Add(statusLabel, 2, 0);
+
+            // No Show toggle button (only when editable)
+            if (editable)
+            {
+                var pid = participantId;
+                var noShowBtn = new Button
+                {
+                    Text = isNoShow ? "✓" : "✗",
+                    FontSize = 11,
+                    Padding = new Thickness(6, 2),
+                    MinimumWidthRequest = 32,
+                    HeightRequest = 28,
+                    BackgroundColor = isNoShow ? Color.FromArgb("#6B7280") : Color.FromArgb("#DC2626"),
+                    TextColor = Colors.White,
+                    CornerRadius = 4
+                };
+                noShowBtn.Clicked += async (_, _) =>
+                {
+                    if (_editorViewModel == null) return;
+
+                    if (selectedIds.Contains(pid))
+                    {
+                        selectedIds.Remove(pid);
+                        await SaveGroupSelections(group, selectedIds, topAdvance);
+                    }
+
+                    await _editorViewModel.ToggleNoShowAsync(pid);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    ShowGroupsView();
+                };
+                rowGrid.Add(noShowBtn, 3, 0);
+            }
+
             rowBorder.Content = rowGrid;
 
-            // Capture for closure
-            var pid = participantId;
-            var tap = new TapGestureRecognizer();
-            tap.Tapped += async (_, _) =>
+            // Only allow tapping to toggle selection when editable
+            if (editable)
             {
-                if (selectedIds.Contains(pid))
+                var pid = participantId;
+
+                // Tap = toggle winner selection (skip no-shows)
+                var tap = new TapGestureRecognizer();
+                tap.Tapped += async (_, _) =>
                 {
-                    // Deselect
-                    selectedIds.Remove(pid);
-                }
-                else
-                {
-                    if (selectedIds.Count >= topAdvance)
+                    if (_selectedCompetition != null && _selectedCompetition.NoShowIds.Contains(pid))
                     {
-                        await DisplayAlert("Limit Reached",
-                            $"You can only select {topAdvance} player(s) per group. Deselect someone first.",
-                            "OK");
+                        await DisplayAlert("No Show", "This player is marked as a No Show. Press the ✗ button to remove the mark first.", "OK");
                         return;
                     }
-                    selectedIds.Add(pid);
-                }
 
-                // Save selection to standings
-                await SaveGroupSelections(group, selectedIds, topAdvance);
+                    if (selectedIds.Contains(pid))
+                    {
+                        selectedIds.Remove(pid);
+                    }
+                    else
+                    {
+                        if (selectedIds.Count >= topAdvance)
+                        {
+                            await DisplayAlert("Limit Reached",
+                                $"You can only select {topAdvance} player(s) per group. Deselect someone first.",
+                                "OK");
+                            return;
+                        }
+                        selectedIds.Add(pid);
+                    }
 
-                // Refresh the view
-                ShowGroupsView();
-            };
-            rowBorder.GestureRecognizers.Add(tap);
+                    await SaveGroupSelections(group, selectedIds, topAdvance);
+                    ShowGroupsView();
+                };
+                rowBorder.GestureRecognizers.Add(tap);
+            }
 
             playersLayout.Children.Add(rowBorder);
         }
@@ -264,15 +344,103 @@ public partial class CompetitionsPage
             return;
         }
 
+        int winnerCount = _selectedCompetition.Groups.Count * topAdvance;
+
         var confirm = await DisplayAlert(
-            "Finalize Groups",
-            $"This will create the knockout bracket from the {_selectedCompetition.Groups.Count * topAdvance} selected winners. Continue?",
+            "Create Knockout",
+            $"This will create a knockout bracket from the {winnerCount} selected winners.\n\nContinue?",
             "Yes, Create Knockout",
             "Cancel");
 
         if (!confirm) return;
 
         await _editorViewModel.FinalizeGroupsCommand.ExecuteAsync(null);
+        await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+        SetStatus(_editorViewModel.StatusMessage);
+
+        if (_selectedCompetition != null)
+            ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    private async void OnAdvanceToNextGroupRound()
+    {
+        if (_editorViewModel == null || _selectedCompetition?.GroupSettings == null) return;
+
+        int topAdvance = _selectedCompetition.GroupSettings.TopPlayersAdvance;
+
+        // Check all groups have enough selections
+        var incomplete = _selectedCompetition.Groups
+            .Where(g => g.Standings.Count(s => s.Position > 0 && s.Position <= topAdvance) < topAdvance)
+            .ToList();
+
+        if (incomplete.Count > 0)
+        {
+            var names = string.Join(", ", incomplete.Select(g => g.Name));
+            await DisplayAlert("Incomplete Groups",
+                $"The following groups don't have {topAdvance} winner(s) selected yet:\n{names}\n\nGo to View Groups and select who got through.",
+                "OK");
+            return;
+        }
+
+        int winnerCount = _selectedCompetition.Groups.Count * topAdvance;
+
+        // Ask how many groups for the next round and how many to advance per group
+        var groupOptions = new List<string>();
+        for (int g = 1; g <= Math.Max(1, winnerCount / 2); g++)
+        {
+            int perGroup = winnerCount / g;
+            if (perGroup < 2) break;
+            int rem = winnerCount % g;
+            var label = g == 1
+                ? $"1 group ({winnerCount} players)"
+                : $"{g} groups (~{perGroup}{(rem > 0 ? $"-{perGroup + 1}" : "")} per group)";
+            groupOptions.Add(label);
+        }
+
+        if (groupOptions.Count == 0)
+        {
+            await DisplayAlert("Not Enough", "Not enough winners for another group round.", "OK");
+            return;
+        }
+
+        var choice = await DisplayActionSheet(
+            $"Next Group Round — {winnerCount} winners",
+            "Cancel",
+            null,
+            groupOptions.ToArray());
+
+        if (string.IsNullOrEmpty(choice) || choice == "Cancel") return;
+
+        // Parse the group count from the selection
+        int selectedIndex = groupOptions.IndexOf(choice);
+        int newGroupCount = selectedIndex + 1;
+
+        // Ask how many should advance per group for this round
+        int maxPerGroup = winnerCount / newGroupCount;
+        int maxAdvance = Math.Max(1, maxPerGroup - 1); // at least 1, at most groupSize-1
+
+        if (maxAdvance == 1)
+        {
+            // Only 1 can advance, no need to ask
+            await _editorViewModel.AdvanceToNextGroupRoundAsync(newGroupCount, 1);
+        }
+        else
+        {
+            var advanceOptions = new List<string>();
+            for (int a = 1; a <= maxAdvance; a++)
+                advanceOptions.Add($"Top {a}");
+
+            var advanceChoice = await DisplayActionSheet(
+                $"How many advance per group?",
+                "Cancel",
+                null,
+                advanceOptions.ToArray());
+
+            if (string.IsNullOrEmpty(advanceChoice) || advanceChoice == "Cancel") return;
+
+            int advanceCount = advanceOptions.IndexOf(advanceChoice) + 1;
+            await _editorViewModel.AdvanceToNextGroupRoundAsync(newGroupCount, advanceCount);
+        }
         await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
         SetStatus(_editorViewModel.StatusMessage);
 
