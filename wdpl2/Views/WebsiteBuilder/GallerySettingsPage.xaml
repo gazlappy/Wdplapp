@@ -88,8 +88,10 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Frame Padding="10" Margin="0,0,0,5" BorderColor="#E5E7EB" CornerRadius="6">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                        <Label Grid.Column="0" Text="[IMG]" FontSize="14" VerticalOptions="Center" TextColor="#6B7280"/>
+                                    <Grid ColumnDefinitions="50,*,Auto" ColumnSpacing="10">
+                                        <Image Grid.Column="0" Source="{Binding Thumbnail}" 
+                                               HeightRequest="40" WidthRequest="40" 
+                                               Aspect="AspectFill" VerticalOptions="Center"/>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding FileName}" FontAttributes="Bold" LineBreakMode="TailTruncation"/>
                                             <Label Text="{Binding Dimensions}" FontSize="11" TextColor="#6B7280"/>

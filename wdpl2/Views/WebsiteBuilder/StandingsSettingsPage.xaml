@@ -89,7 +89,11 @@
                         <Entry x:Name="HighlightTopCountEntry" Text="3" Keyboard="Numeric" WidthRequest="80" HorizontalOptions="Start"/>
                         
                         <Label Text="Top highlight color" FontSize="12" TextColor="#6B7280"/>
-                        <Entry x:Name="TopHighlightColorEntry" Text="#22C55E" Placeholder="#22C55E" WidthRequest="150" HorizontalOptions="Start"/>
+                        <Grid ColumnDefinitions="150,40" ColumnSpacing="8" HorizontalOptions="Start">
+                            <Entry x:Name="TopHighlightColorEntry" Text="#22C55E" Placeholder="#22C55E" TextChanged="OnHighlightColorChanged"/>
+                            <BoxView x:Name="TopHighlightSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                     WidthRequest="36" Color="#22C55E" VerticalOptions="Center"/>
+                        </Grid>
                     </VerticalStackLayout>
                     
                     <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,5"/>
@@ -104,7 +108,11 @@
                         <Entry x:Name="HighlightBottomCountEntry" Text="2" Keyboard="Numeric" WidthRequest="80" HorizontalOptions="Start"/>
                         
                         <Label Text="Bottom highlight color" FontSize="12" TextColor="#6B7280"/>
-                        <Entry x:Name="BottomHighlightColorEntry" Text="#EF4444" Placeholder="#EF4444" WidthRequest="150" HorizontalOptions="Start"/>
+                        <Grid ColumnDefinitions="150,40" ColumnSpacing="8" HorizontalOptions="Start">
+                            <Entry x:Name="BottomHighlightColorEntry" Text="#EF4444" Placeholder="#EF4444" TextChanged="OnHighlightColorChanged"/>
+                            <BoxView x:Name="BottomHighlightSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                     WidthRequest="36" Color="#EF4444" VerticalOptions="Center"/>
+                        </Grid>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
             </Frame>

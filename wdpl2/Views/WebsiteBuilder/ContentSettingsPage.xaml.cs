@@ -35,6 +35,11 @@ public partial class ContentSettingsPage : ContentPage
         var layouts = (HomeLayoutPicker.ItemsSource as IList<string>)!;
         var layoutIndex = layouts.IndexOf(settings.HomeLayout);
         if (layoutIndex >= 0) HomeLayoutPicker.SelectedIndex = layoutIndex;
+
+        var styles = (StatsCardStylePicker.ItemsSource as IList<string>)!;
+        var styleIndex = styles.IndexOf(settings.StatsCardStyle);
+        if (styleIndex >= 0) StatsCardStylePicker.SelectedIndex = styleIndex;
+        StatsShowIconsCheck.IsChecked = settings.StatsShowIcons;
         
         HomeShowWelcomeSectionCheck.IsChecked = settings.HomeShowWelcomeSection;
         HomeShowQuickStatsCheck.IsChecked = settings.HomeShowQuickStats;
@@ -87,6 +92,8 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowContactPage = ShowContactPageCheck.IsChecked;
             
             settings.HomeLayout = HomeLayoutPicker.SelectedItem?.ToString() ?? "standard";
+            settings.StatsCardStyle = StatsCardStylePicker.SelectedItem?.ToString() ?? "gradient";
+            settings.StatsShowIcons = StatsShowIconsCheck.IsChecked;
             
             settings.HomeShowWelcomeSection = HomeShowWelcomeSectionCheck.IsChecked;
             settings.HomeShowQuickStats = HomeShowQuickStatsCheck.IsChecked;

@@ -28,7 +28,8 @@ public partial class BrandingSettingsPage : ContentPage
         
         LeagueNameEntry.Text = settings.LeagueName;
         SubtitleEntry.Text = settings.LeagueSubtitle;
-        
+        FaviconUrlEntry.Text = settings.FaviconUrl;
+
         // Load logo position
         var posIndex = GetPositionIndex(settings.LogoPosition);
         if (posIndex >= 0) LogoPositionPicker.SelectedIndex = posIndex;
@@ -258,6 +259,7 @@ public partial class BrandingSettingsPage : ContentPage
             
             settings.LeagueName = LeagueNameEntry.Text?.Trim() ?? "My Pool League";
             settings.LeagueSubtitle = SubtitleEntry.Text?.Trim() ?? "";
+            settings.FaviconUrl = FaviconUrlEntry.Text?.Trim() ?? "";
             settings.LogoPosition = GetPositionValue(LogoPositionPicker.SelectedIndex);
             
             // Parse logo size

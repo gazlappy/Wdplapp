@@ -18,13 +18,18 @@ public partial class SeoSettingsPage : ContentPage
     private void LoadSettings()
     {
         var settings = League.WebsiteSettings;
-        
+
         MetaDescriptionEditor.Text = settings.MetaDescription;
         MetaKeywordsEntry.Text = settings.MetaKeywords;
+        OgImageEntry.Text = settings.OgImage;
         GenerateSitemapCheck.IsChecked = settings.GenerateSitemap;
         CustomCssEditor.Text = settings.CustomCss;
-        
+        CustomHeadHtmlEditor.Text = settings.CustomHeadHtml;
+        CustomBodyStartHtmlEditor.Text = settings.CustomBodyStartHtml;
+        CustomBodyEndHtmlEditor.Text = settings.CustomBodyEndHtml;
+
         UpdateMetaCharCount();
+        UpdateCssStats();
     }
 
     private void OnMetaDescriptionChanged(object? sender, TextChangedEventArgs e)
@@ -45,6 +50,25 @@ public partial class SeoSettingsPage : ContentPage
             MetaCharCount.TextColor = Color.FromArgb("#9CA3AF");
     }
 
+    private void OnCustomCssChanged(object? sender, TextChangedEventArgs e)
+    {
+        UpdateCssStats();
+    }
+
+    private void UpdateCssStats()
+    {
+        var css = CustomCssEditor.Text;
+        if (string.IsNullOrWhiteSpace(css))
+        {
+            CssStatsLabel.Text = "";
+            return;
+        }
+
+        var lines = css.Split('\n').Length;
+        var rules = css.Split('{').Length - 1;
+        CssStatsLabel.Text = $"{lines} line{(lines == 1 ? "" : "s")}, ~{rules} rule{(rules == 1 ? "" : "s")}";
+    }
+
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         try
@@ -53,8 +77,12 @@ public partial class SeoSettingsPage : ContentPage
             
             settings.MetaDescription = MetaDescriptionEditor.Text?.Trim() ?? "";
             settings.MetaKeywords = MetaKeywordsEntry.Text?.Trim() ?? "";
+            settings.OgImage = OgImageEntry.Text?.Trim() ?? "";
             settings.GenerateSitemap = GenerateSitemapCheck.IsChecked;
             settings.CustomCss = CustomCssEditor.Text?.Trim() ?? "";
+            settings.CustomHeadHtml = CustomHeadHtmlEditor.Text?.Trim() ?? "";
+            settings.CustomBodyStartHtml = CustomBodyStartHtmlEditor.Text?.Trim() ?? "";
+            settings.CustomBodyEndHtml = CustomBodyEndHtmlEditor.Text?.Trim() ?? "";
             
             DataStore.Save();
             

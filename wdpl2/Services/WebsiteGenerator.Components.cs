@@ -10,6 +10,14 @@ namespace Wdpl2.Services
     /// </summary>
     public sealed partial class WebsiteGenerator
     {
+        private static readonly HashSet<string> GoogleFonts = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Inter", "Roboto", "Open Sans", "Poppins", "Lato", "Montserrat",
+            "Raleway", "Nunito", "Oswald", "Playfair Display", "Merriweather",
+            "Source Sans Pro", "PT Sans", "Barlow", "Rubik", "Work Sans",
+            "DM Sans", "Manrope", "Outfit", "Space Grotesk", "Plus Jakarta Sans"
+        };
+
         private void AppendDocumentHead(StringBuilder html, string title, Season season)
         {
             html.AppendLine("<!DOCTYPE html>");
@@ -18,33 +26,47 @@ namespace Wdpl2.Services
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             html.AppendLine($"    <title>{title}</title>");
-            
+
             // Meta description
             if (!string.IsNullOrWhiteSpace(_settings.MetaDescription))
                 html.AppendLine($"    <meta name=\"description\" content=\"{_settings.MetaDescription}\">");
             else
                 html.AppendLine($"    <meta name=\"description\" content=\"{_settings.LeagueName} - {_settings.LeagueSubtitle}\">");
-            
+
             // Meta keywords
             if (!string.IsNullOrWhiteSpace(_settings.MetaKeywords))
                 html.AppendLine($"    <meta name=\"keywords\" content=\"{_settings.MetaKeywords}\">");
-            
+
             // Open Graph
             html.AppendLine($"    <meta property=\"og:title\" content=\"{title}\">");
             html.AppendLine($"    <meta property=\"og:site_name\" content=\"{_settings.LeagueName}\">");
             if (!string.IsNullOrWhiteSpace(_settings.OgImage))
                 html.AppendLine($"    <meta property=\"og:image\" content=\"{_settings.OgImage}\">");
-            
+
             // Favicon
             if (!string.IsNullOrWhiteSpace(_settings.FaviconUrl))
                 html.AppendLine($"    <link rel=\"icon\" href=\"{_settings.FaviconUrl}\">");
-            
+
+            // Google Fonts
+            var fontsToLoad = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (GoogleFonts.Contains(_settings.FontFamily))
+                fontsToLoad.Add(_settings.FontFamily);
+            if (GoogleFonts.Contains(_settings.HeaderFontFamily))
+                fontsToLoad.Add(_settings.HeaderFontFamily);
+            if (fontsToLoad.Count > 0)
+            {
+                var families = string.Join("&family=", fontsToLoad.Select(f => f.Replace(" ", "+") + ":wght@400;500;600;700;800"));
+                html.AppendLine("    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">");
+                html.AppendLine("    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>");
+                html.AppendLine($"    <link href=\"https://fonts.googleapis.com/css2?family={families}&display=swap\" rel=\"stylesheet\">");
+            }
+
             html.AppendLine("    <link rel=\"stylesheet\" href=\"style.css\">");
-            
+
             // Custom head HTML
             if (!string.IsNullOrWhiteSpace(_settings.CustomHeadHtml))
                 html.AppendLine(_settings.CustomHeadHtml);
-            
+
             html.AppendLine("</head>");
         }
         
@@ -60,15 +82,16 @@ namespace Wdpl2.Services
             var hasSub = !string.IsNullOrWhiteSpace(_settings.LeagueSubtitle);
             var hasBadge = _settings.ShowSeasonBadge;
             var layout = _settings.HeaderLayout;
-            
-            // Check if any sub-element has a freeform position set
+            var logoPos = _settings.LogoPosition; // above, below, left, right, top-left, top-right, bottom-left, bottom-right, hidden
+
+            // Check if any sub-element has a freeform position set (from drag-drop editor)
             bool freeform = !string.IsNullOrEmpty(_settings.HeaderLogoPos)
                          || !string.IsNullOrEmpty(_settings.HeaderTitlePos)
                          || !string.IsNullOrEmpty(_settings.HeaderSubtitlePos)
                          || !string.IsNullOrEmpty(_settings.HeaderBadgePos);
-            
+
             string logoTag = "";
-            if (hasLogo)
+            if (hasLogo && logoPos != "hidden")
             {
                 var imageOptimizer = new ImageOptimizationService();
                 var mimeType = imageOptimizer.GetMimeType("logo.png");
@@ -76,15 +99,18 @@ namespace Wdpl2.Services
                 var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderLogoPos) : "";
                 logoTag = $"<img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" data-block-id=\"header-logo\" data-block-name=\"Logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;{posStyle}\">";
             }
-            
+
+            // Determine CSS class for logo position (used in default/standard layouts)
+            var logoPosClass = (hasLogo && !freeform && logoPos != "hidden") ? $" header-logo-{logoPos}" : "";
+
             html.AppendLine($"    <header {dataAttrs}>");
-            html.AppendLine($"        <div class=\"header-content{(freeform ? " header-freeform" : "")}\">");
-            
+            html.AppendLine($"        <div class=\"header-content{logoPosClass}{(freeform ? " header-freeform" : "")}\">");
+
             switch (layout)
             {
                 case "split":
                     // Logo left, title group right, badge far right
-                    if (hasLogo) html.AppendLine($"            {logoTag}");
+                    if (hasLogo && logoPos != "hidden") html.AppendLine($"            {logoTag}");
                     html.AppendLine("            <div class=\"header-text-group\">");
                     html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
                     if (hasSub)
@@ -97,7 +123,7 @@ namespace Wdpl2.Services
                 case "two-row":
                     // Row 1: logo + badge, Row 2: title + subtitle
                     html.AppendLine("            <div class=\"header-row\">");
-                    if (hasLogo) html.AppendLine($"                {logoTag}");
+                    if (hasLogo && logoPos != "hidden") html.AppendLine($"                {logoTag}");
                     if (hasBadge)
                         html.AppendLine($"                <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\">{season.Name}</span>");
                     html.AppendLine("            </div>");
@@ -110,7 +136,7 @@ namespace Wdpl2.Services
 
                 case "scoreboard":
                     // Grid: logo | title+subtitle | badge
-                    if (hasLogo) html.AppendLine($"            {logoTag}");
+                    if (hasLogo && logoPos != "hidden") html.AppendLine($"            {logoTag}");
                     else html.AppendLine("            <div></div>");
                     html.AppendLine("            <div style=\"text-align:center;\">");
                     html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
@@ -123,27 +149,86 @@ namespace Wdpl2.Services
                     break;
 
                 default:
-                    // Standard flow: logo, title, subtitle, badge (with optional freeform positioning)
-                    if (hasLogo) html.AppendLine($"            {logoTag}");
-                    {
-                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderTitlePos) : "";
-                        html.AppendLine($"            <h1 data-block-id=\"header-title\" data-block-name=\"Title\" style=\"{posStyle}\">{_settings.LeagueName}</h1>");
-                    }
-                    if (hasSub)
-                    {
-                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderSubtitlePos) : "";
-                        html.AppendLine($"            <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\" style=\"{posStyle}\">{_settings.LeagueSubtitle}</p>");
-                    }
-                    if (hasBadge)
-                    {
-                        var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderBadgePos) : "";
-                        html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\" style=\"{posStyle}\">{season.Name}</span>");
-                    }
+                    // Standard flow — uses LogoPosition to arrange elements
+                    AppendDefaultHeaderContent(html, season, logoTag, hasLogo, hasSub, hasBadge, logoPos, freeform);
                     break;
             }
-            
+
             html.AppendLine("        </div>");
             html.AppendLine("    </header>");
+        }
+
+        /// <summary>
+        /// Renders the default/standard header layout, respecting LogoPosition.
+        /// </summary>
+        private void AppendDefaultHeaderContent(StringBuilder html, Season season,
+            string logoTag, bool hasLogo, bool hasSub, bool hasBadge, string logoPos, bool freeform)
+        {
+            var showLogo = hasLogo && logoPos != "hidden";
+
+            // Corner positions: logo is placed inside header-content but CSS positions it absolutely
+            var isCorner = logoPos is "top-left" or "top-right" or "bottom-left" or "bottom-right";
+
+            // "left" / "right": logo sits beside the text group in a row
+            var isSide = logoPos is "left" or "right";
+
+            if (isCorner && showLogo)
+            {
+                // Corner logo — just place it, CSS handles absolute positioning
+                html.AppendLine($"            {logoTag}");
+            }
+
+            if (isSide && showLogo && logoPos == "left")
+            {
+                html.AppendLine($"            {logoTag}");
+            }
+
+            // "above" logo
+            if (showLogo && logoPos == "above")
+            {
+                html.AppendLine($"            {logoTag}");
+            }
+
+            // Title block
+            if (isSide)
+            {
+                html.AppendLine("            <div class=\"header-text-group\">");
+            }
+
+            {
+                var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderTitlePos) : "";
+                var styleAttr = !string.IsNullOrEmpty(posStyle) ? $" style=\"{posStyle}\"" : "";
+                html.AppendLine($"            <h1 data-block-id=\"header-title\" data-block-name=\"Title\"{styleAttr}>{_settings.LeagueName}</h1>");
+            }
+            if (hasSub)
+            {
+                var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderSubtitlePos) : "";
+                var styleAttr = !string.IsNullOrEmpty(posStyle) ? $" style=\"{posStyle}\"" : "";
+                html.AppendLine($"            <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\"{styleAttr}>{_settings.LeagueSubtitle}</p>");
+            }
+
+            if (isSide)
+            {
+                html.AppendLine("            </div>");
+            }
+
+            if (isSide && showLogo && logoPos == "right")
+            {
+                html.AppendLine($"            {logoTag}");
+            }
+
+            // "below" logo
+            if (showLogo && logoPos == "below")
+            {
+                html.AppendLine($"            {logoTag}");
+            }
+
+            if (hasBadge)
+            {
+                var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderBadgePos) : "";
+                var styleAttr = !string.IsNullOrEmpty(posStyle) ? $" style=\"{posStyle}\"" : "";
+                html.AppendLine($"            <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\"{styleAttr}>{season.Name}</span>");
+            }
         }
         
         /// <summary>

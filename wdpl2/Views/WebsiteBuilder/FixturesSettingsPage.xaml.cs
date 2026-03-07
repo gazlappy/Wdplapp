@@ -14,6 +14,15 @@ public partial class FixturesSettingsPage : ContentPage
         LoadSettings();
     }
 
+    private void SetPickerValue(Picker picker, string value)
+    {
+        if (picker.ItemsSource is IList<string> items)
+        {
+            var index = items.IndexOf(value);
+            if (index >= 0) picker.SelectedIndex = index;
+        }
+    }
+
     private void LoadSettings()
     {
         var settings = League.WebsiteSettings;
@@ -36,7 +45,12 @@ public partial class FixturesSettingsPage : ContentPage
         }
         
         FixturesPerPageEntry.Text = settings.FixturesPerPage.ToString();
-        
+
+        // Alignment
+        SetPickerValue(HomeTeamAlignPicker, settings.FixturesHomeTeamAlign);
+        SetPickerValue(AwayTeamAlignPicker, settings.FixturesAwayTeamAlign);
+        SetPickerValue(VsAlignPicker, settings.FixturesVsAlign);
+
         // Printable fixtures sheet options
         ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
         SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
@@ -63,7 +77,12 @@ public partial class FixturesSettingsPage : ContentPage
             
             if (int.TryParse(FixturesPerPageEntry.Text, out int perPage))
                 settings.FixturesPerPage = perPage;
-            
+
+            // Alignment
+            settings.FixturesHomeTeamAlign = HomeTeamAlignPicker.SelectedItem?.ToString() ?? "right";
+            settings.FixturesAwayTeamAlign = AwayTeamAlignPicker.SelectedItem?.ToString() ?? "left";
+            settings.FixturesVsAlign = VsAlignPicker.SelectedItem?.ToString() ?? "center";
+
             // Printable fixtures sheet options
             settings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
             settings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;

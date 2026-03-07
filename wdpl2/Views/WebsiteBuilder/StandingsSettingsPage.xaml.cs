@@ -17,6 +17,23 @@ public partial class StandingsSettingsPage : ContentPage
         HighlightBottomCheck.CheckedChanged += (s, e) => BottomHighlightOptions.IsVisible = e.Value;
     }
 
+    private void OnHighlightColorChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (sender is Entry entry)
+        {
+            var hex = entry.Text?.Trim();
+            if (string.IsNullOrEmpty(hex)) return;
+            BoxView? swatch = entry == TopHighlightColorEntry ? TopHighlightSwatch
+                : entry == BottomHighlightColorEntry ? BottomHighlightSwatch
+                : null;
+            if (swatch != null)
+            {
+                try { swatch.Color = Color.FromArgb(hex.StartsWith('#') ? hex : $"#{hex}"); }
+                catch { /* invalid color, ignore */ }
+            }
+        }
+    }
+
     private void LoadSettings()
     {
         var settings = League.WebsiteSettings;
@@ -46,6 +63,10 @@ public partial class StandingsSettingsPage : ContentPage
         HighlightBottomCountEntry.Text = settings.StandingsHighlightBottomCount.ToString();
         BottomHighlightColorEntry.Text = settings.StandingsBottomHighlightColor;
         BottomHighlightOptions.IsVisible = settings.StandingsHighlightBottom;
+
+        // Update swatches
+        try { TopHighlightSwatch.Color = Color.FromArgb(settings.StandingsTopHighlightColor); } catch { }
+        try { BottomHighlightSwatch.Color = Color.FromArgb(settings.StandingsBottomHighlightColor); } catch { }
     }
 
     private async void OnSaveClicked(object sender, EventArgs e)

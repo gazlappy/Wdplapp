@@ -85,9 +85,50 @@
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Pagination" FontSize="14" FontAttributes="Bold"/>
-                    
+
                     <Label Text="Fixtures per page" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="FixturesPerPageEntry" Text="20" Keyboard="Numeric" WidthRequest="100" HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Text Alignment -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Text Alignment" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Control how team names and VS are aligned" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+                    <Label Text="Home Team" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="HomeTeamAlignPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>right</x:String>
+                                <x:String>left</x:String>
+                                <x:String>center</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+
+                    <Label Text="Away Team" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="AwayTeamAlignPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>left</x:String>
+                                <x:String>right</x:String>
+                                <x:String>center</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+
+                    <Label Text="VS Label" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="VsAlignPicker">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>center</x:String>
+                                <x:String>left</x:String>
+                                <x:String>right</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
                 </VerticalStackLayout>
             </Frame>
             

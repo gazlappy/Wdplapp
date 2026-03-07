@@ -38,6 +38,20 @@ public partial class ResultsSettingsPage : ContentPage
         }
         
         ResultsPerPageEntry.Text = settings.ResultsPerPage.ToString();
+
+        // Alignment
+        SetPickerValue(HomeTeamAlignPicker, settings.ResultsHomeTeamAlign);
+        SetPickerValue(AwayTeamAlignPicker, settings.ResultsAwayTeamAlign);
+        SetPickerValue(ScoreAlignPicker, settings.ResultsScoreAlign);
+    }
+
+    private void SetPickerValue(Picker picker, string value)
+    {
+        if (picker.ItemsSource is IList<string> items)
+        {
+            var index = items.IndexOf(value);
+            if (index >= 0) picker.SelectedIndex = index;
+        }
     }
 
     private async void OnSaveClicked(object sender, EventArgs e)
@@ -62,7 +76,12 @@ public partial class ResultsSettingsPage : ContentPage
             
             if (int.TryParse(ResultsPerPageEntry.Text, out int perPage))
                 settings.ResultsPerPage = perPage;
-            
+
+            // Alignment
+            settings.ResultsHomeTeamAlign = HomeTeamAlignPicker.SelectedItem?.ToString() ?? "right";
+            settings.ResultsAwayTeamAlign = AwayTeamAlignPicker.SelectedItem?.ToString() ?? "left";
+            settings.ResultsScoreAlign = ScoreAlignPicker.SelectedItem?.ToString() ?? "center";
+
             DataStore.Save();
             
             await DisplayAlert("Saved", "Results settings saved.", "OK");

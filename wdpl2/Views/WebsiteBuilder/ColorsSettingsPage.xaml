@@ -6,10 +6,10 @@
     
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="15">
-            
+
             <Label Text="Colors and Theme" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
             <Label Text="Customize your website color scheme" FontSize="14" TextColor="#6B7280"/>
-            
+
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Quick Color Scheme" FontSize="14" FontAttributes="Bold"/>
@@ -17,56 +17,118 @@
                     <Picker x:Name="ColorSchemePicker" 
                             Title="Select a preset..."
                             SelectedIndexChanged="OnColorSchemeChanged"/>
+                    <FlexLayout x:Name="SchemePreviewLayout" Wrap="Wrap" Direction="Row"
+                                JustifyContent="Start" AlignItems="Center" IsVisible="False" HeightRequest="36">
+                    </FlexLayout>
                 </VerticalStackLayout>
             </Frame>
-            
+
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Primary Colors" FontSize="14" FontAttributes="Bold"/>
-                    
+
                     <Label Text="Primary - Main brand color" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="PrimaryColorEntry" Placeholder="#3B82F6"/>
-                    
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="PrimaryColorEntry" Placeholder="#3B82F6" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="PrimaryColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#3B82F6" VerticalOptions="Center"/>
+                    </Grid>
+
                     <Label Text="Secondary - Success, positive actions" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="SecondaryColorEntry" Placeholder="#10B981"/>
-                    
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="SecondaryColorEntry" Placeholder="#10B981" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="SecondaryColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#10B981" VerticalOptions="Center"/>
+                    </Grid>
+
                     <Label Text="Accent - Highlights, warnings" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="AccentColorEntry" Placeholder="#F59E0B"/>
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="AccentColorEntry" Placeholder="#F59E0B" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="AccentColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#F59E0B" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
-            
+
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Background Colors" FontSize="14" FontAttributes="Bold"/>
-                    
+
                     <Label Text="Page Background" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="BackgroundColorEntry" Placeholder="#F8FAFC"/>
-                    
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="BackgroundColorEntry" Placeholder="#F8FAFC" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="BackgroundColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#F8FAFC" VerticalOptions="Center"/>
+                    </Grid>
+
                     <Label Text="Card Background" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="CardBackgroundColorEntry" Placeholder="#FFFFFF"/>
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="CardBackgroundColorEntry" Placeholder="#FFFFFF" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="CardBackgroundColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#FFFFFF" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
-            
+
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Text Colors" FontSize="14" FontAttributes="Bold"/>
-                    
+
                     <Label Text="Primary Text" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="TextColorEntry" Placeholder="#0F172A"/>
-                    
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="TextColorEntry" Placeholder="#0F172A" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="TextColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#0F172A" VerticalOptions="Center"/>
+                    </Grid>
+
                     <Label Text="Secondary Text" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="TextSecondaryColorEntry" Placeholder="#64748B"/>
-                    
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="TextSecondaryColorEntry" Placeholder="#64748B" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="TextSecondaryColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#64748B" VerticalOptions="Center"/>
+                    </Grid>
+
                     <Label Text="Header Text" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="HeaderTextColorEntry" Placeholder="#FFFFFF"/>
+                    <Grid ColumnDefinitions="*,40" ColumnSpacing="8">
+                        <Entry x:Name="HeaderTextColorEntry" Placeholder="#FFFFFF" TextChanged="OnColorTextChanged"/>
+                        <BoxView x:Name="HeaderTextColorSwatch" Grid.Column="1" CornerRadius="6" HeightRequest="36"
+                                 WidthRequest="36" Color="#FFFFFF" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
-            
+
+            <!-- Live Preview Bar -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Color Preview" FontSize="14" FontAttributes="Bold"/>
+                    <Grid ColumnDefinitions="*,*,*,*,*,*,*,*" ColumnSpacing="4" HeightRequest="40">
+                        <BoxView x:Name="PreviewPrimary" Grid.Column="0" CornerRadius="4" Color="#3B82F6"/>
+                        <BoxView x:Name="PreviewSecondary" Grid.Column="1" CornerRadius="4" Color="#10B981"/>
+                        <BoxView x:Name="PreviewAccent" Grid.Column="2" CornerRadius="4" Color="#F59E0B"/>
+                        <BoxView x:Name="PreviewBackground" Grid.Column="3" CornerRadius="4" Color="#F8FAFC"/>
+                        <BoxView x:Name="PreviewCardBg" Grid.Column="4" CornerRadius="4" Color="#FFFFFF"/>
+                        <BoxView x:Name="PreviewText" Grid.Column="5" CornerRadius="4" Color="#0F172A"/>
+                        <BoxView x:Name="PreviewTextSecondary" Grid.Column="6" CornerRadius="4" Color="#64748B"/>
+                        <BoxView x:Name="PreviewHeaderText" Grid.Column="7" CornerRadius="4" Color="#FFFFFF"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*,*,*,*,*,*,*" ColumnSpacing="4">
+                        <Label Grid.Column="0" Text="Pri" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="1" Text="Sec" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="2" Text="Acc" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="3" Text="Bg" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="4" Text="Card" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="5" Text="Txt" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="6" Text="Txt2" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                        <Label Grid.Column="7" Text="Hdr" FontSize="9" TextColor="#9CA3AF" HorizontalTextAlignment="Center"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
             <Button Text="Save Changes" 
                     Clicked="OnSaveClicked" 
                     BackgroundColor="#10B981"
                     Margin="0,10,0,0"/>
-            
+
         </VerticalStackLayout>
     </ScrollView>
     

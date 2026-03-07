@@ -33,14 +33,83 @@ public partial class WebsiteBuilderHub : ContentPage
         { 
             "Home", "Standings", "Fixtures", "Results", "Players", "Divisions", "Competitions" 
         };
-        
+
         LoadData();
     }
+
+    private void UpdatePreviewPagePicker()
+    {
+        if (_generatedFiles == null) return;
+
+        var pages = new List<string> { "Home" };
+        if (_generatedFiles.ContainsKey("standings.html")) pages.Add("Standings");
+        if (_generatedFiles.ContainsKey("fixtures.html")) pages.Add("Fixtures");
+        if (_generatedFiles.ContainsKey("results.html")) pages.Add("Results");
+        if (_generatedFiles.ContainsKey("players.html")) pages.Add("Players");
+        if (_generatedFiles.ContainsKey("divisions.html")) pages.Add("Divisions");
+        if (_generatedFiles.ContainsKey("competitions.html")) pages.Add("Competitions");
+        if (_generatedFiles.ContainsKey("gallery.html")) pages.Add("Gallery");
+        if (_generatedFiles.ContainsKey("rules.html")) pages.Add("Rules");
+        if (_generatedFiles.ContainsKey("contact.html")) pages.Add("Contact");
+        if (_generatedFiles.ContainsKey("sponsors.html")) pages.Add("Sponsors");
+        if (_generatedFiles.ContainsKey("news.html")) pages.Add("News");
+
+        // Custom pages
+        foreach (var key in _generatedFiles.Keys.Where(k => k.EndsWith(".html") && !IsKnownPage(k)))
+            pages.Add(Path.GetFileNameWithoutExtension(key));
+
+        _syncingPicker = true;
+        PreviewPagePicker.ItemsSource = pages;
+
+        // Restore selection
+        var currentLabel = FileNameToLabel(_currentPreviewPage);
+        var idx = pages.IndexOf(currentLabel);
+        PreviewPagePicker.SelectedIndex = idx >= 0 ? idx : 0;
+        _syncingPicker = false;
+    }
+
+    private static bool IsKnownPage(string fileName) =>
+        fileName is "index.html" or "standings.html" or "fixtures.html" or "results.html"
+            or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
+            or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
+            or "player.html" or "team.html" or "pool-game.html" or "style.css"
+            or "sitemap.xml" or "players-data.json" or "teams-data.json";
     
     protected override void OnAppearing()
     {
         base.OnAppearing();
         UpdateGalleryCount();
+
+        // Auto-refresh preview when returning from settings sub-pages
+        if (_generatedFiles != null)
+        {
+            try
+            {
+                SaveSeasonAndTemplate();
+
+                // Reload competitions from SQLite
+                try
+                {
+                    using var context = new Data.LeagueContext();
+                    context.Database.EnsureCreated();
+                    League.Competitions = context.Competitions.AsNoTracking().ToList();
+                }
+                catch { }
+
+                var generator = new WebsiteGenerator(League, League.WebsiteSettings);
+                _generatedFiles = generator.GenerateWebsite();
+                UpdatePreviewPagePicker();
+                LoadPreviewPage(_currentPreviewPage);
+
+                StatusLabel.Text = $"Preview refreshed ({_generatedFiles.Count} files)";
+                StatusLabel.TextColor = Color.FromArgb("#10B981");
+                StatusLabel.IsVisible = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Auto-refresh error: {ex.Message}");
+            }
+        }
     }
     
     private void LoadData()
@@ -68,8 +137,30 @@ public partial class WebsiteBuilderHub : ContentPage
         
         var selectedTemplate = _templates.FirstOrDefault(t => t.Id == settings.SelectedTemplate);
         TemplatePicker.SelectedItem = selectedTemplate ?? _templates.FirstOrDefault();
-        
+
         UpdateGalleryCount();
+        UpdateLastActivityLabel();
+    }
+
+    private void UpdateLastActivityLabel()
+    {
+        var settings = League.WebsiteSettings;
+        var parts = new List<string>();
+
+        if (settings.LastGenerated != default)
+            parts.Add($"Generated: {settings.LastGenerated:dd MMM yyyy HH:mm}");
+        if (settings.LastUploaded != default)
+            parts.Add($"Deployed: {settings.LastUploaded:dd MMM yyyy HH:mm}");
+
+        if (parts.Count > 0)
+        {
+            LastActivityLabel.Text = string.Join("  •  ", parts);
+            LastActivityLabel.IsVisible = true;
+        }
+        else
+        {
+            LastActivityLabel.IsVisible = false;
+        }
     }
     
     private void UpdateGalleryCount()
@@ -84,6 +175,35 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             TemplateDescription.Text = template.Description;
             TemplateDescription.IsVisible = true;
+
+            TemplateFeaturesLayout.Children.Clear();
+            if (template.Features.Length > 0)
+            {
+                foreach (var feature in template.Features)
+                {
+                    var badge = new Frame
+                    {
+                        Padding = new Thickness(8, 4),
+                        CornerRadius = 12,
+                        BackgroundColor = Color.FromArgb("#DBEAFE"),
+                        BorderColor = Color.FromArgb("#93C5FD"),
+                        HasShadow = false,
+                        Margin = new Thickness(0, 2, 6, 2),
+                        Content = new Label
+                        {
+                            Text = feature,
+                            FontSize = 10,
+                            TextColor = Color.FromArgb("#1D4ED8")
+                        }
+                    };
+                    TemplateFeaturesLayout.Children.Add(badge);
+                }
+                TemplateFeaturesLayout.IsVisible = true;
+            }
+            else
+            {
+                TemplateFeaturesLayout.IsVisible = false;
+            }
         }
     }
     
@@ -116,6 +236,30 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private async void OnDeploymentTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new DeploymentSettingsPage());
+
+    private async void OnResetClicked(object sender, EventArgs e)
+    {
+        var confirmed = await DisplayAlert(
+            "Reset Settings",
+            "This will reset ALL website builder settings (colors, layout, content, SEO, etc.) to their default values. This cannot be undone.\n\nAre you sure?",
+            "Reset Everything",
+            "Cancel");
+
+        if (!confirmed) return;
+
+        League.WebsiteSettings.ResetToDefaults();
+        DataStore.Save();
+
+        // Reload the page data to reflect new defaults
+        LoadData();
+        _generatedFiles = null;
+        PreviewPlaceholder.IsVisible = true;
+        PreviewWebView.IsVisible = false;
+
+        StatusLabel.Text = "All settings reset to defaults";
+        StatusLabel.TextColor = Color.FromArgb("#F59E0B");
+        StatusLabel.IsVisible = true;
+    }
     
     private void SaveSeasonAndTemplate()
     {
@@ -162,6 +306,8 @@ public partial class WebsiteBuilderHub : ContentPage
             PreviewPlaceholder.IsVisible = false;
             PreviewWebView.IsVisible = true;
 
+            UpdatePreviewPagePicker();
+
             if (PreviewPagePicker.SelectedIndex < 0)
                 PreviewPagePicker.SelectedIndex = 0;
             else
@@ -169,6 +315,9 @@ public partial class WebsiteBuilderHub : ContentPage
 
             StatusLabel.Text = $"Preview ready ({_generatedFiles.Count} files)";
             StatusLabel.TextColor = Color.FromArgb("#10B981");
+
+            League.WebsiteSettings.LastGenerated = DateTime.Now;
+            UpdateLastActivityLabel();
         }
         catch (Exception ex)
         {
@@ -237,7 +386,32 @@ public partial class WebsiteBuilderHub : ContentPage
             "players" => "players.html",
             "divisions" => "divisions.html",
             "competitions" => "competitions.html",
-            _ => "index.html"
+            "gallery" => "gallery.html",
+            "rules" => "rules.html",
+            "contact" => "contact.html",
+            "sponsors" => "sponsors.html",
+            "news" => "news.html",
+            _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "index.html"
+        };
+    }
+
+    private static string FileNameToLabel(string fileName)
+    {
+        return fileName.ToLowerInvariant() switch
+        {
+            "index.html" => "Home",
+            "standings.html" => "Standings",
+            "fixtures.html" => "Fixtures",
+            "results.html" => "Results",
+            "players.html" => "Players",
+            "divisions.html" => "Divisions",
+            "competitions.html" => "Competitions",
+            "gallery.html" => "Gallery",
+            "rules.html" => "Rules",
+            "contact.html" => "Contact",
+            "sponsors.html" => "Sponsors",
+            "news.html" => "News",
+            _ => Path.GetFileNameWithoutExtension(fileName)
         };
     }
 
@@ -346,18 +520,8 @@ public partial class WebsiteBuilderHub : ContentPage
 
     private void SyncPagePicker(string fileName)
     {
-        var label = fileName.ToLowerInvariant() switch
-        {
-            "index.html" => "Home",
-            "standings.html" => "Standings",
-            "fixtures.html" => "Fixtures",
-            "results.html" => "Results",
-            "players.html" => "Players",
-            "divisions.html" => "Divisions",
-            "competitions.html" => "Competitions",
-            _ => null
-        };
-        if (label != null && PreviewPagePicker.ItemsSource is IList<string> items)
+        var label = FileNameToLabel(fileName);
+        if (PreviewPagePicker.ItemsSource is IList<string> items)
         {
             var idx = items.IndexOf(label);
             if (idx >= 0)

@@ -28,41 +28,47 @@
             
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Contact Details" FontSize="14" FontAttributes="Bold"/>
-                    
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Contact Details" FontSize="14" FontAttributes="Bold"/>
+                        <Label x:Name="ContactFillLabel" Grid.Column="1" FontSize="11" TextColor="#9CA3AF"/>
+                    </Grid>
+
                     <Label Text="Email" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="ContactEmailEntry" Placeholder="contact@yourleague.com" Keyboard="Email"/>
-                    
+                    <Entry x:Name="ContactEmailEntry" Placeholder="contact@yourleague.com" Keyboard="Email" TextChanged="OnFieldChanged"/>
+
                     <Label Text="Phone" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="ContactPhoneEntry" Placeholder="+44 123 456 7890" Keyboard="Telephone"/>
-                    
+                    <Entry x:Name="ContactPhoneEntry" Placeholder="+44 123 456 7890" Keyboard="Telephone" TextChanged="OnFieldChanged"/>
+
                     <Label Text="Address" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="ContactAddressEntry" Placeholder="123 Pool Hall Lane, City"/>
+                    <Entry x:Name="ContactAddressEntry" Placeholder="123 Pool Hall Lane, City" TextChanged="OnFieldChanged"/>
                 </VerticalStackLayout>
             </Frame>
             
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Social Media Links" FontSize="14" FontAttributes="Bold"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Social Media Links" FontSize="14" FontAttributes="Bold"/>
+                        <Label x:Name="SocialFillLabel" Grid.Column="1" FontSize="11" TextColor="#9CA3AF"/>
+                    </Grid>
                     <Label Text="Add your social media profile URLs" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
-                    
+
                     <Label Text="Facebook" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="FacebookUrlEntry" Placeholder="https://facebook.com/yourpage"/>
-                    
+                    <Entry x:Name="FacebookUrlEntry" Placeholder="https://facebook.com/yourpage" TextChanged="OnFieldChanged"/>
+
                     <Label Text="Twitter / X" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="TwitterUrlEntry" Placeholder="https://twitter.com/yourhandle"/>
-                    
+                    <Entry x:Name="TwitterUrlEntry" Placeholder="https://twitter.com/yourhandle" TextChanged="OnFieldChanged"/>
+
                     <Label Text="Instagram" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="InstagramUrlEntry" Placeholder="https://instagram.com/yourpage"/>
-                    
+                    <Entry x:Name="InstagramUrlEntry" Placeholder="https://instagram.com/yourpage" TextChanged="OnFieldChanged"/>
+
                     <Label Text="YouTube" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="YouTubeUrlEntry" Placeholder="https://youtube.com/channel"/>
-                    
+                    <Entry x:Name="YouTubeUrlEntry" Placeholder="https://youtube.com/channel" TextChanged="OnFieldChanged"/>
+
                     <Label Text="TikTok" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="TikTokUrlEntry" Placeholder="https://tiktok.com/@yourpage"/>
-                    
+                    <Entry x:Name="TikTokUrlEntry" Placeholder="https://tiktok.com/@yourpage" TextChanged="OnFieldChanged"/>
+
                     <Label Text="Website" FontSize="12" TextColor="#6B7280"/>
-                    <Entry x:Name="WebsiteUrlEntry" Placeholder="https://yourwebsite.com"/>
+                    <Entry x:Name="WebsiteUrlEntry" Placeholder="https://yourwebsite.com" TextChanged="OnFieldChanged"/>
                 </VerticalStackLayout>
             </Frame>
             

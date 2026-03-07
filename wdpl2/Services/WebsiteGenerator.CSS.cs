@@ -109,13 +109,14 @@ namespace Wdpl2.Services
             };
             var h1Extra = layout switch
             {
-                "banner" => "letter-spacing: 2px; text-transform: uppercase;",
-                "stadium" => "letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 40px rgba(255,255,255,0.3);",
+                "banner" => "letter-spacing: 2px; text-transform: uppercase; font-weight: 800;",
+                "stadium" => "letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 40px rgba(255,255,255,0.3); font-weight: 800;",
                 "text-only" => $"color: var(--primary-color); font-weight: 800;",
-                "championship" => "letter-spacing: 1px; text-transform: uppercase;",
-                "neon" => $"text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--primary-color), 0 0 80px var(--secondary-color); animation: headerNeonPulse 2s ease-in-out infinite; letter-spacing: 3px; text-transform: uppercase;",
-                "aurora" => "text-shadow: 0 0 30px rgba(255,255,255,0.4); letter-spacing: 2px;",
-                _ => ""
+                "championship" => "letter-spacing: 1px; text-transform: uppercase; font-weight: 800;",
+                "neon" => $"text-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color), 0 0 40px var(--primary-color), 0 0 80px var(--secondary-color); animation: headerNeonPulse 2s ease-in-out infinite; letter-spacing: 3px; text-transform: uppercase; font-weight: 800;",
+                "aurora" => "text-shadow: 0 0 30px rgba(255,255,255,0.4); letter-spacing: 2px; font-weight: 700;",
+                "glass" => "text-shadow: 0 2px 4px rgba(0,0,0,0.3);",
+                _ => "text-shadow: 0 1px 3px rgba(0,0,0,0.15);"
             };
 
             // --- subtitle ---
@@ -128,10 +129,11 @@ namespace Wdpl2.Services
             var subExtra = layout switch
             {
                 "compact" or "minimal-bar" => "margin: 0;",
-                "banner" => "letter-spacing: 4px; text-transform: uppercase;",
+                "banner" => "letter-spacing: 4px; text-transform: uppercase; font-weight: 500;",
                 "stadium" => "letter-spacing: 2px; text-transform: uppercase; opacity: 0.7;",
                 "text-only" => "color: var(--text-secondary); opacity: 1;",
-                _ => ""
+                "transparent" or "underline" => "opacity: 1; color: var(--text-secondary);",
+                _ => "text-shadow: 0 1px 2px rgba(0,0,0,0.1);"
             };
 
             // --- badge ---
@@ -139,8 +141,8 @@ namespace Wdpl2.Services
             var badgeMargin = layout is "compact" or "minimal-bar" or "split" or "scoreboard" ? "0" : "15px";
             var badgeSize = layout is "compact" or "minimal-bar" ? "0.75rem" : "0.9rem";
             var badgeBg = layout is "text-only" or "underline" or "transparent"
-                ? "rgba(var(--primary-color-rgb, 59,130,246), 0.15)"
-                : "rgba(255,255,255,0.2)";
+                ? "rgba(var(--primary-color-rgb, 59,130,246), 0.12)"
+                : "rgba(255,255,255,0.18)";
             var badgeExtra = layout switch
             {
                 "minimal-bar" => "margin-left: auto;",
@@ -151,14 +153,15 @@ namespace Wdpl2.Services
             // --- logo ---
             var logoExtra = layout switch
             {
-                "compact" or "minimal-bar" => "max-height: 36px; margin: 0;",
-                "split" => "order: -1; margin: 0;",
-                "scoreboard" => "margin: 0; justify-self: start;",
-                _ => "margin-bottom: 15px;"
+                "compact" or "minimal-bar" => "max-height: 36px; margin: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));",
+                "split" => "order: -1; margin: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));",
+                "scoreboard" => "margin: 0; justify-self: start; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));",
+                "text-only" or "underline" or "transparent" => "margin-bottom: 15px;",
+                _ => "margin-bottom: 15px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));"
             };
 
             // --- text-group (split layout) ---
-            var textGroupCss = layout == "split" ? "text-align: right; flex: 1;" : "";
+            var textGroupCss = layout == "split" ? "text-align: right; flex: 1; min-width: 0;" : "min-width: 0;";
 
             // --- two-row specific ---
             var twoRowCss = layout == "two-row" ? @"
@@ -281,13 +284,18 @@ header {{
 header h1 {{
     font-family: var(--header-font);
     font-size: {h1Size};
+    font-weight: 700;
     margin-bottom: {h1Margin};
+    line-height: 1.15;
+    letter-spacing: -0.02em;
     {h1Extra}
 }}
 
 header .subtitle {{
-    opacity: 0.9;
     font-size: {subSize};
+    font-weight: 400;
+    opacity: 0.85;
+    line-height: 1.4;
     {subExtra}
 }}
 
@@ -298,11 +306,18 @@ header .season-badge {{
     border-radius: 20px;
     margin-top: {badgeMargin};
     font-size: {badgeSize};
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
     {badgeExtra}
 }}
 
 header .logo {{
     max-width: 200px;
+    height: auto;
+    object-fit: contain;
     {logoExtra}
 }}
 
@@ -317,6 +332,44 @@ header .logo {{
 .header-text-group .subtitle {{
     margin: 0;
 }}
+
+/* Logo position variants */
+.header-content.header-logo-left,
+.header-content.header-logo-right {{
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}}
+.header-content.header-logo-left {{ flex-direction: row; }}
+.header-content.header-logo-right {{ flex-direction: row-reverse; }}
+.header-content.header-logo-left .header-text-group,
+.header-content.header-logo-right .header-text-group {{
+    flex: 1;
+    min-width: 0;
+}}
+.header-content.header-logo-above,
+.header-content.header-logo-below {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}}
+.header-content.header-logo-below .logo {{
+    order: 10;
+    margin-top: 16px;
+    margin-bottom: 0;
+}}
+.header-content.header-logo-top-left,
+.header-content.header-logo-top-right,
+.header-content.header-logo-bottom-left,
+.header-content.header-logo-bottom-right {{
+    position: relative;
+    min-height: 80px;
+}}
+.header-content.header-logo-top-left .logo {{ position: absolute; top: 0; left: 0; margin: 0; }}
+.header-content.header-logo-top-right .logo {{ position: absolute; top: 0; right: 0; margin: 0; }}
+.header-content.header-logo-bottom-left .logo {{ position: absolute; bottom: 0; left: 0; margin: 0; }}
+.header-content.header-logo-bottom-right .logo {{ position: absolute; bottom: 0; right: 0; margin: 0; }}
+
 {twoRowCss}
 {animations}";
         }
@@ -376,6 +429,7 @@ header .logo {{
     --card-bg: {_settings.CardBackgroundColor};
     --header-bg: {_settings.PrimaryColor};
     --header-text: {_settings.HeaderTextColor};
+    --header-font: '{_settings.HeaderFontFamily}', 'Segoe UI', sans-serif;
     --nav-bg: {_settings.SecondaryColor};
     --nav-text: {_settings.HeaderTextColor};
     --nav-hover: {_settings.AccentColor};
@@ -384,7 +438,7 @@ header .logo {{
     --table-header-bg: {_settings.PrimaryColor};
     --table-header-text: {_settings.HeaderTextColor};
     --table-alt-bg: #F9FAFB;
-    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family: '{_settings.FontFamily}', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-family-emoji: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', sans-serif;
     --border-radius: {_settings.BorderRadius}px;
     --shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -989,7 +1043,27 @@ footer a {{
 " : "")}
 
 @media (max-width: 768px) {{
-header h1 {{ font-size: 1.8rem; }}
+header {{ padding: 24px 16px; }}
+header h1 {{ font-size: 1.6rem; letter-spacing: -0.01em; }}
+header .subtitle {{ font-size: 0.9rem; }}
+.header-content.header-logo-left,
+.header-content.header-logo-right {{
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+}}
+.header-content.header-logo-left .header-text-group,
+.header-content.header-logo-right .header-text-group {{
+    text-align: center;
+}}
+.header-content.header-logo-top-left .logo,
+.header-content.header-logo-top-right .logo,
+.header-content.header-logo-bottom-left .logo,
+.header-content.header-logo-bottom-right .logo {{
+    position: static;
+    margin: 0 auto 12px;
+    display: block;
+}}
 .hero h2 {{ font-size: 1.5rem; }}
 nav .nav-container {{ justify-content: center; }}
 .two-col-row {{ grid-template-columns: 1fr; }}

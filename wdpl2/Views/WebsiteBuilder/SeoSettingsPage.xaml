@@ -29,6 +29,15 @@
                     <Entry x:Name="MetaKeywordsEntry" Placeholder="pool league, 8-ball, competition, standings"/>
                 </VerticalStackLayout>
             </Frame>
+
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Open Graph Image" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Image URL shown when sharing on social media (og:image)" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    <Entry x:Name="OgImageEntry" Placeholder="https://yoursite.com/og-image.png" Keyboard="Url"/>
+                    <Label Text="Recommended: 1200x630px" FontSize="11" TextColor="#9CA3AF"/>
+                </VerticalStackLayout>
+            </Frame>
             
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
@@ -51,12 +60,48 @@
                             Placeholder="/* Example: .header { background: #000; } */"
                             HeightRequest="150"
                             FontFamily="Consolas"
-                            AutoSize="TextChanges"/>
-                    <Label Text="Warning: Invalid CSS may break your website layout" FontSize="11" TextColor="#F59E0B"/>
+                            AutoSize="TextChanges"
+                            TextChanged="OnCustomCssChanged"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Warning: Invalid CSS may break your website layout" FontSize="11" TextColor="#F59E0B"/>
+                        <Label x:Name="CssStatsLabel" Grid.Column="1" Text="" FontSize="11" TextColor="#9CA3AF"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
-            
-            <Button Text="Save Changes" 
+
+            <!-- Custom HTML Injection -->
+            <Frame BorderColor="#F59E0B" Padding="15" CornerRadius="8" BackgroundColor="#FFFBEB">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Custom HTML Injection" FontSize="14" FontAttributes="Bold" TextColor="#92400E"/>
+                    <Label Text="Inject custom HTML into specific parts of every page (analytics, tracking, widgets)" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+                    <Label Text="Custom &lt;head&gt; HTML" FontSize="12" TextColor="#6B7280"/>
+                    <Label Text="e.g., Google Analytics, custom fonts, meta tags" FontSize="11" TextColor="#9CA3AF"/>
+                    <Editor x:Name="CustomHeadHtmlEditor" 
+                            Placeholder="&lt;!-- Google Analytics --&gt;&#x0a;&lt;script async src=&quot;...&quot;&gt;&lt;/script&gt;"
+                            HeightRequest="80"
+                            FontFamily="Consolas"
+                            AutoSize="TextChanges"/>
+
+                    <Label Text="Custom HTML after &lt;body&gt;" FontSize="12" TextColor="#6B7280"/>
+                    <Label Text="e.g., cookie consent banners, chat widgets" FontSize="11" TextColor="#9CA3AF"/>
+                    <Editor x:Name="CustomBodyStartHtmlEditor" 
+                            Placeholder="&lt;!-- Cookie banner or notification --&gt;"
+                            HeightRequest="80"
+                            FontFamily="Consolas"
+                            AutoSize="TextChanges"/>
+
+                    <Label Text="Custom HTML before &lt;/body&gt;" FontSize="12" TextColor="#6B7280"/>
+                    <Label Text="e.g., tracking pixels, deferred scripts" FontSize="11" TextColor="#9CA3AF"/>
+                    <Editor x:Name="CustomBodyEndHtmlEditor" 
+                            Placeholder="&lt;!-- Tracking scripts --&gt;"
+                            HeightRequest="80"
+                            FontFamily="Consolas"
+                            AutoSize="TextChanges"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Button Text="Save Changes"
                     Clicked="OnSaveClicked" 
                     BackgroundColor="#10B981"
                     Margin="0,10,0,0"/>

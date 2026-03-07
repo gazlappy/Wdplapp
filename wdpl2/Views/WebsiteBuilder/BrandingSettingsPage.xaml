@@ -15,9 +15,13 @@
                 <VerticalStackLayout Spacing="12">
                     <Label Text="League Name" FontSize="14" FontAttributes="Bold"/>
                     <Entry x:Name="LeagueNameEntry" Placeholder="e.g., West Division Pool League"/>
-                    
+
                     <Label Text="Subtitle / Tagline" FontSize="14" FontAttributes="Bold"/>
                     <Entry x:Name="SubtitleEntry" Placeholder="e.g., Weekly 8-Ball Competition"/>
+
+                    <Label Text="Favicon URL" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Small icon shown in browser tabs (16x16 or 32x32)" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    <Entry x:Name="FaviconUrlEntry" Placeholder="https://yoursite.com/favicon.ico" Keyboard="Url"/>
                 </VerticalStackLayout>
             </Frame>
             

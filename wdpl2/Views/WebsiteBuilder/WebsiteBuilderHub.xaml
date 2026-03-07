@@ -24,6 +24,7 @@
                 </Grid>
 
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
+                <Label x:Name="LastActivityLabel" FontSize="11" TextColor="#9CA3AF" IsVisible="False"/>
                 <ProgressBar x:Name="ProgressBar" IsVisible="False" ProgressColor="#3B82F6"/>
 
                 <!-- Season and Template -->
@@ -33,6 +34,9 @@
                         <Picker x:Name="SeasonPicker" Title="Select Season"/>
                         <Picker x:Name="TemplatePicker" Title="Select Template"/>
                         <Label x:Name="TemplateDescription" FontSize="11" TextColor="#6B7280" IsVisible="False"/>
+                        <FlexLayout x:Name="TemplateFeaturesLayout" Wrap="Wrap" Direction="Row" 
+                                    JustifyContent="Start" AlignItems="Center" IsVisible="False">
+                        </FlexLayout>
                     </VerticalStackLayout>
                 </Frame>
 
@@ -42,7 +46,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnBrandingTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[B]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#127912;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Site Branding" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Name, logo, subtitle" FontSize="11" TextColor="#6B7280"/>
@@ -54,7 +58,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnContactTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[C]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128233;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Contact and Social" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Email, phone, social links" FontSize="11" TextColor="#6B7280"/>
@@ -81,7 +85,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnColorsTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[T]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#127752;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Colors and Theme" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Color schemes, presets" FontSize="11" TextColor="#6B7280"/>
@@ -93,7 +97,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnLayoutTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[L]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128208;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Layout and Styling" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Header, nav, footer, fonts" FontSize="11" TextColor="#6B7280"/>
@@ -108,7 +112,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnContentTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[P]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128196;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Pages and Content" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Choose pages, home layout" FontSize="11" TextColor="#6B7280"/>
@@ -120,7 +124,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnGalleryTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[G]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128247;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Photo Gallery" FontAttributes="Bold" FontSize="13"/>
                             <Label x:Name="GalleryCountLabel" Text="Manage photos (0 images)" FontSize="11" TextColor="#6B7280"/>
@@ -135,7 +139,7 @@
                 <Frame BorderColor="#10B981" Padding="0" CornerRadius="8" BackgroundColor="#ECFDF5">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnFixturesSheetTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[F]" FontSize="16" VerticalOptions="Center" TextColor="#10B981"/>
+                        <Label Grid.Column="0" Text="&#128438;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Fixtures Sheet" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Printable fixtures grid" FontSize="11" TextColor="#6B7280"/>
@@ -150,7 +154,7 @@
                 <Frame BorderColor="#E5E7EB" Padding="0" CornerRadius="8">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSeoTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[S]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128269;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="SEO and Advanced" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Meta tags, custom CSS" FontSize="11" TextColor="#6B7280"/>
@@ -162,7 +166,7 @@
                 <Frame BorderColor="#3B82F6" Padding="0" CornerRadius="8" BackgroundColor="#EFF6FF">
                     <Grid Padding="12" ColumnDefinitions="Auto,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnDeploymentTapped"/></Grid.GestureRecognizers>
-                        <Label Grid.Column="0" Text="[D]" FontSize="16" VerticalOptions="Center" TextColor="#3B82F6"/>
+                        <Label Grid.Column="0" Text="&#128640;" FontSize="16" VerticalOptions="Center"/>
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
                             <Label Text="Deployment" FontAttributes="Bold" FontSize="13"/>
                             <Label Text="Export, GitHub Pages, FTP" FontSize="11" TextColor="#6B7280"/>
@@ -170,6 +174,11 @@
                         <Label Grid.Column="2" Text=">" FontSize="20" TextColor="#9CA3AF" VerticalOptions="Center"/>
                     </Grid>
                 </Frame>
+
+                <!-- Reset -->
+                <Button x:Name="ResetBtn" Text="&#128260; Reset All Settings to Defaults"
+                        Clicked="OnResetClicked" BackgroundColor="Transparent" TextColor="#EF4444"
+                        FontSize="12" Margin="0,8,0,0" BorderColor="#FCA5A5" BorderWidth="1"/>
 
             </VerticalStackLayout>
         </ScrollView>

@@ -292,6 +292,8 @@ namespace Wdpl2.Services
                     AppendHomeUpcomingFixturesSection(html, teams, venues, fixtures);
                     break;
                 case "latest-news":
+                    if (_settings.HomeShowLatestNews && _settings.ShowNews)
+                        AppendHomeLatestNewsSection(html);
                     break;
                 case "sponsors":
                     if (_settings.HomeShowSponsors && _settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
@@ -469,7 +471,41 @@ namespace Wdpl2.Services
             html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
             html.AppendLine("            </section>");
         }
-        
+
+        private void AppendHomeLatestNewsSection(StringBuilder html)
+        {
+            var latestNews = _settings.NewsItems
+                .Where(n => n.IsPublished)
+                .OrderByDescending(n => n.IsPinned)
+                .ThenByDescending(n => n.DatePublished)
+                .Take(3)
+                .ToList();
+
+            if (latestNews.Count == 0) return;
+
+            html.AppendLine("            <section class=\"section\">");
+            html.AppendLine("                <h3>&#128240; Latest News</h3>");
+            html.AppendLine("                <div class=\"news-list\">");
+            foreach (var news in latestNews)
+            {
+                html.AppendLine("                    <div class=\"news-item\">");
+                if (news.IsPinned)
+                    html.AppendLine("                        <span class=\"pinned-badge\">&#128204;</span>");
+                html.AppendLine($"                        <div class=\"news-title\">{news.Title}</div>");
+                html.AppendLine($"                        <div class=\"news-date\">{news.DatePublished:dd MMM yyyy}</div>");
+                if (!string.IsNullOrWhiteSpace(news.Content))
+                {
+                    var preview = news.Content.Length > 120 ? news.Content[..120] + "..." : news.Content;
+                    html.AppendLine($"                        <div class=\"news-preview\">{preview}</div>");
+                }
+                html.AppendLine("                    </div>");
+            }
+            html.AppendLine("                </div>");
+            if (_settings.ShowNews)
+                html.AppendLine("                <p class=\"view-all\"><a href=\"news.html\">View All News &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+
         private string GenerateStandingsPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();

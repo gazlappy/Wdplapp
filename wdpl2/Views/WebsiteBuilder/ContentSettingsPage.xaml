@@ -106,7 +106,7 @@
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Home Page Layout" FontSize="14" FontAttributes="Bold"/>
-                    
+
                     <Picker x:Name="HomeLayoutPicker" Title="Select Layout">
                         <Picker.ItemsSource>
                             <x:Array Type="{x:Type x:String}">
@@ -117,6 +117,23 @@
                             </x:Array>
                         </Picker.ItemsSource>
                     </Picker>
+
+                    <Label Text="Stats Card Style" FontSize="12" TextColor="#6B7280" Margin="0,4,0,0"/>
+                    <Picker x:Name="StatsCardStylePicker" Title="Select Style">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>gradient</x:String>
+                                <x:String>solid</x:String>
+                                <x:String>minimal</x:String>
+                                <x:String>icon</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="StatsShowIconsCheck" IsChecked="False" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show Icons on Stats Cards" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
             

@@ -39,14 +39,22 @@ public partial class GallerySettingsPage : ContentPage
         _images.Clear();
         foreach (var img in League.WebsiteSettings.GalleryImages)
         {
+            ImageSource? thumbnail = null;
+            if (img.ImageData.Length > 0)
+            {
+                try { thumbnail = ImageSource.FromStream(() => new MemoryStream(img.ImageData)); }
+                catch { /* ignore bad data */ }
+            }
+
             _images.Add(new GalleryImageViewModel
             {
                 Id = img.Id,
                 FileName = img.FileName,
-                Dimensions = $"{img.Width}x{img.Height}"
+                Dimensions = $"{img.Width}x{img.Height}",
+                Thumbnail = thumbnail
             });
         }
-        
+
         ImageCountLabel.Text = _images.Count.ToString();
     }
 
@@ -202,5 +210,6 @@ public partial class GallerySettingsPage : ContentPage
         public Guid Id { get; set; }
         public string FileName { get; set; } = "";
         public string Dimensions { get; set; } = "";
+        public ImageSource? Thumbnail { get; set; }
     }
 }

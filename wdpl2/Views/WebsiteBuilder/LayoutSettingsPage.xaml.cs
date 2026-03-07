@@ -10,11 +10,56 @@ public partial class LayoutSettingsPage : ContentPage
 
     private static readonly int[] WidthValues = [960, 1200, 1400, 1600];
 
+    private static readonly Dictionary<string, string> HeaderLayoutDescriptions = new()
+    {
+        ["centered"] = "Classic centered layout with logo, title, and subtitle stacked",
+        ["split"] = "Logo on left, title group right, badge far right",
+        ["banner"] = "Large hero-style banner with stacked elements",
+        ["compact"] = "Condensed single-line header for minimal vertical space",
+        ["minimal-bar"] = "Ultra-thin bar with logo and title inline",
+        ["two-row"] = "First row: logo + badge, second row: title + subtitle",
+        ["card"] = "Header content inside a floating card with shadow",
+        ["scoreboard"] = "Grid-style layout resembling a sports scoreboard",
+        ["glass"] = "Frosted glass effect with blur and transparency",
+        ["animated-gradient"] = "Smoothly shifting gradient colors animation",
+        ["wave-gradient"] = "Flowing wave-like gradient animation",
+        ["mesh-gradient"] = "Multi-point radial gradient mesh background",
+        ["stadium"] = "Dark stadium-lighting effect with spotlight radials",
+        ["pulse-glow"] = "Subtle pulsing glow animation on the header",
+        ["shimmer"] = "Shimmering light sweep effect across the header",
+        ["aurora"] = "Northern lights inspired color animation",
+        ["neon"] = "Dark background with neon glow accents",
+        ["spotlight-sweep"] = "Moving spotlight beam sweeping across the header",
+        ["breathing"] = "Gentle scaling/breathing animation effect",
+        ["championship"] = "Dramatic clipped shape with pointed bottom edge",
+        ["overlay-hero"] = "Overlaps content below for a hero image effect",
+        ["text-only"] = "Clean text on transparent background, no decoration",
+        ["underline"] = "Transparent with a bold colored bottom border",
+        ["transparent"] = "Fully transparent, blends with page background",
+    };
+
     public LayoutSettingsPage()
     {
         InitializeComponent();
+        HeaderLayoutPicker.SelectedIndexChanged += OnHeaderLayoutChanged;
         LoadSettings();
     }
+
+    private static readonly Dictionary<string, string> LogoPositionToLabel = new()
+    {
+        ["above"] = "Above Title",
+        ["below"] = "Below Title",
+        ["left"] = "Left of Title",
+        ["right"] = "Right of Title",
+        ["top-left"] = "Top Left Corner",
+        ["top-right"] = "Top Right Corner",
+        ["bottom-left"] = "Bottom Left Corner",
+        ["bottom-right"] = "Bottom Right Corner",
+        ["hidden"] = "Hidden"
+    };
+
+    private static readonly Dictionary<string, string> LabelToLogoPosition =
+        LogoPositionToLabel.ToDictionary(kv => kv.Value, kv => kv.Key);
 
     private void LoadSettings()
     {
@@ -47,9 +92,16 @@ public partial class LayoutSettingsPage : ContentPage
         
         // Header
         SetPickerValue(HeaderStylePicker, settings.HeaderStyle);
+        SetPickerValue(HeaderLayoutPicker, settings.HeaderLayout);
+        UpdateHeaderLayoutDescription();
         SetPickerValue(HeaderAlignmentPicker, settings.HeaderAlignment);
         ShowHeaderPatternCheck.IsChecked = settings.ShowHeaderPattern;
         ShowSeasonBadgeCheck.IsChecked = settings.ShowSeasonBadge;
+
+        // Logo position
+        if (LogoPositionToLabel.TryGetValue(settings.LogoPosition, out var posLabel))
+            SetPickerValue(LogoPositionPicker, posLabel);
+        UpdateLogoPositionHint();
         
         // Navigation
         SetPickerValue(NavStylePicker, settings.NavStyle);
@@ -87,6 +139,51 @@ public partial class LayoutSettingsPage : ContentPage
 
     private string GetPickerValue(Picker picker, string defaultValue)
         => picker.SelectedItem?.ToString() ?? defaultValue;
+
+    private void OnHeaderLayoutChanged(object? sender, EventArgs e)
+    {
+        UpdateHeaderLayoutDescription();
+        UpdateLogoPositionHint();
+    }
+
+    private void UpdateLogoPositionHint()
+    {
+        var layout = HeaderLayoutPicker.SelectedItem?.ToString();
+        string? hint = layout switch
+        {
+            "split" => "Split layout places logo on the left automatically",
+            "scoreboard" => "Scoreboard layout places logo on the left automatically",
+            "two-row" => "Two-row layout places logo in the top row automatically",
+            _ => null
+        };
+
+        var overrides = layout is "split" or "scoreboard" or "two-row";
+        LogoPositionPicker.IsEnabled = !overrides;
+
+        if (hint != null)
+        {
+            LogoPositionHint.Text = hint;
+            LogoPositionHint.IsVisible = true;
+        }
+        else
+        {
+            LogoPositionHint.IsVisible = false;
+        }
+    }
+
+    private void UpdateHeaderLayoutDescription()
+    {
+        var layout = HeaderLayoutPicker.SelectedItem?.ToString();
+        if (layout != null && HeaderLayoutDescriptions.TryGetValue(layout, out var desc))
+        {
+            HeaderLayoutDescription.Text = desc;
+            HeaderLayoutDescription.IsVisible = true;
+        }
+        else
+        {
+            HeaderLayoutDescription.IsVisible = false;
+        }
+    }
 
     private async void OnSaveClicked(object sender, EventArgs e)
     {
@@ -126,9 +223,15 @@ public partial class LayoutSettingsPage : ContentPage
             
             // Header
             settings.HeaderStyle = GetPickerValue(HeaderStylePicker, "gradient");
+            settings.HeaderLayout = GetPickerValue(HeaderLayoutPicker, "centered");
             settings.HeaderAlignment = GetPickerValue(HeaderAlignmentPicker, "center");
             settings.ShowHeaderPattern = ShowHeaderPatternCheck.IsChecked;
             settings.ShowSeasonBadge = ShowSeasonBadgeCheck.IsChecked;
+
+            // Logo position — save from Layout page (synced with Branding page)
+            var selectedPosLabel = LogoPositionPicker.SelectedItem?.ToString();
+            if (selectedPosLabel != null && LabelToLogoPosition.TryGetValue(selectedPosLabel, out var posValue))
+                settings.LogoPosition = posValue;
             
             // Navigation
             settings.NavStyle = GetPickerValue(NavStylePicker, "pills");
