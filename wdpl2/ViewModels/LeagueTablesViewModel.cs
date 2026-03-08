@@ -149,6 +149,10 @@ public partial class LeagueTablesViewModel : BaseViewModel
                     {
                         homeStanding.Lost++;
                     }
+
+                    // Apply late card penalty
+                    homeStanding.Deducted += fixture.HomeLatePenalty;
+                    homeStanding.Points -= fixture.HomeLatePenalty;
                 }
 
                 if (standingsDict.ContainsKey(fixture.AwayTeamId))
@@ -171,6 +175,28 @@ public partial class LeagueTablesViewModel : BaseViewModel
                     else
                     {
                         awayStanding.Lost++;
+                    }
+
+                    // Apply late card penalty
+                    awayStanding.Deducted += fixture.AwayLatePenalty;
+                    awayStanding.Points -= fixture.AwayLatePenalty;
+                }
+
+                // Apply cancellation penalty
+                if (fixture.CancelledByTeam == FrameWinner.Home && fixture.CancellationPenalty > 0)
+                {
+                    if (standingsDict.TryGetValue(fixture.HomeTeamId, out var cancelHome))
+                    {
+                        cancelHome.Deducted += fixture.CancellationPenalty;
+                        cancelHome.Points -= fixture.CancellationPenalty;
+                    }
+                }
+                else if (fixture.CancelledByTeam == FrameWinner.Away && fixture.CancellationPenalty > 0)
+                {
+                    if (standingsDict.TryGetValue(fixture.AwayTeamId, out var cancelAway))
+                    {
+                        cancelAway.Deducted += fixture.CancellationPenalty;
+                        cancelAway.Points -= fixture.CancellationPenalty;
                     }
                 }
             }
@@ -224,5 +250,6 @@ public class TeamStanding
     public int FramesFor { get; set; }
     public int FramesAgainst { get; set; }
     public int FrameDifference => FramesFor - FramesAgainst;
+    public int Deducted { get; set; }
     public int Points { get; set; }
 }

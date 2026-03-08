@@ -33,6 +33,7 @@ public partial class LeagueTablesPage : ContentPage
         public int F { get; set; }
         public int A { get; set; }
         public int Diff => F - A;
+        public int Ded { get; set; }
         public int Pts { get; set; }
     }
 
@@ -154,14 +155,15 @@ public partial class LeagueTablesPage : ContentPage
         TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // F
         TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // A
         TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Diff
+        TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // Ded
         TeamTableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Pts
 
         // Removed "D" (Drawn) column - WDPL uses best-of-15 so draws not possible
-        string[] headers = { "#", "Team", "P", "W", "L", "F", "A", "Diff", "Pts" };
+        string[] headers = { "#", "Team", "P", "W", "L", "F", "A", "Diff", "Ded", "Pts" };
         TextAlignment[] aligns = {
             TextAlignment.Center, TextAlignment.Start, TextAlignment.Center, TextAlignment.Center,
             TextAlignment.Center, TextAlignment.Center, TextAlignment.Center,
-            TextAlignment.Center, TextAlignment.Center
+            TextAlignment.Center, TextAlignment.Center, TextAlignment.Center
         };
 
         for (int i = 0; i < headers.Length; i++)
@@ -234,6 +236,30 @@ public partial class LeagueTablesPage : ContentPage
                 ar.Pts += @as + Settings.MatchWinBonus;  // Frames won + win bonus
                 hr.Pts += hs;                             // Just frames won (no bonus for loss)
             }
+
+            // Apply late card penalties
+            if (f.HomeLatePenalty > 0)
+            {
+                hr.Ded += f.HomeLatePenalty;
+                hr.Pts -= f.HomeLatePenalty;
+            }
+            if (f.AwayLatePenalty > 0)
+            {
+                ar.Ded += f.AwayLatePenalty;
+                ar.Pts -= f.AwayLatePenalty;
+            }
+
+            // Apply cancellation penalty
+            if (f.CancelledByTeam == FrameWinner.Home && f.CancellationPenalty > 0)
+            {
+                hr.Ded += f.CancellationPenalty;
+                hr.Pts -= f.CancellationPenalty;
+            }
+            else if (f.CancelledByTeam == FrameWinner.Away && f.CancellationPenalty > 0)
+            {
+                ar.Ded += f.CancellationPenalty;
+                ar.Pts -= f.CancellationPenalty;
+            }
         }
 
         var rows = table.Values
@@ -270,6 +296,7 @@ public partial class LeagueTablesPage : ContentPage
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });  // F
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // A
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Diff
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });  // Ded
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });  // Pts
 
             Label L(string path, TextAlignment align = TextAlignment.Center, bool bold = false)
@@ -306,7 +333,19 @@ public partial class LeagueTablesPage : ContentPage
             grid.Add(L(nameof(TeamRow.F)), 5, 0);
             grid.Add(L(nameof(TeamRow.A)), 6, 0);
             grid.Add(L(nameof(TeamRow.Diff)), 7, 0);
-            grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 8, 0);
+
+            // Ded column - show in red if > 0
+            var dedLabel = new Label
+            {
+                HorizontalTextAlignment = TextAlignment.Center,
+                VerticalTextAlignment = TextAlignment.Center,
+                FontSize = 12,
+                TextColor = Color.FromArgb("#DC2626")
+            };
+            dedLabel.SetBinding(Label.TextProperty, new Binding(nameof(TeamRow.Ded)));
+            grid.Add(dedLabel, 8, 0);
+
+            grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 9, 0);
 
             var border = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
             

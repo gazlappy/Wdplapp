@@ -31,11 +31,29 @@ namespace Wdpl2.Models
         [JsonIgnore] public int HomeScore => Frames.Count(f => f.Winner == FrameWinner.Home);
         [JsonIgnore] public int AwayScore => Frames.Count(f => f.Winner == FrameWinner.Away);
 
+        /// <summary>Points deduction applied to the home team for a late card.</summary>
+        public int HomeLatePenalty { get; set; }
+
+        /// <summary>Points deduction applied to the away team for a late card.</summary>
+        public int AwayLatePenalty { get; set; }
+
+        /// <summary>Which team cancelled: None, Home, or Away.</summary>
+        public FrameWinner CancelledByTeam { get; set; } = FrameWinner.None;
+
+        /// <summary>Points deduction applied to the team that cancelled.</summary>
+        public int CancellationPenalty { get; set; }
+
         public override string ToString() => $"{Date:ddd dd MMM} — {HomeTeamId} vs {AwayTeamId}";
     }
 
     public sealed class FrameResult
     {
+        /// <summary>Well-known GUID representing a void/walkover player (player didn't show up).</summary>
+        public static readonly Guid VoidPlayerId = new("FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF");
+
+        /// <summary>Returns true if the given player ID represents a void/walkover.</summary>
+        public static bool IsVoidPlayer(Guid? playerId) => playerId.HasValue && playerId.Value == VoidPlayerId;
+
         public int Number { get; set; } // 1-based
 
         public Guid? HomePlayerId { get; set; }

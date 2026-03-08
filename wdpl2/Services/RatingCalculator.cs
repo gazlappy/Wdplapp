@@ -69,8 +69,8 @@ public static class RatingCalculator
         {
             foreach (var frame in fixture.Frames)
             {
-                if (frame.HomePlayerId.HasValue) allPlayerIds.Add(frame.HomePlayerId.Value);
-                if (frame.AwayPlayerId.HasValue) allPlayerIds.Add(frame.AwayPlayerId.Value);
+                if (frame.HomePlayerId.HasValue && !FrameResult.IsVoidPlayer(frame.HomePlayerId)) allPlayerIds.Add(frame.HomePlayerId.Value);
+                if (frame.AwayPlayerId.HasValue && !FrameResult.IsVoidPlayer(frame.AwayPlayerId)) allPlayerIds.Add(frame.AwayPlayerId.Value);
             }
         }
 
@@ -99,6 +99,10 @@ public static class RatingCalculator
                 {
                     foreach (var frame in fixture.Frames.OrderBy(fr => fr.Number))
                     {
+                        // Skip frames involving void/walkover players
+                        if (FrameResult.IsVoidPlayer(frame.HomePlayerId) || FrameResult.IsVoidPlayer(frame.AwayPlayerId))
+                            continue;
+
                         var frameWeekNo = frame.WeekNo ?? wkNo;
 
                         if (frame.HomePlayerId.HasValue)

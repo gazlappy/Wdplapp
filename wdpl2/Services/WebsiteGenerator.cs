@@ -2141,11 +2141,12 @@ namespace Wdpl2.Services
                     bool isHome = fixture.HomeTeamId == team.Id;
                     int teamScore = isHome ? fixture.HomeScore : fixture.AwayScore;
                     int oppScore = isHome ? fixture.AwayScore : fixture.HomeScore;
-                    
+                    int latePenalty = isHome ? fixture.HomeLatePenalty : fixture.AwayLatePenalty;
+
                     standing.Played++;
                     standing.FramesFor += teamScore;
                     standing.FramesAgainst += oppScore;
-                    
+
                     if (teamScore > oppScore)
                     {
                         standing.Won++;
@@ -2163,6 +2164,18 @@ namespace Wdpl2.Services
                         standing.Drawn++;
                         standing.Points += teamScore + settings.MatchDrawBonus;
                         standing.RecentForm.Add('D');
+                    }
+
+                    // Apply late card penalty
+                    standing.Points -= latePenalty;
+
+                    // Apply cancellation penalty
+                    if (fixture.CancelledByTeam != FrameWinner.None && fixture.CancellationPenalty > 0)
+                    {
+                        bool cancelledByThis = (isHome && fixture.CancelledByTeam == FrameWinner.Home)
+                                            || (!isHome && fixture.CancelledByTeam == FrameWinner.Away);
+                        if (cancelledByThis)
+                            standing.Points -= fixture.CancellationPenalty;
                     }
                 }
                 
