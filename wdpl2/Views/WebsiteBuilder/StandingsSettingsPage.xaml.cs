@@ -42,7 +42,7 @@ public partial class StandingsSettingsPage : ContentPage
         ShowPositionCheck.IsChecked = settings.StandingsShowPosition;
         ShowPlayedCheck.IsChecked = settings.StandingsShowPlayed;
         ShowWonCheck.IsChecked = settings.StandingsShowWon;
-        ShowDrawnCheck.IsChecked = settings.StandingsShowDrawn;
+        ShowDeductedCheck.IsChecked = settings.StandingsShowDeducted;
         ShowLostCheck.IsChecked = settings.StandingsShowLost;
         ShowFramesForCheck.IsChecked = settings.StandingsShowFramesFor;
         ShowFramesAgainstCheck.IsChecked = settings.StandingsShowFramesAgainst;
@@ -79,7 +79,7 @@ public partial class StandingsSettingsPage : ContentPage
             settings.StandingsShowPosition = ShowPositionCheck.IsChecked;
             settings.StandingsShowPlayed = ShowPlayedCheck.IsChecked;
             settings.StandingsShowWon = ShowWonCheck.IsChecked;
-            settings.StandingsShowDrawn = ShowDrawnCheck.IsChecked;
+            settings.StandingsShowDeducted = ShowDeductedCheck.IsChecked;
             settings.StandingsShowLost = ShowLostCheck.IsChecked;
             settings.StandingsShowFramesFor = ShowFramesForCheck.IsChecked;
             settings.StandingsShowFramesAgainst = ShowFramesAgainstCheck.IsChecked;

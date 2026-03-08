@@ -30,8 +30,8 @@
                             <Label Grid.Column="1" Text="Won" VerticalOptions="Center"/>
                         </Grid>
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowDrawnCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Drawn" VerticalOptions="Center"/>
+                            <CheckBox x:Name="ShowDeductedCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Deducted" VerticalOptions="Center"/>
                         </Grid>
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
                             <CheckBox x:Name="ShowLostCheck" IsChecked="True" VerticalOptions="Center"/>

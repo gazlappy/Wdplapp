@@ -255,7 +255,7 @@ namespace Wdpl2.Models
         public bool StandingsShowPosition { get; set; } = true;
         public bool StandingsShowPlayed { get; set; } = true;
         public bool StandingsShowWon { get; set; } = true;
-        public bool StandingsShowDrawn { get; set; } = true;
+        public bool StandingsShowDeducted { get; set; } = true;
         public bool StandingsShowLost { get; set; } = true;
         public bool StandingsShowFramesFor { get; set; } = true;
         public bool StandingsShowFramesAgainst { get; set; } = true;
@@ -731,7 +731,7 @@ namespace Wdpl2.Models
             StandingsShowPosition = true;
             StandingsShowPlayed = true;
             StandingsShowWon = true;
-            StandingsShowDrawn = true;
+            StandingsShowDeducted = true;
             StandingsShowLost = true;
             StandingsShowFramesFor = true;
             StandingsShowFramesAgainst = true;

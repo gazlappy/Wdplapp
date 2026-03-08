@@ -27,8 +27,24 @@ public sealed class WebsiteJsonDataGenerator
     public string GeneratePlayersJson(List<Player> players, List<Team> teams, List<Fixture> fixtures)
     {
         var playerStats = CalculatePlayerStats(players, teams, fixtures);
-        var statsById = playerStats.ToDictionary(s => s.PlayerId, s => s);
+        var appSettings = _league.Settings;
         var teamById = teams.ToDictionary(t => t.Id, t => t);
+
+        // Apply minimum frames filter per division — mirrors the app's LeagueTablesPage
+        var qualifiedPlayerIds = new HashSet<Guid>();
+        foreach (var divGroup in playerStats.GroupBy(p => p.DivisionId))
+        {
+            var divStats = divGroup.ToList();
+            if (divStats.Count == 0) continue;
+            int maxFrames = divStats.Max(p => p.Played);
+            int minFramesRequired = appSettings.CalculateMinimumFrames(maxFrames);
+            foreach (var stat in divStats.Where(p => p.Played >= minFramesRequired))
+                qualifiedPlayerIds.Add(stat.PlayerId);
+        }
+
+        var statsById = playerStats
+            .Where(s => qualifiedPlayerIds.Contains(s.PlayerId))
+            .ToDictionary(s => s.PlayerId, s => s);
 
         var playersData = new List<object>();
 
@@ -112,7 +128,7 @@ public sealed class WebsiteJsonDataGenerator
                 .OrderByDescending(f => f.Date)
                 .ToList();
 
-            int played = 0, won = 0, drawn = 0, lost = 0, framesFor = 0, framesAgainst = 0, points = 0;
+            int played = 0, won = 0, lost = 0, framesFor = 0, framesAgainst = 0, deducted = 0, points = 0;
             var recentForm = new List<string>();
             var matchHistory = new List<object>();
 
@@ -123,11 +139,13 @@ public sealed class WebsiteJsonDataGenerator
                 int oppScore = isHome ? fixture.AwayScore : fixture.HomeScore;
                 var opponentId = isHome ? fixture.AwayTeamId : fixture.HomeTeamId;
                 var opponent = teams.FirstOrDefault(t => t.Id == opponentId);
+                int latePenalty = isHome ? fixture.HomeLatePenalty : fixture.AwayLatePenalty;
 
                 played++;
                 framesFor += teamScore;
                 framesAgainst += oppScore;
 
+                // WDPL uses best-of-15 frames — no draws possible
                 string result;
                 if (teamScore > oppScore)
                 {
@@ -135,17 +153,30 @@ public sealed class WebsiteJsonDataGenerator
                     points += teamScore + settings.MatchWinBonus;
                     result = "W";
                 }
-                else if (teamScore < oppScore)
+                else
                 {
                     lost++;
                     points += teamScore;
                     result = "L";
                 }
-                else
+
+                // Apply late card penalty
+                if (latePenalty > 0)
                 {
-                    drawn++;
-                    points += teamScore + settings.MatchDrawBonus;
-                    result = "D";
+                    deducted += latePenalty;
+                    points -= latePenalty;
+                }
+
+                // Apply cancellation penalty
+                if (fixture.CancelledByTeam != FrameWinner.None && fixture.CancellationPenalty > 0)
+                {
+                    bool cancelledByThis = (isHome && fixture.CancelledByTeam == FrameWinner.Home)
+                                        || (!isHome && fixture.CancelledByTeam == FrameWinner.Away);
+                    if (cancelledByThis)
+                    {
+                        deducted += fixture.CancellationPenalty;
+                        points -= fixture.CancellationPenalty;
+                    }
                 }
 
                 if (recentForm.Count < 5) recentForm.Add(result);
@@ -173,11 +204,11 @@ public sealed class WebsiteJsonDataGenerator
                 providesFood = team.ProvidesFood,
                 played,
                 won,
-                drawn,
                 lost,
                 framesFor,
                 framesAgainst,
                 framesDiff = framesFor - framesAgainst,
+                deducted,
                 points,
                 winPct = played > 0 ? Math.Round((double)won / played * 100, 1) : 0,
                 form = recentForm,
@@ -226,6 +257,7 @@ public sealed class WebsiteJsonDataGenerator
                 PlayerId = ratingStats.PlayerId,
                 PlayerName = ratingStats.PlayerName,
                 TeamName = ratingStats.TeamName,
+                DivisionId = ratingStats.DivisionId,
                 Played = ratingStats.Played,
                 Won = ratingStats.Wins,
                 Lost = ratingStats.Losses,
@@ -297,6 +329,7 @@ public sealed class WebsiteJsonDataGenerator
         public Guid PlayerId { get; set; }
         public string PlayerName { get; set; } = "";
         public string TeamName { get; set; } = "";
+        public Guid? DivisionId { get; set; }
         public int Played { get; set; }
         public int Won { get; set; }
         public int Lost { get; set; }

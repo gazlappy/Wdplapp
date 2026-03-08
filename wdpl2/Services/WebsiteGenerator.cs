@@ -542,12 +542,12 @@ namespace Wdpl2.Services
                 html.AppendLine("                            <th>Team</th>");
                 if (_settings.StandingsShowPlayed) html.AppendLine("                            <th>P</th>");
                 if (_settings.StandingsShowWon) html.AppendLine("                            <th>W</th>");
-                if (_settings.StandingsShowDrawn) html.AppendLine("                            <th>D</th>");
                 if (_settings.StandingsShowLost) html.AppendLine("                            <th>L</th>");
                 if (_settings.StandingsShowFramesFor) html.AppendLine("                            <th>F</th>");
                 if (_settings.StandingsShowFramesAgainst) html.AppendLine("                            <th>A</th>");
                 if (_settings.StandingsShowFramesDiff) html.AppendLine("                            <th>Diff</th>");
                 if (_settings.StandingsShowForm) html.AppendLine("                            <th>Form</th>");
+                if (_settings.StandingsShowDeducted) html.AppendLine("                            <th>Ded</th>");
                 if (_settings.StandingsShowPoints) html.AppendLine("                            <th>Pts</th>");
                 html.AppendLine("                        </tr>");
                 html.AppendLine("                    </thead>");
@@ -582,12 +582,12 @@ namespace Wdpl2.Services
                     html.AppendLine($"                            <td><strong><a href=\"team.html?id={standing.TeamId:N}\" class=\"team-link\">{standing.TeamName}</a></strong></td>");
                     if (_settings.StandingsShowPlayed) html.AppendLine($"                            <td>{standing.Played}</td>");
                     if (_settings.StandingsShowWon) html.AppendLine($"                            <td>{standing.Won}</td>");
-                    if (_settings.StandingsShowDrawn) html.AppendLine($"                            <td>{standing.Drawn}</td>");
                     if (_settings.StandingsShowLost) html.AppendLine($"                            <td>{standing.Lost}</td>");
                     if (_settings.StandingsShowFramesFor) html.AppendLine($"                            <td>{standing.FramesFor}</td>");
                     if (_settings.StandingsShowFramesAgainst) html.AppendLine($"                            <td>{standing.FramesAgainst}</td>");
                     if (_settings.StandingsShowFramesDiff) html.AppendLine($"                            <td class=\"{(standing.FramesDiff > 0 ? "text-positive" : standing.FramesDiff < 0 ? "text-negative" : "")}\">{standing.FramesDiff:+0;-0;0}</td>");
                     if (_settings.StandingsShowForm) html.AppendLine($"                            <td class=\"form\">{standing.FormDisplay}</td>");
+                    if (_settings.StandingsShowDeducted) html.AppendLine($"                            <td{(standing.Deducted > 0 ? " class=\"text-negative\"" : "")}>{standing.Deducted}</td>");
                     if (_settings.StandingsShowPoints) html.AppendLine($"                            <td><strong>{standing.Points}</strong></td>");
                     html.AppendLine("                        </tr>");
                     position++;
@@ -940,128 +940,138 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-            
+            var appSettings = _league.Settings;
+
             AppendDocumentHead(html, $"Players - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
-            
+
             AppendHeader(html, season);
             AppendNavigation(html, "Players");
-            
+
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#127942; Player Statistics</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
             html.AppendLine("            </div>");
-            
-            var playerStats = CalculatePlayerStats(players, teams, fixtures);
-            
-            // Apply filter based on settings
-            int minFramesRequired = 0;
-            if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
-            {
-                // Calculate max frames available in the season
-                var maxFrames = playerStats.Count != 0 ? playerStats.Max(p => p.Played) : 0;
-                minFramesRequired = (int)Math.Ceiling(maxFrames * (_settings.PlayersMinFramesPercentage / 100.0));
-            }
-            else
-            {
-                minFramesRequired = _settings.PlayersMinGames;
-            }
-            
-            playerStats = playerStats
-                .Where(p => p.Played >= minFramesRequired)
-                .ToList();
-            
-            // Sort based on settings
-            playerStats = _settings.PlayersSortBy switch
-            {
-                "won" => playerStats.OrderByDescending(s => s.Won).ThenByDescending(s => s.WinPercentage).ToList(),
-                "played" => playerStats.OrderByDescending(s => s.Played).ThenByDescending(s => s.WinPercentage).ToList(),
-                "eightballs" => playerStats.OrderByDescending(s => s.EightBalls).ThenByDescending(s => s.WinPercentage).ToList(),
-                "rating" => playerStats.OrderByDescending(s => s.Rating).ThenByDescending(s => s.WinPercentage).ToList(),
-                _ => playerStats.OrderByDescending(s => s.WinPercentage).ThenByDescending(s => s.Won).ToList()
-            };
-            
-            playerStats = playerStats.Take(_settings.PlayersPerPage).ToList();
-            
-            if (playerStats.Count != 0)
+
+            // Calculate all player stats (across all divisions, ratings need cross-division data)
+            var allPlayerStats = CalculatePlayerStats(players, teams, fixtures);
+
+            // Generate one table per division — mirrors the app's LeagueTablesPage exactly
+            var orderedDivisions = divisions.OrderBy(d => d.Name).ToList();
+
+            if (orderedDivisions.Count == 0)
             {
                 html.AppendLine("            <div class=\"section\">");
-                html.AppendLine("                <h3>Top Performers</h3>");
-                html.AppendLine("                <div class=\"table-responsive\">");
-                html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
-                html.AppendLine("                    <thead>");
-                html.AppendLine("                        <tr>");
-                if (_settings.PlayersShowPosition) html.AppendLine("                            <th>Pos</th>");
-                html.AppendLine("                            <th>Player</th>");
-                if (_settings.PlayersShowTeam) html.AppendLine("                            <th>Team</th>");
-                if (_settings.PlayersShowPlayed) html.AppendLine("                            <th>Played</th>");
-                if (_settings.PlayersShowWon) html.AppendLine("                            <th>Won</th>");
-                if (_settings.PlayersShowLost) html.AppendLine("                            <th>Lost</th>");
-                if (_settings.PlayersShowWinPercentage) html.AppendLine("                            <th>Win %</th>");
-                if (_settings.PlayersShowEightBalls) html.AppendLine("                            <th>8-Balls</th>");
-                if (_settings.PlayersShowRating) html.AppendLine("                            <th>Rating</th>");
-                html.AppendLine("                        </tr>");
-                html.AppendLine("                    </thead>");
-                html.AppendLine("                    <tbody>");
-                
-                var position = 1;
-                foreach (var stat in playerStats)
+                html.AppendLine("                <p class=\"empty-message\">No divisions found.</p>");
+                html.AppendLine("            </div>");
+            }
+
+            foreach (var division in orderedDivisions)
+            {
+                // Filter to players in this division only
+                var divisionStats = allPlayerStats
+                    .Where(p => p.DivisionId == division.Id)
+                    .ToList();
+
+                if (divisionStats.Count == 0) continue;
+
+                // Apply minimum frames filter using the app's settings (same as LeagueTablesPage)
+                int maxFramesInDivision = divisionStats.Max(p => p.Played);
+                int minFramesRequired = appSettings.CalculateMinimumFrames(maxFramesInDivision);
+
+                var filteredStats = divisionStats
+                    .Where(p => p.Played >= minFramesRequired)
+                    .ToList();
+
+                // Sort — use website sort setting but default to rating (matching app default)
+                filteredStats = _settings.PlayersSortBy switch
                 {
-                    html.AppendLine("                        <tr>");
-                    if (_settings.PlayersShowPosition)
-                    {
-                        var posDisplay = position <= 3 
-                            ? (position == 1 ? "&#129351;" : position == 2 ? "&#129352;" : "&#129353;")
-                            : position.ToString();
-                        html.AppendLine($"                            <td>{posDisplay}</td>");
-                    }
-                    // Make player name a clickable link to the single template page with query parameter
-                    html.AppendLine($"                            <td><strong><a href=\"player.html?id={stat.PlayerId:N}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
-                    if (_settings.PlayersShowTeam) html.AppendLine($"                            <td>{stat.TeamName}</td>");
-                    if (_settings.PlayersShowPlayed) html.AppendLine($"                            <td>{stat.Played}</td>");
-                    if (_settings.PlayersShowWon) html.AppendLine($"                            <td>{stat.Won}</td>");
-                    if (_settings.PlayersShowLost) html.AppendLine($"                            <td>{stat.Lost}</td>");
-                    if (_settings.PlayersShowWinPercentage) html.AppendLine($"                            <td><strong>{stat.WinPercentage:F1}%</strong></td>");
-                    if (_settings.PlayersShowEightBalls) html.AppendLine($"                            <td>{stat.EightBalls}</td>");
-                    if (_settings.PlayersShowRating) html.AppendLine($"                            <td>{stat.Rating}</td>");
-                    html.AppendLine("                        </tr>");
-                    position++;
-                }
-                
-                html.AppendLine("                    </tbody>");
-                html.AppendLine("                </table>");
-                html.AppendLine("                </div>");
-                
-                if (_settings.PlayersUsePercentageFilter && _settings.PlayersMinFramesPercentage > 0)
-                    html.AppendLine($"                <p class=\"table-note\">* Minimum {_settings.PlayersMinFramesPercentage}% of available frames required to qualify ({minFramesRequired} frames)</p>");
-                else if (_settings.PlayersMinGames > 0)
-                    html.AppendLine($"                <p class=\"table-note\">* Minimum {_settings.PlayersMinGames} games played to qualify</p>");
-                
-                html.AppendLine("            </div>");
-            }
-            else
-            {
+                    "won" => filteredStats.OrderByDescending(s => s.Won).ThenByDescending(s => s.WinPercentage).ToList(),
+                    "played" => filteredStats.OrderByDescending(s => s.Played).ThenByDescending(s => s.WinPercentage).ToList(),
+                    "eightballs" => filteredStats.OrderByDescending(s => s.EightBalls).ThenByDescending(s => s.WinPercentage).ToList(),
+                    "winpct" => filteredStats.OrderByDescending(s => s.WinPercentage).ThenByDescending(s => s.Won).ToList(),
+                    _ => filteredStats.OrderByDescending(s => s.Rating).ThenByDescending(s => s.WinPercentage).ToList()
+                };
+
+                if (_settings.PlayersPerPage > 0)
+                    filteredStats = filteredStats.Take(_settings.PlayersPerPage).ToList();
+
                 html.AppendLine("            <div class=\"section\">");
-                html.AppendLine("                <p class=\"empty-message\">No player statistics available yet.</p>");
+                html.AppendLine($"                <h3>{division.Name ?? "Division"}</h3>");
+
+                if (filteredStats.Count != 0)
+                {
+                    html.AppendLine("                <div class=\"table-responsive\">");
+                    html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
+                    html.AppendLine("                    <thead>");
+                    html.AppendLine("                        <tr>");
+                    if (_settings.PlayersShowPosition) html.AppendLine("                            <th>Pos</th>");
+                    html.AppendLine("                            <th>Player</th>");
+                    if (_settings.PlayersShowTeam) html.AppendLine("                            <th>Team</th>");
+                    if (_settings.PlayersShowPlayed) html.AppendLine("                            <th>Played</th>");
+                    if (_settings.PlayersShowWon) html.AppendLine("                            <th>Won</th>");
+                    if (_settings.PlayersShowLost) html.AppendLine("                            <th>Lost</th>");
+                    if (_settings.PlayersShowWinPercentage) html.AppendLine("                            <th>Win %</th>");
+                    if (_settings.PlayersShowEightBalls) html.AppendLine("                            <th>8-Balls</th>");
+                    if (_settings.PlayersShowRating) html.AppendLine("                            <th>Rating</th>");
+                    html.AppendLine("                        </tr>");
+                    html.AppendLine("                    </thead>");
+                    html.AppendLine("                    <tbody>");
+
+                    var position = 1;
+                    foreach (var stat in filteredStats)
+                    {
+                        html.AppendLine("                        <tr>");
+                        if (_settings.PlayersShowPosition)
+                        {
+                            var posDisplay = position <= 3 
+                                ? (position == 1 ? "&#129351;" : position == 2 ? "&#129352;" : "&#129353;")
+                                : position.ToString();
+                            html.AppendLine($"                            <td>{posDisplay}</td>");
+                        }
+                        html.AppendLine($"                            <td><strong><a href=\"player.html?id={stat.PlayerId:N}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
+                        if (_settings.PlayersShowTeam) html.AppendLine($"                            <td>{stat.TeamName}</td>");
+                        if (_settings.PlayersShowPlayed) html.AppendLine($"                            <td>{stat.Played}</td>");
+                        if (_settings.PlayersShowWon) html.AppendLine($"                            <td>{stat.Won}</td>");
+                        if (_settings.PlayersShowLost) html.AppendLine($"                            <td>{stat.Lost}</td>");
+                        if (_settings.PlayersShowWinPercentage) html.AppendLine($"                            <td><strong>{stat.WinPercentage:F1}%</strong></td>");
+                        if (_settings.PlayersShowEightBalls) html.AppendLine($"                            <td>{stat.EightBalls}</td>");
+                        if (_settings.PlayersShowRating) html.AppendLine($"                            <td>{stat.Rating}</td>");
+                        html.AppendLine("                        </tr>");
+                        position++;
+                    }
+
+                    html.AppendLine("                    </tbody>");
+                    html.AppendLine("                </table>");
+                    html.AppendLine("                </div>");
+
+                    if (minFramesRequired > 0)
+                        html.AppendLine($"                <p class=\"table-note\">* Minimum {appSettings.MinFramesPercentage}% of available frames required to qualify ({minFramesRequired} frames)</p>");
+                }
+                else
+                {
+                    html.AppendLine("                <p class=\"empty-message\">No players qualify yet.</p>");
+                }
+
                 html.AppendLine("            </div>");
             }
-            
+
             html.AppendLine("        </div>");
             html.AppendLine("    </div>");
-            
+
             AppendFooter(html);
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
-            
+
             html.AppendLine("</body>");
             html.AppendLine("</html>");
-            
+
             return html.ToString();
         }
         
@@ -2102,14 +2112,14 @@ namespace Wdpl2.Services
             public Guid TeamId { get; set; }
             public int Played { get; set; }
             public int Won { get; set; }
-            public int Drawn { get; set; }
             public int Lost { get; set; }
             public int FramesFor { get; set; }
             public int FramesAgainst { get; set; }
             public int FramesDiff => FramesFor - FramesAgainst;
+            public int Deducted { get; set; }
             public int Points { get; set; }
             public List<char> RecentForm { get; set; } = new();
-            public string FormDisplay => string.Join("", RecentForm.Take(5).Select(f => f switch { 'W' => "&#128994;", 'D' => "&#128992;", 'L' => "&#128308;", _ => "&#9898;" }));
+            public string FormDisplay => string.Join("", RecentForm.Take(5).Select(f => f switch { 'W' => "&#128994;", 'L' => "&#128308;", _ => "&#9898;" }));
         }
         
         private List<TeamStanding> CalculateStandings(List<Team> teams, List<Fixture> fixtures)
@@ -2121,7 +2131,7 @@ namespace Wdpl2.Services
         {
             var standings = new List<TeamStanding>();
             var settings = _league.Settings;
-            
+
             foreach (var team in teams)
             {
                 var standing = new TeamStanding
@@ -2129,13 +2139,13 @@ namespace Wdpl2.Services
                     TeamId = team.Id,
                     TeamName = team.Name ?? "Unknown"
                 };
-                
+
                 // Get all completed fixtures for this team
                 var teamFixtures = fixtures
                     .Where(f => f.Frames.Count != 0 && ( f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                     .OrderByDescending(f => f.Date)
                     .ToList();
-                
+
                 foreach (var fixture in teamFixtures)
                 {
                     bool isHome = fixture.HomeTeamId == team.Id;
@@ -2147,27 +2157,26 @@ namespace Wdpl2.Services
                     standing.FramesFor += teamScore;
                     standing.FramesAgainst += oppScore;
 
+                    // WDPL uses best-of-15 frames — no draws possible
                     if (teamScore > oppScore)
                     {
                         standing.Won++;
                         standing.Points += teamScore + settings.MatchWinBonus;
                         standing.RecentForm.Add('W');
                     }
-                    else if (teamScore < oppScore)
+                    else
                     {
                         standing.Lost++;
                         standing.Points += teamScore;
                         standing.RecentForm.Add('L');
                     }
-                    else
-                    {
-                        standing.Drawn++;
-                        standing.Points += teamScore + settings.MatchDrawBonus;
-                        standing.RecentForm.Add('D');
-                    }
 
                     // Apply late card penalty
-                    standing.Points -= latePenalty;
+                    if (latePenalty > 0)
+                    {
+                        standing.Deducted += latePenalty;
+                        standing.Points -= latePenalty;
+                    }
 
                     // Apply cancellation penalty
                     if (fixture.CancelledByTeam != FrameWinner.None && fixture.CancellationPenalty > 0)
@@ -2175,13 +2184,16 @@ namespace Wdpl2.Services
                         bool cancelledByThis = (isHome && fixture.CancelledByTeam == FrameWinner.Home)
                                             || (!isHome && fixture.CancelledByTeam == FrameWinner.Away);
                         if (cancelledByThis)
+                        {
+                            standing.Deducted += fixture.CancellationPenalty;
                             standing.Points -= fixture.CancellationPenalty;
+                        }
                     }
                 }
-                
+
                 standings.Add(standing);
             }
-            
+
             return standings;
         }
         
@@ -2287,6 +2299,7 @@ namespace Wdpl2.Services
                     PlayerId = ratingStats.PlayerId,
                     PlayerName = ratingStats.PlayerName,
                     TeamName = ratingStats.TeamName,
+                    DivisionId = ratingStats.DivisionId,
                     Played = ratingStats.Played,
                     Won = ratingStats.Wins,
                     Lost = ratingStats.Losses,
@@ -2313,6 +2326,7 @@ namespace Wdpl2.Services
             public Guid PlayerId { get; set; }
             public string PlayerName { get; set; } = "";
             public string TeamName { get; set; } = "";
+            public Guid? DivisionId { get; set; }
             public int Played { get; set; }
             public int Won { get; set; }
             public int Lost { get; set; }
