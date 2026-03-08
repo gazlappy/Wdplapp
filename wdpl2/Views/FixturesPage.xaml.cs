@@ -22,6 +22,9 @@ public partial class FixturesPage : ContentPage
         public string Title { get; init; } = "";
         public string Subtitle { get; init; } = "";
         public bool HasReminder { get; init; }
+        /// <summary>✅ = fully completed, ⚠️ = partially filled, empty = not started.</summary>
+        public string StatusIcon { get; init; } = "";
+        public Color StatusColor { get; init; } = Colors.Transparent;
     }
 
     // Player list item for the side panels
@@ -1215,7 +1218,11 @@ public partial class FixturesPage : ContentPage
             });
         }
 
-        var fixturesList = src.OrderBy(f => f.Date).ToList();
+        // Sort: upcoming fixtures first (nearest future date at top), then past fixtures (most recent at top)
+        var now = DateTime.Now;
+        var upcoming = src.Where(f => f.Date >= now).OrderBy(f => f.Date).ToList();
+        var past = src.Where(f => f.Date < now).OrderByDescending(f => f.Date).ToList();
+        var fixturesList = upcoming.Concat(past).ToList();
 
         foreach (var f in fixturesList)
         {
@@ -1226,13 +1233,36 @@ public partial class FixturesPage : ContentPage
             if (f.VenueId.HasValue && venueById.TryGetValue(f.VenueId.Value, out var v))
                 subtitle = v.Name;
 
+            // Determine completion status
+            string statusIcon = "";
+            Color statusColor = Colors.Transparent;
+            if (f.Frames.Count > 0)
+            {
+                bool allPlayersSet = f.Frames.All(fr => fr.HomePlayerId.HasValue && fr.AwayPlayerId.HasValue);
+                bool allScored = f.Frames.All(fr => fr.Winner != FrameWinner.None);
+                bool anyData = f.Frames.Any(fr => fr.HomePlayerId.HasValue || fr.AwayPlayerId.HasValue || fr.Winner != FrameWinner.None);
+
+                if (allPlayersSet && allScored)
+                {
+                    statusIcon = "✔";
+                    statusColor = Color.FromArgb("#16A34A");
+                }
+                else if (anyData)
+                {
+                    statusIcon = "/";
+                    statusColor = Color.FromArgb("#D97706");
+                }
+            }
+
             _items.Add(new FixtureListItem
             {
                 Id = f.Id,
                 Date = f.Date,
                 Title = $"{home} vs {away}",
                 Subtitle = subtitle,
-                HasReminder = f.Date > DateTime.Now
+                HasReminder = f.Date > DateTime.Now,
+                StatusIcon = statusIcon,
+                StatusColor = statusColor
             });
         }
     }

@@ -8,7 +8,7 @@
     Title="Fixtures"
     SemanticProperties.Description="Fixtures management page">
 
-    <Grid ColumnDefinitions="220,*" RowDefinitions="Auto,*" Padding="4" ColumnSpacing="4" RowSpacing="4">
+    <Grid ColumnDefinitions="300,*" RowDefinitions="Auto,*" Padding="4" ColumnSpacing="4" RowSpacing="4">
         
         <!-- OCR Progress Overlay -->
         <Border 
@@ -190,7 +190,7 @@
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 6">
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
                                     <Label 
                                         FontAttributes="Bold"
                                         FontSize="10"
@@ -201,8 +201,9 @@
                                         <Label FontAttributes="Bold" FontSize="12" Text="{Binding Title}" LineBreakMode="TailTruncation" />
                                         <Label FontSize="10" TextColor="Gray" Text="{Binding Subtitle}" LineBreakMode="TailTruncation" />
                                     </VerticalStackLayout>
-                                    
-                                    <Label Grid.Column="2" Text="🔔" FontSize="12" VerticalOptions="Center" IsVisible="{Binding HasReminder}" />
+
+                                    <Label Grid.Column="2" Text="{Binding StatusIcon}" TextColor="{Binding StatusColor}" FontSize="14" FontAttributes="Bold" VerticalOptions="Center" />
+                                    <Label Grid.Column="3" Text="🔔" FontSize="12" VerticalOptions="Center" IsVisible="{Binding HasReminder}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
