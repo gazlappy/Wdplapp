@@ -180,18 +180,35 @@ namespace Wdpl2.Models
         /// <summary>Name suffix for plate competition (e.g., "Plate")</summary>
         public string PlateNameSuffix { get; set; } = "Plate";
 
-        /// <summary>Selected venues with table counts for this competition night.</summary>
+        /// <summary>Selected venues with specific tables for this competition night.</summary>
         public List<CompetitionVenue> SelectedVenues { get; set; } = new();
+
+        /// <summary>Scheduled date for the current group round.</summary>
+        public DateTime? GroupDate { get; set; }
     }
 
     /// <summary>
-    /// A venue selected for a group stage competition, with the number of tables in use.
+    /// A venue selected for a group stage competition, with the specific tables in use.
     /// </summary>
     public sealed class CompetitionVenue
     {
         public Guid VenueId { get; set; }
         public string VenueName { get; set; } = "";
-        public int TableCount { get; set; } = 1;
+
+        /// <summary>The specific tables selected at this venue.</summary>
+        public List<SelectedTable> SelectedTables { get; set; } = new();
+
+        /// <summary>Number of selected tables (replaces the old TableCount property).</summary>
+        public int TableCount => SelectedTables.Count;
+    }
+
+    /// <summary>
+    /// A specific table selected from a venue.
+    /// </summary>
+    public sealed class SelectedTable
+    {
+        public Guid TableId { get; set; }
+        public string Label { get; set; } = "";
     }
 
     /// <summary>
@@ -206,14 +223,34 @@ namespace Wdpl2.Models
         /// <summary>Which round of groups this belongs to (1 = first round, 2 = second, etc.)</summary>
         public int GroupRound { get; set; } = 1;
 
+        /// <summary>The venue this group is assigned to play at.</summary>
+        public Guid? VenueId { get; set; }
+
+        /// <summary>Display name of the assigned venue.</summary>
+        public string? VenueName { get; set; }
+
+        /// <summary>The specific table ID at the venue this group plays on.</summary>
+        public Guid? TableId { get; set; }
+
+        /// <summary>Display label of the assigned table (e.g. "Table 1").</summary>
+        public string? TableLabel { get; set; }
+
+        /// <summary>Which table number at the venue (1-based, legacy fallback).</summary>
+        public int TableNumber { get; set; }
+
         /// <summary>Participants in this group</summary>
         public List<Guid> ParticipantIds { get; set; } = new();
-        
+
         /// <summary>Group stage matches (round robin within group)</summary>
         public List<CompetitionMatch> Matches { get; set; } = new();
-        
+
         /// <summary>Group standings (calculated from matches)</summary>
         public List<GroupStanding> Standings { get; set; } = new();
+
+        /// <summary>Formatted venue and table assignment for display.</summary>
+        public string VenueDisplay => VenueId.HasValue && !string.IsNullOrEmpty(VenueName)
+            ? (!string.IsNullOrEmpty(TableLabel) ? $"{VenueName} — {TableLabel}" : $"{VenueName}")
+            : "";
 
         public override string ToString() => Name;
     }
@@ -263,6 +300,15 @@ namespace Wdpl2.Models
 
         /// <summary>Group ID if this round belongs to a specific group</summary>
         public Guid? GroupId { get; set; }
+
+        /// <summary>Scheduled date for this round.</summary>
+        public DateTime? Date { get; set; }
+
+        /// <summary>Venues/tables available for this round.</summary>
+        public List<CompetitionVenue> SelectedVenues { get; set; } = new();
+
+        /// <summary>Total number of selected tables across all venues for this round.</summary>
+        public int TotalTables => SelectedVenues.Sum(v => v.TableCount);
 
         public override string ToString() => Name;
     }
@@ -344,7 +390,56 @@ namespace Wdpl2.Models
                 groups.Add(group);
             }
 
+            // Assign groups to venue tables randomly
+            AssignVenueTables(groups, settings.SelectedVenues);
+
             return (groups, null);
+        }
+
+        /// <summary>
+        /// Randomly assign groups to available venue tables.
+        /// Uses the specific tables selected at each venue. Groups are shuffled
+        /// and dealt round-robin across the available table slots.
+        /// </summary>
+        public static void AssignVenueTables(List<CompetitionGroup> groups, List<CompetitionVenue> venues)
+        {
+            if (groups.Count == 0) return;
+
+            // Build a flat list of table slots from the selected tables
+            var tableSlots = new List<(Guid VenueId, string VenueName, Guid TableId, string TableLabel)>();
+            foreach (var venue in venues)
+            {
+                foreach (var table in venue.SelectedTables)
+                    tableSlots.Add((venue.VenueId, venue.VenueName, table.TableId, table.Label));
+            }
+
+            if (tableSlots.Count == 0)
+            {
+                // No tables selected — clear any existing assignments
+                foreach (var g in groups)
+                {
+                    g.VenueId = null;
+                    g.VenueName = null;
+                    g.TableId = null;
+                    g.TableLabel = null;
+                    g.TableNumber = 0;
+                }
+                return;
+            }
+
+            // Shuffle the table slots so assignment is random
+            var shuffledSlots = tableSlots.OrderBy(_ => Random.Shared.Next()).ToList();
+
+            // Assign groups to slots (round-robin if more groups than tables)
+            for (int i = 0; i < groups.Count; i++)
+            {
+                var slot = shuffledSlots[i % shuffledSlots.Count];
+                groups[i].VenueId = slot.VenueId;
+                groups[i].VenueName = slot.VenueName;
+                groups[i].TableId = slot.TableId;
+                groups[i].TableLabel = slot.TableLabel;
+                groups[i].TableNumber = (i % shuffledSlots.Count) + 1;
+            }
         }
 
         /// <summary>

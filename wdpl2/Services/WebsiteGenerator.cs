@@ -1606,8 +1606,11 @@ namespace Wdpl2.Services
             html.AppendLine("                <div class=\"comp-results\">");
             foreach (var round in comp.Rounds.OrderBy(r => r.RoundNumber))
             {
+                var rrDateHtml = round.Date.HasValue
+                    ? $" <span class=\"round-date\">{round.Date.Value:dd MMM yyyy}</span>"
+                    : "";
                 html.AppendLine($"                    <div class=\"round-section\">");
-                html.AppendLine($"                        <h4>{round.Name}</h4>");
+                html.AppendLine($"                        <h4>{round.Name}{rrDateHtml}</h4>");
                 foreach (var match in round.Matches)
                     AppendMatchRow(html, match, comp, players, teams);
                 html.AppendLine($"                    </div>");
@@ -1634,8 +1637,11 @@ namespace Wdpl2.Services
                 int total = round.Matches.Count;
                 var progColor = completed == total && total > 0 ? "#10B981" : "#6B7280";
 
+                var roundDateHtml = round.Date.HasValue
+                    ? $"<div class=\"round-date\">{round.Date.Value:dd MMM yyyy}</div>"
+                    : "";
                 html.AppendLine("                    <div class=\"bk-round\">");
-                html.AppendLine($"                        <div class=\"bk-hdr\"><div class=\"bk-rn\">{label}</div><div class=\"bk-rp\" style=\"color:{progColor}\">{completed}/{total}</div></div>");
+                html.AppendLine($"                        <div class=\"bk-hdr\"><div class=\"bk-rn\">{label}</div>{roundDateHtml}<div class=\"bk-rp\" style=\"color:{progColor}\">{completed}/{total}</div></div>");
                 html.AppendLine("                        <div class=\"bk-body\">");
                 foreach (var match in round.Matches)
                     AppendBracketCard(html, match, comp, players, teams);
@@ -1710,7 +1716,15 @@ namespace Wdpl2.Services
 
             if (comp.PreviousGroups.Count > 0)
             {
-                html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {currentRound}</h3>");
+                var currentGroupDate = comp.GroupSettings?.GroupDate;
+                var currentGroupDateHtml = currentGroupDate.HasValue
+                    ? $" <span class=\"round-date\">{currentGroupDate.Value:dd MMM yyyy}</span>"
+                    : "";
+                html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {currentRound}{currentGroupDateHtml}</h3>");
+            }
+            else if (comp.GroupSettings?.GroupDate.HasValue == true)
+            {
+                html.AppendLine($"                <p class=\"round-date\" style=\"margin-bottom:8px\">{comp.GroupSettings.GroupDate.Value:dd MMM yyyy}</p>");
             }
 
             html.AppendLine("                <div class=\"comp-groups\">");
@@ -1726,6 +1740,8 @@ namespace Wdpl2.Services
         {
             html.AppendLine($"                    <div class=\"group-section\">");
             html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} players)</span></h4>");
+            if (!string.IsNullOrEmpty(group.VenueDisplay))
+                html.AppendLine($"                        <p class=\"group-venue\">&#128205; {group.VenueDisplay}</p>");
             html.AppendLine($"                        <div class=\"group-players\">");
 
             foreach (var pid in group.ParticipantIds)

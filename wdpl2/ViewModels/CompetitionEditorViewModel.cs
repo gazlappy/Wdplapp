@@ -82,7 +82,79 @@ public partial class CompetitionEditorViewModel : ObservableObject
         _competition.GroupSettings.SelectedVenues = venues;
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
-        StatusMessage = $"Saved {venues.Count} venue(s) with {venues.Sum(v => v.TableCount)} total tables";
+        StatusMessage = $"Saved {venues.Count} venue(s) with {venues.Sum(v => v.TableCount)} table(s)";
+    }
+
+    /// <summary>
+    /// Save the group round date and persist.
+    /// </summary>
+    public async Task SaveGroupDateAsync(DateTime? date)
+    {
+        if (_competition.GroupSettings == null)
+            _competition.GroupSettings = new GroupStageSettings();
+
+        _competition.GroupSettings.GroupDate = date;
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+        StatusMessage = date.HasValue ? $"Group date set to {date.Value:dd MMM yyyy}" : "Group date cleared";
+    }
+
+    /// <summary>
+    /// Save date and table selections for a specific KO round.
+    /// </summary>
+    public async Task SaveRoundDetailsAsync(Guid roundId, DateTime? date, List<CompetitionVenue>? venues)
+    {
+        var round = _competition.Rounds.FirstOrDefault(r => r.Id == roundId);
+        if (round == null)
+        {
+            StatusMessage = "Round not found";
+            return;
+        }
+
+        if (date.HasValue) round.Date = date;
+        if (venues != null) round.SelectedVenues = venues;
+
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+
+        var datePart = round.Date.HasValue ? round.Date.Value.ToString("dd MMM yyyy") : "no date";
+        StatusMessage = $"{round.Name}: {datePart}, {round.TotalTables} table(s)";
+    }
+
+    /// <summary>
+    /// Get tables that are in use by the parent competition on a given date.
+    /// Used to restrict plate competitions from using the same tables.
+    /// </summary>
+    public async Task<List<Guid>> GetTablesInUseByParentOnDateAsync(DateTime date)
+    {
+        if (!_competition.ParentCompetitionId.HasValue) return new();
+
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        var allComps = await _competitionStore.GetCompetitionsAsync(seasonId);
+        var parentComp = allComps.FirstOrDefault(c => c.Id == _competition.ParentCompetitionId.Value);
+        if (parentComp == null) return new();
+
+        var usedTableIds = new List<Guid>();
+
+        // Check group stage tables (if groups match the date)
+        if (parentComp.GroupSettings?.GroupDate?.Date == date.Date)
+        {
+            usedTableIds.AddRange(
+                parentComp.GroupSettings.SelectedVenues
+                    .SelectMany(v => v.SelectedTables)
+                    .Select(t => t.TableId));
+        }
+
+        // Check KO round tables
+        foreach (var round in parentComp.Rounds.Where(r => r.Date?.Date == date.Date))
+        {
+            usedTableIds.AddRange(
+                round.SelectedVenues
+                    .SelectMany(v => v.SelectedTables)
+                    .Select(t => t.TableId));
+        }
+
+        return usedTableIds.Distinct().ToList();
     }
 
     /// <summary>
@@ -521,6 +593,10 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 idx += size;
             }
 
+            // Reassign venue tables randomly
+            if (_competition.GroupSettings?.SelectedVenues.Count > 0)
+                CompetitionGenerator.AssignVenueTables(_competition.Groups, _competition.GroupSettings.SelectedVenues);
+
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
             StatusMessage = "Groups randomised";
@@ -593,6 +669,10 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 newGroups.Add(group);
                 idx += size;
             }
+
+            // Assign venue tables randomly to the new groups
+            if (_competition.GroupSettings.SelectedVenues.Count > 0)
+                CompetitionGenerator.AssignVenueTables(newGroups, _competition.GroupSettings.SelectedVenues);
 
             _competition.Groups = newGroups;
             _competition.GroupSettings.NumberOfGroups = newGroupCount;

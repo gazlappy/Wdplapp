@@ -1238,6 +1238,8 @@ nav a:hover, nav a.active {
 .match-score { font-weight: 700; text-align: center; min-width: 50px; }
 tr.qualifying td { background: #EFF6FF; }
 .comp-standings { margin-bottom: 1.5rem; }
+.round-date { font-size: 0.82rem; color: var(--text-secondary); font-weight: 400; margin-left: 6px; }
+.round-date::before { content: '\1F4C5 '; }
 
 /* Competition selector tabs */
 .comp-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }

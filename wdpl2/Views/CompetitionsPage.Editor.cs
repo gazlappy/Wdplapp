@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
@@ -131,7 +133,10 @@ public partial class CompetitionsPage
             Padding = new Thickness(8, 6)
         });
 
-        ContentPanel.Content = content;
+        ContentPanel.Content = new ScrollView
+        {
+            Content = content
+        };
     }
 
     private void AddFormatSpecificActions(VerticalStackLayout content, Competition competition)
@@ -167,7 +172,36 @@ public partial class CompetitionsPage
         // If groups already generated, show view/finalize only
         if (competition.Groups.Count > 0)
         {
-            content.Children.Add(new Label { Text = $"? {competition.Groups.Count} groups generated", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+            int currentGroupRound = competition.Groups.Max(g => g.GroupRound);
+            content.Children.Add(new Label { Text = $"? {competition.Groups.Count} groups generated (Round {currentGroupRound})", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+
+            // Show current round date and venue summary
+            if (settings.GroupDate.HasValue)
+            {
+                content.Children.Add(new Label
+                {
+                    Text = $"?? {settings.GroupDate.Value:dd MMM yyyy}",
+                    FontSize = 12,
+                    TextColor = Colors.Gray,
+                    Margin = new Thickness(0, 0, 0, 2)
+                });
+            }
+            if (settings.SelectedVenues.Count > 0)
+            {
+                int venueTables = settings.SelectedVenues.Sum(v => v.TableCount);
+                var venueDetails = string.Join(", ", settings.SelectedVenues.Select(v =>
+                {
+                    var tableNames = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                    return $"{v.VenueName} ({tableNames})";
+                }));
+                content.Children.Add(new Label
+                {
+                    Text = $"?? {venueDetails} — {venueTables} table(s)",
+                    FontSize = 12,
+                    TextColor = Colors.Gray,
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+            }
 
             // Group action buttons
             var groupActionBar = new HorizontalStackLayout
@@ -228,7 +262,59 @@ public partial class CompetitionsPage
                     Margin = new Thickness(0, 6, 0, 2)
                 });
 
-                var finalizeBar = new VerticalStackLayout { Spacing = 4, Margin = new Thickness(0, 2, 0, 0) };
+                // ?? Next Round Settings: date & tables ??????????????
+                content.Children.Add(new Label
+                {
+                    Text = "?? Next Round Settings",
+                    FontSize = 14,
+                    FontAttributes = FontAttributes.Bold,
+                    Margin = new Thickness(0, 10, 0, 4)
+                });
+
+                content.Children.Add(new Label
+                {
+                    Text = "Set the date and tables for the next round before advancing.",
+                    FontSize = 11,
+                    TextColor = Colors.Gray,
+                    FontAttributes = FontAttributes.Italic,
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+
+                // Date picker for next round
+                var nextDatePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 13 };
+                nextDatePicker.DateSelected += async (s, e) =>
+                {
+                    await _editorViewModel.SaveGroupDateAsync(e.NewDate);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    if (_selectedCompetition != null)
+                        ShowCompetitionEditor(_selectedCompetition);
+                };
+                content.Children.Add(CreateLabeledField("Date:", nextDatePicker));
+
+                // Table selection for next round
+                content.Children.Add(new Label
+                {
+                    Text = "?? Tables",
+                    FontSize = 13,
+                    FontAttributes = FontAttributes.Bold,
+                    Margin = new Thickness(0, 6, 0, 2)
+                });
+                AddVenueSelectionUI(content, competition, settings);
+
+                int nextRoundTables = settings.SelectedVenues.Sum(v => v.TableCount);
+                if (nextRoundTables > 0)
+                {
+                    content.Children.Add(new Label
+                    {
+                        Text = $"? {settings.SelectedVenues.Count} venue(s), {nextRoundTables} table(s)",
+                        FontSize = 12,
+                        TextColor = Color.FromArgb("#10B981"),
+                        Margin = new Thickness(0, 2, 0, 0)
+                    });
+                }
+
+                // ?? Action buttons ??????????????????????????????????
+                var finalizeBar = new VerticalStackLayout { Spacing = 4, Margin = new Thickness(0, 8, 0, 0) };
 
                 var koBtn = new Button
                 {
@@ -269,6 +355,9 @@ public partial class CompetitionsPage
                 };
                 viewBracketBtn.Clicked += (s, e) => OnViewBracket();
                 content.Children.Add(viewBracketBtn);
+
+                // Round schedule — dates and tables per KO round
+                AddRoundScheduleUI(content, competition);
             }
 
             // Plate competition section — show after groups exist, regardless of KO status
@@ -349,7 +438,7 @@ public partial class CompetitionsPage
             return;
         }
 
-        // ?? 1. Participants ??????????????????????????????????????????????
+        // ? 1. Participants ??????????????????????????????????????????????
         var step1Color = participantCount >= 4 ? Color.FromArgb("#10B981") : Colors.Gray;
         content.Children.Add(new Label
         {
@@ -362,10 +451,74 @@ public partial class CompetitionsPage
 
         if (participantCount < 4) return;
 
-        // ?? 2. Group Count ???????????????????????????????????????????????
+        // ? 2. Venue Selection ???????????????????????????????????????????
         content.Children.Add(new Label
         {
-            Text = "? Choose Number of Groups",
+            Text = "?? Select Venues & Tables",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 10, 0, 4)
+        });
+
+        AddVenueSelectionUI(content, competition, settings);
+
+        int totalTables = settings.SelectedVenues.Sum(v => v.TableCount);
+        var venueStatus = totalTables > 0
+            ? $"? {settings.SelectedVenues.Count} venue(s), {totalTables} table(s)"
+            : "? Select at least one venue with tables";
+        content.Children.Add(new Label
+        {
+            Text = venueStatus,
+            FontSize = 13,
+            TextColor = totalTables > 0 ? Color.FromArgb("#10B981") : Colors.Gray
+        });
+
+        // Show recommendation if venues selected
+        if (totalTables > 0)
+        {
+            var (recommended, _, _, explanation) = _editorViewModel.GetGroupRecommendation();
+            if (recommended > 0)
+            {
+                content.Children.Add(new Border
+                {
+                    Padding = 8,
+                    BackgroundColor = Color.FromArgb("#F0F9FF"),
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+                    Margin = new Thickness(0, 4, 0, 0),
+                    Content = new Label
+                    {
+                        Text = $"?? {explanation}",
+                        FontSize = 11,
+                        TextColor = Color.FromArgb("#1E40AF")
+                    }
+                });
+            }
+        }
+
+        // Group date picker
+        content.Children.Add(new Label
+        {
+            Text = "?? Group Round Date",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 10, 0, 4)
+        });
+
+        var groupDatePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 14 };
+        groupDatePicker.DateSelected += async (s, e) =>
+        {
+            await _editorViewModel.SaveGroupDateAsync(e.NewDate);
+            SetStatus(_editorViewModel.StatusMessage);
+        };
+        content.Children.Add(CreateLabeledField("Date:", groupDatePicker));
+
+        if (settings.GroupDate.HasValue)
+            content.Children.Add(new Label { Text = $"? {settings.GroupDate.Value:dd MMM yyyy}", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+
+        // ? 3. Group Count ???????????????????????????????????????????????
+        content.Children.Add(new Label
+        {
+            Text = "?? Choose Number of Groups",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -450,8 +603,8 @@ public partial class CompetitionsPage
             }
         });
 
-        // ?? 3. Generate ??????????????????????????????????????????????????
-        bool readyToGenerate = currentGroups >= 2 && participantCount >= 4;
+        // ? 4. Generate ??????????????????????????????????????????????????
+        bool readyToGenerate = currentGroups >= 2 && participantCount >= 4 && totalTables > 0;
 
         var generateGroupsBtn = new Button
         {
@@ -498,6 +651,10 @@ public partial class CompetitionsPage
                 new Button { Text = "View", Command = new Command(OnViewBracket), HorizontalOptions = LayoutOptions.FillAndExpand, Padding = new Thickness(8, 4) }
             }
         });
+
+        // Round schedule — dates and tables per KO round
+        if (competition.Rounds.Count > 0)
+            AddRoundScheduleUI(content, competition);
 
         // Losers Cup section — only for main competitions with a bracket (not plates)
         if (competition.Rounds.Count > 0 && !competition.ParentCompetitionId.HasValue)
@@ -650,5 +807,502 @@ public partial class CompetitionsPage
         // Rebuild editor for group stage so step indicators update
         if (_selectedCompetition.Format is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage)
             ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    /// <summary>
+    /// Add date pickers and table selection for each KO round.
+    /// For plate competitions, tables used by the parent comp on the same date are marked as unavailable.
+    /// A container is added synchronously; its content is populated asynchronously.
+    /// </summary>
+    private void AddRoundScheduleUI(VerticalStackLayout content, Competition competition)
+    {
+        if (_editorViewModel == null || competition.Rounds.Count == 0) return;
+
+        content.Children.Add(new Label
+        {
+            Text = "?? Round Schedule & Tables",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 12, 0, 4)
+        });
+
+        // Add a container synchronously so callers don't interleave children
+        var roundsContainer = new VerticalStackLayout { Spacing = 6 };
+        content.Children.Add(roundsContainer);
+
+        // Populate asynchronously
+        _ = PopulateRoundScheduleAsync(roundsContainer, competition);
+    }
+
+    private async Task PopulateRoundScheduleAsync(VerticalStackLayout container, Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        var allVenues = await _editorViewModel.GetAvailableVenuesAsync();
+        bool isPlate = competition.ParentCompetitionId.HasValue;
+
+        foreach (var round in competition.Rounds.OrderBy(r => r.RoundNumber))
+        {
+            var roundBorder = new Border
+            {
+                Padding = 10,
+                Stroke = Color.FromArgb("#E5E7EB"),
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+
+            var roundStack = new VerticalStackLayout { Spacing = 6 };
+
+            // Round name header
+            var matchInfo = $"{round.Matches.Count} match(es)";
+            roundStack.Children.Add(new Label
+            {
+                Text = $"{round.Name ?? $"Round {round.RoundNumber}"} — {matchInfo}",
+                FontSize = 13,
+                FontAttributes = FontAttributes.Bold
+            });
+
+            // Date picker
+            var datePicker = new DatePicker { Date = round.Date ?? DateTime.Today, FontSize = 13 };
+            var capturedRound = round;
+
+            datePicker.DateSelected += async (s, e) =>
+            {
+                await _editorViewModel.SaveRoundDetailsAsync(capturedRound.Id, e.NewDate, null);
+                SetStatus(_editorViewModel.StatusMessage);
+                // Refresh to update plate restrictions
+                if (_selectedCompetition != null)
+                    ShowCompetitionEditor(_selectedCompetition);
+            };
+            roundStack.Children.Add(CreateLabeledField("Date:", datePicker));
+
+            if (round.Date.HasValue)
+            {
+                roundStack.Children.Add(new Label
+                {
+                    Text = $"?? {round.Date.Value:dd MMM yyyy}",
+                    FontSize = 11,
+                    TextColor = Color.FromArgb("#10B981")
+                });
+            }
+
+            // Table selection for this round
+            if (allVenues.Count > 0 && allVenues.Any(v => v.Tables.Count > 0))
+            {
+                // Get tables restricted by parent comp on this date
+                var restrictedTableIds = new HashSet<Guid>();
+                if (isPlate && round.Date.HasValue)
+                {
+                    var restricted = await _editorViewModel.GetTablesInUseByParentOnDateAsync(round.Date.Value);
+                    restrictedTableIds = new HashSet<Guid>(restricted);
+                }
+
+                var selectedTableIds = new HashSet<Guid>(
+                    round.SelectedVenues.SelectMany(v => v.SelectedTables).Select(t => t.TableId));
+
+                var tablesLayout = new VerticalStackLayout { Spacing = 2 };
+
+                int totalAvailableTables = 0;
+                int totalRestrictedTables = 0;
+
+                foreach (var venue in allVenues)
+                {
+                    if (venue.Tables.Count == 0) continue;
+
+                    tablesLayout.Children.Add(new Label
+                    {
+                        Text = venue.Name ?? "Unnamed Venue",
+                        FontSize = 12,
+                        FontAttributes = FontAttributes.Bold,
+                        Margin = new Thickness(0, 2, 0, 0)
+                    });
+
+                    foreach (var table in venue.Tables)
+                    {
+                        bool isRestricted = restrictedTableIds.Contains(table.Id);
+                        bool isSelected = selectedTableIds.Contains(table.Id) && !isRestricted;
+
+                        if (isRestricted)
+                            totalRestrictedTables++;
+                        else
+                            totalAvailableTables++;
+
+                        var tableRow = new Grid
+                        {
+                            ColumnDefinitions =
+                            {
+                                new ColumnDefinition { Width = GridLength.Auto },
+                                new ColumnDefinition { Width = GridLength.Star },
+                            },
+                            ColumnSpacing = 4,
+                            Padding = new Thickness(16, 0, 0, 0)
+                        };
+
+                        var checkBox = new CheckBox
+                        {
+                            IsChecked = isSelected,
+                            IsEnabled = !isRestricted,
+                            VerticalOptions = LayoutOptions.Center
+                        };
+
+                        var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed" : table.Label;
+                        if (isRestricted)
+                            tableLabelText += " ?? main comp";
+
+                        var tableLabel = new Label
+                        {
+                            Text = tableLabelText,
+                            FontSize = 11,
+                            VerticalTextAlignment = TextAlignment.Center,
+                            TextColor = isRestricted ? Color.FromArgb("#9CA3AF") : Colors.Black,
+                            FontAttributes = isRestricted ? FontAttributes.Italic : FontAttributes.None
+                        };
+
+                        tableRow.AutomationId = $"{venue.Id}|{table.Id}";
+
+                        var capturedRound2 = round;
+                        checkBox.CheckedChanged += async (s, e) =>
+                        {
+                            await SaveRoundTableSelections(competition, capturedRound2, allVenues, tablesLayout, restrictedTableIds);
+                        };
+
+                        tableRow.Add(checkBox, 0, 0);
+                        tableRow.Add(tableLabel, 1, 0);
+                        tablesLayout.Children.Add(tableRow);
+                    }
+                }
+
+                if (tablesLayout.Children.Count > 0)
+                {
+                    roundStack.Children.Add(new Label { Text = "Tables:", FontSize = 12, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 2, 0, 0) });
+                    roundStack.Children.Add(tablesLayout);
+
+                    // Warning if all tables are restricted (plate conflict)
+                    if (isPlate && totalAvailableTables == 0 && totalRestrictedTables > 0)
+                    {
+                        roundStack.Children.Add(new Border
+                        {
+                            Padding = 8,
+                            BackgroundColor = Color.FromArgb("#FEF2F2"),
+                            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+                            Stroke = Color.FromArgb("#FECACA"),
+                            Content = new Label
+                            {
+                                Text = "?? All tables are in use by the main competition on this date. Choose a different date or add more tables.",
+                                FontSize = 11,
+                                TextColor = Color.FromArgb("#DC2626")
+                            }
+                        });
+                    }
+                    else if (isPlate && totalRestrictedTables > 0)
+                    {
+                        roundStack.Children.Add(new Label
+                        {
+                            Text = $"?? {totalRestrictedTables} table(s) unavailable — in use by main competition on this date",
+                            FontSize = 11,
+                            TextColor = Color.FromArgb("#D97706"),
+                            FontAttributes = FontAttributes.Italic
+                        });
+                    }
+
+                    if (round.TotalTables > 0)
+                    {
+                        var tableSummary = string.Join(", ", round.SelectedVenues.Select(v =>
+                        {
+                            var names = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                            return $"{v.VenueName} ({names})";
+                        }));
+                        roundStack.Children.Add(new Label
+                        {
+                            Text = $"? {tableSummary}",
+                            FontSize = 11,
+                            TextColor = Color.FromArgb("#10B981")
+                        });
+                    }
+                }
+            }
+
+            roundBorder.Content = roundStack;
+            container.Children.Add(roundBorder);
+        }
+    }
+
+    /// <summary>
+    /// Read round table checkbox state and persist.
+    /// </summary>
+    private async Task SaveRoundTableSelections(Competition competition, CompetitionRound round,
+        List<Venue> allVenues, VerticalStackLayout tablesLayout, HashSet<Guid> restrictedTableIds)
+    {
+        if (_editorViewModel == null) return;
+
+        var tableById = allVenues.SelectMany(v => v.Tables.Select(t => (v, t)))
+            .ToDictionary(x => x.t.Id, x => (Venue: x.v, Table: x.t));
+
+        var venueSelections = new Dictionary<Guid, List<SelectedTable>>();
+
+        foreach (var venueSection in tablesLayout.Children)
+        {
+            if (venueSection is not Grid tableRow) continue;
+            if (string.IsNullOrEmpty(tableRow.AutomationId)) continue;
+
+            var parts = tableRow.AutomationId.Split('|');
+            if (parts.Length != 2) continue;
+            if (!Guid.TryParse(parts[0], out var venueId)) continue;
+            if (!Guid.TryParse(parts[1], out var tableId)) continue;
+
+            // Skip restricted tables
+            if (restrictedTableIds.Contains(tableId)) continue;
+
+            var checkBox = tableRow.Children.OfType<CheckBox>().FirstOrDefault();
+            if (checkBox == null || !checkBox.IsChecked) continue;
+
+            if (!venueSelections.ContainsKey(venueId))
+                venueSelections[venueId] = new List<SelectedTable>();
+
+            var label = tableById.TryGetValue(tableId, out var info) ? info.Table.Label : "";
+            venueSelections[venueId].Add(new SelectedTable { TableId = tableId, Label = label });
+        }
+
+        var venues = new List<CompetitionVenue>();
+        var venueById = allVenues.ToDictionary(v => v.Id);
+        foreach (var kvp in venueSelections)
+        {
+            var venueName = venueById.TryGetValue(kvp.Key, out var v) ? (v.Name ?? "") : "";
+            venues.Add(new CompetitionVenue
+            {
+                VenueId = kvp.Key,
+                VenueName = venueName,
+                SelectedTables = kvp.Value
+            });
+        }
+
+        await _editorViewModel.SaveRoundDetailsAsync(round.Id, null, venues);
+        SetStatus(_editorViewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Build the venue selection UI — shows each venue's named tables as individual checkboxes.
+    /// Adds a container synchronously; populates it asynchronously.
+    /// </summary>
+    private void AddVenueSelectionUI(VerticalStackLayout content, Competition competition, GroupStageSettings settings)
+    {
+        var venueContainer = new VerticalStackLayout { Spacing = 4 };
+        content.Children.Add(venueContainer);
+
+        _ = PopulateVenueSelectionAsync(venueContainer, competition, settings);
+    }
+
+    private async Task PopulateVenueSelectionAsync(VerticalStackLayout container, Competition competition, GroupStageSettings settings)
+    {
+        if (_editorViewModel == null) return;
+
+        var venues = await _editorViewModel.GetAvailableVenuesAsync();
+        if (venues.Count == 0)
+        {
+            container.Children.Add(new Label
+            {
+                Text = "No venues found for this season. Add venues first.",
+                FontSize = 12,
+                TextColor = Color.FromArgb("#DC2626"),
+                FontAttributes = FontAttributes.Italic
+            });
+            return;
+        }
+
+        // For plate competitions, check if parent uses tables on the group date
+        bool isPlate = competition.ParentCompetitionId.HasValue;
+        var restrictedTableIds = new HashSet<Guid>();
+        if (isPlate && settings.GroupDate.HasValue)
+        {
+            var restricted = await _editorViewModel.GetTablesInUseByParentOnDateAsync(settings.GroupDate.Value);
+            restrictedTableIds = new HashSet<Guid>(restricted);
+        }
+
+        // Build a quick lookup of already-selected table IDs
+        var selectedTableIds = new HashSet<Guid>(
+            settings.SelectedVenues.SelectMany(v => v.SelectedTables).Select(t => t.TableId));
+
+        var venuesLayout = new VerticalStackLayout { Spacing = 8 };
+
+        foreach (var venue in venues)
+        {
+            if (venue.Tables.Count == 0) continue; // skip venues with no tables defined
+
+            var venueSection = new VerticalStackLayout { Spacing = 2 };
+
+            // Venue name header
+            venueSection.Children.Add(new Label
+            {
+                Text = venue.Name ?? "Unnamed Venue",
+                FontSize = 13,
+                FontAttributes = FontAttributes.Bold,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+
+            // One checkbox per table
+            foreach (var table in venue.Tables)
+            {
+                bool isRestricted = restrictedTableIds.Contains(table.Id);
+                bool isSelected = selectedTableIds.Contains(table.Id) && !isRestricted;
+
+                var tableRow = new Grid
+                {
+                    ColumnDefinitions =
+                    {
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
+                    ColumnSpacing = 4,
+                    Padding = new Thickness(16, 0, 0, 0) // indent under venue name
+                };
+
+                var checkBox = new CheckBox
+                {
+                    IsChecked = isSelected,
+                    IsEnabled = !isRestricted,
+                    VerticalOptions = LayoutOptions.Center
+                };
+
+                var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed Table" : table.Label;
+                if (isRestricted)
+                    tableLabelText += " ?? main comp";
+
+                var tableLabel = new Label
+                {
+                    Text = tableLabelText,
+                    FontSize = 12,
+                    VerticalTextAlignment = TextAlignment.Center,
+                    TextColor = isRestricted ? Color.FromArgb("#9CA3AF") : Colors.Black,
+                    FontAttributes = isRestricted ? FontAttributes.Italic : FontAttributes.None
+                };
+
+                // Tag with composite ID so we can read it back during save
+                tableRow.AutomationId = $"{venue.Id}|{table.Id}";
+
+                checkBox.CheckedChanged += async (s, e) =>
+                {
+                    await SaveVenueSelections(competition, venues, venuesLayout);
+                };
+
+                tableRow.Add(checkBox, 0, 0);
+                tableRow.Add(tableLabel, 1, 0);
+
+                venueSection.Children.Add(tableRow);
+            }
+
+            venuesLayout.Children.Add(venueSection);
+        }
+
+        // Check if no venues had tables
+        if (venuesLayout.Children.Count == 0)
+        {
+            container.Children.Add(new Label
+            {
+                Text = "No tables defined at any venue. Add tables to your venues first.",
+                FontSize = 12,
+                TextColor = Color.FromArgb("#DC2626"),
+                FontAttributes = FontAttributes.Italic
+            });
+            return;
+        }
+
+        var venuesBorder = new Border
+        {
+            Padding = 8,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = venuesLayout
+        };
+
+        container.Children.Add(venuesBorder);
+
+        // Warning for plate table conflicts
+        if (isPlate && restrictedTableIds.Count > 0)
+        {
+            int totalTables = venues.Sum(v => v.Tables.Count);
+            if (restrictedTableIds.Count >= totalTables)
+            {
+                container.Children.Add(new Border
+                {
+                    Padding = 8,
+                    BackgroundColor = Color.FromArgb("#FEF2F2"),
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+                    Stroke = Color.FromArgb("#FECACA"),
+                    Margin = new Thickness(0, 4, 0, 0),
+                    Content = new Label
+                    {
+                        Text = "?? All tables are in use by the main competition on this date. Choose a different group date or add more tables to your venues.",
+                        FontSize = 11,
+                        TextColor = Color.FromArgb("#DC2626")
+                    }
+                });
+            }
+            else
+            {
+                container.Children.Add(new Label
+                {
+                    Text = $"?? {restrictedTableIds.Count} table(s) unavailable — in use by main competition on this date",
+                    FontSize = 11,
+                    TextColor = Color.FromArgb("#D97706"),
+                    FontAttributes = FontAttributes.Italic,
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Read the current table checkbox state from the UI and persist.
+    /// </summary>
+    private async Task SaveVenueSelections(Competition competition, List<Venue> allVenues, VerticalStackLayout venuesLayout)
+    {
+        if (_editorViewModel == null) return;
+
+        var venueById = allVenues.ToDictionary(v => v.Id);
+        var tableById = allVenues.SelectMany(v => v.Tables.Select(t => (v, t)))
+            .ToDictionary(x => x.t.Id, x => (Venue: x.v, Table: x.t));
+
+        // Gather selected tables grouped by venue
+        var venueSelections = new Dictionary<Guid, List<SelectedTable>>();
+
+        // Walk all venue sections ? table rows
+        foreach (var venueSection in venuesLayout.Children.OfType<VerticalStackLayout>())
+        {
+            foreach (var child in venueSection.Children)
+            {
+                if (child is not Grid tableRow) continue;
+                if (string.IsNullOrEmpty(tableRow.AutomationId)) continue;
+
+                var parts = tableRow.AutomationId.Split('|');
+                if (parts.Length != 2) continue;
+                if (!Guid.TryParse(parts[0], out var venueId)) continue;
+                if (!Guid.TryParse(parts[1], out var tableId)) continue;
+
+                var checkBox = tableRow.Children.OfType<CheckBox>().FirstOrDefault();
+                if (checkBox == null || !checkBox.IsChecked) continue;
+
+                if (!venueSelections.ContainsKey(venueId))
+                    venueSelections[venueId] = new List<SelectedTable>();
+
+                var label = tableById.TryGetValue(tableId, out var info) ? info.Table.Label : "";
+                venueSelections[venueId].Add(new SelectedTable { TableId = tableId, Label = label });
+            }
+        }
+
+        // Build the final list
+        var selected = new List<CompetitionVenue>();
+        foreach (var kvp in venueSelections)
+        {
+            var venueName = venueById.TryGetValue(kvp.Key, out var v) ? (v.Name ?? "") : "";
+            selected.Add(new CompetitionVenue
+            {
+                VenueId = kvp.Key,
+                VenueName = venueName,
+                SelectedTables = kvp.Value
+            });
+        }
+
+        await _editorViewModel.SaveSelectedVenuesAsync(selected);
+        SetStatus(_editorViewModel.StatusMessage);
     }
 }

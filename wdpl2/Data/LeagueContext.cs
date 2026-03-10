@@ -221,6 +221,11 @@ public class LeagueContext : DbContext
             {
                 rounds.ToJson();
                 rounds.OwnsMany(r => r.Matches);
+                rounds.OwnsMany(r => r.SelectedVenues, venue =>
+                {
+                    venue.OwnsMany(v => v.SelectedTables);
+                });
+                rounds.Ignore(r => r.TotalTables);
             });
             
             entity.OwnsMany(e => e.Groups, groups =>
@@ -240,7 +245,10 @@ public class LeagueContext : DbContext
             entity.OwnsOne(e => e.GroupSettings, settings =>
             {
                 settings.ToJson();
-                settings.OwnsMany(s => s.SelectedVenues);
+                settings.OwnsMany(s => s.SelectedVenues, venue =>
+                {
+                    venue.OwnsMany(v => v.SelectedTables);
+                });
             });
 
             // NOTE: No FK relationship to Season. Seasons are managed in the

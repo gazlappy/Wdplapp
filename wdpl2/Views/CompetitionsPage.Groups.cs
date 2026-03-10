@@ -138,14 +138,28 @@ public partial class CompetitionsPage
         };
 
         int selected = selectedIds.Count;
-        var headerLabel = new Label
+        var headerText = $"{group.Name} ({group.ParticipantIds.Count} players) — {selected}/{topAdvance} selected";
+
+        var headerStack = new VerticalStackLayout { Spacing = 2 };
+        headerStack.Children.Add(new Label
         {
-            Text = $"{group.Name} ({group.ParticipantIds.Count} players) — {selected}/{topAdvance} selected",
+            Text = headerText,
             TextColor = Colors.White,
             FontSize = 15,
             FontAttributes = FontAttributes.Bold
-        };
-        headerBorder.Content = headerLabel;
+        });
+
+        if (!string.IsNullOrEmpty(group.VenueDisplay))
+        {
+            headerStack.Children.Add(new Label
+            {
+                Text = $"📍 {group.VenueDisplay}",
+                TextColor = Color.FromArgb("#BFDBFE"),
+                FontSize = 12
+            });
+        }
+
+        headerBorder.Content = headerStack;
 
         var playersLayout = new VerticalStackLayout { Spacing = 0 };
 
