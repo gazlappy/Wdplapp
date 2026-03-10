@@ -1872,52 +1872,6 @@ public partial class HistoricalImportPage : ContentPage
             importButton.Clicked += async (s, e) => await RunParadoxImportV2Async(folderPath);
             ResultsArea.Children.Add(importButton);
 
-            // Analyze button
-            var analyzeButton = new Button
-            {
-                Text = "?? Analyze Files First",
-                BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
-                TextColor = Colors.White,
-                Padding = new Thickness(24, 14),
-                HorizontalOptions = LayoutOptions.Fill,
-                Margin = new Thickness(0, 6)
-            };
-            analyzeButton.Clicked += async (s, e) =>
-            {
-                ProgressPanel.IsVisible = true;
-                ProgressMessage.Text = "Analyzing Paradox files...";
-                
-                var analysisReport = await Task.Run(() => ParadoxDeepDive.AnalyzeAll(folderPath));
-                
-                ProgressPanel.IsVisible = false;
-                
-                var diagPage = new ContentPage
-                {
-                    Title = "Paradox File Analysis",
-                    Content = new ScrollView
-                    {
-                        Content = new VerticalStackLayout
-                        {
-                            Padding = 16,
-                            Children =
-                            {
-                                new Label { Text = analysisReport, FontFamily = "Consolas", FontSize = 10 },
-                                new Button
-                                {
-                                    Text = "Close",
-                                    BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
-                                    TextColor = Colors.White,
-                                    Margin = new Thickness(0, 16),
-                                    Command = new Command(async () => await Navigation.PopModalAsync())
-                                }
-                            }
-                        }
-                    }
-                };
-                await Navigation.PushModalAsync(new NavigationPage(diagPage));
-            };
-            ResultsArea.Children.Add(analyzeButton);
-
             // Description
             var noteLabel = new Label
             {

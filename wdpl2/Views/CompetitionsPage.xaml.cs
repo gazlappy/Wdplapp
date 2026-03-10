@@ -39,19 +39,18 @@ public partial class CompetitionsPage : ContentPage
     {
         InitializeComponent();
 
-        // Always use DataStoreService (JSON) for the editor since player/team
-        // data lives in the JSON file. The ViewModel may use SqliteDataStore
-        // for the competition list via DI, but cross-entity lookups (players,
-        // teams) need the JSON store where that data is maintained.
-        _dataStore = new DataStoreService();
-
         if (viewModel == null)
         {
+            // Resolve IDataStore from DI when no ViewModel is provided
+            var dataStore = Application.Current?.Handler?.MauiContext?.Services.GetService<IDataStore>()
+                ?? throw new InvalidOperationException("IDataStore not registered");
+            _dataStore = dataStore;
             _viewModel = new CompetitionsViewModel(_dataStore);
         }
         else
         {
             _viewModel = viewModel;
+            _dataStore = _viewModel.DataStore;
         }
 
         BindingContext = _viewModel;

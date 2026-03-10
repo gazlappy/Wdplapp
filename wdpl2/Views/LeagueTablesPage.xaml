@@ -50,14 +50,7 @@
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="12,6" />
 
-                <Button x:Name="CompareVbaBtn" 
-                        Grid.Column="6"
-                        Text="🔍 Compare VBA" 
-                        VerticalOptions="Center"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="12,6" />
-
-                <Button x:Name="ExportBtn" 
+                <Button x:Name="ExportBtn"
                         Grid.Column="7"
                         Text="Export" 
                         VerticalOptions="Center"

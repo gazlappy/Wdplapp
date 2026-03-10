@@ -129,16 +129,7 @@
                             TextColor="White"
                             SemanticProperties.Description="Fix missing season IDs" />
 
-                    <Button x:Name="FixVbaDateBtn" 
-                            Grid.Row="12"
-                            Grid.ColumnSpan="2"
-                            Text="📅 Fix Fixture Dates (from VBA)" 
-                            Clicked="OnFixVbaFixtureDatesClicked"
-                            BackgroundColor="#2563EB"
-                            TextColor="White"
-                            SemanticProperties.Description="Fix fixture dates from VBA data" />
-                        
-                    <BoxView Grid.Row="13" Grid.ColumnSpan="2" HeightRequest="1" 
+                    <BoxView Grid.Row="13" Grid.ColumnSpan="2" HeightRequest="1"
                              Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
                              Margin="0,12" />
 

@@ -201,10 +201,9 @@ namespace Wdpl2.Services
                 possiblePaths.Add(Path.Combine(vbaDataDir, "tblteams.txt"));
             }
             
-            // Try common development paths
+            // Try common paths
             possiblePaths.AddRange(new[]
             {
-                @"C:\Users\bobgc\source\repos\gazlappy\Wdplapp\wdpl2\VBA_Data\tblteams.txt",
                 Path.Combine(FileSystem.AppDataDirectory, "VBA_Data", "tblteams.txt"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WDPL", "tblteams.txt")
             });

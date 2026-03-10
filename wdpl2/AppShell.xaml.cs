@@ -6,8 +6,5 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
         Routing.RegisterRoute("import", typeof(Views.ImportPage));
-        Routing.RegisterRoute("inspector", typeof(Views.DatabaseInspectorPage));
-        Routing.RegisterRoute("legacy", typeof(Views.LegacyAppPage));
-        Routing.RegisterRoute("sourceviewer", typeof(Views.SourceCodeViewerPage));
     }
 }

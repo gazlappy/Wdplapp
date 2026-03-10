@@ -173,9 +173,6 @@ public static class ParadoxDatabaseParser
                 return result;
             }
 
-            // Generate diagnostic report
-            result.DiagnosticReport = ParadoxDeepDive.AnalyzeAll(folderPath);
-
             // FIRST: Try to load from CSV files if they exist (more reliable)
             var csvLoaded = TryLoadFromCsvFiles(folderPath, result);
             

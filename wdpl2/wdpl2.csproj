@@ -46,6 +46,19 @@
 		<MauiFont Include="Resources\Fonts\*" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
+
+	<!-- Exclude legacy data and sample folders from the build -->
+	<ItemGroup>
+		<None Remove="Pool League 1.1\**" />
+		<Compile Remove="Pool League 1.1\**" />
+		<EmbeddedResource Remove="Pool League 1.1\**" />
+		<Content Remove="Pool League 1.1\**" />
+		<None Remove="html data sample\**" />
+		<Compile Remove="html data sample\**" />
+		<EmbeddedResource Remove="html data sample\**" />
+		<Content Remove="html data sample\**" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<!-- Include 3D model files as embedded resources -->
 		<EmbeddedResource Include="Models\scene.gltf" />
@@ -111,9 +124,6 @@
 	  <MauiXaml Update="Views\LeagueTablesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\LegacyAppPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\MatchDayDashboardPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
@@ -147,9 +157,6 @@
 	  <MauiXaml Update="Views\SnakeGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SourceCodeViewerPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\SqlImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
@@ -158,9 +165,6 @@
 	  </MauiXaml>
 	  <MauiXaml Update="Views\TeamsPage.xaml">
 	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\TestPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\VenuesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
@@ -228,10 +232,6 @@
 	  <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
 	  <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.40" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
 	  <PackageReference Include="Plugin.LocalNotification" Version="12.0.0" />
 	  <PackageReference Include="Plugin.Maui.OCR" Version="1.0.12" />
 	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />

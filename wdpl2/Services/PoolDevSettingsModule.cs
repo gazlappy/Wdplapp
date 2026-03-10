@@ -1,12 +1,16 @@
 namespace Wdpl2.Services;
 
 /// <summary>
-/// Developer settings module - provides in-game controls for adjusting all game parameters
+/// Developer settings module - provides in-game controls for adjusting all game parameters.
+/// Only active in DEBUG builds.
 /// </summary>
 public static class PoolDevSettingsModule
 {
     public static string GenerateJavaScript()
     {
+#if !DEBUG
+        return "// Dev settings disabled in release builds";
+#else
         return @"
 // ============================================
 // POOL DEVELOPER SETTINGS MODULE
@@ -2123,5 +2127,6 @@ const PoolDevSettings = {
 
 console.log('PoolDevSettings module loaded');
 ";
+#endif
     }
 }

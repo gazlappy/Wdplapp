@@ -277,114 +277,36 @@ public class LeagueContext : DbContext
         await conn.OpenAsync();
         try
         {
-            using var cmd = conn.CreateCommand();
-            // Check if BestOf column exists on Competitions table
-            cmd.CommandText = "PRAGMA table_info(Competitions)";
-            bool hasBestOf = false;
-            using (var reader = await cmd.ExecuteReaderAsync())
+            // Read the Competitions schema once and determine which columns exist
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
             {
+                cmd.CommandText = "PRAGMA table_info(Competitions)";
+                using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    if (reader.GetString(1).Equals("BestOf", StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasBestOf = true;
-                        break;
-                    }
+                    existingColumns.Add(reader.GetString(1));
                 }
-            }
-            if (!hasBestOf)
-            {
-                using var alter = conn.CreateCommand();
-                alter.CommandText = "ALTER TABLE Competitions ADD COLUMN BestOf INTEGER NOT NULL DEFAULT 0";
-                await alter.ExecuteNonQueryAsync();
             }
 
-            // Check if RandomDraw column exists on Competitions table
-            bool hasRandomDraw = false;
-            using (var cmd2 = conn.CreateCommand())
+            // Add missing columns
+            var columnsToAdd = new (string Name, string Sql)[]
             {
-                cmd2.CommandText = "PRAGMA table_info(Competitions)";
-                using var reader2 = await cmd2.ExecuteReaderAsync();
-                while (await reader2.ReadAsync())
-                {
-                    if (reader2.GetString(1).Equals("RandomDraw", StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasRandomDraw = true;
-                        break;
-                    }
-                }
-            }
-            if (!hasRandomDraw)
-            {
-                using var alter2 = conn.CreateCommand();
-                alter2.CommandText = "ALTER TABLE Competitions ADD COLUMN RandomDraw INTEGER NOT NULL DEFAULT 1";
-                await alter2.ExecuteNonQueryAsync();
-            }
+                ("BestOf", "ALTER TABLE Competitions ADD COLUMN BestOf INTEGER NOT NULL DEFAULT 0"),
+                ("RandomDraw", "ALTER TABLE Competitions ADD COLUMN RandomDraw INTEGER NOT NULL DEFAULT 1"),
+                ("ParentCompetitionId", "ALTER TABLE Competitions ADD COLUMN ParentCompetitionId TEXT"),
+                ("PreviousGroups", "ALTER TABLE Competitions ADD COLUMN PreviousGroups TEXT DEFAULT '[]'"),
+                ("NoShowIds", "ALTER TABLE Competitions ADD COLUMN NoShowIds TEXT DEFAULT '[]'"),
+            };
 
-            // Check if ParentCompetitionId column exists on Competitions table
-            bool hasParentCompId = false;
-            using (var cmd3 = conn.CreateCommand())
+            foreach (var (name, sql) in columnsToAdd)
             {
-                cmd3.CommandText = "PRAGMA table_info(Competitions)";
-                using var reader3 = await cmd3.ExecuteReaderAsync();
-                while (await reader3.ReadAsync())
+                if (!existingColumns.Contains(name))
                 {
-                    if (reader3.GetString(1).Equals("ParentCompetitionId", StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasParentCompId = true;
-                        break;
-                    }
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = sql;
+                    await alter.ExecuteNonQueryAsync();
                 }
-            }
-            if (!hasParentCompId)
-            {
-                using var alter3 = conn.CreateCommand();
-                alter3.CommandText = "ALTER TABLE Competitions ADD COLUMN ParentCompetitionId TEXT";
-                await alter3.ExecuteNonQueryAsync();
-            }
-
-            // Check if PreviousGroups JSON column exists on Competitions table
-            bool hasPreviousGroups = false;
-            using (var cmd4 = conn.CreateCommand())
-            {
-                cmd4.CommandText = "PRAGMA table_info(Competitions)";
-                using var reader4 = await cmd4.ExecuteReaderAsync();
-                while (await reader4.ReadAsync())
-                {
-                    if (reader4.GetString(1).Equals("PreviousGroups", StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasPreviousGroups = true;
-                        break;
-                    }
-                }
-            }
-            if (!hasPreviousGroups)
-            {
-                using var alter4 = conn.CreateCommand();
-                alter4.CommandText = "ALTER TABLE Competitions ADD COLUMN PreviousGroups TEXT DEFAULT '[]'";
-                await alter4.ExecuteNonQueryAsync();
-            }
-
-            // Check if NoShowIds column exists on Competitions table
-            bool hasNoShowIds = false;
-            using (var cmd5 = conn.CreateCommand())
-            {
-                cmd5.CommandText = "PRAGMA table_info(Competitions)";
-                using var reader5 = await cmd5.ExecuteReaderAsync();
-                while (await reader5.ReadAsync())
-                {
-                    if (reader5.GetString(1).Equals("NoShowIds", StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasNoShowIds = true;
-                        break;
-                    }
-                }
-            }
-            if (!hasNoShowIds)
-            {
-                using var alter5 = conn.CreateCommand();
-                alter5.CommandText = "ALTER TABLE Competitions ADD COLUMN NoShowIds TEXT DEFAULT '[]'";
-                await alter5.ExecuteNonQueryAsync();
             }
 
             // Remove the SeasonId FK constraint from Competitions.

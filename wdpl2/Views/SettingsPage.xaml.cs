@@ -1753,19 +1753,6 @@ namespace Wdpl2.Views
                 HorizontalTextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 8)
             };
-            
-            // Add tap gesture for easter egg (triple-tap)
-            var tapGesture = new TapGestureRecognizer();
-            tapGesture.Tapped += async (s, e) =>
-            {
-                if (LegacyEasterEggService.RegisterTap())
-                {
-                    // Easter egg triggered!
-                    var legacyPage = new LegacyAppPage();
-                    await Navigation.PushModalAsync(new NavigationPage(legacyPage));
-                }
-            };
-            versionLabel.GestureRecognizers.Add(tapGesture);
 
             var subtitleLabel = new Label
             {

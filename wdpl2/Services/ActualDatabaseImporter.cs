@@ -27,9 +27,6 @@ namespace Wdpl2.Services
         {
             var provider = "Microsoft.ACE.OLEDB.12.0";
             _connectionString = $"Provider={provider};Data Source={databasePath};";
-            
-            // FORCE RECOMPILE - DO NOT REMOVE
-            var forceRecompile = DateTime.Now.Ticks;
         }
 
         public async Task<(LeagueData data, ImportSummary summary)> ImportAllAsync()
@@ -44,7 +41,6 @@ namespace Wdpl2.Services
                     using var connection = new OleDbConnection(_connectionString);
                     connection.Open();
                     summary.Errors.Add("✓ Connected successfully");
-                    summary.Errors.Add("🔥🔥🔥 NEW CODE VERSION - BUILD TIME: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " 🔥🔥🔥");
 
                     // Import in dependency order
                     ImportLeagueAndSeason(connection, data, summary);
