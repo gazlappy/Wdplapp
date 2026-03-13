@@ -14,7 +14,7 @@
                CornerRadius="0"
                HasShadow="True">
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="?? Dungeon Blaster" 
+                <Label Text="&#x1F52B; Dungeon Blaster"
                        FontSize="24" 
                        FontAttributes="Bold"
                        TextColor="#ef4444"

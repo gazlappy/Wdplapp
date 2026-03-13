@@ -1,3 +1,4 @@
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -38,12 +39,12 @@ public partial class GamesLibraryPage : ContentPage
 
     private static string GetCategoryIcon(string category) => category switch
     {
-        GameCategory.Sports => "?",
-        GameCategory.Puzzle => "??",
-        GameCategory.Arcade => "??",
-        GameCategory.Card => "??",
-        GameCategory.Strategy => "??",
-        _ => "??"
+        GameCategory.Sports => Emojis.EightBall,
+        GameCategory.Puzzle => "\U0001F9E9",
+        GameCategory.Arcade => "\U0001F47E",
+        GameCategory.Card => "\U0001F0CF",
+        GameCategory.Strategy => "\u265F\uFE0F",
+        _ => "\U0001F3AE"
     };
 
     private void OnCategoryFilterClicked(object? sender, EventArgs e)
@@ -170,13 +171,13 @@ public partial class GamesLibraryPage : ContentPage
         var bottom = new HorizontalStackLayout { Spacing = 10 };
         bottom.Children.Add(new Label
         {
-            Text = $"?? {game.PlayerCount}P",
+            Text = $"{Emojis.Player} {game.PlayerCount}P",
             FontSize = 11,
             TextColor = Color.FromArgb("#cbd5e1")
         });
         bottom.Children.Add(new Label
         {
-            Text = $"?? {game.Difficulty}",
+            Text = $"{Emojis.Star} {game.Difficulty}",
             FontSize = 11,
             TextColor = Color.FromArgb("#cbd5e1")
         });

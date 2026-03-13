@@ -1,4 +1,4 @@
-namespace Wdpl2.Services;
+﻿namespace Wdpl2.Services;
 
 /// <summary>
 /// Audio module for pool game - handles realistic sound effects
@@ -40,13 +40,13 @@ const PoolAudio = {
             // Try to start context immediately (works in MAUI WebView)
             if (this.context.state === 'suspended') {
                 this.context.resume().then(() => {
-                    console.log('?? Audio context auto-resumed (MAUI WebView)');
+                    console.log('[Audio] Audio context auto-resumed (MAUI WebView)');
                 }).catch(e => {
-                    console.log('?? Auto-resume failed, waiting for user interaction');
+                    console.log('[Audio] Auto-resume failed, waiting for user interaction');
                 });
             }
         } catch (e) {
-            console.error('?? Web Audio API initialization failed:', e);
+            console.error('[Audio] Web Audio API initialization failed:', e);
             this.initialized = false;
         }
     },
@@ -59,7 +59,7 @@ const PoolAudio = {
             if (this.userInteracted) return;
             
             try {
-                console.log('?? User interaction detected, unlocking audio...');
+                console.log('[Audio] User interaction detected, unlocking audio...');
                 
                 // Resume audio context on first user interaction
                 if (this.context.state === 'suspended') {
@@ -68,7 +68,7 @@ const PoolAudio = {
                 }
                 
                 this.userInteracted = true;
-                console.log('?? Audio fully unlocked! Sounds will now play.');
+                console.log('[Audio] Audio fully unlocked! Sounds will now play.');
                 
                 // Play a silent test sound to fully unlock audio
                 try {
@@ -105,17 +105,17 @@ const PoolAudio = {
         document.addEventListener('mousedown', unlockAudio, { once: false });
         document.addEventListener('keydown', unlockAudio, { once: false });
         
-        console.log('?? Audio ready. Touch or click anywhere to enable sounds.');
+        console.log('[Audio] Audio ready. Touch or click anywhere to enable sounds.');
         
         // For MAUI WebView, try to unlock on page load after a short delay
         setTimeout(() => {
             if (!this.userInteracted && this.context.state === 'suspended') {
-                console.log('?? Attempting auto-unlock for MAUI WebView...');
+                console.log('[Audio] Attempting auto-unlock for MAUI WebView...');
                 this.context.resume().then(() => {
                     this.userInteracted = true;
-                    console.log('?? Audio auto-unlocked in MAUI WebView!');
+                    console.log('[Audio] Audio auto-unlocked in MAUI WebView!');
                 }).catch(e => {
-                    console.log('?? Auto-unlock failed, user interaction required');
+                    console.log('[Audio] Auto-unlock failed, user interaction required');
                 });
             }
         }, 500);
@@ -141,12 +141,12 @@ const PoolAudio = {
      */
     play(soundName, velocity = 1.0) {
         if (!this.enabled || !this.initialized) {
-            console.log('?? Audio disabled or not initialized');
+            console.log('[Audio] Audio disabled or not initialized');
             return;
         }
         
         if (!this.userInteracted) {
-            console.log('?? Waiting for user interaction to play sound');
+            console.log('[Audio] Waiting for user interaction to play sound');
             return;
         }
         
@@ -161,7 +161,7 @@ const PoolAudio = {
             const soundGenerator = this.sounds[soundName];
             if (soundGenerator) {
                 soundGenerator(velocity);
-                console.log(`?? Playing: ${soundName} (velocity: ${velocity.toFixed(2)})`);
+                console.log(`[Audio] Playing: ${soundName} (velocity: ${velocity.toFixed(2)})`);
             } else {
                 console.warn(`Unknown sound: ${soundName}`);
             }
@@ -400,3 +400,4 @@ console.log('PoolAudio module loaded');
 ";
     }
 }
+

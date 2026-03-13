@@ -176,7 +176,7 @@ public partial class CompetitionsPage
         };
         root.Add(scroll, 0, 1);
 
-        ContentPanel.Content = root;
+        SetContentPanel(root);
     }
 
     private Grid BuildKnockoutBracket(Competition competition)
@@ -230,6 +230,37 @@ public partial class CompetitionsPage
                 TextColor = completed == total && total > 0 ? _accentGreen : _subtleText,
                 HorizontalTextAlignment = TextAlignment.Center
             });
+
+            // Date
+            if (round.Date.HasValue)
+            {
+                hdrStack.Children.Add(new Label
+                {
+                    Text = $"\U0001F4C5 {round.Date.Value:dd MMM yyyy}",
+                    FontSize = 10,
+                    TextColor = _subtleText,
+                    HorizontalTextAlignment = TextAlignment.Center
+                });
+            }
+
+            // Venues & tables
+            if (round.SelectedVenues.Count > 0)
+            {
+                var venueText = string.Join(", ", round.SelectedVenues.Select(v =>
+                {
+                    var tables = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                    return string.IsNullOrEmpty(tables) ? v.VenueName : $"{v.VenueName} ({tables})";
+                }));
+                hdrStack.Children.Add(new Label
+                {
+                    Text = $"\U0001F4CD {venueText}",
+                    FontSize = 10,
+                    TextColor = _subtleText,
+                    HorizontalTextAlignment = TextAlignment.Center,
+                    LineBreakMode = LineBreakMode.TailTruncation
+                });
+            }
+
             grid.Add(hdrStack, r, 0);
         }
 
@@ -290,8 +321,8 @@ public partial class CompetitionsPage
             body.Children.Add(CreateRoundCard(round, competition));
         }
 
-        root.Add(new ScrollView { Content = body }, 0, 1);
-        ContentPanel.Content = root;
+        root.Add(body, 0, 1);
+        SetContentPanel(root);
     }
 
     private View CreateRoundCard(CompetitionRound round, Competition competition)
@@ -325,6 +356,40 @@ public partial class CompetitionsPage
             VerticalTextAlignment = TextAlignment.Center
         }, 1, 0);
         stack.Children.Add(hdrGrid);
+
+        // Date and venue info
+        if (round.Date.HasValue || round.SelectedVenues.Count > 0)
+        {
+            var infoStack = new HorizontalStackLayout { Spacing = 12, Margin = new Thickness(0, 0, 0, 4) };
+
+            if (round.Date.HasValue)
+            {
+                infoStack.Children.Add(new Label
+                {
+                    Text = $"\U0001F4C5 {round.Date.Value:dd MMM yyyy}",
+                    FontSize = 11,
+                    TextColor = _subtleText
+                });
+            }
+
+            if (round.SelectedVenues.Count > 0)
+            {
+                var venueText = string.Join(", ", round.SelectedVenues.Select(v =>
+                {
+                    var tables = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                    return string.IsNullOrEmpty(tables) ? v.VenueName : $"{v.VenueName} ({tables})";
+                }));
+                infoStack.Children.Add(new Label
+                {
+                    Text = $"\U0001F4CD {venueText}",
+                    FontSize = 11,
+                    TextColor = _subtleText,
+                    LineBreakMode = LineBreakMode.TailTruncation
+                });
+            }
+
+            stack.Children.Add(infoStack);
+        }
 
         foreach (var match in round.Matches)
             stack.Children.Add(CreateMatchCard(match, competition.Format, competition));
@@ -566,6 +631,20 @@ public partial class CompetitionsPage
         int maxFrames = competition.BestOf;
 
         var card = new VerticalStackLayout { Spacing = 0 };
+
+        // Venue/table label
+        if (!string.IsNullOrEmpty(match.VenueDisplay))
+        {
+            card.Children.Add(new Label
+            {
+                Text = $"\U0001F4CD {match.VenueDisplay}",
+                FontSize = 10,
+                TextColor = _subtleText,
+                Padding = new Thickness(10, 4, 10, 2),
+                BackgroundColor = _headerBg
+            });
+            card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
+        }
 
         // Player 1 row
         var p1Row = CreatePlayerRow(

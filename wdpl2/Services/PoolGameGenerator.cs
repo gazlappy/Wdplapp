@@ -519,13 +519,13 @@ namespace Wdpl2.Services
 <body>
         <div class=""game-container"">
         <div class=""game-header"">
-            <h1>?? UK 8-Ball Pool</h1>
+            <h1>\U0001F3B1 UK 8-Ball Pool</h1>
             <div class=""controls"">
                 <button id=""newGameBtn"" class=""btn btn-small"">New Game</button>
                 <button id=""rulesBtn"" class=""btn btn-small"">EPA Rules</button>
-                <button id=""ballInHandBtn"" class=""btn btn-small"">?? Move Cue</button>
-                <button id=""devSettingsBtn"" class=""btn btn-small"">?? Dev</button>
-                <button class=""btn btn-small"" onclick=""window.location.href='index.html'"">?? Back</button>
+                <button id=""ballInHandBtn"" class=""btn btn-small"">\u270B Move Cue</button>
+                <button id=""devSettingsBtn"" class=""btn btn-small"">\u2699\uFE0F Dev</button>
+                <button class=""btn btn-small"" onclick=""window.location.href='index.html'"">\u2B05\uFE0F Back</button>
             </div>
         </div>
         <div class=""game-info"">

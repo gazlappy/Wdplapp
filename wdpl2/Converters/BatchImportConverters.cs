@@ -10,9 +10,9 @@ public class BoolToExpandTextConverter : IValueConverter
     {
         if (value is bool isExpanded)
         {
-            return isExpanded ? "? Collapse" : "? Expand";
+            return isExpanded ? "▲ Collapse" : "▼ Expand";
         }
-        return "? Expand";
+        return "▼ Expand";
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

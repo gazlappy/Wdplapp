@@ -153,11 +153,11 @@ public partial class SettingsViewModel : ObservableObject
             
             if (granted)
             {
-                SetStatus("? Notifications enabled");
+                SetStatus("✅ Notifications enabled");
             }
             else
             {
-                SetStatus("? Notifications permission denied");
+                SetStatus("❌ Notifications permission denied");
             }
         }
     }
@@ -171,14 +171,14 @@ public partial class SettingsViewModel : ObservableObject
             {
                 await _notificationService.ShowNotificationAsync(
                     id: 99999,
-                    title: "?? Test Notification",
+                    title: "ℹ️ Test Notification",
                     message: "Notifications are working! You'll get match reminders.");
                 
-                SetStatus("? Test notification sent");
+                SetStatus("✅ Test notification sent");
             }
             catch (System.Exception ex)
             {
-                SetStatus($"? Test failed: {ex.Message}");
+                SetStatus($"❌ Test failed: {ex.Message}");
             }
         }
     }
@@ -192,11 +192,11 @@ public partial class SettingsViewModel : ObservableObject
             {
                 await _matchReminderService.CancelAllMatchRemindersAsync();
                 _pendingNotifications = 0;
-                SetStatus("? All notifications cancelled");
+                SetStatus("✅ All notifications cancelled");
             }
             catch (System.Exception ex)
             {
-                SetStatus($"? Cancel failed: {ex.Message}");
+                SetStatus($"❌ Cancel failed: {ex.Message}");
             }
         }
     }
@@ -205,7 +205,7 @@ public partial class SettingsViewModel : ObservableObject
     private async Task RefreshNotificationStatusAsync()
     {
         await LoadNotificationStatusAsync();
-        SetStatus($"? {_pendingNotifications} pending notifications");
+        SetStatus($"✅ {_pendingNotifications} pending notifications");
     }
 
     private void SetStatus(string message)
@@ -221,7 +221,7 @@ public partial class SettingsViewModel : ObservableObject
         if (!_useSystemTheme)
         {
             ThemeService.SetDarkMode(enabled);
-            SetStatus(enabled ? "?? Dark mode enabled" : "?? Light mode enabled");
+            SetStatus(enabled ? "ℹ️ Dark mode enabled" : "ℹ️ Light mode enabled");
         }
     }
     
@@ -232,7 +232,7 @@ public partial class SettingsViewModel : ObservableObject
         if (enabled)
         {
             ThemeService.UseSystemTheme();
-            SetStatus("?? Following system theme");
+            SetStatus("ℹ️ Following system theme");
         }
         else
         {

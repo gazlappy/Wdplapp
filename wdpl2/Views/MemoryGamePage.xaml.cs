@@ -202,9 +202,9 @@ public partial class MemoryGamePage : ContentPage
     </div>
 
     <script>
-        const emojis = ['??', '??', '??', '??', '??', '??', '??', '??', 
-                       '??', '??', '??', '??', '??', '??', '??', '??',
-                       '??', '?'];
+        const emojis = ['\uD83C\uDFB1', '\uD83C\uDFC6', '\u26BD', '\uD83C\uDFAF', '\uD83C\uDFAE', '\uD83C\uDFB2', '\uD83C\uDFB3', '\uD83C\uDFC0', 
+                       '\uD83C\uDFC8', '\u26BE', '\uD83C\uDFBE', '\uD83C\uDFD3', '\uD83E\uDD4A', '\uD83D\uDEF9', '\uD83C\uDFA3', '\uD83E\uDD3F',
+                       '\uD83C\uDFC4', '\u26F3'];
         
         let gridSize = 4;
         let cards = [];
@@ -352,7 +352,7 @@ public partial class MemoryGamePage : ContentPage
             
             if (!bestTime || seconds < parseInt(bestTime)) {
                 localStorage.setItem(key, seconds.toString());
-                document.getElementById('bestTime').textContent = '?? New Best Time!';
+                document.getElementById('bestTime').textContent = '\uD83C\uDFC6 New Best Time!';
             } else {
                 const bestMins = Math.floor(parseInt(bestTime) / 60);
                 const bestSecs = parseInt(bestTime) % 60;

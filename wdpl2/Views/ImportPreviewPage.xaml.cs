@@ -171,7 +171,7 @@ public partial class ImportPreviewPage : ContentPage
             {
                 AlertsStack.Children.Add(new Label
                 {
-                    Text = $"? {error}",
+                    Text = $"✅ {error}",
                     TextColor = Colors.White,
                     FontSize = 12
                 });
@@ -182,7 +182,7 @@ public partial class ImportPreviewPage : ContentPage
             {
                 AlertsStack.Children.Add(new Label
                 {
-                    Text = $"?? {warning}",
+                    Text = $"ℹ️ {warning}",
                     TextColor = Colors.White,
                     FontSize = 12
                 });

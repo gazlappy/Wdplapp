@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -62,7 +63,7 @@ public partial class SqlImportPage : ContentPage
             try
             {
                 var fileInfo = new FileInfo(filePath);
-                fileSubLabel.Text = $"{fileInfo.Length / 1024} KB � Click to change";
+                fileSubLabel.Text = $"{fileInfo.Length / 1024} KB � Click to change";
             }
             catch
             {
@@ -147,7 +148,7 @@ public partial class SqlImportPage : ContentPage
         
         headerStack.Children.Add(new Label
         {
-            Text = "?? SQL Import Wizard",
+            Text = "ℹ️ SQL Import Wizard",
             FontSize = 28,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1976D2")
@@ -280,7 +281,7 @@ public partial class SqlImportPage : ContentPage
         var dropContent = new VerticalStackLayout { Spacing = 12, HorizontalOptions = LayoutOptions.Center };
         dropContent.Children.Add(new Label
         {
-            Text = "??",
+            Text = Emojis.Document,
             FontSize = 48,
             HorizontalOptions = LayoutOptions.Center
         });
@@ -323,7 +324,7 @@ public partial class SqlImportPage : ContentPage
         var infoStack = new VerticalStackLayout { Spacing = 8 };
         infoStack.Children.Add(new Label
         {
-            Text = "?? Supported Tables",
+            Text = "ℹ️ Supported Tables",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1976D2")
@@ -386,9 +387,9 @@ public partial class SqlImportPage : ContentPage
             StyleId = "SummaryGrid"
         };
 
-        summaryGrid.Add(CreateSummaryCard("??", "Season", "0", "SeasonCard"), 0, 0);
-        summaryGrid.Add(CreateSummaryCard("??", "Players", "0", "PlayersCard"), 1, 0);
-        summaryGrid.Add(CreateSummaryCard("??", "Fixtures", "0", "FixturesCard"), 2, 0);
+        summaryGrid.Add(CreateSummaryCard(Emojis.Season, "Season", "0", "SeasonCard"), 0, 0);
+        summaryGrid.Add(CreateSummaryCard(Emojis.Player, "Players", "0", "PlayersCard"), 1, 0);
+        summaryGrid.Add(CreateSummaryCard(Emojis.Fixture, "Fixtures", "0", "FixturesCard"), 2, 0);
 
         step2.Children.Add(summaryGrid);
 
@@ -407,7 +408,7 @@ public partial class SqlImportPage : ContentPage
         var playerPreviewStack = new VerticalStackLayout { Spacing = 8 };
         playerPreviewStack.Children.Add(new Label
         {
-            Text = "?? Player Names Found",
+            Text = "ℹ️ Player Names Found",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#2E7D32")
@@ -439,7 +440,7 @@ public partial class SqlImportPage : ContentPage
         var tablesStack = new VerticalStackLayout { Spacing = 8 };
         tablesStack.Children.Add(new Label
         {
-            Text = "?? Tables Found in SQL File",
+            Text = "ℹ️ Tables Found in SQL File",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#333")
@@ -471,14 +472,14 @@ public partial class SqlImportPage : ContentPage
         var dupeStack = new VerticalStackLayout { Spacing = 4 };
         dupeStack.Children.Add(new Label
         {
-            Text = "?? Duplicate Handling",
+            Text = "ℹ️ Duplicate Handling",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#E65100")
         });
         dupeStack.Children.Add(new Label
         {
-            Text = "� Players matched by name (case-insensitive)\n� Teams matched by name in same season\n� Fixtures matched by date + teams\n� Duplicates will be automatically skipped",
+            Text = "� Players matched by name (case-insensitive)\n� Teams matched by name in same season\n� Fixtures matched by date + teams\n� Duplicates will be automatically skipped",
             FontSize = 12,
             TextColor = Color.FromArgb("#666")
         });
@@ -585,7 +586,7 @@ public partial class SqlImportPage : ContentPage
 
         step4.Children.Add(new Label
         {
-            Text = "? Import Complete!",
+            Text = "✅ Import Complete!",
             FontSize = 20,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#4CAF50"),
@@ -636,7 +637,7 @@ public partial class SqlImportPage : ContentPage
         var skippedStack = new VerticalStackLayout { Spacing = 4 };
         skippedStack.Children.Add(new Label
         {
-            Text = "?? Skipped (Already Existed)",
+            Text = "ℹ️ Skipped (Already Existed)",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#E65100")
@@ -667,7 +668,7 @@ public partial class SqlImportPage : ContentPage
         var warningsStack = new VerticalStackLayout { Spacing = 4 };
         warningsStack.Children.Add(new Label
         {
-            Text = "?? Warnings",
+            Text = "ℹ️ Warnings",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#C62828")
@@ -699,7 +700,7 @@ public partial class SqlImportPage : ContentPage
         var nextStepsStack = new VerticalStackLayout { Spacing = 4 };
         nextStepsStack.Children.Add(new Label
         {
-            Text = "?? Next Steps",
+            Text = "ℹ️ Next Steps",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             TextColor = Color.FromArgb("#1565C0")
@@ -729,7 +730,7 @@ public partial class SqlImportPage : ContentPage
         // Back button
         var backBtn = new Button
         {
-            Text = "? Back",
+            Text = "⬅️ Back",
             BackgroundColor = Color.FromArgb("#757575"),
             TextColor = Colors.White,
             FontSize = 15,
@@ -763,7 +764,7 @@ public partial class SqlImportPage : ContentPage
         // Rollback button (hidden until import complete)
         var rollbackBtn = new Button
         {
-            Text = "?? Undo Import",
+            Text = "ℹ️ Undo Import",
             BackgroundColor = Color.FromArgb("#F44336"),
             TextColor = Colors.White,
             FontSize = 15,
@@ -802,15 +803,15 @@ public partial class SqlImportPage : ContentPage
             switch (_currentStep)
             {
                 case 1:
-                    primaryBtn.Text = _selectedFilePath != null ? "?? Preview Data" : "Select File";
+                    primaryBtn.Text = _selectedFilePath != null ? "ℹ️ Preview Data" : "Select File";
                     primaryBtn.IsEnabled = true;
                     break;
                 case 2:
-                    primaryBtn.Text = "? Start Import";
+                    primaryBtn.Text = "✅ Start Import";
                     primaryBtn.IsEnabled = true;
                     break;
                 case 4:
-                    primaryBtn.Text = "?? Import Another";
+                    primaryBtn.Text = "ℹ️ Import Another";
                     primaryBtn.IsEnabled = true;
                     break;
             }
@@ -892,7 +893,7 @@ public partial class SqlImportPage : ContentPage
                 if (fileSubLabel != null)
                 {
                     var fileInfo = new FileInfo(result.FullPath);
-                    fileSubLabel.Text = $"{fileInfo.Length / 1024} KB � Click to change";
+                    fileSubLabel.Text = $"{fileInfo.Length / 1024} KB � Click to change";
                 }
 
                 UpdateStepVisibility();
@@ -960,7 +961,7 @@ public partial class SqlImportPage : ContentPage
                 var sb = new System.Text.StringBuilder();
                 foreach (var table in _parsedData.Tables.OrderBy(t => t.Key))
                 {
-                    sb.AppendLine($"? {table.Key}: {table.Value.Count} rows");
+                    sb.AppendLine($"✅ {table.Key}: {table.Value.Count} rows");
                 }
                 tablesText.Text = sb.ToString();
             }
@@ -1108,7 +1109,7 @@ public partial class SqlImportPage : ContentPage
         var title = FindElement<Label>("ResultsTitle");
         if (title != null)
         {
-            title.Text = result.Success ? "? Import Complete!" : "?? Import Completed with Issues";
+            title.Text = result.Success ? "✅ Import Complete!" : "ℹ️ Import Completed with Issues";
             title.TextColor = result.Success ? Color.FromArgb("#4CAF50") : Color.FromArgb("#FF9800");
         }
 
@@ -1135,9 +1136,9 @@ public partial class SqlImportPage : ContentPage
             if (hasSkipped)
             {
                 var sb = new System.Text.StringBuilder();
-                if (result.TeamsSkipped > 0) sb.AppendLine($"� {result.TeamsSkipped} teams (already existed)");
-                if (result.PlayersSkipped > 0) sb.AppendLine($"� {result.PlayersSkipped} players (already existed)");
-                if (result.FixturesSkipped > 0) sb.AppendLine($"� {result.FixturesSkipped} fixtures (already existed)");
+                if (result.TeamsSkipped > 0) sb.AppendLine($"� {result.TeamsSkipped} teams (already existed)");
+                if (result.PlayersSkipped > 0) sb.AppendLine($"� {result.PlayersSkipped} players (already existed)");
+                if (result.FixturesSkipped > 0) sb.AppendLine($"� {result.FixturesSkipped} fixtures (already existed)");
                 skippedText.Text = sb.ToString().TrimEnd();
             }
         }
@@ -1154,11 +1155,11 @@ public partial class SqlImportPage : ContentPage
                 var sb = new System.Text.StringBuilder();
                 foreach (var warning in result.Warnings)
                 {
-                    sb.AppendLine($"?? {warning}");
+                    sb.AppendLine($"ℹ️ {warning}");
                 }
                 foreach (var error in result.Errors)
                 {
-                    sb.AppendLine($"? {error}");
+                    sb.AppendLine($"✅ {error}");
                 }
                 warningsText.Text = sb.ToString().TrimEnd();
             }
@@ -1199,11 +1200,11 @@ public partial class SqlImportPage : ContentPage
         var confirm = await DisplayAlert(
             "Confirm Rollback",
             $"This will remove ALL data from the last import:\n\n" +
-            $"� {_lastImportResult.ImportedSeasonIds.Count} Season(s)\n" +
-            $"� {_lastImportResult.ImportedDivisionIds.Count} Division(s)\n" +
-            $"� {_lastImportResult.TeamsImported} Team(s)\n" +
-            $"� {_lastImportResult.PlayersImported} Player(s)\n" +
-            $"� {_lastImportResult.FixturesImported} Fixture(s)\n\n" +
+            $"� {_lastImportResult.ImportedSeasonIds.Count} Season(s)\n" +
+            $"� {_lastImportResult.ImportedDivisionIds.Count} Division(s)\n" +
+            $"� {_lastImportResult.TeamsImported} Team(s)\n" +
+            $"� {_lastImportResult.PlayersImported} Player(s)\n" +
+            $"� {_lastImportResult.FixturesImported} Fixture(s)\n\n" +
             "This cannot be undone!",
             "Yes, Rollback",
             "Cancel");

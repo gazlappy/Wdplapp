@@ -291,7 +291,7 @@ public partial class HistoricalImportPage : ContentPage
         // Title for batch options
         var optionsTitle = new Label
         {
-            Text = "?? Choose how to select files:",
+            Text = "‚ÑπÔ∏è Choose how to select files:",
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 8, 0, 12)
@@ -300,7 +300,7 @@ public partial class HistoricalImportPage : ContentPage
 
         // Option 1: Pick Individual Files
         var pickFilesCard = CreateOptionCard(
-            "?? Pick Files",
+            "‚ÑπÔ∏è Pick Files",
             "Select one or more files individually",
             "Select Files",
             Microsoft.Maui.Graphics.Color.FromArgb("#3B82F6"),
@@ -309,7 +309,7 @@ public partial class HistoricalImportPage : ContentPage
 
         // Option 2: Select Folder
         var folderCard = CreateOptionCard(
-            "?? Select Folder",
+            "‚ÑπÔ∏è Select Folder",
             $"Choose a folder to find all {string.Join("/", extensions)} files",
             "Browse Folder",
             Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
@@ -318,7 +318,7 @@ public partial class HistoricalImportPage : ContentPage
 
         // Option 3: Auto-Search Common Locations
         var autoSearchCard = CreateOptionCard(
-            "?? Auto-Search",
+            "‚ÑπÔ∏è Auto-Search",
             "Automatically scan common locations for importable files",
             "Scan Now",
             Microsoft.Maui.Graphics.Color.FromArgb("#F59E0B"),
@@ -327,7 +327,7 @@ public partial class HistoricalImportPage : ContentPage
 
         // Option 4: Add Single File (legacy)
         var addOneCard = CreateOptionCard(
-            "? Add One File",
+            "‚ÑπÔ∏è Add One File",
             "Add files one at a time (click multiple times)",
             "Add File",
             Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
@@ -337,7 +337,7 @@ public partial class HistoricalImportPage : ContentPage
         // Info label
         var infoLabel = new Label
         {
-            Text = "?? TIP: Use 'Select Folder' to quickly import all HTML files from a directory, or 'Auto-Search' to find files in Downloads and Documents.",
+            Text = "‚ÑπÔ∏è TIP: Use 'Select Folder' to quickly import all HTML files from a directory, or 'Auto-Search' to find files in Downloads and Documents.",
             TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
             FontSize = 12,
             Margin = new Thickness(0, 16, 0, 0)
@@ -616,7 +616,7 @@ public partial class HistoricalImportPage : ContentPage
                 // Group by source location for display
                 var summary = foundFiles
                     .GroupBy(f => f.source)
-                    .Select(g => $"ï {g.Key}: {g.Count()} file(s)")
+                    .Select(g => $"ÔøΩ {g.Key}: {g.Count()} file(s)")
                     .ToList();
 
                 var proceed = await DisplayAlert(
@@ -797,7 +797,7 @@ public partial class HistoricalImportPage : ContentPage
             
             var errorLabel = new Label
             {
-                Text = $"? Error: {ex.Message}",
+                Text = $"‚ùå Error: {ex.Message}",
                 TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
                 FontSize = 14,
                 Margin = new Thickness(0, 16)
@@ -838,7 +838,7 @@ public partial class HistoricalImportPage : ContentPage
 
         ProgressMessage.Text = "Extracting data from Word document...";
 
-        // Navigate to preview page ó it handles its own navigation
+        // Navigate to preview page ÔøΩ it handles its own navigation
         // back when the user completes or cancels the import
         var previewPage = new ImportPreviewPage();
         await Navigation.PushAsync(previewPage);
@@ -860,7 +860,7 @@ public partial class HistoricalImportPage : ContentPage
             {
                 // Show preview of found tables
                 var tableInfo = string.Join("\n", result.Tables.Select(t => 
-                    $"ï {t.Name}: {t.RowCount} rows, {t.ColumnCount} columns"));
+                    $"ÔøΩ {t.Name}: {t.RowCount} rows, {t.ColumnCount} columns"));
                 
                 var proceed = await DisplayAlert("Tables Found", 
                     $"Found {result.Tables.Count} table(s):\n\n{tableInfo}\n\nImport this data?", 
@@ -890,9 +890,9 @@ public partial class HistoricalImportPage : ContentPage
                     
                     ShowSuccessResult("Spreadsheet Imported", 
                         $"Successfully processed {result.Tables.Count} tables:\n" +
-                        $"ï Teams: {importStats.TeamsImported}\n" +
-                        $"ï Players: {importStats.PlayersImported}\n" +
-                        $"ï Venues: {importStats.VenuesImported}");
+                        $"ÔøΩ Teams: {importStats.TeamsImported}\n" +
+                        $"ÔøΩ Players: {importStats.PlayersImported}\n" +
+                        $"ÔøΩ Venues: {importStats.VenuesImported}");
                 }
                 else
                 {
@@ -932,13 +932,13 @@ public partial class HistoricalImportPage : ContentPage
                 summary.AppendLine($"Page: {result.PageTitle}");
                 summary.AppendLine($"Tables found: {result.Tables.Count}");
                 
-                if (result.HasLeagueTable) summary.AppendLine("ï League standings detected");
-                if (result.HasResults) summary.AppendLine("ï Match results detected");
-                if (result.HasPlayerStats) summary.AppendLine("ï Player statistics detected");
-                if (result.HasFixtures) summary.AppendLine("ï Fixtures detected");
+                if (result.HasLeagueTable) summary.AppendLine("ÔøΩ League standings detected");
+                if (result.HasResults) summary.AppendLine("ÔøΩ Match results detected");
+                if (result.HasPlayerStats) summary.AppendLine("ÔøΩ Player statistics detected");
+                if (result.HasFixtures) summary.AppendLine("ÔøΩ Fixtures detected");
                 if (result.HasCompetitions) 
                 {
-                    summary.AppendLine($"ï {result.DetectedCompetitions.Count} competition(s) detected");
+                    summary.AppendLine($"ÔøΩ {result.DetectedCompetitions.Count} competition(s) detected");
                     foreach (var comp in result.DetectedCompetitions.Take(5))
                     {
                         summary.AppendLine($"  - {comp.Name}" + (!string.IsNullOrEmpty(comp.WinnerName) ? $" (Winner: {comp.WinnerName})" : ""));
@@ -981,11 +981,11 @@ public partial class HistoricalImportPage : ContentPage
                     
                     var resultSummary = new System.Text.StringBuilder();
                     resultSummary.AppendLine($"Successfully imported from {result.PageTitle}:");
-                    if (importStats.TeamsImported > 0) resultSummary.AppendLine($"ï Teams: {importStats.TeamsImported}");
-                    if (importStats.PlayersImported > 0) resultSummary.AppendLine($"ï Players: {importStats.PlayersImported}");
-                    if (importStats.VenuesImported > 0) resultSummary.AppendLine($"ï Venues: {importStats.VenuesImported}");
-                    if (importStats.FixturesImported > 0) resultSummary.AppendLine($"ï Fixtures: {importStats.FixturesImported}");
-                    if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"ï Competitions: {importStats.CompetitionsImported}");
+                    if (importStats.TeamsImported > 0) resultSummary.AppendLine($"ÔøΩ Teams: {importStats.TeamsImported}");
+                    if (importStats.PlayersImported > 0) resultSummary.AppendLine($"ÔøΩ Players: {importStats.PlayersImported}");
+                    if (importStats.VenuesImported > 0) resultSummary.AppendLine($"ÔøΩ Venues: {importStats.VenuesImported}");
+                    if (importStats.FixturesImported > 0) resultSummary.AppendLine($"ÔøΩ Fixtures: {importStats.FixturesImported}");
+                    if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"ÔøΩ Competitions: {importStats.CompetitionsImported}");
                     
                     ShowSuccessResult("HTML Imported", resultSummary.ToString());
                 }
@@ -1049,15 +1049,15 @@ public partial class HistoricalImportPage : ContentPage
                     // Try to detect what kind of data we have
                     var allText = string.Join(" ", result.TextContent).ToLower();
                     if (allText.Contains("league") || allText.Contains("division") || allText.Contains("standings"))
-                        summary.AppendLine("ï League data detected");
+                        summary.AppendLine("ÔøΩ League data detected");
                     if (allText.Contains("player") || allText.Contains("rating"))
-                        summary.AppendLine("ï Player data detected");
+                        summary.AppendLine("ÔøΩ Player data detected");
                     if (allText.Contains("fixture") || allText.Contains("schedule"))
-                        summary.AppendLine("ï Fixture data detected");
+                        summary.AppendLine("ÔøΩ Fixture data detected");
                     if (allText.Contains("result") || allText.Contains("score"))
-                        summary.AppendLine("ï Results data detected");
+                        summary.AppendLine("ÔøΩ Results data detected");
                     if (allText.Contains("venue") || allText.Contains("pub") || allText.Contains("club") || allText.Contains("hall"))
-                        summary.AppendLine("ï Venue data detected");
+                        summary.AppendLine("ÔøΩ Venue data detected");
                 }
                 
                 if (result.Tables.Any())
@@ -1065,7 +1065,7 @@ public partial class HistoricalImportPage : ContentPage
                     summary.AppendLine($"Tables found: {result.Tables.Count}");
                     foreach (var table in result.Tables)
                     {
-                        summary.AppendLine($"  ï {table.Name}: {table.RowCount} rows");
+                        summary.AppendLine($"  ÔøΩ {table.Name}: {table.RowCount} rows");
                     }
                 }
                 
@@ -1114,10 +1114,10 @@ public partial class HistoricalImportPage : ContentPage
                 
                 await DisplayAlert("PDF Import", 
                     $"{errorMsg}\n\n" +
-                    "?? TIP: For best results with PDFs:\n" +
-                    "ï Make sure the PDF contains selectable text (not scanned images)\n" +
-                    "ï Try copying the data from the PDF and saving as a text file\n" +
-                    "ï Or export the data from the original source as CSV/Excel", 
+                    "‚ÑπÔ∏è TIP: For best results with PDFs:\n" +
+                    "ÔøΩ Make sure the PDF contains selectable text (not scanned images)\n" +
+                    "ÔøΩ Try copying the data from the PDF and saving as a text file\n" +
+                    "ÔøΩ Or export the data from the original source as CSV/Excel", 
                     "OK");
                 ResetWizard();
             }
@@ -1181,7 +1181,7 @@ public partial class HistoricalImportPage : ContentPage
                 if (stats.VenuesImported > 0) summary.Add($"{stats.VenuesImported} venues");
                 if (stats.FixturesImported > 0) summary.Add($"{stats.FixturesImported} fixtures");
                 
-                return (true, $"Successfully imported:\nï {string.Join("\nï ", summary)}");
+                return (true, $"Successfully imported:\nÔøΩ {string.Join("\nÔøΩ ", summary)}");
             }
             else
             {
@@ -1818,7 +1818,7 @@ public partial class HistoricalImportPage : ContentPage
                 
                 var errorLabel = new Label
                 {
-                    Text = $"? {scanSummary}",
+                    Text = $"‚úÖ {scanSummary}",
                     TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
                     FontSize = 14,
                     Margin = new Thickness(0, 16)
@@ -1843,7 +1843,7 @@ public partial class HistoricalImportPage : ContentPage
 
             // Show preview of what files were found
             var summary = new System.Text.StringBuilder();
-            summary.AppendLine($"?? Folder: {Path.GetFileName(folderPath)}");
+            summary.AppendLine($"‚ÑπÔ∏è Folder: {Path.GetFileName(folderPath)}");
             summary.AppendLine();
             summary.AppendLine("Paradox files found:");
             summary.Append(scanSummary);
@@ -1861,7 +1861,7 @@ public partial class HistoricalImportPage : ContentPage
             // Import button - same pattern as Access import
             var importButton = new Button
             {
-                Text = "?? Import All Data",
+                Text = "‚ÑπÔ∏è Import All Data",
                 BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#10B981"),
                 TextColor = Colors.White,
                 Padding = new Thickness(24, 14),
@@ -1875,10 +1875,10 @@ public partial class HistoricalImportPage : ContentPage
             // Description
             var noteLabel = new Label
             {
-                Text = "?? Import will create:\n" +
-                       "  ï Divisions, Venues, Teams, Players\n" +
-                       "  ï Fixtures with frame results\n" +
-                       "  ï All marked as [IMPORTED]",
+                Text = "‚ÑπÔ∏è Import will create:\n" +
+                       "  ÔøΩ Divisions, Venues, Teams, Players\n" +
+                       "  ÔøΩ Fixtures with frame results\n" +
+                       "  ÔøΩ All marked as [IMPORTED]",
                 TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#6B7280"),
                 FontSize = 11,
                 Margin = new Thickness(0, 12, 0, 16)
@@ -1904,7 +1904,7 @@ public partial class HistoricalImportPage : ContentPage
             
             var errorLabel = new Label
             {
-                Text = $"? Error: {ex.Message}",
+                Text = $"‚ùå Error: {ex.Message}",
                 TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
                 FontSize = 14,
                 Margin = new Thickness(0, 16)
@@ -1949,7 +1949,7 @@ public partial class HistoricalImportPage : ContentPage
 
             if (summary.Success)
             {
-                Step3Title.Text = "? Import Complete!";
+                Step3Title.Text = "‚úÖ Import Complete!";
 
                 // Merge the imported data into the main DataStore
                 DataStore.Data.Seasons.AddRange(data.Seasons);
@@ -1964,7 +1964,7 @@ public partial class HistoricalImportPage : ContentPage
                 var resultText = new System.Text.StringBuilder();
                 resultText.AppendLine(summary.Summary);
                 resultText.AppendLine();
-                resultText.AppendLine("? Data saved successfully!");
+                resultText.AppendLine("‚úÖ Data saved successfully!");
 
                 var summaryLabel = new Label
                 {
@@ -1990,7 +1990,7 @@ public partial class HistoricalImportPage : ContentPage
                     var logStack = new VerticalStackLayout { Spacing = 2 };
                     logStack.Children.Add(new Label
                     {
-                        Text = "?? Import Log:",
+                        Text = "‚ÑπÔ∏è Import Log:",
                         FontAttributes = FontAttributes.Bold,
                         FontSize = 12
                     });
@@ -2021,7 +2021,7 @@ public partial class HistoricalImportPage : ContentPage
             }
             else
             {
-                Step3Title.Text = "?? Import Failed";
+                Step3Title.Text = "‚ÑπÔ∏è Import Failed";
 
                 var errorLabel = new Label
                 {
@@ -2049,7 +2049,7 @@ public partial class HistoricalImportPage : ContentPage
             // Save Log button - always show after import
             var saveLogButton = new Button
             {
-                Text = "?? Save Log",
+                Text = "‚ÑπÔ∏è Save Log",
                 BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#6366F1"),
                 TextColor = Colors.White,
                 Padding = new Thickness(24, 12),
@@ -2095,7 +2095,7 @@ public partial class HistoricalImportPage : ContentPage
 
             var errorLabel = new Label
             {
-                Text = $"? Error: {ex.Message}",
+                Text = $"‚ùå Error: {ex.Message}",
                 TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
                 FontSize = 14,
                 Margin = new Thickness(0, 16)

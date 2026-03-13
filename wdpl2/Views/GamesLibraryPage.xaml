@@ -14,7 +14,7 @@
                    CornerRadius="15"
                    HasShadow="True">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="?? Games Library" 
+                    <Label Text="&#x1F3AE; Games Library"
                            FontSize="32" 
                            FontAttributes="Bold"
                            TextColor="White"
@@ -46,7 +46,7 @@
                    CornerRadius="12"
                    HasShadow="True">
                 <VerticalStackLayout Spacing="15">
-                    <Label Text="? Featured" 
+                    <Label Text="&#x2B50; Featured"
                            FontSize="20" 
                            FontAttributes="Bold"
                            TextColor="#fbbf24"/>
@@ -63,7 +63,7 @@
                    CornerRadius="12"
                    HasShadow="True">
                 <VerticalStackLayout Spacing="15">
-                    <Label Text="?? All Games" 
+                    <Label Text="&#x1F3AE; All Games"
                            FontSize="20" 
                            FontAttributes="Bold"
                            TextColor="White"/>
@@ -81,7 +81,7 @@
                    HasShadow="True"
                    Opacity="0.7">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="?? Coming Soon" 
+                    <Label Text="&#x1F680; Coming Soon"
                            FontSize="18" 
                            FontAttributes="Bold"
                            TextColor="#94a3b8"/>

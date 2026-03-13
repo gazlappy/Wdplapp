@@ -618,7 +618,7 @@ const PoolDevSettings = {
                 gap: 8px;
             }
             .dev-header h3::before {
-                content: '??';
+                content: '\uD83D\uDD27';
             }
             .dev-drag-hint {
                 font-size: 10px;

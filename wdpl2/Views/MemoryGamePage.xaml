@@ -14,7 +14,7 @@
                CornerRadius="0"
                HasShadow="True">
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="?? Memory Match" 
+                <Label Text="&#x1F9E0; Memory Match"
                        FontSize="24" 
                        FontAttributes="Bold"
                        TextColor="White"

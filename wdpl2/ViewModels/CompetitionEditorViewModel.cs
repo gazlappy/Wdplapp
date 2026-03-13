@@ -101,6 +101,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     /// <summary>
     /// Save date and table selections for a specific KO round.
+    /// Automatically assigns matches to the selected tables round-robin.
     /// </summary>
     public async Task SaveRoundDetailsAsync(Guid roundId, DateTime? date, List<CompetitionVenue>? venues)
     {
@@ -112,7 +113,11 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
 
         if (date.HasValue) round.Date = date;
-        if (venues != null) round.SelectedVenues = venues;
+        if (venues != null)
+        {
+            round.SelectedVenues = venues;
+            CompetitionGenerator.AssignMatchVenueTables(round.Matches, venues);
+        }
 
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();

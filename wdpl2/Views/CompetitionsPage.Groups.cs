@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
@@ -23,6 +24,90 @@ public partial class CompetitionsPage
 
         if (_selectedCompetition != null)
             ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    /// <summary>
+    /// Generate groups and show the animated draw ceremony.
+    /// </summary>
+    private async void OnGenerateGroupsWithDraw()
+    {
+        if (_editorViewModel == null) return;
+
+        // Generate the groups first (silently)
+        await _editorViewModel.GenerateGroupsCommand.ExecuteAsync(null);
+        await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+
+        if (_selectedCompetition == null || _selectedCompetition.Groups.Count == 0)
+        {
+            SetStatus(_editorViewModel.StatusMessage);
+            if (_selectedCompetition != null)
+                ShowCompetitionEditor(_selectedCompetition);
+            return;
+        }
+
+        // Show the draw animation
+        await ShowDrawAnimation(_selectedCompetition);
+
+        SetStatus(_editorViewModel.StatusMessage);
+        if (_selectedCompetition != null)
+            ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    /// <summary>
+    /// Randomise existing groups and show the animated draw ceremony.
+    /// </summary>
+    private async void OnRandomiseWithDraw()
+    {
+        if (_editorViewModel == null || _selectedCompetition == null) return;
+
+        await _editorViewModel.RandomiseGroupsAsync();
+        await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+
+        if (_selectedCompetition.Groups.Count == 0)
+        {
+            SetStatus(_editorViewModel.StatusMessage);
+            ShowCompetitionEditor(_selectedCompetition);
+            return;
+        }
+
+        await ShowDrawAnimation(_selectedCompetition);
+
+        SetStatus(_editorViewModel.StatusMessage);
+        ShowCompetitionEditor(_selectedCompetition);
+    }
+
+    /// <summary>
+    /// Build the player names and group assignments, then show the draw animation page.
+    /// </summary>
+    private async Task ShowDrawAnimation(Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        // Resolve player names for each group
+        var groupAssignments = new List<List<string>>();
+        var allNames = new List<string>();
+
+        foreach (var group in competition.Groups.OrderBy(g => g.GroupNumber))
+        {
+            var names = new List<string>();
+            foreach (var pid in group.ParticipantIds)
+            {
+                var name = _editorViewModel.GetParticipantName(pid) ?? $"Player {pid.ToString()[..6]}";
+                names.Add(name);
+                allNames.Add(name);
+            }
+            groupAssignments.Add(names);
+        }
+
+        if (allNames.Count == 0) return;
+
+        var drawPage = new GroupDrawAnimationPage(allNames, groupAssignments, competition.Groups.Count);
+        await Navigation.PushModalAsync(new NavigationPage(drawPage)
+        {
+            BarBackgroundColor = Color.FromArgb("#0F172A"),
+            BarTextColor = Colors.White
+        });
+        await drawPage.GetResultAsync();
     }
 
     private void ShowGroupsView()
@@ -116,10 +201,9 @@ public partial class CompetitionsPage
             groupsLayout.Children.Add(CreateGroupSelectionView(group, _selectedCompetition.Format, effectiveTopAdvance, editable));
         }
 
-        var scrollView = new ScrollView { Content = groupsLayout };
-        mainLayout.Children.Add(scrollView);
+        mainLayout.Children.Add(groupsLayout);
 
-        ContentPanel.Content = mainLayout;
+        SetContentPanel(new ScrollView { Content = mainLayout });
     }
 
     private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance, bool editable = true)

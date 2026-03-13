@@ -242,15 +242,20 @@ public class CompetitionWizardPage : ContentPage
             Margin = new Thickness(0, 0, 0, 8)
         });
 
+        bool isGroupStage = _selectedFormat is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
+
+        // ?? Left column: basic settings ??
+        var leftColumn = new VerticalStackLayout { Spacing = 12 };
+
         // Name
         _nameEntry = new Entry { Text = _competitionName, Placeholder = "Competition Name", FontSize = 16 };
         _nameEntry.TextChanged += (_, e) => _competitionName = e.NewTextValue;
-        _contentArea.Children.Add(CreateField("Competition Name", _nameEntry));
+        leftColumn.Children.Add(CreateField("Competition Name", _nameEntry));
 
         // Start Date
         _datePicker = new DatePicker { Date = _startDate, MinimumDate = DateTime.Today.AddYears(-1) };
         _datePicker.DateSelected += (_, e) => _startDate = e.NewDate;
-        _contentArea.Children.Add(CreateField("Start Date", _datePicker));
+        leftColumn.Children.Add(CreateField("Start Date", _datePicker));
 
         // Best Of
         var bestOfPicker = new Picker
@@ -263,7 +268,7 @@ public class CompetitionWizardPage : ContentPage
         {
             _bestOf = bestOfPicker.SelectedIndex switch { 0 => 3, 1 => 5, 2 => 7, 3 => 9, 4 => 11, 5 => 13, 6 => 15, _ => 7 };
         };
-        _contentArea.Children.Add(CreateField($"Best Of (first to {(_bestOf + 1) / 2} wins)", bestOfPicker));
+        leftColumn.Children.Add(CreateField($"Best Of (first to {(_bestOf + 1) / 2} wins)", bestOfPicker));
 
         // Draw order
         var drawHintLabel = new Label
@@ -283,74 +288,110 @@ public class CompetitionWizardPage : ContentPage
                 ? "\U0001F3B2 Participants will be shuffled randomly when the bracket is generated."
                 : "\U0001F4CB Participants will be placed in the order they are added.";
         };
-        _contentArea.Children.Add(CreateField("Random Draw", randomDrawSwitch));
-        _contentArea.Children.Add(drawHintLabel);
+        leftColumn.Children.Add(CreateField("Random Draw", randomDrawSwitch));
+        leftColumn.Children.Add(drawHintLabel);
 
-        // Group stage settings
-        bool isGroupStage = _selectedFormat is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
-        if (isGroupStage)
+        if (!isGroupStage)
         {
-            _contentArea.Children.Add(new Label
-            {
-                Text = "Knockout Stage Settings",
-                FontSize = 18,
-                FontAttributes = FontAttributes.Bold,
-                Margin = new Thickness(0, 16, 0, 4)
-            });
-
-            _contentArea.Children.Add(new Label
-            {
-                Text = "Groups and venues are configured in the editor after adding participants.",
-                FontSize = 12,
-                TextColor = Colors.Gray,
-                Margin = new Thickness(0, 0, 0, 8)
-            });
-
-            var topEntry = new Entry { Text = _topAdvance.ToString(), Keyboard = Keyboard.Numeric };
-            topEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _topAdvance = v; };
-            _contentArea.Children.Add(CreateField("Top Players Advance", topEntry));
-
-            var plateSwitch = new Switch { IsToggled = _createPlate };
-            var plateLosersLayout = new VerticalStackLayout { Spacing = 4, IsVisible = _createPlate };
-
-            plateSwitch.Toggled += (_, e) =>
-            {
-                _createPlate = e.Value;
-                plateLosersLayout.IsVisible = e.Value;
-            };
-            _contentArea.Children.Add(CreateField("Create Plate Competition", plateSwitch));
-
-            // Plate losers options (only visible when plate is enabled)
-            var allLosersSwitch = new Switch { IsToggled = _allLosersToPlate };
-
-            var plateCountEntry = new Entry
-            {
-                Text = _lowerToPlate.ToString(),
-                Keyboard = Keyboard.Numeric,
-                IsEnabled = !_allLosersToPlate
-            };
-            plateCountEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _lowerToPlate = v; };
-
-            allLosersSwitch.Toggled += (_, e) =>
-            {
-                _allLosersToPlate = e.Value;
-                plateCountEntry.IsEnabled = !e.Value;
-            };
-
-            plateLosersLayout.Children.Add(CreateField("All Losers to Plate", allLosersSwitch));
-            plateLosersLayout.Children.Add(new Label
-            {
-                Text = _allLosersToPlate
-                    ? "Everyone who doesn't advance goes into the plate"
-                    : "Only a fixed number of losers per group go to the plate",
-                FontSize = 11,
-                TextColor = Colors.Gray,
-                FontAttributes = FontAttributes.Italic
-            });
-            plateLosersLayout.Children.Add(CreateField("Losers Per Group (if not all)", plateCountEntry));
-
-            _contentArea.Children.Add(plateLosersLayout);
+            // Simple formats: single column is fine
+            _contentArea.Children.Add(leftColumn);
+            return;
         }
+
+        // ?? Right column: group stage settings ??
+        var rightColumn = new VerticalStackLayout { Spacing = 12 };
+
+        rightColumn.Children.Add(new Label
+        {
+            Text = "Knockout Stage Settings",
+            FontSize = 18,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        rightColumn.Children.Add(new Label
+        {
+            Text = "Groups and venues are configured in the editor after adding participants.",
+            FontSize = 12,
+            TextColor = Colors.Gray,
+            Margin = new Thickness(0, 0, 0, 8)
+        });
+
+        var topEntry = new Entry { Text = _topAdvance.ToString(), Keyboard = Keyboard.Numeric };
+        topEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _topAdvance = v; };
+        rightColumn.Children.Add(CreateField("Top Players Advance", topEntry));
+
+        var plateSwitch = new Switch { IsToggled = _createPlate };
+        var plateLosersLayout = new VerticalStackLayout { Spacing = 8, IsVisible = _createPlate };
+
+        plateSwitch.Toggled += (_, e) =>
+        {
+            _createPlate = e.Value;
+            plateLosersLayout.IsVisible = e.Value;
+        };
+        rightColumn.Children.Add(CreateField("Create Plate Competition", plateSwitch));
+
+        // Plate losers options
+        var allLosersSwitch = new Switch { IsToggled = _allLosersToPlate };
+
+        var plateCountEntry = new Entry
+        {
+            Text = _lowerToPlate.ToString(),
+            Keyboard = Keyboard.Numeric,
+            IsEnabled = !_allLosersToPlate
+        };
+        plateCountEntry.TextChanged += (_, e) => { if (int.TryParse(e.NewTextValue, out int v) && v >= 1) _lowerToPlate = v; };
+
+        allLosersSwitch.Toggled += (_, e) =>
+        {
+            _allLosersToPlate = e.Value;
+            plateCountEntry.IsEnabled = !e.Value;
+        };
+
+        plateLosersLayout.Children.Add(CreateField("All Losers to Plate", allLosersSwitch));
+        plateLosersLayout.Children.Add(new Label
+        {
+            Text = _allLosersToPlate
+                ? "Everyone who doesn't advance goes into the plate"
+                : "Only a fixed number of losers per group go to the plate",
+            FontSize = 11,
+            TextColor = Colors.Gray,
+            FontAttributes = FontAttributes.Italic
+        });
+        plateLosersLayout.Children.Add(CreateField("Losers Per Group (if not all)", plateCountEntry));
+
+        rightColumn.Children.Add(plateLosersLayout);
+
+        // ?? Split layout ??
+        var leftBorder = new Border
+        {
+            Padding = 16,
+            StrokeShape = new RoundRectangle { CornerRadius = 8 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = leftColumn
+        };
+
+        var rightBorder = new Border
+        {
+            Padding = 16,
+            StrokeShape = new RoundRectangle { CornerRadius = 8 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = rightColumn
+        };
+
+        var splitGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+            ColumnSpacing = 16
+        };
+        splitGrid.Add(leftBorder, 0, 0);
+        splitGrid.Add(rightBorder, 1, 0);
+
+        _contentArea.Children.Add(splitGrid);
     }
 
     private static View CreateField(string label, View field)

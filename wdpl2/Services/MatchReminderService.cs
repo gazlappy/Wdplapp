@@ -51,7 +51,7 @@ public class MatchReminderService
                 return;
 
             var notificationId = BaseNotificationId + Math.Abs(fixtureId.GetHashCode() % 10000);
-            var title = $"?? Match Reminder";
+            var title = $"ℹ️ Match Reminder";
             var message = $"{homeTeam} vs {awayTeam} starts in {hoursBeforeMatch} hours";
 
             await _notificationService.ScheduleNotificationAsync(
@@ -271,16 +271,16 @@ public class MatchReminderService
             var awayScore = fixture.AwayScore;
 
             var winner = homeScore > awayScore ? homeTeam?.Name : awayTeam?.Name;
-            var title = "?? Match Result";
+            var title = "ℹ️ Match Result";
             var message = $"{homeTeam?.Name ?? "Home"} {homeScore} - {awayScore} {awayTeam?.Name ?? "Away"}";
 
             if (homeScore != awayScore)
             {
-                message += $" � {winner} wins!";
+                message += $" � {winner} wins!";
             }
             else
             {
-                message += " � Draw!";
+                message += " � Draw!";
             }
 
             var notificationId = BaseNotificationId + 5000 + Math.Abs(fixture.Id.GetHashCode() % 5000);
@@ -319,7 +319,7 @@ public class MatchReminderService
             if (upcomingFixtures == null || upcomingFixtures.Count == 0)
                 return;
 
-            var title = "?? This Week's Fixtures";
+            var title = "ℹ️ This Week's Fixtures";
             var message = $"{upcomingFixtures.Count} matches this week";
 
             var notificationId = 20000; // Fixed ID for weekly fixture list

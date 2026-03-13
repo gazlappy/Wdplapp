@@ -1,4 +1,4 @@
-namespace Wdpl2.Services;
+﻿namespace Wdpl2.Services;
 
 /// <summary>
 /// Shot control module - handles different shooting input methods
@@ -327,7 +327,7 @@ const PoolShotControl = {
                 this.game.cueBall.vx = Math.cos(angle) * power;
                 this.game.cueBall.vy = Math.sin(angle) * power;
 
-                // ?? CHALK DUST PARTICLES (#5)
+                // CHALK DUST PARTICLES (#5)
                 if (typeof PoolVFX !== 'undefined' && power > 5) {
                     const tipX = this.game.cueBall.x - Math.cos(angle) * 12;
                     const tipY = this.game.cueBall.y - Math.sin(angle) * 12;
@@ -438,3 +438,4 @@ const PoolShotControl = {
 ";
     }
 }
+

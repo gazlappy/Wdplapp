@@ -1,4 +1,4 @@
-namespace Wdpl2.Services;
+ï»¿namespace Wdpl2.Services;
 
 /// <summary>
 /// Main game module that coordinates all pool game systems
@@ -31,7 +31,7 @@ class PoolGame {
         this.standardBallRadius = (2.0 / 2) * this.pixelsPerInch;
         this.cueBallRadius = (1.875 / 2) * this.pixelsPerInch;
         
-        // Pocket sizes — based on real UK 8-ball table (SuperLeague/Riley)
+        // Pocket sizes ï¿½ based on real UK 8-ball table (SuperLeague/Riley)
         // Corner pocket opening: ~3.25 inches across the mouth
         // Side pocket opening: ~3.5 inches across the mouth
         // Capture radius = how far from pocket center the ball drops
@@ -256,9 +256,9 @@ class PoolGame {
         
         if (ball.num === 0) {
             this.cueBallPotted = true;
-            console.log('?? Cue ball potted (scratch)!');
+            console.log('[Pool] Cue ball potted (scratch)!');
         } else {
-            console.log('?? Ball potted this shot:', ball.color, ball.num);
+            console.log('[Pool] Ball potted this shot:', ball.color, ball.num);
         }
     }
     
@@ -334,7 +334,7 @@ class PoolGame {
         if (blackPotted && this.cueBallPotted && this.goldenDuck) {
             this.gameOver = true;
             this.winner = this.getOpponent();
-            this.showGameOver(this.getOpponent().name + ' WINS!', '?? GOLDEN DUCK! ' + player.name + ' potted black AND white on break!');
+            this.showGameOver(this.getOpponent().name + ' WINS!', '[Pool] GOLDEN DUCK! ' + player.name + ' potted black AND white on break!');
             return;
         }
         
@@ -342,7 +342,7 @@ class PoolGame {
         if (blackPotted && !this.cueBallPotted && this.goldenBall) {
             this.gameOver = true;
             this.winner = player;
-            this.showGameOver(player.name + ' WINS!', '?? GOLDEN BALL! Potted the black on the break!');
+            this.showGameOver(player.name + ' WINS!', '[Pool] GOLDEN BALL! Potted the black on the break!');
             return;
         }
         
@@ -661,7 +661,7 @@ class PoolGame {
         player.color = color;
         opponent.color = color === 'red' ? 'yellow' : 'red';
         
-        console.log('?? Colors assigned:', player.name, '=', player.color, '|', opponent.name, '=', opponent.color);
+        console.log('[Pool] Colors assigned:', player.name, '=', player.color, '|', opponent.name, '=', opponent.color);
         
         this.showColorAssignment();
     }
@@ -706,7 +706,7 @@ class PoolGame {
                 player.onBlack = remainingBalls === 0;
                 
                 if (player.onBlack) {
-                    console.log('?? ' + player.name + ' is now ON THE BLACK!');
+                    console.log('[Pool] ' + player.name + ' is now ON THE BLACK!');
                 }
             }
         });
@@ -783,7 +783,7 @@ class PoolGame {
         const overlay = document.createElement('div');
         overlay.innerHTML = `
             <div style=""text-align:center;"">
-                <div style=""font-size:28px;font-weight:bold;margin-bottom:10px;color:#fbbf24;"">?? ${matchName.toUpperCase()} ??</div>
+                <div style=""font-size:28px;font-weight:bold;margin-bottom:10px;color:#fbbf24;"">\uD83C\uDFC6 ${matchName.toUpperCase()} \uD83C\uDFC6</div>
                 <div style=""font-size:48px;font-weight:bold;margin-bottom:20px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);"">${winnerName} WINS!</div>
                 <div style=""font-size:56px;font-weight:bold;margin:20px 0;color:#4ade80;"">${p1Frames} - ${p2Frames}</div>
                 <div style=""font-size:18px;margin-bottom:30px;opacity:0.8;"">Congratulations on winning the match!</div>
@@ -1081,20 +1081,20 @@ class PoolGame {
     createAudioStatusIndicator() {
         const audioBtn = document.createElement('button');
         audioBtn.id = 'audioTestBtn';
-        audioBtn.innerHTML = '?? <span>Click to Enable Sound</span>';
+        audioBtn.innerHTML = '[Pool] <span>Click to Enable Sound</span>';
         audioBtn.style.cssText = 'position:fixed;top:10px;right:10px;padding:12px 20px;background:rgba(239,68,68,0.9);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:10000;font-size:14px;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
         
         const updateStatus = () => {
             if (typeof PoolAudio !== 'undefined') {
                 if (PoolAudio.userInteracted && PoolAudio.context.state === 'running') {
-                    audioBtn.innerHTML = '?? <span>Sound Enabled</span>';
+                    audioBtn.innerHTML = '[Pool] <span>Sound Enabled</span>';
                     audioBtn.style.background = 'rgba(16, 185, 129, 0.9)';
                     return true;
                 } else if (PoolAudio.context.state === 'suspended') {
-                    audioBtn.innerHTML = '?? <span>Tap to Enable</span>';
+                    audioBtn.innerHTML = '[Pool] <span>Tap to Enable</span>';
                     audioBtn.style.background = 'rgba(251, 191, 36, 0.9)';
                 } else {
-                    audioBtn.innerHTML = '?? <span>Click to Enable</span>';
+                    audioBtn.innerHTML = '[Pool] <span>Click to Enable</span>';
                     audioBtn.style.background = 'rgba(239, 68, 68, 0.9)';
                 }
             }
@@ -1102,7 +1102,7 @@ class PoolGame {
         };
         
         audioBtn.addEventListener('click', async () => {
-            console.log('?? Audio test button clicked');
+            console.log('[Pool] Audio test button clicked');
             if (typeof PoolAudio !== 'undefined') {
                 try {
                     if (PoolAudio.context.state === 'suspended') {
@@ -1145,7 +1145,7 @@ class PoolGame {
         }, 500);
         
         window.addEventListener('audioUnlocked', () => {
-            console.log('?? Audio unlocked event received');
+            console.log('[Pool] Audio unlocked event received');
             updateStatus();
         });
         
@@ -1157,12 +1157,12 @@ class PoolGame {
         const cHalf = this.cornerPocketOpening / 2;
         const sHalf = this.sidePocketOpening / 2;
         this.pockets = [
-            // Corner pockets — center at the cushion corner
+            // Corner pockets ï¿½ center at the cushion corner
             {x: cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: this.width - cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: this.width - cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
-            // Side pockets — center halfway into the rail
+            // Side pockets ï¿½ center halfway into the rail
             {x: this.width / 2, y: cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf},
             {x: this.width / 2, y: this.height - cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf}
         ];
@@ -1195,7 +1195,7 @@ class PoolGame {
         const r = this.standardBallRadius;
         
         // For touching balls in a triangle rack:
-        // - Horizontal spacing between rows: 2 * r * cos(30°) = r * sqrt(3)
+        // - Horizontal spacing between rows: 2 * r * cos(30ï¿½) = r * sqrt(3)
         // - Vertical spacing between balls in same row: 2 * r (diameter)
         // Adding tiny offset (0.1) to prevent physics engine from detecting immediate collision
         const rowGap = r * Math.sqrt(3) + 0.1;  // Horizontal distance between rows
@@ -1320,7 +1320,7 @@ class PoolGame {
         // Update stats
         this.updateBallReturnStats();
         
-        console.log(`?? Ball ${ball.num} added to return tray. Reds: ${this.redsPotted}, Yellows: ${this.yellowsPotted}, Black: ${this.blackPotted}`);
+        console.log(`[Pool] Ball ${ball.num} added to return tray. Reds: ${this.redsPotted}, Yellows: ${this.yellowsPotted}, Black: ${this.blackPotted}`);
     }
     
     updateBallReturnStats() {
@@ -1349,7 +1349,7 @@ class PoolGame {
         // Reset stats
         this.updateBallReturnStats();
         
-        console.log('?? Ball return tray cleared');
+        console.log('[Pool] Ball return tray cleared');
     }
     
     animate() {
@@ -1713,3 +1713,4 @@ window.addEventListener('load', () => {
 ";
     }
 }
+

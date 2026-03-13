@@ -738,8 +738,8 @@ public partial class FixturesPage : ContentPage
             "Select OCR Engine",
             "Cancel",
             null,
-            "?? Local OCR - Fast, works offline",
-            "?? Azure Vision - Best for handwriting");
+            $"{Emojis.Lightning} Local OCR - Fast, works offline",
+            $"{Emojis.Rocket} Azure Vision - Best for handwriting");
 
         if (ocrChoice == "Cancel" || string.IsNullOrEmpty(ocrChoice))
             return;
@@ -753,7 +753,7 @@ public partial class FixturesPage : ContentPage
             if (!azureService.IsConfigured)
             {
                 var configure = await DisplayAlert(
-                    "?? Azure Vision Not Configured",
+                    $"{Emojis.Warning} Azure Vision Not Configured",
                     "Azure Vision requires an endpoint and API key.\n\n" +
                     "Would you like to configure it now, or use local OCR instead?",
                     "Configure", "Use Local");
@@ -778,11 +778,11 @@ public partial class FixturesPage : ContentPage
 
         // Ask user whether to take photo or pick from gallery
         var choice = await DisplayActionSheet(
-            "?? Scan Score Card",
+            $"{Emojis.Camera} Scan Score Card",
             "Cancel",
             null,
-            "?? Take Photo",
-            "??? Pick from Gallery");
+            $"{Emojis.Camera} Take Photo",
+            $"{Emojis.Image} Pick from Gallery");
 
         if (choice == "Cancel" || string.IsNullOrEmpty(choice))
             return;
@@ -791,7 +791,7 @@ public partial class FixturesPage : ContentPage
         {
             FileResult? photo = null;
 
-            if (choice == "?? Take Photo")
+            if (choice.Contains("Take Photo"))
             {
                 // Check camera availability
                 if (!MediaPicker.Default.IsCaptureSupported)
@@ -806,7 +806,7 @@ public partial class FixturesPage : ContentPage
                     Title = "Take a photo of the score card"
                 });
             }
-            else if (choice == "??? Pick from Gallery")
+            else if (choice.Contains("Pick from Gallery"))
             {
                 photo = await MediaPicker.Default.PickPhotoAsync(new MediaPickerOptions
                 {
@@ -942,11 +942,11 @@ public partial class FixturesPage : ContentPage
         
         if (success)
         {
-            await DisplayAlert("? Success", "Azure Vision configured successfully!\n\n" + message, "OK");
+            await DisplayAlert("✅ Success", "Azure Vision configured successfully!\n\n" + message, "OK");
         }
         else
         {
-            await DisplayAlert("? Configuration Error", message + "\n\nPlease check your endpoint and API key.", "OK");
+            await DisplayAlert("❌ Configuration Error", message + "\n\nPlease check your endpoint and API key.", "OK");
             azureService.ClearConfiguration();
         }
     }
@@ -993,9 +993,9 @@ public partial class FixturesPage : ContentPage
             $"Score Card Recognized ({result.ParsingStrategy})",
             "Cancel",
             null,
-            $"? Apply Results ({result.HomeScore}-{result.AwayScore})",
-            "?? Show Raw OCR Text",
-            "?? Copy OCR to Clipboard");
+            $"{Emojis.Success} Apply Results ({result.HomeScore}-{result.AwayScore})",
+            $"{Emojis.Document} Show Raw OCR Text",
+            $"{Emojis.Copy} Copy OCR to Clipboard");
 
         if (action == null || action == "Cancel")
             return;
@@ -1024,7 +1024,7 @@ public partial class FixturesPage : ContentPage
         var lines = ocrText.Split('\n');
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Total Lines: {lines.Length}");
-        sb.AppendLine("?????????????????????");
+        sb.AppendLine("=========================");
         
         for (int i = 0; i < lines.Length; i++)
         {

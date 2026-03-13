@@ -1,4 +1,4 @@
-namespace Wdpl2.Services;
+﻿namespace Wdpl2.Services;
 
 /// <summary>
 /// Input module for pool game - handles mouse and touch controls
@@ -387,7 +387,7 @@ setupMouseControls(canvas, game, statusEl) {
                                 console.warn('PoolAudio not available for cue hit');
                             }
 
-                            // ?? CHALK DUST PARTICLES (#5)
+                            // CHALK DUST PARTICLES (#5)
                             if (typeof PoolVFX !== 'undefined' && hitPower > 0.3) {
                                 const tipX = game.cueBall.x - Math.cos(game.aimAngle) * 12;
                                 const tipY = game.cueBall.y - Math.sin(game.aimAngle) * 12;
@@ -667,3 +667,4 @@ setupMouseControls(canvas, game, statusEl) {
 ";
     }
 }
+

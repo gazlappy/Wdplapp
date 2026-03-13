@@ -179,7 +179,7 @@ public static class ParadoxDatabaseParser
             if (csvLoaded)
             {
                 result.Success = true;
-                result.Warnings.Insert(0, "? Loaded from CSV files (preferred method)");
+                result.Warnings.Insert(0, "✅ Loaded from CSV files (preferred method)");
                 return result;
             }
 
@@ -191,7 +191,7 @@ public static class ParadoxDatabaseParser
             if (divisionPath != null)
             {
                 result.Divisions = ParseDivisionDb(divisionPath, result);
-                result.Warnings.Add($"? Divisions: {result.Divisions.Count} parsed");
+                result.Warnings.Add($"✅ Divisions: {result.Divisions.Count} parsed");
             }
 
             // Parse Venue.DB (need before Team.DB)
@@ -199,7 +199,7 @@ public static class ParadoxDatabaseParser
             if (venuePath != null)
             {
                 result.Venues = ParseVenueDb(venuePath, result);
-                result.Warnings.Add($"? Venues: {result.Venues.Count} parsed");
+                result.Warnings.Add($"✅ Venues: {result.Venues.Count} parsed");
             }
 
             // Parse Team.DB
@@ -207,7 +207,7 @@ public static class ParadoxDatabaseParser
             if (teamPath != null)
             {
                 result.Teams = ParseTeamDb(teamPath, result);
-                result.Warnings.Add($"? Teams: {result.Teams.Count} parsed");
+                result.Warnings.Add($"✅ Teams: {result.Teams.Count} parsed");
             }
 
             // Parse Player.DB
@@ -215,7 +215,7 @@ public static class ParadoxDatabaseParser
             if (playerPath != null)
             {
                 result.Players = ParsePlayerDb(playerPath, result);
-                result.Warnings.Add($"? Players: {result.Players.Count} parsed");
+                result.Warnings.Add($"✅ Players: {result.Players.Count} parsed");
             }
 
             // Parse Match.DB
@@ -223,7 +223,7 @@ public static class ParadoxDatabaseParser
             if (matchPath != null)
             {
                 result.Matches = ParseMatchDb(matchPath, result);
-                result.Warnings.Add($"? Matches: {result.Matches.Count} parsed");
+                result.Warnings.Add($"✅ Matches: {result.Matches.Count} parsed");
             }
 
             // Parse Single.DB
@@ -231,7 +231,7 @@ public static class ParadoxDatabaseParser
             if (singlePath != null)
             {
                 result.Singles = ParseSingleDb(singlePath, result);
-                result.Warnings.Add($"? Singles: {result.Singles.Count} frames parsed");
+                result.Warnings.Add($"✅ Singles: {result.Singles.Count} frames parsed");
             }
 
             // Parse Dbls.DB
@@ -239,7 +239,7 @@ public static class ParadoxDatabaseParser
             if (dblsPath != null)
             {
                 result.Doubles = ParseDoublesDb(dblsPath, result);
-                result.Warnings.Add($"? Doubles: {result.Doubles.Count} frames parsed");
+                result.Warnings.Add($"✅ Doubles: {result.Doubles.Count} frames parsed");
             }
 
             // Parse Daterate.DB (per-frame rating data from VBA)
@@ -247,7 +247,7 @@ public static class ParadoxDatabaseParser
             if (dateRatePath != null)
             {
                 result.DateRates = ParseDateRateDb(dateRatePath, result);
-                result.Warnings.Add($"? DateRates: {result.DateRates.Count} rating entries parsed");
+                result.Warnings.Add($"✅ DateRates: {result.DateRates.Count} rating entries parsed");
             }
 
             result.Success = result.Divisions.Count > 0 || result.Teams.Count > 0 || 
@@ -494,7 +494,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Division.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Division.DB: {ex.Message}");
         }
         return divisions;
     }
@@ -531,7 +531,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Venue.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Venue.DB: {ex.Message}");
         }
         return venues;
     }
@@ -577,7 +577,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Team.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Team.DB: {ex.Message}");
         }
         return teams;
     }
@@ -623,7 +623,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Player.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Player.DB: {ex.Message}");
         }
         return players;
     }
@@ -664,7 +664,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Match.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Match.DB: {ex.Message}");
         }
         return matches;
     }
@@ -701,7 +701,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Single.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Single.DB: {ex.Message}");
         }
         return singles;
     }
@@ -741,7 +741,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Dbls.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Dbls.DB: {ex.Message}");
         }
         return doubles;
     }
@@ -776,7 +776,7 @@ public static class ParadoxDatabaseParser
         }
         catch (Exception ex)
         {
-            result.Warnings.Add($"? Error parsing Daterate.DB: {ex.Message}");
+            result.Warnings.Add($"❌ Error parsing Daterate.DB: {ex.Message}");
         }
         return dateRates;
     }
@@ -922,7 +922,7 @@ public static class ParadoxDatabaseParser
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"? Error loading CSV {Path.GetFileName(csvFile)}: {ex.Message}");
+                result.Warnings.Add($"❌ Error loading CSV {Path.GetFileName(csvFile)}: {ex.Message}");
             }
         }
 
@@ -1294,7 +1294,7 @@ public static class ParadoxDatabaseParser
         }
 
         return exportedFiles.Count != 0
-            ? $"Exported {exportedFiles.Count} files:\n� {string.Join("\n� ", exportedFiles)}"
+            ? $"Exported {exportedFiles.Count} files:\n� {string.Join("\n� ", exportedFiles)}"
             : "No data to export";
     }
 

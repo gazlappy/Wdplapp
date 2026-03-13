@@ -1,4 +1,4 @@
-namespace Wdpl2.Services;
+﻿namespace Wdpl2.Services;
 
 /// <summary>
 /// Physics module for pool game - handles ball movement, collisions, and friction
@@ -269,15 +269,15 @@ const PoolPhysics = {
         if (bounced) {
             const impactSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
 
-            // ?? PLAY CUSHION BOUNCE SOUND
-            console.log(`?? Cushion bounce! Speed: ${impactSpeed.toFixed(2)}`);
+            // PLAY CUSHION BOUNCE SOUND
+            console.log(`[Physics] Cushion bounce! Speed: ${impactSpeed.toFixed(2)}`);
             if (typeof PoolAudio !== 'undefined') {
                 PoolAudio.play('cushionBounce', impactSpeed / 20);
             } else {
-                console.warn('?? PoolAudio not available for cushion bounce');
+                console.warn('[Physics] PoolAudio not available for cushion bounce');
             }
 
-            // ?? CUSHION COMPRESSION EFFECT (#7)
+            // CUSHION COMPRESSION EFFECT (#7)
             if (typeof PoolVFX !== 'undefined' && impactSpeed > 1) {
                 let side = '';
                 if (ball.x <= minX + 2) side = 'left';
@@ -445,16 +445,16 @@ const PoolPhysics = {
                 const b1Speed = Math.sqrt(b1.vx * b1.vx + b1.vy * b1.vy);
                 const b1Angle = Math.atan2(b1.vy, b1.vx);
                 
-                // ?? PLAY BALL COLLISION SOUND
+                // PLAY BALL COLLISION SOUND
                 const collisionVelocity = Math.abs(dvn) / 10;
-                console.log(`?? Ball collision detected! Velocity: ${collisionVelocity.toFixed(2)}`);
+                console.log(`[Physics] Ball collision detected! Velocity: ${collisionVelocity.toFixed(2)}`);
                 if (typeof PoolAudio !== 'undefined') {
                     PoolAudio.play('ballCollision', collisionVelocity);
                 } else {
-                    console.warn('?? PoolAudio not available for collision');
+                    console.warn('[Physics] PoolAudio not available for collision');
                 }
 
-                // ?? COLLISION FLASH EFFECT (#6)
+                // COLLISION FLASH EFFECT (#6)
                 if (typeof PoolVFX !== 'undefined' && collisionVelocity > 0.15) {
                     const flashX = (b1.x + b2.x) / 2;
                     const flashY = (b1.y + b2.y) / 2;
@@ -585,7 +585,7 @@ const PoolPhysics = {
                         b1.vx = Math.cos(drawAngle) * drawSpeed;
                         b1.vy = Math.sin(drawAngle) * drawSpeed;
                         
-                        console.log('?? THICK DRAW! Straight back, cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg');
+                        console.log('[Physics] THICK DRAW! Straight back, cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg');
                     } else {
                         // For medium cuts, draw back at an angle using tangent
                         // But don't overdo it - reduce the effect
@@ -602,10 +602,10 @@ const PoolPhysics = {
                         b1.vx = Math.cos(drawDirection) * drawSpeed;
                         b1.vy = Math.sin(drawDirection) * drawSpeed;
                         
-                        console.log('?? CUT DRAW! Angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, effectiveness:', (spinEffectiveness * 100).toFixed(0) + '%');
+                        console.log('[Physics] CUT DRAW! Angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, effectiveness:', (spinEffectiveness * 100).toFixed(0) + '%');
                     }
                 } else if (b1.spinY !== undefined && b1.spinY < -0.3) {
-                    console.log('?? Draw too thin! Cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, no draw effect');
+                    console.log('[Physics] Draw too thin! Cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, no draw effect');
                 }
                 
                 // If b1 has top spin, it follows through (works on all cuts)
@@ -913,3 +913,5 @@ const PoolPhysics = {
 ";
     }
 }
+
+

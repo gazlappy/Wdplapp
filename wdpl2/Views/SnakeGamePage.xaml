@@ -14,7 +14,7 @@
                CornerRadius="0"
                HasShadow="True">
             <Grid ColumnDefinitions="*,Auto,Auto">
-                <Label Text="?? Snake" 
+                <Label Text="&#x1F40D; Snake"
                        FontSize="24" 
                        FontAttributes="Bold"
                        TextColor="White"

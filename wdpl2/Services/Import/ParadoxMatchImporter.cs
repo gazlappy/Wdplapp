@@ -233,7 +233,7 @@ public static class ParadoxMatchImporter
             }
 
             result.Success = true;
-            result.Warnings.Add($"? Parsed {result.Matches.Count} valid matches from {numRecords} records");
+            result.Warnings.Add($"✅ Parsed {result.Matches.Count} valid matches from {numRecords} records");
             if (result.MinDate.HasValue && result.MaxDate.HasValue)
             {
                 result.Warnings.Add($"Date range: {result.MinDate.Value:dd/MM/yyyy} to {result.MaxDate.Value:dd/MM/yyyy}");

@@ -74,7 +74,7 @@ const PoolGameSettings = {
     createSettingsButton() {
         const btn = document.createElement('button');
         btn.id = 'gameSettingsBtn';
-        btn.innerHTML = '?? Settings';
+        btn.innerHTML = '\u2699\uFE0F Settings';
         btn.style.cssText = `
             position: fixed;
             top: 10px;

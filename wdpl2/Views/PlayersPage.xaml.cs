@@ -29,8 +29,8 @@ public partial class PlayersPage : ContentPage
         // Status properties
         public bool IsActive { get; set; } = true;
         public bool HasTransfers { get; set; } = false;
-        public string TransferBadge => HasTransfers ? "??" : "";
-        public string StatusLabel => IsActive ? "" : "?? Inactive";
+        public string TransferBadge => HasTransfers ? "\U0001F504" : "";
+        public string StatusLabel => IsActive ? "" : "\u26AA Inactive";
         public bool ShowStatusLabel => !IsActive;
         public double Opacity => IsActive ? 1.0 : 0.6;
         public Color AvatarColor => IsActive ? Color.FromArgb("#3B82F6") : Color.FromArgb("#9CA3AF");

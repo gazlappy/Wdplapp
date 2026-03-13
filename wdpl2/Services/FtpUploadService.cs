@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 #pragma warning disable SYSLIB0014 // WebRequest is obsolete - FTP requires it until FluentFTP or similar is added
@@ -127,7 +128,7 @@ namespace Wdpl2.Services
                         TotalFiles = totalFiles,
                         BytesUploaded = bytesUploaded,
                         TotalBytes = totalBytes,
-                        Status = $"? Uploaded {fileName}"
+                        Status = $"‚úÖ Uploaded {fileName}"
                     });
                 }
                 
@@ -158,7 +159,7 @@ namespace Wdpl2.Services
                 if (!hasIndexHtml)
                 {
                     sb.AppendLine();
-                    sb.AppendLine("?? Warning: index.html was not in the file list!");
+                    sb.AppendLine("‚ÑπÔ∏è Warning: index.html was not in the file list!");
                 }
                 
                 return (true, sb.ToString());
@@ -215,8 +216,8 @@ namespace Wdpl2.Services
                 
                 foreach (var file in foundFiles.OrderBy(f => f))
                 {
-                    var icon = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ? "??" :
-                               file.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ? "??" : "??";
+                    var icon = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ? Emojis.Document :
+                               file.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ? Emojis.Edit : Emojis.Document;
                     sb.AppendLine($"  {icon} {file}");
                 }
                 
@@ -224,15 +225,15 @@ namespace Wdpl2.Services
                 
                 if (hasIndex)
                 {
-                    sb.AppendLine("? index.html found - your homepage should be accessible!");
+                    sb.AppendLine("‚úÖ index.html found - your homepage should be accessible!");
                 }
                 else
                 {
-                    sb.AppendLine("? index.html NOT FOUND - your site will show 'Not Found'");
+                    sb.AppendLine("‚ùå index.html NOT FOUND - your site will show 'Not Found'");
                     sb.AppendLine();
                     sb.AppendLine("Possible issues:");
-                    sb.AppendLine("  ï Files uploaded to wrong directory");
-                    sb.AppendLine("  ï Try changing Remote Path in settings");
+                    sb.AppendLine("  ÔøΩ Files uploaded to wrong directory");
+                    sb.AppendLine("  ÔøΩ Try changing Remote Path in settings");
                 }
                 
                 return (hasIndex, foundFiles, sb.ToString());
@@ -459,10 +460,10 @@ namespace Wdpl2.Services
             if (discoveredPaths.Count != 0)
             {
                 errorDetails.AppendLine();
-                errorDetails.AppendLine("?? Available paths found at root:");
+                errorDetails.AppendLine("‚ÑπÔ∏è Available paths found at root:");
                 foreach (var pathItem in discoveredPaths.Take(15))
                 {
-                    errorDetails.AppendLine($"  ï {pathItem}");
+                    errorDetails.AppendLine($"  ÔøΩ {pathItem}");
                 }
                 if (discoveredPaths.Count > 15)
                     errorDetails.AppendLine($"  ... and {discoveredPaths.Count - 15} more");
@@ -470,10 +471,10 @@ namespace Wdpl2.Services
             
             errorDetails.AppendLine();
             errorDetails.AppendLine("Tips:");
-            errorDetails.AppendLine("ï Check the FTP host - try with/without 'ftp.' prefix");
-            errorDetails.AppendLine("ï Verify username includes domain (e.g., user@domain.com)");
-            errorDetails.AppendLine("ï Check password is correct");
-            errorDetails.AppendLine("ï Try path '/' first to see what's available");
+            errorDetails.AppendLine("ÔøΩ Check the FTP host - try with/without 'ftp.' prefix");
+            errorDetails.AppendLine("ÔøΩ Verify username includes domain (e.g., user@domain.com)");
+            errorDetails.AppendLine("ÔøΩ Check password is correct");
+            errorDetails.AppendLine("ÔøΩ Try path '/' first to see what's available");
             
             return (false, errorDetails.ToString());
         }
@@ -592,8 +593,8 @@ namespace Wdpl2.Services
                     message.AppendLine(":");
                     foreach (var item in items.Take(15))
                     {
-                        var icon = item.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ? "??" :
-                                   item.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ? "??" : "??";
+                        var icon = item.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ? Emojis.Document :
+                                   item.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ? Emojis.Edit : Emojis.Document;
                         message.AppendLine($"  {icon} /{item}");
                     }
                     if (items.Count > 15)
@@ -604,14 +605,14 @@ namespace Wdpl2.Services
                     if (hasIndex)
                     {
                         message.AppendLine();
-                        message.AppendLine("? index.html already exists in this directory!");
+                        message.AppendLine("‚úÖ index.html already exists in this directory!");
                         message.AppendLine("   Uploading will overwrite existing files.");
                     }
                     else
                     {
                         // Suggest what to try
                         message.AppendLine();
-                        message.AppendLine("?? This folder has no index.html yet.");
+                        message.AppendLine("‚ÑπÔ∏è This folder has no index.html yet.");
                         message.AppendLine("   Upload your website here to make it live!");
                     }
                 }
@@ -619,7 +620,7 @@ namespace Wdpl2.Services
                 {
                     message.AppendLine();
                     message.AppendLine("This folder appears empty. You can upload directly here.");
-                    message.AppendLine("?? Keep Remote Path as current setting to upload to this location.");
+                    message.AppendLine("‚ÑπÔ∏è Keep Remote Path as current setting to upload to this location.");
                 }
                 
                 return (true, message.ToString());

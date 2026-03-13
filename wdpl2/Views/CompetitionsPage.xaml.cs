@@ -285,7 +285,7 @@ public partial class CompetitionsPage : ContentPage
 
     private void ShowEmptyState()
     {
-        ContentPanel.Content = new VerticalStackLayout
+        SetContentPanel(new VerticalStackLayout
         {
             Spacing = 16,
             VerticalOptions = LayoutOptions.Center,
@@ -307,7 +307,16 @@ public partial class CompetitionsPage : ContentPage
                     HorizontalTextAlignment = TextAlignment.Center
                 }
             }
-        };
+        });
+    }
+
+    /// <summary>
+    /// Replace the right-side editor content.
+    /// </summary>
+    internal void SetContentPanel(View content)
+    {
+        ContentPanel.Children.Clear();
+        ContentPanel.Children.Add(content);
     }
 
     internal void SetStatus(string text)

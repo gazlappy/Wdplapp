@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 using Wdpl2.ViewModels;
@@ -40,7 +41,6 @@ public partial class CompetitionsPage
         _participantsView = new CollectionView
         {
             ItemsSource = _editorViewModel.Participants,
-            HeightRequest = 250,
             ItemTemplate = new DataTemplate(() =>
             {
                 var grid = new Grid
@@ -62,10 +62,10 @@ public partial class CompetitionsPage
 
                 var removeBtn = new Button
                 {
-                    Text = "�",
-                    FontSize = 16,
-                    Padding = new Thickness(8, 2),
-                    WidthRequest = 32,
+                    Text = "✕",
+                    FontSize = 14,
+                    Padding = new Thickness(6, 2),
+                    WidthRequest = 30,
                     BackgroundColor = Color.FromArgb("#EF4444"),
                     TextColor = Colors.White
                 };
@@ -85,58 +85,114 @@ public partial class CompetitionsPage
             })
         };
 
-        var content = new VerticalStackLayout
+        // ── LEFT COLUMN: Details + Participants ──
+        var leftColumn = new Grid
         {
-            Spacing = 8,
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto },  // details
+                new RowDefinition { Height = GridLength.Auto },  // participants header + buttons
+                new RowDefinition { Height = GridLength.Star },  // participants list (fills space)
+                new RowDefinition { Height = GridLength.Auto }   // save button
+            },
+            RowSpacing = 8
+        };
+
+        // Details section
+        var detailsSection = new VerticalStackLayout
+        {
+            Spacing = 6,
             Children =
             {
-                new Label { Text = "Competition Details", FontSize = 18, FontAttributes = FontAttributes.Bold },
-                
-                // Basic Info
+                new Label { Text = competition.Name ?? "Competition", FontSize = 16, FontAttributes = FontAttributes.Bold },
                 CreateLabeledField("Name:", _nameEntry),
                 CreateLabeledField("Format:", formatLabel),
                 CreateLabeledField("Status:", _statusPicker),
-                CreateLabeledField("Start Date:", _startDatePicker),
-                CreateLabeledField("Notes:", _notesEntry),
-
-                // Participants Section
-                new Label { Text = "Participants", FontSize = 16, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 4) },
-                new HorizontalStackLayout
-                {
-                    Spacing = 6,
-                    Children =
-                    {
-                        new Button { Text = "Add", Command = new Command(OnAddParticipant), HorizontalOptions = LayoutOptions.FillAndExpand, Padding = new Thickness(8, 4) },
-                        new Button { Text = "Clear", Command = new Command(OnClearParticipants), BackgroundColor = Color.FromArgb("#EF4444"), TextColor = Colors.White, Padding = new Thickness(8, 4) }
-                    }
-                },
-                new Border
-                {
-                    Padding = 4,
-                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-                    Content = _participantsView
-                }
+                CreateLabeledField("Date:", _startDatePicker),
+                CreateLabeledField("Notes:", _notesEntry)
             }
         };
+        leftColumn.Add(detailsSection, 0, 0);
 
-        // Add format-specific actions
-        AddFormatSpecificActions(content, competition);
-
-        // Save Button
-        content.Children.Add(new Button
+        // Participants header + buttons
+        var participantsHeader = new Grid
         {
-            Text = "Save Changes",
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto }
+            },
+            ColumnSpacing = 6,
+            Children =
+            {
+                new Label { Text = "Participants", FontSize = 14, FontAttributes = FontAttributes.Bold, VerticalTextAlignment = TextAlignment.Center }
+            }
+        };
+        var addBtn = new Button { Text = "+ Add", Command = new Command(OnAddParticipant), Padding = new Thickness(8, 4), FontSize = 12 };
+        var clearBtn = new Button { Text = "Clear", Command = new Command(OnClearParticipants), BackgroundColor = Color.FromArgb("#EF4444"), TextColor = Colors.White, Padding = new Thickness(8, 4), FontSize = 12 };
+        Grid.SetColumn(addBtn, 1);
+        Grid.SetColumn(clearBtn, 2);
+        participantsHeader.Children.Add(addBtn);
+        participantsHeader.Children.Add(clearBtn);
+        leftColumn.Add(participantsHeader, 0, 1);
+
+        // Participants list (fills remaining space)
+        var participantsBorder = new Border
+        {
+            Padding = 4,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = _participantsView
+        };
+        leftColumn.Add(participantsBorder, 0, 2);
+
+        // Save button
+        leftColumn.Add(new Button
+        {
+            Text = "💾 Save Changes",
             Command = new Command(OnSaveCompetition),
-            Margin = new Thickness(0, 12, 0, 0),
             BackgroundColor = Color.FromArgb("#3B82F6"),
             TextColor = Colors.White,
             Padding = new Thickness(8, 6)
-        });
+        }, 0, 3);
 
-        ContentPanel.Content = new ScrollView
+        // ── RIGHT COLUMN: Format-specific setup ──
+        var rightColumn = new VerticalStackLayout { Spacing = 8 };
+        AddFormatSpecificActions(rightColumn, competition);
+
+        // ── SPLIT LAYOUT ──
+        var splitGrid = new Grid
         {
-            Content = content
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) }
+            },
+            ColumnSpacing = 16
         };
+
+        // Wrap left in a border
+        var leftBorder = new Border
+        {
+            Padding = 12,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = leftColumn
+        };
+        splitGrid.Add(leftBorder, 0, 0);
+
+        // Wrap right in a scrollable border
+        var rightBorder = new Border
+        {
+            Padding = 12,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Content = new ScrollView { Content = rightColumn }
+        };
+        splitGrid.Add(rightBorder, 1, 0);
+
+        SetContentPanel(splitGrid);
     }
 
     private void AddFormatSpecificActions(VerticalStackLayout content, Competition competition)
@@ -173,14 +229,14 @@ public partial class CompetitionsPage
         if (competition.Groups.Count > 0)
         {
             int currentGroupRound = competition.Groups.Max(g => g.GroupRound);
-            content.Children.Add(new Label { Text = $"? {competition.Groups.Count} groups generated (Round {currentGroupRound})", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+            content.Children.Add(new Label { Text = $"✅ {competition.Groups.Count} groups generated (Round {currentGroupRound})", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
 
             // Show current round date and venue summary
             if (settings.GroupDate.HasValue)
             {
                 content.Children.Add(new Label
                 {
-                    Text = $"?? {settings.GroupDate.Value:dd MMM yyyy}",
+                    Text = $"⚠️ {settings.GroupDate.Value:dd MMM yyyy}",
                     FontSize = 12,
                     TextColor = Colors.Gray,
                     Margin = new Thickness(0, 0, 0, 2)
@@ -196,7 +252,7 @@ public partial class CompetitionsPage
                 }));
                 content.Children.Add(new Label
                 {
-                    Text = $"?? {venueDetails} � {venueTables} table(s)",
+                    Text = $"⚠️ {venueDetails} � {venueTables} table(s)",
                     FontSize = 12,
                     TextColor = Colors.Gray,
                     Margin = new Thickness(0, 0, 0, 4)
@@ -225,7 +281,7 @@ public partial class CompetitionsPage
             {
                 var randomiseBtn = new Button
                 {
-                    Text = "?? Randomise",
+                    Text = "🔀 Randomise",
                     BackgroundColor = Color.FromArgb("#F59E0B"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4)
@@ -239,6 +295,16 @@ public partial class CompetitionsPage
                         ShowCompetitionEditor(_selectedCompetition);
                 };
                 groupActionBar.Children.Add(randomiseBtn);
+
+                var drawBtn = new Button
+                {
+                    Text = "🎱 Draw",
+                    BackgroundColor = Color.FromArgb("#8B5CF6"),
+                    TextColor = Colors.White,
+                    Padding = new Thickness(8, 4)
+                };
+                drawBtn.Clicked += (s, e) => OnRandomiseWithDraw();
+                groupActionBar.Children.Add(drawBtn);
             }
 
             content.Children.Add(groupActionBar);
@@ -265,7 +331,7 @@ public partial class CompetitionsPage
                 // ?? Next Round Settings: date & tables ??????????????
                 content.Children.Add(new Label
                 {
-                    Text = "?? Next Round Settings",
+                    Text = "⚠️ Next Round Settings",
                     FontSize = 14,
                     FontAttributes = FontAttributes.Bold,
                     Margin = new Thickness(0, 10, 0, 4)
@@ -294,7 +360,7 @@ public partial class CompetitionsPage
                 // Table selection for next round
                 content.Children.Add(new Label
                 {
-                    Text = "?? Tables",
+                    Text = "⚠️ Tables",
                     FontSize = 13,
                     FontAttributes = FontAttributes.Bold,
                     Margin = new Thickness(0, 6, 0, 2)
@@ -306,7 +372,7 @@ public partial class CompetitionsPage
                 {
                     content.Children.Add(new Label
                     {
-                        Text = $"? {settings.SelectedVenues.Count} venue(s), {nextRoundTables} table(s)",
+                        Text = $"✅ {settings.SelectedVenues.Count} venue(s), {nextRoundTables} table(s)",
                         FontSize = 12,
                         TextColor = Color.FromArgb("#10B981"),
                         Margin = new Thickness(0, 2, 0, 0)
@@ -318,7 +384,7 @@ public partial class CompetitionsPage
 
                 var koBtn = new Button
                 {
-                    Text = $"?? Create Knockout Bracket ({selectedCount} players)",
+                    Text = $"⚠️ Create Knockout Bracket ({selectedCount} players)",
                     BackgroundColor = Color.FromArgb("#10B981"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4)
@@ -328,7 +394,7 @@ public partial class CompetitionsPage
 
                 var nextGroupBtn = new Button
                 {
-                    Text = "?? Another Round of Groups",
+                    Text = "⚠️ Another Round of Groups",
                     BackgroundColor = Color.FromArgb("#6366F1"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4)
@@ -343,7 +409,7 @@ public partial class CompetitionsPage
             if (competition.Rounds.Count > 0)
             {
                 content.Children.Add(new Label { Text = "Knockout Stage", FontSize = 16, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 4) });
-                content.Children.Add(new Label { Text = $"? {competition.Rounds.Count} knockout rounds created", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+                content.Children.Add(new Label { Text = $"✅ {competition.Rounds.Count} knockout rounds created", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
 
                 var viewBracketBtn = new Button
                 {
@@ -356,11 +422,11 @@ public partial class CompetitionsPage
                 viewBracketBtn.Clicked += (s, e) => OnViewBracket();
                 content.Children.Add(viewBracketBtn);
 
-                // Round schedule � dates and tables per KO round
+                // Round schedule � dates and tables per KO round
                 AddRoundScheduleUI(content, competition);
             }
 
-            // Plate competition section � show after groups exist, regardless of KO status
+            // Plate competition section � show after groups exist, regardless of KO status
             if (competition.PlateCompetitionId.HasValue)
             {
                 content.Children.Add(new Border
@@ -393,7 +459,7 @@ public partial class CompetitionsPage
             {
                 var createPlateBtn = new Button
                 {
-                    Text = "?? Create Plate Competition (losers)",
+                    Text = "⚠️ Create Plate Competition (losers)",
                     BackgroundColor = Color.FromArgb("#F59E0B"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4),
@@ -422,7 +488,7 @@ public partial class CompetitionsPage
                     var roundNum = round.Key;
                     var viewPrevBtn = new Button
                     {
-                        Text = $"?? View Round {roundNum} ({round.Count()} groups � completed)",
+                        Text = $"⚠️ View Round {roundNum} ({round.Count()} groups � completed)",
                         FontSize = 12,
                         TextColor = Colors.Gray,
                         BackgroundColor = Colors.Transparent,
@@ -443,8 +509,8 @@ public partial class CompetitionsPage
         content.Children.Add(new Label
         {
             Text = participantCount >= 4
-                ? $"? {participantCount} participants added"
-                : $"? Add participants first ({participantCount} added, need at least 4)",
+                ? $"✅ {participantCount} participants added"
+                : $"⚠️ Add participants first ({participantCount} added, need at least 4)",
             FontSize = 13,
             TextColor = step1Color
         });
@@ -454,7 +520,7 @@ public partial class CompetitionsPage
         // ? 2. Venue Selection ???????????????????????????????????????????
         content.Children.Add(new Label
         {
-            Text = "?? Select Venues & Tables",
+            Text = "⚠️ Select Venues & Tables",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -464,8 +530,8 @@ public partial class CompetitionsPage
 
         int totalTables = settings.SelectedVenues.Sum(v => v.TableCount);
         var venueStatus = totalTables > 0
-            ? $"? {settings.SelectedVenues.Count} venue(s), {totalTables} table(s)"
-            : "? Select at least one venue with tables";
+            ? $"✅ {settings.SelectedVenues.Count} venue(s), {totalTables} table(s)"
+            : "⚠️ Select at least one venue with tables";
         content.Children.Add(new Label
         {
             Text = venueStatus,
@@ -487,7 +553,7 @@ public partial class CompetitionsPage
                     Margin = new Thickness(0, 4, 0, 0),
                     Content = new Label
                     {
-                        Text = $"?? {explanation}",
+                        Text = $"⚠️ {explanation}",
                         FontSize = 11,
                         TextColor = Color.FromArgb("#1E40AF")
                     }
@@ -498,7 +564,7 @@ public partial class CompetitionsPage
         // Group date picker
         content.Children.Add(new Label
         {
-            Text = "?? Group Round Date",
+            Text = "⚠️ Group Round Date",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -513,12 +579,12 @@ public partial class CompetitionsPage
         content.Children.Add(CreateLabeledField("Date:", groupDatePicker));
 
         if (settings.GroupDate.HasValue)
-            content.Children.Add(new Label { Text = $"? {settings.GroupDate.Value:dd MMM yyyy}", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+            content.Children.Add(new Label { Text = $"✅ {settings.GroupDate.Value:dd MMM yyyy}", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
 
         // ? 3. Group Count ???????????????????????????????????????????????
         content.Children.Add(new Label
         {
-            Text = "?? Choose Number of Groups",
+            Text = "⚠️ Choose Number of Groups",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -545,7 +611,7 @@ public partial class CompetitionsPage
             else
             {
                 label = $"{i} groups (~{perGroup}{(rem > 0 ? $"-{perGroup + 1}" : "")} per group) ? {koTotal} to KO";
-                if (!koValid) label += " ??";
+                if (!koValid) label += $" {Emojis.Warning}";
             }
             groupCountPicker.Items.Add(label);
         }
@@ -569,8 +635,8 @@ public partial class CompetitionsPage
             content.Children.Add(new Label
             {
                 Text = koValid
-                    ? $"? {currentGroups} groups � top {topAdvance} = {koTotal} to knockout"
-                    : $"?? {currentGroups} groups � top {topAdvance} = {koTotal} � not a bracket size (need 2, 4, 8, 16�)",
+                    ? $"✅ {currentGroups} groups � top {topAdvance} = {koTotal} to knockout"
+                    : $"⚠️ {currentGroups} groups � top {topAdvance} = {koTotal} � not a bracket size (need 2, 4, 8, 16�)",
                 FontSize = 11,
                 TextColor = koValid ? Color.FromArgb("#059669") : Color.FromArgb("#DC2626"),
                 FontAttributes = koValid ? FontAttributes.None : FontAttributes.Italic,
@@ -596,27 +662,64 @@ public partial class CompetitionsPage
                 Spacing = 2,
                 Children =
                 {
-                    new Label { Text = $"?? Top {settings.TopPlayersAdvance} from each group advance", FontSize = 12 },
-                    new Label { Text = $"?? {plateDesc}", FontSize = 12 },
+                    new Label { Text = $"⚠️ Top {settings.TopPlayersAdvance} from each group advance", FontSize = 12 },
+                    new Label { Text = $"⚠️ {plateDesc}", FontSize = 12 },
                     new Label { Text = "Players do their own draw within groups and report who got through", FontSize = 11, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic }
                 }
             }
         });
 
-        // ? 4. Generate ??????????????????????????????????????????????????
+        // ➍ Generate ──────────────────────────────────────────────────────
         bool readyToGenerate = currentGroups >= 2 && participantCount >= 4 && totalTables > 0;
+
+        // Show Draw toggle
+        var showDrawSwitch = new Switch { IsToggled = false, OnColor = Color.FromArgb("#8B5CF6") };
+        var showDrawRow = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+            ColumnSpacing = 8,
+            Margin = new Thickness(0, 10, 0, 0),
+            Children =
+            {
+                showDrawSwitch
+            }
+        };
+        var drawLabel = new Label
+        {
+            Text = "🎱 Show animated draw",
+            FontSize = 13,
+            VerticalTextAlignment = TextAlignment.Center,
+            TextColor = Colors.Gray
+        };
+        Grid.SetColumn(drawLabel, 1);
+        showDrawRow.Children.Add(drawLabel);
+        content.Children.Add(showDrawRow);
 
         var generateGroupsBtn = new Button
         {
-            Text = "?? Generate Groups",
+            Text = showDrawSwitch.IsToggled ? "🎱 Draw Groups" : "⚙️ Generate Groups",
             BackgroundColor = Color.FromArgb("#8B5CF6"),
             TextColor = Colors.White,
             Padding = new Thickness(12, 6),
             FontSize = 14,
-            Margin = new Thickness(0, 10, 0, 0),
+            Margin = new Thickness(0, 4, 0, 0),
             IsEnabled = readyToGenerate
         };
-        generateGroupsBtn.Clicked += (s, e) => OnGenerateGroups();
+        showDrawSwitch.Toggled += (_, e) =>
+        {
+            generateGroupsBtn.Text = e.Value ? "🎱 Draw Groups" : "⚙️ Generate Groups";
+        };
+        generateGroupsBtn.Clicked += (s, e) =>
+        {
+            if (showDrawSwitch.IsToggled)
+                OnGenerateGroupsWithDraw();
+            else
+                OnGenerateGroups();
+        };
         content.Children.Add(generateGroupsBtn);
     }
 
@@ -652,18 +755,18 @@ public partial class CompetitionsPage
             }
         });
 
-        // Round schedule � dates and tables per KO round
+        // Round schedule � dates and tables per KO round
         if (competition.Rounds.Count > 0)
             AddRoundScheduleUI(content, competition);
 
-        // Losers Cup section � only for main competitions with a bracket (not plates)
+        // Losers Cup section � only for main competitions with a bracket (not plates)
         if (competition.Rounds.Count > 0 && !competition.ParentCompetitionId.HasValue)
         {
             content.Children.Add(new Label { Text = "Losers Cup", FontSize = 16, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 4) });
 
             if (competition.PlateCompetitionId.HasValue)
             {
-                // Already created � show info and link
+                // Already created � show info and link
                 content.Children.Add(new Border
                 {
                     Padding = 10,
@@ -820,7 +923,7 @@ public partial class CompetitionsPage
 
         content.Children.Add(new Label
         {
-            Text = "?? Round Schedule & Tables",
+            Text = "⚠️ Round Schedule & Tables",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 12, 0, 4)
@@ -857,7 +960,7 @@ public partial class CompetitionsPage
             var matchInfo = $"{round.Matches.Count} match(es)";
             roundStack.Children.Add(new Label
             {
-                Text = $"{round.Name ?? $"Round {round.RoundNumber}"} � {matchInfo}",
+                Text = $"{round.Name ?? $"Round {round.RoundNumber}"} � {matchInfo}",
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold
             });
@@ -880,7 +983,7 @@ public partial class CompetitionsPage
             {
                 roundStack.Children.Add(new Label
                 {
-                    Text = $"?? {round.Date.Value:dd MMM yyyy}",
+                    Text = $"⚠️ {round.Date.Value:dd MMM yyyy}",
                     FontSize = 11,
                     TextColor = Color.FromArgb("#10B981")
                 });
@@ -947,7 +1050,7 @@ public partial class CompetitionsPage
 
                         var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed" : table.Label;
                         if (isRestricted)
-                            tableLabelText += " ?? main comp";
+                            tableLabelText += $" {Emojis.Warning} main comp";
 
                         var tableLabel = new Label
                         {
@@ -988,7 +1091,7 @@ public partial class CompetitionsPage
                             Stroke = Color.FromArgb("#FECACA"),
                             Content = new Label
                             {
-                                Text = "?? All tables are in use by the main competition on this date. Choose a different date or add more tables.",
+                                Text = "⚠️ All tables are in use by the main competition on this date. Choose a different date or add more tables.",
                                 FontSize = 11,
                                 TextColor = Color.FromArgb("#DC2626")
                             }
@@ -998,7 +1101,7 @@ public partial class CompetitionsPage
                     {
                         roundStack.Children.Add(new Label
                         {
-                            Text = $"?? {totalRestrictedTables} table(s) unavailable � in use by main competition on this date",
+                            Text = $"⚠️ {totalRestrictedTables} table(s) unavailable � in use by main competition on this date",
                             FontSize = 11,
                             TextColor = Color.FromArgb("#D97706"),
                             FontAttributes = FontAttributes.Italic
@@ -1014,7 +1117,7 @@ public partial class CompetitionsPage
                         }));
                         roundStack.Children.Add(new Label
                         {
-                            Text = $"? {tableSummary}",
+                            Text = $"✅ {tableSummary}",
                             FontSize = 11,
                             TextColor = Color.FromArgb("#10B981")
                         });
@@ -1081,7 +1184,7 @@ public partial class CompetitionsPage
     }
 
     /// <summary>
-    /// Build the venue selection UI � shows each venue's named tables as individual checkboxes.
+    /// Build the venue selection UI � shows each venue's named tables as individual checkboxes.
     /// Adds a container synchronously; populates it asynchronously.
     /// </summary>
     private void AddVenueSelectionUI(VerticalStackLayout content, Competition competition, GroupStageSettings settings)
@@ -1165,7 +1268,7 @@ public partial class CompetitionsPage
 
                 var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed Table" : table.Label;
                 if (isRestricted)
-                    tableLabelText += " ?? main comp";
+                    tableLabelText += $" {Emojis.Warning} main comp";
 
                 var tableLabel = new Label
                 {
@@ -1231,7 +1334,7 @@ public partial class CompetitionsPage
                     Margin = new Thickness(0, 4, 0, 0),
                     Content = new Label
                     {
-                        Text = "?? All tables are in use by the main competition on this date. Choose a different group date or add more tables to your venues.",
+                        Text = "⚠️ All tables are in use by the main competition on this date. Choose a different group date or add more tables to your venues.",
                         FontSize = 11,
                         TextColor = Color.FromArgb("#DC2626")
                     }
@@ -1241,7 +1344,7 @@ public partial class CompetitionsPage
             {
                 container.Children.Add(new Label
                 {
-                    Text = $"?? {restrictedTableIds.Count} table(s) unavailable � in use by main competition on this date",
+                    Text = $"⚠️ {restrictedTableIds.Count} table(s) unavailable � in use by main competition on this date",
                     FontSize = 11,
                     TextColor = Color.FromArgb("#D97706"),
                     FontAttributes = FontAttributes.Italic,

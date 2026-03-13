@@ -206,7 +206,7 @@
                 IsVisible="False">
                 <Button 
                     x:Name="BackBtn"
-                    Text="? Back"
+                    Text="&#x2B05;&#xFE0F; Back"
                     Clicked="OnBackToSelection"
                     WidthRequest="120"
                     BackgroundColor="#6B7280" />

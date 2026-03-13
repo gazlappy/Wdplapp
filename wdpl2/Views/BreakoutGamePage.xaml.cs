@@ -214,7 +214,7 @@ public partial class BreakoutGamePage : ContentPage
         
         function updateStats() {
             document.querySelector('#score .stat-value').textContent = score;
-            document.querySelector('#lives .stat-value').textContent = '??'.repeat(lives);
+            document.querySelector('#lives .stat-value').textContent = '\u2764\uFE0F'.repeat(lives);
             document.querySelector('#level .stat-value').textContent = level;
         }
         
@@ -367,7 +367,7 @@ public partial class BreakoutGamePage : ContentPage
         function gameOver() {
             gameRunning = false;
             const overlay = document.getElementById('overlay');
-            overlay.querySelector('h2').textContent = '?? Game Over!';
+            overlay.querySelector('h2').textContent = '\uD83D\uDCA5 Game Over!';
             overlay.querySelector('p').textContent = `Final Score: ${score}`;
             overlay.querySelector('#startBtn').textContent = 'Play Again';
             overlay.style.display = 'block';

@@ -334,6 +334,23 @@ namespace Wdpl2.Models
         /// <summary>Group ID if this match belongs to a group stage</summary>
         public Guid? GroupId { get; set; }
 
+        /// <summary>The venue this match is assigned to play at.</summary>
+        public Guid? VenueId { get; set; }
+
+        /// <summary>Display name of the assigned venue.</summary>
+        public string? VenueName { get; set; }
+
+        /// <summary>The specific table ID at the venue this match plays on.</summary>
+        public Guid? TableId { get; set; }
+
+        /// <summary>Display label of the assigned table (e.g. "Table 1").</summary>
+        public string? TableLabel { get; set; }
+
+        /// <summary>Formatted venue and table assignment for display.</summary>
+        public string VenueDisplay => VenueId.HasValue && !string.IsNullOrEmpty(VenueName)
+            ? (!string.IsNullOrEmpty(TableLabel) ? $"{VenueName} — {TableLabel}" : $"{VenueName}")
+            : "";
+
         public override string ToString() => $"Match {Id}";
     }
 
@@ -439,6 +456,42 @@ namespace Wdpl2.Models
                 groups[i].TableId = slot.TableId;
                 groups[i].TableLabel = slot.TableLabel;
                 groups[i].TableNumber = (i % shuffledSlots.Count) + 1;
+            }
+        }
+
+        /// <summary>
+        /// Assign matches in a round to available venue tables (round-robin).
+        /// </summary>
+        public static void AssignMatchVenueTables(List<CompetitionMatch> matches, List<CompetitionVenue> venues)
+        {
+            if (matches.Count == 0) return;
+
+            var tableSlots = new List<(Guid VenueId, string VenueName, Guid TableId, string TableLabel)>();
+            foreach (var venue in venues)
+            {
+                foreach (var table in venue.SelectedTables)
+                    tableSlots.Add((venue.VenueId, venue.VenueName, table.TableId, table.Label));
+            }
+
+            if (tableSlots.Count == 0)
+            {
+                foreach (var m in matches)
+                {
+                    m.VenueId = null;
+                    m.VenueName = null;
+                    m.TableId = null;
+                    m.TableLabel = null;
+                }
+                return;
+            }
+
+            for (int i = 0; i < matches.Count; i++)
+            {
+                var slot = tableSlots[i % tableSlots.Count];
+                matches[i].VenueId = slot.VenueId;
+                matches[i].VenueName = slot.VenueName;
+                matches[i].TableId = slot.TableId;
+                matches[i].TableLabel = slot.TableLabel;
             }
         }
 

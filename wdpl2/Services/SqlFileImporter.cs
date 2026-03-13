@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services
@@ -54,16 +55,16 @@ namespace Wdpl2.Services
             public Dictionary<int, string> VbaTeamIdToName { get; set; } = new();
 
             public string Summary =>
-                $"?? Season: {DetectedSeason?.Name ?? "None"}\n" +
-                $"?? Teams: {TeamsImported} imported" + (TeamsSkipped > 0 ? $", {TeamsSkipped} skipped" : "") + "\n" +
-                $"?? Players: {PlayersImported} imported" + (PlayersSkipped > 0 ? $", {PlayersSkipped} skipped" : "") + "\n" +
-                $"?? Fixtures: {FixturesImported} imported" + (FixturesSkipped > 0 ? $", {FixturesSkipped} existing" : "") + "\n" +
-                $"?? Venues: {VenuesImported} imported" + (VenuesSkipped > 0 ? $", {VenuesSkipped} skipped" : "") + "\n" +
-                $"?? Results: {ResultsImported} matches" + (FixturesUpdated > 0 ? $" ({FixturesUpdated} updated)" : "") + "\n" +
-                $"?? Frames: {FramesImported}\n" +
-                $"?? Competitions: {CompetitionsImported} imported" + (CompetitionsSkipped > 0 ? $", {CompetitionsSkipped} skipped" : "") + "\n" +
-                $"?? Warnings: {Warnings.Count}\n" +
-                $"? Errors: {Errors.Count}";
+                $"{Emojis.Season} Season: {DetectedSeason?.Name ?? "None"}\n" +
+                $"{Emojis.Team} Teams: {TeamsImported} imported" + (TeamsSkipped > 0 ? $", {TeamsSkipped} skipped" : "") + "\n" +
+                $"{Emojis.Player} Players: {PlayersImported} imported" + (PlayersSkipped > 0 ? $", {PlayersSkipped} skipped" : "") + "\n" +
+                $"{Emojis.Fixture} Fixtures: {FixturesImported} imported" + (FixturesSkipped > 0 ? $", {FixturesSkipped} existing" : "") + "\n" +
+                $"{Emojis.Location} Venues: {VenuesImported} imported" + (VenuesSkipped > 0 ? $", {VenuesSkipped} skipped" : "") + "\n" +
+                $"{Emojis.Chart} Results: {ResultsImported} matches" + (FixturesUpdated > 0 ? $" ({FixturesUpdated} updated)" : "") + "\n" +
+                $"{Emojis.EightBall} Frames: {FramesImported}\n" +
+                $"{Emojis.Trophy} Competitions: {CompetitionsImported} imported" + (CompetitionsSkipped > 0 ? $", {CompetitionsSkipped} skipped" : "") + "\n" +
+                $"{Emojis.Warning} Warnings: {Warnings.Count}\n" +
+                $"{Emojis.Error} Errors: {Errors.Count}";
         }
 
         public class ParsedSqlData
@@ -857,7 +858,7 @@ namespace Wdpl2.Services
             }
 
             var totalTables = importedData.Venues.Sum(v => v.Tables.Count);
-            result.Warnings.Add($"? Imported {result.VenuesImported} venues with {totalTables} tables");
+            result.Warnings.Add($"✅ Imported {result.VenuesImported} venues with {totalTables} tables");
 
             return Task.CompletedTask;
         }

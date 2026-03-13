@@ -432,7 +432,7 @@ public partial class BatchImportPreviewPage : ContentPage
         {
             AlertsStack.Children.Add(new Label
             {
-                Text = $"?? Showing first 50 of {_batchPreview.Files.Count} files.",
+                Text = $"â„¹ï¸ Showing first 50 of {_batchPreview.Files.Count} files.",
                 TextColor = Colors.White,
                 FontSize = 12
             });
@@ -477,7 +477,7 @@ public partial class BatchImportPreviewPage : ContentPage
             hasIssues = true;
             AlertsStack.Children.Add(new Label
             {
-                Text = "?? No league data detected in these files",
+                Text = "â„¹ï¸ No league data detected in these files",
                 TextColor = Colors.White,
                 FontSize = 12,
                 FontAttributes = FontAttributes.Bold
@@ -490,7 +490,7 @@ public partial class BatchImportPreviewPage : ContentPage
             hasIssues = true;
             AlertsStack.Children.Add(new Label
             {
-                Text = $"? {filesWithErrors} file(s) have errors",
+                Text = $"âœ… {filesWithErrors} file(s) have errors",
                 TextColor = Colors.White,
                 FontSize = 12,
                 FontAttributes = FontAttributes.Bold
@@ -503,7 +503,7 @@ public partial class BatchImportPreviewPage : ContentPage
         {
             AlertsStack.Children.Add(new Label
             {
-                Text = $"?? {autoMerged} player(s) auto-merged due to similar names",
+                Text = $"â„¹ï¸ {autoMerged} player(s) auto-merged due to similar names",
                 TextColor = Colors.LightGreen,
                 FontSize = 12
             });
@@ -517,7 +517,7 @@ public partial class BatchImportPreviewPage : ContentPage
             hasIssues = true;
             AlertsStack.Children.Add(new Label
             {
-                Text = $"?? {pendingMerges.Count} potential duplicate player(s) found:",
+                Text = $"â„¹ï¸ {pendingMerges.Count} potential duplicate player(s) found:",
                 TextColor = Colors.Yellow,
                 FontSize = 12,
                 FontAttributes = FontAttributes.Bold
@@ -528,7 +528,7 @@ public partial class BatchImportPreviewPage : ContentPage
             {
                 AlertsStack.Children.Add(new Label
                 {
-                    Text = $"   • {merge.Name1} ({merge.Team1}) ~ {merge.Name2} ({merge.Team2}) - {merge.Reason}",
+                    Text = $"   ï¿½ {merge.Name1} ({merge.Team1}) ~ {merge.Name2} ({merge.Team2}) - {merge.Reason}",
                     TextColor = Colors.Yellow,
                     FontSize = 11
                 });
@@ -629,11 +629,11 @@ public partial class BatchImportPreviewPage : ContentPage
                 "Confirm Batch Import",
                 $"Import data into {selectedSeason.Name}?\n\n" +
                 $"This will add:\n" +
-                $"• {_aggregatedDivisions.Count} divisions\n" +
-                $"• {_aggregatedTeams.Count} teams\n" +
-                $"• {_aggregatedPlayers.Count} players\n" +
-                $"• {_aggregatedResults.Count} fixtures/results\n" +
-                $"• {_aggregatedFrameResults.Count} player frame results",
+                $"ï¿½ {_aggregatedDivisions.Count} divisions\n" +
+                $"ï¿½ {_aggregatedTeams.Count} teams\n" +
+                $"ï¿½ {_aggregatedPlayers.Count} players\n" +
+                $"ï¿½ {_aggregatedResults.Count} fixtures/results\n" +
+                $"ï¿½ {_aggregatedFrameResults.Count} player frame results",
                 "Yes, Import All",
                 "Cancel");
 
@@ -1075,17 +1075,17 @@ public partial class BatchImportPreviewPage : ContentPage
 
         public string Summary => 
             $"Created:\n" +
-            $"• {DivisionsCreated} divisions\n" +
-            $"• {TeamsCreated} teams\n" +
-            $"• {PlayersCreated} players\n" +
-            $"• {FixturesCreated} fixtures\n" +
-            $"• {FramesCreated} player frame results\n\n" +
+            $"ï¿½ {DivisionsCreated} divisions\n" +
+            $"ï¿½ {TeamsCreated} teams\n" +
+            $"ï¿½ {PlayersCreated} players\n" +
+            $"ï¿½ {FixturesCreated} fixtures\n" +
+            $"ï¿½ {FramesCreated} player frame results\n\n" +
             $"Skipped (already exist):\n" +
-            $"• {DivisionsSkipped} divisions\n" +
-            $"• {TeamsSkipped} teams\n" +
-            $"• {PlayersSkipped} players\n" +
-            $"• {FixturesSkipped} fixtures\n" +
-            $"• {FramesSkipped} frames";
+            $"ï¿½ {DivisionsSkipped} divisions\n" +
+            $"ï¿½ {TeamsSkipped} teams\n" +
+            $"ï¿½ {PlayersSkipped} players\n" +
+            $"ï¿½ {FixturesSkipped} fixtures\n" +
+            $"ï¿½ {FramesSkipped} frames";
     }
 
     /// <summary>

@@ -35,7 +35,7 @@ public partial class ImportHistoricalDataPage : ContentPage
     {
         if (!_targetSeasonId.HasValue)
         {
-            SeasonLabel.Text = "?? No season selected. Please select a season first.";
+            SeasonLabel.Text = "â„¹ï¸ No season selected. Please select a season first.";
             ImportBtn.IsEnabled = false;
             return;
         }
@@ -225,10 +225,10 @@ public partial class ImportHistoricalDataPage : ContentPage
         var confirm = await DisplayAlert(
             "Import Confirmation",
             $"Import the following to this season?\n\n" +
-            $"• {divCount} Division(s)\n" +
-            $"• {venCount} Venue(s)\n" +
-            $"• {teamCount} Team(s)\n" +
-            $"• {playerCount} Player(s)\n\n" +
+            $"ï¿½ {divCount} Division(s)\n" +
+            $"ï¿½ {venCount} Venue(s)\n" +
+            $"ï¿½ {teamCount} Team(s)\n" +
+            $"ï¿½ {playerCount} Player(s)\n\n" +
             $"Duplicates will be skipped automatically.",
             "Import",
             "Cancel");
@@ -248,10 +248,10 @@ public partial class ImportHistoricalDataPage : ContentPage
             DataStore.Save();
 
             var message = $"Successfully imported:\n\n" +
-                         $"• {result.divisions} Division(s)\n" +
-                         $"• {result.venues} Venue(s)\n" +
-                         $"• {result.teams} Team(s)\n" +
-                         $"• {result.players} Player(s)";
+                         $"ï¿½ {result.divisions} Division(s)\n" +
+                         $"ï¿½ {result.venues} Venue(s)\n" +
+                         $"ï¿½ {result.teams} Team(s)\n" +
+                         $"ï¿½ {result.players} Player(s)";
 
             var skipped = total - (result.divisions + result.venues + result.teams + result.players);
             if (skipped > 0)

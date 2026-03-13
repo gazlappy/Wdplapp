@@ -25,7 +25,7 @@
                    FontSize="12"
                    HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light=#800000, Dark=#FF8080}" />
-            <Label Text="? Back to Player Ratings" 
+            <Label Text="&#x2B05;&#xFE0F; Back to Player Ratings"
                    FontSize="12"
                    TextColor="{AppThemeBinding Light=#0066CC, Dark=#66AAFF}"
                    TextDecorations="Underline"

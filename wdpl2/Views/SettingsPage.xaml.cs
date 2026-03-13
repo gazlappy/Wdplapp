@@ -131,7 +131,7 @@ namespace Wdpl2.Views
 
             // Theme Icon/Header
             var headerStack = new HorizontalStackLayout { Spacing = 8 };
-            headerStack.Children.Add(new Label { Text = "??", FontSize = 24, VerticalTextAlignment = TextAlignment.Center });
+            headerStack.Children.Add(new Label { Text = Emojis.Settings, FontSize = 24, VerticalTextAlignment = TextAlignment.Center });
             headerStack.Children.Add(new Label { Text = "Theme Settings", FontSize = 18, FontAttributes = FontAttributes.Bold, VerticalTextAlignment = TextAlignment.Center });
             grid.Add(headerStack, 0, 0);
             Grid.SetColumnSpan(headerStack, 2);
@@ -169,12 +169,12 @@ namespace Wdpl2.Views
                 if (e.Value)
                 {
                     ThemeService.UseSystemTheme();
-                    statusLabel.Text = "?? Following system theme";
+                    statusLabel.Text = $"{Emojis.Settings} Following system theme";
                 }
                 else
                 {
                     ThemeService.SetDarkMode(Settings.DarkModeEnabled);
-                    statusLabel.Text = Settings.DarkModeEnabled ? "?? Dark mode enabled" : "?? Light mode enabled";
+                    statusLabel.Text = Settings.DarkModeEnabled ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 }
                 
                 currentThemeLabel.Text = GetCurrentThemeText();
@@ -188,7 +188,7 @@ namespace Wdpl2.Views
             {
                 Settings.DarkModeEnabled = e.Value;
                 ThemeService.SetDarkMode(e.Value);
-                statusLabel.Text = e.Value ? "?? Dark mode enabled" : "?? Light mode enabled";
+                statusLabel.Text = e.Value ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 currentThemeLabel.Text = GetCurrentThemeText();
                 DataStore.Save();
                 
@@ -201,9 +201,9 @@ namespace Wdpl2.Views
             {
                 FontSize = 12,
                 LineHeight = 1.4,
-                Text = "?? Theme Options:\n\n" +
-                       "• Follow system theme: Automatically switches between light and dark based on your device settings\n" +
-                       "• Dark mode: Manual control when system theme is disabled\n\n" +
+                Text = $"{Emojis.Info} Theme Options:\n\n" +
+                       "ï¿½ Follow system theme: Automatically switches between light and dark based on your device settings\n" +
+                       "ï¿½ Dark mode: Manual control when system theme is disabled\n\n" +
                        "The pool game will also update to match your theme preference."
             };
             infoLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
@@ -232,9 +232,9 @@ namespace Wdpl2.Views
             
             if (isSystem)
             {
-                return isDark ? "?? System theme: Dark" : "?? System theme: Light";
+                return isDark ? "\U0001F319 System theme: Dark" : "\u2600\uFE0F System theme: Light";
             }
-            return isDark ? "?? Current: Dark mode" : "?? Current: Light mode";
+            return isDark ? "\U0001F319 Current: Dark mode" : "\u2600\uFE0F Current: Light mode";
         }
 
         private View CreatePlayerRatingsPanel()
@@ -283,16 +283,16 @@ namespace Wdpl2.Views
                 FontSize = 12,
                 LineHeight = 1.4,
                 Text = "VBA-Style Cumulative Weighted Rating:\n\n" +
-                       "• Earlier frames have lower weight (Weighting - Bias × frames)\n" +
-                       "• Later frames have higher weight (progressive bias increase)\n" +
-                       "• Rating based on opponent strength at time of match\n" +
-                       "• Win against stronger opponent = higher rating gain\n\n" +
+                       "ï¿½ Earlier frames have lower weight (Weighting - Bias ï¿½ frames)\n" +
+                       "ï¿½ Later frames have higher weight (progressive bias increase)\n" +
+                       "ï¿½ Rating based on opponent strength at time of match\n" +
+                       "ï¿½ Win against stronger opponent = higher rating gain\n\n" +
                        "Min Frames %:\n" +
                        "Percentage of maximum available frames needed to appear in ratings table.\n" +
                        "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
                        "All players still have ratings calculated.\n\n" +
                        "Formula:\n" +
-                       "Rating = ?(OpponentRating × Factor × Weight) / ?Weight"
+                       "Rating = ?(OpponentRating ï¿½ Factor ï¿½ Weight) / ?Weight"
             };
             infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
             
@@ -355,9 +355,9 @@ namespace Wdpl2.Views
                 LineHeight = 1.4,
                 Text = "New Points System:\n\n" +
                        "Team points = Frames Won + Bonus\n\n" +
-                       "• Win: Frames Won + Match Win Bonus\n" +
-                       "• Draw: Frames Won + Match Draw Bonus\n" +
-                       "• Loss: Frames Won (no bonus)\n\n" +
+                       "ï¿½ Win: Frames Won + Match Win Bonus\n" +
+                       "ï¿½ Draw: Frames Won + Match Draw Bonus\n" +
+                       "ï¿½ Loss: Frames Won (no bonus)\n\n" +
                        "Example: Team wins 6-4 with Win Bonus=2:\n" +
                        "  Winner gets 6+2=8 points\n" +
                        "  Loser gets 4 points"
@@ -762,10 +762,10 @@ namespace Wdpl2.Views
                         new Span { Text = $"{Emojis.Success} Enable/disable each notification type independently\n" },
                         new Span { Text = $"{Emojis.Success} Settings saved automatically when changed\n\n" },
                         new Span { Text = "How It Works:\n", FontAttributes = FontAttributes.Bold },
-                        new Span { Text = "• Reminders scheduled automatically when fixtures are generated or saved\n" },
-                        new Span { Text = "• Past matches don't get reminders\n" },
-                        new Span { Text = "• Settings apply to all future notifications\n" },
-                        new Span { Text = "• Works on iOS, Android, and Windows" }
+                        new Span { Text = "ï¿½ Reminders scheduled automatically when fixtures are generated or saved\n" },
+                        new Span { Text = "ï¿½ Past matches don't get reminders\n" },
+                        new Span { Text = "ï¿½ Settings apply to all future notifications\n" },
+                        new Span { Text = "ï¿½ Works on iOS, Android, and Windows" }
                     }
                 }
             };
@@ -838,7 +838,7 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "?? Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
+                        new Label { Text = $"{Emojis.Bell} Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
                         preferencesGrid
                     }
                 }
@@ -976,7 +976,7 @@ namespace Wdpl2.Views
             };
 
             // ========== IMPORT RESULTS SECTION ==========
-            var resultsLabel = new Label { Text = "? Import Results", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#10B981") };
+            var resultsLabel = new Label { Text = "âœ… Import Results", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#10B981") };
             var resultsContentLabel = new Label { Text = "", FontSize = 12, LineHeight = 1.4 };
             
             var resultsBorder = new Border
@@ -995,7 +995,7 @@ namespace Wdpl2.Views
             };
             resultsBorder.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0FDF4"), Color.FromArgb("#052E16"));
 
-            var errorsLabel = new Label { Text = "? Errors", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#EF4444") };
+            var errorsLabel = new Label { Text = "âŒ Errors", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Color.FromArgb("#EF4444") };
             var errorsContentLabel = new Label { Text = "", FontSize = 11, LineHeight = 1.4 };
             
             var errorsBorder = new Border
@@ -1045,7 +1045,7 @@ namespace Wdpl2.Views
                     if (result != null)
                     {
                         selectedDatabasePath = result.FullPath;
-                        selectedFileLabel.Text = $"?? Selected: {System.IO.Path.GetFileName(result.FullPath)}";
+                        selectedFileLabel.Text = $"{Emojis.Document} Selected: {System.IO.Path.GetFileName(result.FullPath)}";
                         selectedFileLabel.TextColor = Color.FromArgb("#10B981");
                         inspectBtn.IsEnabled = true;
                         importBtn.IsEnabled = true;
@@ -1081,7 +1081,7 @@ namespace Wdpl2.Views
                     loadingIndicator.IsVisible = true;
                     inspectBtn.IsEnabled = false;
                     importBtn.IsEnabled = false;
-                    outputEditor.Text = "?? Inspecting database schema...\n\nPlease wait...";
+                    outputEditor.Text = $"{Emojis.Processing} Inspecting database schema...\n\nPlease wait...";
                     resultsBorder.IsVisible = false;
                     errorsBorder.IsVisible = false;
 
@@ -1100,7 +1100,7 @@ namespace Wdpl2.Views
                 }
                 catch (Exception ex)
                 {
-                    outputEditor.Text = $"? INSPECTION FAILED\n\n{ex}";
+                    outputEditor.Text = $"âŒ INSPECTION FAILED\n\n{ex}";
                     
                     if (_statusLabel != null)
                         _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  ? Inspection failed";
@@ -1142,7 +1142,7 @@ namespace Wdpl2.Views
                     inspectBtn.IsEnabled = false;
                     importBtn.IsEnabled = false;
                     selectDbBtn.IsEnabled = false;
-                    outputEditor.Text = "?? Importing data...\n\nPlease wait, this may take a few moments...";
+                    outputEditor.Text = $"{Emojis.Processing} Importing data...\n\nPlease wait, this may take a few moments...";
                     resultsBorder.IsVisible = false;
                     errorsBorder.IsVisible = false;
                     
@@ -1168,7 +1168,7 @@ namespace Wdpl2.Views
                             ((Label)resultsContent.Children[1]).Text = summary.Summary;
                         }
 
-                        outputEditor.Text = $"? IMPORT SUCCESSFUL\n\n{summary.Summary}\n\n{summary.DiagnosticLog}";
+                        outputEditor.Text = $"âœ… IMPORT SUCCESSFUL\n\n{summary.Summary}\n\n{summary.DiagnosticLog}";
                         copyBtn.IsEnabled = true;
 
                         if (_statusLabel != null)
@@ -1188,7 +1188,7 @@ namespace Wdpl2.Views
                             ((Label)errorContent.Children[1]).Text = string.Join("\n", summary.Errors);
                         }
 
-                        outputEditor.Text = $"? IMPORT FAILED\n\n{summary.Message}\n\nErrors:\n{string.Join("\n", summary.Errors)}";
+                        outputEditor.Text = $"âŒ IMPORT FAILED\n\n{summary.Message}\n\nErrors:\n{string.Join("\n", summary.Errors)}";
                         copyBtn.IsEnabled = true;
 
                         if (_statusLabel != null)
@@ -1206,7 +1206,7 @@ namespace Wdpl2.Views
                         ((Label)errorContent.Children[1]).Text = ex.ToString();
                     }
 
-                    outputEditor.Text = $"? IMPORT ERROR\n\n{ex}";
+                    outputEditor.Text = $"âŒ IMPORT ERROR\n\n{ex}";
                     copyBtn.IsEnabled = true;
 
                     if (_statusLabel != null)
@@ -1251,7 +1251,7 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "?? Access Database Import & Inspection", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
+                        new Label { Text = $"{Emojis.Database} Access Database Import & Inspection", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
                         new Label
                         {
                             FontSize = 12,
@@ -1262,14 +1262,14 @@ namespace Wdpl2.Views
                                    "2. Use 'Inspect Schema' to view database structure before importing\n" +
                                    "3. Use 'Import Data' to merge historical data into your league\n\n" +
                                    "Features:\n" +
-                                   "• Imports divisions, venues, teams, players, seasons, and fixtures\n" +
-                                   "• Merges with existing data (no duplicates)\n" +
-                                   "• Calculates accurate VBA-style player ratings\n" +
-                                   "• Copy results to clipboard for reference\n\n" +
+                                   "ï¿½ Imports divisions, venues, teams, players, seasons, and fixtures\n" +
+                                   "ï¿½ Merges with existing data (no duplicates)\n" +
+                                   "ï¿½ Calculates accurate VBA-style player ratings\n" +
+                                   "ï¿½ Copy results to clipboard for reference\n\n" +
                                    "Requirements:\n" +
-                                   "• Windows-only (requires OLE DB drivers)\n" +
-                                   "• Supports .accdb (2007+) and .mdb (2003)\n" +
-                                   "• Database must be closed (not open in Access)"
+                                   "ï¿½ Windows-only (requires OLE DB drivers)\n" +
+                                   "ï¿½ Supports .accdb (2007+) and .mdb (2003)\n" +
+                                   "ï¿½ Database must be closed (not open in Access)"
                         }
                     }
                 }
@@ -1288,16 +1288,16 @@ namespace Wdpl2.Views
                     Spacing = 8,
                     Children =
                     {
-                        new Label { Text = "?? Important Notes", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
+                        new Label { Text = $"{Emojis.Warning} Important Notes", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
                         new Label
                         {
                             FontSize = 12,
                             LineHeight = 1.4,
                             TextColor = Colors.Black,
-                            Text = "• Back up your data before importing\n" +
-                                   "• Imports cannot be undone\n" +
-                                   "• Large databases may take several minutes\n" +
-                                   "• The app will reload after successful import"
+                            Text = "ï¿½ Back up your data before importing\n" +
+                                   "ï¿½ Imports cannot be undone\n" +
+                                   "ï¿½ Large databases may take several minutes\n" +
+                                   "ï¿½ The app will reload after successful import"
                         }
                     }
                 }
@@ -1609,7 +1609,7 @@ namespace Wdpl2.Views
 
             var cleanButton = new Button
             {
-                Text = "??? Remove Orphaned Data",
+                Text = $"{Emojis.Delete} Remove Orphaned Data",
                 BackgroundColor = Color.FromArgb("#EF4444"),
                 TextColor = Colors.White,
                 Padding = new Thickness(24, 14),
@@ -1621,7 +1621,7 @@ namespace Wdpl2.Views
             // ========== SCAN BUTTON ==========
             var scanButton = new Button
             {
-                Text = "?? Scan for Orphaned Data",
+                Text = $"{Emojis.Wrench} Scan for Orphaned Data",
                 BackgroundColor = Color.FromArgb("#F59E0B"),
                 TextColor = Colors.White,
                 Padding = new Thickness(24, 14),
@@ -1646,19 +1646,19 @@ namespace Wdpl2.Views
                 sb.AppendLine($"Seasons in database: {data.Seasons.Count}");
                 sb.AppendLine();
                 sb.AppendLine("Orphaned records (no valid season):");
-                sb.AppendLine($"  • Divisions: {orphanDivisions}");
-                sb.AppendLine($"  • Venues: {orphanVenues}");
-                sb.AppendLine($"  • Teams: {orphanTeams}");
-                sb.AppendLine($"  • Players: {orphanPlayers}");
-                sb.AppendLine($"  • Fixtures: {orphanFixtures}");
-                sb.AppendLine($"  • Competitions: {orphanCompetitions}");
+                sb.AppendLine($"  ï¿½ Divisions: {orphanDivisions}");
+                sb.AppendLine($"  ï¿½ Venues: {orphanVenues}");
+                sb.AppendLine($"  ï¿½ Teams: {orphanTeams}");
+                sb.AppendLine($"  ï¿½ Players: {orphanPlayers}");
+                sb.AppendLine($"  ï¿½ Fixtures: {orphanFixtures}");
+                sb.AppendLine($"  ï¿½ Competitions: {orphanCompetitions}");
                 sb.AppendLine();
                 sb.AppendLine($"Total orphaned records: {totalOrphans}");
 
                 if (totalOrphans == 0)
                 {
                     sb.AppendLine();
-                    sb.AppendLine("? Storage is clean — no orphaned data found.");
+                    sb.AppendLine("âœ… Storage is clean ï¿½ no orphaned data found.");
                 }
 
                 orphanResultsLabel.Text = sb.ToString();
@@ -1668,13 +1668,13 @@ namespace Wdpl2.Views
                 if (totalOrphans > 0)
                 {
                     orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#F59E0B"), Color.FromArgb("#F59E0B"));
-                    statusLabel.Text = $"?? Found {totalOrphans} orphaned records.";
+                    statusLabel.Text = $"{Emojis.Warning} Found {totalOrphans} orphaned records.";
                     statusLabel.TextColor = Color.FromArgb("#F59E0B");
                 }
                 else
                 {
                     orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
-                    statusLabel.Text = "? No orphaned data found.";
+                    statusLabel.Text = "âœ… No orphaned data found.";
                     statusLabel.TextColor = Color.FromArgb("#10B981");
                 }
             };
@@ -1695,12 +1695,12 @@ namespace Wdpl2.Views
                 var confirm = await DisplayAlert(
                     "Clean Storage",
                     $"This will permanently remove {total} orphaned records:\n\n" +
-                    $"• {orphanDivisions} Division(s)\n" +
-                    $"• {orphanVenues} Venue(s)\n" +
-                    $"• {orphanTeams} Team(s)\n" +
-                    $"• {orphanPlayers} Player(s)\n" +
-                    $"• {orphanFixtures} Fixture(s)\n" +
-                    $"• {orphanCompetitions} Competition(s)\n\n" +
+                    $"ï¿½ {orphanDivisions} Division(s)\n" +
+                    $"ï¿½ {orphanVenues} Venue(s)\n" +
+                    $"ï¿½ {orphanTeams} Team(s)\n" +
+                    $"ï¿½ {orphanPlayers} Player(s)\n" +
+                    $"ï¿½ {orphanFixtures} Fixture(s)\n" +
+                    $"ï¿½ {orphanCompetitions} Competition(s)\n\n" +
                     "This cannot be undone!",
                     "Yes, Clean Storage",
                     "Cancel");
@@ -1710,10 +1710,10 @@ namespace Wdpl2.Views
                 data.CleanupOrphans();
                 DataStore.Save();
 
-                orphanResultsLabel.Text = $"? Removed {total} orphaned records.\n\nStorage is now clean.";
+                orphanResultsLabel.Text = $"âœ… Removed {total} orphaned records.\n\nStorage is now clean.";
                 orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
                 cleanButton.IsVisible = false;
-                statusLabel.Text = $"? Cleaned {total} orphaned records.";
+                statusLabel.Text = $"âœ… Cleaned {total} orphaned records.";
                 statusLabel.TextColor = Color.FromArgb("#10B981");
             };
 
@@ -1780,12 +1780,12 @@ namespace Wdpl2.Views
                             FontSize = 12,
                             LineHeight = 1.4,
                             TextColor = Colors.Black,
-                            Text = "• Settings are saved with your league data\n" +
-                                   "• Player ratings use VBA-style cumulative weighted calculation\n" +
-                                   "• Rating changes based on opponent strength at time of match\n" +
-                                   "• Changes to rating settings require refreshing the Tables page\n" +
-                                   "• Fixture defaults only apply to newly generated fixtures\n" +
-                                   "• Use 'Reset to Defaults' to restore original values"
+                            Text = "ï¿½ Settings are saved with your league data\n" +
+                                   "ï¿½ Player ratings use VBA-style cumulative weighted calculation\n" +
+                                   "ï¿½ Rating changes based on opponent strength at time of match\n" +
+                                   "ï¿½ Changes to rating settings require refreshing the Tables page\n" +
+                                   "ï¿½ Fixture defaults only apply to newly generated fixtures\n" +
+                                   "ï¿½ Use 'Reset to Defaults' to restore original values"
                         }
                     }
                 }
@@ -1809,11 +1809,11 @@ namespace Wdpl2.Views
                             FontSize = 12,
                             LineHeight = 1.4,
                             TextColor = Colors.Black,
-                            Text = "• .NET 9 MAUI (Multi-platform App UI)\n" +
-                                   "• C# 13\n" +
-                                   "• Cross-platform: Windows, macOS, iOS, Android\n" +
-                                   "• JSON local storage\n" +
-                                   "• VBA-compatible rating algorithm"
+                            Text = "ï¿½ .NET 9 MAUI (Multi-platform App UI)\n" +
+                                   "ï¿½ C# 13\n" +
+                                   "ï¿½ Cross-platform: Windows, macOS, iOS, Android\n" +
+                                   "ï¿½ JSON local storage\n" +
+                                   "ï¿½ VBA-compatible rating algorithm"
                         }
                     }
                 }
@@ -1822,7 +1822,7 @@ namespace Wdpl2.Views
             // Hidden hint for easter egg
             var hintLabel = new Label
             {
-                Text = "?? Tip: Some secrets are hidden in plain sight...",
+                Text = $"{Emojis.Sparkles} Tip: Some secrets are hidden in plain sight...",
                 FontSize = 11,
                 TextColor = Color.FromArgb("#999"),
                 HorizontalTextAlignment = TextAlignment.Center,

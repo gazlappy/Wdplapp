@@ -14,7 +14,7 @@
                CornerRadius="0"
                HasShadow="True">
             <Grid ColumnDefinitions="*,Auto,Auto">
-                <Label Text="?? Brick Breaker" 
+                <Label Text="&#x1F9F1; Brick Breaker"
                        FontSize="24" 
                        FontAttributes="Bold"
                        TextColor="White"
