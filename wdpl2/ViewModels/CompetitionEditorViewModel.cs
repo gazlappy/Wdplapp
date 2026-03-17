@@ -15,7 +15,6 @@ namespace Wdpl2.ViewModels;
 public partial class CompetitionEditorViewModel : ObservableObject
 {
     private readonly IDataStore _competitionStore;  // for competition CRUD (SQLite)
-    private readonly IDataStore _playerStore;       // for player/team lookups (JSON)
     private readonly Competition _competition;
     private List<Player> _cachedPlayers = new();
     private List<Team> _cachedTeams = new();
@@ -65,10 +64,14 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// <summary>
     /// Get all venues for the current season (for venue selection in group stage).
     /// </summary>
-    public async Task<List<Venue>> GetAvailableVenuesAsync()
+    public Task<List<Venue>> GetAvailableVenuesAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        return await _playerStore.GetVenuesAsync(seasonId);
+        var venues = DataStore.Data?.Venues?
+            .Where(v => v != null && v.SeasonId == seasonId)
+            .OrderBy(v => v.Name)
+            .ToList() ?? new List<Venue>();
+        return Task.FromResult(venues);
     }
 
     /// <summary>
@@ -243,10 +246,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
         return (recommended, totalTables, participantCount, explanation);
     }
 
-    public CompetitionEditorViewModel(IDataStore competitionStore, IDataStore playerStore, Competition competition, Guid? currentSeasonId)
+    public CompetitionEditorViewModel(IDataStore competitionStore, Competition competition, Guid? currentSeasonId)
     {
         _competitionStore = competitionStore;
-        _playerStore = playerStore;
         _competition = competition;
         _currentSeasonId = currentSeasonId;
 
@@ -302,7 +304,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task LoadParticipantsAsync()
+    private Task LoadParticipantsAsync()
     {
         Participants.Clear();
 
@@ -312,8 +314,10 @@ public partial class CompetitionEditorViewModel : ObservableObject
         if (format == CompetitionFormat.SinglesKnockout || format == CompetitionFormat.RoundRobin ||
             format == CompetitionFormat.Swiss || format == CompetitionFormat.SinglesGroupStage)
         {
-            // Singles - use players
-            _cachedPlayers = await _playerStore.GetPlayersAsync(seasonId);
+            // Singles - use players from JSON store
+            _cachedPlayers = DataStore.Data?.Players?
+                .Where(p => p != null && p.SeasonId == seasonId)
+                .ToList() ?? new List<Player>();
             foreach (var playerId in _competition.ParticipantIds)
             {
                 var player = _cachedPlayers.FirstOrDefault(p => p.Id == playerId);
@@ -329,8 +333,10 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
         else if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
         {
-            // Doubles - use doubles teams
-            _cachedPlayers = await _playerStore.GetPlayersAsync(seasonId);
+            // Doubles - use players from JSON store
+            _cachedPlayers = DataStore.Data?.Players?
+                .Where(p => p != null && p.SeasonId == seasonId)
+                .ToList() ?? new List<Player>();
             foreach (var team in _competition.DoublesTeams)
             {
                 var p1 = _cachedPlayers.FirstOrDefault(p => p.Id == team.Player1Id);
@@ -346,8 +352,10 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
         else if (format == CompetitionFormat.TeamKnockout)
         {
-            // Team knockout - use teams
-            _cachedTeams = await _playerStore.GetTeamsAsync(seasonId);
+            // Team knockout - use teams from JSON store
+            _cachedTeams = DataStore.Data?.Teams?
+                .Where(t => t != null && t.SeasonId == seasonId)
+                .ToList() ?? new List<Team>();
             foreach (var teamId in _competition.ParticipantIds)
             {
                 var team = _cachedTeams.FirstOrDefault(t => t.Id == teamId);
@@ -361,6 +369,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 }
             }
         }
+
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -908,17 +918,17 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
     }
 
-    public async Task<List<Player>> GetAvailablePlayersAsync()
+    public Task<List<Player>> GetAvailablePlayersAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var players = await _playerStore.GetPlayersAsync(seasonId);
-        return players
-            .Where(p => !_competition.ParticipantIds.Contains(p.Id))
+        var players = DataStore.Data?.Players?
+            .Where(p => p != null && p.SeasonId == seasonId && !_competition.ParticipantIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
-            .ToList();
+            .ToList() ?? new List<Player>();
+        return Task.FromResult(players);
     }
 
-    public async Task<List<Player>> GetAvailableDoublesPlayersAsync()
+    public Task<List<Player>> GetAvailableDoublesPlayersAsync()
     {
         var usedPlayerIds = new HashSet<Guid>();
         foreach (var team in _competition.DoublesTeams)
@@ -927,21 +937,21 @@ public partial class CompetitionEditorViewModel : ObservableObject
             usedPlayerIds.Add(team.Player2Id);
         }
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var players = await _playerStore.GetPlayersAsync(seasonId);
-        return players
-            .Where(p => !usedPlayerIds.Contains(p.Id))
+        var players = DataStore.Data?.Players?
+            .Where(p => p != null && p.SeasonId == seasonId && !usedPlayerIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
-            .ToList();
+            .ToList() ?? new List<Player>();
+        return Task.FromResult(players);
     }
 
-    public async Task<List<Team>> GetAvailableTeamsAsync()
+    public Task<List<Team>> GetAvailableTeamsAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var teams = await _playerStore.GetTeamsAsync(seasonId);
-        return teams
-            .Where(t => !_competition.ParticipantIds.Contains(t.Id))
+        var teams = DataStore.Data?.Teams?
+            .Where(t => t != null && t.SeasonId == seasonId && !_competition.ParticipantIds.Contains(t.Id))
             .OrderBy(t => t.Name)
-            .ToList();
+            .ToList() ?? new List<Team>();
+        return Task.FromResult(teams);
     }
 
     [RelayCommand]

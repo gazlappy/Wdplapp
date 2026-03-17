@@ -5,22 +5,46 @@ using Wdpl2.Models;
 namespace Wdpl2.Services
 {
     /// <summary>
-    /// Shared service for managing the currently selected season across all pages.
+    /// Interface for managing the currently selected season across the app.
     /// </summary>
-    public static class SeasonService
+    public interface ISeasonService
     {
-        private static Guid? _currentSeasonId;
+        event EventHandler<SeasonChangedEventArgs>? SeasonChanged;
+        Guid? CurrentSeasonId { get; set; }
+        void ForceRefresh();
+        void Initialize();
+        Season? GetCurrentSeason();
+    }
+
+    /// <summary>
+    /// Shared service for managing the currently selected season across all pages.
+    /// Registered as a singleton in DI. Use <see cref="Current"/> for non-DI contexts (Views).
+    /// </summary>
+    public class SeasonService : ISeasonService
+    {
+        /// <summary>
+        /// Static accessor for Views and other non-DI contexts.
+        /// Set automatically when the singleton is created via DI.
+        /// </summary>
+        public static SeasonService Current { get; private set; } = null!;
+
+        private Guid? _currentSeasonId;
+
+        public SeasonService()
+        {
+            Current = this;
+        }
 
         /// <summary>
         /// Event fired when the selected season changes.
         /// </summary>
-        public static event EventHandler<SeasonChangedEventArgs>? SeasonChanged;
+        public event EventHandler<SeasonChangedEventArgs>? SeasonChanged;
 
         /// <summary>
         /// Gets or sets the currently selected season ID.
         /// Setting this value triggers the SeasonChanged event.
         /// </summary>
-        public static Guid? CurrentSeasonId
+        public Guid? CurrentSeasonId
         {
             get => _currentSeasonId;
             set
@@ -36,7 +60,7 @@ namespace Wdpl2.Services
                         season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
                     }
 
-                    SeasonChanged?.Invoke(null, new SeasonChangedEventArgs(oldSeasonId, _currentSeasonId, season));
+                    SeasonChanged?.Invoke(this, new SeasonChangedEventArgs(oldSeasonId, _currentSeasonId, season));
                 }
             }
         }
@@ -45,7 +69,7 @@ namespace Wdpl2.Services
         /// Force trigger the SeasonChanged event even if the ID hasn't changed.
         /// Use this when you need to force all pages to refresh their data.
         /// </summary>
-        public static void ForceRefresh()
+        public void ForceRefresh()
         {
             Season? season = null;
             if (_currentSeasonId.HasValue)
@@ -53,13 +77,13 @@ namespace Wdpl2.Services
                 season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
             }
 
-            SeasonChanged?.Invoke(null, new SeasonChangedEventArgs(_currentSeasonId, _currentSeasonId, season));
+            SeasonChanged?.Invoke(this, new SeasonChangedEventArgs(_currentSeasonId, _currentSeasonId, season));
         }
 
         /// <summary>
         /// Initialize with the active season from DataStore.
         /// </summary>
-        public static void Initialize()
+        public void Initialize()
         {
             if (DataStore.Data.ActiveSeasonId.HasValue)
             {
@@ -88,7 +112,7 @@ namespace Wdpl2.Services
         /// <summary>
         /// Get the current season object.
         /// </summary>
-        public static Season? GetCurrentSeason()
+        public Season? GetCurrentSeason()
         {
             if (!_currentSeasonId.HasValue) return null;
             return DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);

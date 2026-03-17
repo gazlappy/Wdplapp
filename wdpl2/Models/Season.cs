@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
 namespace Wdpl2.Models
@@ -14,6 +15,7 @@ namespace Wdpl2.Models
         public Guid Id { get; set; } = Guid.NewGuid();
 
         /// <summary>Human-friendly label, e.g. "Winter 2025".</summary>
+        [Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
         /// <summary>Inclusive start date (date-only).</summary>
@@ -34,6 +36,12 @@ namespace Wdpl2.Models
         /// Set to a specific value (e.g., 10, 15) to override for this season only.
         /// </summary>
         public int FramesPerMatch { get; set; } = 0;
+
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
 
         /// <summary>Date-only list of days where no fixtures should be scheduled.</summary>
         public List<DateTime> BlackoutDates { get; set; } = new();

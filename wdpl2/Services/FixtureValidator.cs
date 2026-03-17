@@ -308,4 +308,66 @@ public static class FixtureValidator
 
         return result;
     }
+
+    /// <summary>
+    /// Detects scheduling conflicts for a fixture against all other fixtures.
+    /// Warns about venue/table double-bookings and teams playing twice on the same date.
+    /// </summary>
+    public static ValidationResult DetectScheduleConflicts(
+        Fixture fixture, List<Fixture> allFixtures, List<Team> teams, List<Venue> venues)
+    {
+        var result = new ValidationResult { IsValid = true };
+
+        // Only compare fixtures on the same date
+        var sameDate = allFixtures
+            .Where(f => f.Id != fixture.Id && f.Date.Date == fixture.Date.Date)
+            .ToList();
+
+        if (sameDate.Count == 0)
+            return result;
+
+        // Team double-booking: same team playing twice on one date
+        var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+        var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+
+        foreach (var other in sameDate)
+        {
+            if (other.HomeTeamId == fixture.HomeTeamId || other.AwayTeamId == fixture.HomeTeamId)
+            {
+                result.Warnings.Add(
+                    $"{homeTeam?.Name ?? "Home team"} already has a fixture on {fixture.Date:dd MMM yyyy}");
+            }
+
+            if (other.HomeTeamId == fixture.AwayTeamId || other.AwayTeamId == fixture.AwayTeamId)
+            {
+                result.Warnings.Add(
+                    $"{awayTeam?.Name ?? "Away team"} already has a fixture on {fixture.Date:dd MMM yyyy}");
+            }
+        }
+
+        // Venue/table double-booking
+        if (fixture.VenueId.HasValue)
+        {
+            var venue = venues.FirstOrDefault(v => v.Id == fixture.VenueId);
+            var venueName = venue?.Name ?? "Venue";
+
+            foreach (var other in sameDate.Where(f => f.VenueId == fixture.VenueId))
+            {
+                if (fixture.TableId.HasValue && other.TableId.HasValue &&
+                    fixture.TableId == other.TableId)
+                {
+                    var tableLabel = venue?.Tables.FirstOrDefault(t => t.Id == fixture.TableId)?.Label ?? "Table";
+                    result.Warnings.Add(
+                        $"{venueName} — {tableLabel} is already booked on {fixture.Date:dd MMM yyyy}");
+                }
+                else if (!fixture.TableId.HasValue && !other.TableId.HasValue)
+                {
+                    result.Warnings.Add(
+                        $"{venueName} has another fixture on {fixture.Date:dd MMM yyyy}");
+                }
+            }
+        }
+
+        return result;
+    }
 }

@@ -43,7 +43,13 @@ namespace Wdpl2.Models
         /// <summary>Points deduction applied to the team that cancelled.</summary>
         public int CancellationPenalty { get; set; }
 
-        public override string ToString() => $"{Date:ddd dd MMM} — {HomeTeamId} vs {AwayTeamId}";
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
+
+        public override string ToString() => $"{Date:ddd dd MMM} - {HomeTeamId} vs {AwayTeamId}";
     }
 
     public sealed class FrameResult

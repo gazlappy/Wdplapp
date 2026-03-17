@@ -142,7 +142,7 @@ public partial class FixturesPage : ContentPage
         }
 
         // Subscribe to global season changes
-        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor END, calling RefreshList ===");
         RefreshList();
@@ -150,7 +150,7 @@ public partial class FixturesPage : ContentPage
     
     ~FixturesPage()
     {
-        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
     
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -2294,13 +2294,28 @@ public partial class FixturesPage : ContentPage
             fr.EightBall = row.EightBall;
         }
 
+        // Check for scheduling conflicts
+        var conflicts = FixtureValidator.DetectScheduleConflicts(
+            _selectedFixture,
+            DataStore.Data.Fixtures,
+            DataStore.Data.Teams,
+            DataStore.Data.Venues);
+
+        if (conflicts.Warnings.Count > 0)
+        {
+            var msg = string.Join("\n", conflicts.Warnings);
+            var proceed = await DisplayAlert($"{Emojis.Warning} Schedule Conflicts",
+                msg + "\n\nSave anyway?", "Save", "Cancel");
+            if (!proceed) return;
+        }
+
         DataStore.Save();
         UpdateHeader();
-        
+
         await ScheduleFixtureReminderAsync(_selectedFixture);
         UpdateReminderStatus();
         RefreshList();
-        
+
         await DisplayAlert($"{Emojis.Success} Saved", 
             "Fixture results saved successfully!", "OK");
     }
@@ -2591,12 +2606,34 @@ public partial class FixturesPage : ContentPage
             DataStore.Data.Fixtures.AddRange(fixtures);
             DataStore.Save();
 
+            // Detect any scheduling conflicts across the generated fixtures
+            var allConflictWarnings = new List<string>();
+            var teams = DataStore.Data.Teams;
+            var venues = DataStore.Data.Venues;
+            foreach (var fix in fixtures)
+            {
+                var check = FixtureValidator.DetectScheduleConflicts(fix, fixtures, teams, venues);
+                allConflictWarnings.AddRange(check.Warnings);
+            }
+            // Deduplicate warnings
+            allConflictWarnings = allConflictWarnings.Distinct().ToList();
+
             _selectedFixture = null;
             ClearScorecard();
             RefreshList();
 
-            await DisplayAlert($"{Emojis.Success} Success",
-                $"Generated {fixtures.Count} fixture(s).", "OK");
+            var successMsg = $"Generated {fixtures.Count} fixture(s).";
+            if (allConflictWarnings.Count > 0)
+            {
+                var top = allConflictWarnings.Take(10);
+                var extra = allConflictWarnings.Count > 10
+                    ? $"\n...and {allConflictWarnings.Count - 10} more"
+                    : "";
+                successMsg += $"\n\n{Emojis.Warning} Schedule conflicts detected:\n"
+                    + string.Join("\n", top) + extra;
+            }
+
+            await DisplayAlert($"{Emojis.Success} Success", successMsg, "OK");
         }
         catch (Exception ex)
         {

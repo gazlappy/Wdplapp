@@ -31,10 +31,10 @@ public partial class CareerStatsViewModel : BaseViewModel
     [ObservableProperty]
     private bool _showActiveOnly = true;
 
-    public CareerStatsViewModel(IDataStore dataStore)
+    public CareerStatsViewModel(IDataStore dataStore, ISeasonService seasonService) : base(seasonService)
     {
         _dataStore = dataStore;
-        _ = InitializeAsync();
+        SafeFireAndForget(InitializeAsync);
     }
 
     private async Task InitializeAsync()

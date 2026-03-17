@@ -46,16 +46,16 @@ public partial class FixturesViewModel : BaseViewModel
     [ObservableProperty]
     private bool _showAllDivisions = true;
 
-    public FixturesViewModel(IDataStore dataStore)
+    public FixturesViewModel(IDataStore dataStore, ISeasonService seasonService) : base(seasonService)
     {
         _dataStore = dataStore;
-        SeasonService.SeasonChanged += OnSeasonChanged;
-        _ = InitializeAsync();
+        _seasonService.SeasonChanged += OnSeasonChanged;
+        SafeFireAndForget(InitializeAsync);
     }
 
     private async Task InitializeAsync()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        _currentSeasonId = _seasonService.CurrentSeasonId;
         await LoadFixturesAsync();
         await LoadReferenceDataAsync();
     }

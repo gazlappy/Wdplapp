@@ -136,17 +136,20 @@
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
                     <Grid ColumnDefinitions="*,Auto" RowSpacing="4">
-                        <Label Text="Best Season:" />
-                        <Label Grid.Column="1" x:Name="BestSeasonLabel" Text="-" FontAttributes="Bold" />
-                        
-                        <Label Grid.Row="1" Text="Highest Rating:" />
-                        <Label Grid.Row="1" Grid.Column="1" x:Name="HighestRatingLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
-                        
-                        <Label Grid.Row="2" Text="Most Active Season:" />
-                        <Label Grid.Row="2" Grid.Column="1" x:Name="MostActiveSeasonLabel" Text="-" FontAttributes="Bold" />
-                        
-                        <Label Grid.Row="3" Text="8-Ball Success Rate:" />
-                        <Label Grid.Row="3" Grid.Column="1" x:Name="EightBallRateLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource WarningColor}" />
+                        <Label Text="Recent Form:" />
+                        <Label Grid.Column="1" x:Name="FormLabel" Text="-" FontAttributes="Bold" FontSize="16" />
+
+                        <Label Grid.Row="1" Text="Best Season:" />
+                        <Label Grid.Row="1" Grid.Column="1" x:Name="BestSeasonLabel" Text="-" FontAttributes="Bold" />
+
+                        <Label Grid.Row="2" Text="Highest Rating:" />
+                        <Label Grid.Row="2" Grid.Column="1" x:Name="HighestRatingLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource SuccessColor}" />
+
+                        <Label Grid.Row="3" Text="Most Active Season:" />
+                        <Label Grid.Row="3" Grid.Column="1" x:Name="MostActiveSeasonLabel" Text="-" FontAttributes="Bold" />
+
+                        <Label Grid.Row="4" Text="8-Ball Success Rate:" />
+                        <Label Grid.Row="4" Grid.Column="1" x:Name="EightBallRateLabel" Text="-" FontAttributes="Bold" TextColor="{StaticResource WarningColor}" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>

@@ -414,7 +414,7 @@ public partial class BatchImportPreviewPage : ContentPage
 
         if (_seasons.Any())
         {
-            var currentSeason = _seasons.FirstOrDefault(s => s.Id == SeasonService.CurrentSeasonId);
+            var currentSeason = _seasons.FirstOrDefault(s => s.Id == SeasonService.Current.CurrentSeasonId);
             SeasonPicker.SelectedItem = currentSeason ?? _seasons.First();
         }
     }

@@ -43,7 +43,20 @@ public partial class SeasonsViewModel : ObservableObject
     public SeasonsViewModel(IDataStore dataStore)
     {
         _dataStore = dataStore;
-        _ = InitializeAsync();
+        _ = SafeInitializeAsync();
+    }
+
+    private async Task SafeInitializeAsync()
+    {
+        try
+        {
+            await LoadSeasonsAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SeasonsViewModel init error: {ex.Message}");
+            SetStatus($"Error: {ex.Message}");
+        }
     }
 
     private async Task InitializeAsync()
@@ -114,7 +127,7 @@ public partial class SeasonsViewModel : ObservableObject
         // Update global season service
         if (_isActive)
         {
-            SeasonService.CurrentSeasonId = season.Id;
+            SeasonService.Current.CurrentSeasonId = season.Id;
         }
 
         ClearEditor();
@@ -147,7 +160,7 @@ public partial class SeasonsViewModel : ObservableObject
                 }
             }
             _selectedSeason.IsActive = true;
-            SeasonService.CurrentSeasonId = _selectedSeason.Id;
+            SeasonService.Current.CurrentSeasonId = _selectedSeason.Id;
         }
         else
         {
@@ -206,9 +219,7 @@ public partial class SeasonsViewModel : ObservableObject
         await _dataStore.SaveAsync();
         
         // Update global season service
-        SeasonService.CurrentSeasonId = season.Id;
-        
-        await LoadSeasonsAsync();
+        SeasonService.Current.CurrentSeasonId = season.Id;
         SetStatus($"Active season: {season.Name}");
     }
 

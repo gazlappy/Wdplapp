@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -72,14 +72,14 @@ public partial class DivisionsPage : ContentPage
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
         // SUBSCRIBE to global season changes
-        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         RefreshAll();
     }
 
     ~DivisionsPage()
     {
-        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
@@ -122,7 +122,7 @@ public partial class DivisionsPage : ContentPage
     {
         try
         {
-            _currentSeasonId = SeasonService.CurrentSeasonId;
+            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
 
             if (!_currentSeasonId.HasValue)
             {
@@ -351,7 +351,7 @@ public partial class DivisionsPage : ContentPage
         if (_isMultiSelectMode)
         {
             DivisionsList.SelectionMode = SelectionMode.Multiple;
-            MultiSelectBtn.Text = "✓ Multi-Select ON";
+            MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
             BulkDeleteBtn.IsVisible = true;
 
@@ -362,7 +362,7 @@ public partial class DivisionsPage : ContentPage
         else
         {
             DivisionsList.SelectionMode = SelectionMode.Single;
-            MultiSelectBtn.Text = "☐ Multi-Select OFF";
+            MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
             BulkDeleteBtn.IsVisible = false;
 
@@ -633,7 +633,7 @@ public partial class DivisionsPage : ContentPage
         try
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("🔍 DATABASE DIAGNOSTIC CHECK\n");
+            sb.AppendLine("?? DATABASE DIAGNOSTIC CHECK\n");
             sb.AppendLine("================================\n");
             
             sb.AppendLine($"DataStore.Data is null: {DataStore.Data == null}");
@@ -643,7 +643,7 @@ public partial class DivisionsPage : ContentPage
                 return;
             }
             
-            sb.AppendLine($"\n📅 SEASONS:");
+            sb.AppendLine($"\n?? SEASONS:");
             sb.AppendLine($"Total Seasons: {DataStore.Data.Seasons?.Count ?? 0}");
             sb.AppendLine($"Active Season ID: {DataStore.Data.ActiveSeasonId?.ToString() ?? "NOT SET"}");
             sb.AppendLine($"Current Season ID (page): {_currentSeasonId?.ToString() ?? "NOT SET"}");
@@ -653,14 +653,14 @@ public partial class DivisionsPage : ContentPage
                 sb.AppendLine($"\nSeason List:");
                 foreach (var season in DataStore.Data.Seasons.OrderByDescending(s => s.IsActive))
                 {
-                    var marker = season.IsActive ? "✓ ACTIVE" : "  ";
+                    var marker = season.IsActive ? "? ACTIVE" : "  ";
                     sb.AppendLine($"{marker} {season.Name}");
                     sb.AppendLine($"    ID: {season.Id}");
                     sb.AppendLine($"    IsActive: {season.IsActive}");
                 }
             }
             
-            sb.AppendLine($"\n🏆 DIVISIONS:");
+            sb.AppendLine($"\n?? DIVISIONS:");
             sb.AppendLine($"Total Divisions: {DataStore.Data.Divisions?.Count ?? 0}");
             
             if (DataStore.Data.Divisions != null && DataStore.Data.Divisions.Count != 0)
@@ -679,7 +679,7 @@ public partial class DivisionsPage : ContentPage
                         seasonName = "NO SEASON ID";
                     }
                     
-                    sb.AppendLine($"  • {div.Name}");
+                    sb.AppendLine($"  � {div.Name}");
                     sb.AppendLine($"    Season: {seasonName}");
                     sb.AppendLine($"    SeasonId: {div.SeasonId?.ToString() ?? "NULL"}");
                 }
@@ -695,32 +695,32 @@ public partial class DivisionsPage : ContentPage
                     })
                     .ToList();
                     
-                sb.AppendLine($"\n📊 Divisions by Season:");
+                sb.AppendLine($"\n?? Divisions by Season:");
                 foreach (var group in grouped)
                 {
-                    var currentMarker = group.SeasonId == _currentSeasonId ? " ← CURRENT" : "";
+                    var currentMarker = group.SeasonId == _currentSeasonId ? " ? CURRENT" : "";
                     sb.AppendLine($"  {group.SeasonName}: {group.Count} division(s){currentMarker}");
                     sb.AppendLine($"    SeasonId: {group.SeasonId}");
                 }
             }
             else
             {
-                sb.AppendLine("  ❌ NO DIVISIONS FOUND IN DATABASE!");
+                sb.AppendLine("  ? NO DIVISIONS FOUND IN DATABASE!");
             }
             
-            sb.AppendLine($"\n👥 TEAMS:");
+            sb.AppendLine($"\n?? TEAMS:");
             sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
             
-            sb.AppendLine($"\n🎱 PLAYERS:");
+            sb.AppendLine($"\n?? PLAYERS:");
             sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
             
-            sb.AppendLine($"\n🏠 VENUES:");
+            sb.AppendLine($"\n?? VENUES:");
             sb.AppendLine($"Total Venues: {DataStore.Data.Venues?.Count ?? 0}");
             
-            sb.AppendLine($"\n📋 FIXTURES:");
+            sb.AppendLine($"\n?? FIXTURES:");
             sb.AppendLine($"Total Fixtures: {DataStore.Data.Fixtures?.Count ?? 0}");
             
-            sb.AppendLine($"\n🖥️ UI STATE:");
+            sb.AppendLine($"\n??? UI STATE:");
             sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
             sb.AppendLine($"Items in ObservableCollection: {_divisions.Count}");
             sb.AppendLine($"DivisionsList.ItemsSource is null: {DivisionsList.ItemsSource == null}");

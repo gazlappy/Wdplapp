@@ -35,11 +35,21 @@ public static class MauiProgram
         builder.Services.AddTransient<IDataStore, SqliteDataStore>();
         builder.Services.AddTransient<DataMigrationService>();
         
+        // Register Season Service
+        builder.Services.AddSingleton<ISeasonService, SeasonService>();
+
+        // Register Theme Service
+        builder.Services.AddSingleton<IThemeService, ThemeService>();
+
+        // Register Backup Service
+        builder.Services.AddTransient<BackupService>();
+
         // Register Notification Services (NEW) - Use alias to avoid conflicts
         builder.Services.AddSingleton<WdplNotificationService, LocalNotificationService>();
         builder.Services.AddSingleton<MatchReminderService>();
         
         // Register ViewModels
+        builder.Services.AddTransient<DashboardViewModel>();
         builder.Services.AddTransient<CompetitionsViewModel>();
         builder.Services.AddTransient<VenuesViewModel>();
         builder.Services.AddTransient<DivisionsViewModel>();
@@ -51,6 +61,7 @@ public static class MauiProgram
         builder.Services.AddTransient<SettingsViewModel>();
         
         // Register Pages
+        builder.Services.AddTransient<DashboardPage>();
         builder.Services.AddTransient<CompetitionsPage>();
         builder.Services.AddTransient<VenuesPage>();
         builder.Services.AddTransient<DivisionsPage>();
@@ -60,25 +71,15 @@ public static class MauiProgram
         builder.Services.AddTransient<FixturesPage>();
         builder.Services.AddTransient<LeagueTablesPage>();
         builder.Services.AddTransient<SettingsPage>();
+        builder.Services.AddTransient<SearchPage>();
         builder.Services.AddTransient<SqlImportPage>();  // Add SQL Import page
 
         var app = builder.Build();
 
-        // Initialize database and run migration if needed.
-        // Use Task.Run to avoid SynchronizationContext deadlock on WinUI main thread.
-        try
-        {
-            Task.Run(() => InitializeDatabaseAsync(app.Services)).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Database init failed at top level: {ex.Message}");
-        }
-
         return app;
     }
 
-    private static async Task InitializeDatabaseAsync(IServiceProvider services)
+    internal static async Task InitializeDatabaseAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();

@@ -21,7 +21,7 @@ public partial class ImportHistoricalDataPage : ContentPage
     {
         InitializeComponent();
 
-        _targetSeasonId = targetSeasonId ?? SeasonService.CurrentSeasonId;
+        _targetSeasonId = targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
 
         DivisionsList.ItemsSource = _divisions;
         VenuesList.ItemsSource = _venues;

@@ -19,14 +19,14 @@ public partial class MatchDayDashboardPage : ContentPage
         
         FixturesList.ItemsSource = _fixtures;
         
-        SeasonService.SeasonChanged += OnSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
         
         LoadMatches();
     }
 
     ~MatchDayDashboardPage()
     {
-        SeasonService.SeasonChanged -= OnSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 
     private void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -42,7 +42,7 @@ public partial class MatchDayDashboardPage : ContentPage
     {
         try
         {
-            _currentSeasonId = SeasonService.CurrentSeasonId;
+            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
             
             if (!_currentSeasonId.HasValue)
             {

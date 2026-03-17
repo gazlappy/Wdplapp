@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,8 +65,8 @@ public partial class TeamsPage : ContentPage
         
         public double WinPercentage => Played > 0 ? (double)Won / Played * 100.0 : 0;
         public string WinPercentageDisplay => Played > 0 ? $"{WinPercentage:0}%" : "-";
-        public string RankDisplay => Rank <= 3 ? Rank switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => Rank.ToString() } : Rank.ToString();
-        public string CaptainLabel => IsCaptain ? "⭐ Captain" : "";
+        public string RankDisplay => Rank <= 3 ? Rank switch { 1 => "??", 2 => "??", 3 => "??", _ => Rank.ToString() } : Rank.ToString();
+        public string CaptainLabel => IsCaptain ? "? Captain" : "";
         
         public Color RankColor => Rank switch
         {
@@ -156,7 +156,7 @@ public partial class TeamsPage : ContentPage
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
         // SUBSCRIBE to global season changes
-        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         RefreshAll();
     }
@@ -173,7 +173,7 @@ public partial class TeamsPage : ContentPage
 
     ~TeamsPage()
     {
-        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
@@ -438,7 +438,7 @@ public partial class TeamsPage : ContentPage
             var recordText = totalDraws > 0 
                 ? $"{totalWins}W-{totalDraws}D-{totalLosses}L" 
                 : $"{totalWins}W-{totalLosses}L";
-            SelectedTeamStats.Text = $"{totalMatches} matches • {recordText} ({winPct:0.#}%) • {totalFramesFor}-{totalFramesAgainst} frames";
+            SelectedTeamStats.Text = $"{totalMatches} matches � {recordText} ({winPct:0.#}%) � {totalFramesFor}-{totalFramesAgainst} frames";
 
             // Refresh team players list
             RefreshTeamPlayers(seasonIds);
@@ -562,7 +562,7 @@ public partial class TeamsPage : ContentPage
                 System.Diagnostics.Debug.WriteLine($"Teams Page _currentSeasonId updated to: {_currentSeasonId?.ToString() ?? "NULL"}");
                 
                 // Force clear the list first
-                System.Diagnostics.Debug.WriteLine($"🧹 Clearing team list...");
+                System.Diagnostics.Debug.WriteLine($"?? Clearing team list...");
                 _teamItems.Clear();
                 
                 // Then refresh
@@ -592,7 +592,7 @@ public partial class TeamsPage : ContentPage
         try
         {
             // Use global season from SeasonService
-            _currentSeasonId = SeasonService.CurrentSeasonId;
+            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
 
             // If no season is set, try to use the active season
             if (!_currentSeasonId.HasValue)
@@ -656,7 +656,7 @@ public partial class TeamsPage : ContentPage
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
                 SetStatus("No season selected - check 'Show all seasons' or activate a season");
-                System.Diagnostics.Debug.WriteLine("   ✅ No active season - returning early (list cleared)");
+                System.Diagnostics.Debug.WriteLine("   ? No active season - returning early (list cleared)");
                 System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
                 return; // This already clears the list since we called _teamItems.Clear() above
             }
@@ -664,12 +664,12 @@ public partial class TeamsPage : ContentPage
             if (DataStore.Data?.Teams == null)
             {
                 SetStatus("No teams data available");
-                System.Diagnostics.Debug.WriteLine("   ⚠️ No teams data available");
+                System.Diagnostics.Debug.WriteLine("   ?? No teams data available");
                 System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine($"   📥 Loading teams...");
+            System.Diagnostics.Debug.WriteLine($"   ?? Loading teams...");
 
             var teams = _showAllSeasons
                 ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
@@ -744,7 +744,7 @@ public partial class TeamsPage : ContentPage
         try
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("🔍 TEAMS DATABASE CHECK\n");
+            sb.AppendLine("?? TEAMS DATABASE CHECK\n");
             sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
             sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
             sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
@@ -942,7 +942,7 @@ public partial class TeamsPage : ContentPage
         if (_isMultiSelectMode)
         {
             TeamsList.SelectionMode = SelectionMode.Multiple;
-            MultiSelectBtn.Text = "✓ Multi-Select ON";
+            MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
             BulkDeleteBtn.IsVisible = true;
 
@@ -953,7 +953,7 @@ public partial class TeamsPage : ContentPage
         else
         {
             TeamsList.SelectionMode = SelectionMode.Single;
-            MultiSelectBtn.Text = "☐ Multi-Select OFF";
+            MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
             BulkDeleteBtn.IsVisible = false;
 

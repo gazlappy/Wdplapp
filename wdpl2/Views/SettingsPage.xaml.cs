@@ -19,35 +19,35 @@ namespace Wdpl2.Views
         private static AppSettings Settings => DataStore.Data.Settings;
 
         // Theme-aware colors
-        private static Color InfoBoxBackground => ThemeService.IsDarkModeActive 
+        private static Color InfoBoxBackground => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#1E3A5F") 
             : Color.FromArgb("#F0F9FF");
         
-        private static Color InfoBoxText => ThemeService.IsDarkModeActive 
+        private static Color InfoBoxText => ThemeService.Current.IsDarkModeActive 
             ? Colors.White 
             : Colors.Black;
             
-        private static Color SubtitleText => ThemeService.IsDarkModeActive 
+        private static Color SubtitleText => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#9CA3AF") 
             : Color.FromArgb("#666666");
             
-        private static Color CardBackground => ThemeService.IsDarkModeActive 
+        private static Color CardBackground => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#1F2937") 
             : Color.FromArgb("#FAFAFA");
             
-        private static Color CardBorder => ThemeService.IsDarkModeActive 
+        private static Color CardBorder => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#374151") 
             : Color.FromArgb("#E5E7EB");
             
-        private static Color WarningBoxBackground => ThemeService.IsDarkModeActive 
+        private static Color WarningBoxBackground => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#422006") 
             : Color.FromArgb("#FFFBEB");
             
-        private static Color SuccessBoxBackground => ThemeService.IsDarkModeActive 
+        private static Color SuccessBoxBackground => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#052E16") 
             : Color.FromArgb("#F0FDF4");
             
-        private static Color ErrorBoxBackground => ThemeService.IsDarkModeActive 
+        private static Color ErrorBoxBackground => ThemeService.Current.IsDarkModeActive 
             ? Color.FromArgb("#450A0A") 
             : Color.FromArgb("#FEF2F2");
 
@@ -168,12 +168,12 @@ namespace Wdpl2.Views
                 
                 if (e.Value)
                 {
-                    ThemeService.UseSystemTheme();
+                    ThemeService.Current.UseSystemTheme();
                     statusLabel.Text = $"{Emojis.Settings} Following system theme";
                 }
                 else
                 {
-                    ThemeService.SetDarkMode(Settings.DarkModeEnabled);
+                    ThemeService.Current.SetDarkMode(Settings.DarkModeEnabled);
                     statusLabel.Text = Settings.DarkModeEnabled ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 }
                 
@@ -187,7 +187,7 @@ namespace Wdpl2.Views
             darkModeSwitch.Toggled += (s, e) =>
             {
                 Settings.DarkModeEnabled = e.Value;
-                ThemeService.SetDarkMode(e.Value);
+                ThemeService.Current.SetDarkMode(e.Value);
                 statusLabel.Text = e.Value ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 currentThemeLabel.Text = GetCurrentThemeText();
                 DataStore.Save();
@@ -227,7 +227,7 @@ namespace Wdpl2.Views
 
         private static string GetCurrentThemeText()
         {
-            var isDark = ThemeService.IsDarkModeActive;
+            var isDark = ThemeService.Current.IsDarkModeActive;
             var isSystem = Settings.UseSystemTheme;
             
             if (isSystem)
@@ -1177,7 +1177,7 @@ namespace Wdpl2.Views
                         await DisplayAlert("Success", "Data imported successfully! The app will reload.", "OK");
 
                         // Refresh the app
-                        SeasonService.Initialize(); // Reinitialize season service
+                        SeasonService.Current.Initialize(); // Reinitialize season service
                     }
                     else
                     {

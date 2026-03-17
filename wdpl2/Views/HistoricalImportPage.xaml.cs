@@ -1244,7 +1244,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportLeagueTableFromTable(DocumentParser.TableData table, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.CurrentSeasonId;
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         // Skip header row
@@ -1334,7 +1334,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportPlayersFromTable(DocumentParser.TableData table, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.CurrentSeasonId;
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         var dataRows = table.Rows.Skip(1).ToList();
@@ -1422,7 +1422,7 @@ public partial class HistoricalImportPage : ContentPage
                 {
                     Id = Guid.NewGuid(),
                     Name = venueName,
-                    SeasonId = SeasonService.CurrentSeasonId
+                    SeasonId = SeasonService.Current.CurrentSeasonId
                 };
                 
                 // Add address if available
@@ -1468,7 +1468,7 @@ public partial class HistoricalImportPage : ContentPage
     /// </summary>
     private Task ImportDetectedCompetitions(System.Collections.Generic.List<HtmlLeagueParser.DetectedCompetition> detectedCompetitions, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.CurrentSeasonId;
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue)
         {
             return Task.CompletedTask;
@@ -1675,7 +1675,7 @@ public partial class HistoricalImportPage : ContentPage
                         {
                             Id = Guid.NewGuid(),
                             Name = venueName,
-                            SeasonId = SeasonService.CurrentSeasonId
+                            SeasonId = SeasonService.Current.CurrentSeasonId
                         };
                         DataStore.Data.Venues.Add(venue);
                         stats.VenuesImported++;
@@ -1729,7 +1729,7 @@ public partial class HistoricalImportPage : ContentPage
                     {
                         Id = Guid.NewGuid(),
                         Name = venueName,
-                        SeasonId = SeasonService.CurrentSeasonId
+                        SeasonId = SeasonService.Current.CurrentSeasonId
                     };
                     DataStore.Data.Venues.Add(venue);
                     stats.VenuesImported++;

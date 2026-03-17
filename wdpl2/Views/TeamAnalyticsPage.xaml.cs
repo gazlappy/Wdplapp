@@ -25,14 +25,14 @@ public partial class TeamAnalyticsPage : ContentPage
         PlayerContributionsList.ItemsSource = _playerContributions;
         OpponentRecordsList.ItemsSource = _opponentRecords;
         
-        SeasonService.SeasonChanged += OnSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
         
         LoadTeams();
     }
 
     ~TeamAnalyticsPage()
     {
-        SeasonService.SeasonChanged -= OnSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 
     private void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -46,7 +46,7 @@ public partial class TeamAnalyticsPage : ContentPage
 
     private void LoadTeams()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        _currentSeasonId = SeasonService.Current.CurrentSeasonId;
         
         if (!_currentSeasonId.HasValue)
         {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -64,14 +64,14 @@ public partial class VenuesPage : ContentPage
         VenuesImport.ImportRequested += async (stream, fileName) => await ImportVenuesCsvAsync(stream, fileName);
 
         // SUBSCRIBE to global season changes
-        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         RefreshAll();
     }
 
     ~VenuesPage()
     {
-        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
@@ -116,7 +116,7 @@ public partial class VenuesPage : ContentPage
         try
         {
             // Use global season from SeasonService
-            _currentSeasonId = SeasonService.CurrentSeasonId;
+            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
 
             // If no season is set, try to use the active season
             if (!_currentSeasonId.HasValue)
@@ -149,7 +149,7 @@ public partial class VenuesPage : ContentPage
             if (!_currentSeasonId.HasValue)
             {
                 SetStatus("No season selected - activate a season to see venues");
-                System.Diagnostics.Debug.WriteLine("   ✅ No active season - returning early (list cleared)");
+                System.Diagnostics.Debug.WriteLine("   ? No active season - returning early (list cleared)");
                 System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
                 return; // List is already cleared
             }
@@ -157,12 +157,12 @@ public partial class VenuesPage : ContentPage
             if (DataStore.Data?.Venues == null)
             {
                 SetStatus("No venues data available");
-                System.Diagnostics.Debug.WriteLine("   ⚠️ No venues data available");
+                System.Diagnostics.Debug.WriteLine("   ?? No venues data available");
                 System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
                 return;
             }
 
-            System.Diagnostics.Debug.WriteLine($"   📥 Loading venues...");
+            System.Diagnostics.Debug.WriteLine($"   ?? Loading venues...");
 
             var venues = DataStore.Data.Venues
                 .Where(v => v != null && v.SeasonId == _currentSeasonId.Value)
@@ -352,7 +352,7 @@ public partial class VenuesPage : ContentPage
         if (_isMultiSelectMode)
         {
             VenuesList.SelectionMode = SelectionMode.Multiple;
-            MultiSelectBtn.Text = "✓ Multi-Select ON";
+            MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
             BulkDeleteBtn.IsVisible = true;
 
@@ -365,7 +365,7 @@ public partial class VenuesPage : ContentPage
         else
         {
             VenuesList.SelectionMode = SelectionMode.Single;
-            MultiSelectBtn.Text = "☐ Multi-Select OFF";
+            MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
             BulkDeleteBtn.IsVisible = false;
 

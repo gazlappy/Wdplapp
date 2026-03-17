@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Wdpl2.Services;
 
@@ -97,14 +98,21 @@ namespace Wdpl2.Models
     public sealed class Division
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        
+
         /// <summary>Link to the season this division belongs to.</summary>
         public Guid? SeasonId { get; set; }
-        
+
+        [Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
         /// <summary>Free-text notes used by DivisionsPage.</summary>
         public string? Notes { get; set; }
+
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
 
         public override string ToString() => Name;
     }
@@ -119,7 +127,8 @@ namespace Wdpl2.Models
         
         /// <summary>Global team identity - links same team across multiple seasons for career tracking.</summary>
         public Guid? GlobalTeamId { get; set; }
-        
+
+        [MaxLength(100)]
         public string? Name { get; set; }
 
         /// <summary>Division this team plays in.</summary>
@@ -143,6 +152,12 @@ namespace Wdpl2.Models
 
         public string? Notes { get; set; }
 
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
+
         public override string ToString() => Name ?? "";
     }
 
@@ -165,7 +180,9 @@ namespace Wdpl2.Models
             set => _name = value ?? "";
         }
 
+        [Required, MaxLength(50)]
         public string FirstName { get; set; } = "";
+        [Required, MaxLength(50)]
         public string LastName { get; set; } = "";
 
         [JsonIgnore]
@@ -196,6 +213,12 @@ namespace Wdpl2.Models
         public List<PlayerTransfer> TransferHistory { get; set; } = new();
 
         public string? Notes { get; set; }
+
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
 
         public override string ToString() => FullName;
     }
@@ -256,10 +279,18 @@ namespace Wdpl2.Models
         
         /// <summary>Link to the season this venue belongs to.</summary>
         public Guid? SeasonId { get; set; }
-        
+
+        [Required, MaxLength(100)]
         public string Name { get; set; } = string.Empty;
+        [MaxLength(250)]
         public string? Address { get; set; }
         public string? Notes { get; set; }
+
+        /// <summary>When this record was created.</summary>
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>When this record was last modified.</summary>
+        public DateTime? ModifiedDate { get; set; }
 
         public List<VenueTable> Tables { get; set; } = new();
 
@@ -270,6 +301,7 @@ namespace Wdpl2.Models
     public sealed class VenueTable
     {
         public Guid Id { get; set; } = Guid.NewGuid();
+        [Required, MaxLength(50)]
         public string Label { get; set; } = "";
         public int MaxTeams { get; set; } = 2;
         public override string ToString() => Label;

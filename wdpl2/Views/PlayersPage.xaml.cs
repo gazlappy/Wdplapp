@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -145,7 +145,7 @@ public partial class PlayersPage : ContentPage
             ExportBtn.Clicked += async (_, __) => await ExportPlayersAsync();
             PlayersImport.ImportRequested += async (stream, fileName) => await ImportPlayersCsvAsync(stream, fileName);
 
-            SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+            SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
         }
         catch (Exception ex)
         {
@@ -170,7 +170,7 @@ public partial class PlayersPage : ContentPage
 
     ~PlayersPage()
     {
-        try { SeasonService.SeasonChanged -= OnGlobalSeasonChanged; } catch { }
+        try { SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged; } catch { }
     }
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)
@@ -321,7 +321,7 @@ public partial class PlayersPage : ContentPage
                 _h2hItems.Add(item);
 
             var winPct = totalFramesPlayed > 0 ? (double)totalWins / totalFramesPlayed * 100.0 : 0;
-            SelectedPlayerStats.Text = $"{totalFramesPlayed} frames • {totalWins}W-{totalFramesPlayed - totalWins}L ({winPct:0.#}%) • {totalEightBalls} 8-balls";
+            SelectedPlayerStats.Text = $"{totalFramesPlayed} frames � {totalWins}W-{totalFramesPlayed - totalWins}L ({winPct:0.#}%) � {totalEightBalls} 8-balls";
             SetStatus($"Found {_h2hItems.Count} opponent(s)");
         }
         catch (Exception ex)
@@ -359,7 +359,7 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
-            _currentSeasonId = SeasonService.CurrentSeasonId;
+            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
             if (!_currentSeasonId.HasValue)
             {
                 var activeSeason = DataStore.Data?.Seasons?.FirstOrDefault(s => s.IsActive);
@@ -525,7 +525,7 @@ public partial class PlayersPage : ContentPage
             {
                 var info = player.DeactivatedDate.HasValue ? $"Deactivated: {player.DeactivatedDate.Value:dd MMM yyyy}" : "Inactive";
                 if (!string.IsNullOrEmpty(player.DeactivationReason)) info += $" - {player.DeactivationReason}";
-                DeactivationInfoLabel.Text = $"⚠️ {info}";
+                DeactivationInfoLabel.Text = $"?? {info}";
                 DeactivationInfoLabel.IsVisible = true;
             }
             else
@@ -553,8 +553,8 @@ public partial class PlayersPage : ContentPage
         {
             _transferHistory.Add(new TransferHistoryItem
             {
-                TransferSummary = $"{transfer.FromTeamName} → {transfer.ToTeamName}",
-                TransferDetails = $"{transfer.TransferDate:dd MMM yyyy} • Rating: {transfer.RatingAtTransfer} • {transfer.WinsAtTransfer}W-{transfer.LossesAtTransfer}L ({transfer.FramesPlayedAtTransfer} frames)"
+                TransferSummary = $"{transfer.FromTeamName} ? {transfer.ToTeamName}",
+                TransferDetails = $"{transfer.TransferDate:dd MMM yyyy} � Rating: {transfer.RatingAtTransfer} � {transfer.WinsAtTransfer}W-{transfer.LossesAtTransfer}L ({transfer.FramesPlayedAtTransfer} frames)"
             });
         }
     }
@@ -650,7 +650,7 @@ public partial class PlayersPage : ContentPage
         if (_isMultiSelectMode)
         {
             PlayersList.SelectionMode = SelectionMode.Multiple;
-            MultiSelectBtn.Text = "✓ Multi-Select ON";
+            MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
             BulkDeleteBtn.IsVisible = true;
             UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = AddBtn.IsEnabled = false;
@@ -658,7 +658,7 @@ public partial class PlayersPage : ContentPage
         else
         {
             PlayersList.SelectionMode = SelectionMode.Single;
-            MultiSelectBtn.Text = "☐ Multi-Select OFF";
+            MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
             BulkDeleteBtn.IsVisible = false;
             UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = AddBtn.IsEnabled = true;
@@ -868,10 +868,10 @@ public partial class PlayersPage : ContentPage
             }
 
             var confirmMessage = $"Transfer {_selected.FullName} from {currentTeam.Name} to {newTeam.Name}?\n\n" +
-                                 $"Current Stats:\n• Rating: {currentRating}\n• Frames: {framesPlayed} ({wins}W-{losses}L)\n\n" +
+                                 $"Current Stats:\n� Rating: {currentRating}\n� Frames: {framesPlayed} ({wins}W-{losses}L)\n\n" +
                                  $"These stats will be preserved in the transfer history.";
 
-            if (!await DisplayAlert("🔄 Confirm Transfer", confirmMessage, "Transfer", "Cancel")) return;
+            if (!await DisplayAlert("?? Confirm Transfer", confirmMessage, "Transfer", "Cancel")) return;
 
             var transfer = new PlayerTransfer
             {
@@ -898,7 +898,7 @@ public partial class PlayersPage : ContentPage
             LoadEditor(_selected);
             RefreshHeadToHead();
 
-            SetStatus($"✅ Transferred {playerName} to {newTeamName}");
+            SetStatus($"? Transferred {playerName} to {newTeamName}");
             await DisplayAlert($"{Emojis.Success} Transfer Complete",
                 $"{playerName} has been transferred to {newTeamName}.\n\nTheir rating ({currentRating}) and previous results have been preserved.", "OK");
         }
@@ -919,7 +919,7 @@ public partial class PlayersPage : ContentPage
     {
         if (!e.Value)
         {
-            DeactivationInfoLabel.Text = "⚠️ Player will be marked as inactive but their results will be preserved.";
+            DeactivationInfoLabel.Text = "?? Player will be marked as inactive but their results will be preserved.";
             DeactivationInfoLabel.IsVisible = true;
         }
         else

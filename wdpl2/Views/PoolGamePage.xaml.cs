@@ -23,7 +23,7 @@ public partial class PoolGamePage : ContentPage
             : savedSettings;
         
         // Get current theme for styling
-        var isDarkMode = Services.ThemeService.IsDarkModeActive;
+        var isDarkMode = Services.ThemeService.Current.IsDarkModeActive;
         var themeClass = isDarkMode ? "dark-theme" : "light-theme";
         var bodyBg = isDarkMode ? "#0f1419" : "#1e3c72";
         var statusBg = isDarkMode ? "rgba(30,35,40,0.95)" : "rgba(0,0,0,0.9)";

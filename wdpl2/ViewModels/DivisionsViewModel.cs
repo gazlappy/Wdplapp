@@ -28,16 +28,16 @@ public partial class DivisionsViewModel : BaseViewModel
     [ObservableProperty]
     private string _divisionName = "";
 
-    public DivisionsViewModel(IDataStore dataStore)
+    public DivisionsViewModel(IDataStore dataStore, ISeasonService seasonService) : base(seasonService)
     {
         _dataStore = dataStore;
-        SeasonService.SeasonChanged += OnSeasonChanged;
-        _ = InitializeAsync();
+        _seasonService.SeasonChanged += OnSeasonChanged;
+        SafeFireAndForget(InitializeAsync);
     }
 
     private async Task InitializeAsync()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        _currentSeasonId = _seasonService.CurrentSeasonId;
         await LoadDivisionsAsync();
     }
 

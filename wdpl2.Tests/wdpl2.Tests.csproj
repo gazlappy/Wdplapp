@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <UseMaui>true</UseMaui>
+    <OutputType>Library</OutputType>
+    <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+    <EnableDefaultMauiItems>false</EnableDefaultMauiItems>
+    <!-- Suppress MAUI/platform warnings not relevant to unit tests -->
+    <NoWarn>$(NoWarn);CS8618;CA1416;MSB3270</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\wdpl2\wdpl2.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Disable resizetizer entirely — test project has no images -->
+  <Target Name="DisableResizetizer" BeforeTargets="ResizetizeImages;_CollectMauiImageItems" >
+    <ItemGroup>
+      <MauiIcon Remove="@(MauiIcon)" />
+      <MauiSplashScreen Remove="@(MauiSplashScreen)" />
+      <MauiImage Remove="@(MauiImage)" />
+      <MauiFont Remove="@(MauiFont)" />
+      <MauiAsset Remove="@(MauiAsset)" />
+      <ResizetizeImage Remove="@(ResizetizeImage)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

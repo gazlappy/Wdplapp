@@ -176,9 +176,12 @@ public partial class CompetitionsPage
             return;
         }
 
-        // Load teams for the season
+        // Load teams for the season from JSON store
         var seasonId = _selectedCompetition.SeasonId ?? _currentSeasonId;
-        var allTeams = await _dataStore.GetTeamsAsync(seasonId);
+        var allTeams = DataStore.Data?.Teams?
+            .Where(t => t != null && t.SeasonId == seasonId)
+            .OrderBy(t => t.Name)
+            .ToList() ?? new List<Team>();
 
         // Create selection items for all available players
         var allItems = availablePlayers.Select(p => new SelectionItem<Guid>

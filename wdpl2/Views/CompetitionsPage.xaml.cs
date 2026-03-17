@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -44,8 +44,10 @@ public partial class CompetitionsPage : ContentPage
             // Resolve IDataStore from DI when no ViewModel is provided
             var dataStore = Application.Current?.Handler?.MauiContext?.Services.GetService<IDataStore>()
                 ?? throw new InvalidOperationException("IDataStore not registered");
+            var seasonService = Application.Current?.Handler?.MauiContext?.Services.GetService<ISeasonService>()
+                ?? SeasonService.Current;
             _dataStore = dataStore;
-            _viewModel = new CompetitionsViewModel(_dataStore);
+            _viewModel = new CompetitionsViewModel(_dataStore, seasonService);
         }
         else
         {
@@ -101,7 +103,7 @@ public partial class CompetitionsPage : ContentPage
 
     private void UpdateSeasonLabel()
     {
-        var season = SeasonService.GetCurrentSeason();
+        var season = SeasonService.Current.GetCurrentSeason();
         SeasonLabel.Text = season != null
             ? $"Season: {season.Name}"
             : "No season selected";

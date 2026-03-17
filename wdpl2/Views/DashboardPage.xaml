@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.DashboardPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Wdpl2.ViewModels"
+    x:DataType="vm:DashboardViewModel"
+    Title="Dashboard">
+
+    <RefreshView IsRefreshing="{Binding IsLoading}" Command="{Binding RefreshCommand}">
+        <ScrollView Padding="16">
+            <VerticalStackLayout Spacing="16">
+
+                <!-- Season Header -->
+                <Border
+                    StrokeShape="RoundRectangle 12"
+                    Padding="20"
+                    BackgroundColor="{AppThemeBinding Light=#0284C7, Dark=#0C4A6E}"
+                    StrokeThickness="0">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding SeasonName}" FontSize="22" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="{Binding SeasonProgressText}" FontSize="13" TextColor="#B0D4F1" />
+                        <ProgressBar Progress="{Binding SeasonProgress}" ProgressColor="White" Margin="0,8,0,0" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Stats Grid -->
+                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+
+                    <!-- Teams -->
+                    <Border Grid.Row="0" Grid.Column="0" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalTeams}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#0284C7, Dark=#38BDF8}" />
+                            <Label Text="Teams" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Players -->
+                    <Border Grid.Row="0" Grid.Column="1" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalPlayers}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#16A34A, Dark=#4ADE80}" />
+                            <Label Text="Players" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Divisions -->
+                    <Border Grid.Row="0" Grid.Column="2" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalDivisions}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#9333EA, Dark=#C084FC}" />
+                            <Label Text="Divisions" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Venues -->
+                    <Border Grid.Row="0" Grid.Column="3" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalVenues}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#EA580C, Dark=#FB923C}" />
+                            <Label Text="Venues" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Fixtures Completed -->
+                    <Border Grid.Row="1" Grid.Column="0" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding CompletedFixtures}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#16A34A, Dark=#4ADE80}" />
+                            <Label Text="Played" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Upcoming -->
+                    <Border Grid.Row="1" Grid.Column="1" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding UpcomingFixtures}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#DC2626, Dark=#F87171}" />
+                            <Label Text="Remaining" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Frames Played -->
+                    <Border Grid.Row="1" Grid.Column="2" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalFramesPlayed}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#0284C7, Dark=#38BDF8}" />
+                            <Label Text="Frames" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- 8-Balls -->
+                    <Border Grid.Row="1" Grid.Column="3" StrokeShape="RoundRectangle 10" Padding="14"
+                            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                            Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                        <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <Label Text="{Binding TotalEightBalls}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#EAB308, Dark=#FACC15}" />
+                            <Label Text="8-Balls" FontSize="12" HorizontalTextAlignment="Center"
+                                   TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- Next Fixture -->
+                <Border StrokeShape="RoundRectangle 10" Padding="16"
+                        BackgroundColor="{AppThemeBinding Light=#F0FDF4, Dark=#052E16}"
+                        Stroke="{AppThemeBinding Light=#BBF7D0, Dark=#166534}" StrokeThickness="1">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Next Fixture" FontSize="13" FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light=#166534, Dark=#4ADE80}" />
+                        <Label Text="{Binding NextFixtureInfo}" FontSize="15"
+                               TextColor="{AppThemeBinding Light=#000, Dark=#FFF}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Top Rated Player -->
+                <Border StrokeShape="RoundRectangle 10" Padding="16"
+                        BackgroundColor="{AppThemeBinding Light=#FFFBEB, Dark=#422006}"
+                        Stroke="{AppThemeBinding Light=#FDE68A, Dark=#92400E}" StrokeThickness="1">
+                    <HorizontalStackLayout Spacing="12">
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="Top Rated Player" FontSize="13" FontAttributes="Bold"
+                                   TextColor="{AppThemeBinding Light=#92400E, Dark=#FDE68A}" />
+                            <Label Text="{Binding TopPlayerName}" FontSize="16"
+                                   TextColor="{AppThemeBinding Light=#000, Dark=#FFF}" />
+                        </VerticalStackLayout>
+                        <Label Text="{Binding TopPlayerRating}" FontSize="24" FontAttributes="Bold"
+                               VerticalOptions="Center" HorizontalOptions="EndAndExpand"
+                               TextColor="{AppThemeBinding Light=#D97706, Dark=#FBBF24}" />
+                    </HorizontalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>

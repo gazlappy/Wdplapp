@@ -20,31 +20,6 @@ namespace Wdpl2.Services
             public bool ClearExisting { get; set; } = true;
         }
 
-        public static List<Fixture> GenerateAndSave(LeagueDataService data, GenerateOptions opts)
-            => GenerateAndSaveAsync(data, opts).GetAwaiter().GetResult();
-
-        public static async Task<List<Fixture>> GenerateAndSaveAsync(LeagueDataService data, GenerateOptions opts)
-        {
-            if (data == null) throw new ArgumentNullException(nameof(data));
-            if (opts == null) throw new ArgumentNullException(nameof(opts));
-            if (opts.SeasonId == Guid.Empty) throw new ArgumentException("SeasonId is required.", nameof(opts));
-
-            var fixtures = Generate(
-                data.League,
-                opts.SeasonId,
-                opts.StartDate,
-                opts.MatchNight,
-                roundsPerOpponent: opts.RoundsPerOpponent,
-                kickoff: opts.Kickoff);
-
-            bool clear = opts.ClearExistingForSeason || opts.ClearExisting;
-            if (clear) data.ReplaceFixturesForSeason(opts.SeasonId, fixtures);
-            else data.League.Fixtures.AddRange(fixtures);
-
-            await data.SaveAsync().ConfigureAwait(false);
-            return fixtures;
-        }
-
         public static List<Fixture> Generate(
             LeagueData league,
             Guid seasonId,

@@ -122,7 +122,10 @@ public partial class PlayerProfilePage : ContentPage
             // Calculate head-to-head records (using all player IDs)
             CalculateHeadToHead(playerInstances);
 
-            // Performance stats
+            // Performance stats — form indicator (last 5 league frames)
+            var formString = CalculateForm(allPlayerIds, 5);
+            FormLabel.Text = formString.Length > 0 ? formString : "-";
+
             var bestSeason = _seasonHistory.OrderByDescending(s => s.WinPercentage).FirstOrDefault();
             BestSeasonLabel.Text = bestSeason != null ? $"{bestSeason.SeasonName} ({bestSeason.WinPercentage:F1}%)" : "-";
 
@@ -306,6 +309,27 @@ public partial class PlayerProfilePage : ContentPage
         });
 
         StatusLabel.Text = "Profile exported successfully";
+    }
+
+    /// <summary>
+    /// Build a form string showing the last N league frame results (W/L) for the player.
+    /// </summary>
+    private static string CalculateForm(HashSet<Guid> playerIds, int count)
+    {
+        var results = new List<char>();
+
+        foreach (var fixture in DataStore.Data.Fixtures.OrderBy(f => f.Date))
+        {
+            foreach (var frame in fixture.Frames)
+            {
+                if (frame.HomePlayerId.HasValue && playerIds.Contains(frame.HomePlayerId.Value))
+                    results.Add(frame.Winner == FrameWinner.Home ? 'W' : 'L');
+                else if (frame.AwayPlayerId.HasValue && playerIds.Contains(frame.AwayPlayerId.Value))
+                    results.Add(frame.Winner == FrameWinner.Away ? 'W' : 'L');
+            }
+        }
+
+        return string.Join(" ", results.TakeLast(count));
     }
 }
 

@@ -53,7 +53,7 @@ public partial class PlayerResultsPage : ContentPage
         TeamLabel.Text = $"Team: {team?.Name ?? "Free Agent"}";
 
         // Get current season
-        var currentSeasonId = SeasonService.CurrentSeasonId;
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return;
 
         // Get the season's START DATE (not min fixture date!)

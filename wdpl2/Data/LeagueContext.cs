@@ -309,6 +309,14 @@ public class LeagueContext : DbContext
                 }
             }
 
+            // --- Add audit trail columns to all entity tables ---
+            var auditTables = new[] { "Seasons", "Divisions", "Teams", "Players", "Venues", "Fixtures" };
+            foreach (var table in auditTables)
+            {
+                await AddColumnIfMissingAsync(conn, table, "CreatedDate", $"ALTER TABLE \"{table}\" ADD COLUMN CreatedDate TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'");
+                await AddColumnIfMissingAsync(conn, table, "ModifiedDate", $"ALTER TABLE \"{table}\" ADD COLUMN ModifiedDate TEXT");
+            }
+
             // Remove the SeasonId FK constraint from Competitions.
             // Seasons live in the JSON store, so the FK always fails.
             // SQLite can't drop constraints, so we recreate the table.
@@ -400,6 +408,29 @@ public class LeagueContext : DbContext
             using var pragmaOn = conn.CreateCommand();
             pragmaOn.CommandText = "PRAGMA foreign_keys = ON";
             await pragmaOn.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// Adds a column to a table if it doesn't already exist.
+    /// </summary>
+    private static async Task AddColumnIfMissingAsync(
+        System.Data.Common.DbConnection conn, string table, string column, string alterSql)
+    {
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"PRAGMA table_info(\"{table}\")";
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                cols.Add(reader.GetString(1));
+        }
+
+        if (!cols.Contains(column))
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = alterSql;
+            await alter.ExecuteNonQueryAsync();
         }
     }
 

@@ -45,22 +45,22 @@ public partial class CompetitionsViewModel : BaseViewModel
     [ObservableProperty]
     private bool _hasCompletedCompetitions;
 
-    public CompetitionsViewModel(IDataStore dataStore)
+    public CompetitionsViewModel(IDataStore dataStore, ISeasonService seasonService) : base(seasonService)
     {
         _dataStore = dataStore;
-        
+
         // Subscribe to season changes
-        SeasonService.SeasonChanged += OnSeasonChanged;
-        
+        _seasonService.SeasonChanged += OnSeasonChanged;
+
         // Load initial data
-        _ = InitializeAsync();
+        SafeFireAndForget(InitializeAsync);
     }
 
     private async Task InitializeAsync()
     {
         try
         {
-            CurrentSeasonId = SeasonService.CurrentSeasonId;
+            CurrentSeasonId = _seasonService.CurrentSeasonId;
             await LoadCompetitionsAsync();
         }
         catch (Exception ex)

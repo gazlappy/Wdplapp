@@ -72,7 +72,7 @@ public partial class AchievementsPage : ContentPage
         else
         {
             // Current season only
-            var currentSeasonId = SeasonService.CurrentSeasonId;
+            var currentSeasonId = SeasonService.Current.CurrentSeasonId;
             if (!currentSeasonId.HasValue)
             {
                 StatusLabel.Text = "No season selected";
@@ -138,7 +138,7 @@ public partial class AchievementsPage : ContentPage
             }
             else
             {
-                var currentSeasonId = SeasonService.CurrentSeasonId;
+                var currentSeasonId = SeasonService.Current.CurrentSeasonId;
                 fixtures = DataStore.Data.Fixtures
                     .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
                     .ToList();

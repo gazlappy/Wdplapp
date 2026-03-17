@@ -128,7 +128,7 @@ public partial class SettingsViewModel : ObservableObject
         _autoSave = true;
         
         // Apply system theme
-        ThemeService.UseSystemTheme();
+        ThemeService.Current.UseSystemTheme();
         
         await SaveSettingsAsync();
         SetStatus("Settings reset to defaults");
@@ -220,7 +220,7 @@ public partial class SettingsViewModel : ObservableObject
         _darkMode = enabled;
         if (!_useSystemTheme)
         {
-            ThemeService.SetDarkMode(enabled);
+            ThemeService.Current.SetDarkMode(enabled);
             SetStatus(enabled ? "ℹ️ Dark mode enabled" : "ℹ️ Light mode enabled");
         }
     }
@@ -231,12 +231,12 @@ public partial class SettingsViewModel : ObservableObject
         _useSystemTheme = enabled;
         if (enabled)
         {
-            ThemeService.UseSystemTheme();
+            ThemeService.Current.UseSystemTheme();
             SetStatus("ℹ️ Following system theme");
         }
         else
         {
-            ThemeService.SetDarkMode(_darkMode);
+            ThemeService.Current.SetDarkMode(_darkMode);
         }
     }
     
@@ -248,12 +248,12 @@ public partial class SettingsViewModel : ObservableObject
             // First disable system theme, then toggle
             _useSystemTheme = false;
             _darkMode = true;
-            ThemeService.SetDarkMode(true);
+            ThemeService.Current.SetDarkMode(true);
         }
         else
         {
             _darkMode = !_darkMode;
-            ThemeService.SetDarkMode(_darkMode);
+            ThemeService.Current.SetDarkMode(_darkMode);
         }
     }
 }

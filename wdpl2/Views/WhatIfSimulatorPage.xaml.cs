@@ -25,14 +25,14 @@ public partial class WhatIfSimulatorPage : ContentPage
         RemainingFixturesList.ItemsSource = _remainingFixtures;
         PredictedStandingsList.ItemsSource = _predictedStandings;
         
-        SeasonService.SeasonChanged += OnSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
         
         LoadDivisions();
     }
 
     ~WhatIfSimulatorPage()
     {
-        SeasonService.SeasonChanged -= OnSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 
     private void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -46,7 +46,7 @@ public partial class WhatIfSimulatorPage : ContentPage
 
     private void LoadDivisions()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        _currentSeasonId = SeasonService.Current.CurrentSeasonId;
         
         if (!_currentSeasonId.HasValue)
         {

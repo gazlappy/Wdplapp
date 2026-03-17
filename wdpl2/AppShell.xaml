@@ -6,6 +6,10 @@
     xmlns:views="clr-namespace:Wdpl2.Views">
 
     <TabBar>
+        <Tab Title="Dashboard" Icon="stats.png">
+            <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
+        </Tab>
+
         <Tab Title="Seasons" Icon="calendar.png">
             <ShellContent Title="Seasons" ContentTemplate="{DataTemplate views:SeasonsPage}" />
         </Tab>

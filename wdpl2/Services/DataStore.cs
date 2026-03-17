@@ -39,16 +39,9 @@ public static partial class DataStore
 
     public static void Save()
     {
-        try
-        {
-            EnsureDataDirectory();
-            var json = JsonSerializer.Serialize(Data, JsonOpts);
-            File.WriteAllText(DataPath, json);
-        }
-        catch
-        {
-            throw;
-        }
+        EnsureDataDirectory();
+        var json = JsonSerializer.Serialize(Data, JsonOpts);
+        File.WriteAllText(DataPath, json);
     }
 
     public static void Load()

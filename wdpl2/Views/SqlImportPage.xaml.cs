@@ -1064,7 +1064,7 @@ public partial class SqlImportPage : ContentPage
             // Switch to the imported season so the user can see the data immediately
             if (result.DetectedSeason != null)
             {
-                SeasonService.CurrentSeasonId = result.DetectedSeason.Id;
+                SeasonService.Current.CurrentSeasonId = result.DetectedSeason.Id;
             }
 
             // Show results

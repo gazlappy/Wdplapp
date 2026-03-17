@@ -1,4 +1,4 @@
-ï»¿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -73,14 +73,14 @@ public partial class LeagueTablesPage : ContentPage
         RecalculateBtn.Clicked += (_, __) => OnRecalculateClicked();
 
         // SUBSCRIBE to global season changes
-        SeasonService.SeasonChanged += OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         RefreshAll();
     }
 
     ~LeagueTablesPage()
     {
-        SeasonService.SeasonChanged -= OnGlobalSeasonChanged;
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -95,7 +95,7 @@ public partial class LeagueTablesPage : ContentPage
 
     private void RefreshAll()
     {
-        _currentSeasonId = SeasonService.CurrentSeasonId;
+        _currentSeasonId = SeasonService.Current.CurrentSeasonId;
         RefreshDivisions();
 
         // Auto-select first division if available
@@ -369,7 +369,7 @@ public partial class LeagueTablesPage : ContentPage
 
     // ========== PLAYER RATINGS ==========
 
-    // âœ… VBA RATING ALGORITHM - Based on analysis of tblRatings and tblPlayerResult data
+    // ? VBA RATING ALGORITHM - Based on analysis of tblRatings and tblPlayerResult data
     // ==================================================================
     // 
     // DATA STRUCTURES IN VBA:
@@ -382,21 +382,21 @@ public partial class LeagueTablesPage : ContentPage
     // 3. The new rating becomes the lookup value for NEXT week's matches
     //
     // RATING FORMULA:
-    //   Rating = Î£(RatingAttn Ã— BiasX) / Î£(BiasX)
+    //   Rating = S(RatingAttn × BiasX) / S(BiasX)
     //
     // WHERE:
-    //   RatingAttn = OpponentRating Ã— Factor
-    //     - Win:      OpponentRating Ã— 1.25 (RATINGWIN)
-    //     - Loss:     OpponentRating Ã— 0.75 (RATINGLOSE)
-    //     - 8-Ball:   OpponentRating Ã— 1.35 (RATING8BALL)
+    //   RatingAttn = OpponentRating × Factor
+    //     - Win:      OpponentRating × 1.25 (RATINGWIN)
+    //     - Loss:     OpponentRating × 0.75 (RATINGLOSE)
+    //     - 8-Ball:   OpponentRating × 1.35 (RATING8BALL)
     //   
     //   BiasX = Weight for each frame (progressive weighting)
-    //     - Oldest frame:  RatingWeighting - (4 Ã— (TotalFrames - 1))
+    //     - Oldest frame:  RatingWeighting - (4 × (TotalFrames - 1))
     //     - Each newer frame: Previous BiasX + 4
     //     - Newest frame:  RatingWeighting (always base weight)
     //
     // EXAMPLE (Player with 6 frames, Weighting=220, Bias=4):
-    //   Frame 1 (oldest): BiasX = 220 - (4 Ã— 5) = 200
+    //   Frame 1 (oldest): BiasX = 220 - (4 × 5) = 200
     //   Frame 2:          BiasX = 204
     //   Frame 3:          BiasX = 208
     //   Frame 4:          BiasX = 212
@@ -404,8 +404,8 @@ public partial class LeagueTablesPage : ContentPage
     //   Frame 6 (newest): BiasX = 220
     //
     // IMPORTANT: VBA uses INTEGER arithmetic (truncation, not rounding) for RatingAttn
-    //   e.g., 1000 Ã— 1.25 = 1250 (integer)
-    //   e.g., 1000 Ã— 0.75 = 750 (integer)
+    //   e.g., 1000 × 1.25 = 1250 (integer)
+    //   e.g., 1000 × 0.75 = 750 (integer)
     // ==================================================================
 
     private void RenderPlayerRatingsHeader()
