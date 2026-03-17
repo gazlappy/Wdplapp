@@ -104,6 +104,9 @@ public class ParadoxImportOrchestrator
         _seasonId = seasonId;
         var summary = new ImportSummary();
 
+        // Create snapshot so we can roll back on failure
+        DataStore.CreatePreImportSnapshot();
+
         try
         {
             // First, parse all files using the working parser
@@ -115,6 +118,7 @@ public class ParadoxImportOrchestrator
             {
                 summary.Errors.AddRange(parseResult.Errors);
                 summary.Warnings.AddRange(parseResult.Warnings);
+                DataStore.ClearPreImportSnapshot();
                 return summary;
             }
 
@@ -165,11 +169,15 @@ public class ParadoxImportOrchestrator
             DataStore.Save();
 
             summary.Success = summary.Errors.Count == 0;
+            DataStore.ClearPreImportSnapshot();
         }
         catch (Exception ex)
         {
             summary.Errors.Add($"Import failed: {ex.Message}");
             summary.Success = false;
+
+            // Roll back all changes on failure
+            DataStore.RestorePreImportSnapshot();
         }
 
         return summary;

@@ -18,6 +18,9 @@ public static partial class DataStore
     private static readonly string BackupPath =
         Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json.bak");
 
+    private static readonly string ImportSnapshotPath =
+        Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json.pre-import");
+
     private static int _saveCount;
     private const int AutoBackupInterval = 5;
 
@@ -88,6 +91,101 @@ public static partial class DataStore
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Create a snapshot of the current data before an import operation.
+    /// Call this before any import to enable rollback on failure.
+    /// Returns true if the snapshot was created successfully.
+    /// </summary>
+    public static bool CreatePreImportSnapshot()
+    {
+        try
+        {
+            EnsureDataDirectory();
+            var json = JsonSerializer.Serialize(Data, JsonOpts);
+            File.WriteAllText(ImportSnapshotPath, json);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to create pre-import snapshot: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Restore data from the pre-import snapshot, undoing all changes made during a failed import.
+    /// Returns true if the restore was successful.
+    /// </summary>
+    public static bool RestorePreImportSnapshot()
+    {
+        try
+        {
+            if (!File.Exists(ImportSnapshotPath)) return false;
+
+            var json = File.ReadAllText(ImportSnapshotPath);
+            Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
+
+            // Also restore the persisted file so a restart doesn't load partial import data
+            File.WriteAllText(DataPath, json);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to restore pre-import snapshot: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Clean up the pre-import snapshot after a successful import.
+    /// </summary>
+    public static void ClearPreImportSnapshot()
+    {
+        try
+        {
+            if (File.Exists(ImportSnapshotPath))
+                File.Delete(ImportSnapshotPath);
+        }
+        catch { /* non-critical */ }
+    }
+
+    /// <summary>
+    /// Validate that a file is suitable for import (exists, readable, not too large).
+    /// Returns (isValid, errorMessage).
+    /// </summary>
+    public static (bool isValid, string? error) ValidateImportFile(string filePath, long maxSizeBytes = 100 * 1024 * 1024)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            return (false, "No file path specified.");
+
+        if (!File.Exists(filePath))
+            return (false, $"File not found: {Path.GetFileName(filePath)}");
+
+        try
+        {
+            var fileInfo = new FileInfo(filePath);
+
+            if (fileInfo.Length == 0)
+                return (false, $"File is empty: {Path.GetFileName(filePath)}");
+
+            if (fileInfo.Length > maxSizeBytes)
+                return (false, $"File is too large ({fileInfo.Length / (1024 * 1024)} MB). Maximum supported size is {maxSizeBytes / (1024 * 1024)} MB.");
+
+            // Verify we can read the file
+            using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return (true, null);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return (false, $"Access denied: {Path.GetFileName(filePath)}. Check file permissions.");
+        }
+        catch (IOException ex)
+        {
+            return (false, $"Cannot read file: {ex.Message}");
         }
     }
 

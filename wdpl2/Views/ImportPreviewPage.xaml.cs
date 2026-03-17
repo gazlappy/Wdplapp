@@ -310,6 +310,9 @@ public partial class ImportPreviewPage : ContentPage
             ImportButton.IsEnabled = false;
             ImportButton.Text = "Importing...";
 
+            // Create snapshot for rollback on failure
+            DataStore.CreatePreImportSnapshot();
+
             // Apply import
             var result = await ImportPreviewService.ApplyPreviewAsync(
                 _preview,
@@ -320,6 +323,7 @@ public partial class ImportPreviewPage : ContentPage
             {
                 // Save changes
                 DataStore.Save();
+                DataStore.ClearPreImportSnapshot();
 
                 await DisplayAlert(
                     "Import Complete!",
@@ -335,18 +339,20 @@ public partial class ImportPreviewPage : ContentPage
             }
             else
             {
+                DataStore.RestorePreImportSnapshot();
                 await DisplayAlert(
                     "Import Failed",
                     string.Join("\n", result.Errors),
                     "OK");
-                
+
                 ImportButton.IsEnabled = true;
                 ImportButton.Text = "Import Selected";
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Import failed: {ex.Message}", "OK");
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Error", $"Import failed: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ImportButton.IsEnabled = true;
             ImportButton.Text = "Import Selected";
         }

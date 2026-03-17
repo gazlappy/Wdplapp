@@ -78,18 +78,28 @@ namespace Wdpl2.Views.Controls
                 });
                 if (result == null) return;
 
+                // Validate file before importing
+                var (isValid, fileError) = DataStore.ValidateImportFile(result.FullPath, 50 * 1024 * 1024);
+                if (!isValid)
+                {
+                    if (Shell.Current?.CurrentPage != null)
+                        await Shell.Current.CurrentPage.DisplayAlert("Invalid File", fileError, "OK");
+                    return;
+                }
+
                 await using var stream = await result.OpenReadAsync();
                 _hint.Text = $"Importing {result.FileName}…";
                 if (ImportRequested != null)
                     await ImportRequested.Invoke(stream, result.FileName);
-                _hint.Text = "Choose a .csv file";
+                _hint.Text = $"✅ {result.FileName} imported";
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"CSV import failed: {ex}");
                 // Use Shell.Current for modern MAUI approach
                 if (Shell.Current?.CurrentPage != null)
                     await Shell.Current.CurrentPage.DisplayAlert("Import failed", ex.Message, "OK");
-                _hint.Text = "Choose a .csv file";
+                _hint.Text = "Import failed — choose a .csv file";
             }
         }
     }

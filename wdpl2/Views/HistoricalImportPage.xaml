@@ -83,11 +83,66 @@
                                    Padding="20" 
                                    Spacing="16"
                                    IsVisible="True">
-                    
+
                     <Label Text="What would you like to import?"
                            FontSize="18"
                            FontAttributes="Bold"
                            Margin="0,8,0,16"/>
+
+                    <!-- Smart Import (Auto-discover) -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#EDE9FE"
+                            Stroke="#7C3AED"
+                            StrokeThickness="2">
+                        <Grid ColumnDefinitions="80,*,Auto" 
+                              ColumnSpacing="16" 
+                              Padding="16">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="#7C3AED"
+                                    HeightRequest="60"
+                                    WidthRequest="60"
+                                    StrokeThickness="0">
+                                <Label Text="🔍" 
+                                       FontSize="32"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"/>
+                            </Border>
+
+                            <VerticalStackLayout Grid.Column="1" 
+                                               Spacing="4"
+                                               VerticalOptions="Center">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="Smart Import"
+                                           FontAttributes="Bold"
+                                           FontSize="16"/>
+                                    <Border BackgroundColor="#7C3AED"
+                                            Padding="6,2"
+                                            StrokeThickness="0">
+                                        <Label Text="AUTO"
+                                               TextColor="White"
+                                               FontSize="9"
+                                               FontAttributes="Bold"/>
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="Scan your computer for pool league files, organise by season, and merge data automatically"
+                                       TextColor="{StaticResource Gray700}"
+                                       FontSize="12"/>
+                                <Label Text="✓ Auto-Find  ✓ Season Detection  ✓ Duplicate Merge  ✓ All Formats"
+                                       TextColor="{StaticResource SuccessColor}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"/>
+                            </VerticalStackLayout>
+
+                            <Button Grid.Column="2"
+                                    Text="Scan"
+                                    Clicked="OnSmartImportClicked"
+                                    BackgroundColor="#7C3AED"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    Padding="20,12"
+                                    FontAttributes="Bold"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Historical Competitions (Manual Entry) - NEW! -->
                     <Border Style="{StaticResource CardBorderStyle}"

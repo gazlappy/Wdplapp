@@ -645,6 +645,9 @@ public partial class BatchImportPreviewPage : ContentPage
             ProgressBar.Progress = 0;
             ProgressLabel.Text = "Importing data...";
 
+            // Create snapshot for rollback on failure
+            DataStore.CreatePreImportSnapshot();
+
             // Import all aggregated data at once
             var result = await ImportAggregatedDataAsync(selectedSeason.Id);
 
@@ -653,11 +656,13 @@ public partial class BatchImportPreviewPage : ContentPage
             if (result.Success)
             {
                 DataStore.Save();
+                DataStore.ClearPreImportSnapshot();
                 await DisplayAlert("Batch Import Complete!", result.Summary, "OK");
                 await Navigation.PopAsync();
             }
             else
             {
+                DataStore.RestorePreImportSnapshot();
                 await DisplayAlert("Import Failed", result.Summary + "\n\n" + string.Join("\n", result.Errors.Take(5)), "OK");
                 ImportButton.IsEnabled = true;
                 ImportButton.Text = "Import All Selected";
@@ -665,7 +670,8 @@ public partial class BatchImportPreviewPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Batch import failed: {ex.Message}", "OK");
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Error", $"Batch import failed: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ImportButton.IsEnabled = true;
             ImportButton.Text = "Import All Selected";
             ProgressBorder.IsVisible = false;

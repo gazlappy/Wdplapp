@@ -68,6 +68,14 @@ public partial class HistoricalDataImporter
     {
         var result = new ImportResult();
 
+        // Validate file before reading
+        var (isValid, fileError) = DataStore.ValidateImportFile(filePath);
+        if (!isValid)
+        {
+            result.Errors.Add(fileError ?? "Invalid file");
+            return result;
+        }
+
         try
         {
             var lines = await File.ReadAllLinesAsync(filePath);
@@ -116,6 +124,14 @@ public partial class HistoricalDataImporter
         LeagueData data)
     {
         var result = new ImportResult();
+
+        // Validate file before reading
+        var (isValid, fileError) = DataStore.ValidateImportFile(filePath);
+        if (!isValid)
+        {
+            result.Errors.Add(fileError ?? "Invalid file");
+            return result;
+        }
 
         try
         {
@@ -195,6 +211,14 @@ public partial class HistoricalDataImporter
         LeagueData data)
     {
         var result = new ImportResult();
+
+        // Validate file before reading
+        var (isValid, fileError) = DataStore.ValidateImportFile(filePath);
+        if (!isValid)
+        {
+            result.Errors.Add(fileError ?? "Invalid file");
+            return result;
+        }
 
         try
         {

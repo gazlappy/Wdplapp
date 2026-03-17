@@ -7,7 +7,6 @@ public partial class AppShell : Shell
         InitializeComponent();
 
         // Register routes for programmatic navigation
-        Routing.RegisterRoute("import", typeof(Views.ImportPage));
         Routing.RegisterRoute("careerstats", typeof(Views.CareerStatsPage));
         Routing.RegisterRoute("framestats", typeof(Views.FrameStatsPage));
         Routing.RegisterRoute("achievements", typeof(Views.AchievementsPage));
@@ -19,5 +18,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("playerresults", typeof(Views.PlayerResultsPage));
         Routing.RegisterRoute("seasonsetup", typeof(Views.SeasonSetupPage));
         Routing.RegisterRoute("search", typeof(Views.SearchPage));
+        Routing.RegisterRoute("smartimport", typeof(Views.SmartImportPage));
     }
 }

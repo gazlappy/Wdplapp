@@ -90,31 +90,81 @@ namespace Wdpl2.Services
             var result = new ParsedSqlData();
             var tempResult = new SqlImportResult();
 
+            // Validate file before attempting to read
+            var (isValid, fileError) = DataStore.ValidateImportFile(sqlFilePath);
+            if (!isValid)
+                throw new Exception(fileError);
+
             try
             {
-                var sqlContent = await File.ReadAllTextAsync(sqlFilePath);
+                // Detect encoding - older SQL dumps may use Latin1/Windows-1252
+                var encoding = DetectFileEncoding(sqlFilePath);
+                var sqlContent = await File.ReadAllTextAsync(sqlFilePath, encoding);
                 result.DetectedDialect = DetectSqlDialect(sqlContent);
                 sqlContent = CleanSqlContent(sqlContent);
                 result.Tables = ParseSqlContent(sqlContent, tempResult);
-                
+
                 // Build player ID-to-name lookup from tblplayers
                 BuildPlayerLookups(result);
-                
+
                 // Build team ID-to-name lookup from tblteams (if available in SQL)
                 BuildTeamLookups(result);
-                
+
                 // If no team names found in SQL, try loading from VBA_Data files
                 if (result.TeamIdToName.Count == 0)
                 {
                     LoadVbaTeamData(result, Path.GetDirectoryName(sqlFilePath));
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not InvalidOperationException)
             {
                 throw new Exception($"Failed to parse SQL file: {ex.Message}", ex);
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Detect file encoding by checking for BOM or falling back to UTF-8.
+        /// </summary>
+        private static System.Text.Encoding DetectFileEncoding(string filePath)
+        {
+            try
+            {
+                var bom = new byte[4];
+                using var fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var bytesRead = fs.Read(bom, 0, 4);
+
+                if (bytesRead >= 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+                    return System.Text.Encoding.UTF8;
+                if (bytesRead >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
+                    return System.Text.Encoding.Unicode; // UTF-16 LE
+                if (bytesRead >= 2 && bom[0] == 0xFE && bom[1] == 0xFF)
+                    return System.Text.Encoding.BigEndianUnicode; // UTF-16 BE
+
+                // No BOM - read a sample and check for non-UTF8 bytes
+                fs.Position = 0;
+                var sample = new byte[Math.Min(8192, fs.Length)];
+                fs.Read(sample, 0, sample.Length);
+
+                // Try UTF-8 first; if it decodes cleanly, use it
+                try
+                {
+                    var utf8 = new System.Text.UTF8Encoding(false, true);
+                    utf8.GetString(sample);
+                    return System.Text.Encoding.UTF8;
+                }
+                catch (System.Text.DecoderFallbackException)
+                {
+                    // Not valid UTF-8, fall back to Windows-1252 (common for old Access/VBA exports)
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    return System.Text.Encoding.GetEncoding(1252);
+                }
+            }
+            catch
+            {
+                return System.Text.Encoding.UTF8;
+            }
         }
 
         /// <summary>
@@ -293,19 +343,31 @@ namespace Wdpl2.Services
             var result = new SqlImportResult();
             var importedData = new LeagueData();
 
+            // Validate file before importing
+            var (isValid, fileError) = DataStore.ValidateImportFile(sqlFilePath);
+            if (!isValid)
+            {
+                result.Errors.Add(fileError ?? "Invalid file");
+                result.Success = false;
+                return (importedData, result);
+            }
+
+            // Create snapshot so we can roll back on failure
+            DataStore.CreatePreImportSnapshot();
+
             try
             {
                 // Parse SQL
                 var parsed = await ParseSqlFileAsync(sqlFilePath);
                 result.DetectedDialect = parsed.DetectedDialect;
-                
+
                 // Store name lookups in result for reference
                 result.VbaPlayerIdToName = new Dictionary<int, string>(parsed.PlayerIdToName);
                 result.VbaTeamIdToName = new Dictionary<int, string>(parsed.TeamIdToName);
 
                 // Import in order of dependencies
                 await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result);
-                
+
                 if (result.DetectedSeason != null)
                 {
                     await ImportDivisions(parsed.Tables, importedData, existingData, result);
@@ -314,7 +376,7 @@ namespace Wdpl2.Services
                     await ImportPlayers(parsed, importedData, existingData, result);
                     await ImportFixtures(parsed.Tables, importedData, existingData, result);
                     await ImportResults(parsed.Tables, importedData, existingData, result);
-                    
+
                     // Import competitions (after players/teams are imported so we can link participants)
                     await ImportCompetitions(parsed.Tables, importedData, existingData, result);
                 }
@@ -324,11 +386,24 @@ namespace Wdpl2.Services
                 }
 
                 result.Success = result.Errors.Count == 0;
+
+                if (result.Success)
+                {
+                    DataStore.ClearPreImportSnapshot();
+                }
+                else
+                {
+                    // Partial import with errors - roll back to prevent corrupted state
+                    DataStore.RestorePreImportSnapshot();
+                }
             }
             catch (Exception ex)
             {
                 result.Errors.Add($"Fatal error: {ex.Message}");
                 result.Success = false;
+
+                // Roll back on unhandled exception
+                DataStore.RestorePreImportSnapshot();
             }
 
             return (importedData, result);
@@ -455,7 +530,7 @@ namespace Wdpl2.Services
                     .Select(c => c.Trim().Trim('`', '\'', '"'))
                     .ToList();
 
-                // Extract VALUES
+                // Extract VALUES section
                 var valuesPattern = @"VALUES\s*(\(.+\))";
                 var valuesMatch = Regex.Match(statement, valuesPattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
                 if (!valuesMatch.Success)
@@ -465,20 +540,20 @@ namespace Wdpl2.Services
                 }
 
                 var valuesSection = valuesMatch.Groups[1].Value;
-                
-                // Parse each row
-                var rowPattern = @"\(([^)]+)\)";
-                var rowMatches = Regex.Matches(valuesSection, rowPattern);
+
+                // Parse each row using quote-aware parenthesis matching
+                // (handles values containing parentheses, e.g. 'Team (A)')
+                var rowStrings = SplitValueRows(valuesSection);
 
                 if (!tables.ContainsKey(tableName))
                 {
                     tables[tableName] = new List<Dictionary<string, string>>();
                 }
 
-                foreach (Match rowMatch in rowMatches)
+                foreach (var rowContent in rowStrings)
                 {
-                    var values = SplitValues(rowMatch.Groups[1].Value);
-                    
+                    var values = SplitValues(rowContent);
+
                     if (values.Count != columns.Count)
                     {
                         result.Warnings.Add($"Column/value count mismatch in table {tableName}: {columns.Count} columns vs {values.Count} values");
@@ -498,6 +573,66 @@ namespace Wdpl2.Services
             {
                 result.Warnings.Add($"Error parsing INSERT statement: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Split a VALUES section like "(v1,v2),(v3,v4)" into individual row content strings,
+        /// correctly handling quoted strings that may contain parentheses.
+        /// </summary>
+        private static List<string> SplitValueRows(string valuesSection)
+        {
+            var rows = new List<string>();
+            bool inQuotes = false;
+            char quoteChar = '\0';
+            int depth = 0;
+            int rowStart = -1;
+
+            for (int i = 0; i < valuesSection.Length; i++)
+            {
+                char c = valuesSection[i];
+
+                if ((c == '\'' || c == '"') && (i == 0 || valuesSection[i - 1] != '\\'))
+                {
+                    if (!inQuotes)
+                    {
+                        inQuotes = true;
+                        quoteChar = c;
+                    }
+                    else if (c == quoteChar)
+                    {
+                        // Handle escaped quotes like '' in SQL
+                        if (i + 1 < valuesSection.Length && valuesSection[i + 1] == quoteChar)
+                        {
+                            i++; // Skip the escaped quote
+                        }
+                        else
+                        {
+                            inQuotes = false;
+                            quoteChar = '\0';
+                        }
+                    }
+                }
+                else if (!inQuotes)
+                {
+                    if (c == '(')
+                    {
+                        depth++;
+                        if (depth == 1)
+                            rowStart = i + 1;
+                    }
+                    else if (c == ')')
+                    {
+                        depth--;
+                        if (depth == 0 && rowStart >= 0)
+                        {
+                            rows.Add(valuesSection.Substring(rowStart, i - rowStart));
+                            rowStart = -1;
+                        }
+                    }
+                }
+            }
+
+            return rows;
         }
 
         private static List<string> SplitValues(string valuesString)

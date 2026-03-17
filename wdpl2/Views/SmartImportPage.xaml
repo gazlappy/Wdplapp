@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.SmartImportPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Smart Import">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Header -->
+        <Border Grid.Row="0"
+                BackgroundColor="{StaticResource PrimaryColor}"
+                Padding="20,16">
+            <VerticalStackLayout Spacing="8">
+                <HorizontalStackLayout Spacing="8">
+                    <Label Text="🔍"
+                           FontSize="22"
+                           VerticalOptions="Center"/>
+                    <Label Text="Smart Import"
+                           TextColor="White"
+                           FontAttributes="Bold"
+                           FontSize="20"
+                           VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+
+                <!-- Step Indicator -->
+                <Grid x:Name="StepIndicator" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <Border x:Name="Step1Border" Grid.Column="0"
+                            BackgroundColor="White"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step1Icon" Text="1"
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step1Label" Text="Scan"
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border x:Name="Step2Border" Grid.Column="1"
+                            BackgroundColor="#FFFFFF40"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step2Icon" Text="2"
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step2Label" Text="Review"
+                                   TextColor="White"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border x:Name="Step3Border" Grid.Column="2"
+                            BackgroundColor="#FFFFFF40"
+                            Padding="8,4"
+                            StrokeThickness="0">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label x:Name="Step3Icon" Text="3"
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="Step3Label" Text="Import"
+                                   TextColor="White"
+                                   FontSize="12"
+                                   VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- Content Area -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="0">
+
+                <!-- STEP 1: Scan Locations -->
+                <VerticalStackLayout x:Name="Step1Content"
+                                     Padding="20"
+                                     Spacing="16"
+                                     IsVisible="True">
+
+                    <Label Text="Search for Pool League Files"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,0"/>
+                    <Label Text="Select folders to scan for importable league data files. The scanner will search subfolders automatically."
+                           TextColor="{StaticResource Gray600}"
+                           FontSize="13"
+                           Margin="0,0,0,8"/>
+
+                    <!-- Scan Locations -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <VerticalStackLayout Padding="16" Spacing="8">
+                            <Label Text="Scan Locations"
+                                   FontAttributes="Bold"
+                                   FontSize="14"/>
+                            <VerticalStackLayout x:Name="LocationsPanel" Spacing="6"/>
+
+                            <Button x:Name="AddFolderButton"
+                                    Text="＋ Add Custom Folder"
+                                    Clicked="OnAddFolderClicked"
+                                    BackgroundColor="Transparent"
+                                    TextColor="{StaticResource PrimaryColor}"
+                                    FontAttributes="Bold"
+                                    HorizontalOptions="Start"
+                                    Padding="0,8"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- File Types Info -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#F0FDF4">
+                        <VerticalStackLayout Padding="16" Spacing="4">
+                            <Label Text="Files We're Looking For"
+                                   FontAttributes="Bold"
+                                   FontSize="14"/>
+                            <Label Text="🗄️ Access (.mdb/.accdb)  🗃️ SQL (.sql)  📁 Paradox (.DB)"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray700}"/>
+                            <Label Text="🌐 HTML (.html/.htm)  📊 Excel (.xlsx/.csv)  📄 Word (.docx)"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray700}"/>
+                            <Label Text="📕 PDF (.pdf)"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray700}"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Scan Button -->
+                    <Button x:Name="ScanButton"
+                            Text="🔍 Start Scanning"
+                            Clicked="OnScanClicked"
+                            BackgroundColor="{StaticResource PrimaryColor}"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            FontSize="16"
+                            Padding="20,14"
+                            HorizontalOptions="Fill"/>
+
+                    <!-- Scanning Progress (hidden initially) -->
+                    <Border x:Name="ScanProgressPanel"
+                            Style="{StaticResource CardBorderStyle}"
+                            IsVisible="False">
+                        <VerticalStackLayout Padding="20" Spacing="12">
+                            <ActivityIndicator x:Name="ScanSpinner"
+                                               IsRunning="True"
+                                               Color="{StaticResource PrimaryColor}"
+                                               HeightRequest="40"/>
+                            <Label x:Name="ScanProgressLabel"
+                                   Text="Scanning..."
+                                   HorizontalOptions="Center"
+                                   FontSize="14"/>
+                            <Label x:Name="ScanCountLabel"
+                                   Text="0 files found"
+                                   HorizontalOptions="Center"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray600}"/>
+                            <Button x:Name="CancelScanButton"
+                                    Text="Cancel Scan"
+                                    Clicked="OnCancelScanClicked"
+                                    BackgroundColor="{StaticResource Gray400}"
+                                    TextColor="White"
+                                    HorizontalOptions="Center"
+                                    Padding="16,10"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- STEP 2: Review Discovered Files -->
+                <VerticalStackLayout x:Name="Step2Content"
+                                     Padding="20"
+                                     Spacing="16"
+                                     IsVisible="False">
+
+                    <Label x:Name="ReviewTitle"
+                           Text="Discovered Files"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,0"/>
+
+                    <!-- Summary Banner -->
+                    <Border x:Name="SummaryBanner"
+                            Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#EFF6FF"
+                            Stroke="#3B82F6"
+                            StrokeThickness="1">
+                        <VerticalStackLayout Padding="16" Spacing="4">
+                            <Label x:Name="SummaryLabel"
+                                   Text=""
+                                   FontSize="14"
+                                   FontAttributes="Bold"/>
+                            <Label x:Name="SummaryDetailLabel"
+                                   Text=""
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray700}"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Season Groups -->
+                    <VerticalStackLayout x:Name="SeasonGroupsPanel" Spacing="12"/>
+
+                </VerticalStackLayout>
+
+                <!-- STEP 3: Import Progress & Results -->
+                <VerticalStackLayout x:Name="Step3Content"
+                                     Padding="20"
+                                     Spacing="16"
+                                     IsVisible="False">
+
+                    <Label x:Name="ImportTitle"
+                           Text="Importing..."
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           Margin="0,8,0,16"/>
+
+                    <!-- Import Progress -->
+                    <Border x:Name="ImportProgressPanel"
+                            Style="{StaticResource CardBorderStyle}"
+                            IsVisible="False">
+                        <VerticalStackLayout Padding="20" Spacing="12">
+                            <ActivityIndicator IsRunning="True"
+                                               Color="{StaticResource PrimaryColor}"
+                                               HeightRequest="40"/>
+                            <Label x:Name="ImportProgressLabel"
+                                   Text="Processing..."
+                                   HorizontalOptions="Center"
+                                   FontSize="14"/>
+                            <Label x:Name="ImportDetailLabel"
+                                   Text=""
+                                   HorizontalOptions="Center"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray600}"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Results Area -->
+                    <VerticalStackLayout x:Name="ResultsArea" Spacing="12"/>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Navigation Buttons -->
+        <Border Grid.Row="2"
+                BackgroundColor="{StaticResource Gray100}"
+                Padding="20,16"
+                StrokeThickness="0">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <Button x:Name="BackButton"
+                        Text="← Back"
+                        Clicked="OnBackClicked"
+                        BackgroundColor="{StaticResource Gray500}"
+                        TextColor="White"
+                        IsVisible="False"
+                        Padding="16,12"/>
+
+                <Button Grid.Column="1"
+                        x:Name="CancelButton"
+                        Text="Cancel"
+                        Clicked="OnCancelClicked"
+                        BackgroundColor="{StaticResource Gray400}"
+                        TextColor="White"
+                        Padding="16,12"/>
+
+                <Button Grid.Column="2"
+                        x:Name="NextButton"
+                        Text="Import Selected →"
+                        Clicked="OnImportClicked"
+                        BackgroundColor="{StaticResource PrimaryColor}"
+                        TextColor="White"
+                        IsVisible="False"
+                        FontAttributes="Bold"
+                        Padding="16,12"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

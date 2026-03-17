@@ -155,8 +155,9 @@ public partial class HistoricalImportPage : ContentPage
                 await ProcessParadoxFolderAsync(folderPath);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Paradox FolderPicker failed: {ex.Message}");
             // FolderPicker might not be available on all platforms
             var manualPath = await DisplayPromptAsync(
                 "Enter Folder Path",
@@ -182,6 +183,15 @@ public partial class HistoricalImportPage : ContentPage
                 await DisplayAlert("Error", $"Folder not found: {manualPath}", "OK");
             }
         }
+    }
+
+    /// <summary>
+    /// Opens the Smart Import page for automatic file discovery and season merging
+    /// </summary>
+    private async void OnSmartImportClicked(object? sender, EventArgs e)
+    {
+        var smartImportPage = new SmartImportPage();
+        await Navigation.PushAsync(smartImportPage);
     }
 
     /// <summary>
@@ -474,8 +484,9 @@ public partial class HistoricalImportPage : ContentPage
                 await ScanFolderForFilesAsync(folderPath, extensions, includeSubfolders: true);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"FolderPicker failed: {ex.Message}");
             // FolderPicker might not be available on all platforms
             // Fall back to manual path entry
             var manualPath = await DisplayPromptAsync(
@@ -605,9 +616,14 @@ public partial class HistoricalImportPage : ContentPage
                         }
                     }
                 }
-                catch
+                catch (UnauthorizedAccessException)
                 {
-                    // Skip folders we can't access
+                    // Skip folders we can't access - this is expected
+                    System.Diagnostics.Debug.WriteLine($"Auto-search: access denied to {path}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Auto-search error scanning {path}: {ex.Message}");
                 }
             }
 
@@ -823,18 +839,68 @@ public partial class HistoricalImportPage : ContentPage
         var file = _selectedFiles.FirstOrDefault();
         if (file == null) return;
 
+        // Validate file before import
+        var (isValid, fileError) = DataStore.ValidateImportFile(file.FilePath);
+        if (!isValid)
+        {
+            await DisplayAlert("Invalid File", fileError, "OK");
+            ResetWizard();
+            return;
+        }
+
         ProgressMessage.Text = "Importing Access database...";
 
-        // Navigate to existing import page (if you have one) or process inline
-        await DisplayAlert("Access Import", "Access database import will be processed", "OK");
-        
-        ShowSuccessResult("Access Database Imported", "Database imported successfully!");
+        try
+        {
+            // Create snapshot for rollback
+            DataStore.CreatePreImportSnapshot();
+
+            var importer = new ActualDatabaseImporterV2(file.FilePath);
+            var (data, summary) = await importer.ImportAllAsync();
+
+            ProgressPanel.IsVisible = false;
+
+            if (summary.Success)
+            {
+                // Merge imported data into the main DataStore
+                DataStore.Data.Seasons.AddRange(data.Seasons);
+                DataStore.Data.Divisions.AddRange(data.Divisions);
+                DataStore.Data.Venues.AddRange(data.Venues);
+                DataStore.Data.Teams.AddRange(data.Teams);
+                DataStore.Data.Players.AddRange(data.Players);
+                DataStore.Data.Fixtures.AddRange(data.Fixtures);
+                DataStore.Save();
+                DataStore.ClearPreImportSnapshot();
+
+                ShowSuccessResult("Access Database Imported", summary.Summary);
+            }
+            else
+            {
+                DataStore.RestorePreImportSnapshot();
+                await DisplayAlert("Import Failed", summary.Message, "OK");
+                ResetWizard();
+            }
+        }
+        catch (Exception ex)
+        {
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Import Failed", $"Access import error: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
+            ResetWizard();
+        }
     }
 
     private async Task ProcessWordDocumentAsync()
     {
         var file = _selectedFiles.FirstOrDefault();
         if (file == null) return;
+
+        var (isValid, fileError) = DataStore.ValidateImportFile(file.FilePath);
+        if (!isValid)
+        {
+            await DisplayAlert("Invalid File", fileError, "OK");
+            ResetWizard();
+            return;
+        }
 
         ProgressMessage.Text = "Extracting data from Word document...";
 
@@ -850,7 +916,16 @@ public partial class HistoricalImportPage : ContentPage
         var file = _selectedFiles.FirstOrDefault();
         if (file == null) return;
 
+        var (isValid, fileError) = DataStore.ValidateImportFile(file.FilePath);
+        if (!isValid)
+        {
+            await DisplayAlert("Invalid File", fileError, "OK");
+            ResetWizard();
+            return;
+        }
+
         ProgressMessage.Text = "Processing spreadsheet...";
+        DataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -887,7 +962,9 @@ public partial class HistoricalImportPage : ContentPage
                             await ImportVenuesFromTable(table, importStats);
                         }
                     }
-                    
+
+                    DataStore.Save();
+                    DataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("Spreadsheet Imported", 
                         $"Successfully processed {result.Tables.Count} tables:\n" +
                         $"� Teams: {importStats.TeamsImported}\n" +
@@ -896,11 +973,13 @@ public partial class HistoricalImportPage : ContentPage
                 }
                 else
                 {
+                    DataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
+                DataStore.ClearPreImportSnapshot();
                 var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
                     : "No tables found in spreadsheet";
@@ -910,7 +989,8 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Failed to process spreadsheet: {ex.Message}", "OK");
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Error", $"Failed to process spreadsheet: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
     }
@@ -920,7 +1000,16 @@ public partial class HistoricalImportPage : ContentPage
         var file = _selectedFiles.FirstOrDefault();
         if (file == null) return;
 
+        var (isValid, fileError) = DataStore.ValidateImportFile(file.FilePath);
+        if (!isValid)
+        {
+            await DisplayAlert("Invalid File", fileError, "OK");
+            ResetWizard();
+            return;
+        }
+
         ProgressMessage.Text = "Parsing HTML file...";
+        DataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -986,16 +1075,20 @@ public partial class HistoricalImportPage : ContentPage
                     if (importStats.VenuesImported > 0) resultSummary.AppendLine($"� Venues: {importStats.VenuesImported}");
                     if (importStats.FixturesImported > 0) resultSummary.AppendLine($"� Fixtures: {importStats.FixturesImported}");
                     if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"� Competitions: {importStats.CompetitionsImported}");
-                    
+
+                    DataStore.Save();
+                    DataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("HTML Imported", resultSummary.ToString());
                 }
                 else
                 {
+                    DataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
+                DataStore.ClearPreImportSnapshot();
                 await DisplayAlert("No Data Found", 
                     "Could not find any league data in this HTML file.\n\n" +
                     "Make sure the file contains tables with standings, results, or fixtures.", 
@@ -1005,7 +1098,8 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Failed to parse HTML: {ex.Message}", "OK");
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Error", $"Failed to parse HTML: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
     }
@@ -1031,7 +1125,16 @@ public partial class HistoricalImportPage : ContentPage
         var file = _selectedFiles.FirstOrDefault();
         if (file == null) return;
 
+        var (isValid, fileError) = DataStore.ValidateImportFile(file.FilePath);
+        if (!isValid)
+        {
+            await DisplayAlert("Invalid File", fileError, "OK");
+            ResetWizard();
+            return;
+        }
+
         ProgressMessage.Text = "Extracting data from PDF...";
+        DataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -1089,24 +1192,29 @@ public partial class HistoricalImportPage : ContentPage
                 {
                     // Try to parse the extracted text into structured data
                     var importResult = await ImportPdfDataAsync(result);
-                    
+
                     if (importResult.success)
                     {
+                        DataStore.Save();
+                        DataStore.ClearPreImportSnapshot();
                         ShowSuccessResult("PDF Imported", importResult.message);
                     }
                     else
                     {
+                        DataStore.RestorePreImportSnapshot();
                         await DisplayAlert("Import Issue", importResult.message, "OK");
                         ResetWizard();
                     }
                 }
                 else
                 {
+                    DataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
+                DataStore.ClearPreImportSnapshot();
                 // PDF parsing had errors or no content
                 var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
@@ -1124,7 +1232,8 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Failed to process PDF: {ex.Message}", "OK");
+            DataStore.RestorePreImportSnapshot();
+            await DisplayAlert("Error", $"Failed to process PDF: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
     }
@@ -1328,7 +1437,6 @@ public partial class HistoricalImportPage : ContentPage
             stats.TeamsImported++;
         }
 
-        DataStore.Save();
         return Task.CompletedTask;
     }
 
@@ -1390,9 +1498,6 @@ public partial class HistoricalImportPage : ContentPage
             stats.PlayersImported++;
         }
 
-        if (stats.PlayersImported > 0)
-            DataStore.Save();
-
         return Task.CompletedTask;
     }
 
@@ -1439,27 +1544,100 @@ public partial class HistoricalImportPage : ContentPage
                 stats.VenuesImported++;
             }
         }
-        
-        DataStore.Save();
+
         return Task.CompletedTask;
     }
 
     private Task ImportLeagueStandings(System.Collections.Generic.List<LeagueStandingRow> standings, ImportStats stats)
     {
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        if (!currentSeasonId.HasValue) return Task.CompletedTask;
+
+        // Get or create a default division
+        var division = DataStore.Data.Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
+        if (division == null)
+        {
+            division = new Division
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                Name = "Imported Division"
+            };
+            DataStore.Data.Divisions.Add(division);
+        }
+
         foreach (var standing in standings)
         {
             if (string.IsNullOrWhiteSpace(standing.TeamName)) continue;
+
+            // Check if team already exists in this season
+            var existingTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+                t.SeasonId == currentSeasonId &&
+                !string.IsNullOrWhiteSpace(t.Name) &&
+                t.Name.Equals(standing.TeamName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingTeam != null) continue;
+
+            var team = new Team
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                Name = standing.TeamName,
+                DivisionId = division.Id
+            };
+            DataStore.Data.Teams.Add(team);
             stats.TeamsImported++;
         }
+
         return Task.CompletedTask;
     }
 
     private Task ImportMatchResults(System.Collections.Generic.List<MatchResultRow> results, ImportStats stats)
     {
-        foreach (var result in results)
+        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        if (!currentSeasonId.HasValue) return Task.CompletedTask;
+
+        foreach (var matchResult in results)
         {
+            if (string.IsNullOrWhiteSpace(matchResult.HomeTeam) || string.IsNullOrWhiteSpace(matchResult.AwayTeam))
+                continue;
+
+            // Find home and away teams
+            var homeTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+                t.SeasonId == currentSeasonId &&
+                !string.IsNullOrWhiteSpace(t.Name) &&
+                t.Name.Equals(matchResult.HomeTeam, StringComparison.OrdinalIgnoreCase));
+
+            var awayTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+                t.SeasonId == currentSeasonId &&
+                !string.IsNullOrWhiteSpace(t.Name) &&
+                t.Name.Equals(matchResult.AwayTeam, StringComparison.OrdinalIgnoreCase));
+
+            if (homeTeam == null || awayTeam == null) continue;
+
+            var fixtureDate = matchResult.Date ?? DateTime.Today;
+
+            // Check for duplicate fixture
+            var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
+                f.SeasonId == currentSeasonId &&
+                f.Date.Date == fixtureDate.Date &&
+                f.HomeTeamId == homeTeam.Id &&
+                f.AwayTeamId == awayTeam.Id);
+
+            if (existingFixture != null) continue;
+
+            var fixture = new Fixture
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = currentSeasonId,
+                Date = fixtureDate,
+                HomeTeamId = homeTeam.Id,
+                AwayTeamId = awayTeam.Id
+            };
+            DataStore.Data.Fixtures.Add(fixture);
             stats.FixturesImported++;
         }
+
         return Task.CompletedTask;
     }
 
@@ -1576,11 +1754,6 @@ public partial class HistoricalImportPage : ContentPage
             stats.CompetitionsImported++;
         }
 
-        if (stats.CompetitionsImported > 0)
-        {
-            DataStore.Save();
-        }
-
         return Task.CompletedTask;
     }
 
@@ -1683,65 +1856,62 @@ public partial class HistoricalImportPage : ContentPage
                 }
             }
         }
-        
-        if (stats.VenuesImported > 0)
-        {
-            DataStore.Save();
-        }
-        
+
         return Task.CompletedTask;
     }
 
     private Task ExtractVenuesFromText(System.Collections.Generic.List<string> textContent, ImportStats stats)
     {
-        // Common venue indicators
-        var venueKeywords = new[] { "pub", "club", "arms", "inn", "tavern", "hall", "bar", "lounge", "sports" };
-        
+        // Match venue-like names using word boundaries to avoid false positives
+        // (e.g. "published" shouldn't match "pub")
+        var venuePatterns = new[] { @"\bpub\b", @"\bclub\b", @"\barms\b", @"\binn\b", @"\btavern\b", @"\bhall\b", @"\blounge\b", @"\bsports\s+bar\b" };
+
         foreach (var line in textContent)
         {
-            var lower = line.ToLower();
-            
-            // Check if line contains venue keywords
-            if (venueKeywords.Any(k => lower.Contains(k)))
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.Length < 5 || trimmed.Length > 100) continue;
+
+            var lower = trimmed.ToLower();
+
+            // Check if line matches a venue pattern (word boundary match)
+            if (!venuePatterns.Any(p => System.Text.RegularExpressions.Regex.IsMatch(lower, p)))
+                continue;
+
+            // Skip lines that look like sentences or paragraphs (too many words)
+            var wordCount = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+            if (wordCount > 8) continue;
+
+            var venueName = trimmed;
+
+            // Clean up common prefixes
+            foreach (var prefix in new[] { "at ", "venue: ", "home: ", "@ " })
             {
-                // Try to extract the venue name
-                var venueName = line.Trim();
-                
-                // Clean up common prefixes
-                foreach (var prefix in new[] { "at ", "venue: ", "home: ", "@" })
+                if (lower.StartsWith(prefix))
                 {
-                    if (lower.StartsWith(prefix))
-                    {
-                        venueName = line.Substring(prefix.Length).Trim();
-                        break;
-                    }
-                }
-                
-                if (string.IsNullOrWhiteSpace(venueName) || venueName.Length < 3) continue;
-                
-                // Check if venue already exists
-                var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
-                    v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
-                
-                if (existingVenue == null)
-                {
-                    var venue = new Venue
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = venueName,
-                        SeasonId = SeasonService.Current.CurrentSeasonId
-                    };
-                    DataStore.Data.Venues.Add(venue);
-                    stats.VenuesImported++;
+                    venueName = trimmed.Substring(prefix.Length).Trim();
+                    break;
                 }
             }
+
+            if (string.IsNullOrWhiteSpace(venueName) || venueName.Length < 3) continue;
+
+            // Check if venue already exists
+            var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
+
+            if (existingVenue == null)
+            {
+                var venue = new Venue
+                {
+                    Id = Guid.NewGuid(),
+                    Name = venueName,
+                    SeasonId = SeasonService.Current.CurrentSeasonId
+                };
+                DataStore.Data.Venues.Add(venue);
+                stats.VenuesImported++;
+            }
         }
-        
-        if (stats.VenuesImported > 0)
-        {
-            DataStore.Save();
-        }
-        
+
         return Task.CompletedTask;
     }
 
@@ -1937,11 +2107,14 @@ public partial class HistoricalImportPage : ContentPage
         ProgressMessage.Text = "Importing Paradox data...";
         Step3Title.Text = "Importing...";
 
+        // Create snapshot for rollback
+        DataStore.CreatePreImportSnapshot();
+
         try
         {
             // Create the importer (V3)
             var importer = new ParadoxDatabaseImporterV3(folderPath);
-            
+
             // Run the import
             var (data, summary) = await importer.ImportAllAsync();
 
@@ -1959,6 +2132,7 @@ public partial class HistoricalImportPage : ContentPage
                 DataStore.Data.Players.AddRange(data.Players);
                 DataStore.Data.Fixtures.AddRange(data.Fixtures);
                 DataStore.Save();
+                DataStore.ClearPreImportSnapshot();
 
                 // Show summary
                 var resultText = new System.Text.StringBuilder();
@@ -2021,6 +2195,8 @@ public partial class HistoricalImportPage : ContentPage
             }
             else
             {
+                // Rollback on failure
+                DataStore.RestorePreImportSnapshot();
                 Step3Title.Text = "ℹ️ Import Failed";
 
                 var errorLabel = new Label
@@ -2090,12 +2266,15 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
+            // Rollback on unhandled exception
+            DataStore.RestorePreImportSnapshot();
+
             ProgressPanel.IsVisible = false;
             Step3Title.Text = "Import Failed";
 
             var errorLabel = new Label
             {
-                Text = $"❌ Error: {ex.Message}",
+                Text = $"❌ Error: {ex.Message}\n\nYour data has been restored to its previous state.",
                 TextColor = Microsoft.Maui.Graphics.Color.FromArgb("#EF4444"),
                 FontSize = 14,
                 Margin = new Thickness(0, 16)
