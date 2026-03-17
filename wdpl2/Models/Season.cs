@@ -37,6 +37,12 @@ namespace Wdpl2.Models
         /// </summary>
         public int FramesPerMatch { get; set; } = 0;
 
+        /// <summary>Optional transfer window start date. Null = no restriction.</summary>
+        public DateTime? TransferWindowStart { get; set; }
+
+        /// <summary>Optional transfer window end date. Null = no restriction.</summary>
+        public DateTime? TransferWindowEnd { get; set; }
+
         /// <summary>When this record was created.</summary>
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 

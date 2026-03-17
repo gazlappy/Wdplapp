@@ -212,6 +212,11 @@ namespace Wdpl2.Models
         /// </summary>
         public List<PlayerTransfer> TransferHistory { get; set; } = new();
 
+        /// <summary>
+        /// Per-date availability records for this player.
+        /// </summary>
+        public List<PlayerAvailability> Availability { get; set; } = new();
+
         public string? Notes { get; set; }
 
         /// <summary>When this record was created.</summary>
@@ -305,5 +310,24 @@ namespace Wdpl2.Models
         public string Label { get; set; } = "";
         public int MaxTeams { get; set; } = 2;
         public override string ToString() => Label;
+    }
+
+    // ---------- PlayerAvailability ----------
+    /// <summary>
+    /// Tracks a player's availability for a specific match date.
+    /// </summary>
+    public sealed class PlayerAvailability
+    {
+        public DateTime Date { get; set; }
+        public AvailabilityStatus Status { get; set; } = AvailabilityStatus.Unknown;
+        public string? Reason { get; set; }
+    }
+
+    public enum AvailabilityStatus
+    {
+        Unknown,
+        Available,
+        Unavailable,
+        Maybe
     }
 }

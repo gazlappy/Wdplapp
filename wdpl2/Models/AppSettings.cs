@@ -94,6 +94,22 @@ namespace Wdpl2.Models
         /// <summary>Default number of times teams play each other (default 2).</summary>
         public int DefaultRoundsPerOpponent { get; set; } = 2;
 
+        // ========== League Table Settings ==========
+
+        /// <summary>Number of promotion places per division (0 = disabled).</summary>
+        public int PromotionSlots { get; set; } = 0;
+
+        /// <summary>Number of relegation places per division (0 = disabled).</summary>
+        public int RelegationSlots { get; set; } = 0;
+
+        // ========== Backup Settings ==========
+
+        /// <summary>Enable auto-backup every N saves (default true).</summary>
+        public bool AutoBackupEnabled { get; set; } = true;
+
+        /// <summary>Number of saves between auto-backups (default 5).</summary>
+        public int AutoBackupInterval { get; set; } = 5;
+
         // ========== Notification Settings (Phase 3) ==========
 
         /// <summary>Enable/disable automatic match reminder notifications (default true).</summary>
@@ -148,6 +164,14 @@ namespace Wdpl2.Models
             DefaultMatchDay = DayOfWeek.Tuesday;
             DefaultMatchTime = new TimeSpan(19, 30, 0);
             DefaultRoundsPerOpponent = 2;
+
+            // League Table
+            PromotionSlots = 0;
+            RelegationSlots = 0;
+
+            // Backup
+            AutoBackupEnabled = true;
+            AutoBackupInterval = 5;
 
             // Notification Settings
             MatchRemindersEnabled = true;

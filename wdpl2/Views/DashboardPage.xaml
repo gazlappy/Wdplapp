@@ -153,6 +153,54 @@
                     </HorizontalStackLayout>
                 </Border>
 
+                <!-- Player of the Month -->
+                <Border StrokeShape="RoundRectangle 10" Padding="16"
+                        BackgroundColor="{AppThemeBinding Light=#FDF2F8, Dark=#500724}"
+                        Stroke="{AppThemeBinding Light=#FBCFE8, Dark=#831843}" StrokeThickness="1">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="⭐ Player of the Month" FontSize="13" FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light=#831843, Dark=#F9A8D4}" />
+                        <Label Text="{Binding PlayerOfTheMonth}" FontSize="16"
+                               TextColor="{AppThemeBinding Light=#000, Dark=#FFF}" />
+                        <Label Text="{Binding PlayerOfTheMonthStats}" FontSize="12"
+                               TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Recent Results Feed -->
+                <Border StrokeShape="RoundRectangle 10" Padding="16"
+                        BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+                        Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="📋 Recent Results" FontSize="13" FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}" />
+                        <Label Text="{Binding RecentResults}" FontSize="13" LineBreakMode="WordWrap"
+                               TextColor="{AppThemeBinding Light=#000, Dark=#FFF}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Quick Actions -->
+                <Label Text="Quick Actions" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0"
+                       TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}" />
+                <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Start" Direction="Row">
+                    <Button Text="📅 Match Day" Margin="4"
+                            BackgroundColor="{AppThemeBinding Light=#0284C7, Dark=#0369A1}"
+                            TextColor="White" FontSize="12" CornerRadius="8" Padding="12,8"
+                            Clicked="OnMatchDayClicked" />
+                    <Button Text="📊 League Tables" Margin="4"
+                            BackgroundColor="{AppThemeBinding Light=#16A34A, Dark=#15803D}"
+                            TextColor="White" FontSize="12" CornerRadius="8" Padding="12,8"
+                            Clicked="OnLeagueTablesClicked" />
+                    <Button Text="🔍 Search" Margin="4"
+                            BackgroundColor="{AppThemeBinding Light=#9333EA, Dark=#7E22CE}"
+                            TextColor="White" FontSize="12" CornerRadius="8" Padding="12,8"
+                            Clicked="OnSearchClicked" />
+                    <Button Text="📈 Analytics" Margin="4"
+                            BackgroundColor="{AppThemeBinding Light=#EA580C, Dark=#C2410C}"
+                            TextColor="White" FontSize="12" CornerRadius="8" Padding="12,8"
+                            Clicked="OnAnalyticsClicked" />
+                </FlexLayout>
+
             </VerticalStackLayout>
         </ScrollView>
     </RefreshView>

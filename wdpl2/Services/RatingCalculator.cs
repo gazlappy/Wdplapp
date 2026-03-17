@@ -27,6 +27,10 @@ public static class RatingCalculator
         public int EightBalls { get; set; }
         public int Rating { get; set; } = 1000;
         public double WinPercentage => Played > 0 ? (Wins * 100.0 / Played) : 0;
+        /// <summary>Weekly rating history: week number → rating value.</summary>
+        public Dictionary<int, int> WeeklyRatings { get; set; } = new();
+        /// <summary>Simple sparkline of rating trend using block characters.</summary>
+        public string RatingSparkline { get; set; } = "";
     }
 
     /// <summary>
@@ -222,6 +226,14 @@ public static class RatingCalculator
                 ? fr
                 : settings.RatingStartValue;
 
+            // Build weekly rating history for this player
+            var history = new Dictionary<int, int>();
+            for (int w = 1; w <= finalWeek; w++)
+            {
+                if (weeklyRatings.TryGetValue((playerId, w), out var wr))
+                    history[w] = wr;
+            }
+
             result[playerId] = new PlayerStats
             {
                 PlayerId = playerId,
@@ -233,7 +245,9 @@ public static class RatingCalculator
                 Wins = frames.Count(f => f.Won),
                 Losses = frames.Count(f => !f.Won),
                 EightBalls = frames.Count(f => f.EightBall),
-                Rating = finalRating
+                Rating = finalRating,
+                WeeklyRatings = history,
+                RatingSparkline = GenerateSparkline(history)
             };
         }
 
@@ -277,5 +291,26 @@ public static class RatingCalculator
     {
         var daysSinceStart = (matchDate.Date - seasonStartDate.Date).Days;
         return (daysSinceStart / 7) + 1;
+    }
+
+    /// <summary>
+    /// Generate a sparkline string from weekly rating data using block characters.
+    /// </summary>
+    private static string GenerateSparkline(Dictionary<int, int> weeklyRatings)
+    {
+        if (weeklyRatings.Count < 2) return "";
+
+        var values = weeklyRatings.OrderBy(w => w.Key).Select(w => w.Value).ToList();
+        int min = values.Min();
+        int max = values.Max();
+        if (max == min) return new string('▅', Math.Min(values.Count, 20));
+
+        var blocks = new[] { '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█' };
+        var chars = values.TakeLast(20).Select(v =>
+        {
+            int idx = (int)((double)(v - min) / (max - min) * 7);
+            return blocks[Math.Clamp(idx, 0, 7)];
+        });
+        return new string(chars.ToArray());
     }
 }

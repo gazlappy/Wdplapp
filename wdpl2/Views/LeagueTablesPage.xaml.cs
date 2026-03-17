@@ -35,6 +35,8 @@ public partial class LeagueTablesPage : ContentPage
         public int Diff => F - A;
         public int Ded { get; set; }
         public int Pts { get; set; }
+        /// <summary>Zone background: green=promotion, red=relegation, transparent=mid-table.</summary>
+        public Color ZoneColor { get; set; } = Colors.Transparent;
     }
 
     private sealed class PlayerRow
@@ -271,6 +273,17 @@ public partial class LeagueTablesPage : ContentPage
         for (int i = 0; i < rows.Count; i++)
             rows[i].Pos = i + 1;
 
+        // Assign promotion/relegation zone colours
+        var promoSlots = Settings.PromotionSlots;
+        var relegSlots = Settings.RelegationSlots;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (promoSlots > 0 && rows[i].Pos <= promoSlots)
+                rows[i].ZoneColor = Color.FromArgb("#DCFCE7"); // green – promotion
+            else if (relegSlots > 0 && rows[i].Pos > rows.Count - relegSlots)
+                rows[i].ZoneColor = Color.FromArgb("#FEE2E2"); // red – relegation
+        }
+
         TeamTableList.ItemTemplate = TeamRowTemplate();
         foreach (var r in rows)
             _teamRows.Add(r);
@@ -347,7 +360,8 @@ public partial class LeagueTablesPage : ContentPage
             grid.Add(L(nameof(TeamRow.Pts), TextAlignment.Center, true), 9, 0);
 
             var border = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
-            
+            border.SetBinding(Border.BackgroundColorProperty, new Binding(nameof(TeamRow.ZoneColor)));
+
             // Add tap gesture to navigate to team details
             var tapGesture = new TapGestureRecognizer();
             tapGesture.SetBinding(TapGestureRecognizer.CommandParameterProperty, new Binding("."));

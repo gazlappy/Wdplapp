@@ -335,4 +335,49 @@ public class MatchReminderService
             System.Diagnostics.Debug.WriteLine($"Schedule weekly fixture list error: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Schedule all upcoming match reminders for the current season, respecting AppSettings flags.
+    /// Call this on app startup or after settings change.
+    /// </summary>
+    public async Task SyncRemindersFromSettingsAsync(AppSettings settings, Guid? seasonId)
+    {
+        try
+        {
+            // Cancel everything first
+            await CancelAllMatchRemindersAsync();
+
+            if (!settings.MatchRemindersEnabled || !seasonId.HasValue)
+                return;
+
+            var data = _dataStore.GetData();
+            var fixtures = data.Fixtures?
+                .Where(f => f.SeasonId == seasonId && f.Date > DateTime.Now && f.Frames.Count == 0)
+                .OrderBy(f => f.Date)
+                .Take(50) // limit to next 50 fixtures
+                .ToList();
+
+            if (fixtures == null) return;
+
+            foreach (var fixture in fixtures)
+                await ScheduleFixtureReminderAsync(fixture, settings.ReminderHoursBefore);
+
+            // Weekly fixture list
+            if (settings.WeeklyFixtureListEnabled)
+                await ScheduleWeeklyFixtureListAsync(settings.WeeklyFixtureDay, settings.WeeklyFixtureTime);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SyncRemindersFromSettings error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Conditionally send a result notification if the setting is enabled.
+    /// </summary>
+    public async Task NotifyMatchResultIfEnabledAsync(Fixture fixture, AppSettings settings)
+    {
+        if (!settings.ResultNotificationsEnabled) return;
+        await NotifyMatchResultAsync(fixture);
+    }
 }

@@ -124,6 +124,25 @@ public partial class FixturesPage : ContentPage
         GenerateFixturesBtn.Clicked += async (_, __) => await OnGenerateFixturesAsync();
         DeleteAllBtn.Clicked += async (_, __) => await OnDeleteAllFixturesAsync();
         DeleteSeasonBtn.Clicked += async (_, __) => await OnDeleteActiveSeasonFixturesAsync();
+
+        // Add Reschedule + Undo + Print Scorecard + Bulk Score buttons (defined in XAML flyout)
+        RescheduleBtn.Clicked += async (_, __) => await OnRescheduleFixtureAsync();
+        UndoSaveBtn.Clicked += async (_, __) =>
+        {
+            var confirm = await DisplayAlert("Undo", "Revert to the state before last save?", "Undo", "Cancel");
+            if (!confirm) return;
+            if (DataStore.UndoLastSave())
+            {
+                _selectedFixture = null;
+                ClearScorecard();
+                RefreshList();
+                await DisplayAlert($"{Emojis.Success} Undone", "Reverted to previous save.", "OK");
+            }
+            else
+                await DisplayAlert($"{Emojis.Error} Undo Failed", "No backup available.", "OK");
+        };
+        PrintScorecardBtn.Clicked += async (_, __) => await OnPrintScorecardAsync();
+        BulkScoreBtn.Clicked += async (_, __) => await OnBulkScoreEntryAsync();
         
         if (ManageNotificationsBtn != null)
         {
@@ -1546,6 +1565,24 @@ public partial class FixturesPage : ContentPage
         var playerId = player.Id;
         var playerName = player.FullName ?? $"{player.FirstName} {player.LastName}".Trim();
 
+        // Check availability for this fixture date
+        var availabilityIcon = "";
+        if (_selectedFixture != null)
+        {
+            var matchDate = _selectedFixture.Date.Date;
+            var avail = player.Availability.FirstOrDefault(a => a.Date.Date == matchDate);
+            if (avail != null)
+            {
+                availabilityIcon = avail.Status switch
+                {
+                    AvailabilityStatus.Available => " ✅",
+                    AvailabilityStatus.Unavailable => " ❌",
+                    AvailabilityStatus.Maybe => " ❓",
+                    _ => ""
+                };
+            }
+        }
+
         var border = new Border
         {
             BackgroundColor = Colors.White,
@@ -1595,10 +1632,10 @@ public partial class FixturesPage : ContentPage
         Grid.SetColumn(keyBadge, 0);
         grid.Children.Add(keyBadge);
 
-        // Player name
+        // Player name + availability
         var nameLabel = new Label
         {
-            Text = playerName,
+            Text = playerName + availabilityIcon,
             FontSize = 12,
             TextColor = Color.FromArgb("#1E293B"),
             VerticalTextAlignment = TextAlignment.Center,
@@ -2316,6 +2353,13 @@ public partial class FixturesPage : ContentPage
         UpdateReminderStatus();
         RefreshList();
 
+        // Send result notification if enabled
+        if (_reminderService != null && _selectedFixture.Frames.Count > 0)
+        {
+            try { await _reminderService.NotifyMatchResultIfEnabledAsync(_selectedFixture, DataStore.Data.Settings); }
+            catch { /* non-critical */ }
+        }
+
         await DisplayAlert($"{Emojis.Success} Saved", 
             "Fixture results saved successfully!", "OK");
     }
@@ -2370,6 +2414,90 @@ public partial class FixturesPage : ContentPage
         HighlightCurrentFrame();
         UpdatePlayerFrameCounts();
         UpdateScoreDisplay();
+    }
+
+    private async System.Threading.Tasks.Task OnRescheduleFixtureAsync()
+    {
+        if (_selectedFixture == null)
+        {
+            await DisplayAlert("No Fixture", "Select a fixture to reschedule.", "OK");
+            return;
+        }
+
+        var newDateStr = await DisplayPromptAsync("Reschedule Fixture",
+            $"Current date: {_selectedFixture.Date:ddd dd MMM yyyy}\nEnter new date (dd/MM/yyyy):",
+            placeholder: _selectedFixture.Date.ToString("dd/MM/yyyy"));
+
+        if (string.IsNullOrWhiteSpace(newDateStr)) return;
+
+        if (!DateTime.TryParseExact(newDateStr, new[] { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" },
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var newDate))
+        {
+            await DisplayAlert("Invalid Date", "Please enter a valid date in dd/MM/yyyy format.", "OK");
+            return;
+        }
+
+        // Preserve time of day
+        newDate = newDate.Date + _selectedFixture.Date.TimeOfDay;
+
+        // Check for conflicts
+        var tempFixture = new Fixture
+        {
+            Id = _selectedFixture.Id,
+            HomeTeamId = _selectedFixture.HomeTeamId,
+            AwayTeamId = _selectedFixture.AwayTeamId,
+            VenueId = _selectedFixture.VenueId,
+            TableId = _selectedFixture.TableId,
+            Date = newDate,
+            SeasonId = _selectedFixture.SeasonId
+        };
+
+        var conflicts = FixtureValidator.DetectScheduleConflicts(
+            tempFixture, DataStore.Data.Fixtures, DataStore.Data.Teams, DataStore.Data.Venues);
+
+        if (conflicts.Warnings.Count > 0)
+        {
+            var msg = string.Join("\n", conflicts.Warnings);
+            var proceed = await DisplayAlert($"{Emojis.Warning} Schedule Conflicts",
+                msg + "\n\nReschedule anyway?", "Yes", "Cancel");
+            if (!proceed) return;
+        }
+
+        _selectedFixture.Date = newDate;
+        _selectedFixture.ModifiedDate = DateTime.UtcNow;
+        DataStore.Save();
+
+        UpdateHeader();
+        RefreshList();
+
+        await DisplayAlert($"{Emojis.Success} Rescheduled",
+            $"Fixture moved to {newDate:ddd dd MMM yyyy}", "OK");
+    }
+
+    private async System.Threading.Tasks.Task OnPrintScorecardAsync()
+    {
+        if (_selectedFixture == null)
+        {
+            await DisplayAlert("No Fixture", "Select a fixture first.", "OK");
+            return;
+        }
+
+        try
+        {
+            var seasonId = _selectedFixture.SeasonId;
+            var players = DataStore.Data.Players.Where(p => p.SeasonId == seasonId).ToList();
+            var teams = DataStore.Data.Teams.Where(t => t.SeasonId == seasonId).ToList();
+            var venues = DataStore.Data.Venues.Where(v => v.SeasonId == seasonId).ToList();
+            var frames = DataStore.Data.Settings.DefaultFramesPerMatch;
+
+            var html = ExportService.GenerateBlankScorecardHtml(_selectedFixture, teams, players, venues, frames);
+            await ExportService.ShareFileAsync(html, $"scorecard_{_selectedFixture.Date:yyyyMMdd}.html", "Blank Scorecard");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Error", ex.Message, "OK");
+        }
     }
 
     private void UpdateReminderStatus()
@@ -2634,6 +2762,148 @@ public partial class FixturesPage : ContentPage
             }
 
             await DisplayAlert($"{Emojis.Success} Success", successMsg, "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Error", ex.Message, "OK");
+        }
+    }
+
+    // ========== BULK SCORE ENTRY ==========
+
+    private async System.Threading.Tasks.Task OnBulkScoreEntryAsync()
+    {
+        try
+        {
+            var data = DataStore.Data;
+            var seasonId = data.ActiveSeasonId;
+            if (!seasonId.HasValue)
+            {
+                await DisplayAlert($"{Emojis.Info} No Season", "Set an active season first.", "OK");
+                return;
+            }
+
+            // Get unplayed fixtures for the active season
+            var unplayed = data.Fixtures
+                .Where(f => f.SeasonId == seasonId && f.Frames.All(fr => fr.Winner == FrameWinner.None))
+                .OrderBy(f => f.Date)
+                .Take(20)
+                .ToList();
+
+            if (unplayed.Count == 0)
+            {
+                await DisplayAlert($"{Emojis.Info} No Fixtures", "No unplayed fixtures found for bulk entry.", "OK");
+                return;
+            }
+
+            var teams = data.Teams.Where(t => t.SeasonId == seasonId).ToDictionary(t => t.Id, t => t.Name ?? "?");
+
+            // Build a quick-entry page
+            var page = new ContentPage { Title = "⚡ Bulk Score Entry" };
+            var scrollView = new ScrollView();
+            var stack = new VerticalStackLayout { Spacing = 8, Padding = 16 };
+
+            var entries = new List<(Fixture fixture, Entry homeEntry, Entry awayEntry)>();
+
+            foreach (var fixture in unplayed)
+            {
+                var homeName = teams.TryGetValue(fixture.HomeTeamId, out var hn) ? hn : "Home";
+                var awayName = teams.TryGetValue(fixture.AwayTeamId, out var an) ? an : "Away";
+
+                var row = new Grid
+                {
+                    ColumnDefinitions =
+                    {
+                        new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) },
+                        new ColumnDefinition { Width = new GridLength(50) },
+                        new ColumnDefinition { Width = new GridLength(20) },
+                        new ColumnDefinition { Width = new GridLength(50) },
+                        new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) }
+                    },
+                    ColumnSpacing = 4,
+                    Padding = new Thickness(0, 4)
+                };
+
+                row.Add(new Label
+                {
+                    Text = $"{fixture.Date:dd/MM} {homeName}",
+                    FontSize = 12,
+                    VerticalTextAlignment = TextAlignment.Center,
+                    HorizontalTextAlignment = TextAlignment.End
+                }, 0, 0);
+
+                var homeEntry = new Entry { Keyboard = Keyboard.Numeric, FontSize = 14, HorizontalTextAlignment = TextAlignment.Center };
+                row.Add(homeEntry, 1, 0);
+
+                row.Add(new Label { Text = "-", FontSize = 14, HorizontalTextAlignment = TextAlignment.Center, VerticalTextAlignment = TextAlignment.Center }, 2, 0);
+
+                var awayEntry = new Entry { Keyboard = Keyboard.Numeric, FontSize = 14, HorizontalTextAlignment = TextAlignment.Center };
+                row.Add(awayEntry, 3, 0);
+
+                row.Add(new Label
+                {
+                    Text = awayName,
+                    FontSize = 12,
+                    VerticalTextAlignment = TextAlignment.Center
+                }, 4, 0);
+
+                stack.Children.Add(row);
+                entries.Add((fixture, homeEntry, awayEntry));
+            }
+
+            var saveAllBtn = new Button
+            {
+                Text = $"💾 Save All Scores",
+                BackgroundColor = Color.FromArgb("#10B981"),
+                TextColor = Colors.White,
+                FontSize = 14,
+                CornerRadius = 8,
+                Margin = new Thickness(0, 16)
+            };
+
+            int saved = 0;
+            saveAllBtn.Clicked += async (_, __) =>
+            {
+                foreach (var (fixture, homeEntry, awayEntry) in entries)
+                {
+                    if (int.TryParse(homeEntry.Text, out var hs) && int.TryParse(awayEntry.Text, out var aws))
+                    {
+                        // Distribute wins across frames
+                        int totalFrames = fixture.Frames.Count;
+                        if (totalFrames == 0) continue;
+
+                        int homeWins = Math.Min(hs, totalFrames);
+                        int awayWins = Math.Min(aws, totalFrames - homeWins);
+
+                        for (int i = 0; i < totalFrames; i++)
+                        {
+                            if (i < homeWins)
+                                fixture.Frames[i].Winner = FrameWinner.Home;
+                            else if (i < homeWins + awayWins)
+                                fixture.Frames[i].Winner = FrameWinner.Away;
+                        }
+                        saved++;
+                    }
+                }
+
+                if (saved > 0)
+                {
+                    DataStore.Save();
+                    RefreshList();
+                    await page.DisplayAlert($"{Emojis.Success} Done", $"Saved scores for {saved} fixture(s).", "OK");
+                    await Navigation.PopAsync();
+                }
+                else
+                {
+                    await page.DisplayAlert($"{Emojis.Info} Nothing Saved", "Enter at least one score pair.", "OK");
+                }
+            };
+
+            stack.Children.Add(saveAllBtn);
+            scrollView.Content = stack;
+            page.Content = scrollView;
+
+            await Navigation.PushAsync(page);
         }
         catch (Exception ex)
         {

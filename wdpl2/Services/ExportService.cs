@@ -210,4 +210,77 @@ public static class ExportService
             return $"\"{value.Replace("\"", "\"\"")}\"";
         return value;
     }
+
+    /// <summary>
+    /// Generate a printable blank scorecard HTML for a fixture.
+    /// </summary>
+    public static string GenerateBlankScorecardHtml(
+        Fixture fixture, List<Team> teams, List<Player> players, List<Venue> venues, int framesPerMatch)
+    {
+        var home = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId)?.Name ?? "Home";
+        var away = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId)?.Name ?? "Away";
+        var venue = fixture.VenueId.HasValue
+            ? venues.FirstOrDefault(v => v.Id == fixture.VenueId.Value)?.Name ?? ""
+            : "";
+
+        var homePlayers = players.Where(p => p.TeamId == fixture.HomeTeamId && p.IsActive).OrderBy(p => p.FullName).ToList();
+        var awayPlayers = players.Where(p => p.TeamId == fixture.AwayTeamId && p.IsActive).OrderBy(p => p.FullName).ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("@page{size:landscape;margin:10mm}");
+        sb.AppendLine("body{font-family:Arial,sans-serif;margin:10px;font-size:11px}");
+        sb.AppendLine("h2{text-align:center;margin:4px 0}");
+        sb.AppendLine(".info{text-align:center;color:#666;margin-bottom:8px}");
+        sb.AppendLine("table{border-collapse:collapse;width:100%;margin-top:6px}");
+        sb.AppendLine("th,td{border:1px solid #333;padding:6px 10px;text-align:center}");
+        sb.AppendLine("th{background:#0284C7;color:white;font-size:10px}");
+        sb.AppendLine(".frame-cell{min-width:60px;height:24px}");
+        sb.AppendLine(".roster{display:flex;gap:20px;margin-top:8px}");
+        sb.AppendLine(".roster div{flex:1}");
+        sb.AppendLine(".roster ul{list-style:none;padding:0;margin:0}");
+        sb.AppendLine(".roster li{padding:2px 0;border-bottom:1px dotted #ccc}");
+        sb.AppendLine("</style></head><body>");
+
+        sb.AppendLine($"<h2>{home} vs {away}</h2>");
+        sb.AppendLine($"<div class='info'>{fixture.Date:dddd dd MMMM yyyy, HH:mm} | {venue}</div>");
+
+        sb.AppendLine("<table><tr><th>#</th><th>Home Player</th><th>Score</th><th>Score</th><th>Away Player</th><th>8B</th></tr>");
+        for (int i = 1; i <= framesPerMatch; i++)
+            sb.AppendLine($"<tr><td>{i}</td><td class='frame-cell'></td><td class='frame-cell'></td><td class='frame-cell'></td><td class='frame-cell'></td><td class='frame-cell'></td></tr>");
+        sb.AppendLine("<tr><td colspan='2'><b>TOTAL</b></td><td class='frame-cell'></td><td class='frame-cell'></td><td colspan='2'></td></tr>");
+        sb.AppendLine("</table>");
+
+        sb.AppendLine("<div class='roster'>");
+        sb.AppendLine($"<div><strong>{home} Roster</strong><ul>");
+        foreach (var p in homePlayers) sb.AppendLine($"<li>{p.FullName}</li>");
+        sb.AppendLine("</ul></div>");
+        sb.AppendLine($"<div><strong>{away} Roster</strong><ul>");
+        foreach (var p in awayPlayers) sb.AppendLine($"<li>{p.FullName}</li>");
+        sb.AppendLine("</ul></div></div>");
+
+        sb.AppendLine("</body></html>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Get recent results as a feed of text lines for dashboard display.
+    /// </summary>
+    public static List<string> GetRecentResultsFeed(
+        List<Fixture> fixtures, List<Team> teams, int count = 10)
+    {
+        var teamLookup = teams.ToDictionary(t => t.Id, t => t.Name ?? "?");
+        return fixtures
+            .Where(f => f.Frames.Count > 0)
+            .OrderByDescending(f => f.ModifiedDate ?? f.Date)
+            .Take(count)
+            .Select(f =>
+            {
+                var home = teamLookup.GetValueOrDefault(f.HomeTeamId, "?");
+                var away = teamLookup.GetValueOrDefault(f.AwayTeamId, "?");
+                return $"{home} {f.HomeScore}-{f.AwayScore} {away} ({f.Date:ddd dd MMM})";
+            })
+            .ToList();
+    }
 }

@@ -1019,6 +1019,7 @@ namespace Wdpl2.Services
                     if (_settings.PlayersShowWinPercentage) html.AppendLine("                            <th>Win %</th>");
                     if (_settings.PlayersShowEightBalls) html.AppendLine("                            <th>8-Balls</th>");
                     if (_settings.PlayersShowRating) html.AppendLine("                            <th>Rating</th>");
+                    html.AppendLine("                            <th>Form</th>");
                     html.AppendLine("                        </tr>");
                     html.AppendLine("                    </thead>");
                     html.AppendLine("                    <tbody>");
@@ -1042,6 +1043,9 @@ namespace Wdpl2.Services
                         if (_settings.PlayersShowWinPercentage) html.AppendLine($"                            <td><strong>{stat.WinPercentage:F1}%</strong></td>");
                         if (_settings.PlayersShowEightBalls) html.AppendLine($"                            <td>{stat.EightBalls}</td>");
                         if (_settings.PlayersShowRating) html.AppendLine($"                            <td>{stat.Rating}</td>");
+                        var form = GetLeaguePlayerForm(stat.PlayerId, fixtures, 5);
+                        var formHtml = string.Concat(form.Select(c => c == 'W' ? "<span style='color:#10B981;'>&#9679;</span>" : "<span style='color:#EF4444;'>&#9679;</span>"));
+                        html.AppendLine($"                            <td>{formHtml}</td>");
                         html.AppendLine("                        </tr>");
                         position++;
                     }
@@ -1989,6 +1993,22 @@ namespace Wdpl2.Services
             html.AppendLine($"                    <div class=\"stat-number\">{stats.Rating}</div>");
             html.AppendLine("                    <div class=\"stat-label\">Rating</div>");
             html.AppendLine("                </div>");
+
+            // Form badge - last 5 results
+            var formStr = GetLeaguePlayerForm(player.Id, fixtures, 5);
+            if (!string.IsNullOrEmpty(formStr))
+            {
+                html.AppendLine("                <div class=\"stat-card\">");
+                html.Append("                    <div class=\"stat-number\" style=\"font-size:1.1rem;letter-spacing:4px;\">");
+                foreach (var ch in formStr)
+                {
+                    var color = ch == 'W' ? "#10B981" : "#EF4444";
+                    html.Append($"<span style=\"color:{color};font-weight:bold;\">{ch}</span>");
+                }
+                html.AppendLine("</div>");
+                html.AppendLine("                    <div class=\"stat-label\">Recent Form</div>");
+                html.AppendLine("                </div>");
+            }
             
             html.AppendLine("            </div>");
             
@@ -2120,6 +2140,25 @@ namespace Wdpl2.Services
             public string OpponentTeamName { get; set; } = "";
             public bool Won { get; set; }
             public bool EightBall { get; set; }
+        }
+
+        /// <summary>
+        /// Build a form string (last N league frame results) for a player. W = win, L = loss.
+        /// </summary>
+        private static string GetLeaguePlayerForm(Guid playerId, List<Fixture> fixtures, int count)
+        {
+            var results = new List<char>();
+            foreach (var fixture in fixtures.OrderBy(f => f.Date))
+            {
+                foreach (var frame in fixture.Frames)
+                {
+                    if (frame.HomePlayerId == playerId && frame.Winner != FrameWinner.None)
+                        results.Add(frame.Winner == FrameWinner.Home ? 'W' : 'L');
+                    else if (frame.AwayPlayerId == playerId && frame.Winner != FrameWinner.None)
+                        results.Add(frame.Winner == FrameWinner.Away ? 'W' : 'L');
+                }
+            }
+            return string.Concat(results.TakeLast(count));
         }
         
         private sealed class TeamStanding

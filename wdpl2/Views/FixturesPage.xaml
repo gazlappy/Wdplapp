@@ -154,6 +154,10 @@
 
                     <Button x:Name="ScanScoreCardBtn" Text="📷 Scan Score Card" BackgroundColor="{StaticResource PrimaryColor}" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Scan score card from photo" />
                     <Button x:Name="ManageNotificationsBtn" Text="🔔 Reminders" BackgroundColor="{StaticResource InfoColor}" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Manage reminders" />
+                    <Button x:Name="PrintScorecardBtn" Text="🖨️ Print Scorecard" BackgroundColor="#059669" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Print blank scorecard" />
+                    <Button x:Name="RescheduleBtn" Text="📅 Reschedule" BackgroundColor="#6366F1" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Reschedule fixture" />
+                    <Button x:Name="BulkScoreBtn" Text="⚡ Bulk Score Entry" BackgroundColor="#7C3AED" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Bulk score entry mode" />
+                    <Button x:Name="UndoSaveBtn" Text="↩️ Undo Last Save" BackgroundColor="#D97706" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Undo last save" />
                     <Button x:Name="DiagnosticsBtn" Text="🔍 Diagnostics" BackgroundColor="{StaticResource Gray600}" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="View diagnostics" />
                     <Button x:Name="GenerateFixturesBtn" Text="Generate Fixtures" Style="{StaticResource SuccessButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Generate fixtures" />
                     <Button x:Name="DeleteSeasonBtn" Text="Delete (Season)" Style="{StaticResource WarningButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Delete season fixtures" />

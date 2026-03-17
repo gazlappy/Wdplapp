@@ -43,4 +43,9 @@ public partial class AnalyticsHubPage : ContentPage
     {
         await Navigation.PushAsync(new WhatIfSimulatorPage());
     }
+
+    private async void OnSeasonComparisonClicked(object? sender, System.EventArgs e)
+    {
+        await Navigation.PushAsync(new SeasonComparisonPage());
+    }
 }

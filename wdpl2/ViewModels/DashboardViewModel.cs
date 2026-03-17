@@ -55,6 +55,15 @@ public partial class DashboardViewModel : BaseViewModel
     [ObservableProperty]
     private int _topPlayerRating;
 
+    [ObservableProperty]
+    private string _recentResults = "";
+
+    [ObservableProperty]
+    private string _playerOfTheMonth = "";
+
+    [ObservableProperty]
+    private string _playerOfTheMonthStats = "";
+
     public DashboardViewModel(ISeasonService seasonService)
         : base(seasonService)
     {
@@ -172,6 +181,24 @@ public partial class DashboardViewModel : BaseViewModel
 
                 TopPlayerName = topPlayer?.PlayerName ?? "-";
                 TopPlayerRating = topPlayer?.Rating ?? 0;
+
+                // Recent results feed
+                var resultFeed = ExportService.GetRecentResultsFeed(completed, teams, 5);
+                RecentResults = resultFeed.Count > 0 ? string.Join("\n", resultFeed) : "No results yet";
+
+                // Player of the month
+                var monthlyWinners = LeagueStatsService.CalculatePlayersOfMonth(completed, players, teams);
+                var currentMonth = monthlyWinners.LastOrDefault();
+                if (currentMonth != null)
+                {
+                    PlayerOfTheMonth = currentMonth.PlayerName;
+                    PlayerOfTheMonthStats = $"{currentMonth.MonthName}: {currentMonth.FramesWon}/{currentMonth.FramesPlayed} ({currentMonth.WinPercentage:F0}%)";
+                }
+                else
+                {
+                    PlayerOfTheMonth = "-";
+                    PlayerOfTheMonthStats = "";
+                }
             });
         }
         catch (Exception ex)

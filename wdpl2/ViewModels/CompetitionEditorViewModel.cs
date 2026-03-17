@@ -442,6 +442,62 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Seed participants by their current league rating (highest first) then generate bracket.
+    /// Higher-rated players are placed to meet lower-rated ones in early rounds.
+    /// </summary>
+    [RelayCommand]
+    private async Task GenerateSeededBracketAsync()
+    {
+        try
+        {
+            var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+            var participants = _competition.Format == CompetitionFormat.DoublesKnockout ||
+                               _competition.Format == CompetitionFormat.DoublesGroupStage
+                ? _competition.DoublesTeams.Select(t => t.Id).ToList()
+                : _competition.ParticipantIds;
+
+            if (participants.Count < 2)
+            {
+                StatusMessage = "Need at least 2 participants";
+                return;
+            }
+
+            // Get ratings for seeding
+            var data = DataStore.Data;
+            var season = seasonId.HasValue ? data.Seasons.FirstOrDefault(s => s.Id == seasonId) : null;
+            var fixtures = data.Fixtures.Where(f => f.SeasonId == seasonId && f.Frames.Count > 0).ToList();
+            var players = data.Players.Where(p => p.SeasonId == seasonId).ToList();
+            var teams = data.Teams.Where(t => t.SeasonId == seasonId).ToList();
+
+            var ratings = RatingCalculator.CalculateAllRatings(
+                fixtures, players, teams, data.Settings, season?.StartDate ?? DateTime.Today);
+
+            // Sort participants by rating (highest first)
+            var seeded = participants
+                .OrderByDescending(id => ratings.TryGetValue(id, out var r) ? r.Rating : data.Settings.RatingStartValue)
+                .ToList();
+
+            // Update participant order
+            _competition.ParticipantIds = seeded;
+
+            // Generate bracket with seeded order (not randomized)
+            var rounds = CompetitionGenerator.GenerateSingleKnockout(seeded, randomize: false);
+            _competition.Rounds = rounds;
+            _competition.Status = CompetitionStatus.InProgress;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            HasRounds = _competition.Rounds.Count > 0;
+            StatusMessage = $"Seeded bracket: {rounds.Count} rounds (top seed: {GetParticipantName(seeded[0]) ?? "?"})";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error generating seeded bracket: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     private async Task GenerateManualBracketAsync()
     {

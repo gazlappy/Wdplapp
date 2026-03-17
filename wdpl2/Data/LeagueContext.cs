@@ -107,6 +107,10 @@ public class LeagueContext : DbContext
             // Ignore computed properties
             entity.Ignore(e => e.FullName);
             entity.Ignore(e => e.Name);
+
+            // Ignore collection properties managed by the JSON data store
+            entity.Ignore(e => e.TransferHistory);
+            entity.Ignore(e => e.Availability);
             
             // Relationships
             entity.HasOne<Season>()
