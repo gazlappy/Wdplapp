@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -1413,22 +1414,7 @@ public partial class BatchImportPreviewPage : ContentPage
     /// <summary>
     /// Normalize division name for consistent storage
     /// </summary>
-    private string NormalizeDivisionName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return "";
-            
-        // Title case for division names
-        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if (parts[i].Length > 1)
-                parts[i] = char.ToUpperInvariant(parts[i][0]) + parts[i].Substring(1).ToLowerInvariant();
-            else
-                parts[i] = parts[i].ToUpperInvariant();
-        }
-        return string.Join(" ", parts);
-    }
+    private string NormalizeDivisionName(string name) => DivisionHelper.NormalizeDivisionName(name);
 
     [System.Text.RegularExpressions.GeneratedRegex(@"\s+")]
     private static partial System.Text.RegularExpressions.Regex MyRegex();

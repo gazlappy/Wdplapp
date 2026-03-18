@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Import;
@@ -112,11 +113,34 @@ public static class ParadoxDivisionImporter
         {
             foreach (var div in divisions)
             {
-                // Check if division already exists (by name)
+                // Exact match first
                 var existing = DataStore.Data.Divisions.FirstOrDefault(d =>
                     d.SeasonId == seasonId &&
                     !string.IsNullOrWhiteSpace(d.Name) &&
                     d.Name.Equals(div.FullName, StringComparison.OrdinalIgnoreCase));
+
+                // Fuzzy match: normalize and compare (handles "Red" vs "Red Division")
+                if (existing == null)
+                {
+                    var normalizedInput = NormalizeDivisionName(div.FullName);
+                    existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                        d.SeasonId == seasonId &&
+                        !string.IsNullOrWhiteSpace(d.Name) &&
+                        NormalizeDivisionName(d.Name).Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Also try abbreviated name prefix matching
+                if (existing == null && !string.IsNullOrWhiteSpace(div.Abbreviated))
+                {
+                    var abbrevLower = div.Abbreviated.Trim().ToLower();
+                    if (abbrevLower.Length >= 2)
+                    {
+                        existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                            d.SeasonId == seasonId &&
+                            !string.IsNullOrWhiteSpace(d.Name) &&
+                            StripDivisionSuffix(d.Name).ToLower().StartsWith(abbrevLower));
+                    }
+                }
 
                 if (existing != null)
                 {
@@ -159,6 +183,10 @@ public static class ParadoxDivisionImporter
     }
 
     #region Helper Methods
+
+    private static string NormalizeDivisionName(string name) => DivisionHelper.NormalizeDivisionNameForMatching(name);
+
+    private static string StripDivisionSuffix(string name) => DivisionHelper.StripDivisionSuffix(name);
 
     private static int? GetInt(Dictionary<string, object?> rec, params string[] keys)
     {

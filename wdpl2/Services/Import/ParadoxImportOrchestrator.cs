@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Import;
@@ -194,14 +195,39 @@ public class ParadoxImportOrchestrator
 
     #region Import Methods
 
+    private static string NormalizeDivisionName(string name) => DivisionHelper.NormalizeDivisionNameForMatching(name);
+
+    private static string StripDivisionSuffix(string name) => DivisionHelper.StripDivisionSuffix(name);
+
     private void ImportDivisions(List<ParadoxDatabaseParser.ParadoxDivision> divisions, ImportSummary summary)
     {
         foreach (var div in divisions)
         {
+            // Try exact match first
             var existing = DataStore.Data.Divisions.FirstOrDefault(d =>
                 d.SeasonId == _seasonId &&
                 !string.IsNullOrWhiteSpace(d.Name) &&
                 d.Name.Equals(div.FullDivisionName, StringComparison.OrdinalIgnoreCase));
+
+            // Fuzzy match: normalize and compare (handles "Red" vs "Red Division" etc.)
+            if (existing == null)
+            {
+                var normalizedInput = NormalizeDivisionName(div.FullDivisionName);
+                existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                    d.SeasonId == _seasonId &&
+                    !string.IsNullOrWhiteSpace(d.Name) &&
+                    NormalizeDivisionName(d.Name).Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Also try abbreviated name matching
+            if (existing == null && !string.IsNullOrWhiteSpace(div.Abbreviated))
+            {
+                var abbrevLower = div.Abbreviated.Trim().ToLower();
+                existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                    d.SeasonId == _seasonId &&
+                    !string.IsNullOrWhiteSpace(d.Name) &&
+                    StripDivisionSuffix(d.Name).ToLower().StartsWith(abbrevLower));
+            }
 
             if (existing != null)
             {

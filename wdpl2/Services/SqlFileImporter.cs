@@ -335,10 +335,12 @@ namespace Wdpl2.Services
         /// <summary>
         /// Full import with all data types
         /// </summary>
+        /// <param name="targetSeasonId">Optional: force import into this season instead of creating one from SQL data.</param>
         public static async Task<(LeagueData importedData, SqlImportResult result)> ImportFromSqlFileAsync(
             string sqlFilePath,
             LeagueData existingData,
-            bool replaceExisting)
+            bool replaceExisting,
+            Guid? targetSeasonId = null)
         {
             var result = new SqlImportResult();
             var importedData = new LeagueData();
@@ -366,7 +368,7 @@ namespace Wdpl2.Services
                 result.VbaTeamIdToName = new Dictionary<int, string>(parsed.TeamIdToName);
 
                 // Import in order of dependencies
-                await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result);
+                await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result, targetSeasonId);
 
                 if (result.DetectedSeason != null)
                 {
@@ -710,8 +712,22 @@ namespace Wdpl2.Services
             LeagueData importedData,
             LeagueData existingData,
             bool replaceExisting,
-            SqlImportResult result)
+            SqlImportResult result,
+            Guid? targetSeasonId = null)
         {
+            // If a target season ID was provided (e.g. from Smart Import), use that season
+            if (targetSeasonId.HasValue)
+            {
+                var targetSeason = existingData.Seasons.FirstOrDefault(s => s.Id == targetSeasonId.Value);
+                if (targetSeason != null)
+                {
+                    result.Warnings.Add($"Using target season '{targetSeason.Name}' (provided by caller)");
+                    result.DetectedSeason = targetSeason;
+                    return Task.CompletedTask;
+                }
+                result.Warnings.Add($"Target season ID {targetSeasonId.Value} not found - falling back to SQL detection");
+            }
+
             if (!tableData.ContainsKey("tblleague") || tableData["tblleague"].Count == 0)
             {
                 result.Warnings.Add("No tblleague data found - season information not imported");
@@ -719,15 +735,15 @@ namespace Wdpl2.Services
             }
 
             var leagueRow = tableData["tblleague"].First();
-            
+
             var seasonName = GetStringValue(leagueRow, "SeasonName", "Unknown Season");
             var seasonYear = GetIntValue(leagueRow, "SeasonYear", DateTime.Now.Year);
             var fullSeasonName = $"{seasonName} {seasonYear}";
-            
+
             // Check if season already exists - try multiple matching strategies
             var existingSeason = existingData.Seasons.FirstOrDefault(s => 
                 s.Name.Equals(fullSeasonName, StringComparison.OrdinalIgnoreCase));
-            
+
             // Also try matching just by year (common pattern for WDPL seasons)
             if (existingSeason == null)
             {
@@ -742,7 +758,7 @@ namespace Wdpl2.Services
                 // Use existing season - don't create a new one
                 result.Warnings.Add($"Season '{existingSeason.Name}' already exists - adding data to existing season");
                 result.DetectedSeason = existingSeason;
-                
+
                 // Don't add to importedData.Seasons or ImportedSeasonIds since we're using existing
                 return Task.CompletedTask;
             }
@@ -806,14 +822,38 @@ namespace Wdpl2.Services
                 var divisionName = GetStringValue(divRow, "DivisionName", "");
                 if (string.IsNullOrWhiteSpace(divisionName))
                     divisionName = GetStringValue(divRow, "Name", "Unknown Division");
-                
+
                 result.Warnings.Add($"Processing division: ID={vbaDivisionId}, Name='{divisionName}'");
-                
-                // Check if division already exists in this season
+
+                // Check if division already exists in this season (exact match)
                 var existingDivision = existingData.Divisions.FirstOrDefault(d =>
                     d.SeasonId == result.DetectedSeason.Id &&
                     !string.IsNullOrWhiteSpace(d.Name) &&
                     d.Name.Equals(divisionName, StringComparison.OrdinalIgnoreCase));
+
+                // If exact match not found, try fuzzy/normalized matching
+                // This handles cases where HTML created "Red Division" and SQL has "Red"
+                if (existingDivision == null)
+                {
+                    var normalizedInput = NormalizeDivisionNameForMatching(divisionName);
+                    existingDivision = existingData.Divisions.FirstOrDefault(d =>
+                        d.SeasonId == result.DetectedSeason.Id &&
+                        !string.IsNullOrWhiteSpace(d.Name) &&
+                        NormalizeDivisionNameForMatching(d.Name).Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Also try prefix matching (e.g. "Prem" matches "Premier Division")
+                if (existingDivision == null)
+                {
+                    var coreInput = StripDivisionSuffix(divisionName).ToLower();
+                    if (coreInput.Length >= 2)
+                    {
+                        existingDivision = existingData.Divisions.FirstOrDefault(d =>
+                            d.SeasonId == result.DetectedSeason.Id &&
+                            !string.IsNullOrWhiteSpace(d.Name) &&
+                            StripDivisionSuffix(d.Name).ToLower().StartsWith(coreInput));
+                    }
+                }
 
                 if (existingDivision != null)
                 {
@@ -2254,6 +2294,16 @@ namespace Wdpl2.Services
             data.Divisions.RemoveAll(d => result.ImportedDivisionIds.Contains(d.Id));
             data.Seasons.RemoveAll(s => result.ImportedSeasonIds.Contains(s.Id));
         }
+
+        /// <summary>
+        /// Normalize a division name for fuzzy matching.
+        /// </summary>
+        private static string NormalizeDivisionNameForMatching(string name) => DivisionHelper.NormalizeDivisionNameForMatching(name);
+
+        /// <summary>
+        /// Strip "Division"/"Div"/"Table" suffix from a division name, returning the core word.
+        /// </summary>
+        private static string StripDivisionSuffix(string name) => DivisionHelper.StripDivisionSuffix(name);
 
         [GeneratedRegex(@"b'([01])'")]
         private static partial Regex MyRegex();

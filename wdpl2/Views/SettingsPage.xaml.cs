@@ -58,6 +58,7 @@ namespace Wdpl2.Views
             "Match Scoring",
             "Fixture Defaults",
             "Notifications",
+            "Division Management",
             "Data Management",
             "About"
         };
@@ -107,6 +108,7 @@ namespace Wdpl2.Views
                 "Match Scoring" => CreateMatchScoringPanel(),
                 "Fixture Defaults" => CreateFixtureDefaultsPanel(),
                 "Notifications" => CreateNotificationsPanel(),
+                "Division Management" => CreateDivisionManagementPanel(),
                 "Data Management" => CreateDataManagementPanel(),
                 "About" => CreateAboutPanel(),
                 _ => null
@@ -896,6 +898,668 @@ namespace Wdpl2.Views
             return scrollView;
         }
 
+        private View CreateDivisionManagementPanel()
+        {
+            var data = DataStore.Data;
+            var seasons = data.Seasons.OrderByDescending(s => s.StartDate).ToList();
+
+            // ── Season picker ──
+            var seasonPicker = new Picker
+            {
+                Title = "Select Season",
+                HorizontalOptions = LayoutOptions.Fill
+            };
+            foreach (var s in seasons)
+                seasonPicker.Items.Add(s.Name ?? $"Season {s.StartDate.Year}");
+
+            if (seasons.Count > 0)
+                seasonPicker.SelectedIndex = 0;
+
+            // ── Container for division cards ──
+            var divisionListContainer = new VerticalStackLayout { Spacing = 8 };
+            var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 4, 0, 0) };
+
+            // Track selected divisions for bulk operations
+            var selectedDivisionIds = new HashSet<Guid>();
+
+            // Bulk action buttons (hidden until selections made)
+            var splitBtn = new Button
+            {
+                Text = $"{Emojis.Season} Split Selected to New Season",
+                FontSize = 13,
+                Padding = new Thickness(16, 10),
+                BackgroundColor = Color.FromArgb("#059669"),
+                TextColor = Colors.White,
+                HorizontalOptions = LayoutOptions.Start,
+                IsVisible = false
+            };
+
+            var moveBtn = new Button
+            {
+                Text = $"{Emojis.Forward} Move Selected to Season",
+                FontSize = 13,
+                Padding = new Thickness(16, 10),
+                BackgroundColor = Color.FromArgb("#7C3AED"),
+                TextColor = Colors.White,
+                HorizontalOptions = LayoutOptions.Start,
+                IsVisible = false
+            };
+
+            var selectionLabel = new Label
+            {
+                FontSize = 12,
+                IsVisible = false
+            };
+            selectionLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
+            void UpdateBulkButtons()
+            {
+                var count = selectedDivisionIds.Count;
+                var hasSelection = count > 0;
+                splitBtn.IsVisible = hasSelection;
+                moveBtn.IsVisible = hasSelection;
+                selectionLabel.IsVisible = hasSelection;
+                selectionLabel.Text = $"{count} division(s) selected";
+            }
+
+            void RefreshDivisionList()
+            {
+                divisionListContainer.Children.Clear();
+                selectedDivisionIds.Clear();
+                UpdateBulkButtons();
+                statusLabel.Text = "";
+
+                if (seasonPicker.SelectedIndex < 0 || seasonPicker.SelectedIndex >= seasons.Count)
+                    return;
+
+                var seasonId = seasons[seasonPicker.SelectedIndex].Id;
+                var divisions = data.Divisions
+                    .Where(d => d.SeasonId == seasonId)
+                    .OrderBy(d => d.Name)
+                    .ToList();
+
+                if (divisions.Count == 0)
+                {
+                    divisionListContainer.Children.Add(new Label
+                    {
+                        Text = "No divisions in this season.",
+                        FontSize = 14,
+                        TextColor = SubtitleText
+                    });
+                    return;
+                }
+
+                foreach (var div in divisions)
+                {
+                    var teamCount = data.Teams.Count(t => t.DivisionId == div.Id);
+                    var fixtureCount = data.Fixtures.Count(f => f.DivisionId == div.Id);
+                    var playerCount = data.Players.Count(p =>
+                        p.SeasonId == seasonId &&
+                        p.TeamId.HasValue &&
+                        data.Teams.Any(t => t.Id == p.TeamId && t.DivisionId == div.Id));
+
+                    var selectBox = new CheckBox { IsChecked = false, VerticalOptions = LayoutOptions.Center };
+                    var capturedDiv = div;
+
+                    selectBox.CheckedChanged += (s, e) =>
+                    {
+                        if (e.Value)
+                            selectedDivisionIds.Add(capturedDiv.Id);
+                        else
+                            selectedDivisionIds.Remove(capturedDiv.Id);
+                        UpdateBulkButtons();
+                    };
+
+                    var nameLabel = new Label
+                    {
+                        Text = div.Name ?? "(unnamed)",
+                        FontSize = 16,
+                        FontAttributes = FontAttributes.Bold,
+                        VerticalTextAlignment = TextAlignment.Center
+                    };
+
+                    var statsLabel = new Label
+                    {
+                        Text = $"{teamCount} teams · {playerCount} players · {fixtureCount} fixtures",
+                        FontSize = 12
+                    };
+                    statsLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
+                    var renameBtn = new Button
+                    {
+                        Text = $"{Emojis.Edit} Rename",
+                        FontSize = 12,
+                        Padding = new Thickness(10, 6),
+                        BackgroundColor = Color.FromArgb("#3B82F6"),
+                        TextColor = Colors.White,
+                        HeightRequest = 34
+                    };
+
+                    var mergeBtn = new Button
+                    {
+                        Text = $"{Emojis.Forward} Merge",
+                        FontSize = 12,
+                        Padding = new Thickness(10, 6),
+                        BackgroundColor = Color.FromArgb("#8B5CF6"),
+                        TextColor = Colors.White,
+                        HeightRequest = 34
+                    };
+
+                    var deleteBtn = new Button
+                    {
+                        Text = $"{Emojis.Delete}",
+                        FontSize = 12,
+                        Padding = new Thickness(10, 6),
+                        BackgroundColor = Color.FromArgb("#EF4444"),
+                        TextColor = Colors.White,
+                        HeightRequest = 34,
+                        IsEnabled = teamCount == 0 && fixtureCount == 0
+                    };
+
+                    renameBtn.Clicked += async (s, e) =>
+                    {
+                        var newName = await DisplayPromptAsync(
+                            "Rename Division",
+                            $"Current name: {capturedDiv.Name}",
+                            initialValue: capturedDiv.Name ?? "",
+                            maxLength: 100,
+                            keyboard: Keyboard.Text);
+
+                        if (!string.IsNullOrWhiteSpace(newName))
+                        {
+                            capturedDiv.Name = DivisionHelper.NormalizeDivisionName(newName);
+                            capturedDiv.ModifiedDate = DateTime.UtcNow;
+                            DataStore.Save();
+                            RefreshDivisionList();
+                            statusLabel.Text = $"{Emojis.Success} Renamed to \"{capturedDiv.Name}\"";
+                        }
+                    };
+
+                    mergeBtn.Clicked += async (s, e) =>
+                    {
+                        var otherDivisions = divisions
+                            .Where(d => d.Id != capturedDiv.Id)
+                            .Select(d => d.Name ?? "(unnamed)")
+                            .ToArray();
+
+                        if (otherDivisions.Length == 0)
+                        {
+                            await DisplayAlert("Merge", "No other divisions to merge with.", "OK");
+                            return;
+                        }
+
+                        var target = await DisplayActionSheet(
+                            $"Merge \"{capturedDiv.Name}\" into:",
+                            "Cancel", null, otherDivisions);
+
+                        if (string.IsNullOrEmpty(target) || target == "Cancel") return;
+
+                        var targetDiv = divisions.FirstOrDefault(d =>
+                            (d.Name ?? "(unnamed)") == target && d.Id != capturedDiv.Id);
+
+                        if (targetDiv == null) return;
+
+                        var confirm = await DisplayAlert(
+                            "Confirm Merge",
+                            $"Move all teams and fixtures from \"{capturedDiv.Name}\" into \"{targetDiv.Name}\" and delete \"{capturedDiv.Name}\"?",
+                            "Merge", "Cancel");
+
+                        if (!confirm) return;
+
+                        foreach (var team in data.Teams.Where(t => t.DivisionId == capturedDiv.Id))
+                            team.DivisionId = targetDiv.Id;
+                        foreach (var fixture in data.Fixtures.Where(f => f.DivisionId == capturedDiv.Id))
+                            fixture.DivisionId = targetDiv.Id;
+
+                        data.Divisions.Remove(capturedDiv);
+                        DataStore.Save();
+                        RefreshDivisionList();
+                        statusLabel.Text = $"{Emojis.Success} Merged into \"{targetDiv.Name}\"";
+                    };
+
+                    deleteBtn.Clicked += async (s, e) =>
+                    {
+                        var confirm = await DisplayAlert(
+                            "Delete Division",
+                            $"Delete \"{capturedDiv.Name}\"? This division has no teams or fixtures.",
+                            "Delete", "Cancel");
+
+                        if (!confirm) return;
+
+                        data.Divisions.Remove(capturedDiv);
+                        DataStore.Save();
+                        RefreshDivisionList();
+                        statusLabel.Text = $"{Emojis.Success} Deleted \"{capturedDiv.Name}\"";
+                    };
+
+                    var headerRow = new HorizontalStackLayout { Spacing = 8 };
+                    headerRow.Children.Add(selectBox);
+                    headerRow.Children.Add(nameLabel);
+
+                    var btnRow = new HorizontalStackLayout { Spacing = 6 };
+                    btnRow.Children.Add(renameBtn);
+                    btnRow.Children.Add(mergeBtn);
+                    btnRow.Children.Add(deleteBtn);
+
+                    var cardContent = new VerticalStackLayout { Spacing = 4 };
+                    cardContent.Children.Add(headerRow);
+                    cardContent.Children.Add(statsLabel);
+                    cardContent.Children.Add(btnRow);
+
+                    var card = new Border
+                    {
+                        Padding = 12,
+                        StrokeThickness = 1,
+                        StrokeShape = new RoundRectangle { CornerRadius = 8 },
+                        Content = cardContent
+                    };
+                    card.SetAppThemeColor(Border.StrokeProperty, CardBorder, CardBorder);
+                    card.SetAppThemeColor(Border.BackgroundColorProperty, CardBackground, CardBackground);
+
+                    divisionListContainer.Children.Add(card);
+                }
+            }
+
+            seasonPicker.SelectedIndexChanged += (s, e) => RefreshDivisionList();
+
+            // ── Split to new season ──
+            splitBtn.Clicked += async (s, e) =>
+            {
+                if (seasonPicker.SelectedIndex < 0 || seasonPicker.SelectedIndex >= seasons.Count)
+                    return;
+
+                var sourceSeasonId = seasons[seasonPicker.SelectedIndex].Id;
+                var sourceSeason = seasons[seasonPicker.SelectedIndex];
+                var divIds = selectedDivisionIds.ToList();
+                var divNames = data.Divisions
+                    .Where(d => divIds.Contains(d.Id))
+                    .Select(d => d.Name ?? "(unnamed)")
+                    .ToList();
+
+                var summary = BuildMoveSummary(data, divIds, sourceSeasonId);
+
+                var seasonName = await DisplayPromptAsync(
+                    "Split to New Season",
+                    $"Moving {divNames.Count} division(s) and associated data:\n{summary}\n\nEnter name for the new season:",
+                    initialValue: $"{sourceSeason.Name} (Split)",
+                    maxLength: 100,
+                    keyboard: Keyboard.Text);
+
+                if (string.IsNullOrWhiteSpace(seasonName)) return;
+
+                var confirm = await DisplayAlert(
+                    "Confirm Split",
+                    $"Create season \"{seasonName}\" and move:\n{summary}\n\nfrom \"{sourceSeason.Name}\"?",
+                    "Split", "Cancel");
+
+                if (!confirm) return;
+
+                // Create the new season
+                var newSeason = new Season
+                {
+                    Id = Guid.NewGuid(),
+                    Name = seasonName,
+                    StartDate = sourceSeason.StartDate,
+                    EndDate = sourceSeason.EndDate,
+                    MatchDayOfWeek = sourceSeason.MatchDayOfWeek,
+                    MatchStartTime = sourceSeason.MatchStartTime,
+                    FramesPerMatch = sourceSeason.FramesPerMatch
+                };
+
+                data.Seasons.Add(newSeason);
+                MoveDivisionsToSeason(data, divIds, sourceSeasonId, newSeason.Id);
+                UpdateSeasonDatesFromFixtures(data, newSeason.Id);
+                UpdateSeasonDatesFromFixtures(data, sourceSeasonId);
+                DataStore.Save();
+
+                // Refresh seasons list in picker
+                seasons.Clear();
+                seasons.AddRange(data.Seasons.OrderByDescending(ss => ss.StartDate));
+                seasonPicker.Items.Clear();
+                foreach (var ss in seasons)
+                    seasonPicker.Items.Add(ss.Name ?? $"Season {ss.StartDate.Year}");
+
+                // Select the source season
+                var idx = seasons.FindIndex(ss => ss.Id == sourceSeasonId);
+                seasonPicker.SelectedIndex = idx >= 0 ? idx : 0;
+                RefreshDivisionList();
+                statusLabel.Text = $"{Emojis.Success} Split {divNames.Count} division(s) into new season \"{seasonName}\"";
+            };
+
+            // ── Move to existing season ──
+            moveBtn.Clicked += async (s, e) =>
+            {
+                if (seasonPicker.SelectedIndex < 0 || seasonPicker.SelectedIndex >= seasons.Count)
+                    return;
+
+                var sourceSeasonId = seasons[seasonPicker.SelectedIndex].Id;
+                var divIds = selectedDivisionIds.ToList();
+                var divNames = data.Divisions
+                    .Where(d => divIds.Contains(d.Id))
+                    .Select(d => d.Name ?? "(unnamed)")
+                    .ToList();
+
+                var otherSeasons = seasons
+                    .Where(ss => ss.Id != sourceSeasonId)
+                    .Select(ss => ss.Name ?? $"Season {ss.StartDate.Year}")
+                    .ToArray();
+
+                if (otherSeasons.Length == 0)
+                {
+                    await DisplayAlert("Move", "No other seasons to move to. Use 'Split to New Season' instead.", "OK");
+                    return;
+                }
+
+                var targetName = await DisplayActionSheet(
+                    $"Move {divNames.Count} division(s) to:",
+                    "Cancel", null, otherSeasons);
+
+                if (string.IsNullOrEmpty(targetName) || targetName == "Cancel") return;
+
+                var targetSeason = seasons.FirstOrDefault(ss =>
+                    (ss.Name ?? $"Season {ss.StartDate.Year}") == targetName && ss.Id != sourceSeasonId);
+
+                if (targetSeason == null) return;
+
+                var summary = BuildMoveSummary(data, divIds, sourceSeasonId);
+
+                var confirm = await DisplayAlert(
+                    "Confirm Move",
+                    $"Move from \"{seasons[seasonPicker.SelectedIndex].Name}\" to \"{targetSeason.Name}\":\n{summary}",
+                    "Move", "Cancel");
+
+                if (!confirm) return;
+
+                MoveDivisionsToSeason(data, divIds, sourceSeasonId, targetSeason.Id);
+                UpdateSeasonDatesFromFixtures(data, targetSeason.Id);
+                UpdateSeasonDatesFromFixtures(data, sourceSeasonId);
+                DataStore.Save();
+
+                RefreshDivisionList();
+                statusLabel.Text = $"{Emojis.Success} Moved {divNames.Count} division(s) to \"{targetSeason.Name}\"";
+            };
+
+            // ── Auto-Clean button ──
+            var autoCleanBtn = new Button
+            {
+                Text = $"{Emojis.Wrench} Auto-Clean Duplicates",
+                BackgroundColor = Color.FromArgb("#F59E0B"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            autoCleanBtn.Clicked += async (s, e) =>
+            {
+                if (seasonPicker.SelectedIndex < 0 || seasonPicker.SelectedIndex >= seasons.Count)
+                    return;
+
+                var seasonId = seasons[seasonPicker.SelectedIndex].Id;
+                var seasonDivisions = data.Divisions.Where(d => d.SeasonId == seasonId).ToList();
+
+                int mergedCount = 0;
+
+                // Group by normalized name (handles "Red" vs "Red Division", "1st" vs "First")
+                var groups = seasonDivisions
+                    .GroupBy(d => DivisionHelper.NormalizeDivisionName(d.Name ?? ""), StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1);
+
+                foreach (var group in groups)
+                {
+                    var canonical = group.OrderByDescending(d => (d.Name ?? "").Length).First();
+                    foreach (var dup in group.Where(d => d.Id != canonical.Id))
+                    {
+                        foreach (var team in data.Teams.Where(t => t.DivisionId == dup.Id))
+                            team.DivisionId = canonical.Id;
+                        foreach (var fixture in data.Fixtures.Where(f => f.DivisionId == dup.Id))
+                            fixture.DivisionId = canonical.Id;
+                        data.Divisions.Remove(dup);
+                        mergedCount++;
+                    }
+                }
+
+                // Also merge ordinal equivalents that didn't group above
+                var remaining = data.Divisions.Where(d => d.SeasonId == seasonId).ToList();
+                var alreadyMerged = new HashSet<Guid>();
+                for (int i = 0; i < remaining.Count; i++)
+                {
+                    if (alreadyMerged.Contains(remaining[i].Id)) continue;
+                    for (int j = i + 1; j < remaining.Count; j++)
+                    {
+                        if (alreadyMerged.Contains(remaining[j].Id)) continue;
+                        if (DivisionHelper.AreSameDivision(remaining[i].Name ?? "", remaining[j].Name ?? ""))
+                        {
+                            var (keep, remove) = (remaining[i].Name ?? "").Length >= (remaining[j].Name ?? "").Length
+                                ? (remaining[i], remaining[j])
+                                : (remaining[j], remaining[i]);
+
+                            foreach (var team in data.Teams.Where(t => t.DivisionId == remove.Id))
+                                team.DivisionId = keep.Id;
+                            foreach (var fixture in data.Fixtures.Where(f => f.DivisionId == remove.Id))
+                                fixture.DivisionId = keep.Id;
+                            data.Divisions.Remove(remove);
+                            alreadyMerged.Add(remove.Id);
+                            mergedCount++;
+                        }
+                    }
+                }
+
+                // Normalize remaining division names
+                int renamedCount = 0;
+                foreach (var div in data.Divisions.Where(d => d.SeasonId == seasonId))
+                {
+                    var normalized = DivisionHelper.NormalizeDivisionName(div.Name ?? "");
+                    if (!string.IsNullOrEmpty(normalized) && normalized != div.Name)
+                    {
+                        div.Name = normalized;
+                        div.ModifiedDate = DateTime.UtcNow;
+                        renamedCount++;
+                    }
+                }
+
+                // Delete empty divisions
+                int deletedCount = 0;
+                var emptyDivisions = data.Divisions
+                    .Where(d => d.SeasonId == seasonId)
+                    .Where(d => !data.Teams.Any(t => t.DivisionId == d.Id) &&
+                                !data.Fixtures.Any(f => f.DivisionId == d.Id))
+                    .ToList();
+                foreach (var empty in emptyDivisions)
+                {
+                    data.Divisions.Remove(empty);
+                    deletedCount++;
+                }
+
+                if (mergedCount > 0 || renamedCount > 0 || deletedCount > 0)
+                {
+                    DataStore.Save();
+                    RefreshDivisionList();
+                    statusLabel.Text = $"{Emojis.Success} Merged {mergedCount} duplicates, normalized {renamedCount} names, deleted {deletedCount} empty divisions";
+                }
+                else
+                {
+                    statusLabel.Text = $"{Emojis.Info} No duplicates or issues found";
+                }
+            };
+
+            // ── Info panel ──
+            var infoLabel = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = $"{Emojis.Info} Division Management:\n\n" +
+                       "• Rename: Change a division's display name\n" +
+                       "• Merge: Combine two divisions (moves all teams & fixtures)\n" +
+                       "• Delete: Remove empty divisions (no teams/fixtures)\n" +
+                       "• Auto-Clean: Automatically merge duplicates like \"1st\" & \"First\",\n" +
+                       "  \"Red\" & \"Red Division\", normalize names, and remove empties\n\n" +
+                       "Select divisions with checkboxes to:\n" +
+                       "• Split to New Season: Create a new season from selected divisions\n" +
+                       "• Move to Season: Move selected divisions to an existing season\n" +
+                       "  (Teams, players, and fixtures move with the division)"
+            };
+            infoLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+
+            var infoFrame = new Border
+            {
+                Padding = 12,
+                Stroke = Color.FromArgb("#3B82F6"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 8, 0, 0),
+                Content = infoLabel
+            };
+            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, InfoBoxBackground, InfoBoxBackground);
+
+            // Initial load
+            RefreshDivisionList();
+
+            var mainStack = new VerticalStackLayout
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new Label { Text = $"{Emojis.Division} Division Management", FontSize = 20, FontAttributes = FontAttributes.Bold },
+                    new Label { Text = "View, rename, merge, move, and split divisions across seasons", FontSize = 14, TextColor = SubtitleText, Margin = new Thickness(0, 0, 0, 8) },
+                    seasonPicker,
+                    autoCleanBtn,
+                    selectionLabel,
+                    new HorizontalStackLayout { Spacing = 8, Children = { splitBtn, moveBtn } },
+                    statusLabel,
+                    divisionListContainer,
+                    infoFrame
+                }
+            };
+
+            var scrollView = new ScrollView { Content = mainStack };
+            return scrollView;
+        }
+
+        /// <summary>
+        /// Build a human-readable summary of what will be moved with the selected divisions.
+        /// </summary>
+        private static string BuildMoveSummary(LeagueData data, List<Guid> divisionIds, Guid sourceSeasonId)
+        {
+            var divNames = data.Divisions
+                .Where(d => divisionIds.Contains(d.Id))
+                .Select(d => d.Name ?? "(unnamed)")
+                .ToList();
+
+            var teamIds = new HashSet<Guid>(
+                data.Teams
+                    .Where(t => t.DivisionId.HasValue && divisionIds.Contains(t.DivisionId.Value))
+                    .Select(t => t.Id));
+
+            var playerCount = data.Players.Count(p =>
+                p.SeasonId == sourceSeasonId &&
+                p.TeamId.HasValue &&
+                teamIds.Contains(p.TeamId.Value));
+
+            var fixtureCount = data.Fixtures.Count(f =>
+                f.DivisionId.HasValue && divisionIds.Contains(f.DivisionId.Value));
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"  {Emojis.Division} {divNames.Count} division(s): {string.Join(", ", divNames)}");
+            sb.AppendLine($"  {Emojis.Team} {teamIds.Count} team(s)");
+            sb.AppendLine($"  {Emojis.Player} {playerCount} player(s)");
+            sb.Append($"  {Emojis.Fixture} {fixtureCount} fixture(s)");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Move selected divisions and all associated data (teams, players, fixtures)
+        /// from one season to another.
+        /// </summary>
+        private static void MoveDivisionsToSeason(
+            LeagueData data, List<Guid> divisionIds, Guid sourceSeasonId, Guid targetSeasonId)
+        {
+            // Collect team IDs belonging to these divisions
+            var teamIds = new HashSet<Guid>(
+                data.Teams
+                    .Where(t => t.DivisionId.HasValue && divisionIds.Contains(t.DivisionId.Value))
+                    .Select(t => t.Id));
+
+            // Move divisions
+            foreach (var div in data.Divisions.Where(d => divisionIds.Contains(d.Id)))
+            {
+                div.SeasonId = targetSeasonId;
+                div.ModifiedDate = DateTime.UtcNow;
+            }
+
+            // Move teams
+            foreach (var team in data.Teams.Where(t => teamIds.Contains(t.Id)))
+            {
+                team.SeasonId = targetSeasonId;
+            }
+
+            // Move players on those teams
+            foreach (var player in data.Players.Where(p =>
+                         p.SeasonId == sourceSeasonId &&
+                         p.TeamId.HasValue &&
+                         teamIds.Contains(p.TeamId.Value)))
+            {
+                player.SeasonId = targetSeasonId;
+                player.ModifiedDate = DateTime.UtcNow;
+            }
+
+            // Move fixtures in these divisions
+            foreach (var fixture in data.Fixtures.Where(f =>
+                         f.DivisionId.HasValue && divisionIds.Contains(f.DivisionId.Value)))
+            {
+                fixture.SeasonId = targetSeasonId;
+            }
+
+            // Also move fixtures that reference these teams but have no division set
+            foreach (var fixture in data.Fixtures.Where(f =>
+                         f.SeasonId == sourceSeasonId &&
+                         !f.DivisionId.HasValue &&
+                         (teamIds.Contains(f.HomeTeamId) || teamIds.Contains(f.AwayTeamId))))
+            {
+                fixture.SeasonId = targetSeasonId;
+            }
+
+            // Move venues that are only used by teams in the moved set
+            var movedVenueIds = data.Teams
+                .Where(t => teamIds.Contains(t.Id) && t.VenueId.HasValue)
+                .Select(t => t.VenueId!.Value)
+                .Distinct()
+                .ToList();
+
+            foreach (var venueId in movedVenueIds)
+            {
+                var venue = data.Venues.FirstOrDefault(v => v.Id == venueId);
+                if (venue == null) continue;
+
+                // Only move the venue if no other teams in the source season reference it
+                var otherTeamsUsingVenue = data.Teams.Any(t =>
+                    t.SeasonId == sourceSeasonId &&
+                    !teamIds.Contains(t.Id) &&
+                    t.VenueId == venueId);
+
+                if (!otherTeamsUsingVenue)
+                    venue.SeasonId = targetSeasonId;
+            }
+        }
+
+        /// <summary>
+        /// Update a season's start/end dates to match the actual fixture date range.
+        /// </summary>
+        private static void UpdateSeasonDatesFromFixtures(LeagueData data, Guid seasonId)
+        {
+            var season = data.Seasons.FirstOrDefault(s => s.Id == seasonId);
+            if (season == null) return;
+
+            var dates = data.Fixtures
+                .Where(f => f.SeasonId == seasonId && f.Date > DateTime.MinValue)
+                .Select(f => f.Date.Date)
+                .ToList();
+
+            if (dates.Count == 0) return;
+
+            season.StartDate = dates.Min();
+            season.EndDate = dates.Max();
+            season.ModifiedDate = DateTime.UtcNow;
+        }
+
         private View CreateDataManagementPanel()
         {
             var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
@@ -1024,6 +1688,107 @@ namespace Wdpl2.Views
                 statusLabel.TextColor = Color.FromArgb("#10B981");
             };
 
+            // ========== DELETE ALL SEASONS ==========
+            var deleteAllSeasonsBtn = new Button
+            {
+                Text = $"{Emojis.Delete} Delete All Seasons",
+                BackgroundColor = Color.FromArgb("#DC2626"),
+                TextColor = Colors.White,
+                Padding = new Thickness(24, 14),
+                HorizontalOptions = LayoutOptions.Start
+            };
+
+            deleteAllSeasonsBtn.Clicked += async (s, e) =>
+            {
+                var data = DataStore.Data;
+                var seasonCount = data.Seasons.Count;
+
+                if (seasonCount == 0)
+                {
+                    await DisplayAlert("No Seasons", "There are no seasons to delete.", "OK");
+                    return;
+                }
+
+                var totalDivisions = data.Divisions.Count;
+                var totalTeams = data.Teams.Count;
+                var totalPlayers = data.Players.Count;
+                var totalFixtures = data.Fixtures.Count;
+                var totalVenues = data.Venues.Count;
+                var totalCompetitions = data.Competitions.Count;
+
+                var firstConfirm = await DisplayAlert(
+                    "⚠️ Delete All Seasons",
+                    $"This will permanently delete ALL {seasonCount} season{(seasonCount != 1 ? "s" : "")} and all associated data:\n\n" +
+                    $"• {totalDivisions} Division{(totalDivisions != 1 ? "s" : "")}\n" +
+                    $"• {totalTeams} Team{(totalTeams != 1 ? "s" : "")}\n" +
+                    $"• {totalPlayers} Player{(totalPlayers != 1 ? "s" : "")}\n" +
+                    $"• {totalFixtures} Fixture{(totalFixtures != 1 ? "s" : "")}\n" +
+                    $"• {totalVenues} Venue{(totalVenues != 1 ? "s" : "")}\n" +
+                    $"• {totalCompetitions} Competition{(totalCompetitions != 1 ? "s" : "")}\n\n" +
+                    "This cannot be undone!",
+                    "Continue",
+                    "Cancel");
+
+                if (!firstConfirm) return;
+
+                var finalConfirm = await DisplayAlert(
+                    "🛑 Final Confirmation",
+                    $"Are you absolutely sure?\n\nYou are about to delete ALL {seasonCount} seasons and every piece of league data.\n\nType-safety note: a backup (.bak) will be kept.",
+                    $"Yes, Delete All {seasonCount} Seasons",
+                    "Cancel");
+
+                if (!finalConfirm) return;
+
+                // Perform deletion
+                var seasonIds = data.Seasons.Select(season => season.Id).ToList();
+                foreach (var id in seasonIds)
+                {
+                    data.DeleteSeasonCascade(id);
+                }
+
+                // Also clean up any orphaned data
+                data.CleanupOrphans();
+
+                DataStore.Save();
+
+                statusLabel.Text = $"✅ Deleted {seasonCount} season{(seasonCount != 1 ? "s" : "")} and all associated data.";
+                statusLabel.TextColor = Color.FromArgb("#10B981");
+
+                // Refresh the panel to update counts
+                ShowCategory("Data Management");
+            };
+
+            var deleteAllSeasonsBorder = new Border
+            {
+                Padding = 16,
+                StrokeThickness = 1,
+                Stroke = Color.FromArgb("#DC2626"),
+                Margin = new Thickness(0, 24, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 12,
+                    Children =
+                    {
+                        new Label
+                        {
+                            Text = "⚠️ Danger Zone",
+                            FontSize = 16,
+                            FontAttributes = FontAttributes.Bold,
+                            TextColor = Color.FromArgb("#DC2626")
+                        },
+                        new Label
+                        {
+                            Text = "Delete all seasons and their associated data (divisions, teams, players, fixtures, venues, competitions). " +
+                                   "This is useful after a bad import that created many unwanted seasons. A backup file (.bak) is kept automatically.",
+                            FontSize = 13,
+                            LineHeight = 1.4
+                        },
+                        deleteAllSeasonsBtn
+                    }
+                }
+            };
+            deleteAllSeasonsBorder.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FEF2F2"), Color.FromArgb("#450A0A"));
+
             return new VerticalStackLayout
             {
                 Spacing = 12,
@@ -1041,6 +1806,7 @@ namespace Wdpl2.Views
                     scanButton,
                     orphanResultsBorder,
                     cleanButton,
+                    deleteAllSeasonsBorder,
                     statusLabel
                 }
             };

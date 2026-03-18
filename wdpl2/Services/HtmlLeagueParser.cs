@@ -302,35 +302,53 @@ public static partial class HtmlLeagueParser
     private static void ProcessLeagueTable(HtmlParseResult result)
     {
         if (result.Tables.Count == 0) return;
-        
+
         var table = result.Tables.First();
         var division = result.DetectedDivision ?? "Unknown Division";
-        
+
         // Skip header row
         var dataRows = table.Rows.Skip(1);
-        
+
         foreach (var row in dataRows)
         {
             if (row.Count < 9) continue;
-            
+
+            var position = ParseInt(row[0]);
+            var name = CleanText(row[1]);
+            var played = ParseInt(row[2]);
+            var won = ParseInt(row[3]);
+            var lost = ParseInt(row[4]);
+            var framesFor = ParseInt(row[5]);
+            var framesAgainst = ParseInt(row[6]);
+            var pointsDeducted = ParseInt(row[7]);
+            var points = ParseInt(row[8]);
+
+            // Validate: position must be > 0 (confirms this is a real data row)
+            if (position <= 0) continue;
+
+            // Validate: name must exist and not be purely numeric
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (int.TryParse(name, out _)) continue;
+
+            // Validate: at least one stat column has data (played, won, or points > 0)
+            // This filters out misidentified tables
+            if (played <= 0 && won <= 0 && points <= 0 && framesFor <= 0) continue;
+
             var team = new ExtractedTeam
             {
                 Division = division,
-                Position = ParseInt(row[0]),
-                Name = CleanText(row[1]),
-                Played = ParseInt(row[2]),
-                Won = ParseInt(row[3]),
-                Lost = ParseInt(row[4]),
-                FramesFor = ParseInt(row[5]),
-                FramesAgainst = ParseInt(row[6]),
-                PointsDeducted = ParseInt(row[7]),
-                Points = ParseInt(row[8])
+                Position = position,
+                Name = name,
+                Played = played,
+                Won = won,
+                Lost = lost,
+                FramesFor = framesFor,
+                FramesAgainst = framesAgainst,
+                PointsDeducted = pointsDeducted,
+                Points = points
             };
-            
-            if (!string.IsNullOrWhiteSpace(team.Name))
-            {
-                result.Teams.Add(team);
-            }
+
+            result.Teams.Add(team);
         }
     }
 
@@ -378,39 +396,48 @@ public static partial class HtmlLeagueParser
     private static void ProcessPlayerRatings(HtmlParseResult result)
     {
         if (result.Tables.Count == 0) return;
-        
+
         var table = result.Tables.First();
         var division = result.DetectedDivision ?? "Unknown Division";
-        
+
         // Skip header row
         var dataRows = table.Rows.Skip(1);
-        
+
         foreach (var row in dataRows)
         {
             if (row.Count < 9) continue;
-            
+
+            var position = ParseInt(row[0]);
+            var name = CleanText(row[1]);
+            var teamName = CleanText(row[2]);
+            var played = ParseInt(row[3]);
+
+            // Validate: position must be > 0
+            if (position <= 0) continue;
+
+            // Validate: name must exist and not be purely numeric
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (int.TryParse(name, out _)) continue;
+
+            // Validate: must have a team name (not a summary row)
+            if (string.IsNullOrWhiteSpace(teamName)) continue;
+            if (int.TryParse(teamName, out _)) continue;
+
             var player = new ExtractedPlayer
             {
                 Division = division,
-                Position = ParseInt(row[0]),
-                Name = CleanText(row[1]),
-                TeamName = CleanText(row[2]),
-                Played = ParseInt(row[3]),
+                Position = position,
+                Name = name,
+                TeamName = teamName,
+                Played = played,
                 Won = ParseInt(row[4]),
                 Lost = ParseInt(row[5]),
                 EightBalls = ParseInt(row[6]),
                 BestRating = ParseInt(row[7]),
                 CurrentRating = ParseInt(row[8])
             };
-            
-            // Extract profile link if present
-            // The raw HTML for player name contains: <A HREF="player123.htm">Name</A>
-            // We need to extract the link separately from the original HTML
-            
-            if (!string.IsNullOrWhiteSpace(player.Name))
-            {
-                result.Players.Add(player);
-            }
+
+            result.Players.Add(player);
         }
     }
 

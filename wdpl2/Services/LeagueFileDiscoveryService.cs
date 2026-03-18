@@ -77,6 +77,32 @@ public partial class LeagueFileDiscoveryService
         public bool HasDuplicateTypes { get; set; }
         public bool IsSelected { get; set; } = true;
 
+        // Pre-analysis entity counts (populated by AnalyzeGroupsAsync)
+        public int AnalyzedTeams { get; set; }
+        public int AnalyzedPlayers { get; set; }
+        public int AnalyzedResults { get; set; }
+        public int AnalyzedCompetitions { get; set; }
+        public int AnalyzedDivisions { get; set; }
+        public bool IsAnalyzed { get; set; }
+        public bool HasData => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions > 0;
+        public int TotalEntities => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions;
+
+        public string DataSummary
+        {
+            get
+            {
+                if (!IsAnalyzed) return "Not analyzed";
+                if (!HasData) return "⚠️ No data detected";
+                var parts = new List<string>();
+                if (AnalyzedDivisions > 0) parts.Add($"{AnalyzedDivisions} div");
+                if (AnalyzedTeams > 0) parts.Add($"{AnalyzedTeams} teams");
+                if (AnalyzedPlayers > 0) parts.Add($"{AnalyzedPlayers} players");
+                if (AnalyzedResults > 0) parts.Add($"{AnalyzedResults} results");
+                if (AnalyzedCompetitions > 0) parts.Add($"{AnalyzedCompetitions} comps");
+                return string.Join(", ", parts);
+            }
+        }
+
         public int HtmlCount => Files.Count(f => f.FileType == "HTML");
         public int DatabaseCount => Files.Count(f => f.FileType is "Access" or "SQL" or "Paradox");
         public int OtherCount => Files.Count(f => f.FileType is "Word" or "Excel" or "CSV" or "PDF");
@@ -314,8 +340,40 @@ public partial class LeagueFileDiscoveryService
 
     // ── Grouping ───────────────────────────────────────────────────
 
+    /// <summary>
+    /// Normalize a detected season string to a canonical form so that
+    /// "2023-24", "2023/24", "2023-2024", "2023/2024" all become "2023-24".
+    /// </summary>
+    public static string NormalizeSeasonKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return key;
+
+        // Match range patterns: 2023-24, 2023/24, 2023-2024, 2023_2024, etc.
+        var rangeMatch = Regex.Match(key, @"(20\d{2})[-_/\\](20)?(\d{2})\b");
+        if (rangeMatch.Success)
+        {
+            var startYear = rangeMatch.Groups[1].Value;
+            var endShort = rangeMatch.Groups[3].Value;
+            if (endShort.Length == 4) endShort = endShort[2..];
+            return $"{startYear}-{endShort}";
+        }
+
+        // Match bare year: "2023" → keep as-is
+        var yearMatch = Regex.Match(key, @"\b(20\d{2})\b");
+        if (yearMatch.Success)
+            return yearMatch.Groups[1].Value;
+
+        return key;
+    }
+
     public List<SeasonGroup> GroupBySeason(List<DiscoveredFile> files)
     {
+        // First, normalize all detected seasons so duplicates converge
+        foreach (var file in files)
+        {
+            file.DetectedSeason = NormalizeSeasonKey(file.DetectedSeason);
+        }
+
         var groups = files
             .Where(f => f.IsSelected)
             .GroupBy(f => f.DetectedSeason)
@@ -334,10 +392,82 @@ public partial class LeagueFileDiscoveryService
                 FindMatchingSeason(g.Key, group);
                 return group;
             })
-            .OrderBy(g => g.Files.FirstOrDefault()?.SeasonSortKey ?? "9999")
             .ToList();
 
-        return groups;
+        // Merge groups that resolve to the same existing season
+        groups = MergeDuplicateGroups(groups);
+
+        return groups.OrderBy(g => g.Files.FirstOrDefault()?.SeasonSortKey ?? "9999").ToList();
+    }
+
+    /// <summary>
+    /// Merge groups that clearly refer to the same season:
+    /// - Groups that match the same existing season
+    /// - Groups whose normalized keys are equivalent (e.g. "2023" and "2023-24" when start year matches)
+    /// </summary>
+    private static List<SeasonGroup> MergeDuplicateGroups(List<SeasonGroup> groups)
+    {
+        var merged = new List<SeasonGroup>();
+        var consumed = new HashSet<int>();
+
+        for (int i = 0; i < groups.Count; i++)
+        {
+            if (consumed.Contains(i)) continue;
+
+            var primary = groups[i];
+
+            for (int j = i + 1; j < groups.Count; j++)
+            {
+                if (consumed.Contains(j)) continue;
+
+                var candidate = groups[j];
+                bool shouldMerge = false;
+
+                // Same existing season ID
+                if (primary.ExistingSeasonId.HasValue && candidate.ExistingSeasonId.HasValue
+                    && primary.ExistingSeasonId == candidate.ExistingSeasonId)
+                {
+                    shouldMerge = true;
+                }
+
+                // Same normalized key
+                if (!shouldMerge && primary.SeasonKey == candidate.SeasonKey)
+                    shouldMerge = true;
+
+                // One is bare year, other is range starting with that year ("2023" + "2023-24")
+                if (!shouldMerge)
+                {
+                    var pk = primary.SeasonKey;
+                    var ck = candidate.SeasonKey;
+                    if (pk.Length == 4 && ck.StartsWith(pk + "-")) shouldMerge = true;
+                    if (ck.Length == 4 && pk.StartsWith(ck + "-")) shouldMerge = true;
+                }
+
+                if (shouldMerge)
+                {
+                    // Prefer the longer/more descriptive key as display name
+                    if (candidate.SeasonKey.Length > primary.SeasonKey.Length)
+                    {
+                        primary.SeasonKey = candidate.SeasonKey;
+                        primary.DisplayName = candidate.DisplayName;
+                    }
+                    if (candidate.ExistingSeasonId.HasValue && !primary.ExistingSeasonId.HasValue)
+                    {
+                        primary.ExistingSeasonId = candidate.ExistingSeasonId;
+                        primary.ExistingSeasonName = candidate.ExistingSeasonName;
+                    }
+
+                    primary.Files.AddRange(candidate.Files);
+                    var typeCounts = primary.Files.GroupBy(f => f.FileType).Where(t => t.Count() > 1);
+                    primary.HasDuplicateTypes = typeCounts.Any();
+                    consumed.Add(j);
+                }
+            }
+
+            merged.Add(primary);
+        }
+
+        return merged;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
@@ -403,9 +533,31 @@ public partial class LeagueFileDiscoveryService
         return Math.Min(confidence, 1.0);
     }
 
+    /// <summary>
+    /// Build a short path from filename + nearest 2 parent folder names
+    /// so that random years deep in user paths (C:\Users\2024\...) are ignored.
+    /// </summary>
+    private static string GetRelevantPathSegments(string filePath)
+    {
+        var segments = new List<string>();
+        segments.Add(Path.GetFileName(filePath));
+
+        var dir = Path.GetDirectoryName(filePath);
+        for (int i = 0; i < 2 && !string.IsNullOrEmpty(dir); i++)
+        {
+            var folderName = Path.GetFileName(dir);
+            if (!string.IsNullOrEmpty(folderName))
+                segments.Add(folderName);
+            dir = Path.GetDirectoryName(dir);
+        }
+
+        return string.Join(" ", segments);
+    }
+
     private static void DetectSeason(DiscoveredFile file)
     {
-        var pathToCheck = file.FilePath;
+        // Only check filename + nearest 2 parent folders — not the entire path
+        var pathToCheck = GetRelevantPathSegments(file.FilePath);
 
         // Season word patterns (e.g., "Winter 2023")
         var seasonWordMatch = SeasonWordPattern().Match(pathToCheck);
@@ -509,4 +661,87 @@ public partial class LeagueFileDiscoveryService
 
     [GeneratedRegex(@"\b(winter|summer|spring|autumn|fall)\s*(20\d{2})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex SeasonWordPattern();
+
+    // ── Pre-analysis ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Pre-parse all HTML files in each group to count actual data entities.
+    /// This lets us show the user what data each season contains BEFORE creating any seasons.
+    /// Groups with no data are auto-deselected.
+    /// </summary>
+    public static async Task AnalyzeGroupsAsync(
+        List<SeasonGroup> groups,
+        IProgress<ScanProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        int totalFiles = groups.Sum(g => g.Files.Count(f => f.FileType == "HTML"));
+        int processed = 0;
+
+        foreach (var group in groups)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+
+            // Track unique names across all files in this season group
+            var teamNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var playerNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var divisionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int resultCount = 0;
+            int competitionCount = 0;
+
+            foreach (var file in group.Files.Where(f => f.FileType == "HTML"))
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                try
+                {
+                    processed++;
+                    progress?.Report(new ScanProgress
+                    {
+                        CurrentPath = file.FileName,
+                        FilesScanned = processed,
+                        FilesFound = totalFiles
+                    });
+
+                    var result = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
+                    if (!result.Success) continue;
+
+                    foreach (var team in result.Teams)
+                    {
+                        teamNames.Add(team.Name);
+                        if (!string.IsNullOrWhiteSpace(team.Division))
+                            divisionNames.Add(team.Division);
+                    }
+
+                    foreach (var player in result.Players)
+                    {
+                        playerNames.Add(player.Name);
+                        if (!string.IsNullOrWhiteSpace(player.Division))
+                            divisionNames.Add(player.Division);
+                    }
+
+                    resultCount += result.Results.Count;
+                    competitionCount += result.DetectedCompetitions.Count;
+
+                    // Also pick up division from page heading
+                    if (!string.IsNullOrWhiteSpace(result.DetectedDivision))
+                        divisionNames.Add(result.DetectedDivision);
+                }
+                catch
+                {
+                    // Skip files that fail to parse
+                }
+            }
+
+            group.AnalyzedTeams = teamNames.Count;
+            group.AnalyzedPlayers = playerNames.Count;
+            group.AnalyzedResults = resultCount;
+            group.AnalyzedCompetitions = competitionCount;
+            group.AnalyzedDivisions = divisionNames.Count;
+            group.IsAnalyzed = true;
+
+            // Auto-deselect groups with no detectable data
+            if (!group.HasData && group.Files.All(f => f.FileType == "HTML"))
+                group.IsSelected = false;
+        }
+    }
 }
