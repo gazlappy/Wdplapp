@@ -19,8 +19,10 @@ public partial class SmartImportPage : ContentPage
     private readonly Dictionary<string, bool> _scanLocations = new();
     private List<LeagueFileDiscoveryService.DiscoveredFile> _discoveredFiles = new();
     private List<LeagueFileDiscoveryService.SeasonGroup> _seasonGroups = new();
+    private List<LeagueFileDiscoveryService.SeasonGroup> _allSeasonGroups = new(); // unfiltered copy
     private CancellationTokenSource? _scanCts;
     private int _currentStep = 1;
+    private string? _activeYearFilter;
 
     public SmartImportPage()
     {
@@ -83,6 +85,8 @@ public partial class SmartImportPage : ContentPage
         _currentStep = 1;
         _discoveredFiles.Clear();
         _seasonGroups.Clear();
+        _allSeasonGroups.Clear();
+        _activeYearFilter = null;
         _scanCts?.Cancel();
         _scanCts = null;
         UpdateStepDisplay();
@@ -215,6 +219,16 @@ public partial class SmartImportPage : ContentPage
             await LeagueFileDiscoveryService.AnalyzeGroupsAsync(
                 _seasonGroups, analyzeProgress, _scanCts.Token);
 
+            // Store unfiltered groups
+            _allSeasonGroups = _seasonGroups;
+
+            // Apply year filter if specified
+            _activeYearFilter = YearFilterEntry.Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(_activeYearFilter))
+            {
+                _seasonGroups = FilterGroupsByYear(_allSeasonGroups, _activeYearFilter);
+            }
+
             _currentStep = 2;
             UpdateStepDisplay();
             BuildReviewUI();
@@ -240,10 +254,57 @@ public partial class SmartImportPage : ContentPage
         _scanCts?.Cancel();
     }
 
+    private void OnClearYearFilterClicked(object? sender, EventArgs e)
+    {
+        YearFilterEntry.Text = "";
+    }
+
+    private void OnClearReviewFilterClicked(object? sender, EventArgs e)
+    {
+        _activeYearFilter = null;
+        _seasonGroups = _allSeasonGroups;
+        ReviewFilterBorder.IsVisible = false;
+        BuildReviewUI();
+    }
+
+    /// <summary>
+    /// Filter season groups to only those matching a year string (e.g. "2014", "2023-24").
+    /// </summary>
+    private static List<LeagueFileDiscoveryService.SeasonGroup> FilterGroupsByYear(
+        List<LeagueFileDiscoveryService.SeasonGroup> groups, string yearFilter)
+    {
+        var filter = yearFilter.Trim();
+        return groups.Where(g =>
+        {
+            var key = g.SeasonKey;
+            // Direct match
+            if (key.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                return true;
+            // Match start year from range (e.g. filter "2014" matches "2014-15")
+            if (filter.Length == 4 && key.StartsWith(filter))
+                return true;
+            // Match display name
+            if (g.DisplayName.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }).ToList();
+    }
+
     // ── Step 2: Review ─────────────────────────────────────────────
 
     private void BuildReviewUI()
     {
+        // Show/hide year filter bar
+        if (!string.IsNullOrWhiteSpace(_activeYearFilter))
+        {
+            ReviewFilterBorder.IsVisible = true;
+            ReviewFilterLabel.Text = _activeYearFilter;
+        }
+        else
+        {
+            ReviewFilterBorder.IsVisible = false;
+        }
+
         var totalFiles = _seasonGroups.Sum(g => g.Files.Count);
         var totalSeasons = _seasonGroups.Count;
         var existingSeasons = _seasonGroups.Count(g => g.IsExistingSeason);
@@ -421,8 +482,45 @@ public partial class SmartImportPage : ContentPage
             });
         }
 
+        // File type breakdown (by HTML page type)
+        if (group.HtmlCount > 0)
+        {
+            var htmlFiles = group.Files.Where(f => f.FileType == "HTML").ToList();
+            var breakdownParts = new List<string>();
+
+            // Count HTML files by detected page name pattern
+            var leagueTables = htmlFiles.Count(f => f.FileName.StartsWith("table", StringComparison.OrdinalIgnoreCase));
+            var playerRatings = htmlFiles.Count(f => f.FileName.StartsWith("single", StringComparison.OrdinalIgnoreCase));
+            var doublesRatings = htmlFiles.Count(f => f.FileName.StartsWith("double", StringComparison.OrdinalIgnoreCase));
+            var results = htmlFiles.Count(f => f.FileName.Equals("results.htm", StringComparison.OrdinalIgnoreCase) || f.FileName.Equals("results.html", StringComparison.OrdinalIgnoreCase));
+            var playerProfiles = htmlFiles.Count(f => f.FileName.StartsWith("player", StringComparison.OrdinalIgnoreCase) && !f.FileName.Equals("players.htm", StringComparison.OrdinalIgnoreCase) && !f.FileName.Equals("players.html", StringComparison.OrdinalIgnoreCase));
+            var playerLists = htmlFiles.Count(f => f.FileName.Equals("players.htm", StringComparison.OrdinalIgnoreCase) || f.FileName.Equals("players.html", StringComparison.OrdinalIgnoreCase));
+            var fixtures = htmlFiles.Count(f => f.FileName.StartsWith("fixture", StringComparison.OrdinalIgnoreCase));
+
+            if (leagueTables > 0) breakdownParts.Add($"📋 {leagueTables} league table{(leagueTables != 1 ? "s" : "")}");
+            if (playerRatings > 0) breakdownParts.Add($"⭐ {playerRatings} player rating{(playerRatings != 1 ? "s" : "")}");
+            if (doublesRatings > 0) breakdownParts.Add($"👯 {doublesRatings} doubles rating{(doublesRatings != 1 ? "s" : "")}");
+            if (results > 0) breakdownParts.Add($"🏆 {results} results");
+            if (fixtures > 0) breakdownParts.Add($"📅 {fixtures} fixture{(fixtures != 1 ? "s" : "")}");
+            if (playerProfiles > 0) breakdownParts.Add($"👤 {playerProfiles} player profile{(playerProfiles != 1 ? "s" : "")}");
+            if (playerLists > 0) breakdownParts.Add($"📜 {playerLists} player list{(playerLists != 1 ? "s" : "")}");
+
+            var other = htmlFiles.Count - leagueTables - playerRatings - doublesRatings - results - playerProfiles - playerLists - fixtures;
+            if (other > 0) breakdownParts.Add($"📄 {other} other");
+
+            if (breakdownParts.Count > 0)
+            {
+                mainStack.Children.Add(new Label
+                {
+                    Text = $"HTML breakdown: {string.Join("  ", breakdownParts)}",
+                    FontSize = 11,
+                    TextColor = Color.FromArgb("#6366F1")
+                });
+            }
+        }
+
         // File list (collapsible)
-        var filesStack = new VerticalStackLayout { Spacing = 4, IsVisible = false };
+        var filesStack = new VerticalStackLayout { Spacing = 2, IsVisible = false };
         foreach (var file in group.Files)
         {
             var fileRow = new Grid
@@ -432,9 +530,10 @@ public partial class SmartImportPage : ContentPage
                     new ColumnDefinition(GridLength.Auto),
                     new ColumnDefinition(GridLength.Star),
                     new ColumnDefinition(GridLength.Auto),
+                    new ColumnDefinition(GridLength.Auto),
                     new ColumnDefinition(GridLength.Auto)
                 },
-                ColumnSpacing = 8,
+                ColumnSpacing = 6,
                 Padding = new Thickness(4, 2)
             };
 
@@ -471,6 +570,24 @@ public partial class SmartImportPage : ContentPage
                 VerticalOptions = LayoutOptions.Center
             }, 3, 0);
 
+            // Preview button for HTML files
+            if (file.FileType == "HTML")
+            {
+                var previewBtn = new Button
+                {
+                    Text = "👁",
+                    BackgroundColor = Colors.Transparent,
+                    TextColor = Color.FromArgb("#3B82F6"),
+                    FontSize = 14,
+                    Padding = new Thickness(6, 0),
+                    VerticalOptions = LayoutOptions.Center
+                };
+                ToolTipProperties.SetText(previewBtn, "Preview file data");
+                var capturedFile = file;
+                previewBtn.Clicked += async (s, e) => await ShowFilePreviewAsync(capturedFile);
+                fileRow.Add(previewBtn, 4, 0);
+            }
+
             filesStack.Children.Add(fileRow);
         }
 
@@ -497,6 +614,195 @@ public partial class SmartImportPage : ContentPage
 
         border.Content = mainStack;
         return border;
+    }
+
+    // ── File Preview ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Parse and display a preview of an HTML file's contents in a modal popup.
+    /// Shows detected page type, division, teams, players, results etc.
+    /// </summary>
+    private async Task ShowFilePreviewAsync(LeagueFileDiscoveryService.DiscoveredFile file)
+    {
+        try
+        {
+            var result = await Task.Run(async () => await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath));
+
+            var lines = new List<string>
+            {
+                $"📄 {file.FileName}",
+                $"📁 {file.FilePath}",
+                $"📏 {file.FileSizeDisplay}",
+                ""
+            };
+
+            if (!result.Success)
+            {
+                lines.Add("❌ Failed to parse file");
+                foreach (var err in result.Errors)
+                    lines.Add($"  • {err}");
+            }
+            else
+            {
+                lines.Add($"Page Type: {result.DetectedPageType}");
+                if (!string.IsNullOrWhiteSpace(result.PageHeading))
+                    lines.Add($"Heading: {result.PageHeading}");
+                if (!string.IsNullOrWhiteSpace(result.DetectedDivision))
+                    lines.Add($"Division: {result.DetectedDivision}");
+                lines.Add($"Tables found: {result.Tables.Count}");
+                lines.Add("");
+
+                // Teams
+                if (result.Teams.Count > 0)
+                {
+                    lines.Add($"── Teams ({result.Teams.Count}) ──");
+                    foreach (var team in result.Teams.Take(15))
+                    {
+                        var pos = team.Position > 0 ? $"#{team.Position} " : "";
+                        lines.Add($"  {pos}{team.Name} ({team.Division}) P:{team.Played} W:{team.Won} Pts:{team.Points}");
+                    }
+                    if (result.Teams.Count > 15)
+                        lines.Add($"  ... and {result.Teams.Count - 15} more");
+                    lines.Add("");
+                }
+
+                // Players
+                if (result.Players.Count > 0)
+                {
+                    lines.Add($"── Players ({result.Players.Count}) ──");
+                    foreach (var player in result.Players.Take(15))
+                    {
+                        var rating = player.CurrentRating > 0 ? $" R:{player.CurrentRating}" : "";
+                        lines.Add($"  {player.Name} ({player.TeamName}) P:{player.Played} W:{player.Won}{rating}");
+                    }
+                    if (result.Players.Count > 15)
+                        lines.Add($"  ... and {result.Players.Count - 15} more");
+                    lines.Add("");
+                }
+
+                // Results
+                if (result.Results.Count > 0)
+                {
+                    lines.Add($"── Results ({result.Results.Count}) ──");
+                    foreach (var r in result.Results.Take(10))
+                        lines.Add($"  {r.Date:dd/MM/yyyy} {r.HomeTeam} {r.HomeScore}-{r.AwayScore} {r.AwayTeam}");
+                    if (result.Results.Count > 10)
+                        lines.Add($"  ... and {result.Results.Count - 10} more");
+                    lines.Add("");
+                }
+
+                // Player profile
+                if (result.PlayerProfile != null)
+                {
+                    var p = result.PlayerProfile;
+                    lines.Add($"── Player Profile ──");
+                    lines.Add($"  {p.PlayerName} ({p.TeamName})");
+                    lines.Add($"  P:{p.Played} W:{p.Won} L:{p.Lost} Rating:{p.CurrentRating}");
+                    lines.Add($"  Match history: {p.MatchHistory.Count} match{(p.MatchHistory.Count != 1 ? "es" : "")}");
+                    foreach (var m in p.MatchHistory.Take(8))
+                        lines.Add($"    {m.Date:dd/MM/yyyy} vs {m.OpponentName} ({m.OpponentTeam}) {m.Result} R:{m.RatingAttained} W:{m.Weighting}");
+                    if (p.MatchHistory.Count > 8)
+                        lines.Add($"    ... and {p.MatchHistory.Count - 8} more");
+                    lines.Add("");
+                }
+
+                // Doubles
+                if (result.DoublesEntries.Count > 0)
+                {
+                    lines.Add($"── Doubles Entries ({result.DoublesEntries.Count}) ──");
+                    foreach (var d in result.DoublesEntries.Take(10))
+                        lines.Add($"  {d.Player1Name} & {d.Player2Name} ({d.TeamName}) P:{d.Played} W:{d.Won}");
+                    if (result.DoublesEntries.Count > 10)
+                        lines.Add($"  ... and {result.DoublesEntries.Count - 10} more");
+                    lines.Add("");
+                }
+
+                // Player list
+                if (result.PlayerListEntries.Count > 0)
+                {
+                    lines.Add($"── Player List ({result.PlayerListEntries.Count}) ──");
+                    foreach (var entry in result.PlayerListEntries.Take(20))
+                        lines.Add($"  {entry.Name}{(entry.ProfileLink != null ? $" → {entry.ProfileLink}" : "")}");
+                    if (result.PlayerListEntries.Count > 20)
+                        lines.Add($"  ... and {result.PlayerListEntries.Count - 20} more");
+                    lines.Add("");
+                }
+
+                // Competitions
+                if (result.DetectedCompetitions.Count > 0)
+                {
+                    lines.Add($"── Competitions ({result.DetectedCompetitions.Count}) ──");
+                    foreach (var c in result.DetectedCompetitions)
+                        lines.Add($"  {c.Name}");
+                    lines.Add("");
+                }
+
+                // Warnings
+                if (result.Warnings.Count > 0)
+                {
+                    lines.Add($"── Warnings ──");
+                    foreach (var w in result.Warnings)
+                        lines.Add($"  ⚠️ {w}");
+                }
+
+                // Viability assessment
+                lines.Add("");
+                var entityCount = result.Teams.Count + result.Players.Count + result.Results.Count;
+                if (result.PlayerProfile != null) entityCount += result.PlayerProfile.MatchHistory.Count;
+                entityCount += result.DoublesEntries.Count + result.PlayerListEntries.Count;
+
+                if (entityCount > 0)
+                    lines.Add($"✅ Viable — {entityCount} importable entities detected");
+                else
+                    lines.Add("⚠️ No importable data detected in this file");
+            }
+
+            // Show in a scrollable page
+            var previewPage = new ContentPage
+            {
+                Title = $"Preview: {file.FileName}"
+            };
+            var scrollView = new ScrollView
+            {
+                Content = new VerticalStackLayout
+                {
+                    Padding = new Thickness(16),
+                    Spacing = 2,
+                    Children =
+                    {
+                        new Label
+                        {
+                            Text = string.Join("\n", lines),
+                            FontSize = 12,
+                            FontFamily = "Consolas",
+                            LineHeight = 1.3
+                        }
+                    }
+                }
+            };
+            var closeBtn = new Button
+            {
+                Text = "Close Preview",
+                BackgroundColor = Color.FromArgb("#3B82F6"),
+                TextColor = Colors.White,
+                Margin = new Thickness(16, 8),
+                Padding = new Thickness(16, 10)
+            };
+            closeBtn.Clicked += async (s, e) => await Navigation.PopModalAsync();
+
+            previewPage.Content = new Grid
+            {
+                RowDefinitions = { new RowDefinition(GridLength.Star), new RowDefinition(GridLength.Auto) },
+                Children = { scrollView, closeBtn }
+            };
+            Grid.SetRow(closeBtn, 1);
+
+            await Navigation.PushModalAsync(new NavigationPage(previewPage));
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Preview Error", $"Failed to preview file:\n{ex.Message}", "OK");
+        }
     }
 
     // ── Step 3: Import ─────────────────────────────────────────────
@@ -733,6 +1039,8 @@ public partial class SmartImportPage : ContentPage
         var allPlayers = new List<HtmlLeagueParser.ExtractedPlayer>();
         var allResults = new List<HtmlLeagueParser.ExtractedResult>();
         var allCompetitions = new List<HtmlLeagueParser.DetectedCompetition>();
+        var allProfiles = new List<HtmlLeagueParser.ExtractedPlayerProfile>();
+        var allDoublesEntries = new List<HtmlLeagueParser.ExtractedDoublesEntry>();
 
         // Collect division names from AUTHORITATIVE sources only
         // (league tables, player ratings, page headings — NOT from results which have abbreviations)
@@ -751,6 +1059,10 @@ public partial class SmartImportPage : ContentPage
                 allPlayers.AddRange(result.Players);
                 allResults.AddRange(result.Results);
                 allCompetitions.AddRange(result.DetectedCompetitions);
+                allDoublesEntries.AddRange(result.DoublesEntries);
+
+                if (result.PlayerProfile != null)
+                    allProfiles.Add(result.PlayerProfile);
 
                 // Authoritative division sources (full names from headings)
                 foreach (var t in result.Teams)
@@ -759,6 +1071,9 @@ public partial class SmartImportPage : ContentPage
                 foreach (var p in result.Players)
                     if (!string.IsNullOrWhiteSpace(p.Division))
                         authoritativeDivisionNames.Add(p.Division);
+                foreach (var d in result.DoublesEntries)
+                    if (!string.IsNullOrWhiteSpace(d.Division))
+                        authoritativeDivisionNames.Add(d.Division);
                 if (!string.IsNullOrWhiteSpace(result.DetectedDivision))
                     authoritativeDivisionNames.Add(result.DetectedDivision);
 
@@ -773,7 +1088,7 @@ public partial class SmartImportPage : ContentPage
             }
         }
 
-        int totalEntities = allTeams.Count + allPlayers.Count + allResults.Count + allCompetitions.Count;
+        int totalEntities = allTeams.Count + allPlayers.Count + allResults.Count + allCompetitions.Count + allProfiles.Count + allDoublesEntries.Count;
         if (totalEntities == 0)
             return (0, seasonId);
 
@@ -892,6 +1207,54 @@ public partial class SmartImportPage : ContentPage
                 SeasonId = sid,
                 Name = teamName,
                 DivisionId = divId
+            };
+            data.Teams.Add(team);
+            teamMap[teamName] = team.Id;
+            totals.Teams++;
+        }
+
+        // Teams from doubles ratings (also authoritative)
+        var teamNamesFromDoubles = allDoublesEntries
+            .Select(d => d.TeamName)
+            .Where(n => !string.IsNullOrWhiteSpace(n) && n.Length > 1)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var teamName in teamNamesFromDoubles)
+        {
+            if (teamMap.ContainsKey(teamName)) continue;
+
+            var ed = allDoublesEntries.First(d =>
+                string.Equals(d.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
+            var divId = ResolveDivisionId(ed.Division, divisionMap, defaultDivisionId);
+
+            var team = new Team
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = sid,
+                Name = teamName,
+                DivisionId = divId
+            };
+            data.Teams.Add(team);
+            teamMap[teamName] = team.Id;
+            totals.Teams++;
+        }
+
+        // Teams from player profiles (authoritative — team name in heading)
+        var teamNamesFromProfiles = allProfiles
+            .Select(p => p.TeamName)
+            .Where(n => !string.IsNullOrWhiteSpace(n) && n.Length > 1)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var teamName in teamNamesFromProfiles)
+        {
+            if (teamMap.ContainsKey(teamName)) continue;
+
+            var team = new Team
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = sid,
+                Name = teamName,
+                DivisionId = defaultDivisionId
             };
             data.Teams.Add(team);
             teamMap[teamName] = team.Id;
@@ -1017,6 +1380,211 @@ public partial class SmartImportPage : ContentPage
             };
             data.Competitions.Add(competition);
             totals.Competitions++;
+        }
+
+        // ── Import player profile frame results ──
+        // Player profiles contain individual match records (player vs player)
+        // These give us frame-level data that the results page doesn't have
+        foreach (var profile in allProfiles)
+        {
+            if (profile.MatchHistory.Count == 0) continue;
+
+            // Find or create the profile player
+            var profilePlayer = data.Players.FirstOrDefault(p =>
+                p.SeasonId == sid &&
+                string.Equals(p.Name, profile.PlayerName, StringComparison.OrdinalIgnoreCase));
+
+            if (profilePlayer == null)
+            {
+                var nameParts = profile.PlayerName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                Guid? profileTeamId = null;
+                if (!string.IsNullOrWhiteSpace(profile.TeamName) && teamMap.TryGetValue(profile.TeamName, out var ptid))
+                    profileTeamId = ptid;
+
+                profilePlayer = new Player
+                {
+                    Id = Guid.NewGuid(),
+                    SeasonId = sid,
+                    FirstName = nameParts.Length > 0 ? nameParts[0] : "",
+                    LastName = nameParts.Length > 1 ? nameParts[1] : "",
+                    Name = profile.PlayerName,
+                    TeamId = profileTeamId
+                };
+                data.Players.Add(profilePlayer);
+                totals.Players++;
+            }
+
+            // Find the profile player's team ID
+            Guid profilePlayerTeamId = profilePlayer.TeamId ?? Guid.Empty;
+
+            foreach (var match in profile.MatchHistory)
+            {
+                // Find or create opponent player
+                var opponent = data.Players.FirstOrDefault(p =>
+                    p.SeasonId == sid &&
+                    string.Equals(p.Name, match.OpponentName, StringComparison.OrdinalIgnoreCase));
+
+                if (opponent == null)
+                {
+                    var oppParts = match.OpponentName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    Guid? oppTeamId = null;
+                    if (!string.IsNullOrWhiteSpace(match.OpponentTeam) && teamMap.TryGetValue(match.OpponentTeam, out var otid))
+                        oppTeamId = otid;
+
+                    // Also try creating team for opponent if not found
+                    if (oppTeamId == null && !string.IsNullOrWhiteSpace(match.OpponentTeam) && match.OpponentTeam.Length > 1)
+                    {
+                        if (!teamMap.ContainsKey(match.OpponentTeam))
+                        {
+                            var oppTeam = new Team
+                            {
+                                Id = Guid.NewGuid(),
+                                SeasonId = sid,
+                                Name = match.OpponentTeam,
+                                DivisionId = defaultDivisionId
+                            };
+                            data.Teams.Add(oppTeam);
+                            teamMap[match.OpponentTeam] = oppTeam.Id;
+                            totals.Teams++;
+                        }
+                        teamMap.TryGetValue(match.OpponentTeam, out var newOppTid);
+                        oppTeamId = newOppTid != Guid.Empty ? newOppTid : null;
+                    }
+
+                    opponent = new Player
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = sid,
+                        FirstName = oppParts.Length > 0 ? oppParts[0] : "",
+                        LastName = oppParts.Length > 1 ? oppParts[1] : "",
+                        Name = match.OpponentName,
+                        TeamId = oppTeamId
+                    };
+                    data.Players.Add(opponent);
+                    totals.Players++;
+                }
+
+                Guid oppTeamIdResolved = opponent.TeamId ?? Guid.Empty;
+
+                // Find or create fixture for this match date + teams
+                var fixture = data.Fixtures.FirstOrDefault(f =>
+                    f.SeasonId == sid &&
+                    f.Date.Date == match.Date.Date &&
+                    ((f.HomeTeamId == profilePlayerTeamId && f.AwayTeamId == oppTeamIdResolved) ||
+                     (f.HomeTeamId == oppTeamIdResolved && f.AwayTeamId == profilePlayerTeamId)));
+
+                if (fixture == null && profilePlayerTeamId != Guid.Empty && oppTeamIdResolved != Guid.Empty)
+                {
+                    fixture = new Fixture
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = sid,
+                        Date = match.Date,
+                        HomeTeamId = profilePlayerTeamId,
+                        AwayTeamId = oppTeamIdResolved,
+                        DivisionId = defaultDivisionId
+                    };
+                    data.Fixtures.Add(fixture);
+                    totals.Fixtures++;
+                }
+
+                if (fixture == null) continue;
+
+                // Determine home/away orientation
+                var isProfileHome = fixture.HomeTeamId == profilePlayerTeamId;
+                var homePlayerId = isProfileHome ? profilePlayer.Id : opponent.Id;
+                var awayPlayerId = isProfileHome ? opponent.Id : profilePlayer.Id;
+
+                // Skip if this frame already exists
+                if (fixture.Frames.Any(fr => fr.HomePlayerId == homePlayerId && fr.AwayPlayerId == awayPlayerId))
+                    continue;
+
+                var winner = FrameWinner.None;
+                var playerWon = match.Result.Equals("Won", StringComparison.OrdinalIgnoreCase);
+                if (playerWon)
+                    winner = isProfileHome ? FrameWinner.Home : FrameWinner.Away;
+                else
+                    winner = isProfileHome ? FrameWinner.Away : FrameWinner.Home;
+
+                var frame = new FrameResult
+                {
+                    Number = fixture.Frames.Count + 1,
+                    HomePlayerId = homePlayerId,
+                    AwayPlayerId = awayPlayerId,
+                    Winner = winner
+                };
+
+                // Store rating data from profile
+                if (match.RatingAttained > 0)
+                {
+                    if (isProfileHome)
+                        frame.HomePlayerRating = match.RatingAttained;
+                    else
+                        frame.AwayPlayerRating = match.RatingAttained;
+                }
+
+                // Weighting = opponent's rating at time of frame
+                if (match.Weighting > 0)
+                {
+                    if (isProfileHome)
+                        frame.HomeOppRating = match.Weighting;
+                    else
+                        frame.AwayOppRating = match.Weighting;
+                }
+
+                fixture.Frames.Add(frame);
+                totals.Frames++;
+            }
+        }
+
+        // ── Import doubles pairings (ratings from doubles ratings HTML pages) ──
+        foreach (var entry in allDoublesEntries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Player1Name) && string.IsNullOrWhiteSpace(entry.Player2Name))
+                continue;
+
+            // Check for existing pairing (same players, same team, same season)
+            var existingPairing = data.DoublesPairings.FirstOrDefault(dp =>
+                dp.SeasonId == sid &&
+                string.Equals(dp.Player1Name, entry.Player1Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(dp.Player2Name, entry.Player2Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existingPairing != null) continue;
+
+            // Resolve division, team, and player IDs
+            var divId = ResolveDivisionId(entry.Division, divisionMap, defaultDivisionId);
+            Guid? teamId = null;
+            if (!string.IsNullOrWhiteSpace(entry.TeamName) && teamMap.TryGetValue(entry.TeamName, out var tid))
+                teamId = tid;
+
+            // Try to find player IDs
+            Guid? player1Id = data.Players.FirstOrDefault(p =>
+                p.SeasonId == sid &&
+                string.Equals(p.Name, entry.Player1Name, StringComparison.OrdinalIgnoreCase))?.Id;
+            Guid? player2Id = data.Players.FirstOrDefault(p =>
+                p.SeasonId == sid &&
+                string.Equals(p.Name, entry.Player2Name, StringComparison.OrdinalIgnoreCase))?.Id;
+
+            var pairing = new DoublesPairing
+            {
+                Id = Guid.NewGuid(),
+                SeasonId = sid,
+                DivisionId = divId,
+                TeamId = teamId,
+                Player1Id = player1Id,
+                Player2Id = player2Id,
+                Player1Name = entry.Player1Name,
+                Player2Name = entry.Player2Name,
+                TeamName = entry.TeamName,
+                Played = entry.Played,
+                Won = entry.Won,
+                Lost = entry.Lost,
+                BestRating = entry.BestRating,
+                BestRatingDate = entry.BestRatingDate,
+                CurrentRating = entry.CurrentRating
+            };
+            data.DoublesPairings.Add(pairing);
+            totals.DoublesPairings++;
         }
 
         totals.FilesProcessed += htmlFiles.Count;
@@ -1210,7 +1778,9 @@ public partial class SmartImportPage : ContentPage
         if (totals.Teams > 0) lines.Add($"👥 {totals.Teams} team{(totals.Teams != 1 ? "s" : "")} imported");
         if (totals.Players > 0) lines.Add($"🧑 {totals.Players} player{(totals.Players != 1 ? "s" : "")} imported");
         if (totals.Fixtures > 0) lines.Add($"🎱 {totals.Fixtures} fixture{(totals.Fixtures != 1 ? "s" : "")} / result{(totals.Fixtures != 1 ? "s" : "")} imported");
+        if (totals.Frames > 0) lines.Add($"🎯 {totals.Frames} player frame result{(totals.Frames != 1 ? "s" : "")} imported");
         if (totals.Competitions > 0) lines.Add($"🏆 {totals.Competitions} competition{(totals.Competitions != 1 ? "s" : "")} imported");
+        if (totals.DoublesPairings > 0) lines.Add($"👫 {totals.DoublesPairings} doubles pairing{(totals.DoublesPairings != 1 ? "s" : "")} imported");
         lines.Add($"📁 {totals.FilesProcessed} file{(totals.FilesProcessed != 1 ? "s" : "")} processed automatically");
         lines.Add($"Across {seasonCount} season{(seasonCount != 1 ? "s" : "")}");
 
@@ -1385,8 +1955,10 @@ public partial class SmartImportPage : ContentPage
         public int Teams;
         public int Players;
         public int Fixtures;
+        public int Frames;
         public int Venues;
         public int Competitions;
+        public int DoublesPairings;
         public int FilesProcessed;
     }
 }

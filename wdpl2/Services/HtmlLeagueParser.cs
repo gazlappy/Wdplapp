@@ -41,6 +41,8 @@ public static partial class HtmlLeagueParser
         public List<ExtractedPlayer> Players { get; set; } = new();
         public List<ExtractedResult> Results { get; set; } = new();
         public List<DetectedCompetition> DetectedCompetitions { get; set; } = new();
+        public List<ExtractedDoublesEntry> DoublesEntries { get; set; } = new();
+        public List<ExtractedPlayerListEntry> PlayerListEntries { get; set; } = new();
         public ExtractedPlayerProfile? PlayerProfile { get; set; }
     }
 
@@ -52,6 +54,7 @@ public static partial class HtmlLeagueParser
         PlayerRatings,      // singleRed.htm, singleYellow.htm
         DoublesRatings,     // doubleRed.htm
         PlayerProfile,      // player100.htm
+        PlayerList,         // players.htm
         Fixtures
     }
 
@@ -84,6 +87,35 @@ public static partial class HtmlLeagueParser
         public int FramesAgainst { get; set; }
         public int PointsDeducted { get; set; }
         public int Points { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted doubles pair from doubles ratings table
+    /// </summary>
+    public class ExtractedDoublesEntry
+    {
+        public int Position { get; set; }
+        public string Player1Name { get; set; } = "";
+        public string Player2Name { get; set; } = "";
+        public string TeamName { get; set; } = "";
+        public string Division { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int BestRating { get; set; }
+        public DateTime? BestRatingDate { get; set; }
+        public int CurrentRating { get; set; }
+        public string? Player1ProfileLink { get; set; }
+        public string? Player2ProfileLink { get; set; }
+    }
+
+    /// <summary>
+    /// Extracted player name from player list page
+    /// </summary>
+    public class ExtractedPlayerListEntry
+    {
+        public string Name { get; set; } = "";
+        public string? ProfileLink { get; set; }
     }
 
     /// <summary>
@@ -144,6 +176,7 @@ public static partial class HtmlLeagueParser
         public string OpponentTeam { get; set; } = "";
         public string Result { get; set; } = ""; // "Won" or "Lost"
         public int RatingAttained { get; set; }
+        public int Weighting { get; set; }
         public string? OpponentProfileLink { get; set; }
     }
 
@@ -210,24 +243,36 @@ public static partial class HtmlLeagueParser
                 case PageType.LeagueTable:
                     ProcessLeagueTable(result);
                     break;
-                    
+
                 case PageType.Results:
                     ProcessResults(result);
                     break;
-                    
+
                 case PageType.PlayerRatings:
-                    ProcessPlayerRatings(result);
+                    ProcessPlayerRatings(result, html);
                     break;
-                    
+
+                case PageType.DoublesRatings:
+                    ProcessDoublesRatings(result, html);
+                    break;
+
                 case PageType.PlayerProfile:
                     ProcessPlayerProfile(result, html);
                     break;
+
+                case PageType.PlayerList:
+                    ProcessPlayerList(result, html);
+                    break;
+
+                case PageType.Fixtures:
+                    ProcessFixtures(result);
+                    break;
             }
-            
+
             // Set flags based on what was extracted
             result.HasLeagueTable = result.Teams.Count != 0;
             result.HasResults = result.Results.Count != 0;
-            result.HasPlayerStats = result.Players.Count != 0;
+            result.HasPlayerStats = result.Players.Count != 0 || result.DoublesEntries.Count != 0;
             result.HasPlayerProfile = result.PlayerProfile != null;
             
             // Validate
@@ -254,31 +299,35 @@ public static partial class HtmlLeagueParser
     {
         var lowerHeading = heading.ToLower();
         var lowerFileName = fileName.ToLower();
-        
+
+        // Player list page (must check before player profile)
+        if (lowerHeading.Contains("list of players") || lowerFileName == "players.htm")
+            return PageType.PlayerList;
+
         // Player profile pages
         if (lowerHeading.Contains("record of") || lowerFileName.StartsWith("player"))
             return PageType.PlayerProfile;
-            
+
         // League table pages
-        if (lowerHeading.Contains("division table") || lowerFileName.StartsWith("table"))
+        if (lowerHeading.Contains("division table") || lowerHeading.EndsWith(" table") || lowerFileName.StartsWith("table"))
             return PageType.LeagueTable;
-            
+
         // Results pages
         if (lowerHeading.Contains("results") || lowerFileName == "results.htm")
             return PageType.Results;
-            
+
         // Player ratings pages
         if (lowerHeading.Contains("player ratings") || lowerFileName.StartsWith("single"))
             return PageType.PlayerRatings;
-            
+
         // Doubles ratings pages
         if (lowerHeading.Contains("doubles ratings") || lowerFileName.StartsWith("double"))
             return PageType.DoublesRatings;
-            
+
         // Fixtures pages
         if (lowerHeading.Contains("fixture"))
             return PageType.Fixtures;
-            
+
         return PageType.Unknown;
     }
 
@@ -293,6 +342,23 @@ public static partial class HtmlLeagueParser
         {
             return match.Groups[1].Value + " Division";
         }
+
+        // Handle headings like "First Table", "Red Doubles Ratings", "Red Player Ratings"
+        // Strip known suffixes to find the division word
+        var h = heading.Trim();
+        var suffixes = new[] { " Table", " Doubles Ratings", " Player Ratings", " Ratings" };
+        foreach (var suffix in suffixes)
+        {
+            if (h.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                var core = h[..^suffix.Length].Trim();
+                if (!string.IsNullOrWhiteSpace(core) && core.Split(' ').Length <= 2)
+                {
+                    return core + " Division";
+                }
+            }
+        }
+
         return null;
     }
 
@@ -391,14 +457,17 @@ public static partial class HtmlLeagueParser
     }
 
     /// <summary>
-    /// Process player ratings page
+    /// Process player ratings page — also extracts profile links from &lt;A&gt; tags
     /// </summary>
-    private static void ProcessPlayerRatings(HtmlParseResult result)
+    private static void ProcessPlayerRatings(HtmlParseResult result, string html)
     {
         if (result.Tables.Count == 0) return;
 
         var table = result.Tables.First();
         var division = result.DetectedDivision ?? "Unknown Division";
+
+        // Pre-extract profile links from raw HTML so we can match them to players
+        var profileLinks = ExtractProfileLinksFromHtml(html);
 
         // Skip header row
         var dataRows = table.Rows.Skip(1);
@@ -437,12 +506,16 @@ public static partial class HtmlLeagueParser
                 CurrentRating = ParseInt(row[8])
             };
 
+            // Try to find profile link for this player
+            if (profileLinks.TryGetValue(name, out var link))
+                player.ProfileLink = link;
+
             result.Players.Add(player);
         }
     }
 
     /// <summary>
-    /// Process player profile page
+    /// Process player profile page — extracts stats, match history with Weighting, and opponent links
     /// </summary>
     private static void ProcessPlayerProfile(HtmlParseResult result, string html)
     {
@@ -450,13 +523,13 @@ public static partial class HtmlLeagueParser
         // Format: "Record of Chris Cannon (Nice Parking)"
         var headingMatch = Regex.Match(result.PageHeading, @"Record of\s+(.+?)\s*\((.+?)\)", RegexOptions.IgnoreCase);
         if (!headingMatch.Success) return;
-        
+
         var profile = new ExtractedPlayerProfile
         {
             PlayerName = headingMatch.Groups[1].Value.Trim(),
             TeamName = headingMatch.Groups[2].Value.Trim()
         };
-        
+
         if (result.Tables.Count >= 1)
         {
             // First table has summary stats
@@ -477,51 +550,249 @@ public static partial class HtmlLeagueParser
                 }
             }
         }
-        
+
+        // Pre-extract opponent profile links from raw HTML
+        var profileLinks = ExtractProfileLinksFromHtml(html);
+
         if (result.Tables.Count >= 2)
         {
             // Second table has match history
             var historyTable = result.Tables[1];
-            
+
             // Skip header row
             var dataRows = historyTable.Rows.Skip(1);
-            
+
             foreach (var row in dataRows)
             {
                 if (row.Count < 5) continue;
-                
+
                 // Skip totals row (has "Totals" in one of the cells)
                 if (row.Any(c => c.ToLower().Contains("total")))
                     continue;
-                
+
                 // Skip empty rows
                 if (row.All(c => string.IsNullOrWhiteSpace(c)))
                     continue;
-                    
+
                 if (!TryParseDate(row[0], out var matchDate))
                     continue;
-                    
+
+                var opponentName = CleanText(row[1]);
+
                 var matchRecord = new PlayerMatchRecord
                 {
                     Date = matchDate,
-                    OpponentName = CleanText(row[1]),
+                    OpponentName = opponentName,
                     OpponentTeam = CleanText(row[2]),
                     Result = CleanText(row[3])
                 };
-                
+
                 if (row.Count > 4)
                 {
                     matchRecord.RatingAttained = ParseInt(row[4]);
                 }
-                
+
+                // Extract Weighting (column 5)
+                if (row.Count > 5)
+                {
+                    matchRecord.Weighting = ParseInt(row[5]);
+                }
+
+                // Try to find opponent profile link
+                if (profileLinks.TryGetValue(opponentName, out var link))
+                    matchRecord.OpponentProfileLink = link;
+
                 if (!string.IsNullOrWhiteSpace(matchRecord.OpponentName))
                 {
                     profile.MatchHistory.Add(matchRecord);
                 }
             }
         }
-        
+
         result.PlayerProfile = profile;
+    }
+
+    /// <summary>
+    /// Process doubles ratings page — 12 columns:
+    /// Pos, Player1 No, Player1 Name, Player2 No, Player2 Name, Team, Played, Won, Lost, Best Rating, Attained On, Current Rating
+    /// </summary>
+    private static void ProcessDoublesRatings(HtmlParseResult result, string html)
+    {
+        if (result.Tables.Count == 0) return;
+
+        var table = result.Tables.First();
+        var division = result.DetectedDivision ?? "Unknown Division";
+
+        // Pre-extract profile links from raw HTML
+        var profileLinks = ExtractProfileLinksFromHtml(html);
+
+        var dataRows = table.Rows.Skip(1);
+
+        foreach (var row in dataRows)
+        {
+            if (row.Count < 12) continue;
+
+            var position = ParseInt(row[0]);
+            // row[1] = Player1 No (numeric ID, skip)
+            var player1Name = CleanText(row[2]);
+            // row[3] = Player2 No (numeric ID, skip)
+            var player2Name = CleanText(row[4]);
+            var teamName = CleanText(row[5]);
+            var played = ParseInt(row[6]);
+            var won = ParseInt(row[7]);
+            var lost = ParseInt(row[8]);
+            var bestRating = ParseInt(row[9]);
+            TryParseDate(row[10], out var bestDate);
+            var currentRating = ParseInt(row[11]);
+
+            if (position <= 0) continue;
+            if (string.IsNullOrWhiteSpace(player1Name) && string.IsNullOrWhiteSpace(player2Name)) continue;
+
+            var entry = new ExtractedDoublesEntry
+            {
+                Division = division,
+                Position = position,
+                Player1Name = player1Name,
+                Player2Name = player2Name,
+                TeamName = teamName,
+                Played = played,
+                Won = won,
+                Lost = lost,
+                BestRating = bestRating,
+                BestRatingDate = bestDate,
+                CurrentRating = currentRating
+            };
+
+            // Try to find profile links for both players
+            if (profileLinks.TryGetValue(player1Name, out var link1))
+                entry.Player1ProfileLink = link1;
+            if (profileLinks.TryGetValue(player2Name, out var link2))
+                entry.Player2ProfileLink = link2;
+
+            result.DoublesEntries.Add(entry);
+
+            // Also add both players to the Players list so they get imported
+            AddDoublePlayerAsExtracted(result, player1Name, teamName, division, profileLinks);
+            AddDoublePlayerAsExtracted(result, player2Name, teamName, division, profileLinks);
+        }
+    }
+
+    /// <summary>
+    /// Helper: add a doubles player to the Players list if not already present
+    /// </summary>
+    private static void AddDoublePlayerAsExtracted(HtmlParseResult result, string playerName, string teamName, string division, Dictionary<string, string> profileLinks)
+    {
+        if (string.IsNullOrWhiteSpace(playerName)) return;
+
+        // Check if player already exists in the list
+        if (result.Players.Any(p => string.Equals(p.Name, playerName, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        var player = new ExtractedPlayer
+        {
+            Name = playerName,
+            TeamName = teamName,
+            Division = division
+        };
+
+        if (profileLinks.TryGetValue(playerName, out var link))
+            player.ProfileLink = link;
+
+        result.Players.Add(player);
+    }
+
+    /// <summary>
+    /// Process player list page — extracts player names and profile links from &lt;A&gt; tags
+    /// Format: &lt;A HREF="player100.htm"&gt;Chris Cannon&lt;/A&gt;
+    /// </summary>
+    private static void ProcessPlayerList(HtmlParseResult result, string html)
+    {
+        var linkMatches = Regex.Matches(html, @"<A\s+HREF\s*=\s*""(player\d+\.htm)""[^>]*>(.*?)</A>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        foreach (Match match in linkMatches)
+        {
+            var profileLink = match.Groups[1].Value;
+            var name = CleanText(StripHtmlTags(match.Groups[2].Value));
+
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            result.PlayerListEntries.Add(new ExtractedPlayerListEntry
+            {
+                Name = name,
+                ProfileLink = profileLink
+            });
+
+            // Also add as an ExtractedPlayer (with no team/division — those come from other pages)
+            if (!result.Players.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                result.Players.Add(new ExtractedPlayer
+                {
+                    Name = name,
+                    ProfileLink = profileLink
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Process fixtures page — similar format to results but may include unplayed matches (score = 0-0)
+    /// </summary>
+    private static void ProcessFixtures(HtmlParseResult result)
+    {
+        if (result.Tables.Count == 0) return;
+
+        var table = result.Tables.First();
+        var dataRows = table.Rows.Skip(1);
+
+        foreach (var row in dataRows)
+        {
+            if (row.Count < 6) continue;
+
+            if (!TryParseDate(row[0], out var date))
+                continue;
+
+            var matchResult = new ExtractedResult
+            {
+                Date = date,
+                Division = CleanText(row[1]),
+                HomeTeam = CleanText(row[2]),
+                HomeScore = ParseInt(row[3]),
+                AwayTeam = CleanText(row[4]),
+                AwayScore = ParseInt(row[5])
+            };
+
+            if (!string.IsNullOrWhiteSpace(matchResult.HomeTeam) && 
+                !string.IsNullOrWhiteSpace(matchResult.AwayTeam))
+            {
+                result.Results.Add(matchResult);
+                result.HasFixtures = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extract profile links from raw HTML before tags are stripped.
+    /// Returns dictionary of player name → profile filename (e.g. "player100.htm").
+    /// </summary>
+    private static Dictionary<string, string> ExtractProfileLinksFromHtml(string html)
+    {
+        var links = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var linkMatches = Regex.Matches(html, @"<A\s+HREF\s*=\s*""(player\d+\.htm)""[^>]*>(.*?)</A>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        foreach (Match match in linkMatches)
+        {
+            var href = match.Groups[1].Value;
+            var name = CleanText(StripHtmlTags(match.Groups[2].Value));
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                links.TryAdd(name, href);
+            }
+        }
+
+        return links;
     }
 
     /// <summary>

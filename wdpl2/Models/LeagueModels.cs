@@ -22,6 +22,9 @@ namespace Wdpl2.Models
         /// <summary>Competitions/tournaments.</summary>
         public List<Competition> Competitions { get; set; } = new();
 
+        /// <summary>Doubles pair ratings (imported from HTML or calculated from doubles frames).</summary>
+        public List<DoublesPairing> DoublesPairings { get; set; } = new();
+
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
 
@@ -69,6 +72,9 @@ namespace Wdpl2.Models
             // Remove all competitions for this season
             Competitions.RemoveAll(c => c.SeasonId == seasonId);
 
+            // Remove all doubles pairings for this season
+            DoublesPairings.RemoveAll(dp => dp.SeasonId == seasonId);
+
             // Finally remove the season itself
             Seasons.RemoveAll(s => s.Id == seasonId);
 
@@ -91,6 +97,7 @@ namespace Wdpl2.Models
             Venues.RemoveAll(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
             Divisions.RemoveAll(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
             Competitions.RemoveAll(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
+            DoublesPairings.RemoveAll(dp => dp.SeasonId == null || !validSeasonIds.Contains(dp.SeasonId.Value));
         }
     }
 
@@ -329,5 +336,58 @@ namespace Wdpl2.Models
         Available,
         Unavailable,
         Maybe
+    }
+
+    // ---------- DoublesPairing ----------
+    /// <summary>
+    /// Represents a doubles pair's rating entry for a season/division.
+    /// Imported from HTML doubles ratings tables or calculated from doubles frames.
+    /// </summary>
+    public sealed class DoublesPairing
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+
+        /// <summary>Season this pairing belongs to.</summary>
+        public Guid? SeasonId { get; set; }
+
+        /// <summary>Division this pairing plays in.</summary>
+        public Guid? DivisionId { get; set; }
+
+        /// <summary>Team this pair plays for.</summary>
+        public Guid? TeamId { get; set; }
+
+        /// <summary>First player in the pair.</summary>
+        public Guid? Player1Id { get; set; }
+
+        /// <summary>Second player in the pair.</summary>
+        public Guid? Player2Id { get; set; }
+
+        /// <summary>First player name (for display when player record not linked).</summary>
+        public string Player1Name { get; set; } = "";
+
+        /// <summary>Second player name (for display when player record not linked).</summary>
+        public string Player2Name { get; set; } = "";
+
+        /// <summary>Team name (for display when team record not linked).</summary>
+        public string TeamName { get; set; } = "";
+
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+
+        /// <summary>Best rating achieved during the season.</summary>
+        public int BestRating { get; set; }
+
+        /// <summary>Date the best rating was achieved.</summary>
+        public DateTime? BestRatingDate { get; set; }
+
+        /// <summary>Current (or final) rating.</summary>
+        public int CurrentRating { get; set; }
+
+        [JsonIgnore]
+        public string PairDisplayName => $"{Player1Name} & {Player2Name}";
+
+        [JsonIgnore]
+        public double WinPercentage => Played > 0 ? (Won * 100.0 / Played) : 0;
     }
 }

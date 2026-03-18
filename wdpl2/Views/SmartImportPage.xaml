@@ -115,6 +115,35 @@
                         </VerticalStackLayout>
                     </Border>
 
+                    <!-- Year Filter -->
+                    <Border Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="{StaticResource Gray50}">
+                        <VerticalStackLayout Padding="16" Spacing="8">
+                            <Label Text="Filter by Year (optional)"
+                                   FontAttributes="Bold"
+                                   FontSize="14"/>
+                            <Label Text="Only show files matching a specific year or season. Leave blank to find all."
+                                   TextColor="{StaticResource Gray600}"
+                                   FontSize="12"/>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <Entry x:Name="YearFilterEntry"
+                                       Placeholder="e.g. 2014 or 2023-24"
+                                       Keyboard="Numeric"
+                                       FontSize="14"
+                                       VerticalOptions="Center"/>
+                                <Button x:Name="ClearYearButton"
+                                        Grid.Column="1"
+                                        Text="✕ Clear"
+                                        Clicked="OnClearYearFilterClicked"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{StaticResource Gray600}"
+                                        FontSize="12"
+                                        Padding="8,4"
+                                        VerticalOptions="Center"/>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+
                     <!-- File Types Info -->
                     <Border Style="{StaticResource CardBorderStyle}"
                             BackgroundColor="#F0FDF4">
@@ -185,6 +214,35 @@
                            FontSize="18"
                            FontAttributes="Bold"
                            Margin="0,8,0,0"/>
+
+                    <!-- Year Filter Bar (Step 2) -->
+                    <Border x:Name="ReviewFilterBorder"
+                            Style="{StaticResource CardBorderStyle}"
+                            BackgroundColor="#FFFBEB"
+                            Stroke="#F59E0B"
+                            StrokeThickness="1"
+                            IsVisible="False">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Padding="12">
+                            <Label Text="🔍 Filtered to year:"
+                                   FontSize="13"
+                                   VerticalOptions="Center"/>
+                            <Label x:Name="ReviewFilterLabel"
+                                   Grid.Column="1"
+                                   Text=""
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center"/>
+                            <Button x:Name="ClearReviewFilterButton"
+                                    Grid.Column="2"
+                                    Text="Show All"
+                                    Clicked="OnClearReviewFilterClicked"
+                                    BackgroundColor="#F59E0B"
+                                    TextColor="White"
+                                    FontSize="12"
+                                    Padding="12,6"
+                                    VerticalOptions="Center"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Summary Banner -->
                     <Border x:Name="SummaryBanner"

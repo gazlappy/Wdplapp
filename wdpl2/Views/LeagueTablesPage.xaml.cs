@@ -53,8 +53,24 @@ public partial class LeagueTablesPage : ContentPage
         public int Rating { get; set; } = 1000;
     }
 
+    private sealed class DoublesRow
+    {
+        public int Pos { get; set; }
+        public string Player1 { get; set; } = "";
+        public string Player2 { get; set; } = "";
+        public string Team { get; set; } = "";
+        public int Played { get; set; }
+        public int Won { get; set; }
+        public int Lost { get; set; }
+        public int BestRating { get; set; }
+        public string BestRatingDate { get; set; } = "";
+        public int CurrentRating { get; set; }
+        public string PairName => $"{Player1} & {Player2}";
+    }
+
     private readonly ObservableCollection<TeamRow> _teamRows = new();
     private readonly ObservableCollection<PlayerRow> _playerRows = new();
+    private readonly ObservableCollection<DoublesRow> _doublesRows = new();
     private readonly ObservableCollection<Division> _divisions = new();
 
     private Guid? _currentSeasonId;
@@ -66,6 +82,7 @@ public partial class LeagueTablesPage : ContentPage
 
         TeamTableList.ItemsSource = _teamRows;
         PlayerRatingsList.ItemsSource = _playerRows;
+        DoublesRatingsList.ItemsSource = _doublesRows;
         DivisionPicker.ItemsSource = _divisions;
 
         DivisionPicker.SelectedIndexChanged += (_, __) => OnDivisionChanged();
@@ -139,6 +156,8 @@ public partial class LeagueTablesPage : ContentPage
         RefreshTeamTable();
         RenderPlayerRatingsHeader();
         RefreshPlayerRatings();
+        RenderDoublesRatingsHeader();
+        RefreshDoublesRatings();
     }
 
     // ========== TEAM TABLE ==========
@@ -815,6 +834,218 @@ public partial class LeagueTablesPage : ContentPage
         });
     }
 
+    // ========== DOUBLES RATINGS ==========
+
+    private void RenderDoublesRatingsHeader()
+    {
+        DoublesHeaderGrid.ColumnDefinitions.Clear();
+        DoublesHeaderGrid.Children.Clear();
+
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });   // #
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });       // Pair
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });   // Team
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });    // P
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });    // W
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });    // L
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });    // Best
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });    // Best On
+        DoublesHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });    // Current
+
+        string[] headers = { "#", "Pair", "Team", "Played", "W", "L", "Best", "Best On", "Rating" };
+        TextAlignment[] aligns = {
+            TextAlignment.Center, TextAlignment.Start, TextAlignment.Start, TextAlignment.Center,
+            TextAlignment.Center, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center,
+            TextAlignment.Center
+        };
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var label = new Label
+            {
+                Text = headers[i],
+                FontAttributes = FontAttributes.Bold,
+                FontSize = 11,
+                HorizontalTextAlignment = aligns[i],
+                VerticalTextAlignment = TextAlignment.Center
+            };
+            DoublesHeaderGrid.Add(label, i, 0);
+        }
+    }
+
+    private void RefreshDoublesRatings()
+    {
+        _doublesRows.Clear();
+
+        if (!_currentSeasonId.HasValue || _selectedDivision == null)
+        {
+            DoublesRatingsList.ItemTemplate = null;
+            DoublesRatingsBorder.IsVisible = false;
+            return;
+        }
+
+        var data = DataStore.Data;
+
+        // Get doubles pairings for this season and division
+        var pairings = data.DoublesPairings
+            .Where(dp => dp.SeasonId == _currentSeasonId &&
+                         dp.DivisionId == _selectedDivision.Id)
+            .OrderByDescending(dp => dp.CurrentRating)
+            .ThenByDescending(dp => dp.Won)
+            .ToList();
+
+        // If no stored pairings for this division, try to calculate from doubles frames
+        if (pairings.Count == 0)
+        {
+            pairings = CalculateDoublesFromFrames();
+        }
+
+        if (pairings.Count == 0)
+        {
+            DoublesRatingsBorder.IsVisible = false;
+            return;
+        }
+
+        DoublesRatingsBorder.IsVisible = true;
+
+        var rows = new List<DoublesRow>();
+        for (int i = 0; i < pairings.Count; i++)
+        {
+            var dp = pairings[i];
+            rows.Add(new DoublesRow
+            {
+                Pos = i + 1,
+                Player1 = ResolvePlayerName(dp.Player1Id, dp.Player1Name),
+                Player2 = ResolvePlayerName(dp.Player2Id, dp.Player2Name),
+                Team = ResolveTeamName(dp.TeamId, dp.TeamName),
+                Played = dp.Played,
+                Won = dp.Won,
+                Lost = dp.Lost,
+                BestRating = dp.BestRating,
+                BestRatingDate = dp.BestRatingDate?.ToString("dd/MM/yy") ?? "",
+                CurrentRating = dp.CurrentRating
+            });
+        }
+
+        DoublesRatingsList.ItemTemplate = DoublesRowTemplate();
+        foreach (var r in rows)
+            _doublesRows.Add(r);
+    }
+
+    private string ResolvePlayerName(Guid? playerId, string fallbackName)
+    {
+        if (playerId.HasValue)
+        {
+            var player = DataStore.Data.Players.FirstOrDefault(p => p.Id == playerId.Value);
+            if (player != null)
+                return player.FullName ?? $"{player.FirstName} {player.LastName}".Trim();
+        }
+        return fallbackName;
+    }
+
+    private static string ResolveTeamName(Guid? teamId, string fallbackName)
+    {
+        if (teamId.HasValue)
+        {
+            var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == teamId.Value);
+            if (team != null)
+                return team.Name ?? fallbackName;
+        }
+        return fallbackName;
+    }
+
+    /// <summary>
+    /// Calculate doubles pair stats from doubles frames (FrameResult.IsDoubles == true)
+    /// when no stored DoublesPairing records exist.
+    /// </summary>
+    private List<DoublesPairing> CalculateDoublesFromFrames()
+    {
+        if (!_currentSeasonId.HasValue || _selectedDivision == null)
+            return new();
+
+        var data = DataStore.Data;
+        var divisionTeamIds = new HashSet<Guid>(
+            data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).Select(t => t.Id));
+
+        var doublesFixtures = data.Fixtures
+            .Where(f => f.SeasonId == _currentSeasonId &&
+                        (divisionTeamIds.Contains(f.HomeTeamId) || divisionTeamIds.Contains(f.AwayTeamId)))
+            .Where(f => f.Frames.Any(fr => fr.IsDoubles))
+            .ToList();
+
+        if (doublesFixtures.Count == 0) return new();
+
+        // Track pair stats: key = sorted (player1Id, player2Id)
+        var pairStats = new Dictionary<(Guid, Guid), DoublesPairing>();
+        var playerById = data.Players.ToDictionary(p => p.Id, p => p);
+        var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
+
+        foreach (var fixture in doublesFixtures)
+        {
+            foreach (var frame in fixture.Frames.Where(fr => fr.IsDoubles))
+            {
+                if (!frame.HomePlayerId.HasValue || !frame.AwayPlayerId.HasValue) continue;
+
+                // For simplified doubles storage (one player per side), track individual participation
+                var homeId = frame.HomePlayerId.Value;
+                var awayId = frame.AwayPlayerId.Value;
+                var pairKey = homeId.CompareTo(awayId) < 0 ? (homeId, awayId) : (awayId, homeId);
+
+                // This simplified approach treats each stored doubles frame as a pair encounter
+                // In reality, we need both players per side, but the current model only stores one
+                // So we skip calculation and rely on imported data
+            }
+        }
+
+        return new();
+    }
+
+    private static DataTemplate DoublesRowTemplate()
+    {
+        return new DataTemplate(() =>
+        {
+            var grid = new Grid
+            {
+                ColumnSpacing = 8,
+                Padding = new Thickness(10, 6)
+            };
+
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });   // #
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });       // Pair
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });   // Team
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });    // P
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });    // W
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });    // L
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });    // Best
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });    // Best On
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });    // Current
+
+            Label L(string path, TextAlignment align = TextAlignment.Center, bool bold = false, string? format = null)
+            {
+                var lbl = new Label
+                {
+                    HorizontalTextAlignment = align,
+                    VerticalTextAlignment = TextAlignment.Center,
+                    FontAttributes = bold ? FontAttributes.Bold : FontAttributes.None,
+                    FontSize = 12
+                };
+                lbl.SetBinding(Label.TextProperty, new Binding(path, stringFormat: format));
+                return lbl;
+            }
+
+            grid.Add(L(nameof(DoublesRow.Pos), TextAlignment.Center, true), 0, 0);
+            grid.Add(L(nameof(DoublesRow.PairName), TextAlignment.Start, true), 1, 0);
+            grid.Add(L(nameof(DoublesRow.Team), TextAlignment.Start), 2, 0);
+            grid.Add(L(nameof(DoublesRow.Played)), 3, 0);
+            grid.Add(L(nameof(DoublesRow.Won)), 4, 0);
+            grid.Add(L(nameof(DoublesRow.Lost)), 5, 0);
+            grid.Add(L(nameof(DoublesRow.BestRating), TextAlignment.Center, false), 6, 0);
+            grid.Add(L(nameof(DoublesRow.BestRatingDate), TextAlignment.Center, false), 7, 0);
+            grid.Add(L(nameof(DoublesRow.CurrentRating), TextAlignment.Center, true), 8, 0);
+
+            return new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = grid, StrokeThickness = 0 };
+        });
+    }
+
     // ========== EXPORT ==========
 
     private async Task ExportCsvAsync()
@@ -842,6 +1073,15 @@ public partial class LeagueTablesPage : ContentPage
         foreach (var o in _playerRows)
             sb.AppendLine($"{o.Pos},{Csv(o.Player)},{Csv(o.Team)},{o.Played},{o.Wins},{o.Losses},{o.WinPct.ToString("0.#", CultureInfo.InvariantCulture)},{o.EightBalls},{o.Rating}");
 
+        if (_doublesRows.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== DOUBLES RATINGS ===");
+            sb.AppendLine("Pos,Player 1,Player 2,Team,Played,Won,Lost,Best Rating,Best On,Current Rating");
+            foreach (var o in _doublesRows)
+                sb.AppendLine($"{o.Pos},{Csv(o.Player1)},{Csv(o.Player2)},{Csv(o.Team)},{o.Played},{o.Won},{o.Lost},{o.BestRating},{o.BestRatingDate},{o.CurrentRating}");
+        }
+
         var fileName = $"LeagueTable_{season?.Name?.Replace(" ", "_")}_{divName}_{DateTime.Now:yyyyMMdd}.csv";
         var path = IOPath.Combine(FileSystem.CacheDirectory, fileName);
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
@@ -866,11 +1106,12 @@ public partial class LeagueTablesPage : ContentPage
     private void OnRecalculateClicked()
     {
         SetStatus("Recalculating ratings...");
-        
+
         // Force a full refresh of both team table and player ratings
         RefreshTeamTable();
         RefreshPlayerRatings();
-        
+        RefreshDoublesRatings();
+
         SetStatus($"Ratings recalculated at {DateTime.Now:HH:mm:ss}");
     }
 

@@ -21,6 +21,7 @@ public partial class BatchImportPreviewPage : ContentPage
     private System.Collections.Generic.Dictionary<string, PlayerPreview> _aggregatedPlayers = new(StringComparer.OrdinalIgnoreCase);
     private System.Collections.Generic.List<HtmlLeagueParser.ExtractedResult> _aggregatedResults = new();
     private System.Collections.Generic.List<PlayerFrameRecord> _aggregatedFrameResults = new();
+    private System.Collections.Generic.List<HtmlLeagueParser.ExtractedDoublesEntry> _aggregatedDoublesPairings = new();
     
     // Track potential player duplicates for merge suggestions
     private System.Collections.Generic.List<PlayerMergeSuggestion> _playerMergeSuggestions = new();
@@ -108,6 +109,7 @@ public partial class BatchImportPreviewPage : ContentPage
             _aggregatedPlayers.Clear();
             _aggregatedResults.Clear();
             _aggregatedFrameResults.Clear();
+            _aggregatedDoublesPairings.Clear();
             _playerMergeSuggestions.Clear();
 
             // Process files
@@ -303,15 +305,92 @@ public partial class BatchImportPreviewPage : ContentPage
                 }
             }
 
+            // Teams and divisions from doubles entries
+            foreach (var doubles in htmlResult.DoublesEntries)
+            {
+                if (!string.IsNullOrWhiteSpace(doubles.Division))
+                {
+                    var divName = NormalizeDivisionName(doubles.Division);
+                    var divKey = divName.ToLowerInvariant();
+                    if (!_aggregatedDivisions.ContainsKey(divKey))
+                    {
+                        _aggregatedDivisions[divKey] = new DivisionPreview { Name = divName };
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(doubles.TeamName))
+                {
+                    var teamName = NormalizeTeamName(doubles.TeamName);
+                    var teamKey = GetTeamKey(doubles.TeamName);
+                    if (!_aggregatedTeams.ContainsKey(teamKey))
+                    {
+                        _aggregatedTeams[teamKey] = new TeamPreview
+                        {
+                            Name = teamName,
+                            DivisionName = NormalizeDivisionName(doubles.Division)
+                        };
+                    }
+                }
+            }
+
+            // Teams from player profile
+            if (htmlResult.PlayerProfile != null && !string.IsNullOrWhiteSpace(htmlResult.PlayerProfile.TeamName))
+            {
+                var profileTeamName = NormalizeTeamName(htmlResult.PlayerProfile.TeamName);
+                var profileTeamKey = GetTeamKey(htmlResult.PlayerProfile.TeamName);
+                if (!_aggregatedTeams.ContainsKey(profileTeamKey))
+                {
+                    _aggregatedTeams[profileTeamKey] = new TeamPreview
+                    {
+                        Name = profileTeamName
+                    };
+                }
+            }
+
             // === AGGREGATE PLAYERS ===
             foreach (var player in htmlResult.Players)
             {
                 var nameParts = player.Name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                 var firstName = nameParts.Length > 0 ? nameParts[0] : "";
                 var lastName = nameParts.Length > 1 ? nameParts[1] : "";
-                
+
                 // Use fuzzy matching to add or merge player
                 AddOrMergePlayer(firstName, lastName, player.TeamName);
+            }
+
+            // Players from doubles entries (both partners) and aggregate doubles pairings
+            foreach (var doubles in htmlResult.DoublesEntries)
+            {
+                if (!string.IsNullOrWhiteSpace(doubles.Player1Name))
+                {
+                    var parts1 = doubles.Player1Name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    AddOrMergePlayer(parts1.Length > 0 ? parts1[0] : "", parts1.Length > 1 ? parts1[1] : "", doubles.TeamName);
+                }
+                if (!string.IsNullOrWhiteSpace(doubles.Player2Name))
+                {
+                    var parts2 = doubles.Player2Name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    AddOrMergePlayer(parts2.Length > 0 ? parts2[0] : "", parts2.Length > 1 ? parts2[1] : "", doubles.TeamName);
+                }
+
+                // Aggregate doubles pairing (deduplicate by player names)
+                var isDuplicatePairing = _aggregatedDoublesPairings.Any(dp =>
+                    string.Equals(dp.Player1Name, doubles.Player1Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(dp.Player2Name, doubles.Player2Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(dp.Division, doubles.Division, StringComparison.OrdinalIgnoreCase));
+                if (!isDuplicatePairing)
+                {
+                    _aggregatedDoublesPairings.Add(doubles);
+                }
+            }
+
+            // Players from player list entries
+            foreach (var entry in htmlResult.PlayerListEntries)
+            {
+                if (!string.IsNullOrWhiteSpace(entry.Name))
+                {
+                    var parts = entry.Name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    AddOrMergePlayer(parts.Length > 0 ? parts[0] : "", parts.Length > 1 ? parts[1] : "", "");
+                }
             }
 
             // Player from profile
@@ -347,7 +426,8 @@ public partial class BatchImportPreviewPage : ContentPage
                         OpponentName = oppFullName,
                         OpponentTeam = NormalizeTeamName(match.OpponentTeam),
                         PlayerWon = match.Result.Equals("Won", StringComparison.OrdinalIgnoreCase),
-                        RatingAttained = match.RatingAttained
+                        RatingAttained = match.RatingAttained,
+                        Weighting = match.Weighting > 0 ? match.Weighting : null
                     };
                     
                     // Check for duplicate (same frame seen from opponent's profile)
@@ -464,7 +544,8 @@ public partial class BatchImportPreviewPage : ContentPage
         // Use AGGREGATED counts (deduplicated)
         SummaryLabel.Text = $"Files: {totalFiles} ({selectedFiles} selected) | " +
             $"Found: {_aggregatedDivisions.Count} divisions, {_aggregatedTeams.Count} teams, " +
-            $"{_aggregatedPlayers.Count} players{mergeInfo}, {_aggregatedResults.Count} fixtures, {_aggregatedFrameResults.Count} frames";
+            $"{_aggregatedPlayers.Count} players{mergeInfo}, {_aggregatedResults.Count} fixtures, " +
+            $"{_aggregatedFrameResults.Count} frames, {_aggregatedDoublesPairings.Count} doubles pairings";
     }
 
     private void ShowAlerts()
@@ -630,11 +711,12 @@ public partial class BatchImportPreviewPage : ContentPage
                 "Confirm Batch Import",
                 $"Import data into {selectedSeason.Name}?\n\n" +
                 $"This will add:\n" +
-                $"� {_aggregatedDivisions.Count} divisions\n" +
-                $"� {_aggregatedTeams.Count} teams\n" +
-                $"� {_aggregatedPlayers.Count} players\n" +
-                $"� {_aggregatedResults.Count} fixtures/results\n" +
-                $"� {_aggregatedFrameResults.Count} player frame results",
+                $"• {_aggregatedDivisions.Count} divisions\n" +
+                $"• {_aggregatedTeams.Count} teams\n" +
+                $"• {_aggregatedPlayers.Count} players\n" +
+                $"• {_aggregatedResults.Count} fixtures/results\n" +
+                $"• {_aggregatedFrameResults.Count} player frame results\n" +
+                $"• {_aggregatedDoublesPairings.Count} doubles pairings",
                 "Yes, Import All",
                 "Cancel");
 
@@ -981,7 +1063,16 @@ public partial class BatchImportPreviewPage : ContentPage
                             else
                                 frame.AwayPlayerRating = frameResult.RatingAttained;
                         }
-                        
+
+                        // Store Weighting (opponent's rating at time of frame)
+                        if (frameResult.Weighting.HasValue)
+                        {
+                            if (isPlayerHome)
+                                frame.HomeOppRating = frameResult.Weighting;
+                            else
+                                frame.AwayOppRating = frameResult.Weighting;
+                        }
+
                         fixture.Frames.Add(frame);
                         result.FramesCreated++;
                     }
@@ -992,7 +1083,79 @@ public partial class BatchImportPreviewPage : ContentPage
                 }
             }
 
-            // 6. Update season dates from imported fixture dates
+            // 6. Import Doubles Pairings
+            ProgressLabel.Text = "Importing doubles pairings...";
+            ProgressBar.Progress = 0.9;
+            await Task.Delay(10);
+
+            foreach (var entry in _aggregatedDoublesPairings)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Player1Name) && string.IsNullOrWhiteSpace(entry.Player2Name))
+                    continue;
+
+                // Check for existing pairing
+                var existingPairing = data.DoublesPairings.FirstOrDefault(dp =>
+                    dp.SeasonId == seasonId &&
+                    string.Equals(dp.Player1Name, entry.Player1Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(dp.Player2Name, entry.Player2Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existingPairing != null)
+                {
+                    result.DoublesPairingsSkipped++;
+                    continue;
+                }
+
+                // Resolve division
+                Guid? divId = null;
+                if (!string.IsNullOrWhiteSpace(entry.Division))
+                {
+                    var divKey = NormalizeDivisionName(entry.Division).ToLowerInvariant();
+                    divisionMap.TryGetValue(divKey, out var mappedDivId);
+                    divId = mappedDivId != Guid.Empty ? mappedDivId : null;
+                }
+
+                // Resolve team
+                Guid? dpTeamId = null;
+                if (!string.IsNullOrWhiteSpace(entry.TeamName))
+                {
+                    var dpTeamKey = GetTeamKey(entry.TeamName);
+                    teamMap.TryGetValue(dpTeamKey, out var mappedTeamId);
+                    dpTeamId = mappedTeamId != Guid.Empty ? mappedTeamId : null;
+                }
+
+                // Resolve player IDs
+                var p1Key = GetPlayerKey(
+                    entry.Player1Name.Split(' ').FirstOrDefault() ?? "",
+                    string.Join(" ", entry.Player1Name.Split(' ').Skip(1)));
+                var p2Key = GetPlayerKey(
+                    entry.Player2Name.Split(' ').FirstOrDefault() ?? "",
+                    string.Join(" ", entry.Player2Name.Split(' ').Skip(1)));
+                playerMap.TryGetValue(p1Key, out var player1Id);
+                playerMap.TryGetValue(p2Key, out var player2Id);
+
+                var pairing = new DoublesPairing
+                {
+                    Id = Guid.NewGuid(),
+                    SeasonId = seasonId,
+                    DivisionId = divId,
+                    TeamId = dpTeamId,
+                    Player1Id = player1Id != Guid.Empty ? player1Id : null,
+                    Player2Id = player2Id != Guid.Empty ? player2Id : null,
+                    Player1Name = NormalizePlayerName(entry.Player1Name),
+                    Player2Name = NormalizePlayerName(entry.Player2Name),
+                    TeamName = NormalizeTeamName(entry.TeamName),
+                    Played = entry.Played,
+                    Won = entry.Won,
+                    Lost = entry.Lost,
+                    BestRating = entry.BestRating,
+                    BestRatingDate = entry.BestRatingDate,
+                    CurrentRating = entry.CurrentRating
+                };
+                data.DoublesPairings.Add(pairing);
+                result.DoublesPairingsCreated++;
+            }
+
+            // 7. Update season dates from imported fixture dates
             ProgressLabel.Text = "Updating season dates...";
             ProgressBar.Progress = 0.95;
             await Task.Delay(10);
@@ -1078,21 +1241,25 @@ public partial class BatchImportPreviewPage : ContentPage
         public int FixturesSkipped { get; set; }
         public int FramesCreated { get; set; }
         public int FramesSkipped { get; set; }
+        public int DoublesPairingsCreated { get; set; }
+        public int DoublesPairingsSkipped { get; set; }
         public System.Collections.Generic.List<string> Errors { get; set; } = new();
 
         public string Summary => 
             $"Created:\n" +
-            $"� {DivisionsCreated} divisions\n" +
-            $"� {TeamsCreated} teams\n" +
-            $"� {PlayersCreated} players\n" +
-            $"� {FixturesCreated} fixtures\n" +
-            $"� {FramesCreated} player frame results\n\n" +
+            $"• {DivisionsCreated} divisions\n" +
+            $"• {TeamsCreated} teams\n" +
+            $"• {PlayersCreated} players\n" +
+            $"• {FixturesCreated} fixtures\n" +
+            $"• {FramesCreated} player frame results\n" +
+            $"• {DoublesPairingsCreated} doubles pairings\n\n" +
             $"Skipped (already exist):\n" +
-            $"� {DivisionsSkipped} divisions\n" +
-            $"� {TeamsSkipped} teams\n" +
-            $"� {PlayersSkipped} players\n" +
-            $"� {FixturesSkipped} fixtures\n" +
-            $"� {FramesSkipped} frames";
+            $"• {DivisionsSkipped} divisions\n" +
+            $"• {TeamsSkipped} teams\n" +
+            $"• {PlayersSkipped} players\n" +
+            $"• {FixturesSkipped} fixtures\n" +
+            $"• {FramesSkipped} frames\n" +
+            $"• {DoublesPairingsSkipped} doubles pairings";
     }
 
     /// <summary>
