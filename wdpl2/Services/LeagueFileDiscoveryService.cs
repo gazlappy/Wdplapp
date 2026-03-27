@@ -82,10 +82,11 @@ public partial class LeagueFileDiscoveryService
         public int AnalyzedPlayers { get; set; }
         public int AnalyzedResults { get; set; }
         public int AnalyzedCompetitions { get; set; }
+        public int AnalyzedDoublesPairings { get; set; }
         public int AnalyzedDivisions { get; set; }
         public bool IsAnalyzed { get; set; }
-        public bool HasData => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions > 0;
-        public int TotalEntities => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions;
+        public bool HasData => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions + AnalyzedDoublesPairings > 0;
+        public int TotalEntities => AnalyzedTeams + AnalyzedPlayers + AnalyzedResults + AnalyzedCompetitions + AnalyzedDoublesPairings;
 
         public string DataSummary
         {
@@ -99,6 +100,7 @@ public partial class LeagueFileDiscoveryService
                 if (AnalyzedPlayers > 0) parts.Add($"{AnalyzedPlayers} players");
                 if (AnalyzedResults > 0) parts.Add($"{AnalyzedResults} results");
                 if (AnalyzedCompetitions > 0) parts.Add($"{AnalyzedCompetitions} comps");
+                if (AnalyzedDoublesPairings > 0) parts.Add($"{AnalyzedDoublesPairings} doubles pairs");
                 return string.Join(", ", parts);
             }
         }
@@ -687,6 +689,7 @@ public partial class LeagueFileDiscoveryService
             var divisionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int resultCount = 0;
             int competitionCount = 0;
+            int doublesCount = 0;
 
             foreach (var file in group.Files.Where(f => f.FileType == "HTML"))
             {
@@ -721,6 +724,14 @@ public partial class LeagueFileDiscoveryService
 
                     resultCount += result.Results.Count;
                     competitionCount += result.DetectedCompetitions.Count;
+                    doublesCount += result.DoublesEntries.Count;
+
+                    // Pick up divisions from doubles entries
+                    foreach (var d in result.DoublesEntries)
+                    {
+                        if (!string.IsNullOrWhiteSpace(d.Division))
+                            divisionNames.Add(d.Division);
+                    }
 
                     // Also pick up division from page heading
                     if (!string.IsNullOrWhiteSpace(result.DetectedDivision))
@@ -736,6 +747,7 @@ public partial class LeagueFileDiscoveryService
             group.AnalyzedPlayers = playerNames.Count;
             group.AnalyzedResults = resultCount;
             group.AnalyzedCompetitions = competitionCount;
+            group.AnalyzedDoublesPairings = doublesCount;
             group.AnalyzedDivisions = divisionNames.Count;
             group.IsAnalyzed = true;
 

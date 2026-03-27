@@ -75,6 +75,7 @@ public partial class LeagueTablesPage : ContentPage
 
     private Guid? _currentSeasonId;
     private Division? _selectedDivision;
+    private bool _isRefreshing;
 
     public LeagueTablesPage()
     {
@@ -85,7 +86,15 @@ public partial class LeagueTablesPage : ContentPage
         DoublesRatingsList.ItemsSource = _doublesRows;
         DivisionPicker.ItemsSource = _divisions;
 
-        DivisionPicker.SelectedIndexChanged += (_, __) => OnDivisionChanged();
+        // Set templates once — never null them (avoids MAUI CollectionView rendering issues)
+        TeamTableList.ItemTemplate = TeamRowTemplate();
+        PlayerRatingsList.ItemTemplate = PlayerRowTemplate();
+        DoublesRatingsList.ItemTemplate = DoublesRowTemplate();
+
+        DivisionPicker.SelectedIndexChanged += (_, __) =>
+        {
+            if (!_isRefreshing) OnDivisionChanged();
+        };
         SortPicker.SelectedIndex = 0;
         SortPicker.SelectedIndexChanged += (_, __) => RefreshPlayerRatings();
         ExportBtn.Clicked += async (_, __) => await ExportCsvAsync();
@@ -102,6 +111,12 @@ public partial class LeagueTablesPage : ContentPage
         SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        RefreshAll();
+    }
+
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -114,18 +129,47 @@ public partial class LeagueTablesPage : ContentPage
 
     private void RefreshAll()
     {
-        _currentSeasonId = SeasonService.Current.CurrentSeasonId;
-        RefreshDivisions();
+        // Fallback chain: SeasonService ? DataStore.ActiveSeasonId ? first active season
+        _currentSeasonId = SeasonService.Current.CurrentSeasonId
+            ?? DataStore.Data.ActiveSeasonId
+            ?? DataStore.Data.Seasons.FirstOrDefault(s => s.IsActive)?.Id;
 
-        // Auto-select first division if available
-        if (_divisions.Count > 0 && DivisionPicker.SelectedIndex == -1)
+        // Keep SeasonService in sync if we had to fall back
+        if (_currentSeasonId.HasValue && SeasonService.Current.CurrentSeasonId != _currentSeasonId)
         {
-            DivisionPicker.SelectedIndex = 0;
+            System.Diagnostics.Debug.WriteLine($"  => Syncing SeasonService from fallback: {_currentSeasonId}");
+            SeasonService.Current.CurrentSeasonId = _currentSeasonId;
         }
-        else
+
+        var seasonName = _currentSeasonId.HasValue
+            ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId)?.Name ?? "?"
+            : "NONE";
+        System.Diagnostics.Debug.WriteLine($"=== TABLES RefreshAll: SeasonId={_currentSeasonId} ({seasonName}) ===");
+
+        _isRefreshing = true;
+        try
         {
-            OnDivisionChanged();
+            RefreshDivisions();
+
+            // Auto-select first division if available
+            if (_divisions.Count > 0)
+            {
+                // Always force-set to 0 after refresh (Clear() may not reliably reset SelectedIndex)
+                DivisionPicker.SelectedIndex = -1;
+                DivisionPicker.SelectedIndex = 0;
+            }
+            else
+            {
+                DivisionPicker.SelectedIndex = -1;
+            }
         }
+        finally
+        {
+            _isRefreshing = false;
+        }
+
+        // Now trigger the data refresh with the selected division
+        OnDivisionChanged();
     }
 
     private void RefreshDivisions()
@@ -146,18 +190,80 @@ public partial class LeagueTablesPage : ContentPage
         }
 
         var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
-        SetStatus($"Season: {season?.Name ?? "Unknown"} | {_divisions.Count} division(s)");
+        System.Diagnostics.Debug.WriteLine($"  Divisions found: {_divisions.Count} for season '{season?.Name}'");
+
+        if (_divisions.Count == 0)
+        {
+            // Diagnostic: show total divisions and their season linkage
+            var totalDivs = DataStore.Data.Divisions.Count;
+            var divsWithSeason = DataStore.Data.Divisions.Count(d => d.SeasonId.HasValue);
+            System.Diagnostics.Debug.WriteLine($"  DIAGNOSTIC: Total divisions={totalDivs}, with SeasonId={divsWithSeason}");
+            foreach (var d in DataStore.Data.Divisions.Take(5))
+            {
+                System.Diagnostics.Debug.WriteLine($"    Div '{d.Name}' SeasonId={d.SeasonId} (looking for {_currentSeasonId})");
+            }
+            SetStatus($"Season: {season?.Name ?? "?"} | 0 divisions (total in DB: {totalDivs})");
+        }
+        else
+        {
+            SetStatus($"Season: {season?.Name ?? "Unknown"} | {_divisions.Count} division(s)");
+        }
     }
 
     private void OnDivisionChanged()
     {
-        _selectedDivision = DivisionPicker.SelectedItem as Division;
+        // Read from the ObservableCollection by index — more reliable than Picker.SelectedItem
+        // which can lag behind in MAUI when ItemsSource is an ObservableCollection.
+        var idx = DivisionPicker.SelectedIndex;
+        _selectedDivision = (idx >= 0 && idx < _divisions.Count) ? _divisions[idx] : null;
+
+        System.Diagnostics.Debug.WriteLine($"  OnDivisionChanged: idx={idx}, div={_selectedDivision?.Name ?? "NULL"}");
+
         RenderTeamTableHeader();
         RefreshTeamTable();
         RenderPlayerRatingsHeader();
         RefreshPlayerRatings();
         RenderDoublesRatingsHeader();
         RefreshDoublesRatings();
+    }
+
+    /// <summary>
+    /// Resolves teams belonging to a division. First checks Team.DivisionId directly,
+    /// then falls back to discovering teams from fixture data for that division.
+    /// This handles the case where teams were copied to a new season without DivisionId.
+    /// </summary>
+    private List<Team> GetTeamsForDivision(LeagueData data, Division division)
+    {
+        // Primary: direct DivisionId linkage
+        var teams = data.Teams.Where(t => t.DivisionId == division.Id).ToList();
+        if (teams.Count > 0)
+            return teams;
+
+        // Fallback: discover teams from fixtures in this season + division
+        var fixtureTeamIds = data.Fixtures
+            .Where(f => f.DivisionId == division.Id && f.SeasonId == _currentSeasonId)
+            .SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
+            .Distinct()
+            .ToHashSet();
+
+        if (fixtureTeamIds.Count > 0)
+        {
+            teams = data.Teams.Where(t => fixtureTeamIds.Contains(t.Id)).ToList();
+            System.Diagnostics.Debug.WriteLine($"  GetTeamsForDivision: Found {teams.Count} teams via fixture fallback for '{division.Name}'");
+        }
+
+        // Last resort: if season has only one division, show all teams for that season
+        if (teams.Count == 0 && _currentSeasonId.HasValue)
+        {
+            var seasonDivisions = data.Divisions.Where(d => d.SeasonId == _currentSeasonId).ToList();
+            if (seasonDivisions.Count == 1 && seasonDivisions[0].Id == division.Id)
+            {
+                teams = data.Teams.Where(t => t.SeasonId == _currentSeasonId).ToList();
+                System.Diagnostics.Debug.WriteLine($"  GetTeamsForDivision: Found {teams.Count} teams via single-division fallback");
+            }
+        }
+
+        return teams;
     }
 
     // ========== TEAM TABLE ==========
@@ -206,21 +312,77 @@ public partial class LeagueTablesPage : ContentPage
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
         {
-            TeamTableList.ItemTemplate = null;
+            System.Diagnostics.Debug.WriteLine($"  RefreshTeamTable: EARLY RETURN (season={_currentSeasonId}, div={_selectedDivision?.Name})");
+            SetStatus($"No data: season={(_currentSeasonId.HasValue ? "yes" : "NO")} div={(_selectedDivision != null ? _selectedDivision.Name : "NONE")}");
             return;
         }
 
         var data = DataStore.Data;
-        var teams = data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
-        var tById = teams.ToDictionary(t => t.Id, t => t);
+        var seasonName = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId)?.Name ?? "?";
+        var divName = _selectedDivision.Name ?? "?";
+        var teams = GetTeamsForDivision(data, _selectedDivision);
+        var teamIds = new HashSet<Guid>(teams.Select(t => t.Id));
 
-        var fixtures = data.Fixtures
-            .Where(f => f.Frames.Count != 0)
+        // Gather all season fixtures for diagnostics, then progressively filter
+        var allSeasonFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
             .ToList();
+        var seasonFixturesWithFrames = allSeasonFixtures
+            .Where(f => f.Frames.Count != 0)
+            .ToList();
+        var seasonFixturesWithResults = allSeasonFixtures
+            .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+            .ToList();
 
-        var teamIds = new HashSet<Guid>(teams.Select(t => t.Id));
-        fixtures = fixtures.Where(f => teamIds.Contains(f.HomeTeamId) || teamIds.Contains(f.AwayTeamId)).ToList();
+        // Match fixtures by team membership OR by DivisionId on the fixture itself.
+        // This handles cases where GetTeamsForDivision found teams via a fallback
+        // that doesn't align perfectly with the fixture team references.
+        var fixtures = seasonFixturesWithResults
+            .Where(f => f.DivisionId == _selectedDivision.Id
+                     || teamIds.Contains(f.HomeTeamId)
+                     || teamIds.Contains(f.AwayTeamId))
+            .ToList();
+
+        // Expand the team set: include any teams referenced by matched fixtures
+        // that weren't already discovered by GetTeamsForDivision
+        var allTeamById = data.Teams.ToDictionary(t => t.Id, t => t);
+        foreach (var f in fixtures)
+        {
+            if (!teamIds.Contains(f.HomeTeamId) && allTeamById.ContainsKey(f.HomeTeamId))
+            {
+                teams.Add(allTeamById[f.HomeTeamId]);
+                teamIds.Add(f.HomeTeamId);
+            }
+            if (!teamIds.Contains(f.AwayTeamId) && allTeamById.ContainsKey(f.AwayTeamId))
+            {
+                teams.Add(allTeamById[f.AwayTeamId]);
+                teamIds.Add(f.AwayTeamId);
+            }
+        }
+
+        var tById = teams.ToDictionary(t => t.Id, t => t);
+        int skippedBothTeams = 0;
+
+        System.Diagnostics.Debug.WriteLine($"  RefreshTeamTable DIAGNOSTICS for '{seasonName}' / '{divName}':");
+        System.Diagnostics.Debug.WriteLine($"    Total fixtures in DB: {data.Fixtures.Count}");
+        System.Diagnostics.Debug.WriteLine($"    Season fixtures (SeasonId match): {allSeasonFixtures.Count}");
+        System.Diagnostics.Debug.WriteLine($"    With frames (Frames.Count>0): {seasonFixturesWithFrames.Count}");
+        System.Diagnostics.Debug.WriteLine($"    With results (any Winner!=None): {seasonFixturesWithResults.Count}");
+        System.Diagnostics.Debug.WriteLine($"    Matching division (teams or DivisionId): {fixtures.Count}");
+        System.Diagnostics.Debug.WriteLine($"    Teams (after expansion): {teams.Count} [{string.Join(", ", teams.Select(t => t.Name))}]");
+        if (seasonFixturesWithResults.Count > 0 && fixtures.Count == 0)
+        {
+            var fixtureTeamIds = seasonFixturesWithResults
+                .SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
+                .Distinct().ToList();
+            var fixtureDivIds = seasonFixturesWithResults
+                .Where(f => f.DivisionId.HasValue)
+                .Select(f => f.DivisionId!.Value)
+                .Distinct().ToList();
+            System.Diagnostics.Debug.WriteLine($"    !! No fixtures match. Fixture DivisionIds=[{string.Join(", ", fixtureDivIds.Take(5).Select(id => id.ToString()[..8]))}], selected div={_selectedDivision.Id.ToString()[..8]}");
+            System.Diagnostics.Debug.WriteLine($"    !! Fixture team IDs=[{string.Join(", ", fixtureTeamIds.Take(10).Select(id => id.ToString()[..8]))}]");
+            System.Diagnostics.Debug.WriteLine($"    !! Division team IDs=[{string.Join(", ", teamIds.Take(10).Select(id => id.ToString()[..8]))}]");
+        }
 
         var table = teams.ToDictionary(t => t.Id, t => new TeamRow { Team = t.Name ?? "", TeamId = t.Id });
 
@@ -228,7 +390,10 @@ public partial class LeagueTablesPage : ContentPage
         {
             if (!tById.TryGetValue(f.HomeTeamId, out var homeTeam) ||
                 !tById.TryGetValue(f.AwayTeamId, out var awayTeam))
+            {
+                skippedBothTeams++;
                 continue;
+            }
 
             var hs = f.HomeScore;
             var @as = f.AwayScore;
@@ -246,15 +411,15 @@ public partial class LeagueTablesPage : ContentPage
             {
                 // Home wins
                 hr.W++; ar.L++;
-                hr.Pts += hs + Settings.MatchWinBonus;  // Frames won + win bonus
-                ar.Pts += @as;                           // Just frames won (no bonus for loss)
+                hr.Pts += hs + Settings.MatchWinBonus;
+                ar.Pts += @as;
             }
             else
             {
                 // Away wins (or technically a draw, but not possible in best-of-15)
                 ar.W++; hr.L++;
-                ar.Pts += @as + Settings.MatchWinBonus;  // Frames won + win bonus
-                hr.Pts += hs;                             // Just frames won (no bonus for loss)
+                ar.Pts += @as + Settings.MatchWinBonus;
+                hr.Pts += hs;
             }
 
             // Apply late card penalties
@@ -282,6 +447,9 @@ public partial class LeagueTablesPage : ContentPage
             }
         }
 
+        if (skippedBothTeams > 0)
+            System.Diagnostics.Debug.WriteLine($"    Skipped {skippedBothTeams} fixture(s) where one team not in division");
+
         var rows = table.Values
             .OrderByDescending(r => r.Pts)
             .ThenByDescending(r => r.Diff)
@@ -303,7 +471,30 @@ public partial class LeagueTablesPage : ContentPage
                 rows[i].ZoneColor = Color.FromArgb("#FEE2E2"); // red – relegation
         }
 
-        TeamTableList.ItemTemplate = TeamRowTemplate();
+        // Build informative status message
+        int played = fixtures.Count - skippedBothTeams;
+        int scheduled = allSeasonFixtures.Count - seasonFixturesWithResults.Count;
+        string status;
+        if (played > 0)
+        {
+            status = $"{seasonName} | {divName} | {rows.Count} teams | {played} played | {scheduled} scheduled";
+        }
+        else if (allSeasonFixtures.Count > 0)
+        {
+            status = $"{seasonName} | {divName} | {rows.Count} teams | No results yet ({allSeasonFixtures.Count} scheduled)";
+        }
+        else
+        {
+            // Check if results exist in other seasons
+            int otherSeasonResults = data.Fixtures
+                .Count(f => f.SeasonId != _currentSeasonId && f.Frames.Any(fr => fr.Winner != FrameWinner.None));
+            if (otherSeasonResults > 0)
+                status = $"{seasonName} | {divName} | {rows.Count} teams | No fixtures (results exist in other seasons)";
+            else
+                status = $"{seasonName} | {divName} | {rows.Count} teams | No fixtures";
+        }
+        SetStatus(status);
+
         foreach (var r in rows)
             _teamRows.Add(r);
     }
@@ -483,7 +674,6 @@ public partial class LeagueTablesPage : ContentPage
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
         {
-            PlayerRatingsList.ItemTemplate = null;
             return;
         }
 
@@ -491,8 +681,16 @@ public partial class LeagueTablesPage : ContentPage
         var tById = data.Teams.ToDictionary(t => t.Id, t => t);
 
         // Get teams in this division (for filtering display only)
-        var divisionTeamIds = new HashSet<Guid>(
-            data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).Select(t => t.Id));
+        var divisionTeams = GetTeamsForDivision(data, _selectedDivision);
+        var divisionTeamIds = new HashSet<Guid>(divisionTeams.Select(t => t.Id));
+
+        // Expand team set: also include teams from fixtures that match by DivisionId
+        var divisionFixtureTeamIds = data.Fixtures
+            .Where(f => f.SeasonId == _currentSeasonId && f.DivisionId == _selectedDivision.Id)
+            .SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
+            .Distinct();
+        foreach (var tid in divisionFixtureTeamIds)
+            divisionTeamIds.Add(tid);
 
         // Get the season's START DATE (not earliest fixture date!)
         var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
@@ -504,9 +702,10 @@ public partial class LeagueTablesPage : ContentPage
         var seasonStartDate = season.StartDate;
 
         // Get ALL fixtures for the season (not just this division!)
+        // Only include fixtures that have at least one scored frame
         var allSeasonFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
-            .Where(f => f.Frames.Count != 0)
+            .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
             .OrderBy(f => f.Date)
             .ThenBy(f => f.Id)
             .ToList();
@@ -734,7 +933,6 @@ public partial class LeagueTablesPage : ContentPage
         for (int i = 0; i < displayRows.Count; i++)
             displayRows[i].Pos = i + 1;
 
-        PlayerRatingsList.ItemTemplate = PlayerRowTemplate();
         foreach (var r in displayRows)
             _playerRows.Add(r);
 
@@ -878,12 +1076,15 @@ public partial class LeagueTablesPage : ContentPage
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
         {
-            DoublesRatingsList.ItemTemplate = null;
             DoublesRatingsBorder.IsVisible = false;
             return;
         }
 
         var data = DataStore.Data;
+
+        // Check if the active season has doubles enabled
+        var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
+        bool seasonHasDoubles = season != null && season.IncludeDoubles;
 
         // Get doubles pairings for this season and division
         var pairings = data.DoublesPairings
@@ -899,12 +1100,13 @@ public partial class LeagueTablesPage : ContentPage
             pairings = CalculateDoublesFromFrames();
         }
 
-        if (pairings.Count == 0)
+        if (pairings.Count == 0 && !seasonHasDoubles)
         {
             DoublesRatingsBorder.IsVisible = false;
             return;
         }
 
+        // Show the doubles section if the season has doubles enabled OR if there's data
         DoublesRatingsBorder.IsVisible = true;
 
         var rows = new List<DoublesRow>();
@@ -926,7 +1128,6 @@ public partial class LeagueTablesPage : ContentPage
             });
         }
 
-        DoublesRatingsList.ItemTemplate = DoublesRowTemplate();
         foreach (var r in rows)
             _doublesRows.Add(r);
     }
@@ -954,8 +1155,10 @@ public partial class LeagueTablesPage : ContentPage
     }
 
     /// <summary>
-    /// Calculate doubles pair stats from doubles frames (FrameResult.IsDoubles == true)
+    /// Calculate doubles pair stats and ratings from doubles frames (FrameResult.IsDoubles == true)
     /// when no stored DoublesPairing records exist.
+    /// Uses HomePlayer2Id/AwayPlayer2Id to identify the full pair.
+    /// Applies the same VBA-style weekly rating algorithm used for singles players.
     /// </summary>
     private List<DoublesPairing> CalculateDoublesFromFrames()
     {
@@ -963,40 +1166,210 @@ public partial class LeagueTablesPage : ContentPage
             return new();
 
         var data = DataStore.Data;
-        var divisionTeamIds = new HashSet<Guid>(
-            data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).Select(t => t.Id));
+        var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        if (season == null) return new();
+
+        var divisionTeams = GetTeamsForDivision(data, _selectedDivision);
+        var divisionTeamIds = new HashSet<Guid>(divisionTeams.Select(t => t.Id));
+
+        // Also include teams from fixtures matching this division
+        var divisionFixtureTeamIds = data.Fixtures
+            .Where(f => f.SeasonId == _currentSeasonId && f.DivisionId == _selectedDivision.Id)
+            .SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
+            .Distinct();
+        foreach (var tid in divisionFixtureTeamIds)
+            divisionTeamIds.Add(tid);
 
         var doublesFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId &&
-                        (divisionTeamIds.Contains(f.HomeTeamId) || divisionTeamIds.Contains(f.AwayTeamId)))
-            .Where(f => f.Frames.Any(fr => fr.IsDoubles))
+                        (f.DivisionId == _selectedDivision.Id
+                         || divisionTeamIds.Contains(f.HomeTeamId)
+                         || divisionTeamIds.Contains(f.AwayTeamId)))
+            .Where(f => f.Frames.Any(fr => fr.IsDoubles && fr.Winner != FrameWinner.None))
+            .OrderBy(f => f.Date)
+            .ThenBy(f => f.Id)
             .ToList();
 
         if (doublesFixtures.Count == 0) return new();
 
-        // Track pair stats: key = sorted (player1Id, player2Id)
-        var pairStats = new Dictionary<(Guid, Guid), DoublesPairing>();
         var playerById = data.Players.ToDictionary(p => p.Id, p => p);
         var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
+        var seasonStartDate = season.StartDate;
 
+        // Helper to create a canonical pair key (sorted so order doesn't matter)
+        static (Guid, Guid) MakePairKey(Guid a, Guid b) => a.CompareTo(b) < 0 ? (a, b) : (b, a);
+
+        // Track pair info for display
+        var pairInfo = new Dictionary<(Guid, Guid), DoublesPairing>();
+        // Track frame data per pair for rating calculation
+        var pairFrameData = new Dictionary<(Guid, Guid), List<DoublesFrameData>>();
+        // Weekly ratings per pair: (pairKey, weekNo) ? rating
+        var weeklyRatings = new Dictionary<((Guid, Guid), int), int>();
+
+        // First pass: collect all pair IDs and frame data
         foreach (var fixture in doublesFixtures)
         {
-            foreach (var frame in fixture.Frames.Where(fr => fr.IsDoubles))
+            var weekNo = GetSeasonWeekNumber(fixture.Date, seasonStartDate);
+
+            foreach (var frame in fixture.Frames.Where(fr => fr.IsDoubles && fr.Winner != FrameWinner.None))
             {
-                if (!frame.HomePlayerId.HasValue || !frame.AwayPlayerId.HasValue) continue;
+                var hasHomePair = frame.HomePlayerId.HasValue && frame.HomePlayer2Id.HasValue;
+                var hasAwayPair = frame.AwayPlayerId.HasValue && frame.AwayPlayer2Id.HasValue;
+                if (!hasHomePair || !hasAwayPair) continue;
 
-                // For simplified doubles storage (one player per side), track individual participation
-                var homeId = frame.HomePlayerId.Value;
-                var awayId = frame.AwayPlayerId.Value;
-                var pairKey = homeId.CompareTo(awayId) < 0 ? (homeId, awayId) : (awayId, homeId);
+                var homeKey = MakePairKey(frame.HomePlayerId!.Value, frame.HomePlayer2Id!.Value);
+                var awayKey = MakePairKey(frame.AwayPlayerId!.Value, frame.AwayPlayer2Id!.Value);
 
-                // This simplified approach treats each stored doubles frame as a pair encounter
-                // In reality, we need both players per side, but the current model only stores one
-                // So we skip calculation and rely on imported data
+                // Ensure pair info exists
+                if (!pairInfo.ContainsKey(homeKey))
+                {
+                    pairInfo[homeKey] = new DoublesPairing
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = _currentSeasonId,
+                        DivisionId = _selectedDivision.Id,
+                        TeamId = fixture.HomeTeamId,
+                        Player1Id = homeKey.Item1,
+                        Player2Id = homeKey.Item2,
+                        Player1Name = playerById.TryGetValue(homeKey.Item1, out var hp1)
+                            ? hp1.FullName ?? $"{hp1.FirstName} {hp1.LastName}".Trim() : "",
+                        Player2Name = playerById.TryGetValue(homeKey.Item2, out var hp2)
+                            ? hp2.FullName ?? $"{hp2.FirstName} {hp2.LastName}".Trim() : "",
+                        TeamName = teamById.TryGetValue(fixture.HomeTeamId, out var ht) ? ht.Name ?? "" : ""
+                    };
+                    pairFrameData[homeKey] = new List<DoublesFrameData>();
+                }
+                if (!pairInfo.ContainsKey(awayKey))
+                {
+                    pairInfo[awayKey] = new DoublesPairing
+                    {
+                        Id = Guid.NewGuid(),
+                        SeasonId = _currentSeasonId,
+                        DivisionId = _selectedDivision.Id,
+                        TeamId = fixture.AwayTeamId,
+                        Player1Id = awayKey.Item1,
+                        Player2Id = awayKey.Item2,
+                        Player1Name = playerById.TryGetValue(awayKey.Item1, out var ap1)
+                            ? ap1.FullName ?? $"{ap1.FirstName} {ap1.LastName}".Trim() : "",
+                        Player2Name = playerById.TryGetValue(awayKey.Item2, out var ap2)
+                            ? ap2.FullName ?? $"{ap2.FirstName} {ap2.LastName}".Trim() : "",
+                        TeamName = teamById.TryGetValue(fixture.AwayTeamId, out var at) ? at.Name ?? "" : ""
+                    };
+                    pairFrameData[awayKey] = new List<DoublesFrameData>();
+                }
+
+                // Home pair frame data
+                var homeWon = frame.Winner == FrameWinner.Home;
+                pairInfo[homeKey].Played++;
+                if (homeWon) pairInfo[homeKey].Won++; else pairInfo[homeKey].Lost++;
+                pairFrameData[homeKey].Add(new DoublesFrameData
+                {
+                    OpponentPairKey = awayKey,
+                    Won = homeWon,
+                    WeekNo = frame.WeekNo ?? weekNo,
+                    FixtureDate = fixture.Date
+                });
+
+                // Away pair frame data
+                var awayWon = frame.Winner == FrameWinner.Away;
+                pairInfo[awayKey].Played++;
+                if (awayWon) pairInfo[awayKey].Won++; else pairInfo[awayKey].Lost++;
+                pairFrameData[awayKey].Add(new DoublesFrameData
+                {
+                    OpponentPairKey = homeKey,
+                    Won = awayWon,
+                    WeekNo = frame.WeekNo ?? weekNo,
+                    FixtureDate = fixture.Date
+                });
             }
         }
 
-        return new();
+        if (pairInfo.Count == 0) return new();
+
+        // Initialize Week 1 rating for all pairs
+        foreach (var pairKey in pairInfo.Keys)
+            weeklyRatings[(pairKey, 1)] = Settings.RatingStartValue;
+
+        // Group frames by week and process week by week (same algorithm as singles)
+        var allFrames = pairFrameData.SelectMany(kvp => kvp.Value.Select(f => (PairKey: kvp.Key, Frame: f)));
+        var maxWeek = allFrames.Max(x => x.Frame.WeekNo);
+
+        for (int wkNo = 1; wkNo <= maxWeek; wkNo++)
+        {
+            // Calculate ratings for NEXT week based on all frames up to this week
+            foreach (var (pairKey, frames) in pairFrameData)
+            {
+                var framesUpToNow = frames.Where(f => f.WeekNo <= wkNo).ToList();
+                if (framesUpToNow.Count == 0) continue;
+
+                int totalFrames = framesUpToNow.Count;
+                int biasX = Settings.RatingWeighting - (Settings.RatingsBias * (totalFrames - 1));
+                if (biasX < 1) biasX = 1;
+
+                long valueTot = 0;
+                long weightingTot = 0;
+
+                foreach (var frameData in framesUpToNow)
+                {
+                    int oppRating = weeklyRatings.TryGetValue((frameData.OpponentPairKey, frameData.WeekNo), out var r)
+                        ? r
+                        : Settings.RatingStartValue;
+
+                    double ratingAttnDouble = frameData.Won
+                        ? oppRating * Settings.WinFactor
+                        : oppRating * Settings.LossFactor;
+
+                    int ratingAttn = (int)ratingAttnDouble;
+
+                    valueTot += (long)ratingAttn * biasX;
+                    weightingTot += biasX;
+                    biasX += Settings.RatingsBias;
+                }
+
+                int rating = weightingTot > 0 ? (int)(valueTot / weightingTot) : Settings.RatingStartValue;
+                weeklyRatings[(pairKey, wkNo + 1)] = rating;
+            }
+        }
+
+        // Assign final ratings and track best rating
+        int finalWeek = maxWeek + 1;
+        foreach (var (pairKey, pairing) in pairInfo)
+        {
+            int finalRating = weeklyRatings.TryGetValue((pairKey, finalWeek), out var fr)
+                ? fr
+                : Settings.RatingStartValue;
+            pairing.CurrentRating = finalRating;
+
+            // Find best rating across all weeks
+            int bestRating = Settings.RatingStartValue;
+            DateTime? bestDate = null;
+            for (int w = 2; w <= finalWeek; w++)
+            {
+                if (weeklyRatings.TryGetValue((pairKey, w), out var wr) && wr > bestRating)
+                {
+                    bestRating = wr;
+                    // Find the earliest fixture date in the week that produced this rating (week w-1)
+                    var weekFrames = pairFrameData[pairKey].Where(f => f.WeekNo == w - 1).ToList();
+                    bestDate = weekFrames.Count > 0 ? weekFrames.Min(f => f.FixtureDate) : null;
+                }
+            }
+            pairing.BestRating = bestRating;
+            pairing.BestRatingDate = bestDate;
+        }
+
+        return pairInfo.Values
+            .Where(dp => divisionTeamIds.Contains(dp.TeamId ?? Guid.Empty))
+            .OrderByDescending(dp => dp.CurrentRating)
+            .ThenByDescending(dp => dp.Won)
+            .ToList();
+    }
+
+    private class DoublesFrameData
+    {
+        public (Guid, Guid) OpponentPairKey { get; set; }
+        public bool Won { get; set; }
+        public int WeekNo { get; set; }
+        public DateTime FixtureDate { get; set; }
     }
 
     private static DataTemplate DoublesRowTemplate()

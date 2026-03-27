@@ -203,16 +203,17 @@ public static class ParadoxDoubleImporter
                         _ => FrameWinner.None
                     };
 
-                    // Create frame result (simplified - only stores first player from each pair)
-                    // In future, consider extending FrameResult to support doubles pairs
+                    // Create frame result with both players from each doubles pair
                     var frame = new FrameResult
                     {
                         Number = frameNumber,
                         HomePlayerId = homePlayerId,
                         AwayPlayerId = awayPlayerId,
+                        HomePlayer2Id = dbl.MappedHomePlayer2Id,
+                        AwayPlayer2Id = dbl.MappedAwayPlayer2Id,
                         Winner = winnerEnum,
                         EightBall = dbl.EightBall1 || dbl.EightBall2,
-                        IsDoubles = true // Mark as doubles frame
+                        IsDoubles = true
                     };
 
                     fixture.Frames.Add(frame);

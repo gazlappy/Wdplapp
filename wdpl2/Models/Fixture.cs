@@ -65,6 +65,12 @@ namespace Wdpl2.Models
         public Guid? HomePlayerId { get; set; }
         public Guid? AwayPlayerId { get; set; }
 
+        /// <summary>Second home player in a doubles frame.</summary>
+        public Guid? HomePlayer2Id { get; set; }
+
+        /// <summary>Second away player in a doubles frame.</summary>
+        public Guid? AwayPlayer2Id { get; set; }
+
         public FrameWinner Winner { get; set; } = FrameWinner.None;
 
         /// <summary>Ticked when the winning visit included an 8-ball (or 'dish').</summary>

@@ -39,10 +39,15 @@ public partial class FixturesPage : ContentPage
     private sealed class FrameRowData
     {
         public int FrameNumber { get; set; }
+        public bool IsDoubles { get; set; }
         public Guid? HomePlayerId { get; set; }
         public string HomePlayerName { get; set; } = "";
         public Guid? AwayPlayerId { get; set; }
         public string AwayPlayerName { get; set; } = "";
+        public Guid? HomePlayer2Id { get; set; }
+        public string HomePlayer2Name { get; set; } = "";
+        public Guid? AwayPlayer2Id { get; set; }
+        public string AwayPlayer2Name { get; set; } = "";
         public FrameWinner Winner { get; set; } = FrameWinner.None;
         public bool EightBall { get; set; }
 
@@ -54,6 +59,27 @@ public partial class FixturesPage : ContentPage
         public Button? HomeScoreBtn { get; set; }
         public Button? AwayScoreBtn { get; set; }
         public CheckBox? EightBallCheck { get; set; }
+
+        /// <summary>True when all required home players are set.</summary>
+        public bool IsHomeComplete => HomePlayerId.HasValue && (!IsDoubles || HomePlayer2Id.HasValue);
+        /// <summary>True when all required away players are set.</summary>
+        public bool IsAwayComplete => AwayPlayerId.HasValue && (!IsDoubles || AwayPlayer2Id.HasValue);
+
+        public string FormatHomeLabel()
+        {
+            if (!HomePlayerId.HasValue) return IsDoubles ? "Tap to select pair..." : "Tap to select...";
+            if (IsDoubles && !HomePlayer2Id.HasValue) return $"{HomePlayerName} & ?";
+            if (IsDoubles) return $"{HomePlayerName} & {HomePlayer2Name}";
+            return HomePlayerName;
+        }
+
+        public string FormatAwayLabel()
+        {
+            if (!AwayPlayerId.HasValue) return IsDoubles ? "Tap to select pair..." : "Tap to select...";
+            if (IsDoubles && !AwayPlayer2Id.HasValue) return $"{AwayPlayerName} & ?";
+            if (IsDoubles) return $"{AwayPlayerName} & {AwayPlayer2Name}";
+            return AwayPlayerName;
+        }
     }
 
     private readonly ObservableCollection<FixtureListItem> _items = new();
@@ -241,6 +267,33 @@ public partial class FixturesPage : ContentPage
 
         if (isHomeTeam)
         {
+            // Doubles: if player 1 is set but player 2 is not, assign player 2
+            if (frameRow.IsDoubles && frameRow.HomePlayerId.HasValue && !frameRow.HomePlayer2Id.HasValue && !isVoid)
+            {
+                // Don't allow same player as player 1
+                if (frameRow.HomePlayerId == playerId)
+                {
+                    _ = DisplayAlert("Same Player", "Player 2 must be different from Player 1.", "OK");
+                    return;
+                }
+                frameRow.HomePlayer2Id = playerId;
+                frameRow.HomePlayer2Name = playerName;
+                if (frameRow.HomePlayerLabel != null)
+                {
+                    frameRow.HomePlayerLabel.Text = frameRow.FormatHomeLabel();
+                    frameRow.HomePlayerLabel.TextColor = Color.FromArgb("#1E293B");
+                    frameRow.HomePlayerLabel.FontAttributes = FontAttributes.None;
+                }
+                System.Diagnostics.Debug.WriteLine($"  => Assigned HOME player 2 to doubles frame {_currentFrameIndex + 1}");
+
+                // Now advance since the pair is complete
+                AdvanceToNextSlot(isHomeTeam);
+                UpdateCurrentFrameIndicator();
+                UpdatePlayerFrameCounts();
+                HighlightCurrentFrame();
+                return;
+            }
+
             // Check for duplicate pairing if away player is already set (skip for void)
             if (!isVoid && frameRow.AwayPlayerId.HasValue && !FrameResult.IsVoidPlayer(frameRow.AwayPlayerId))
             {
@@ -260,11 +313,18 @@ public partial class FixturesPage : ContentPage
                 }
             }
 
+            // For doubles: if replacing player 1, clear player 2
+            if (frameRow.IsDoubles)
+            {
+                frameRow.HomePlayer2Id = null;
+                frameRow.HomePlayer2Name = "";
+            }
+
             frameRow.HomePlayerId = playerId;
             frameRow.HomePlayerName = playerName;
             if (frameRow.HomePlayerLabel != null)
             {
-                frameRow.HomePlayerLabel.Text = playerName;
+                frameRow.HomePlayerLabel.Text = frameRow.FormatHomeLabel();
                 frameRow.HomePlayerLabel.TextColor = isVoid ? Color.FromArgb("#EA580C") : Color.FromArgb("#1E293B");
                 frameRow.HomePlayerLabel.FontAttributes = FontAttributes.None;
             }
@@ -288,9 +348,44 @@ public partial class FixturesPage : ContentPage
                 }
                 UpdateScoreDisplay();
             }
+
+            // For doubles: don't advance yet if player 2 still needed (unless void)
+            if (frameRow.IsDoubles && !isVoid && !frameRow.HomePlayer2Id.HasValue)
+            {
+                // Stay on this frame to collect player 2
+                UpdateCurrentFrameIndicator();
+                UpdatePlayerFrameCounts();
+                HighlightCurrentFrame();
+                return;
+            }
         }
         else
         {
+            // Doubles: if player 1 is set but player 2 is not, assign player 2
+            if (frameRow.IsDoubles && frameRow.AwayPlayerId.HasValue && !frameRow.AwayPlayer2Id.HasValue && !isVoid)
+            {
+                if (frameRow.AwayPlayerId == playerId)
+                {
+                    _ = DisplayAlert("Same Player", "Player 2 must be different from Player 1.", "OK");
+                    return;
+                }
+                frameRow.AwayPlayer2Id = playerId;
+                frameRow.AwayPlayer2Name = playerName;
+                if (frameRow.AwayPlayerLabel != null)
+                {
+                    frameRow.AwayPlayerLabel.Text = frameRow.FormatAwayLabel();
+                    frameRow.AwayPlayerLabel.TextColor = Color.FromArgb("#1E293B");
+                    frameRow.AwayPlayerLabel.FontAttributes = FontAttributes.None;
+                }
+                System.Diagnostics.Debug.WriteLine($"  => Assigned AWAY player 2 to doubles frame {_currentFrameIndex + 1}");
+
+                AdvanceToNextSlot(isHomeTeam);
+                UpdateCurrentFrameIndicator();
+                UpdatePlayerFrameCounts();
+                HighlightCurrentFrame();
+                return;
+            }
+
             // Check for duplicate pairing if home player is already set (skip for void)
             if (!isVoid && frameRow.HomePlayerId.HasValue && !FrameResult.IsVoidPlayer(frameRow.HomePlayerId))
             {
@@ -310,11 +405,18 @@ public partial class FixturesPage : ContentPage
                 }
             }
 
+            // For doubles: if replacing player 1, clear player 2
+            if (frameRow.IsDoubles)
+            {
+                frameRow.AwayPlayer2Id = null;
+                frameRow.AwayPlayer2Name = "";
+            }
+
             frameRow.AwayPlayerId = playerId;
             frameRow.AwayPlayerName = playerName;
             if (frameRow.AwayPlayerLabel != null)
             {
-                frameRow.AwayPlayerLabel.Text = playerName;
+                frameRow.AwayPlayerLabel.Text = frameRow.FormatAwayLabel();
                 frameRow.AwayPlayerLabel.TextColor = isVoid ? Color.FromArgb("#EA580C") : Color.FromArgb("#1E293B");
                 frameRow.AwayPlayerLabel.FontAttributes = FontAttributes.None;
             }
@@ -338,6 +440,15 @@ public partial class FixturesPage : ContentPage
                 }
                 UpdateScoreDisplay();
             }
+
+            // For doubles: don't advance yet if player 2 still needed (unless void)
+            if (frameRow.IsDoubles && !isVoid && !frameRow.AwayPlayer2Id.HasValue)
+            {
+                UpdateCurrentFrameIndicator();
+                UpdatePlayerFrameCounts();
+                HighlightCurrentFrame();
+                return;
+            }
         }
 
         // Phase-aware auto-advance
@@ -357,11 +468,11 @@ public partial class FixturesPage : ContentPage
     {
         if (_entryPhase == EntryPhase.HomeLineup)
         {
-            // Find the next empty home slot (from current position forward, then wrap)
+            // Find the next incomplete home slot (from current position forward, then wrap)
             for (int offset = 1; offset <= _frameRows.Count; offset++)
             {
                 int idx = (_currentFrameIndex + offset) % _frameRows.Count;
-                if (!_frameRows[idx].HomePlayerId.HasValue)
+                if (!_frameRows[idx].IsHomeComplete)
                 {
                     _currentFrameIndex = idx;
                     _selectingHomePlayer = true;
@@ -371,10 +482,10 @@ public partial class FixturesPage : ContentPage
             // All home slots filled — transition to away lineup
             _entryPhase = EntryPhase.AwayLineup;
             _selectingHomePlayer = false;
-            // Find first empty away slot
+            // Find first incomplete away slot
             for (int i = 0; i < _frameRows.Count; i++)
             {
-                if (!_frameRows[i].AwayPlayerId.HasValue)
+                if (!_frameRows[i].IsAwayComplete)
                 {
                     _currentFrameIndex = i;
                     return;
@@ -386,11 +497,11 @@ public partial class FixturesPage : ContentPage
         }
         else if (_entryPhase == EntryPhase.AwayLineup)
         {
-            // Find the next empty away slot
+            // Find the next incomplete away slot
             for (int offset = 1; offset <= _frameRows.Count; offset++)
             {
                 int idx = (_currentFrameIndex + offset) % _frameRows.Count;
-                if (!_frameRows[idx].AwayPlayerId.HasValue)
+                if (!_frameRows[idx].IsAwayComplete)
                 {
                     _currentFrameIndex = idx;
                     _selectingHomePlayer = false;
@@ -1384,21 +1495,32 @@ public partial class FixturesPage : ContentPage
         LoadPlayerLists();
 
         // Determine frame count - priority order:
-        // 1. Season's FramesPerMatch (if explicitly set > 0)
-        // 2. App Settings DefaultFramesPerMatch (if > 0)
-        // 3. Default to 15 (WDPL standard)
+        // 1. Season's doubles config (SinglesFrameCount + DoublesFrameCount)
+        // 2. Season's FramesPerMatch (if explicitly set > 0)
+        // 3. App Settings DefaultFramesPerMatch (if > 0)
+        // 4. Default to 15 (WDPL standard)
         int frameCount = 15; // Ultimate default
+        int singlesCount = 0;
+        int doublesCount = 0;
         var season = data.Seasons.FirstOrDefault(s => s.Id == _selectedFixture.SeasonId);
-        
+
         // First try settings
         if (data.Settings.DefaultFramesPerMatch > 0)
             frameCount = data.Settings.DefaultFramesPerMatch;
-        
+
         // Then override with season-specific value if set
         if (season != null && season.FramesPerMatch > 0) 
             frameCount = season.FramesPerMatch;
 
-        System.Diagnostics.Debug.WriteLine($"BuildScorecard: Using {frameCount} frames");
+        // If doubles enabled, use separate counts
+        if (season != null && season.IncludeDoubles && (season.SinglesFrameCount > 0 || season.DoublesFrameCount > 0))
+        {
+            singlesCount = season.SinglesFrameCount;
+            doublesCount = season.DoublesFrameCount;
+            frameCount = singlesCount + doublesCount;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"BuildScorecard: Using {frameCount} frames (singles={singlesCount}, doubles={doublesCount})");
         System.Diagnostics.Debug.WriteLine($"  Season '{season?.Name}' FramesPerMatch: {season?.FramesPerMatch ?? 0}");
         System.Diagnostics.Debug.WriteLine($"  Settings DefaultFramesPerMatch: {data.Settings.DefaultFramesPerMatch}");
 
@@ -1407,6 +1529,15 @@ public partial class FixturesPage : ContentPage
             _selectedFixture.Frames.Add(new FrameResult { Number = _selectedFixture.Frames.Count + 1 });
         if (_selectedFixture.Frames.Count > frameCount)
             _selectedFixture.Frames = _selectedFixture.Frames.Take(frameCount).ToList();
+
+        // Mark doubles frames on the fixture's FrameResult list
+        if (doublesCount > 0)
+        {
+            for (int i = 0; i < frameCount; i++)
+            {
+                _selectedFixture.Frames[i].IsDoubles = (i >= singlesCount);
+            }
+        }
 
         // Build frame rows
         for (int i = 0; i < frameCount; i++)
@@ -1420,8 +1551,23 @@ public partial class FixturesPage : ContentPage
                 AwayScorecardHost.Children.Add(frameRow.AwayRowBorder);
         }
 
-        // Add divider after frame 10 (if there are 15 frames like in the WDPL card)
-        if (frameCount > 10)
+        // Add divider between singles and doubles sections
+        if (doublesCount > 0 && singlesCount > 0)
+        {
+            var homeCount = HomeScorecardHost.Children.Count;
+            var awayCount = AwayScorecardHost.Children.Count;
+            var dividerIndex = homeCount >= singlesCount ? singlesCount : homeCount;
+
+            var homeDivider = CreateSetDivider($"── DOUBLES ({doublesCount}) ──");
+            var awayDivider = CreateSetDivider($"── DOUBLES ({doublesCount}) ──");
+
+            if (dividerIndex <= homeCount)
+                HomeScorecardHost.Children.Insert(dividerIndex, homeDivider);
+            if (dividerIndex <= awayCount)
+                AwayScorecardHost.Children.Insert(dividerIndex, awayDivider);
+        }
+        // Add divider after frame 10 (if there are 15 frames like in the WDPL card and no explicit doubles split)
+        else if (frameCount > 10 && doublesCount == 0)
         {
             var homeCount = HomeScorecardHost.Children.Count;
             var awayCount = AwayScorecardHost.Children.Count;
@@ -1456,22 +1602,22 @@ public partial class FixturesPage : ContentPage
     /// </summary>
     private void DetectEntryPhase()
     {
-        // Check if all home slots are filled
-        bool allHomeFilled = _frameRows.All(f => f.HomePlayerId.HasValue);
-        bool allAwayFilled = _frameRows.All(f => f.AwayPlayerId.HasValue);
+        // Check if all home/away slots are complete (including doubles player 2)
+        bool allHomeFilled = _frameRows.All(f => f.IsHomeComplete);
+        bool allAwayFilled = _frameRows.All(f => f.IsAwayComplete);
 
         if (!allHomeFilled)
         {
             _entryPhase = EntryPhase.HomeLineup;
             _selectingHomePlayer = true;
-            _currentFrameIndex = _frameRows.FindIndex(f => !f.HomePlayerId.HasValue);
+            _currentFrameIndex = _frameRows.FindIndex(f => !f.IsHomeComplete);
             if (_currentFrameIndex < 0) _currentFrameIndex = 0;
         }
         else if (!allAwayFilled)
         {
             _entryPhase = EntryPhase.AwayLineup;
             _selectingHomePlayer = false;
-            _currentFrameIndex = _frameRows.FindIndex(f => !f.AwayPlayerId.HasValue);
+            _currentFrameIndex = _frameRows.FindIndex(f => !f.IsAwayComplete);
             if (_currentFrameIndex < 0) _currentFrameIndex = 0;
         }
         else
@@ -1493,6 +1639,49 @@ public partial class FixturesPage : ContentPage
         if (_selectedFixture == null) return;
 
         var data = DataStore.Data;
+
+        // Auto-repair: assign TeamId for unassigned players in this season
+        // This fixes players created by season copy with TeamId = null
+        var seasonId = _selectedFixture.SeasonId;
+        var unassignedPlayers = data.Players
+            .Where(p => p.SeasonId == seasonId && !p.TeamId.HasValue)
+            .ToList();
+
+        if (unassignedPlayers.Count > 0)
+        {
+            var targetTeamsByName = data.Teams
+                .Where(t => t.SeasonId == seasonId)
+                .GroupBy(t => t.Name?.Trim()?.ToLower() ?? "")
+                .Where(g => !string.IsNullOrWhiteSpace(g.Key))
+                .ToDictionary(g => g.Key, g => g.First().Id);
+
+            foreach (var player in unassignedPlayers)
+            {
+                // Find the same player (by name) in other seasons to get their team
+                var historicalPlayer = data.Players
+                    .Where(p => p.SeasonId != seasonId && p.TeamId.HasValue
+                        && string.Equals(p.FirstName?.Trim(), player.FirstName?.Trim(), StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(p.LastName?.Trim(), player.LastName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(p =>
+                    {
+                        var s = data.Seasons.FirstOrDefault(s => s.Id == p.SeasonId);
+                        return s?.StartDate ?? DateTime.MinValue;
+                    })
+                    .FirstOrDefault();
+
+                if (historicalPlayer?.TeamId != null)
+                {
+                    var oldTeam = data.Teams.FirstOrDefault(t => t.Id == historicalPlayer.TeamId.Value);
+                    if (oldTeam != null
+                        && !string.IsNullOrWhiteSpace(oldTeam.Name)
+                        && targetTeamsByName.TryGetValue(oldTeam.Name.Trim().ToLower(), out var newTeamId))
+                    {
+                        player.TeamId = newTeamId;
+                        System.Diagnostics.Debug.WriteLine($"  Auto-assigned '{player.FirstName} {player.LastName}' to team '{oldTeam.Name}'");
+                    }
+                }
+            }
+        }
 
         // Get home team players
         var homePlayers = data.Players
@@ -1756,6 +1945,8 @@ public partial class FixturesPage : ContentPage
         // Get existing player names
         string homePlayerName = "";
         string awayPlayerName = "";
+        string homePlayer2Name = "";
+        string awayPlayer2Name = "";
 
         if (FrameResult.IsVoidPlayer(fr.HomePlayerId))
         {
@@ -1776,13 +1967,30 @@ public partial class FixturesPage : ContentPage
             awayPlayerName = player?.FullName ?? "";
         }
 
+        // Doubles player 2 names
+        if (fr.HomePlayer2Id.HasValue)
+        {
+            var player = data.Players.FirstOrDefault(p => p.Id == fr.HomePlayer2Id.Value);
+            homePlayer2Name = player?.FullName ?? "";
+        }
+        if (fr.AwayPlayer2Id.HasValue)
+        {
+            var player = data.Players.FirstOrDefault(p => p.Id == fr.AwayPlayer2Id.Value);
+            awayPlayer2Name = player?.FullName ?? "";
+        }
+
         var frameRow = new FrameRowData
         {
             FrameNumber = index + 1,
+            IsDoubles = fr.IsDoubles,
             HomePlayerId = fr.HomePlayerId,
             HomePlayerName = homePlayerName,
             AwayPlayerId = fr.AwayPlayerId,
             AwayPlayerName = awayPlayerName,
+            HomePlayer2Id = fr.HomePlayer2Id,
+            HomePlayer2Name = homePlayer2Name,
+            AwayPlayer2Id = fr.AwayPlayer2Id,
+            AwayPlayer2Name = awayPlayer2Name,
             Winner = fr.Winner,
             EightBall = fr.EightBall
         };
@@ -1873,23 +2081,25 @@ public partial class FixturesPage : ContentPage
 
         // Home player name (tappable)
         bool homeIsVoid = FrameResult.IsVoidPlayer(fr.HomePlayerId);
+        var homeDisplayText = frameRow.FormatHomeLabel();
+        bool homeIsEmpty = !fr.HomePlayerId.HasValue;
         var homePlayerLabel = new Label
         {
-            Text = string.IsNullOrEmpty(homePlayerName) ? "Tap to select..." : homePlayerName,
+            Text = homeDisplayText,
             TextColor = homeIsVoid ? Color.FromArgb("#EA580C") 
-                       : string.IsNullOrEmpty(homePlayerName) ? Color.FromArgb("#94A3B8") 
+                       : homeIsEmpty ? Color.FromArgb("#94A3B8") 
                        : Color.FromArgb("#1E293B"),
-            FontSize = 13,
-            FontAttributes = string.IsNullOrEmpty(homePlayerName) ? FontAttributes.Italic : FontAttributes.None,
+            FontSize = fr.IsDoubles ? 11 : 13,
+            FontAttributes = homeIsEmpty ? FontAttributes.Italic : FontAttributes.None,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation
         };
         var homePlayerBorder = new Border
         {
-            BackgroundColor = Color.FromArgb("#EFF6FF"),
+            BackgroundColor = fr.IsDoubles ? Color.FromArgb("#F0FDF4") : Color.FromArgb("#EFF6FF"),
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-            Stroke = Color.FromArgb("#BFDBFE"),
+            Stroke = fr.IsDoubles ? Color.FromArgb("#BBF7D0") : Color.FromArgb("#BFDBFE"),
             StrokeThickness = 1,
             Padding = new Thickness(6, 3),
             Content = homePlayerLabel
@@ -1934,23 +2144,25 @@ public partial class FixturesPage : ContentPage
 
         // Away player name (tappable)
         bool awayIsVoid = FrameResult.IsVoidPlayer(fr.AwayPlayerId);
+        var awayDisplayText = frameRow.FormatAwayLabel();
+        bool awayIsEmpty = !fr.AwayPlayerId.HasValue;
         var awayPlayerLabel = new Label
         {
-            Text = string.IsNullOrEmpty(awayPlayerName) ? "Tap to select..." : awayPlayerName,
+            Text = awayDisplayText,
             TextColor = awayIsVoid ? Color.FromArgb("#EA580C") 
-                       : string.IsNullOrEmpty(awayPlayerName) ? Color.FromArgb("#94A3B8") 
+                       : awayIsEmpty ? Color.FromArgb("#94A3B8") 
                        : Color.FromArgb("#1E293B"),
-            FontSize = 13,
-            FontAttributes = string.IsNullOrEmpty(awayPlayerName) ? FontAttributes.Italic : FontAttributes.None,
+            FontSize = fr.IsDoubles ? 11 : 13,
+            FontAttributes = awayIsEmpty ? FontAttributes.Italic : FontAttributes.None,
             VerticalTextAlignment = TextAlignment.Center,
             HorizontalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation
         };
         var awayPlayerBorder = new Border
         {
-            BackgroundColor = Color.FromArgb("#FEF2F2"),
+            BackgroundColor = fr.IsDoubles ? Color.FromArgb("#FFF7ED") : Color.FromArgb("#FEF2F2"),
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-            Stroke = Color.FromArgb("#FECACA"),
+            Stroke = fr.IsDoubles ? Color.FromArgb("#FED7AA") : Color.FromArgb("#FECACA"),
             StrokeThickness = 1,
             Padding = new Thickness(6, 3),
             Content = awayPlayerLabel
@@ -2319,21 +2531,28 @@ public partial class FixturesPage : ContentPage
     {
         if (_selectedFixture == null) return;
 
+        // Capture local reference — RefreshList() clears the ObservableCollection which
+        // triggers SelectionChanged → OnSelectFixture(null) → _selectedFixture = null.
+        var fixture = _selectedFixture;
+
         // Update fixture frames from UI data
-        for (int i = 0; i < _frameRows.Count && i < _selectedFixture.Frames.Count; i++)
+        for (int i = 0; i < _frameRows.Count && i < fixture.Frames.Count; i++)
         {
             var row = _frameRows[i];
-            var fr = _selectedFixture.Frames[i];
+            var fr = fixture.Frames[i];
 
             fr.HomePlayerId = row.HomePlayerId;
             fr.AwayPlayerId = row.AwayPlayerId;
+            fr.HomePlayer2Id = row.HomePlayer2Id;
+            fr.AwayPlayer2Id = row.AwayPlayer2Id;
+            fr.IsDoubles = row.IsDoubles;
             fr.Winner = row.Winner;
             fr.EightBall = row.EightBall;
         }
 
         // Check for scheduling conflicts
         var conflicts = FixtureValidator.DetectScheduleConflicts(
-            _selectedFixture,
+            fixture,
             DataStore.Data.Fixtures,
             DataStore.Data.Teams,
             DataStore.Data.Venues);
@@ -2349,14 +2568,14 @@ public partial class FixturesPage : ContentPage
         DataStore.Save();
         UpdateHeader();
 
-        await ScheduleFixtureReminderAsync(_selectedFixture);
+        await ScheduleFixtureReminderAsync(fixture);
         UpdateReminderStatus();
         RefreshList();
 
         // Send result notification if enabled
-        if (_reminderService != null && _selectedFixture.Frames.Count > 0)
+        if (_reminderService != null && fixture.Frames.Count > 0)
         {
-            try { await _reminderService.NotifyMatchResultIfEnabledAsync(_selectedFixture, DataStore.Data.Settings); }
+            try { await _reminderService.NotifyMatchResultIfEnabledAsync(fixture, DataStore.Data.Settings); }
             catch { /* non-critical */ }
         }
 
@@ -2374,18 +2593,22 @@ public partial class FixturesPage : ContentPage
             row.HomePlayerName = "";
             row.AwayPlayerId = null;
             row.AwayPlayerName = "";
+            row.HomePlayer2Id = null;
+            row.HomePlayer2Name = "";
+            row.AwayPlayer2Id = null;
+            row.AwayPlayer2Name = "";
             row.Winner = FrameWinner.None;
             row.EightBall = false;
 
             if (row.HomePlayerLabel != null)
             {
-                row.HomePlayerLabel.Text = "Tap to select...";
+                row.HomePlayerLabel.Text = row.IsDoubles ? "Tap to select pair..." : "Tap to select...";
                 row.HomePlayerLabel.TextColor = Color.FromArgb("#94A3B8");
                 row.HomePlayerLabel.FontAttributes = FontAttributes.Italic;
             }
             if (row.AwayPlayerLabel != null)
             {
-                row.AwayPlayerLabel.Text = "Tap to select...";
+                row.AwayPlayerLabel.Text = row.IsDoubles ? "Tap to select pair..." : "Tap to select...";
                 row.AwayPlayerLabel.TextColor = Color.FromArgb("#94A3B8");
                 row.AwayPlayerLabel.FontAttributes = FontAttributes.Italic;
             }
@@ -2704,7 +2927,11 @@ public partial class FixturesPage : ContentPage
             .Select(g => g.Count())
             .ToList();
 
-        if (teamCounts.All(x => x < 2))
+        // Also count total season teams — handles case where DivisionId isn't set yet
+        var totalSeasonTeams = DataStore.Data.Teams.Count(t => t.SeasonId == seasonId);
+        var seasonDivisions = DataStore.Data.Divisions.Count(d => d.SeasonId == seasonId);
+
+        if (teamCounts.All(x => x < 2) && (totalSeasonTeams < 2 || seasonDivisions == 0))
         {
             await DisplayAlert("Cannot Generate",
                 "Need at least one division with 2+ teams.", "OK");

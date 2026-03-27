@@ -33,6 +33,9 @@ namespace Wdpl2.Views
             CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
             OverlayTap.Tapped += (_, __) => CloseFlyout();
 
+            // Wire doubles toggle to show/hide frame count fields
+            DoublesSwitch.Toggled += OnDoublesToggled;
+
             RefreshList(selectFirst: true);
         }
 
@@ -190,6 +193,10 @@ namespace Wdpl2.Views
                 .Select(s => DateTime.Parse(s))
                 .ToList();
 
+            model.IncludeDoubles = DoublesSwitch.IsToggled;
+            model.SinglesFrameCount = int.TryParse(SinglesFramesEntry.Text, out var sc) ? sc : 0;
+            model.DoublesFrameCount = int.TryParse(DoublesFramesEntry.Text, out var dc) ? dc : 0;
+
             model.NormaliseDates();
 
             var existing = League.Seasons.FirstOrDefault(s => s.Id == model.Id);
@@ -202,6 +209,9 @@ namespace Wdpl2.Views
                 existing.EndDate = model.EndDate;
                 existing.IsActive = model.IsActive;
                 existing.BlackoutDates = model.BlackoutDates;
+                existing.IncludeDoubles = model.IncludeDoubles;
+                existing.SinglesFrameCount = model.SinglesFrameCount;
+                existing.DoublesFrameCount = model.DoublesFrameCount;
             }
 
             try 
@@ -569,6 +579,10 @@ namespace Wdpl2.Views
                 StartPicker.Date = DateTime.Today;
                 EndPicker.Date = DateTime.Today.AddMonths(6);
                 ActiveSwitch.IsToggled = false;
+                DoublesSwitch.IsToggled = false;
+                SinglesFramesEntry.Text = string.Empty;
+                DoublesFramesEntry.Text = string.Empty;
+                SetDoublesFieldsVisible(false);
                 _exclusionDates.Clear();
                 HideSeasonInfo();
                 return;
@@ -578,6 +592,11 @@ namespace Wdpl2.Views
             StartPicker.Date = s.StartDate == default ? DateTime.Today : s.StartDate;
             EndPicker.Date = s.EndDate == default ? DateTime.Today.AddMonths(6) : s.EndDate;
             ActiveSwitch.IsToggled = s.IsActive;
+
+            DoublesSwitch.IsToggled = s.IncludeDoubles;
+            SinglesFramesEntry.Text = s.SinglesFrameCount > 0 ? s.SinglesFrameCount.ToString() : "";
+            DoublesFramesEntry.Text = s.DoublesFrameCount > 0 ? s.DoublesFrameCount.ToString() : "";
+            SetDoublesFieldsVisible(s.IncludeDoubles);
 
             _exclusionDates.Clear();
             if (s.BlackoutDates != null)
@@ -595,6 +614,19 @@ namespace Wdpl2.Views
             {
                 ExclusionDatePicker.Date = s.StartDate;
             }
+        }
+
+        private void OnDoublesToggled(object? sender, ToggledEventArgs e)
+        {
+            SetDoublesFieldsVisible(e.Value);
+        }
+
+        private void SetDoublesFieldsVisible(bool visible)
+        {
+            SinglesFramesLabel.IsVisible = visible;
+            SinglesFramesEntry.IsVisible = visible;
+            DoublesFramesLabel.IsVisible = visible;
+            DoublesFramesEntry.IsVisible = visible;
         }
 
         private void OnBurgerMenuClicked(object? sender, EventArgs e)

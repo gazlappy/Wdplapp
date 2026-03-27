@@ -50,10 +50,41 @@ namespace Wdpl2.Services
 
             DateTime currentRoundDate = AlignToMatchNight(startDate);
 
-            foreach (var division in league.Divisions.OrderBy(d => d.Name))
+            var seasonDivisions = league.Divisions.Where(d => d.SeasonId == seasonId).ToList();
+
+            foreach (var division in seasonDivisions.OrderBy(d => d.Name))
             {
                 var teams = league.Teams.Where(t => t.DivisionId == division.Id)
                                         .OrderBy(t => t.Name).ToList();
+
+                // Fallback: if no teams have DivisionId matching this division,
+                // discover teams by SeasonId (handles teams copied without DivisionId set)
+                if (teams.Count < 2)
+                {
+                    if (seasonDivisions.Count == 1)
+                    {
+                        // Single division in season: use all season teams
+                        teams = league.Teams.Where(t => t.SeasonId == seasonId)
+                                            .OrderBy(t => t.Name).ToList();
+                    }
+                    else
+                    {
+                        // Multi-division: also include unassigned season teams
+                        var unassigned = league.Teams
+                            .Where(t => t.SeasonId == seasonId && !t.DivisionId.HasValue)
+                            .OrderBy(t => t.Name).ToList();
+                        if (unassigned.Count >= 2)
+                            teams = unassigned;
+                    }
+
+                    // Auto-fix: assign the correct DivisionId so future operations work
+                    foreach (var t in teams)
+                    {
+                        if (t.DivisionId != division.Id)
+                            t.DivisionId = division.Id;
+                    }
+                }
+
                 if (teams.Count < 2) continue;
 
                 var rounds = CreateRoundRobin(teams);

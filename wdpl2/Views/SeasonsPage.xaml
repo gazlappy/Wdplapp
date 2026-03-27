@@ -63,7 +63,7 @@
             SemanticProperties.Description="Season controls menu">
             <ScrollView>
                 <Grid
-                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                     ColumnDefinitions="Auto,*"
                     ColumnSpacing="{StaticResource MediumSpacing}"
                     RowSpacing="{StaticResource StandardSpacing}">
@@ -99,20 +99,33 @@
                     <Label Grid.Row="6" Grid.Column="0" Text="Active:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
                     <Switch x:Name="ActiveSwitch" Grid.Row="6" Grid.Column="1" SemanticProperties.Description="Season is active" />
 
-                    <Label Grid.Row="7" Grid.ColumnSpan="2" Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+                    <BoxView Grid.Row="7" Grid.ColumnSpan="2" HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" Margin="0,8,0,0" />
 
-                    <HorizontalStackLayout Grid.Row="8" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                    <Label Grid.Row="8" Grid.ColumnSpan="2" Text="Match Format" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
+
+                    <Label Grid.Row="9" Grid.Column="0" Text="Include Doubles:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
+                    <Switch x:Name="DoublesSwitch" Grid.Row="9" Grid.Column="1" SemanticProperties.Description="Include doubles frames in matches" />
+
+                    <Label x:Name="SinglesFramesLabel" Grid.Row="10" Grid.Column="0" Text="Singles Frames:" Style="{StaticResource FieldLabelStyle}" Margin="0" IsVisible="False"/>
+                    <Entry x:Name="SinglesFramesEntry" Grid.Row="10" Grid.Column="1" Placeholder="e.g. 10" Keyboard="Numeric" IsVisible="False" SemanticProperties.Description="Number of singles frames" />
+
+                    <Label x:Name="DoublesFramesLabel" Grid.Row="11" Grid.Column="0" Text="Doubles Frames:" Style="{StaticResource FieldLabelStyle}" Margin="0" IsVisible="False"/>
+                    <Entry x:Name="DoublesFramesEntry" Grid.Row="11" Grid.Column="1" Placeholder="e.g. 5" Keyboard="Numeric" IsVisible="False" SemanticProperties.Description="Number of doubles frames" />
+
+                    <Label Grid.Row="12" Grid.ColumnSpan="2" Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
+
+                    <HorizontalStackLayout Grid.Row="13" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Button x:Name="SaveBtn" Text="Save" Clicked="OnSaveClicked" Style="{StaticResource PrimaryButtonStyle}" SemanticProperties.Description="Save season" />
                         <Button x:Name="DeleteBtn" Text="Delete" Clicked="OnDeleteClicked" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Delete season" />
                     </HorizontalStackLayout>
 
-                    <HorizontalStackLayout Grid.Row="9" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                    <HorizontalStackLayout Grid.Row="14" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Button x:Name="SetActiveBtn" Text="Set Active" Clicked="OnSetActiveClicked" Style="{StaticResource SuccessButtonStyle}" SemanticProperties.Description="Set as active season" />
                         <Button x:Name="GenerateBtn" Text="Generate Fixtures" Clicked="OnGenerateClicked" SemanticProperties.Description="Generate fixtures" />
                     </HorizontalStackLayout>
 
                     <Button x:Name="ImportHistoricalBtn" 
-                            Grid.Row="10"
+                            Grid.Row="15"
                             Grid.ColumnSpan="2"
                             Text="📋 Import from Previous Seasons" 
                             Clicked="OnImportHistoricalClicked"
@@ -121,7 +134,7 @@
                             SemanticProperties.Description="Import from previous seasons" />
                     
                     <Button x:Name="FixDataBtn" 
-                            Grid.Row="11"
+                            Grid.Row="16"
                             Grid.ColumnSpan="2"
                             Text="🔧 Fix Missing Season IDs" 
                             Clicked="OnFixMissingSeasonIdsClicked"
@@ -129,11 +142,11 @@
                             TextColor="White"
                             SemanticProperties.Description="Fix missing season IDs" />
 
-                    <BoxView Grid.Row="13" Grid.ColumnSpan="2" HeightRequest="1"
+                    <BoxView Grid.Row="18" Grid.ColumnSpan="2" HeightRequest="1"
                              Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
                              Margin="0,12" />
 
-                    <VerticalStackLayout Grid.Row="14" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
+                    <VerticalStackLayout Grid.Row="19" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Label Text="Exclusion Dates" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
                         
                         <Label Text="Dates when matches should not be scheduled:" 

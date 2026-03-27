@@ -495,6 +495,9 @@ public partial class SeasonSetupPage : ContentPage
             MatchDayOfWeek = _sourceSeason.MatchDayOfWeek,
             MatchStartTime = _sourceSeason.MatchStartTime,
             FramesPerMatch = _sourceSeason.FramesPerMatch,
+            IncludeDoubles = _sourceSeason.IncludeDoubles,
+            SinglesFrameCount = _sourceSeason.SinglesFrameCount,
+            DoublesFrameCount = _sourceSeason.DoublesFrameCount,
             IsActive = false // Don't auto-activate
         };
 
@@ -505,7 +508,7 @@ public partial class SeasonSetupPage : ContentPage
         // Copy data based on selections
         if (_copyDivisions)
         {
-            foreach (var div in DataStore.Data.Divisions.Where(d => d.SeasonId == _sourceSeason.Id))
+            foreach (var div in DataStore.Data.Divisions.Where(d => d.SeasonId == _sourceSeason.Id).ToList())
             {
                 DataStore.Data.Divisions.Add(new Division
                 {
@@ -519,7 +522,7 @@ public partial class SeasonSetupPage : ContentPage
 
         if (_copyVenues)
         {
-            foreach (var venue in DataStore.Data.Venues.Where(v => v.SeasonId == _sourceSeason.Id))
+            foreach (var venue in DataStore.Data.Venues.Where(v => v.SeasonId == _sourceSeason.Id).ToList())
             {
                 DataStore.Data.Venues.Add(new Venue
                 {
@@ -534,7 +537,7 @@ public partial class SeasonSetupPage : ContentPage
 
         if (_copyTeams)
         {
-            foreach (var team in DataStore.Data.Teams.Where(t => t.SeasonId == _sourceSeason.Id))
+            foreach (var team in DataStore.Data.Teams.Where(t => t.SeasonId == _sourceSeason.Id).ToList())
             {
                 DataStore.Data.Teams.Add(new Team
                 {
@@ -550,7 +553,7 @@ public partial class SeasonSetupPage : ContentPage
 
         if (_copyPlayers)
         {
-            foreach (var player in DataStore.Data.Players.Where(p => p.SeasonId == _sourceSeason.Id))
+            foreach (var player in DataStore.Data.Players.Where(p => p.SeasonId == _sourceSeason.Id).ToList())
             {
                 DataStore.Data.Players.Add(new Player
                 {

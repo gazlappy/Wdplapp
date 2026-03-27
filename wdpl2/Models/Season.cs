@@ -34,8 +34,19 @@ namespace Wdpl2.Models
         /// Frames per match for this season.
         /// Default is 0, which means "use app settings DefaultFramesPerMatch".
         /// Set to a specific value (e.g., 10, 15) to override for this season only.
+        /// When <see cref="IncludeDoubles"/> is true, this value is ignored in favour of
+        /// <see cref="SinglesFrameCount"/> + <see cref="DoublesFrameCount"/>.
         /// </summary>
         public int FramesPerMatch { get; set; } = 0;
+
+        /// <summary>Whether this season includes doubles frames in matches.</summary>
+        public bool IncludeDoubles { get; set; }
+
+        /// <summary>Number of singles frames per match when doubles is enabled.</summary>
+        public int SinglesFrameCount { get; set; }
+
+        /// <summary>Number of doubles frames per match when doubles is enabled.</summary>
+        public int DoublesFrameCount { get; set; }
 
         /// <summary>Optional transfer window start date. Null = no restriction.</summary>
         public DateTime? TransferWindowStart { get; set; }

@@ -17,6 +17,7 @@ public static class SeasonCopyService
     {
         public string Name { get; set; } = "";
         public string? Captain { get; set; }
+        public string? DivisionName { get; set; }
         public bool ProvidesFood { get; set; }
         public List<Guid> SourceSeasonIds { get; set; } = new();
         public string SeasonsPlayed { get; set; } = "";
@@ -82,10 +83,25 @@ public static class SeasonCopyService
                 .Select(sid => seasons.FirstOrDefault(s => s.Id == sid)?.Name ?? "Unknown")
                 .ToList();
 
+            // Get division name from the most recent source team
+            var mostRecentTeam = teams
+                .OrderByDescending(t =>
+                {
+                    var season = seasons.FirstOrDefault(s => s.Id == t.SeasonId);
+                    return season?.StartDate ?? DateTime.MinValue;
+                })
+                .FirstOrDefault();
+            string? divisionName = null;
+            if (mostRecentTeam?.DivisionId.HasValue == true)
+            {
+                divisionName = data.Divisions.FirstOrDefault(d => d.Id == mostRecentTeam.DivisionId.Value)?.Name;
+            }
+
             historicalTeams.Add(new HistoricalTeam
             {
                 Name = group.Key,
                 Captain = teams.FirstOrDefault()?.Captain,
+                DivisionName = divisionName,
                 ProvidesFood = teams.Any(t => t.ProvidesFood),
                 SourceSeasonIds = sourceSeasonIds,
                 SeasonsPlayed = string.Join(", ", seasonNames),
@@ -258,11 +274,26 @@ public static class SeasonCopyService
             .Select(t => t.Name?.Trim()?.ToLower() ?? "")
             .ToHashSet();
 
+        // Build a lookup of division names → IDs in the target season for auto-mapping
+        var targetDivisionsByName = data.Divisions
+            .Where(d => d.SeasonId == targetSeasonId)
+            .GroupBy(d => d.Name?.Trim()?.ToLower() ?? "")
+            .Where(g => !string.IsNullOrWhiteSpace(g.Key))
+            .ToDictionary(g => g.Key, g => g.First().Id);
+
         foreach (var historical in selectedTeams.Where(t => t.IsSelected))
         {
             // Skip if already exists in target season
             if (existingTeamNames.Contains(historical.Name.Trim().ToLower()))
                 continue;
+
+            // Try to map the division by name
+            Guid? mappedDivisionId = null;
+            if (!string.IsNullOrWhiteSpace(historical.DivisionName) &&
+                targetDivisionsByName.TryGetValue(historical.DivisionName.Trim().ToLower(), out var divId))
+            {
+                mappedDivisionId = divId;
+            }
 
             var newTeam = new Team
             {
@@ -270,9 +301,8 @@ public static class SeasonCopyService
                 SeasonId = targetSeasonId,
                 Name = historical.Name,
                 Captain = historical.Captain,
+                DivisionId = mappedDivisionId,
                 ProvidesFood = historical.ProvidesFood
-                // Note: DivisionId, VenueId, TableId, CaptainPlayerId will be null
-                // User needs to reassign these after import
             };
 
             data.Teams.Add(newTeam);
@@ -296,6 +326,13 @@ public static class SeasonCopyService
             })
             .ToHashSet();
 
+        // Build a lookup of team names → IDs in the target season for auto-mapping
+        var targetTeamsByName = data.Teams
+            .Where(t => t.SeasonId == targetSeasonId)
+            .GroupBy(t => t.Name?.Trim()?.ToLower() ?? "")
+            .Where(g => !string.IsNullOrWhiteSpace(g.Key))
+            .ToDictionary(g => g.Key, g => g.First().Id);
+
         foreach (var historical in selectedPlayers.Where(p => p.IsSelected))
         {
             var key = new { 
@@ -307,13 +344,21 @@ public static class SeasonCopyService
             if (existingPlayers.Contains(key))
                 continue;
 
+            // Try to map the team by name
+            Guid? mappedTeamId = null;
+            if (!string.IsNullOrWhiteSpace(historical.LastTeamName) &&
+                targetTeamsByName.TryGetValue(historical.LastTeamName.Trim().ToLower(), out var teamId))
+            {
+                mappedTeamId = teamId;
+            }
+
             var newPlayer = new Player
             {
                 Id = Guid.NewGuid(),
                 SeasonId = targetSeasonId,
                 FirstName = historical.FirstName,
-                LastName = historical.LastName
-                // Note: TeamId will be null - user needs to assign players to teams
+                LastName = historical.LastName,
+                TeamId = mappedTeamId
             };
 
             data.Players.Add(newPlayer);
