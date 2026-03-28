@@ -53,6 +53,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (_generatedFiles.ContainsKey("contact.html")) pages.Add("Contact");
         if (_generatedFiles.ContainsKey("sponsors.html")) pages.Add("Sponsors");
         if (_generatedFiles.ContainsKey("news.html")) pages.Add("News");
+        if (_generatedFiles.ContainsKey("rows-reports.html")) pages.Add("Rows Reports");
 
         // Custom pages
         foreach (var key in _generatedFiles.Keys.Where(k => k.EndsWith(".html") && !IsKnownPage(k)))
@@ -72,6 +73,7 @@ public partial class WebsiteBuilderHub : ContentPage
         fileName is "index.html" or "standings.html" or "fixtures.html" or "results.html"
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
+            or "rows-reports.html"
             or "player.html" or "team.html" or "pool-game.html" or "style.css"
             or "sitemap.xml" or "players-data.json" or "teams-data.json";
     
@@ -79,6 +81,7 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         base.OnAppearing();
         UpdateGalleryCount();
+        UpdateRowsReportsCount();
         UpdateSummaryLabels();
 
         // Auto-refresh preview when returning from settings sub-pages
@@ -140,6 +143,7 @@ public partial class WebsiteBuilderHub : ContentPage
         TemplatePicker.SelectedItem = selectedTemplate ?? _templates.FirstOrDefault();
 
         UpdateGalleryCount();
+        UpdateRowsReportsCount();
         UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
@@ -169,6 +173,12 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         var count = League.WebsiteSettings.GalleryImages.Count;
         GalleryCountLabel.Text = $"Manage photos ({count} image{(count == 1 ? "" : "s")})";
+    }
+
+    private void UpdateRowsReportsCount()
+    {
+        var count = League.WebsiteSettings.RowsReports.Count;
+        RowsReportsCountLabel.Text = $"Weekly match reports ({count})";
     }
 
     private void UpdateSummaryLabels()
@@ -209,6 +219,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (s.ShowCompetitions) pageCount++;
         if (s.ShowGallery) pageCount++;
         if (s.ShowNews) pageCount++;
+        if (s.ShowRowsReports) pageCount++;
         if (s.ShowSponsors) pageCount++;
         if (s.ShowRules) pageCount++;
         if (s.ShowContactPage) pageCount++;
@@ -338,6 +349,9 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private async void OnGalleryTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new GallerySettingsPage());
+
+    private async void OnRowsReportsTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new RowsReportsSettingsPage());
     
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
@@ -502,6 +516,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "contact" => "contact.html",
             "sponsors" => "sponsors.html",
             "news" => "news.html",
+            "rows reports" => "rows-reports.html",
             _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "index.html"
         };
     }
@@ -522,6 +537,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "contact.html" => "Contact",
             "sponsors.html" => "Sponsors",
             "news.html" => "News",
+            "rows-reports.html" => "Rows Reports",
             _ => Path.GetFileNameWithoutExtension(fileName)
         };
     }

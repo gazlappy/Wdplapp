@@ -322,6 +322,8 @@ public partial class FixturesSheetPage : ContentPage
             1 => TitleStyle.SingleRule,
             2 => TitleStyle.BoxBorder,
             3 => TitleStyle.None,
+            4 => TitleStyle.Gradient,
+            5 => TitleStyle.Shadow,
             _ => TitleStyle.DoubleRule
         };
     }
@@ -332,6 +334,7 @@ public partial class FixturesSheetPage : ContentPage
         {
             0 => GridBorderWeight.Fine,
             2 => GridBorderWeight.Bold,
+            3 => GridBorderWeight.Double,
             _ => GridBorderWeight.Medium
         };
     }
@@ -341,6 +344,9 @@ public partial class FixturesSheetPage : ContentPage
         return HomeBadgePicker.SelectedIndex switch
         {
             1 => HomeBadgeStyle.BoldOnly,
+            2 => HomeBadgeStyle.Underline,
+            3 => HomeBadgeStyle.Highlight,
+            4 => HomeBadgeStyle.None,
             _ => HomeBadgeStyle.Pill
         };
     }
@@ -351,7 +357,52 @@ public partial class FixturesSheetPage : ContentPage
         {
             1 => SheetFontFamily.Classic,
             2 => SheetFontFamily.Mono,
+            3 => SheetFontFamily.Sport,
+            4 => SheetFontFamily.Elegant,
+            5 => SheetFontFamily.Handwritten,
+            6 => SheetFontFamily.Condensed,
+            7 => SheetFontFamily.Rounded,
+            8 => SheetFontFamily.Newspaper,
+            9 => SheetFontFamily.Technical,
+            10 => SheetFontFamily.Display,
+            11 => SheetFontFamily.Casual,
             _ => SheetFontFamily.Modern
+        };
+    }
+
+    private FontScale GetSelectedFontScale()
+    {
+        return FontScalePicker.SelectedIndex switch
+        {
+            0 => FontScale.ExtraSmall,
+            1 => FontScale.Small,
+            3 => FontScale.Medium,
+            4 => FontScale.Large,
+            5 => FontScale.ExtraLarge,
+            _ => FontScale.Default
+        };
+    }
+
+    private TitleFontSize GetSelectedTitleFontSize()
+    {
+        return TitleFontSizePicker.SelectedIndex switch
+        {
+            0 => TitleFontSize.Small,
+            2 => TitleFontSize.Large,
+            3 => TitleFontSize.ExtraLarge,
+            4 => TitleFontSize.Huge,
+            _ => TitleFontSize.Medium
+        };
+    }
+
+    private Services.FontWeight GetSelectedFontWeight()
+    {
+        return FontWeightPicker.SelectedIndex switch
+        {
+            0 => Services.FontWeight.Light,
+            2 => Services.FontWeight.SemiBold,
+            3 => Services.FontWeight.Bold,
+            _ => Services.FontWeight.Normal
         };
     }
 
@@ -363,6 +414,8 @@ public partial class FixturesSheetPage : ContentPage
             2 => MonthPalette.Monochrome,
             3 => MonthPalette.Earth,
             4 => MonthPalette.Ocean,
+            5 => MonthPalette.Pastel,
+            6 => MonthPalette.Neon,
             _ => MonthPalette.Muted
         };
     }
@@ -373,6 +426,7 @@ public partial class FixturesSheetPage : ContentPage
         {
             0 => ColumnBanding.None,
             2 => ColumnBanding.Strong,
+            3 => ColumnBanding.Alternating,
             _ => ColumnBanding.Subtle
         };
     }
@@ -413,8 +467,446 @@ public partial class FixturesSheetPage : ContentPage
         {
             1 => CardStyle.Frosted,
             2 => CardStyle.Translucent,
+            3 => CardStyle.Outlined,
+            4 => CardStyle.Minimal,
             _ => CardStyle.Solid
         };
+    }
+
+    private SheetLayout GetSelectedLayout()
+    {
+        return LayoutPicker.SelectedIndex switch
+        {
+            1 => SheetLayout.WeeklyList,
+            2 => SheetLayout.CompactGrid,
+            3 => SheetLayout.SeasonMatrix,
+            _ => SheetLayout.MonthCards
+        };
+    }
+
+    private HeaderPattern GetSelectedHeaderPattern()
+    {
+        return HeaderPatternPicker.SelectedIndex switch
+        {
+            1 => HeaderPattern.Dots,
+            2 => HeaderPattern.Diagonal,
+            3 => HeaderPattern.Circles,
+            4 => HeaderPattern.None,
+            _ => HeaderPattern.Crosshatch
+        };
+    }
+
+    private RowStriping GetSelectedRowStriping()
+    {
+        return RowStripingPicker.SelectedIndex switch
+        {
+            0 => RowStriping.None,
+            2 => RowStriping.Medium,
+            3 => RowStriping.Accent,
+            _ => RowStriping.Subtle
+        };
+    }
+
+    private VsSeparatorStyle GetSelectedVsSeparator()
+    {
+        return VsSeparatorPicker.SelectedIndex switch
+        {
+            1 => VsSeparatorStyle.Vs,
+            2 => VsSeparatorStyle.Dash,
+            3 => VsSeparatorStyle.Dot,
+            4 => VsSeparatorStyle.None,
+            _ => VsSeparatorStyle.LowercaseV
+        };
+    }
+
+    private SheetFooterStyle GetSelectedFooterStyle()
+    {
+        return FooterStylePicker.SelectedIndex switch
+        {
+            1 => SheetFooterStyle.FullAccent,
+            2 => SheetFooterStyle.Simple,
+            3 => SheetFooterStyle.Minimal,
+            _ => SheetFooterStyle.AccentTop
+        };
+    }
+
+    private CornerStyle GetSelectedCornerStyle()
+    {
+        return CornerStylePicker.SelectedIndex switch
+        {
+            0 => CornerStyle.Sharp,
+            2 => CornerStyle.ExtraRound,
+            _ => CornerStyle.Rounded
+        };
+    }
+
+    private void OnToggleAdvancedClicked(object sender, EventArgs e)
+    {
+        AdvancedOptionsStack.IsVisible = !AdvancedOptionsStack.IsVisible;
+        AdvancedToggleIcon.Text = AdvancedOptionsStack.IsVisible ? "\u25bc" : "\u25b6";
+    }
+
+    private void OnApplyLayoutPresetClicked(object sender, EventArgs e)
+    {
+        if (LayoutPresetPicker.SelectedIndex < 0)
+        {
+            SetStatus("Please select a layout preset first");
+            return;
+        }
+
+        // Layout presets only set: LayoutIndex, DivisionLayoutIndex, TextDensityIndex, CornerStyleIndex,
+        // IsLandscape, ShowMatchNight, ShowTeamNumbers, ShowVenueInfo, ShowDivisionLists, ShowGridLegend
+        switch (LayoutPresetPicker.SelectedIndex)
+        {
+            case 0: // Month Cards — Standard Portrait
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 1: // Month Cards — Compact Portrait
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 2; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = false;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = false;
+                break;
+            case 2: // Month Cards — Spacious Portrait
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 2;
+                CornerStylePicker.SelectedIndex = 2; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 3: // Month Cards — Landscape
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 1; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 4: // Month Cards — Landscape Dense
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 2; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 5: // Month Cards — Minimal
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = false; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = false;
+                ShowDivisionListsCheck.IsChecked = false; ShowGridLegendCheck.IsChecked = false;
+                break;
+            case 6: // Weekly List — Standard Portrait
+                LayoutPicker.SelectedIndex = 1; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 7: // Weekly List — Spacious Portrait
+                LayoutPicker.SelectedIndex = 1; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 2;
+                CornerStylePicker.SelectedIndex = 2; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 8: // Weekly List — Compact Portrait
+                LayoutPicker.SelectedIndex = 1; DivisionLayoutPicker.SelectedIndex = 2; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = false; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = false;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = false;
+                break;
+            case 9: // Weekly List — Landscape
+                LayoutPicker.SelectedIndex = 1; DivisionLayoutPicker.SelectedIndex = 1; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 10: // Compact Grid — Portrait
+                LayoutPicker.SelectedIndex = 2; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 11: // Compact Grid — Portrait Dense
+                LayoutPicker.SelectedIndex = 2; DivisionLayoutPicker.SelectedIndex = 1; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 12: // Compact Grid — Landscape
+                LayoutPicker.SelectedIndex = 2; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 1;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 13: // Compact Grid — Landscape Dense
+                LayoutPicker.SelectedIndex = 2; DivisionLayoutPicker.SelectedIndex = 2; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 14: // Season Matrix — Landscape
+                LayoutPicker.SelectedIndex = 3; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = false; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 15: // Season Matrix — Portrait
+                LayoutPicker.SelectedIndex = 3; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = false;
+                ShowDivisionListsCheck.IsChecked = false; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 16: // Season Matrix — Landscape Spacious
+                LayoutPicker.SelectedIndex = 3; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 2;
+                CornerStylePicker.SelectedIndex = 2; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = false; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 17: // Month Cards — Notice Board
+                LayoutPicker.SelectedIndex = 0; DivisionLayoutPicker.SelectedIndex = 1; TextDensityPicker.SelectedIndex = 2;
+                CornerStylePicker.SelectedIndex = 2; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 18: // Weekly List — Full Detail
+                LayoutPicker.SelectedIndex = 1; DivisionLayoutPicker.SelectedIndex = 0; TextDensityPicker.SelectedIndex = 2;
+                CornerStylePicker.SelectedIndex = 1; LandscapeRadio.IsChecked = false; PortraitRadio.IsChecked = true;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+            case 19: // Compact Grid — Pub Handout
+                LayoutPicker.SelectedIndex = 2; DivisionLayoutPicker.SelectedIndex = 1; TextDensityPicker.SelectedIndex = 0;
+                CornerStylePicker.SelectedIndex = 0; LandscapeRadio.IsChecked = true; PortraitRadio.IsChecked = false;
+                ShowMatchNightCheck.IsChecked = true; ShowTeamNumbersCheck.IsChecked = true; ShowVenueInfoCheck.IsChecked = true;
+                ShowDivisionListsCheck.IsChecked = true; ShowGridLegendCheck.IsChecked = true;
+                break;
+        }
+
+        SetStatus($"Applied layout: {LayoutPresetPicker.SelectedItem}");
+    }
+
+    private void OnApplyStylePresetClicked(object sender, EventArgs e)
+    {
+        if (StylePresetPicker.SelectedIndex < 0)
+        {
+            SetStatus("Please select a style preset first");
+            return;
+        }
+
+        // Style presets only set visual properties: AccentColor, TitleStyle, GridBorders, HomeBadge,
+        // FontFamily, SubtitleStyle, MonthPalette, ColumnBanding, CardStyle, HeaderPattern,
+        // RowStriping, VsSeparator, FooterStyle, TitleUppercase, MonthUppercase
+        switch (StylePresetPicker.SelectedIndex)
+        {
+            case 0: // Classic Pool League
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 0; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 1; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 0; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 1: // Modern Sports
+                AccentColorPicker.SelectedIndex = 5; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 3; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 1; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 1;
+                HeaderPatternPicker.SelectedIndex = 1; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 2; FontWeightPicker.SelectedIndex = 2;
+                break;
+            case 2: // Pub League
+                AccentColorPicker.SelectedIndex = 3; TitleStylePicker.SelectedIndex = 2; GridBorderPicker.SelectedIndex = 2;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 3; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 3; ColumnBandingPicker.SelectedIndex = 2; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 4; RowStripingPicker.SelectedIndex = 2; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 2; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 3: // Professional Tournament
+                AccentColorPicker.SelectedIndex = 4; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 2; FontFamilyPicker.SelectedIndex = 4; SubtitleStylePicker.SelectedIndex = 1;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 3;
+                HeaderPatternPicker.SelectedIndex = 2; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 2; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 4: // Community / Sunday League
+                AccentColorPicker.SelectedIndex = 6; TitleStylePicker.SelectedIndex = 3; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 7; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 4; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 3; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 3; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 3; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 5: // Retro
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 0; GridBorderPicker.SelectedIndex = 3;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 2; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 3; CardStylePicker.SelectedIndex = 4;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 3; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 6: // Snooker Club
+                AccentColorPicker.SelectedIndex = 2; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 2; FontFamilyPicker.SelectedIndex = 4; SubtitleStylePicker.SelectedIndex = 1;
+                MonthPalettePicker.SelectedIndex = 3; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 3;
+                HeaderPatternPicker.SelectedIndex = 2; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 2; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 7: // Midnight
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 3; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 6; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 1;
+                HeaderPatternPicker.SelectedIndex = 1; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 3;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 8: // Ocean Breeze
+                AccentColorPicker.SelectedIndex = 5; TitleStylePicker.SelectedIndex = 1; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 7; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 4; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 2;
+                HeaderPatternPicker.SelectedIndex = 3; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 9: // Woodland
+                AccentColorPicker.SelectedIndex = 2; TitleStylePicker.SelectedIndex = 2; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 1; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 3; ColumnBandingPicker.SelectedIndex = 2; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 2; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 10: // Championship Gold
+                AccentColorPicker.SelectedIndex = 7; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 2;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 3; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 1; ColumnBandingPicker.SelectedIndex = 2; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 2; RowStripingPicker.SelectedIndex = 3; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 3; FontWeightPicker.SelectedIndex = 3;
+                break;
+            case 11: // Minimalist
+                AccentColorPicker.SelectedIndex = 4; TitleStylePicker.SelectedIndex = 3; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 6; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 4;
+                HeaderPatternPicker.SelectedIndex = 4; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 3; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 1; TitleFontSizePicker.SelectedIndex = 0; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 12: // Newspaper
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 0; GridBorderPicker.SelectedIndex = 3;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 8; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 3; CardStylePicker.SelectedIndex = 4;
+                HeaderPatternPicker.SelectedIndex = 4; RowStripingPicker.SelectedIndex = 2; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 3; FontWeightPicker.SelectedIndex = 2;
+                break;
+            case 13: // Neon Nights
+                AccentColorPicker.SelectedIndex = 7; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 3; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 6; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 1;
+                HeaderPatternPicker.SelectedIndex = 1; RowStripingPicker.SelectedIndex = 3; VsSeparatorPicker.SelectedIndex = 3;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 2; FontWeightPicker.SelectedIndex = 3;
+                break;
+            case 14: // Elegant
+                AccentColorPicker.SelectedIndex = 1; TitleStylePicker.SelectedIndex = 1; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 2; FontFamilyPicker.SelectedIndex = 4; SubtitleStylePicker.SelectedIndex = 1;
+                MonthPalettePicker.SelectedIndex = 0; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 3;
+                HeaderPatternPicker.SelectedIndex = 2; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 15: // Tropical
+                AccentColorPicker.SelectedIndex = 6; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 3; FontFamilyPicker.SelectedIndex = 7; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 1; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 2;
+                HeaderPatternPicker.SelectedIndex = 3; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 16: // Corporate
+                AccentColorPicker.SelectedIndex = 4; TitleStylePicker.SelectedIndex = 1; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 6; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 4; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 17: // Vintage
+                AccentColorPicker.SelectedIndex = 3; TitleStylePicker.SelectedIndex = 2; GridBorderPicker.SelectedIndex = 2;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 1; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 3; ColumnBandingPicker.SelectedIndex = 2; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 2; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 18: // Frostbite
+                AccentColorPicker.SelectedIndex = 5; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 1;
+                MonthPalettePicker.SelectedIndex = 4; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 1;
+                HeaderPatternPicker.SelectedIndex = 1; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 3;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 19: // Warm Glow
+                AccentColorPicker.SelectedIndex = 3; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 4; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 5; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 2;
+                HeaderPatternPicker.SelectedIndex = 2; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 20: // Print Ready
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 0; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 1; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 2; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 4; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 2; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 1; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 21: // Friday Night
+                AccentColorPicker.SelectedIndex = 7; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 3; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 1; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 3; VsSeparatorPicker.SelectedIndex = 1;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 3; FontWeightPicker.SelectedIndex = 3;
+                break;
+            case 22: // Seaside
+                AccentColorPicker.SelectedIndex = 6; TitleStylePicker.SelectedIndex = 1; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 2; FontFamilyPicker.SelectedIndex = 11; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 4; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 3;
+                HeaderPatternPicker.SelectedIndex = 3; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 3; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 23: // Dark Mode
+                AccentColorPicker.SelectedIndex = 0; TitleStylePicker.SelectedIndex = 4; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 3; FontFamilyPicker.SelectedIndex = 0; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 6; ColumnBandingPicker.SelectedIndex = 0; CardStylePicker.SelectedIndex = 1;
+                HeaderPatternPicker.SelectedIndex = 1; RowStripingPicker.SelectedIndex = 0; VsSeparatorPicker.SelectedIndex = 3;
+                FooterStylePicker.SelectedIndex = 1; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 1;
+                break;
+            case 24: // Pastel Dream
+                AccentColorPicker.SelectedIndex = 5; TitleStylePicker.SelectedIndex = 3; GridBorderPicker.SelectedIndex = 0;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 4; SubtitleStylePicker.SelectedIndex = 2;
+                MonthPalettePicker.SelectedIndex = 5; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 2;
+                HeaderPatternPicker.SelectedIndex = 3; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 2;
+                FooterStylePicker.SelectedIndex = 3; TitleUppercaseCheck.IsChecked = false; MonthUppercaseCheck.IsChecked = false;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 0;
+                break;
+            case 25: // Matrix Master
+                AccentColorPicker.SelectedIndex = 1; TitleStylePicker.SelectedIndex = 5; GridBorderPicker.SelectedIndex = 1;
+                HomeBadgePicker.SelectedIndex = 0; FontFamilyPicker.SelectedIndex = 9; SubtitleStylePicker.SelectedIndex = 0;
+                MonthPalettePicker.SelectedIndex = 1; ColumnBandingPicker.SelectedIndex = 1; CardStylePicker.SelectedIndex = 0;
+                HeaderPatternPicker.SelectedIndex = 0; RowStripingPicker.SelectedIndex = 1; VsSeparatorPicker.SelectedIndex = 0;
+                FooterStylePicker.SelectedIndex = 0; TitleUppercaseCheck.IsChecked = true; MonthUppercaseCheck.IsChecked = true;
+                FontScalePicker.SelectedIndex = 2; TitleFontSizePicker.SelectedIndex = 1; FontWeightPicker.SelectedIndex = 2;
+                break;
+        }
+
+        SetStatus($"Applied style: {StylePresetPicker.SelectedItem}");
     }
 
     private void OnSaveDesignClicked(object sender, EventArgs e)
@@ -426,12 +918,21 @@ public partial class FixturesSheetPage : ContentPage
             GridBordersIndex = GridBorderPicker.SelectedIndex,
             HomeBadgeIndex = HomeBadgePicker.SelectedIndex,
             FontFamilyIndex = FontFamilyPicker.SelectedIndex,
+            FontScaleIndex = FontScalePicker.SelectedIndex,
+            TitleFontSizeIndex = TitleFontSizePicker.SelectedIndex,
+            FontWeightIndex = FontWeightPicker.SelectedIndex,
             SubtitleStyleIndex = SubtitleStylePicker.SelectedIndex,
             MonthPaletteIndex = MonthPalettePicker.SelectedIndex,
             ColumnBandingIndex = ColumnBandingPicker.SelectedIndex,
             DivisionLayoutIndex = DivisionLayoutPicker.SelectedIndex,
             TextDensityIndex = TextDensityPicker.SelectedIndex,
             CardStyleIndex = CardStylePicker.SelectedIndex,
+            LayoutIndex = LayoutPicker.SelectedIndex,
+            HeaderPatternIndex = HeaderPatternPicker.SelectedIndex,
+            RowStripingIndex = RowStripingPicker.SelectedIndex,
+            VsSeparatorIndex = VsSeparatorPicker.SelectedIndex,
+            FooterStyleIndex = FooterStylePicker.SelectedIndex,
+            CornerStyleIndex = CornerStylePicker.SelectedIndex,
             ShowMatchNight = ShowMatchNightCheck.IsChecked,
             TitleUppercase = TitleUppercaseCheck.IsChecked,
             MonthUppercase = MonthUppercaseCheck.IsChecked,
@@ -443,6 +944,13 @@ public partial class FixturesSheetPage : ContentPage
         };
 
         League.WebsiteSettings.FixturesSheetDesign = design;
+
+        // Also persist the full settings so the website generator uses the designed sheet
+        if (SeasonPicker.SelectedItem is Season season)
+        {
+            League.FixturesSheetSettings = BuildCurrentSettings(season);
+        }
+
         DataStore.Save();
         SetStatus("Design settings saved");
     }
@@ -456,17 +964,32 @@ public partial class FixturesSheetPage : ContentPage
             return;
         }
 
+        ApplyDesign(design);
+        SetStatus("Design settings loaded");
+    }
+
+    private void ApplyDesign(SavedFixturesSheetDesign design)
+    {
         AccentColorPicker.SelectedIndex = Clamp(design.AccentColorIndex, 0, 7);
-        TitleStylePicker.SelectedIndex = Clamp(design.TitleStyleIndex, 0, 3);
-        GridBorderPicker.SelectedIndex = Clamp(design.GridBordersIndex, 0, 2);
-        HomeBadgePicker.SelectedIndex = Clamp(design.HomeBadgeIndex, 0, 1);
-        FontFamilyPicker.SelectedIndex = Clamp(design.FontFamilyIndex, 0, 2);
+        TitleStylePicker.SelectedIndex = Clamp(design.TitleStyleIndex, 0, 5);
+        GridBorderPicker.SelectedIndex = Clamp(design.GridBordersIndex, 0, 3);
+        HomeBadgePicker.SelectedIndex = Clamp(design.HomeBadgeIndex, 0, 4);
+        FontFamilyPicker.SelectedIndex = Clamp(design.FontFamilyIndex, 0, 11);
+        FontScalePicker.SelectedIndex = Clamp(design.FontScaleIndex, 0, 5);
+        TitleFontSizePicker.SelectedIndex = Clamp(design.TitleFontSizeIndex, 0, 4);
+        FontWeightPicker.SelectedIndex = Clamp(design.FontWeightIndex, 0, 3);
         SubtitleStylePicker.SelectedIndex = Clamp(design.SubtitleStyleIndex, 0, 2);
-        MonthPalettePicker.SelectedIndex = Clamp(design.MonthPaletteIndex, 0, 4);
-        ColumnBandingPicker.SelectedIndex = Clamp(design.ColumnBandingIndex, 0, 2);
+        MonthPalettePicker.SelectedIndex = Clamp(design.MonthPaletteIndex, 0, 6);
+        ColumnBandingPicker.SelectedIndex = Clamp(design.ColumnBandingIndex, 0, 3);
         DivisionLayoutPicker.SelectedIndex = Clamp(design.DivisionLayoutIndex, 0, 2);
         TextDensityPicker.SelectedIndex = Clamp(design.TextDensityIndex, 0, 2);
-        CardStylePicker.SelectedIndex = Clamp(design.CardStyleIndex, 0, 2);
+        CardStylePicker.SelectedIndex = Clamp(design.CardStyleIndex, 0, 4);
+        LayoutPicker.SelectedIndex = Clamp(design.LayoutIndex, 0, 3);
+        HeaderPatternPicker.SelectedIndex = Clamp(design.HeaderPatternIndex, 0, 4);
+        RowStripingPicker.SelectedIndex = Clamp(design.RowStripingIndex, 0, 3);
+        VsSeparatorPicker.SelectedIndex = Clamp(design.VsSeparatorIndex, 0, 4);
+        FooterStylePicker.SelectedIndex = Clamp(design.FooterStyleIndex, 0, 3);
+        CornerStylePicker.SelectedIndex = Clamp(design.CornerStyleIndex, 0, 2);
         ShowMatchNightCheck.IsChecked = design.ShowMatchNight;
         TitleUppercaseCheck.IsChecked = design.TitleUppercase;
         MonthUppercaseCheck.IsChecked = design.MonthUppercase;
@@ -476,8 +999,6 @@ public partial class FixturesSheetPage : ContentPage
         ShowDivisionListsCheck.IsChecked = design.ShowDivisionLists;
         LandscapeRadio.IsChecked = design.IsLandscape;
         PortraitRadio.IsChecked = !design.IsLandscape;
-
-        SetStatus("Design settings loaded");
     }
 
     private static int Clamp(int value, int min, int max) =>
@@ -561,22 +1082,8 @@ public partial class FixturesSheetPage : ContentPage
         }
     }
 
-    private string? GenerateSheet()
+    private FixturesSheetSettings BuildCurrentSettings(Season season)
     {
-        var season = SeasonPicker.SelectedItem as Season;
-        if (season == null)
-        {
-            DisplayAlert("Error", "Please select a season", "OK");
-            return null;
-        }
-        
-        var selectedDivisions = _divisions.Where(d => d.IsSelected).Select(d => d.Id).ToList();
-        if (selectedDivisions.Count == 0)
-        {
-            DisplayAlert("Error", "Please select at least one division", "OK");
-            return null;
-        }
-        
         // Parse logo dimensions
         int logoWidth = 100;
         int logoHeight = 60;
@@ -584,7 +1091,7 @@ public partial class FixturesSheetPage : ContentPage
             logoWidth = parsedWidth;
         if (int.TryParse(LogoHeightEntry.Text, out int parsedHeight) && parsedHeight >= 0)
             logoHeight = parsedHeight;
-        
+
         var settings = new FixturesSheetSettings
         {
             LeagueName = LeagueNameEntry.Text ?? "Pool League",
@@ -598,7 +1105,7 @@ public partial class FixturesSheetPage : ContentPage
             EmailAddress = EmailEntry.Text ?? "",
             CancelledMatchContact = CancelledMatchContactEntry.Text ?? "",
             CancelledCompetitionContact = CancelledCompContactEntry.Text ?? "",
-            
+
             // Logo settings
             ShowLeagueLogo = ShowLogoCheck.IsChecked && _currentLogoData != null,
             LogoImageData = _currentLogoData,
@@ -613,6 +1120,9 @@ public partial class FixturesSheetPage : ContentPage
             GridBorders = GetSelectedGridBorders(),
             HomeBadge = GetSelectedHomeBadge(),
             FontFamily = GetSelectedFontFamily(),
+            FontScale = GetSelectedFontScale(),
+            TitleFontSize = GetSelectedTitleFontSize(),
+            FontWeight = GetSelectedFontWeight(),
             ShowMatchNight = ShowMatchNightCheck.IsChecked,
             MonthColors = GetSelectedMonthPalette(),
             ColumnBanding = GetSelectedColumnBanding(),
@@ -622,9 +1132,15 @@ public partial class FixturesSheetPage : ContentPage
             TitleUppercase = TitleUppercaseCheck.IsChecked,
             MonthUppercase = MonthUppercaseCheck.IsChecked,
             ShowGridLegend = ShowGridLegendCheck.IsChecked,
-            CardStyle = GetSelectedCardStyle()
+            CardStyle = GetSelectedCardStyle(),
+            Layout = GetSelectedLayout(),
+            HeaderPattern = GetSelectedHeaderPattern(),
+            RowStriping = GetSelectedRowStriping(),
+            VsSeparator = GetSelectedVsSeparator(),
+            FooterStyle = GetSelectedFooterStyle(),
+            CornerStyle = GetSelectedCornerStyle()
         };
-        
+
         // Add special events
         foreach (var evt in _events)
         {
@@ -636,20 +1152,45 @@ public partial class FixturesSheetPage : ContentPage
                 Color = evt.Color
             });
         }
-        
+
         // Add venue phone numbers
         foreach (var phone in _venuePhones)
         {
             settings.VenuePhoneNumbers[phone.VenueName] = phone.PhoneNumber;
         }
-        
+
         // Add footer notes
         if (!string.IsNullOrWhiteSpace(FooterNotesEditor.Text))
         {
             var notes = FooterNotesEditor.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             settings.FooterNotes.AddRange(notes.Select(n => n.Trim()));
         }
-        
+
+        return settings;
+    }
+
+    private string? GenerateSheet()
+    {
+        var season = SeasonPicker.SelectedItem as Season;
+        if (season == null)
+        {
+            DisplayAlert("Error", "Please select a season", "OK");
+            return null;
+        }
+
+        var selectedDivisions = _divisions.Where(d => d.IsSelected).Select(d => d.Id).ToList();
+        if (selectedDivisions.Count == 0)
+        {
+            DisplayAlert("Error", "Please select at least one division", "OK");
+            return null;
+        }
+
+        var settings = BuildCurrentSettings(season);
+
+        // Persist settings so the website generator uses the same design
+        League.FixturesSheetSettings = settings;
+        DataStore.Save();
+
         var generator = new FixturesSheetGenerator(League, settings);
         return generator.GenerateFixturesSheet(season.Id, selectedDivisions);
     }

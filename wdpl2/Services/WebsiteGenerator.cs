@@ -115,7 +115,10 @@ namespace Wdpl2.Services
             
             if (_settings.ShowNews && _settings.NewsItems.Count > 0)
                 files["news.html"] = GenerateNewsPage(season, template);
-            
+
+            if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
+                files["rows-reports.html"] = GenerateRowsReportsPage(season, template);
+
             // Add UK 8-Ball Pool Game
             files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
             
@@ -732,12 +735,13 @@ namespace Wdpl2.Services
             // Get embeddable content and CSS
             var sheetContent = fixturesSheetGenerator.GenerateEmbeddableContent(season.Id);
             var sheetCss = fixturesSheetGenerator.GetEmbeddableCSS();
-            
+            var scopedCss = fixturesSheetGenerator.GetScopedCSS();
+
             var expandedClass = _settings.FixturesSheetDefaultExpanded ? " expanded" : "";
             var sheetTitle = string.IsNullOrWhiteSpace(_settings.FixturesSheetTitle) 
                 ? "Printable Fixtures Sheet" 
                 : _settings.FixturesSheetTitle;
-            
+
             html.AppendLine("            <!-- Printable Fixtures Sheet Section -->");
             html.AppendLine("            <style>");
             html.AppendLine("            .fixtures-sheet-section { position: relative; }");
@@ -754,8 +758,10 @@ namespace Wdpl2.Services
             html.AppendLine("            .fixtures-sheet-actions .btn-print { background: var(--bg-alt, #F1F5F9); color: var(--text-color, #0F172A); border: 1px solid var(--border-color, #E2E8F0); }");
             html.AppendLine("            .fixtures-sheet-actions .btn-print:hover { background: var(--card-bg, white); border-color: var(--primary-color, #3B82F6); color: var(--primary-color, #3B82F6); }");
             html.AppendLine("            .fixtures-sheet-wrapper { overflow-x: auto; background: white; border: 1px solid var(--border-color, #E2E8F0); border-radius: 10px; padding: 16px; max-width: 100%; }");
-            html.AppendLine("            .fixtures-sheet-wrapper .fixtures-sheet { transform: scale(0.85); transform-origin: top left; }");
+            html.AppendLine("            .fixtures-sheet-wrapper .fixtures-sheet { transform-origin: top left; }");
             html.AppendLine("            @media (max-width: 768px) { .fixtures-sheet-actions { flex-direction: column; } .fixtures-sheet-actions button { width: 100%; justify-content: center; } }");
+            // Include scoped sheet CSS so inline preview matches the designed sheet
+            html.AppendLine(scopedCss);
             html.AppendLine("            </style>");
             html.AppendLine($"            <div class=\"section fixtures-sheet-section{expandedClass}\">");
             html.AppendLine("                <div class=\"fixtures-sheet-header\" onclick=\"toggleFixturesSheet()\">");
@@ -1441,7 +1447,95 @@ namespace Wdpl2.Services
             
             return html.ToString();
         }
-        
+
+        private string GenerateRowsReportsPage(Season season, WebsiteTemplate template)
+        {
+            var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
+
+            return GenerateFullPage($"Rows Reports - {_settings.LeagueName}", season, "Rows Reports", html =>
+            {
+                html.AppendLine("            <div class=\"hero\">");
+                html.AppendLine("                <h2>&#128221; Rows Reports</h2>");
+                html.AppendLine("                <p class=\"hero-dates\">Weekly match reports and round-ups</p>");
+                html.AppendLine("            </div>");
+
+                var publishedReports = _settings.RowsReports
+                    .Where(r => r.IsPublished)
+                    .OrderByDescending(r => r.WeekNumber)
+                    .ThenByDescending(r => r.MatchDate)
+                    .Take(_settings.RowsReportsPerPage)
+                    .ToList();
+
+                if (publishedReports.Count != 0)
+                {
+                    foreach (var report in publishedReports)
+                    {
+                        html.AppendLine("            <article class=\"section rows-report\">");
+                        html.AppendLine($"                <div class=\"report-header\">");
+                        html.AppendLine($"                    <span class=\"week-badge\">Week {report.WeekNumber}</span>");
+                        if (!string.IsNullOrWhiteSpace(report.Author))
+                            html.AppendLine($"                    <span class=\"report-author\">By {report.Author}</span>");
+                        html.AppendLine($"                </div>");
+                        html.AppendLine($"                <h3>{report.Title}</h3>");
+                        html.AppendLine($"                <p class=\"report-meta\">");
+                        html.AppendLine($"                    <span class=\"date\">&#128197; {report.MatchDate:dddd dd MMMM yyyy}</span>");
+                        html.AppendLine($"                </p>");
+
+                        if (!string.IsNullOrWhiteSpace(report.Summary))
+                        {
+                            html.AppendLine($"                <p class=\"report-summary\">{report.Summary}</p>");
+                        }
+
+                        // Show results for that week if we can match fixtures by date
+                        var weekFixtures = fixtures
+                            .Where(f => f.Date.Date == report.MatchDate.Date && f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                            .OrderBy(f => f.Date)
+                            .ToList();
+
+                        if (weekFixtures.Count > 0)
+                        {
+                            html.AppendLine("                <div class=\"report-results\">");
+                            html.AppendLine("                    <h4>Results</h4>");
+                            foreach (var fixture in weekFixtures)
+                            {
+                                var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                                var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                                var homeName = homeTeam?.Name ?? "TBC";
+                                var awayName = awayTeam?.Name ?? "TBC";
+                                var homeWon = fixture.HomeScore > fixture.AwayScore;
+                                var awayWon = fixture.AwayScore > fixture.HomeScore;
+
+                                html.AppendLine("                    <div class=\"report-result-row\">");
+                                html.AppendLine($"                        <span class=\"team-name{(homeWon ? " winner" : "")}\">{homeName}</span>");
+                                html.AppendLine($"                        <span class=\"result-score\">{fixture.HomeScore} - {fixture.AwayScore}</span>");
+                                html.AppendLine($"                        <span class=\"team-name{(awayWon ? " winner" : "")}\">{awayName}</span>");
+                                html.AppendLine("                    </div>");
+                            }
+                            html.AppendLine("                </div>");
+                        }
+
+                        html.AppendLine($"                <div class=\"report-content\">{report.Content}</div>");
+
+                        if (report.Tags.Count > 0)
+                        {
+                            html.AppendLine("                <div class=\"report-tags\">");
+                            foreach (var tag in report.Tags)
+                                html.AppendLine($"                    <span class=\"report-tag\">{tag}</span>");
+                            html.AppendLine("                </div>");
+                        }
+
+                        html.AppendLine("            </article>");
+                    }
+                }
+                else
+                {
+                    html.AppendLine("            <div class=\"section\">");
+                    html.AppendLine("                <p class=\"empty-message\">No match reports available yet. Check back after the next round of matches!</p>");
+                    html.AppendLine("            </div>");
+                }
+            });
+        }
+
         private string GenerateCompetitionsPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.RowsReportsSettingsPage"
+             Title="Rows Reports">
+
+    <Grid RowDefinitions="Auto,*" RowSpacing="0">
+
+        <!-- Header -->
+        <VerticalStackLayout Padding="20,16" Spacing="4" BackgroundColor="#F8FAFC">
+            <Label Text="&#128221; Rows Reports" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Write weekly match reports and round-ups for your league website" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" ColumnDefinitions="360,*" ColumnSpacing="0">
+
+            <!-- LEFT: Report list -->
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="0" BackgroundColor="#F8FAFC">
+
+                <!-- Add button -->
+                <Grid Padding="16,12" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Label Text="Match Reports" FontAttributes="Bold" FontSize="14" TextColor="#475569" VerticalOptions="Center"/>
+                    <Button Grid.Column="1" x:Name="AddReportBtn" Text="+ New Report"
+                            Clicked="OnAddReportClicked" BackgroundColor="#3B82F6" TextColor="White"
+                            FontSize="12" Padding="12,8" CornerRadius="8"/>
+                </Grid>
+
+                <!-- Report list -->
+                <CollectionView Grid.Row="1" x:Name="ReportsCollection"
+                                SelectionMode="Single" SelectionChanged="OnReportSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame Padding="12" Margin="8,4" CornerRadius="8"
+                                   BorderColor="#E2E8F0" BackgroundColor="White" HasShadow="False">
+                                <VerticalStackLayout Spacing="4">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <Frame Padding="4,2" CornerRadius="10" BackgroundColor="#3B82F6"
+                                               HasShadow="False" BorderColor="Transparent">
+                                            <Label Text="{Binding WeekLabel}" FontSize="10" TextColor="White"/>
+                                        </Frame>
+                                        <Label Grid.Column="1" Text="{Binding Title}" FontAttributes="Bold"
+                                               FontSize="13" TextColor="#1E293B" LineBreakMode="TailTruncation"/>
+                                        <Label Grid.Column="2" Text="{Binding StatusIcon}" FontSize="14"/>
+                                    </Grid>
+                                    <Label Text="{Binding DateLabel}" FontSize="11" TextColor="#94A3B8"/>
+                                </VerticalStackLayout>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8" Padding="20">
+                            <Label Text="&#128221;" FontSize="40" HorizontalOptions="Center"/>
+                            <Label Text="No reports yet" FontSize="14" FontAttributes="Bold" TextColor="#475569" HorizontalOptions="Center"/>
+                            <Label Text="Tap + New Report to write your first weekly match round-up" FontSize="12"
+                                   TextColor="#94A3B8" HorizontalOptions="Center" HorizontalTextAlignment="Center" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
+
+                <!-- Bottom actions -->
+                <Grid Grid.Row="2" Padding="12" ColumnDefinitions="*,*" ColumnSpacing="8" BackgroundColor="White">
+                    <Button x:Name="DeleteReportBtn" Text="&#128465; Delete" IsEnabled="False"
+                            Clicked="OnDeleteReportClicked" BackgroundColor="#FEE2E2" TextColor="#DC2626"
+                            FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="1" x:Name="DuplicateReportBtn" Text="&#128203; Duplicate" IsEnabled="False"
+                            Clicked="OnDuplicateReportClicked" BackgroundColor="#EFF6FF" TextColor="#3B82F6"
+                            FontSize="12" Padding="8,10" CornerRadius="8"/>
+                </Grid>
+            </Grid>
+
+            <!-- Divider -->
+            <BoxView Grid.Column="0" WidthRequest="1" BackgroundColor="#E2E8F0" HorizontalOptions="End"/>
+
+            <!-- RIGHT: Editor -->
+            <ScrollView Grid.Column="1">
+                <VerticalStackLayout x:Name="EditorPanel" Padding="24,16" Spacing="16">
+
+                    <!-- Placeholder when nothing selected -->
+                    <VerticalStackLayout x:Name="EditorPlaceholder" VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
+                        <Label Text="&#9998;" FontSize="48" HorizontalOptions="Center" Margin="0,60,0,0"/>
+                        <Label Text="Select or create a report" FontSize="16" FontAttributes="Bold"
+                               TextColor="#475569" HorizontalOptions="Center"/>
+                        <Label Text="Choose a report from the list or tap + New Report" FontSize="13"
+                               TextColor="#94A3B8" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+
+                    <!-- Editor form (hidden initially) -->
+                    <VerticalStackLayout x:Name="EditorForm" IsVisible="False" Spacing="14">
+
+                        <Label Text="Report Details" FontSize="16" FontAttributes="Bold" TextColor="#1E293B"/>
+
+                        <!-- Week number + Match date row -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Week Number" FontSize="12" TextColor="#6B7280"/>
+                                <Entry x:Name="WeekNumberEntry" Placeholder="1" Keyboard="Numeric"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="Match Date" FontSize="12" TextColor="#6B7280"/>
+                                <DatePicker x:Name="MatchDatePicker"/>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Title -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Title" FontSize="12" TextColor="#6B7280"/>
+                            <Entry x:Name="TitleEntry" Placeholder="e.g. Week 5: Top of the table clash decides leaders"/>
+                        </VerticalStackLayout>
+
+                        <!-- Author -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Author (optional)" FontSize="12" TextColor="#6B7280"/>
+                            <Entry x:Name="AuthorEntry" Placeholder="e.g. League Secretary"/>
+                        </VerticalStackLayout>
+
+                        <!-- Summary -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Summary" FontSize="12" TextColor="#6B7280"/>
+                            <Editor x:Name="SummaryEditor" Placeholder="Brief summary shown before the full report..."
+                                    HeightRequest="80" AutoSize="TextChanges"/>
+                        </VerticalStackLayout>
+
+                        <!-- Content -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Report Content" FontSize="12" TextColor="#6B7280"/>
+                            <Label Text="Write your match report. HTML tags like &lt;b&gt;, &lt;i&gt;, &lt;br&gt; are supported."
+                                   FontSize="11" TextColor="#94A3B8" LineBreakMode="WordWrap"/>
+                            <Editor x:Name="ContentEditor" Placeholder="Write your weekly match report here..."
+                                    HeightRequest="300" AutoSize="TextChanges"/>
+                        </VerticalStackLayout>
+
+                        <!-- Tags -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Tags (comma-separated)" FontSize="12" TextColor="#6B7280"/>
+                            <Entry x:Name="TagsEntry" Placeholder="e.g. Week 5, Division 1, Highlights"/>
+                        </VerticalStackLayout>
+
+                        <!-- Published toggle -->
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="IsPublishedCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Published (visible on website)" VerticalOptions="Center"/>
+                        </Grid>
+
+                        <!-- Save -->
+                        <Button x:Name="SaveReportBtn" Text="&#128190; Save Report"
+                                Clicked="OnSaveReportClicked" BackgroundColor="#10B981" TextColor="White"
+                                FontSize="14" Padding="16,12" CornerRadius="8" Margin="0,8,0,0"/>
+
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+
+        </Grid>
+    </Grid>
+
+</ContentPage>

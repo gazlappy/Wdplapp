@@ -951,6 +951,121 @@ nav a:hover, nav a.active {{
     margin-left: 10px;
 }}
 
+.rows-report {{
+    position: relative;
+    border-left: 4px solid var(--primary-color);
+}}
+
+.report-header {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}}
+
+.week-badge {{
+    background: var(--primary-color);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}}
+
+.report-author {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-style: italic;
+}}
+
+.report-meta {{
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}}
+
+.report-summary {{
+    font-size: 1.05rem;
+    color: var(--text-color);
+    margin-bottom: 16px;
+    line-height: 1.6;
+    font-weight: 500;
+}}
+
+.report-results {{
+    background: var(--bg-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin: 16px 0;
+}}
+
+.report-results h4 {{
+    margin: 0 0 12px 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+.report-result-row {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}}
+
+.report-result-row:last-child {{
+    border-bottom: none;
+}}
+
+.report-result-row .team-name {{
+    flex: 1;
+    font-size: 0.95rem;
+}}
+
+.report-result-row .team-name:first-child {{
+    text-align: right;
+}}
+
+.report-result-row .team-name.winner {{
+    font-weight: 700;
+    color: var(--primary-color);
+}}
+
+.result-score {{
+    background: var(--primary-color);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 60px;
+    text-align: center;
+}}
+
+.report-content {{
+    margin-top: 16px;
+    line-height: 1.8;
+    color: var(--text-color);
+}}
+
+.report-tags {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}}
+
+.report-tag {{
+    background: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}}
+
 .division-badge {{
     background: rgba(0,0,0,0.1);
     padding: 4px 10px;

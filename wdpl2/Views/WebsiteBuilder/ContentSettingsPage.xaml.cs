@@ -28,6 +28,7 @@ public partial class ContentSettingsPage : ContentPage
         ShowTopScorersCheck.IsChecked = settings.ShowTopScorers;
         ShowRecentFormCheck.IsChecked = settings.ShowRecentForm;
         ShowNewsCheck.IsChecked = settings.ShowNews;
+        ShowRowsReportsCheck.IsChecked = settings.ShowRowsReports;
         ShowSponsorsCheck.IsChecked = settings.ShowSponsors;
         ShowRulesCheck.IsChecked = settings.ShowRules;
         ShowContactPageCheck.IsChecked = settings.ShowContactPage;
@@ -87,6 +88,7 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowTopScorers = ShowTopScorersCheck.IsChecked;
             settings.ShowRecentForm = ShowRecentFormCheck.IsChecked;
             settings.ShowNews = ShowNewsCheck.IsChecked;
+            settings.ShowRowsReports = ShowRowsReportsCheck.IsChecked;
             settings.ShowSponsors = ShowSponsorsCheck.IsChecked;
             settings.ShowRules = ShowRulesCheck.IsChecked;
             settings.ShowContactPage = ShowContactPageCheck.IsChecked;

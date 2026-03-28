@@ -552,6 +552,11 @@ namespace Wdpl2.Models
         // News/Announcements
         public List<NewsItem> NewsItems { get; set; } = new();
         public int NewsItemsToShow { get; set; } = 5;
+
+        // Rows Reports (weekly match reports blog)
+        public bool ShowRowsReports { get; set; } = false;
+        public List<RowsReport> RowsReports { get; set; } = new();
+        public int RowsReportsPerPage { get; set; } = 10;
         
         // Rules Content
         public string RulesContent { get; set; } = "";
@@ -858,7 +863,12 @@ namespace Wdpl2.Models
             // News
             NewsItems.Clear();
             NewsItemsToShow = 5;
-            
+
+            // Rows Reports
+            ShowRowsReports = false;
+            RowsReports.Clear();
+            RowsReportsPerPage = 10;
+
             // Rules
             RulesContent = "";
             
@@ -984,6 +994,23 @@ namespace Wdpl2.Models
     }
     
     /// <summary>
+    /// Weekly match report for the Rows Reports blog page
+    /// </summary>
+    public sealed class RowsReport
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Title { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string Summary { get; set; } = "";
+        public int WeekNumber { get; set; }
+        public DateTime MatchDate { get; set; } = DateTime.Now;
+        public DateTime DatePublished { get; set; } = DateTime.Now;
+        public bool IsPublished { get; set; } = true;
+        public string Author { get; set; } = "";
+        public List<string> Tags { get; set; } = new();
+    }
+
+    /// <summary>
     /// News/Announcement item
     /// </summary>
     public sealed class NewsItem
@@ -1024,12 +1051,21 @@ namespace Wdpl2.Models
         public int GridBordersIndex { get; set; }
         public int HomeBadgeIndex { get; set; }
         public int FontFamilyIndex { get; set; }
+        public int FontScaleIndex { get; set; } = 2;
+        public int TitleFontSizeIndex { get; set; } = 1;
+        public int FontWeightIndex { get; set; } = 1;
         public int SubtitleStyleIndex { get; set; }
         public int MonthPaletteIndex { get; set; }
         public int ColumnBandingIndex { get; set; } = 1;
         public int DivisionLayoutIndex { get; set; }
         public int TextDensityIndex { get; set; } = 1;
         public int CardStyleIndex { get; set; }
+        public int LayoutIndex { get; set; }
+        public int HeaderPatternIndex { get; set; }
+        public int RowStripingIndex { get; set; } = 1;
+        public int VsSeparatorIndex { get; set; }
+        public int FooterStyleIndex { get; set; }
+        public int CornerStyleIndex { get; set; } = 1;
 
         // Toggles
         public bool ShowMatchNight { get; set; } = true;

@@ -35,27 +35,78 @@ namespace Wdpl2.Services
         DoubleRule,
         SingleRule,
         BoxBorder,
-        None
+        None,
+        Gradient,
+        Shadow
     }
 
     public enum GridBorderWeight
     {
         Fine,
         Medium,
-        Bold
+        Bold,
+        Double
     }
 
     public enum HomeBadgeStyle
     {
         Pill,
-        BoldOnly
+        BoldOnly,
+        Underline,
+        Highlight,
+        None
     }
 
     public enum SheetFontFamily
     {
         Modern,
         Classic,
-        Mono
+        Mono,
+        Sport,
+        Elegant,
+        Handwritten,
+        Condensed,
+        Rounded,
+        Newspaper,
+        Technical,
+        Display,
+        Casual
+    }
+
+    /// <summary>
+    /// Global font size scale — multiplier applied to all text
+    /// </summary>
+    public enum FontScale
+    {
+        ExtraSmall,
+        Small,
+        Default,
+        Medium,
+        Large,
+        ExtraLarge
+    }
+
+    /// <summary>
+    /// Title-specific font size override
+    /// </summary>
+    public enum TitleFontSize
+    {
+        Small,
+        Medium,
+        Large,
+        ExtraLarge,
+        Huge
+    }
+
+    /// <summary>
+    /// Body text font weight
+    /// </summary>
+    public enum FontWeight
+    {
+        Light,
+        Normal,
+        SemiBold,
+        Bold
     }
 
     public enum MonthPalette
@@ -64,14 +115,17 @@ namespace Wdpl2.Services
         Vibrant,
         Monochrome,
         Earth,
-        Ocean
+        Ocean,
+        Pastel,
+        Neon
     }
 
     public enum ColumnBanding
     {
         None,
         Subtle,
-        Strong
+        Strong,
+        Alternating
     }
 
     public enum SubtitleStyle
@@ -99,7 +153,76 @@ namespace Wdpl2.Services
     {
         Solid,
         Frosted,
-        Translucent
+        Translucent,
+        Outlined,
+        Minimal
+    }
+
+    /// <summary>
+    /// Sheet layout format
+    /// </summary>
+    public enum SheetLayout
+    {
+        MonthCards,
+        WeeklyList,
+        CompactGrid,
+        SeasonMatrix
+    }
+
+    /// <summary>
+    /// Header background pattern overlay
+    /// </summary>
+    public enum HeaderPattern
+    {
+        Crosshatch,
+        Dots,
+        Diagonal,
+        Circles,
+        None
+    }
+
+    /// <summary>
+    /// Table row striping style
+    /// </summary>
+    public enum RowStriping
+    {
+        None,
+        Subtle,
+        Medium,
+        Accent
+    }
+
+    /// <summary>
+    /// VS separator style between home and away teams
+    /// </summary>
+    public enum VsSeparatorStyle
+    {
+        LowercaseV,
+        Vs,
+        Dash,
+        Dot,
+        None
+    }
+
+    /// <summary>
+    /// Footer visual style
+    /// </summary>
+    public enum SheetFooterStyle
+    {
+        AccentTop,
+        FullAccent,
+        Simple,
+        Minimal
+    }
+
+    /// <summary>
+    /// Border radius / corner style for cards and containers
+    /// </summary>
+    public enum CornerStyle
+    {
+        Sharp,
+        Rounded,
+        ExtraRound
     }
 
     /// <summary>
@@ -167,8 +290,17 @@ namespace Wdpl2.Services
         /// <summary>Home team indicator style: Pill, BoldOnly</summary>
         public HomeBadgeStyle HomeBadge { get; set; } = HomeBadgeStyle.Pill;
 
-        /// <summary>Font family: Modern (Segoe UI/Calibri), Classic (Georgia/Times), Mono (Consolas/Courier)</summary>
+        /// <summary>Font family: Modern, Classic, Mono, Sport, Elegant, Handwritten, Condensed, Rounded, Newspaper, Technical, Display, Casual</summary>
         public SheetFontFamily FontFamily { get; set; } = SheetFontFamily.Modern;
+
+        /// <summary>Global font size scale: ExtraSmall (0.78x) to ExtraLarge (1.35x)</summary>
+        public FontScale FontScale { get; set; } = FontScale.Default;
+
+        /// <summary>Title-specific font size: Small, Medium (default), Large, ExtraLarge, Huge</summary>
+        public TitleFontSize TitleFontSize { get; set; } = TitleFontSize.Medium;
+
+        /// <summary>Body text font weight: Light (300), Normal (400), SemiBold (600), Bold (700)</summary>
+        public FontWeight FontWeight { get; set; } = FontWeight.Normal;
 
         /// <summary>Show the match-night auto-detected banner</summary>
         public bool ShowMatchNight { get; set; } = true;
@@ -197,8 +329,26 @@ namespace Wdpl2.Services
         /// <summary>Show grid legend (Home = bold, Away = regular)</summary>
         public bool ShowGridLegend { get; set; } = true;
 
-        /// <summary>Card surface style: Solid (opaque white), Frosted (glass blur), Translucent (semi-transparent)</summary>
+        /// <summary>Card surface style: Solid (opaque white), Frosted (glass blur), Translucent (semi-transparent), Outlined, Minimal</summary>
         public CardStyle CardStyle { get; set; } = CardStyle.Solid;
+
+        /// <summary>Sheet layout format: MonthCards (default), WeeklyList, CompactGrid, SeasonMatrix</summary>
+        public SheetLayout Layout { get; set; } = SheetLayout.MonthCards;
+
+        /// <summary>Header background pattern overlay</summary>
+        public HeaderPattern HeaderPattern { get; set; } = HeaderPattern.Crosshatch;
+
+        /// <summary>Table row striping style</summary>
+        public RowStriping RowStriping { get; set; } = RowStriping.Subtle;
+
+        /// <summary>VS separator between home and away teams</summary>
+        public VsSeparatorStyle VsSeparator { get; set; } = VsSeparatorStyle.LowercaseV;
+
+        /// <summary>Footer visual style</summary>
+        public SheetFooterStyle FooterStyle { get; set; } = SheetFooterStyle.AccentTop;
+
+        /// <summary>Corner/border-radius style for cards</summary>
+        public CornerStyle CornerStyle { get; set; } = CornerStyle.Rounded;
 
         /// <summary>
         /// Get the effective logo data
@@ -307,6 +457,72 @@ namespace Wdpl2.Services
         public string GetEmbeddableCSS()
         {
             return GenerateCSS();
+        }
+
+        /// <summary>
+        /// Get CSS scoped for inline display inside a website page.
+        /// Removes @page, @media print, and standalone screen-preview rules,
+        /// and scopes body/universal-selector styles under .fixtures-sheet-wrapper
+        /// so they don't affect the host page.
+        /// </summary>
+        public string GetScopedCSS()
+        {
+            var fullCss = GenerateCSS();
+
+            var sb = new StringBuilder();
+            var lines = fullCss.Split('\n');
+            int braceDepth = 0;
+            bool skipping = false;
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.TrimEnd('\r');
+                var trimmed = line.TrimStart();
+
+                // Skip @page rules (single line)
+                if (!skipping && trimmed.StartsWith("@page"))
+                {
+                    continue;
+                }
+
+                // Skip @media print block entirely
+                if (!skipping && trimmed.StartsWith("@media print"))
+                {
+                    skipping = true;
+                    braceDepth = 0;
+                    foreach (var ch in line) { if (ch == '{') braceDepth++; if (ch == '}') braceDepth--; }
+                    if (braceDepth <= 0) skipping = false;
+                    continue;
+                }
+
+                // Skip @media screen { body { ... } } standalone preview block
+                // (only body styling for standalone view — not needed when embedded)
+                if (!skipping && trimmed.StartsWith("@media screen {"))
+                {
+                    skipping = true;
+                    braceDepth = 0;
+                    foreach (var ch in line) { if (ch == '{') braceDepth++; if (ch == '}') braceDepth--; }
+                    if (braceDepth <= 0) skipping = false;
+                    continue;
+                }
+
+                if (skipping)
+                {
+                    foreach (var ch in line) { if (ch == '{') braceDepth++; if (ch == '}') braceDepth--; }
+                    if (braceDepth <= 0) skipping = false;
+                    continue;
+                }
+
+                // Scope html,body and * rules under .fixtures-sheet-wrapper
+                if (trimmed.StartsWith("html, body {") || trimmed.StartsWith("html, body{"))
+                    sb.AppendLine(line.Replace("html, body", ".fixtures-sheet-wrapper"));
+                else if (trimmed.StartsWith("* {") || trimmed.StartsWith("*{"))
+                    sb.AppendLine(line.Replace("*", ".fixtures-sheet-wrapper *"));
+                else
+                    sb.AppendLine(line);
+            }
+
+            return sb.ToString();
         }
         
         private string GenerateSheetContent(List<Division> divisions, List<Venue> venues, List<Team> teams, List<Fixture> fixtures, Season season)
@@ -469,13 +685,13 @@ namespace Wdpl2.Services
                 .OrderBy(f => f.Date)
                 .GroupBy(f => f.Date.Date) // Group by actual date
                 .ToList();
-            
+
             if (fixturesByWeek.Count == 0)
             {
                 html.AppendLine("<p class=\"no-fixtures\">No fixtures scheduled</p>");
                 return;
             }
-            
+
             // Build team number lookup (1-based position in division)
             var teamNumbersByDivision = new Dictionary<Guid, Dictionary<Guid, int>>();
             foreach (var division in divisions)
@@ -488,7 +704,7 @@ namespace Wdpl2.Services
                 }
                 teamNumbersByDivision[division.Id] = divTeamNumbers;
             }
-            
+
             // Global team numbers for mixed division sheets
             var globalTeamNumbers = new Dictionary<Guid, int>();
             int globalNum = 1;
@@ -500,28 +716,49 @@ namespace Wdpl2.Services
                     globalTeamNumbers[team.Id] = globalNum++;
                 }
             }
-            
-            // Calculate optimal number of rows based on total weeks
-            // Aim for roughly 8-12 columns per row for readability
+
+            // Dispatch to the selected layout
+            switch (_settings.Layout)
+            {
+                case SheetLayout.WeeklyList:
+                    GenerateWeeklyListLayout(html, fixturesByWeek, teams, divisions, teamNumbersByDivision, globalTeamNumbers);
+                    break;
+                case SheetLayout.CompactGrid:
+                    GenerateCompactGridLayout(html, fixturesByWeek, teams, divisions, teamNumbersByDivision, globalTeamNumbers);
+                    break;
+                case SheetLayout.SeasonMatrix:
+                    GenerateSeasonMatrixLayout(html, fixtures, teams, divisions);
+                    break;
+                default:
+                    GenerateMonthCardsLayout(html, fixturesByWeek, teams, divisions, teamNumbersByDivision, globalTeamNumbers);
+                    break;
+            }
+
+            if (_settings.ShowGridLegend && _settings.Layout != SheetLayout.SeasonMatrix && _settings.HomeBadge != HomeBadgeStyle.None)
+                html.AppendLine("<div class=\"grid-legend\"><strong>Bold</strong> = Home team &nbsp;·&nbsp; Regular = Away team</div>");
+        }
+
+        private void GenerateMonthCardsLayout(
+            StringBuilder html,
+            List<IGrouping<DateTime, Fixture>> fixturesByWeek,
+            List<Team> teams,
+            List<Division> divisions,
+            Dictionary<Guid, Dictionary<Guid, int>> teamNumbersByDivision,
+            Dictionary<Guid, int> globalTeamNumbers)
+        {
             var totalWeeks = fixturesByWeek.Count;
             int numRows;
-            if (totalWeeks <= 12)
-                numRows = 1;
-            else if (totalWeeks <= 24)
-                numRows = 2;
-            else if (totalWeeks <= 36)
-                numRows = 3;
-            else
-                numRows = 4;
+            if (totalWeeks <= 12) numRows = 1;
+            else if (totalWeeks <= 24) numRows = 2;
+            else if (totalWeeks <= 36) numRows = 3;
+            else numRows = 4;
 
             var weeksPerRow = (int)Math.Ceiling((double)totalWeeks / numRows);
 
-            // Group weeks by month and generate one card per month
             var weeksByMonth = fixturesByWeek
                 .GroupBy(g => new { g.Key.Year, g.Key.Month })
                 .ToList();
 
-            // Layout months in rows, fitting as many as possible per row
             var monthIndex = 0;
             while (monthIndex < weeksByMonth.Count)
             {
@@ -541,7 +778,6 @@ namespace Wdpl2.Services
                     colsInRow += monthWeeks.Count;
                     monthIndex++;
                 }
-                // If a month alone exceeds weeksPerRow, emit it solo
                 if (colsInRow == 0 && monthIndex < weeksByMonth.Count)
                 {
                     var monthGroup = weeksByMonth[monthIndex];
@@ -556,9 +792,6 @@ namespace Wdpl2.Services
                 }
                 html.AppendLine("</div>");
             }
-
-            if (_settings.ShowGridLegend)
-                html.AppendLine("<div class=\"grid-legend\"><strong>Bold</strong> = Home team &nbsp;·&nbsp; Regular = Away team</div>");
         }
 
         private void GenerateMonthTable(
@@ -584,19 +817,13 @@ namespace Wdpl2.Services
             }
             if (minDist > 7) todayColIndex = -1;
 
-            var baseBanding = _settings.ColumnBanding switch
-            {
-                ColumnBanding.None => 0.0,
-                ColumnBanding.Strong => 0.22,
-                _ => 0.12
-            };
-
             html.AppendLine("<table class=\"fixtures-grid\">");
 
             // Column colour banding
             html.AppendLine("<colgroup>");
             for (int ci = 0; ci < fixturesByWeek.Count; ci++)
             {
+                var baseBanding = GetBandingOpacity(ci);
                 var opacity = ci == todayColIndex ? Math.Max(baseBanding + 0.16, 0.20) : baseBanding;
                 var colColor = HexToRgba(GetMonthColor(fixturesByWeek[ci].Key.Month), opacity);
                 html.AppendLine($"    <col style=\"background-color: {colColor};\">");
@@ -620,7 +847,7 @@ namespace Wdpl2.Services
                 html.AppendLine($"    <th{thClass}>{eventMarker}<span class=\"week-day\">{dayAbbrev}</span><br>{dayNum}</th>");
             }
             html.AppendLine("</tr>");
-            
+
             // Fixture rows
             for (int row = 0; row < maxFixturesPerWeek; row++)
             {
@@ -631,35 +858,7 @@ namespace Wdpl2.Services
                     if (row < weekFixtures.Count)
                     {
                         var fixture = weekFixtures[row];
-                        var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
-                        var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
-                        
-                        // Get team numbers
-                        int homeNum = 0, awayNum = 0;
-                        if (divisions.Count == 1 && fixture.DivisionId.HasValue && 
-                            teamNumbersByDivision.TryGetValue(fixture.DivisionId.Value, out var divNumbers))
-                        {
-                            homeNum = divNumbers.GetValueOrDefault(fixture.HomeTeamId, 0);
-                            awayNum = divNumbers.GetValueOrDefault(fixture.AwayTeamId, 0);
-                        }
-                        else
-                        {
-                            homeNum = globalTeamNumbers.GetValueOrDefault(fixture.HomeTeamId, 0);
-                            awayNum = globalTeamNumbers.GetValueOrDefault(fixture.AwayTeamId, 0);
-                        }
-                        
-                        var tooltip = $"{homeTeam?.Name ?? "TBD"} vs {awayTeam?.Name ?? "TBD"}";
-                        
-                        if (_settings.ShowTeamNumbers && homeNum > 0 && awayNum > 0)
-                        {
-                            html.AppendLine($"    <td title=\"{tooltip}\"><strong>{homeNum}</strong><span class=\"vs\">v</span>{awayNum}</td>");
-                        }
-                        else
-                        {
-                            var homeName = GetShortTeamName(homeTeam?.Name, 4);
-                            var awayName = GetShortTeamName(awayTeam?.Name, 4);
-                            html.AppendLine($"    <td title=\"{tooltip}\"><strong>{homeName}</strong><span class=\"vs\">v</span>{awayName}</td>");
-                        }
+                        AppendFixtureCell(html, fixture, teams, divisions, teamNumbersByDivision, globalTeamNumbers);
                     }
                     else
                     {
@@ -668,8 +867,215 @@ namespace Wdpl2.Services
                 }
                 html.AppendLine("</tr>");
             }
-            
+
             html.AppendLine("</table>");
+        }
+
+        private double GetBandingOpacity(int colIndex)
+        {
+            return _settings.ColumnBanding switch
+            {
+                ColumnBanding.None => 0.0,
+                ColumnBanding.Strong => 0.22,
+                ColumnBanding.Alternating => colIndex % 2 == 0 ? 0.18 : 0.04,
+                _ => 0.12 // Subtle
+            };
+        }
+
+        private void AppendFixtureCell(StringBuilder html, Fixture fixture, List<Team> teams, List<Division> divisions,
+            Dictionary<Guid, Dictionary<Guid, int>> teamNumbersByDivision, Dictionary<Guid, int> globalTeamNumbers)
+        {
+            var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+            var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+
+            int homeNum = 0, awayNum = 0;
+            if (divisions.Count == 1 && fixture.DivisionId.HasValue && 
+                teamNumbersByDivision.TryGetValue(fixture.DivisionId.Value, out var divNumbers))
+            {
+                homeNum = divNumbers.GetValueOrDefault(fixture.HomeTeamId, 0);
+                awayNum = divNumbers.GetValueOrDefault(fixture.AwayTeamId, 0);
+            }
+            else
+            {
+                homeNum = globalTeamNumbers.GetValueOrDefault(fixture.HomeTeamId, 0);
+                awayNum = globalTeamNumbers.GetValueOrDefault(fixture.AwayTeamId, 0);
+            }
+
+            var tooltip = $"{homeTeam?.Name ?? "TBD"} vs {awayTeam?.Name ?? "TBD"}";
+            var vsSep = GetVsSeparatorText();
+            var vsHtml = string.IsNullOrEmpty(vsSep) ? "" : $"<span class=\"vs\">{vsSep}</span>";
+
+            if (_settings.ShowTeamNumbers && homeNum > 0 && awayNum > 0)
+            {
+                html.AppendLine($"    <td title=\"{tooltip}\"><strong>{homeNum}</strong>{vsHtml}{awayNum}</td>");
+            }
+            else
+            {
+                var homeName = GetShortTeamName(homeTeam?.Name, 4);
+                var awayName = GetShortTeamName(awayTeam?.Name, 4);
+                html.AppendLine($"    <td title=\"{tooltip}\"><strong>{homeName}</strong>{vsHtml}{awayName}</td>");
+            }
+        }
+
+        private void GenerateWeeklyListLayout(
+            StringBuilder html,
+            List<IGrouping<DateTime, Fixture>> fixturesByWeek,
+            List<Team> teams,
+            List<Division> divisions,
+            Dictionary<Guid, Dictionary<Guid, int>> teamNumbersByDivision,
+            Dictionary<Guid, int> globalTeamNumbers)
+        {
+            html.AppendLine("<div class=\"weekly-list\">");
+            int weekNum = 1;
+            foreach (var weekGroup in fixturesByWeek)
+            {
+                var weekDate = weekGroup.Key;
+                var dateStr = $"{weekDate:dddd} {weekDate.Day}{GetDaySuffix(weekDate.Day)} {weekDate:MMMM yyyy}";
+                var monthColor = GetMonthColor(weekDate.Month);
+
+                html.AppendLine("<div class=\"wl-week\">");
+                html.AppendLine($"<div class=\"wl-date\" style=\"background: linear-gradient(135deg, {monthColor}, {DarkenHex(monthColor, 0.15)});\">");
+                html.AppendLine($"  <span class=\"wl-week-num\">Week {weekNum}</span>");
+                html.AppendLine($"  <span class=\"wl-week-date\">{dateStr}</span>");
+                html.AppendLine("</div>");
+                html.AppendLine("<div class=\"wl-fixtures\">");
+
+                foreach (var fixture in weekGroup)
+                {
+                    var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                    var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                    var homeName = homeTeam?.Name ?? "TBD";
+                    var awayName = awayTeam?.Name ?? "TBD";
+
+                    var vsSep = GetVsSeparatorText();
+                    html.AppendLine("<div class=\"wl-match\">");
+                    html.AppendLine($"  <span class=\"wl-home\">{homeName}</span>");
+                    html.AppendLine($"  <span class=\"wl-vs\">{vsSep}</span>");
+                    html.AppendLine($"  <span class=\"wl-away\">{awayName}</span>");
+                    html.AppendLine("</div>");
+                }
+
+                html.AppendLine("</div>");
+                html.AppendLine("</div>");
+                weekNum++;
+            }
+            html.AppendLine("</div>");
+        }
+
+        private void GenerateCompactGridLayout(
+            StringBuilder html,
+            List<IGrouping<DateTime, Fixture>> fixturesByWeek,
+            List<Team> teams,
+            List<Division> divisions,
+            Dictionary<Guid, Dictionary<Guid, int>> teamNumbersByDivision,
+            Dictionary<Guid, int> globalTeamNumbers)
+        {
+            var maxFixturesPerWeek = fixturesByWeek.Max(g => g.Count());
+            var accent = _settings.AccentColor;
+
+            html.AppendLine("<div class=\"compact-grid-wrap\">");
+            html.AppendLine("<table class=\"compact-grid\">");
+
+            // Header row: Wk | Date | Match columns
+            html.AppendLine("<thead><tr>");
+            html.AppendLine($"<th class=\"cg-wk\">Wk</th>");
+            html.AppendLine($"<th class=\"cg-date\">Date</th>");
+            for (int m = 1; m <= maxFixturesPerWeek; m++)
+                html.AppendLine($"<th>Match {m}</th>");
+            html.AppendLine("</tr></thead>");
+
+            // Data rows
+            html.AppendLine("<tbody>");
+            int weekNum = 1;
+            foreach (var weekGroup in fixturesByWeek)
+            {
+                var weekDate = weekGroup.Key;
+                var weekFixtures = weekGroup.ToList();
+                var monthColor = GetMonthColor(weekDate.Month);
+                var rowBg = HexToRgba(monthColor, 0.08);
+
+                html.AppendLine($"<tr style=\"background-color: {rowBg};\">");
+                html.AppendLine($"<td class=\"cg-wk\">{weekNum}</td>");
+                html.AppendLine($"<td class=\"cg-date\">{weekDate:d MMM}</td>");
+
+                for (int m = 0; m < maxFixturesPerWeek; m++)
+                {
+                    if (m < weekFixtures.Count)
+                    {
+                        AppendFixtureCell(html, weekFixtures[m], teams, divisions, teamNumbersByDivision, globalTeamNumbers);
+                    }
+                    else
+                    {
+                        html.AppendLine("    <td></td>");
+                    }
+                }
+                html.AppendLine("</tr>");
+                weekNum++;
+            }
+            html.AppendLine("</tbody>");
+            html.AppendLine("</table>");
+            html.AppendLine("</div>");
+        }
+
+        private void GenerateSeasonMatrixLayout(StringBuilder html, List<Fixture> fixtures, List<Team> teams, List<Division> divisions)
+        {
+            foreach (var division in divisions.OrderBy(d => d.Name))
+            {
+                var divTeams = teams.Where(t => t.DivisionId == division.Id).OrderBy(t => t.Name).ToList();
+                if (divTeams.Count == 0) continue;
+
+                var divFixtures = fixtures.Where(f => f.DivisionId == division.Id).ToList();
+
+                html.AppendLine("<div class=\"matrix-section\">");
+                if (divisions.Count > 1)
+                    html.AppendLine($"<div class=\"matrix-title\">{division.Name}</div>");
+
+                html.AppendLine("<table class=\"season-matrix\">");
+
+                // Header row with team names
+                html.AppendLine("<thead><tr>");
+                html.AppendLine("<th class=\"sm-corner\">HOME &#8595; / AWAY &#8594;</th>");
+                foreach (var team in divTeams)
+                {
+                    var shortName = GetShortTeamName(team.Name, 6);
+                    html.AppendLine($"<th title=\"{team.Name}\">{shortName}</th>");
+                }
+                html.AppendLine("</tr></thead>");
+
+                // Body: one row per home team
+                html.AppendLine("<tbody>");
+                foreach (var homeTeam in divTeams)
+                {
+                    html.AppendLine("<tr>");
+                    html.AppendLine($"<th title=\"{homeTeam.Name}\">{GetShortTeamName(homeTeam.Name, 8)}</th>");
+
+                    foreach (var awayTeam in divTeams)
+                    {
+                        if (homeTeam.Id == awayTeam.Id)
+                        {
+                            html.AppendLine("<td class=\"sm-self\">&mdash;</td>");
+                        }
+                        else
+                        {
+                            var fixture = divFixtures.FirstOrDefault(f =>
+                                f.HomeTeamId == homeTeam.Id && f.AwayTeamId == awayTeam.Id);
+                            if (fixture != null)
+                            {
+                                var monthColor = GetMonthColor(fixture.Date.Month);
+                                html.AppendLine($"<td style=\"background-color: {HexToRgba(monthColor, 0.15)};\" title=\"{homeTeam.Name} v {awayTeam.Name}\">{fixture.Date:d MMM}</td>");
+                            }
+                            else
+                            {
+                                html.AppendLine("<td></td>");
+                            }
+                        }
+                    }
+                    html.AppendLine("</tr>");
+                }
+                html.AppendLine("</tbody>");
+                html.AppendLine("</table>");
+                html.AppendLine("</div>");
+            }
         }
 
         private string GetShortTeamName(string? name, int maxLength)
@@ -696,7 +1102,19 @@ namespace Wdpl2.Services
         {
             return GetShortTeamName(name, 8);
         }
-        
+
+        private string GetVsSeparatorText()
+        {
+            return _settings.VsSeparator switch
+            {
+                VsSeparatorStyle.Vs => "vs",
+                VsSeparatorStyle.Dash => "–",
+                VsSeparatorStyle.Dot => "●",
+                VsSeparatorStyle.None => "",
+                _ => "v"
+            };
+        }
+
         private void GenerateSpecialEventsSection(StringBuilder html)
         {
             html.AppendLine("<div class=\"events-legend\">");
@@ -848,11 +1266,42 @@ namespace Wdpl2.Services
                 _ => 0
             };
 
-            string Sz(double basePt) => $"{basePt + scale}pt";
+            // Font scale multiplier
+            var fontScaleMultiplier = _settings.FontScale switch
+            {
+                FontScale.ExtraSmall => 0.78,
+                FontScale.Small => 0.88,
+                FontScale.Medium => 1.1,
+                FontScale.Large => 1.2,
+                FontScale.ExtraLarge => 1.35,
+                _ => 1.0
+            };
 
-            // Font sizes - adjust based on orientation and density
-            var titleSize = Sz(isLandscape ? 18 : 16);
-            var subtitleSize = Sz(isLandscape ? 12 : 11);
+            // Title size multiplier
+            var titleScaleMultiplier = _settings.TitleFontSize switch
+            {
+                TitleFontSize.Small => 0.75,
+                TitleFontSize.Large => 1.25,
+                TitleFontSize.ExtraLarge => 1.5,
+                TitleFontSize.Huge => 1.75,
+                _ => 1.0
+            };
+
+            // Font weight
+            var bodyFontWeight = _settings.FontWeight switch
+            {
+                Services.FontWeight.Light => "300",
+                Services.FontWeight.SemiBold => "600",
+                Services.FontWeight.Bold => "700",
+                _ => "400"
+            };
+
+            string Sz(double basePt) => $"{(basePt + scale) * fontScaleMultiplier:F1}pt";
+            string TitleSz(double basePt) => $"{(basePt + scale) * fontScaleMultiplier * titleScaleMultiplier:F1}pt";
+
+            // Font sizes - adjust based on orientation, density, and scale
+            var titleSize = TitleSz(isLandscape ? 18 : 16);
+            var subtitleSize = TitleSz(isLandscape ? 12 : 11);
             var gridMonthSize = Sz(isLandscape ? 8 : 7);
             var gridWeekSize = Sz(isLandscape ? 7 : 6);
             var gridFixtureSize = Sz(isLandscape ? 8 : 7);
@@ -861,8 +1310,8 @@ namespace Wdpl2.Services
             var teamVenueSize = Sz(isLandscape ? 6.5 : 6);
 
             // Print font sizes
-            var printTitleSize = Sz(isLandscape ? 16 : 14);
-            var printSubtitleSize = Sz(isLandscape ? 11 : 10);
+            var printTitleSize = TitleSz(isLandscape ? 16 : 14);
+            var printSubtitleSize = TitleSz(isLandscape ? 11 : 10);
             var printGridMonthSize = Sz(isLandscape ? 7 : 6);
             var printGridWeekSize = Sz(isLandscape ? 6 : 5.5);
             var printGridFixtureSize = Sz(isLandscape ? 7 : 6);
@@ -881,10 +1330,22 @@ namespace Wdpl2.Services
             var accent = _settings.AccentColor;
             var accentLight = HexToRgba(accent, 0.08);
 
+            // Compute a darker shade for gradients (needed early for header gradient)
+            var accentDark = DarkenHex(accent, 0.25);
+
             var fontStack = _settings.FontFamily switch
             {
                 SheetFontFamily.Classic => "'Georgia', 'Times New Roman', serif",
                 SheetFontFamily.Mono => "'Consolas', 'Courier New', monospace",
+                SheetFontFamily.Sport => "'Impact', 'Arial Black', 'Haettenschweiler', sans-serif",
+                SheetFontFamily.Elegant => "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+                SheetFontFamily.Handwritten => "'Comic Sans MS', 'Segoe Script', cursive",
+                SheetFontFamily.Condensed => "'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', sans-serif",
+                SheetFontFamily.Rounded => "Verdana, 'Trebuchet MS', Geneva, sans-serif",
+                SheetFontFamily.Newspaper => "Cambria, Baskerville, 'Libre Baskerville', serif",
+                SheetFontFamily.Technical => "'Lucida Console', 'Source Code Pro', 'Menlo', monospace",
+                SheetFontFamily.Display => "Copperplate, Rockwell, 'Rockwell Nova', serif",
+                SheetFontFamily.Casual => "Tahoma, Geneva, 'Noto Sans', sans-serif",
                 _ => "'Segoe UI', Calibri, Arial, sans-serif"
             };
 
@@ -892,6 +1353,7 @@ namespace Wdpl2.Services
             {
                 GridBorderWeight.Fine => ("1px solid #ccc", "0.5px solid #ddd", "1px solid #aaa"),
                 GridBorderWeight.Bold => ("2.5px solid #222", "1.5px solid #999", "2px solid #444"),
+                GridBorderWeight.Double => ("3px double #333", "1px solid #bbb", "3px double #555"),
                 _ => ("1.5px solid #333", "1px solid #bbb", "1.5px solid #555")
             };
 
@@ -901,6 +1363,8 @@ namespace Wdpl2.Services
                 TitleStyle.DoubleRule => $"4px solid {accent}",
                 TitleStyle.SingleRule => $"2px solid {accent}",
                 TitleStyle.BoxBorder => $"2px solid {accent}",
+                TitleStyle.Gradient => "none",
+                TitleStyle.Shadow => "none",
                 _ => "none"
             };
             var titleBorderBottom = _settings.TitleStyle switch
@@ -911,12 +1375,40 @@ namespace Wdpl2.Services
             };
             var titleBorderSides = _settings.TitleStyle == TitleStyle.BoxBorder ? $"2px solid {accent}" : "none";
 
+            // Header gradient/shadow overrides for new title styles
+            var headerGradient = _settings.TitleStyle switch
+            {
+                TitleStyle.Gradient => $"linear-gradient(135deg, {accent} 0%, #F59E0B 33%, #10B981 66%, {accent} 100%)",
+                _ => $"linear-gradient(135deg, {accent} 0%, {accentDark} 100%)"
+            };
+            var headerShadow = _settings.TitleStyle == TitleStyle.Shadow
+                ? "0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.15)"
+                : "none";
+
             // Home badge
             var homeBadgeCss = _settings.HomeBadge switch
             {
                 HomeBadgeStyle.BoldOnly => @"
 .fixtures-grid .fixture-row td strong {
     font-weight: 900;
+}",
+                HomeBadgeStyle.Underline => $@"
+.fixtures-grid .fixture-row td strong {{
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-color: {accent};
+    text-underline-offset: 2px;
+}}",
+                HomeBadgeStyle.Highlight => $@"
+.fixtures-grid .fixture-row td strong {{
+    font-weight: 800;
+    background: {HexToRgba(accent, 0.18)};
+    padding: 0 2px;
+    border-radius: 2px;
+}}",
+                HomeBadgeStyle.None => @"
+.fixtures-grid .fixture-row td strong {
+    font-weight: inherit;
 }",
                 _ => $@"
 .fixtures-grid .fixture-row td strong {{
@@ -940,6 +1432,23 @@ namespace Wdpl2.Services
 .grid-legend strong {
     font-weight: 900;
 }",
+                HomeBadgeStyle.Underline => $@"
+.grid-legend strong {{
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: {accent};
+}}",
+                HomeBadgeStyle.Highlight => $@"
+.grid-legend strong {{
+    font-weight: 700;
+    background: {HexToRgba(accent, 0.18)};
+    padding: 0 3px;
+    border-radius: 2px;
+}}",
+                HomeBadgeStyle.None => @"
+.grid-legend strong {
+    font-weight: inherit;
+}",
                 _ => $@"
 .grid-legend strong {{
     display: inline-block;
@@ -953,9 +1462,6 @@ namespace Wdpl2.Services
     vertical-align: middle;
 }}"
             };
-
-            // Compute a darker shade for gradients
-            var accentDark = DarkenHex(accent, 0.25);
 
             // Card style surfaces
             var (cardBg, cardBorder, cardBlur, gridBg) = _settings.CardStyle switch
@@ -972,6 +1478,18 @@ namespace Wdpl2.Services
                     "",
                     "rgba(255,255,255,0.65)"
                 ),
+                CardStyle.Outlined => (
+                    "white",
+                    $"2px solid {accent}",
+                    "",
+                    "white"
+                ),
+                CardStyle.Minimal => (
+                    "transparent",
+                    "none",
+                    "",
+                    "transparent"
+                ),
                 _ => (
                     "white",
                     "none",
@@ -980,17 +1498,65 @@ namespace Wdpl2.Services
                 )
             };
 
-            var cardShadow = _settings.CardStyle == CardStyle.Solid
-                ? "0 1px 4px rgba(0,0,0,0.08)"
-                : "0 2px 8px rgba(0,0,0,0.06)";
+            var cardShadow = _settings.CardStyle switch
+            {
+                CardStyle.Solid => "0 1px 4px rgba(0,0,0,0.08)",
+                CardStyle.Outlined or CardStyle.Minimal => "none",
+                _ => "0 2px 8px rgba(0,0,0,0.06)"
+            };
 
             // Sheet background — adds a subtle tint for translucent/frosted so cards show through
             var sheetBg = _settings.CardStyle switch
             {
                 CardStyle.Frosted => $"linear-gradient(135deg, {HexToRgba(accent, 0.08)} 0%, #f0f4f8 40%, {HexToRgba(accent, 0.05)} 100%)",
                 CardStyle.Translucent => $"linear-gradient(160deg, {HexToRgba(accent, 0.06)} 0%, #f4f6f8 50%, {HexToRgba(accent, 0.04)} 100%)",
+                CardStyle.Minimal => "white",
                 _ => "#f8fafc"
             };
+
+            // Corner radius
+            var borderRadius = _settings.CornerStyle switch
+            {
+                CornerStyle.Sharp => "0",
+                CornerStyle.ExtraRound => "12px",
+                _ => "6px"
+            };
+
+            // Header pattern overlay SVG
+            var headerPatternCss = _settings.HeaderPattern switch
+            {
+                HeaderPattern.Dots => @"
+    background-image: url(""data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='10' r='1.5' fill='%23ffffff' fill-opacity='0.06'/%3E%3C/svg%3E"");",
+                HeaderPattern.Diagonal => @"
+    background-image: url(""data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40L40 0' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='1' fill='none'/%3E%3C/svg%3E"");",
+                HeaderPattern.Circles => @"
+    background-image: url(""data:image/svg+xml,%3Csvg width='50' height='50' viewBox='0 0 50 50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='25' cy='25' r='12' stroke='%23ffffff' stroke-opacity='0.04' stroke-width='1' fill='none'/%3E%3C/svg%3E"");",
+                HeaderPattern.None => "display: none;",
+                _ => @"
+    background-image: url(""data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"");"
+            };
+
+            // Row striping
+            var (rowStripeEven, rowStripeOdd) = _settings.RowStriping switch
+            {
+                RowStriping.None => ("transparent", "transparent"),
+                RowStriping.Medium => ("rgba(0,0,0,0.04)", "transparent"),
+                RowStriping.Accent => (HexToRgba(accent, 0.06), "transparent"),
+                _ => ("rgba(0,0,0,0.015)", "transparent") // Subtle
+            };
+
+            // Footer style
+            var (footerBorderTop, footerBg, footerRadius) = _settings.FooterStyle switch
+            {
+                SheetFooterStyle.FullAccent => ($"none", $"linear-gradient(135deg, {accent} 0%, {accentDark} 100%)", borderRadius),
+                SheetFooterStyle.Simple => ("1px solid #e2e8f0", cardBg, borderRadius),
+                SheetFooterStyle.Minimal => ("none", "transparent", "0"),
+                _ => ($"3px solid {accent}", cardBg, borderRadius) // AccentTop
+            };
+            var footerTextColor = _settings.FooterStyle == SheetFooterStyle.FullAccent ? "rgba(255,255,255,0.85)" : "#64748b";
+            var footerNoteColor = _settings.FooterStyle == SheetFooterStyle.FullAccent ? "#fecaca" : "#dc2626";
+            var footerContactColor = _settings.FooterStyle == SheetFooterStyle.FullAccent ? "white" : "#1e293b";
+            var footerLinkColor = _settings.FooterStyle == SheetFooterStyle.FullAccent ? "#bfdbfe" : accent;
 
             var css = new StringBuilder();
 
@@ -1004,6 +1570,7 @@ html, body {{
     margin: 0; padding: 0;
     font-family: {fontStack};
     font-size: 9pt;
+    font-weight: {bodyFontWeight};
     background: #f1f5f9;
     color: #0f172a;
     line-height: 1.5;
@@ -1020,8 +1587,8 @@ html, body {{
 
 /* ══════════ Header Card ══════════ */
 .sheet-header {{
-    background: linear-gradient(135deg, {accent} 0%, {accentDark} 100%);
-    border-radius: 6px;
+    background: {headerGradient};
+    border-radius: {borderRadius};
     padding: 5mm 4mm;
     color: white;
     display: flex;
@@ -1029,6 +1596,7 @@ html, body {{
     align-items: center;
     position: relative;
     overflow: hidden;
+    box-shadow: {headerShadow};
 }}
 
 /* Subtle pattern overlay on header */
@@ -1036,7 +1604,7 @@ html, body {{
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url(""data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"");
+    {headerPatternCss}
     pointer-events: none;
 }}
 
@@ -1163,7 +1731,7 @@ html, body {{
     flex: 1;
     background: {cardBg};
     border: {cardBorder};
-    border-radius: 6px;
+    border-radius: {borderRadius};
     overflow: hidden;
     box-shadow: {cardShadow};
     {cardBlur}
@@ -1265,9 +1833,9 @@ html, body {{
     background-size: 4px 4px;
 }}
 
-/* Row hover-style striping */
+/* Row striping */
 .fixtures-grid .fixture-row:nth-child(even) td {{
-    background-color: rgba(0,0,0,0.015);
+    background-color: {rowStripeEven};
 }}
 
 /* Grid legend */
@@ -1309,7 +1877,7 @@ html, body {{
     padding: 2mm 3mm;
     background: {cardBg};
     border: {cardBorder};
-    border-radius: 6px;
+    border-radius: {borderRadius};
     box-shadow: {cardShadow};
     {cardBlur}
 }}
@@ -1361,7 +1929,7 @@ html, body {{
     })}
     background: {cardBg};
     border: {cardBorder};
-    border-radius: 6px;
+    border-radius: {borderRadius};
     overflow: hidden;
     box-shadow: {cardShadow};
     {cardBlur}
@@ -1431,7 +1999,7 @@ html, body {{
 .venue-phones {{
     background: {cardBg};
     border: {cardBorder};
-    border-radius: 6px;
+    border-radius: {borderRadius};
     padding: 2.5mm 3mm;
     box-shadow: {cardShadow};
     {cardBlur}
@@ -1476,21 +2044,204 @@ html, body {{
 .sheet-footer {{
     margin-top: auto;
     padding: 2.5mm 3mm;
-    background: {cardBg};
-    border: {cardBorder};
-    border-radius: 6px;
-    box-shadow: {cardShadow};
+    background: {footerBg};
+    border: {(_settings.FooterStyle == SheetFooterStyle.Minimal ? "none" : cardBorder)};
+    border-radius: {footerRadius};
+    box-shadow: {(_settings.FooterStyle == SheetFooterStyle.Minimal ? "none" : cardShadow)};
     font-size: 6pt;
-    border-top: 3px solid {accent};
-    {cardBlur}
+    border-top: {footerBorderTop};
+    {(_settings.FooterStyle is SheetFooterStyle.FullAccent or SheetFooterStyle.Minimal ? "" : cardBlur)}
 }}
 
-.sheet-footer p {{ margin: 1.5px 0; text-align: center; color: #64748b; }}
-.sheet-footer .footer-note {{ font-weight: 700; color: #dc2626; }}
-.sheet-footer .contact-line {{ margin-top: 1.5mm; font-weight: 600; color: #1e293b; }}
-.sheet-footer a {{ color: {accent}; text-decoration: none; font-weight: 600; }}
+.sheet-footer p {{ margin: 1.5px 0; text-align: center; color: {footerTextColor}; }}
+.sheet-footer .footer-note {{ font-weight: 700; color: {footerNoteColor}; }}
+.sheet-footer .contact-line {{ margin-top: 1.5mm; font-weight: 600; color: {footerContactColor}; }}
+.sheet-footer a {{ color: {footerLinkColor}; text-decoration: none; font-weight: 600; }}
 
 .no-fixtures {{ text-align: center; padding: 10mm; color: #94a3b8; font-style: italic; }}
+
+/* ══════════ Weekly List Layout ══════════ */
+.weekly-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+}}
+.wl-week {{
+    background: {cardBg};
+    border: {cardBorder};
+    border-radius: {borderRadius};
+    overflow: hidden;
+    box-shadow: {cardShadow};
+    {cardBlur}
+}}
+.wl-date {{
+    color: white;
+    padding: 3px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}}
+.wl-week-num {{
+    font-weight: 700;
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}}
+.wl-week-date {{ font-size: 7pt; }}
+.wl-fixtures {{ padding: 2px 8px; }}
+.wl-match {{
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: {gridFixtureSize};
+}}
+.wl-match:last-child {{ border-bottom: none; }}
+.wl-home {{
+    flex: 1;
+    text-align: right;
+    font-weight: {(_settings.HomeBadge == HomeBadgeStyle.None ? "inherit" : "700")};
+    padding-right: 6px;
+    color: {(_settings.HomeBadge == HomeBadgeStyle.None ? "#334155" : "#1e293b")};
+}}
+.wl-vs {{
+    font-size: 65%;
+    color: #94a3b8;
+    padding: 0 4px;
+}}
+.wl-away {{
+    flex: 1;
+    padding-left: 6px;
+    color: #334155;
+}}
+
+/* ══════════ Compact Grid Layout ══════════ */
+.compact-grid-wrap {{
+    background: {cardBg};
+    border: {cardBorder};
+    border-radius: {borderRadius};
+    overflow: hidden;
+    box-shadow: {cardShadow};
+    {cardBlur}
+}}
+.compact-grid {{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}}
+.compact-grid thead th {{
+    background: linear-gradient(135deg, {accent} 0%, {accentDark} 100%);
+    color: white;
+    font-size: {gridWeekSize};
+    font-weight: 700;
+    padding: 3px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    border-right: 1px solid rgba(255,255,255,0.15);
+}}
+.compact-grid thead th:last-child {{ border-right: none; }}
+.compact-grid .cg-wk {{
+    width: 26px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 85%;
+    color: white;
+    background: linear-gradient(135deg, {accent}, {accentDark}) !important;
+}}
+.compact-grid tbody .cg-wk {{
+    color: white;
+    background: linear-gradient(135deg, {accent}, {accentDark}) !important;
+    font-weight: 800;
+    font-size: 85%;
+}}
+.compact-grid .cg-date {{
+    width: 42px;
+    font-size: {gridWeekSize};
+    font-weight: 600;
+    white-space: nowrap;
+    color: #64748b;
+}}
+.compact-grid tbody td {{
+    font-size: {gridFixtureSize};
+    text-align: center;
+    padding: 2.5px 1.5px;
+    border-right: 1px solid rgba(0,0,0,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    vertical-align: middle;
+    white-space: nowrap;
+    color: #334155;
+}}
+.compact-grid tbody tr:nth-child(even) td {{
+    background-color: {rowStripeEven};
+}}
+
+/* ══════════ Season Matrix Layout ══════════ */
+.matrix-section {{
+    margin-bottom: 3mm;
+}}
+.matrix-title {{
+    background: linear-gradient(135deg, {accent} 0%, {accentDark} 100%);
+    color: white;
+    text-align: center;
+    font-weight: 700;
+    font-size: 8pt;
+    padding: 3px 8px;
+    border-radius: {borderRadius} {borderRadius} 0 0;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}}
+.season-matrix {{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    background: {gridBg};
+    border-radius: 0 0 {borderRadius} {borderRadius};
+    overflow: hidden;
+    box-shadow: {cardShadow};
+}}
+.season-matrix th, .season-matrix td {{
+    font-size: {gridFixtureSize};
+    padding: 2.5px 2px;
+    text-align: center;
+    border-right: 1px solid rgba(0,0,0,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}}
+.season-matrix thead th {{
+    background: {HexToRgba(accent, 0.1)};
+    font-weight: 700;
+    font-size: {gridWeekSize};
+    color: {accent};
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}}
+.season-matrix tbody th {{
+    background: {HexToRgba(accent, 0.06)};
+    font-weight: 700;
+    font-size: {gridWeekSize};
+    text-align: left;
+    padding-left: 4px;
+    color: #1e293b;
+}}
+.season-matrix .sm-corner {{
+    background: {accent} !important;
+    color: white !important;
+    font-size: 5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+.season-matrix .sm-self {{
+    background: {HexToRgba(accent, 0.04)};
+    color: #cbd5e1;
+    font-style: italic;
+}}
 
 /* ══════════ Print Styles ══════════ */
 @media print {{
@@ -1753,6 +2504,22 @@ html, body {{
                     7 => "#A8D0E0", 8 => "#98C8D8", 9 => "#B0D0D8",
                     10 => "#A0C8D0", 11 => "#B8D0E0", 12 => "#98C0D0",
                     _ => "#C8D8E0"
+                },
+                MonthPalette.Pastel => month switch
+                {
+                    1 => "#E8D5F5", 2 => "#F5D5E8", 3 => "#F5E8D5",
+                    4 => "#D5F5E8", 5 => "#D5E8F5", 6 => "#F5D5D5",
+                    7 => "#D5F5F5", 8 => "#F5F5D5", 9 => "#E8D5F5",
+                    10 => "#F5E8D5", 11 => "#D5E8F5", 12 => "#D5F5E8",
+                    _ => "#F0EDF5"
+                },
+                MonthPalette.Neon => month switch
+                {
+                    1 => "#FF6B9D", 2 => "#C44DFF", 3 => "#00D4FF",
+                    4 => "#00FF88", 5 => "#FFD600", 6 => "#FF4D4D",
+                    7 => "#4DFFFF", 8 => "#FF9100", 9 => "#9D4DFF",
+                    10 => "#FF6B6B", 11 => "#4DA6FF", 12 => "#6BFF6B",
+                    _ => "#E0E0E0"
                 },
                 _ => month switch // Muted (default)
                 {
