@@ -196,7 +196,6 @@ public partial class WebsiteBuilderHub : ContentPage
         if (!string.IsNullOrWhiteSpace(s.ConstitutionContent)) sections.Add("Constitution");
         if (!string.IsNullOrWhiteSpace(s.MatchRulesContent)) sections.Add("Match Rules");
         if (!string.IsNullOrWhiteSpace(s.EpaRulesContent)) sections.Add("EPA");
-        if (!string.IsNullOrWhiteSpace(s.RulesContent)) sections.Add("General");
 
         RulesSummaryLabel.Text = sections.Count > 0
             ? $"Enabled · {string.Join(", ", sections)}"

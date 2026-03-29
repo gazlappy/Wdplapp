@@ -566,7 +566,6 @@ namespace Wdpl2.Models
 
         /// <summary>True when at least one rules section has content.</summary>
         public bool HasAnyRulesContent =>
-            !string.IsNullOrWhiteSpace(RulesContent) ||
             !string.IsNullOrWhiteSpace(ConstitutionContent) ||
             !string.IsNullOrWhiteSpace(MatchRulesContent) ||
             !string.IsNullOrWhiteSpace(EpaRulesContent);

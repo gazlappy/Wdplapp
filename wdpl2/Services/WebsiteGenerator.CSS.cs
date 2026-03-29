@@ -1109,24 +1109,118 @@ nav a:hover, nav a.active {{
     border-bottom-color: var(--primary-color);
 }}
 
-.rules-tab-content .content-section {{
+/* Rules layout: sidebar TOC + content body */
+.rules-layout {{
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 32px;
+    align-items: start;
+}}
+
+@media (max-width: 768px) {{
+    .rules-layout {{
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }}
+    .rules-toc {{
+        position: static !important;
+    }}
+}}
+
+.rules-toc {{
+    position: sticky;
+    top: 100px;
+    background: rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    padding: 20px;
+}}
+
+.rules-toc h4 {{
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}}
+
+.rules-toc ul {{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}}
+
+.rules-toc li {{
+    margin-bottom: 4px;
+}}
+
+.rules-toc a {{
+    display: block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.4;
+    transition: background 0.2s, color 0.2s;
+}}
+
+.rules-toc a:hover {{
+    background: rgba(var(--primary-rgb, 59,130,246), 0.1);
+    color: var(--primary-color);
+}}
+
+.rules-body {{
     line-height: 1.8;
 }}
 
-.rules-tab-content .content-section h3 {{
-    margin-top: 24px;
+.rules-body h3 {{
+    margin-top: 32px;
     margin-bottom: 12px;
+    padding-top: 16px;
+    color: var(--text-color);
+    font-size: 1.15rem;
+    border-top: 1px solid rgba(0,0,0,0.06);
+}}
+
+.rules-body h3:first-child {{
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}}
+
+.rules-body p {{
+    margin-bottom: 8px;
     color: var(--text-color);
 }}
 
-.rules-tab-content .content-section ol,
-.rules-tab-content .content-section ul {{
+.rules-body ul {{
     margin-bottom: 16px;
     padding-left: 24px;
 }}
 
-.rules-tab-content .content-section li {{
-    margin-bottom: 8px;
+.rules-body li {{
+    margin-bottom: 6px;
+}}
+
+/* Rack diagram */
+.rack-diagram {{
+    text-align: center;
+    margin: 24px 0;
+    padding: 24px;
+    background: rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+}}
+
+.rack-diagram img {{
+    max-width: 400px;
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+    display: block;
 }}
 
 footer {{

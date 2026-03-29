@@ -1226,7 +1226,7 @@ namespace Wdpl2.Services
             html.AppendLine("            </div>");
 
             // Build the list of sections that have content
-            var sections = new List<(string id, string label, string content)>();
+            var sections = new List<(string id, string label, string plainText)>();
 
             if (!string.IsNullOrWhiteSpace(_settings.ConstitutionContent))
                 sections.Add(("constitution", "Constitution", _settings.ConstitutionContent));
@@ -1234,12 +1234,13 @@ namespace Wdpl2.Services
                 sections.Add(("match-rules", "League Match Rules", _settings.MatchRulesContent));
             if (!string.IsNullOrWhiteSpace(_settings.EpaRulesContent))
                 sections.Add(("epa-rules", "EPA Rules", _settings.EpaRulesContent));
-            if (!string.IsNullOrWhiteSpace(_settings.RulesContent))
-                sections.Add(("general", "General Rules", _settings.RulesContent));
 
-            if (sections.Count > 1)
+            if (sections.Count > 0)
             {
-                // Tabbed layout
+                // Parse all sections into headings for the table of contents
+                var allParsed = sections.Select(s => (s.id, s.label, headings: ParseRulesHeadings(s.plainText))).ToList();
+
+                // Tab buttons
                 html.AppendLine("            <div class=\"rules-tabs\">");
                 html.AppendLine("                <div class=\"rules-tab-buttons\">");
                 for (int i = 0; i < sections.Count; i++)
@@ -1249,19 +1250,41 @@ namespace Wdpl2.Services
                 }
                 html.AppendLine("                </div>");
 
+                // Each section: sidebar TOC + content
                 for (int i = 0; i < sections.Count; i++)
                 {
                     var display = i == 0 ? "block" : "none";
-                    html.AppendLine($"                <div id=\"{sections[i].id}\" class=\"rules-tab-content\" style=\"display:{display}\">");
-                    html.AppendLine($"                    <div class=\"section content-section\">");
-                    html.AppendLine($"                        {sections[i].content}");
-                    html.AppendLine($"                    </div>");
+                    var (id, label, headings) = allParsed[i];
+                    html.AppendLine($"                <div id=\"{id}\" class=\"rules-tab-content\" style=\"display:{display}\">");
+                    html.AppendLine("                    <div class=\"rules-layout\">");
+
+                    // Table of contents sidebar
+                    if (headings.Count > 0)
+                    {
+                        html.AppendLine("                        <nav class=\"rules-toc\">");
+                        html.AppendLine("                            <h4>Contents</h4>");
+                        html.AppendLine("                            <ul>");
+                        foreach (var (anchor, title) in headings)
+                            html.AppendLine($"                                <li><a href=\"#{anchor}\">{System.Net.WebUtility.HtmlEncode(title)}</a></li>");
+                        html.AppendLine("                            </ul>");
+                        html.AppendLine("                        </nav>");
+                    }
+
+                    // Content body
+                    html.AppendLine("                        <div class=\"rules-body section content-section\">");
+                    var afterHeading = id == "epa-rules"
+                        ? new Dictionary<string, string> { ["rule-the-rack"] = GenerateRackDiagramSvg() }
+                        : null;
+                    html.AppendLine(PlainTextToRulesHtml(sections[i].plainText, id, afterHeading));
+                    html.AppendLine("                        </div>");
+
+                    html.AppendLine("                    </div>");
                     html.AppendLine($"                </div>");
                 }
 
                 html.AppendLine("            </div>");
 
-                // Tab switching script
+                // Tab switching + smooth scroll + active TOC highlight
                 html.AppendLine("            <script>");
                 html.AppendLine("            function openRulesTab(evt, tabId) {");
                 html.AppendLine("                document.querySelectorAll('.rules-tab-content').forEach(c => c.style.display = 'none');");
@@ -1269,14 +1292,14 @@ namespace Wdpl2.Services
                 html.AppendLine("                document.getElementById(tabId).style.display = 'block';");
                 html.AppendLine("                evt.currentTarget.classList.add('active');");
                 html.AppendLine("            }");
+                html.AppendLine("            document.querySelectorAll('.rules-toc a').forEach(a => {");
+                html.AppendLine("                a.addEventListener('click', function(e) {");
+                html.AppendLine("                    e.preventDefault();");
+                html.AppendLine("                    var target = document.querySelector(this.getAttribute('href'));");
+                html.AppendLine("                    if (target) target.scrollIntoView({behavior:'smooth', block:'start'});");
+                html.AppendLine("                });");
+                html.AppendLine("            });");
                 html.AppendLine("            </script>");
-            }
-            else if (sections.Count == 1)
-            {
-                // Single section — no tabs needed
-                html.AppendLine("            <div class=\"section content-section\">");
-                html.AppendLine($"                {sections[0].content}");
-                html.AppendLine("            </div>");
             }
 
             html.AppendLine("        </div>");
@@ -1292,7 +1315,102 @@ namespace Wdpl2.Services
 
             return html.ToString();
         }
-        
+
+        /// <summary>
+        /// Extract section headings from plain-text rules.
+        /// Lines matching "N. Title" are treated as headings.
+        /// </summary>
+        private static List<(string anchor, string title)> ParseRulesHeadings(string text)
+        {
+            var headings = new List<(string, string)>();
+            if (string.IsNullOrWhiteSpace(text)) return headings;
+
+            foreach (var line in text.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+)\.\s+(.+)$");
+                if (match.Success)
+                {
+                    var title = match.Groups[2].Value.Trim();
+                    var anchor = "rule-" + System.Text.RegularExpressions.Regex.Replace(
+                        title.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+                    headings.Add((anchor, $"{match.Groups[1].Value}. {title}"));
+                }
+            }
+            return headings;
+        }
+
+        /// <summary>
+        /// Convert plain-text rules to structured HTML.
+        /// "N. Title" lines become h3 headings with anchors.
+        /// Lines starting with "- " become bullet lists.
+        /// Blank lines separate paragraphs.
+        /// </summary>
+        private static string PlainTextToRulesHtml(string text, string sectionId, Dictionary<string, string>? afterHeadingContent = null)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+
+            var sb = new StringBuilder();
+            var lines = text.Split('\n');
+            bool inList = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var trimmed = lines[i].Trim();
+
+                if (string.IsNullOrEmpty(trimmed))
+                {
+                    if (inList) { sb.AppendLine("</ul>"); inList = false; }
+                    continue;
+                }
+
+                // Numbered heading: "1. Title"
+                var headingMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+)\.\s+(.+)$");
+                if (headingMatch.Success)
+                {
+                    if (inList) { sb.AppendLine("</ul>"); inList = false; }
+                    var title = headingMatch.Groups[2].Value.Trim();
+                    var anchor = "rule-" + System.Text.RegularExpressions.Regex.Replace(
+                        title.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+                    sb.AppendLine($"<h3 id=\"{anchor}\">{System.Net.WebUtility.HtmlEncode($"{headingMatch.Groups[1].Value}. {title}")}</h3>");
+
+                    // Inject extra content after specific headings (e.g. rack diagram)
+                    if (afterHeadingContent != null && afterHeadingContent.TryGetValue(anchor, out var extra))
+                        sb.AppendLine(extra);
+
+                    continue;
+                }
+
+                // Bullet line: "- text"
+                if (trimmed.StartsWith("- "))
+                {
+                    if (!inList) { sb.AppendLine("<ul>"); inList = true; }
+                    sb.AppendLine($"<li>{System.Net.WebUtility.HtmlEncode(trimmed[2..])}</li>");
+                    continue;
+                }
+
+                // Regular paragraph text
+                if (inList) { sb.AppendLine("</ul>"); inList = false; }
+                sb.AppendLine($"<p>{System.Net.WebUtility.HtmlEncode(trimmed)}</p>");
+            }
+
+            if (inList) sb.AppendLine("</ul>");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns HTML for the official EPA rack diagram image.
+        /// Uses the SVG hosted on the EPA website.
+        /// </summary>
+        private static string GenerateRackDiagramSvg()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<div class=\"rack-diagram\">");
+            sb.AppendLine("  <img src=\"https://www.epa.org.uk/Pictures/Rules/The-Rack-With-Line.svg\" alt=\"EPA 8-ball rack diagram showing head ball, 8-ball marker, rack line and ball positions\" />");
+            sb.AppendLine("</div>");
+            return sb.ToString();
+        }
+
         private string GenerateContactPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();

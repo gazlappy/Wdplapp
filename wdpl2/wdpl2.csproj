@@ -45,6 +45,7 @@
 		<MauiImage Include="Resources\Images\**\*;Resources\Raw\**\*" />
 		<MauiFont Include="Resources\Fonts\*" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+		<MauiAsset Include="Resources\Rules\**" LogicalName="Rules/%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<!-- Exclude legacy data and sample folders from the build -->
