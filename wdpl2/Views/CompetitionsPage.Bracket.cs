@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -440,11 +441,14 @@ public partial class CompetitionsPage
             }
         }
 
-        var sorted = stats
-            .OrderByDescending(s => s.Value.pts)
-            .ThenByDescending(s => s.Value.ff - s.Value.fa)
-            .ThenByDescending(s => s.Value.ff)
-            .ToList();
+        var sorted = StandingsSorter.Sort(
+            stats,
+            DataStore.Data.Settings,
+            s => s.Value.pts,
+            s => s.Value.ff,
+            s => s.Value.fa,
+            s => s.Value.won,
+            s => s.Key);
 
         var table = new VerticalStackLayout { Spacing = 0 };
 

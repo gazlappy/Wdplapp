@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.RulesSettingsPage"
+             Title="League Rules">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label Text="&#128214; League Rules" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Add your league rules — each section appears as a tab on the Rules page. You can paste formatted text and images directly from Word or other documents." FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+            <!-- Enable toggle -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout VerticalOptions="Center">
+                        <Label Text="Show Rules Page" FontSize="14" FontAttributes="Bold"/>
+                        <Label Text="Enable the Rules link in the website navigation" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Switch x:Name="ShowRulesSwitch" Grid.Column="1" IsToggled="False"/>
+                </Grid>
+            </Frame>
+
+            <!-- Constitution section -->
+            <Frame BorderColor="#6366F1" Padding="4" CornerRadius="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="&#128220; Constitution" FontSize="16" FontAttributes="Bold" TextColor="#4F46E5" Margin="10,8,10,0"/>
+                    <Label Text="League constitution — governance, membership, AGM procedures, fees, etc." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap" Margin="10,0"/>
+                    <WebView x:Name="ConstitutionWebView" HeightRequest="350"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- League Match Rules section -->
+            <Frame BorderColor="#059669" Padding="4" CornerRadius="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="&#127942; League Match Rules" FontSize="16" FontAttributes="Bold" TextColor="#059669" Margin="10,8,10,0"/>
+                    <Label Text="Your league-specific match rules — format, scoring, transfers, conduct, etc." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap" Margin="10,0"/>
+                    <WebView x:Name="MatchRulesWebView" HeightRequest="350"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- EPA Rules section -->
+            <Frame BorderColor="#D97706" Padding="4" CornerRadius="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="&#127993; EPA Rules" FontSize="16" FontAttributes="Bold" TextColor="#D97706" Margin="10,8,10,0"/>
+                    <Label Text="English Pool Association rules — official playing rules, fouls, loss of frame, etc." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap" Margin="10,0"/>
+                    <WebView x:Name="EpaRulesWebView" HeightRequest="350"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- General / legacy rules -->
+            <Frame BorderColor="#E5E7EB" Padding="4" CornerRadius="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="&#128196; General Rules (other)" FontSize="16" FontAttributes="Bold" Margin="10,8,10,0"/>
+                    <Label Text="Any additional rules that don't fit the sections above" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap" Margin="10,0"/>
+                    <WebView x:Name="GeneralRulesWebView" HeightRequest="300"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Quick-start templates -->
+            <Frame BorderColor="#DBEAFE" Padding="15" CornerRadius="8" BackgroundColor="#EFF6FF">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="&#128161; Need a starting point?" FontSize="14" FontAttributes="Bold" TextColor="#1E40AF"/>
+                    <Label Text="Tap a button below to insert a template into that section. You can then edit to suit your league." FontSize="12" TextColor="#3B82F6" LineBreakMode="WordWrap"/>
+                    <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
+                        <Button Text="Insert Constitution" Clicked="OnInsertConstitutionClicked"
+                                BackgroundColor="#6366F1" TextColor="White" FontSize="12"
+                                Padding="14,8" CornerRadius="8" Margin="0,4,8,4"/>
+                        <Button Text="Insert Match Rules" Clicked="OnInsertMatchRulesClicked"
+                                BackgroundColor="#059669" TextColor="White" FontSize="12"
+                                Padding="14,8" CornerRadius="8" Margin="0,4,8,4"/>
+                        <Button Text="Insert EPA Rules" Clicked="OnInsertEpaRulesClicked"
+                                BackgroundColor="#D97706" TextColor="White" FontSize="12"
+                                Padding="14,8" CornerRadius="8" Margin="0,4,8,4"/>
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Save -->
+            <Button x:Name="SaveBtn" Text="&#128190; Save Rules"
+                    Clicked="OnSaveClicked"
+                    BackgroundColor="#10B981" TextColor="White" FontSize="14"
+                    Padding="20,12" CornerRadius="8" HorizontalOptions="Fill"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

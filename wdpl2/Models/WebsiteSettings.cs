@@ -560,7 +560,17 @@ namespace Wdpl2.Models
         
         // Rules Content
         public string RulesContent { get; set; } = "";
-        
+        public string ConstitutionContent { get; set; } = "";
+        public string MatchRulesContent { get; set; } = "";
+        public string EpaRulesContent { get; set; } = "";
+
+        /// <summary>True when at least one rules section has content.</summary>
+        public bool HasAnyRulesContent =>
+            !string.IsNullOrWhiteSpace(RulesContent) ||
+            !string.IsNullOrWhiteSpace(ConstitutionContent) ||
+            !string.IsNullOrWhiteSpace(MatchRulesContent) ||
+            !string.IsNullOrWhiteSpace(EpaRulesContent);
+
         // Custom Pages
         public List<CustomPage> CustomPages { get; set; } = new();
         
@@ -871,6 +881,9 @@ namespace Wdpl2.Models
 
             // Rules
             RulesContent = "";
+            ConstitutionContent = "";
+            MatchRulesContent = "";
+            EpaRulesContent = "";
             
             // Custom pages
             CustomPages.Clear();

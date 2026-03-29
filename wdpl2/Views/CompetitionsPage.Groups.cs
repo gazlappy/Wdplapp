@@ -112,7 +112,9 @@ public partial class CompetitionsPage
 
     private void ShowGroupsView()
     {
-        ShowGroupsView(_selectedCompetition?.Groups, editable: true);
+        // Capture current scroll position before rebuilding the view
+        double scrollY = GetGroupsScrollY();
+        ShowGroupsView(_selectedCompetition?.Groups, editable: true, restoreScrollY: scrollY);
     }
 
     private void ShowPreviousGroupRound(int roundNumber)
@@ -129,7 +131,7 @@ public partial class CompetitionsPage
         ShowGroupsView(roundGroups, editable: false, roundLabel: $" — Round {roundNumber}");
     }
 
-    private void ShowGroupsView(List<CompetitionGroup>? groups, bool editable, string roundLabel = "")
+    private void ShowGroupsView(List<CompetitionGroup>? groups, bool editable, string roundLabel = "", double restoreScrollY = 0)
     {
         if (_selectedCompetition == null || groups == null || groups.Count == 0) return;
 
@@ -203,7 +205,29 @@ public partial class CompetitionsPage
 
         mainLayout.Children.Add(groupsLayout);
 
-        SetContentPanel(new ScrollView { Content = mainLayout });
+        var scrollView = new ScrollView { Content = mainLayout };
+        SetContentPanel(scrollView);
+
+        // Restore scroll position after layout completes
+        if (restoreScrollY > 0)
+        {
+            scrollView.Dispatcher.Dispatch(async () =>
+            {
+                // Small delay so layout has finished measuring
+                await Task.Delay(50);
+                await scrollView.ScrollToAsync(0, restoreScrollY, animated: false);
+            });
+        }
+    }
+
+    /// <summary>
+    /// Read the current vertical scroll offset from the groups ScrollView (if any).
+    /// </summary>
+    private double GetGroupsScrollY()
+    {
+        if (ContentPanel.Children.FirstOrDefault() is ScrollView sv)
+            return sv.ScrollY;
+        return 0;
     }
 
     private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance, bool editable = true)

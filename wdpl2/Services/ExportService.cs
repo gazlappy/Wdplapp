@@ -1,4 +1,5 @@
 using System.Text;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services;
@@ -196,11 +197,15 @@ public static class ExportService
             }
         }
 
-        return standings.Values
-            .OrderByDescending(s => s.Points)
-            .ThenByDescending(s => s.FrameDiff)
-            .ThenByDescending(s => s.FramesFor)
-            .ToList();
+        return StandingsSorter.Sort(
+            standings.Values,
+            settings,
+            s => s.Points,
+            s => s.FramesFor,
+            s => s.FramesAgainst,
+            s => s.Won,
+            s => s.TeamId,
+            fixtures);
     }
 
     private static string EscapeCsv(string value)

@@ -82,6 +82,7 @@ public partial class WebsiteBuilderHub : ContentPage
         base.OnAppearing();
         UpdateGalleryCount();
         UpdateRowsReportsCount();
+        UpdateRulesSummary();
         UpdateSummaryLabels();
 
         // Auto-refresh preview when returning from settings sub-pages
@@ -144,6 +145,7 @@ public partial class WebsiteBuilderHub : ContentPage
 
         UpdateGalleryCount();
         UpdateRowsReportsCount();
+        UpdateRulesSummary();
         UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
@@ -179,6 +181,26 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         var count = League.WebsiteSettings.RowsReports.Count;
         RowsReportsCountLabel.Text = $"Weekly match reports ({count})";
+    }
+
+    private void UpdateRulesSummary()
+    {
+        var s = League.WebsiteSettings;
+        if (!s.ShowRules)
+        {
+            RulesSummaryLabel.Text = "Rules page disabled";
+            return;
+        }
+
+        var sections = new List<string>();
+        if (!string.IsNullOrWhiteSpace(s.ConstitutionContent)) sections.Add("Constitution");
+        if (!string.IsNullOrWhiteSpace(s.MatchRulesContent)) sections.Add("Match Rules");
+        if (!string.IsNullOrWhiteSpace(s.EpaRulesContent)) sections.Add("EPA");
+        if (!string.IsNullOrWhiteSpace(s.RulesContent)) sections.Add("General");
+
+        RulesSummaryLabel.Text = sections.Count > 0
+            ? $"Enabled · {string.Join(", ", sections)}"
+            : "Enabled · No content yet";
     }
 
     private void UpdateSummaryLabels()
@@ -352,6 +374,9 @@ public partial class WebsiteBuilderHub : ContentPage
 
     private async void OnRowsReportsTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new RowsReportsSettingsPage());
+
+    private async void OnRulesTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new RulesSettingsPage());
     
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());

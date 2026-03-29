@@ -294,7 +294,7 @@ namespace Wdpl2.Services
             if (_settings.ShowSponsors && _settings.Sponsors.Count > 0)
                 NavLink("sponsors.html", "Sponsors", "Sponsors");
             
-            if (_settings.ShowRules && !string.IsNullOrWhiteSpace(_settings.RulesContent))
+            if (_settings.ShowRules && _settings.HasAnyRulesContent)
                 NavLink("rules.html", "Rules", "Rules");
             
             if (_settings.ShowContactPage && _settings.HasContactInfo)

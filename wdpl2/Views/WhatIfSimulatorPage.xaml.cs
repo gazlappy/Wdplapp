@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
+using Wdpl2.Helpers;
 using Wdpl2.Services;
 using Wdpl2.Models;
 
@@ -92,8 +93,18 @@ public partial class WhatIfSimulatorPage : ContentPage
 
         var standings = CalculateStandings(teams, fixtures);
 
+        var sorted = StandingsSorter.Sort(
+            standings,
+            DataStore.Data.Settings,
+            r => r.Points,
+            r => r.FramesFor,
+            r => r.FramesAgainst,
+            r => r.Won,
+            r => r.TeamId,
+            fixtures);
+
         int pos = 1;
-        foreach (var row in standings.OrderByDescending(r => r.Points).ThenByDescending(r => r.FrameDiff))
+        foreach (var row in sorted)
         {
             row.Position = pos++;
             _currentStandings.Add(row);
@@ -228,8 +239,18 @@ public partial class WhatIfSimulatorPage : ContentPage
         var simulatedResults = _remainingFixtures.Where(f => f.PredictedResult != "Not set").ToList();
         var predictedStandings = CalculateStandings(teams, completedFixtures, simulatedResults);
 
+        var sortedPredicted = StandingsSorter.Sort(
+            predictedStandings,
+            DataStore.Data.Settings,
+            r => r.Points,
+            r => r.FramesFor,
+            r => r.FramesAgainst,
+            r => r.Won,
+            r => r.TeamId,
+            completedFixtures);
+
         int pos = 1;
-        foreach (var row in predictedStandings.OrderByDescending(r => r.Points).ThenByDescending(r => r.FrameDiff))
+        foreach (var row in sortedPredicted)
         {
             var currentRow = _currentStandings.FirstOrDefault(r => r.TeamId == row.TeamId);
             int oldPosition = currentRow?.Position ?? pos;

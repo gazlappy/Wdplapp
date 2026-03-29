@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -201,12 +202,16 @@ public partial class LeagueTablesViewModel : BaseViewModel
                 }
             }
 
-            // Sort by points, then frame difference
-            var sortedStandings = standingsDict.Values
-                .OrderByDescending(s => s.Points)
-                .ThenByDescending(s => s.FrameDifference)
-                .ThenByDescending(s => s.FramesFor)
-                .ToList();
+            // Sort by configured tiebreaker order
+            var sortedStandings = StandingsSorter.Sort(
+                standingsDict.Values,
+                DataStore.Data.Settings,
+                s => s.Points,
+                s => s.FramesFor,
+                s => s.FramesAgainst,
+                s => s.Won,
+                s => s.TeamId,
+                divisionFixtures);
 
             // Assign positions
             for (int i = 0; i < sortedStandings.Count; i++)

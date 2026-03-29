@@ -1397,6 +1397,19 @@ public partial class FixturesPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Re-select the fixture with the given ID after a list refresh and scroll it into view.
+    /// </summary>
+    private void RestoreSelection(Guid fixtureId)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == fixtureId);
+        if (item != null)
+        {
+            FixturesList.SelectedItem = item;
+            FixturesList.ScrollTo(item, ScrollToPosition.Center, animate: false);
+        }
+    }
+
     private void OnSelectFixture(object? sender, SelectionChangedEventArgs e)
     {
         var li = e.CurrentSelection.FirstOrDefault() as FixtureListItem;
@@ -2570,7 +2583,11 @@ public partial class FixturesPage : ContentPage
 
         await ScheduleFixtureReminderAsync(fixture);
         UpdateReminderStatus();
+
+        // Remember selected fixture before refresh clears it
+        var savedId = fixture.Id;
         RefreshList();
+        RestoreSelection(savedId);
 
         // Send result notification if enabled
         if (_reminderService != null && fixture.Frames.Count > 0)

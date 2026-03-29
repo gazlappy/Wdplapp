@@ -78,6 +78,7 @@ namespace Wdpl2.Views
         private Picker? _matchDayPicker;
         private TimePicker? _matchTimePicker;
         private Entry? _roundsPerOpponentEntry;
+        private VerticalStackLayout? _tiebreakerListLayout;
         private Label? _statusLabel;
 
         public SettingsPage()
@@ -355,15 +356,15 @@ namespace Wdpl2.Views
                 LineHeight = 1.4,
                 Text = "New Points System:\n\n" +
                        "Team points = Frames Won + Bonus\n\n" +
-                       "� Win: Frames Won + Match Win Bonus\n" +
-                       "� Draw: Frames Won + Match Draw Bonus\n" +
-                       "� Loss: Frames Won (no bonus)\n\n" +
+                       "· Win: Frames Won + Match Win Bonus\n" +
+                       "· Draw: Frames Won + Match Draw Bonus\n" +
+                       "· Loss: Frames Won (no bonus)\n\n" +
                        "Example: Team wins 6-4 with Win Bonus=2:\n" +
                        "  Winner gets 6+2=8 points\n" +
                        "  Loser gets 4 points"
             };
             infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
+
             var infoFrame = new Border
             {
                 Padding = 12,
@@ -373,6 +374,9 @@ namespace Wdpl2.Views
                 Content = infoContent
             };
             infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+
+            // ── Tiebreaker Configuration ──
+            var tiebreakerSection = BuildTiebreakerSection();
 
             var buttons = new HorizontalStackLayout
             {
@@ -397,11 +401,122 @@ namespace Wdpl2.Views
                     subtitleLabel,
                     grid,
                     infoFrame,
+                    tiebreakerSection,
                     buttons,
                     _statusLabel
                 }
             };
         }
+
+        /// <summary>
+        /// Builds the tiebreaker configuration section with move-up / move-down / add / remove controls.
+        /// </summary>
+        private View BuildTiebreakerSection()
+        {
+            var header = new Label { Text = "Tiebreaker Order", FontSize = 18, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 16, 0, 0) };
+            var subtitle = new Label { Text = "When teams are level on points, these criteria are applied in order (top = highest priority)", FontSize = 13, Margin = new Thickness(0, 0, 0, 8) };
+            subtitle.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+
+            _tiebreakerListLayout = new VerticalStackLayout { Spacing = 6 };
+            RebuildTiebreakerRows();
+
+            // "Add criterion" picker
+            var allCriteria = Enum.GetValues<TiebreakerCriterion>();
+            var addPicker = new Picker { Title = "Add tiebreaker...", HorizontalOptions = LayoutOptions.Start, WidthRequest = 200 };
+            addPicker.ItemsSource = allCriteria.Select(FormatCriterionName).ToList();
+            addPicker.SelectedIndexChanged += (s, e) =>
+            {
+                if (addPicker.SelectedIndex < 0) return;
+                var criterion = allCriteria[addPicker.SelectedIndex];
+                if (!Settings.TiebreakerOrder.Contains(criterion))
+                {
+                    Settings.TiebreakerOrder.Add(criterion);
+                    RebuildTiebreakerRows();
+                }
+                addPicker.SelectedIndex = -1;
+            };
+
+            return new VerticalStackLayout
+            {
+                Spacing = 4,
+                Children = { header, subtitle, _tiebreakerListLayout, addPicker }
+            };
+        }
+
+        private void RebuildTiebreakerRows()
+        {
+            if (_tiebreakerListLayout == null) return;
+            _tiebreakerListLayout.Children.Clear();
+
+            var order = Settings.TiebreakerOrder;
+            for (int i = 0; i < order.Count; i++)
+            {
+                int index = i; // capture
+                var criterion = order[index];
+
+                var row = new HorizontalStackLayout { Spacing = 8 };
+
+                var posLabel = new Label
+                {
+                    Text = $"{index + 1}.",
+                    FontAttributes = FontAttributes.Bold,
+                    WidthRequest = 24,
+                    VerticalTextAlignment = TextAlignment.Center
+                };
+
+                var nameLabel = new Label
+                {
+                    Text = FormatCriterionName(criterion),
+                    VerticalTextAlignment = TextAlignment.Center,
+                    WidthRequest = 160
+                };
+
+                var upBtn = new Button { Text = "▲", FontSize = 11, WidthRequest = 36, HeightRequest = 32, Padding = 0, IsEnabled = index > 0 };
+                upBtn.Clicked += (s, e) =>
+                {
+                    (order[index - 1], order[index]) = (order[index], order[index - 1]);
+                    RebuildTiebreakerRows();
+                };
+
+                var downBtn = new Button { Text = "▼", FontSize = 11, WidthRequest = 36, HeightRequest = 32, Padding = 0, IsEnabled = index < order.Count - 1 };
+                downBtn.Clicked += (s, e) =>
+                {
+                    (order[index + 1], order[index]) = (order[index], order[index + 1]);
+                    RebuildTiebreakerRows();
+                };
+
+                var removeBtn = new Button { Text = "✕", FontSize = 11, WidthRequest = 36, HeightRequest = 32, Padding = 0, BackgroundColor = Color.FromArgb("#EF4444"), TextColor = Colors.White };
+                removeBtn.Clicked += (s, e) =>
+                {
+                    order.RemoveAt(index);
+                    RebuildTiebreakerRows();
+                };
+
+                row.Children.Add(posLabel);
+                row.Children.Add(nameLabel);
+                row.Children.Add(upBtn);
+                row.Children.Add(downBtn);
+                row.Children.Add(removeBtn);
+
+                _tiebreakerListLayout.Children.Add(row);
+            }
+
+            if (order.Count == 0)
+            {
+                var emptyLabel = new Label { Text = "No tiebreakers configured — tied teams will share the same position.", FontSize = 12, FontAttributes = FontAttributes.Italic };
+                emptyLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
+                _tiebreakerListLayout.Children.Add(emptyLabel);
+            }
+        }
+
+        private static string FormatCriterionName(TiebreakerCriterion criterion) => criterion switch
+        {
+            TiebreakerCriterion.FrameDifference => "Frame Difference",
+            TiebreakerCriterion.FramesFor => "Frames For",
+            TiebreakerCriterion.HeadToHead => "Head-to-Head",
+            TiebreakerCriterion.Wins => "Matches Won",
+            _ => criterion.ToString()
+        };
 
         private View CreateFixtureDefaultsPanel()
         {

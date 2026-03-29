@@ -38,36 +38,37 @@ public class SqliteDataStore : IDataStore
 
     public async Task UpdateCompetitionAsync(Competition competition)
     {
-        // Competition may be detached (loaded with AsNoTracking), so re-fetch
-        // the tracked entity and copy values to avoid shadow key errors on
-        // owned JSON collections.
-        var tracked = await _context.Competitions.FindAsync(competition.Id);
-        if (tracked != null)
+        // EF Core's JSON change tracking for deeply nested OwnsMany().ToJson()
+        // collections (Rounds → Matches, Groups → Standings, etc.) is broken in
+        // two ways:
+        //   1. Copying collections to a tracked entity → NullReferenceException
+        //      in FindJsonPartialUpdateInfo (partial-update diff crash).
+        //   2. Update() on a detached entity → InvalidOperationException because
+        //      the __synthesizedOrdinal shadow keys were never populated.
+        //
+        // Workaround: delete the old row and re-insert within a transaction.
+        // Add() works because it creates fresh tracking entries with proper
+        // ordinal values. Competition has no FK references from other tables
+        // (see LeagueContext note), so delete + re-insert is safe.
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            // Copy scalar properties
-            tracked.Name = competition.Name;
-            tracked.Format = competition.Format;
-            tracked.Status = competition.Status;
-            tracked.StartDate = competition.StartDate;
-            tracked.CreatedDate = competition.CreatedDate;
-            tracked.Notes = competition.Notes;
-            tracked.SeasonId = competition.SeasonId;
-            tracked.PlateCompetitionId = competition.PlateCompetitionId;
-            tracked.ParentCompetitionId = competition.ParentCompetitionId;
-            tracked.BestOf = competition.BestOf;
-            tracked.RandomDraw = competition.RandomDraw;
+            await _context.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM Competitions WHERE Id = {competition.Id}");
 
-            // Create NEW list/object instances so EF Core detects the change
-            // (avoids same-reference issues with the change tracker snapshot)
-            tracked.ParticipantIds = competition.ParticipantIds.ToList();
-            tracked.DoublesTeams = competition.DoublesTeams.ToList();
-            tracked.Rounds = competition.Rounds.ToList();
-            tracked.Groups = competition.Groups.ToList();
-            tracked.PreviousGroups = competition.PreviousGroups.ToList();
-            tracked.GroupSettings = competition.GroupSettings;
-            tracked.NoShowIds = competition.NoShowIds.ToList();
+            // Clear the tracker so the subsequent Add doesn't conflict
+            // with any stale entries from FindAsync or prior operations.
+            _context.ChangeTracker.Clear();
 
+            _context.Competitions.Add(competition);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
         }
     }
 

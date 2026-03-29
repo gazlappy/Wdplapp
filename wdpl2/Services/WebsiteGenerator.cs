@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services
@@ -104,7 +105,7 @@ namespace Wdpl2.Services
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 files["gallery.html"] = GenerateGalleryPage(season, template);
             
-            if (_settings.ShowRules && !string.IsNullOrWhiteSpace(_settings.RulesContent))
+            if (_settings.ShowRules && _settings.HasAnyRulesContent)
                 files["rules.html"] = GenerateRulesPage(season, template);
             
             if (_settings.ShowContactPage && _settings.HasContactInfo)
@@ -557,12 +558,19 @@ namespace Wdpl2.Services
                 html.AppendLine("                    <tbody>");
                 
                 var standings = CalculateStandingsWithForm(divisionTeams, fixtures);
+                var sortedStandings = StandingsSorter.Sort(
+                    standings,
+                    _league.Settings,
+                    s => s.Points,
+                    s => s.FramesFor,
+                    s => s.FramesAgainst,
+                    s => s.Won,
+                    s => s.TeamId,
+                    fixtures);
                 var position = 1;
-                var totalTeams = standings.Count;
-                
-                foreach (var standing in standings.OrderByDescending(s => s.Points)
-                    .ThenByDescending(s => s.FramesDiff)
-                    .ThenByDescending(s => s.FramesFor))
+                var totalTeams = sortedStandings.Count;
+
+                foreach (var standing in sortedStandings)
                 {
                     var rowClass = "";
                     if (_settings.StandingsHighlightTop && position <= _settings.StandingsHighlightTopCount)
@@ -1201,35 +1209,87 @@ namespace Wdpl2.Services
         private string GenerateRulesPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();
-            
+
             AppendDocumentHead(html, $"Rules - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
-            
+
             AppendHeader(html, season);
             AppendNavigation(html, "Rules");
-            
+
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine("                <h2>&#128214; League Rules</h2>");
             html.AppendLine("            </div>");
-            html.AppendLine("            <div class=\"section content-section\">");
-            html.AppendLine($"                {_settings.RulesContent}");
-            html.AppendLine("            </div>");
+
+            // Build the list of sections that have content
+            var sections = new List<(string id, string label, string content)>();
+
+            if (!string.IsNullOrWhiteSpace(_settings.ConstitutionContent))
+                sections.Add(("constitution", "Constitution", _settings.ConstitutionContent));
+            if (!string.IsNullOrWhiteSpace(_settings.MatchRulesContent))
+                sections.Add(("match-rules", "League Match Rules", _settings.MatchRulesContent));
+            if (!string.IsNullOrWhiteSpace(_settings.EpaRulesContent))
+                sections.Add(("epa-rules", "EPA Rules", _settings.EpaRulesContent));
+            if (!string.IsNullOrWhiteSpace(_settings.RulesContent))
+                sections.Add(("general", "General Rules", _settings.RulesContent));
+
+            if (sections.Count > 1)
+            {
+                // Tabbed layout
+                html.AppendLine("            <div class=\"rules-tabs\">");
+                html.AppendLine("                <div class=\"rules-tab-buttons\">");
+                for (int i = 0; i < sections.Count; i++)
+                {
+                    var active = i == 0 ? " active" : "";
+                    html.AppendLine($"                    <button class=\"rules-tab-btn{active}\" onclick=\"openRulesTab(event, '{sections[i].id}')\">{sections[i].label}</button>");
+                }
+                html.AppendLine("                </div>");
+
+                for (int i = 0; i < sections.Count; i++)
+                {
+                    var display = i == 0 ? "block" : "none";
+                    html.AppendLine($"                <div id=\"{sections[i].id}\" class=\"rules-tab-content\" style=\"display:{display}\">");
+                    html.AppendLine($"                    <div class=\"section content-section\">");
+                    html.AppendLine($"                        {sections[i].content}");
+                    html.AppendLine($"                    </div>");
+                    html.AppendLine($"                </div>");
+                }
+
+                html.AppendLine("            </div>");
+
+                // Tab switching script
+                html.AppendLine("            <script>");
+                html.AppendLine("            function openRulesTab(evt, tabId) {");
+                html.AppendLine("                document.querySelectorAll('.rules-tab-content').forEach(c => c.style.display = 'none');");
+                html.AppendLine("                document.querySelectorAll('.rules-tab-btn').forEach(b => b.classList.remove('active'));");
+                html.AppendLine("                document.getElementById(tabId).style.display = 'block';");
+                html.AppendLine("                evt.currentTarget.classList.add('active');");
+                html.AppendLine("            }");
+                html.AppendLine("            </script>");
+            }
+            else if (sections.Count == 1)
+            {
+                // Single section — no tabs needed
+                html.AppendLine("            <div class=\"section content-section\">");
+                html.AppendLine($"                {sections[0].content}");
+                html.AppendLine("            </div>");
+            }
+
             html.AppendLine("        </div>");
             html.AppendLine("    </div>");
-            
+
             AppendFooter(html);
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
-            
+
             html.AppendLine("</body>");
             html.AppendLine("</html>");
-            
+
             return html.ToString();
         }
         

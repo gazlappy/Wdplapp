@@ -1073,6 +1073,62 @@ nav a:hover, nav a.active {{
     font-size: 0.8rem;
 }}
 
+/* Rules page tabs */
+.rules-tabs {{
+    margin-top: 20px;
+}}
+
+.rules-tab-buttons {{
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}}
+
+.rules-tab-btn {{
+    padding: 12px 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+    font-family: inherit;
+}}
+
+.rules-tab-btn:hover {{
+    color: var(--primary-color);
+}}
+
+.rules-tab-btn.active {{
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}}
+
+.rules-tab-content .content-section {{
+    line-height: 1.8;
+}}
+
+.rules-tab-content .content-section h3 {{
+    margin-top: 24px;
+    margin-bottom: 12px;
+    color: var(--text-color);
+}}
+
+.rules-tab-content .content-section ol,
+.rules-tab-content .content-section ul {{
+    margin-bottom: 16px;
+    padding-left: 24px;
+}}
+
+.rules-tab-content .content-section li {{
+    margin-bottom: 8px;
+}}
+
 footer {{
     background: #1E293B;
     color: #E2E8F0;

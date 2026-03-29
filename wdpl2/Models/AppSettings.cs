@@ -5,6 +5,24 @@ using System.Linq;
 namespace Wdpl2.Models
 {
     /// <summary>
+    /// Criteria available for breaking ties in league standings.
+    /// </summary>
+    public enum TiebreakerCriterion
+    {
+        /// <summary>Frame difference (Frames For − Frames Against).</summary>
+        FrameDifference,
+
+        /// <summary>Total frames scored.</summary>
+        FramesFor,
+
+        /// <summary>Head-to-head record between the tied teams.</summary>
+        HeadToHead,
+
+        /// <summary>Number of matches won.</summary>
+        Wins
+    }
+
+    /// <summary>
     /// Application-wide settings for configuring league behavior.
     /// </summary>
     /// <remarks>
@@ -102,6 +120,16 @@ namespace Wdpl2.Models
         /// <summary>Number of relegation places per division (0 = disabled).</summary>
         public int RelegationSlots { get; set; } = 0;
 
+        /// <summary>
+        /// Ordered list of tiebreaker criteria applied after Points.
+        /// Default: FrameDifference → FramesFor.
+        /// </summary>
+        public List<TiebreakerCriterion> TiebreakerOrder { get; set; } = new()
+        {
+            TiebreakerCriterion.FrameDifference,
+            TiebreakerCriterion.FramesFor
+        };
+
         // ========== Backup Settings ==========
 
         /// <summary>Enable auto-backup every N saves (default true).</summary>
@@ -168,6 +196,11 @@ namespace Wdpl2.Models
             // League Table
             PromotionSlots = 0;
             RelegationSlots = 0;
+            TiebreakerOrder = new List<TiebreakerCriterion>
+            {
+                TiebreakerCriterion.FrameDifference,
+                TiebreakerCriterion.FramesFor
+            };
 
             // Backup
             AutoBackupEnabled = true;
