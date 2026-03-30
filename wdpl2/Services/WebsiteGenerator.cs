@@ -1328,13 +1328,13 @@ namespace Wdpl2.Services
             foreach (var line in text.Split('\n'))
             {
                 var trimmed = line.Trim();
-                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+)\.\s+(.+)$");
-                if (match.Success)
-                {
-                    var title = match.Groups[2].Value.Trim();
-                    var anchor = "rule-" + System.Text.RegularExpressions.Regex.Replace(
-                        title.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
-                    headings.Add((anchor, $"{match.Groups[1].Value}. {title}"));
+                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+[a-z]?)\.\s+(.+)$");
+                    if (match.Success)
+                    {
+                        var title = match.Groups[2].Value.Trim();
+                        var anchor = "rule-" + System.Text.RegularExpressions.Regex.Replace(
+                            title.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+                        headings.Add((anchor, $"{match.Groups[1].Value}. {title}"));
                 }
             }
             return headings;
@@ -1365,7 +1365,7 @@ namespace Wdpl2.Services
                 }
 
                 // Numbered heading: "1. Title"
-                var headingMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+)\.\s+(.+)$");
+                var headingMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(\d+[a-z]?)\.\s+(.+)$");
                 if (headingMatch.Success)
                 {
                     if (inList) { sb.AppendLine("</ul>"); inList = false; }

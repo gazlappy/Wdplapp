@@ -4,63 +4,68 @@
              x:Class="Wdpl2.Views.WebsiteBuilder.RulesSettingsPage"
              Title="League Rules">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+    <Grid ColumnDefinitions="280,Auto,*">
 
-            <Label Text="&#128214; League Rules" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
-            <Label Text="Rules are loaded from the built-in template files. Enable the toggle below to include a Rules page with tabbed sections and an auto-generated table of contents on your website." FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+        <!-- LEFT: TOC Panel -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" BackgroundColor="#F8FAFC">
 
-            <!-- Enable toggle -->
-            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+            <VerticalStackLayout Grid.Row="0" Padding="16,16,16,10" Spacing="4">
+                <Label Text="&#128214; League Rules" FontSize="20" FontAttributes="Bold" TextColor="#3B82F6"/>
+                <Label Text="Select a section to view" FontSize="12" TextColor="#9CA3AF"/>
+            </VerticalStackLayout>
+
+            <Frame Grid.Row="1" BorderColor="#E5E7EB" Padding="10" CornerRadius="6"
+                   Margin="12,0,12,8" BackgroundColor="White">
                 <Grid ColumnDefinitions="*,Auto">
-                    <VerticalStackLayout VerticalOptions="Center">
-                        <Label Text="Show Rules Page" FontSize="14" FontAttributes="Bold"/>
-                        <Label Text="Enable the Rules link in the website navigation" FontSize="12" TextColor="#6B7280"/>
-                    </VerticalStackLayout>
+                    <Label Text="Show Rules Page" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"/>
                     <Switch x:Name="ShowRulesSwitch" Grid.Column="1" IsToggled="False"/>
                 </Grid>
             </Frame>
 
-            <!-- Constitution section -->
-            <Frame BorderColor="#6366F1" Padding="15" CornerRadius="8">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="&#128220; Constitution" FontSize="16" FontAttributes="Bold" TextColor="#4F46E5"/>
-                    <Label x:Name="ConstitutionSubtitle" Text="Loading..." FontSize="12" TextColor="#6B7280"/>
-                    <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,4"/>
-                    <Label Text="Table of Contents" FontSize="12" FontAttributes="Bold" TextColor="#4F46E5"/>
-                    <VerticalStackLayout x:Name="ConstitutionToc" Spacing="2"/>
-                </VerticalStackLayout>
-            </Frame>
+            <ScrollView Grid.Row="2">
+                <VerticalStackLayout x:Name="TocPanel" Spacing="0" Padding="0,4,0,8"/>
+            </ScrollView>
 
-            <!-- League Match Rules section -->
-            <Frame BorderColor="#059669" Padding="15" CornerRadius="8">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="&#127942; League Match Rules" FontSize="16" FontAttributes="Bold" TextColor="#059669"/>
-                    <Label x:Name="MatchRulesSubtitle" Text="Loading..." FontSize="12" TextColor="#6B7280"/>
-                    <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,4"/>
-                    <Label Text="Table of Contents" FontSize="12" FontAttributes="Bold" TextColor="#059669"/>
-                    <VerticalStackLayout x:Name="MatchRulesToc" Spacing="2"/>
-                </VerticalStackLayout>
-            </Frame>
-
-            <!-- EPA Rules section -->
-            <Frame BorderColor="#D97706" Padding="15" CornerRadius="8">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="&#127993; EPA Rules" FontSize="16" FontAttributes="Bold" TextColor="#D97706"/>
-                    <Label x:Name="EpaRulesSubtitle" Text="Loading..." FontSize="12" TextColor="#6B7280"/>
-                    <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,4"/>
-                    <Label Text="Table of Contents" FontSize="12" FontAttributes="Bold" TextColor="#D97706"/>
-                    <VerticalStackLayout x:Name="EpaRulesToc" Spacing="2"/>
-                </VerticalStackLayout>
-            </Frame>
-
-            <!-- Save -->
-            <Button x:Name="SaveBtn" Text="&#128190; Save Rules"
+            <Button Grid.Row="3" x:Name="SaveBtn" Text="&#128190; Save Rules"
                     Clicked="OnSaveClicked"
-                    BackgroundColor="#10B981" TextColor="White" FontSize="14"
-                    Padding="20,12" CornerRadius="8" HorizontalOptions="Fill"/>
+                    BackgroundColor="#10B981" TextColor="White" FontSize="13"
+                    Padding="16,10" CornerRadius="6" Margin="12,8,12,12"/>
+        </Grid>
 
-        </VerticalStackLayout>
-    </ScrollView>
+        <!-- Separator -->
+        <BoxView Grid.Column="1" WidthRequest="1" Color="#E2E8F0"/>
+
+        <!-- RIGHT: Content Panel -->
+        <ScrollView Grid.Column="2" x:Name="ContentScrollView">
+            <VerticalStackLayout x:Name="ContentPanel" Padding="28,24" Spacing="12">
+
+                <VerticalStackLayout x:Name="PlaceholderPanel" Spacing="8"
+                                     VerticalOptions="CenterAndExpand" HorizontalOptions="Center"
+                                     Padding="0,120,0,0">
+                    <Label Text="&#128209;" FontSize="48" HorizontalOptions="Center"/>
+                    <Label Text="Select a rule section from the left panel"
+                           FontSize="16" TextColor="#9CA3AF" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <Label x:Name="ContentCategory" FontSize="11" FontAttributes="Bold"
+                       TextColor="#9CA3AF" IsVisible="False"/>
+                <Label x:Name="ContentTitle" FontSize="22" FontAttributes="Bold"
+                       TextColor="#1F2937" IsVisible="False"/>
+                <BoxView x:Name="ContentDivider" HeightRequest="2" Color="#3B82F6"
+                         HorizontalOptions="Start" WidthRequest="60" IsVisible="False"/>
+                <Border x:Name="EditorFrame" Stroke="#E2E8F0" StrokeThickness="1"
+                        Padding="12" IsVisible="False" BackgroundColor="White">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="6"/>
+                    </Border.StrokeShape>
+                    <Editor x:Name="ContentEditor" FontSize="14" TextColor="#374151"
+                            AutoSize="TextChanges"
+                            TextChanged="OnContentEditorChanged"/>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
 
 </ContentPage>

@@ -3,147 +3,207 @@ Version 2c, May 2023
 As endorsed by the IEPF and Ultimate Pool, and accepted by the EPA.
 
 1. Spirit of the Game
-International eight-ball pool is played as a gentleman's game. Players must accept all decisions made by the tournament officials. Disputes will be handled in accordance with the prescribed procedures.
+The game shall be known as 'International eightball pool' with rules that must be played in a sporting manner at all times.
 
 2. Equipment and Table Layout
+All equipment that is generally accepted throughout the industry is permitted. No other equipment is allowed unless ratified by the Tournament Director.
+However, using any equipment in a non-customary manner is never allowed and constitutes a foul.
 International eight-ball pool is played on a six-pocket rectangular table with six cushions.
 Equipment permitted:
-- A spotted white called a cue ball
-- Two groups of object balls consisting of seven reds and seven yellows
-- A striped eight-ball
-- Spider, rest, gooseneck rest, cross rest
-- Prescribed cues
+- (a) A spotted white called a cue ball
+- (b) Two groups of object balls consisting of seven reds and seven yellows
+- (c) A striped eight-ball
+- (d) Spider, rest, gooseneck rest, cross rest
+- (e) Prescribed cues
 The playing surface is the flat part of the table bordered by the cushions.
 The surface must be marked with an eight-ball spot at the intersection of two imaginary diagonal lines joining the centre and corner pockets.
-The surface must be marked with a 'rack line' - a 280mm vertical line going down through the eight-ball spot towards the top cushion. On the rack line must be two marker points, one for the head ball and the other for the black ball.
+The surface must be marked with a 'rack line'. The rack line must be a 280mm vertical line going down through the eight-ball spot towards the top cushion (See Rule 5 for an illustration of the rack line). On the rack line must be two marker points, one for the head ball and the other for the black ball.
 The cloth is marked with a break line parallel to the bottom cushion 1/5th of the length of the table away from the baulk cushion.
-Using any equipment in a non-customary manner is never allowed and constitutes a foul.
 
 3. The Object of the Game
-The object of the game is to pot all the balls from your designated group (reds or yellows) and then legally pot the eight-ball to win the frame.
+International eight-ball pool is played with a spotted cue ball and fifteen object balls, seven red, seven yellow and a striped eight-ball. One player must pocket all balls of one group, while the other player must pocket the alternate coloured balls. The player who pockets their entire group and THEN legally pockets the eight-ball wins the game. The eight-ball must be potted in a separate shot.
 
 4. The Break
-To commence a frame, the player who is breaking shall position the cue ball anywhere in baulk but MUST NOT position the cue ball over the break line by more than 50% of its diameter.
-The Break will be deemed a 'Legal Break' if the player breaking obtains a minimum of three cumulative points:
-- 1 point for each object ball potted (eight-ball included)
-- 1 point for each object ball that has passed an imaginary line between the two centre pockets, that is not potted (a ball is deemed as having 'passed' if the whole ball is over the imaginary line)
-Failure to perform a legal break MUST result in a re-rack. The opponent has the option to break or to choose to give the break back to the original breaker.
-Groups are not decided on the break. The table remains open after the break.
-If the eight-ball is potted off the break, it is always re-spotted after all balls have come to rest. The centre point of the eight-ball is placed on the eight-ball spot or if this is not available as near as possible to the spot in a direct line between the spot and the centre of the top cushion.
-If the cue ball goes in-off on a legal break, the incoming player is awarded one visit with cue ball in hand, to be played from baulk, in any direction.
-If the cue ball leaves the playing surface on a legal break, a standard foul will be called against the breaker, with the incoming player receiving one visit, played from anywhere on the playing surface.
+(4a) A "Lag for Break" shall determine who breaks first with an alternating break format taking place thereafter. The winner of the lag is the player whose ball is closest to the baulk cushion. The winner of the lag is given the choice to break or not.
+(4b) Lagging Procedure: (guidance, what should happen)
+- (1) Balls shall be of equal size and weight
+- (2) To start the lag the referee will count the players in by counting back from 3 to 1.
+- (3) The players shall simultaneously strike balls on the referee's indication towards the top cushion.
+(4c) It is an automatic loss of lag if a ball:
+- (1) Crosses into the opponent's half of the playing surface OR
+- (2) Fails to contact the top cushion OR
+- (3) Drops into a pocket OR
+- (4) Hits a side cushion OR
+- (5) Jumps off the table OR
+- (6) Comes to rest on the playing surface within the area of the corner pocket OR
+- (7) Player commits any standard foul
+(4d) Players will lag again if:
+- (1) Both players foul OR
+- (2) The referee is unable to decide on which ball is closest to the bottom cushion OR
+- (3) One player's ball strikes the top cushion before the other player's ball is hit.
+(4e) To commence a frame, the player who is breaking, shall position the cue ball anywhere in baulk but MUST NOT position the cue ball over the break line by more than 50% of its diameter.
+(4f) The Break will be deemed a 'Legal Break' if the player breaking, obtains a minimum of three cumulative points.
+- 1 point for each object ball potted (eight-ball included, so thus does count).
+- 1 point for each object ball that has passed an imaginary line between the two centre pockets, that is not potted. A ball is deemed as having 'passed' the centre line if the whole ball is over the imaginary line.
+(4g) Failure to perform a legal break MUST result in a re-rack. The opponent has the option to break or to choose to give the break back to the original breaker.
+(4h) Groups are not decided on the break. The table remains open after the break. If the player in control of the table does not make a legal pot, the table is still deemed open for the incoming player.
+(4i) If the eight-ball is potted off the break, it is always re-spotted after all balls have come to rest on the table. To re-spot the eight-ball, the centre point of the eight-ball is placed on the eight-ball spot or if this is not available as near as possible to the spot in a direct line between the spot and the centre of the top cushion.
+If there is no space available on this line, place the eight-ball as near as possible to its spot in a direct line between the spot and the bottom cushion.
+If the eight-ball is the 'only ball potted on a legal break' then control of the table goes to the incoming player. If it's potted with other groups and the criteria of a legal break has been fulfilled, the breaker continues.
+(4j) If the cue ball, on a legal break:
+- (1) Goes "in-off", a loss of turn occurs and the incoming player is awarded one visit with cue ball in hand, to be played from baulk, in any direction.
+- (2) Leaves the playing surface, a standard foul will be called against the breaker, with the incoming player receiving one visit, played from anywhere on the playing surface. (See Rule 6l (1))
 
 5. The Rack
-Object balls are racked with the head ball on the head-ball marker on the rack line. The eight-ball is placed on the eight-ball marker. The remaining balls are placed randomly in the rack, with reds and yellows distributed evenly.
+Arrange as shown with the eight-ball on the eight-ball spot. Top apex ball on the head marker of the rack line.
+(See the diagram below for an illustration of where the balls are racked in relation to the rack line).
 
-6. Deciding Groups
-Groups are decided on the first ball legally potted. The table is considered an open table when the choice of groups has not yet been determined. The table is always open immediately after the break shot. Balls potted from the break are disregarded.
-If one of each group is potted in one shot, the player will be 'on' the group struck by the cue ball first unless a foul has occurred, in which case the table remains open.
-Where the choice of group is not obvious (e.g. player cues up to a group of object balls, or both groups sitting close together, or snookered behind the eight-ball), the player MUST indicate to the referee and/or the opponent the intended group.
-- Failure to call a group after potting a ball whilst the table is open is loss of turn; the table remains open.
-- Failure to strike called group is loss of turn; the table remains open.
-- Striking a called group but potting the other group is loss of turn; the table remains open.
-- Potting a called group is a legal pot and the group is assigned to the striker.
-Groups are not decided on a foul shot.
+6a. Deciding groups
+(1) Groups are decided on the first ball legally potted. The referee will call the first group in play.
+(2) The table is considered an "open" table when the choice of groups (red or yellow) has not yet been determined. The table is always open immediately after the break shot. Balls potted from the break are disregarded. The player's designated group (red or yellow) will not be determined until a player legally pockets an object ball. Once groups are determined, object balls from a player's group are referred to as 'on' ball(s).
+(3) Failure to make a legal pot will result in the table remaining open.
+(4) If one of each group is potted in one shot, the player will be 'on' the group struck by the cue ball first unless a foul has occurred, in which case the table remains open.
+(5) Where the choice of group is not obvious. (e.g. player cues up to a group of object balls OR object balls of both groups sitting close to each other OR player is snookered behind the eight-ball OR the lay of the table is such no object ball is a clear target).
+- (a) The player MUST indicate to the referee and/or the opponent the intended group.
+- (b) Failure to call a group, after potting a ball, whilst the table is open, is loss of turn (See Rule 6d), the table remains open.
+- (c) Failure to strike called group is loss of turn (See Rule 6d), the table remains open.
+- (d) Striking a called group but potting the other group is loss of turn (See Rule 6d), the table remains open.
+- (e) Potting a called group is a legal pot and the group is assigned to the striker.
+- (f) The onus is on the player in control of the table, to make a call for the groups to be decided in a fair and sporting manner.
+(6) Groups are not decided on a foul shot.
+(7) In the event of a touching ball, you MUST indicate to the referee and/or opponent the intended group. See Rule 6o (2).
 
-7. Continuing a Frame
-If a legal shot is played and balls from the player's own group are potted, play continues and the player is entitled to an additional shot. The player will lose their turn and return control of the table to the opponent if they:
-- Fail to pot one or more of their own group, AND/OR
-- Commit a standard foul
+6b. Continuing a frame
+In the course of play, if a legal shot is played and the balls(s) from the player's own group are potted, play continues and the player is entitled to an additional shot. The player will lose their turn and return control of the table to the opponent if they:
+- (a) Fail to pot one or more of their own group AND / OR
+- (b) Commits a standard foul.
 
-8. Combination Shots
-Object balls from both groups can be potted without penalty in a single 'combination' shot. Combination shots do not have to be called. The potted balls may drop into the pockets in any order but the 'on' ball must be struck legally first. Attempting to complete a combination shot that results in only potting a ball not 'on' is LOSS OF TURN.
+6c. Combination shots
+Object balls from both groups can be potted without penalty in a single 'combination' shot. Combination shots do not have to be called. The potted balls may drop into the pockets in any order but 'on' ball must be struck legally first. Attempting to complete a combination shot that results in only potting ball not 'on' is LOSS OF TURN.
 
-9. Loss of Turn
+6d. Loss of turn
 As long as the player strikes an 'on' ball first, should an opponent's ball be potted without also potting an 'on' ball, it will be loss of turn. Control of the table returns to the opponent; the cue ball is played from where it lies.
-Examples:
-- Potting an opponent's ball accidentally
-- Failing to complete a legal combination shot
-- A tactical shot e.g. playing a designated group legally to pot an opponent's ball
-- Failure to call a group after potting a ball whilst the table is 'open', if the group was not obvious
+The only exception to this is during an open table where the choice of groups has yet to be decided, see point (4) below.
+For example:
+- (1) Potting an opponent's ball accidentally.
+- (2) Failing to complete a legal combination shot.
+- (3) A tactical shot e.g. playing a designated group legally to pot an opponent's ball.
+- (4) Failure to call a group after potting a ball, whilst the table is 'open', if the group was not obvious.
 
-10. Standard Fouls
-Standard fouls shall be called as soon as they occur. The incoming player is awarded one visit and cue ball in hand, which can be played from its current position or placed anywhere on the playing surface.
-Standard fouls include:
-- Potting the cue ball (in-off), except off the break
-- Playing from outside baulk when obliged to play from baulk
-- Playing a shot immediately after playing a foul or after the referee has called a foul (playing out of turn, including breaking out of turn)
-- Accidentally striking the cue ball with any part of the cue other than the tip
-- Accidentally striking any ball other than the cue ball with any part of the cue or cue tip
-- Playing a shot before all balls have come to rest from the previous shot
-- Playing a shot before any balls that require re-spotting have been re-spotted
-- Coaching: during a frame, a player must play without receiving advice from other persons. If a team member or supporter offers advice, the referee will issue a first and final warning; a repetition results in a standard foul
-- Leaving the playing area without permission (timeout must be granted by the referee)
-- Playing a 'Push Shot' (tip remains in contact with the cue ball once it has commenced forward motion)
-- Double-hitting the cue ball
-- Failing to perform a 'Legal Shot'
-- Playing a shot while not having at least one foot touching the floor
-- Failing to play away from touching ball(s)
-- A ball that remains off the playing surface
-- A player's body, clothing, jewellery or accessory coming into contact with any ball
-- Jump shot: if the cue ball leaves the bed of the playing surface and does not strike an object ball it would have struck had the cue ball not left the surface
-- Marking the table to assist a shot
-- Time foul
+6e. Standard fouls
+Shall be called as soon as they occur, the fouling player is in control until all balls from that shot have come to rest. The incoming player is awarded one visit and a cue ball in hand, which can be:
+- (a) Played from its current position, or
+- (b) Placed anywhere on the playing surface.
+The only exception to (a) is If the cue ball has come to rest and is touching an object ball and therefore must be repositioned.
+- (1) Potting the cue ball - "In Off" (Except off the break - See rule 4j)
+- (2) Playing from outside baulk when obliged to play from Baulk. The break line is considered to be part of the baulk. (See rule 4e)
+- (3) A player who plays a shot immediately after playing a foul or immediately after the referee has called a foul on that player, has played out of turn. This also covers breaking out of turn.
+- (4) Accidentally striking the cue ball with any part of the cue other than the tip in general play. Positioning the cue ball with the cue is allowed as long as the tip of the cue is not used.
+- (5) Accidentally striking any ball other than the cue ball with any part of the cue or cue tip.
+- (6) Playing a shot before all balls have come to rest from the previous shot.
+- (7) Playing a shot before any balls that require re-spotting or replacing, have been re-spotted or replaced. (See Rule 6m)
+- (8) Coaching: During a frame, a player is required to play without receiving any advice from other persons relating to the playing of the frame. If a team member or bona fide supporter of a player offers advice, the referee will issue a "First and final warning" to that person that a repetition will result in the player being penalised via a standard foul. Because it may not always be possible for the referee to hear if a statement made to a player is advice, the referee may issue the first and final warning because any statement made to a player, other than general barracking, is deemed to be coaching. In a tournament setting, a first and final warning may be given once only, before the commencement of the day's play as a block warning to all players and spectators.
+- (9) Leaving the playing area without permission. If a player needs to leave the playing area during a frame or match, "Timeout" must first be granted by the referee.
+A timeout may be called for:
+- (a) When a player requests a rest or bridge OR
+- (b) Something or someone is obstructing the player OR
+- (c) The referee has to make a decision OR
+- (d) The referee has to replace or re-spot a ball.
+- (10) Playing a 'Push Shot' (defined as when the tip of the cue remains in contact with the cue ball once it has commenced a forward motion).
+- (11) Double-hitting the cue ball.
+- (12) Failing to perform a 'Legal Shot'.
+- (13) Playing a shot while not having at least one foot touching the floor.
+- (14) Failing to "Play Away" from a touching ball(s).
+- (15) A ball that remains off the playing surface.
+- (16) A player's body, clothing, jewellery or accessory, or part of a cue (except for the tip in a legal shot), comes into contact with any ball. A tip falling off a cue or chalk dropped is the player's responsibility. Should any of these contact a ball on the playing surface, it is deemed a foul. A player is responsible for their 'own' equipment brought to the table but not that which is 'supplied' by the competition itself. For example, If the end falls off a rest that has been 'supplied' by the competition which contacts a ball, this is deemed not a foul.
+- (17) Jump shot: If the cue ball leaves the bed of the playing surface and does not strike an object ball that it would have struck had the cue ball not left the playing surface on an otherwise identical shot, then the cue ball is deemed to have jumped over that ball.
+- (18) Marking the table to assist a shot.
+- (19) Time foul.
 
-11. Loss of Frame Fouls
-The following result in loss of the frame:
-- Deliberately not playing a ball from their own group first, or an on ball after a foul
-- Unsporting behaviour / bringing the game into disrepute, including: a second offence for foul language (verbal warning for first offence), throwing a cue around / unscrewing as if to concede, continually arguing with the referee or opponent, interfering when the opponent is on the shot either verbally or physically
-- Committing a foul in the same shot that the eight-ball is potted (except on the break)
-- Potting the eight-ball when balls of the player's own group are still on the table (except on the break), including potting the last group ball and eight-ball in the same shot
-- A player who clearly and intentionally fails to make an attempt to play a ball of their own group
-- Potting the eight-ball legally, then proceeding to move the remaining balls before they have come to rest
-- Deliberately striking the cue ball with any part of the cue other than the tip
-- Deliberately striking any ball other than the cue ball with any part of the cue or cue tip
-- Deliberately moving balls that were not played as part of a shot
+6f. Loss of frame fouls
+- (1) Deliberately not playing a ball from their own group first, or an "on" ball after a foul.
+- (2) Unsporting behaviour / bringing the game into disrepute.
+Including but not exclusive to:
+- (a) A second offence for Foul language (A verbal warning is given for the first offence) OR
+- (b) Throwing a cue around / unscrewing as if to concede OR
+- (c) Continually arguing with the referee or opponent OR
+- (d) Interfering when the opponent is on the shot either verbally or physically.
+- (3) Committing a foul in the same shot that the eight-ball is potted. (Except on the break)
+- (4) Potting the eight-ball when a ball or balls of the player's own group are still on the table. (Except on the Break) Including potting the last group ball and eight-ball in the same shot.
+- (5) A player who clearly and intentionally fails to make an attempt to play a ball(s) of their own group.
+- (6) Potting the eight-ball legally, then proceed to move the remaining balls before they have come to rest.
+- (7) Deliberately striking the cue ball with any part of the cue other than the tip in general play. Positioning the cue ball with the cue is allowed as long as the tip of the cue is not used.
+- (8) Deliberately striking any ball other than the cue ball with any part of the cue or cue tip.
+- (9) Deliberately moving a ball(s) that were not played as part of a shot.
 
-12. Stalemate
-If any situation arises whereby a 'legal shot' cannot be played, it is a player's responsibility to ask for a stalemate. If the referee (or opponent if no referee) confirms a stalemate, the frame shall be restarted with a re-rack. The player who originally broke will restart the re-racked frame. A referee will disregard a player's ability when making a stalemate decision.
+6g. Stalemate situation
+If any situation arises whereby a 'legal shot' (see Rule 6e(12)) cannot be played, It is a player's responsibility to ask for a stalemate. In other words, if there is not a path 'out' for the cue ball or not a path 'into' the ball 'on', in the first instance the player must ask for a stalemate if they believe a 'legal shot' cannot be played. A decision on whether a stalemate exists will be at the referee's discretion. A referee will disregard a player's ability when making a stalemate decision.
+If the referee (or opponent - if no referee) confirms a stalemate, the frame shall be restarted with a re-rack. The player who originally broke will restart the re-racked frame. If no stalemate is confirmed, the players must continue their visit.
 
-13. Frozen Balls
-An object ball is deemed frozen whilst touching a cushion. It is a standard foul if the cue ball initially contacts a frozen ball first and the shot does not result in:
-- A ball being potted, OR
-- The cue ball contacting a cushion, OR
-- The frozen ball contacting a cushion attached to a different rail, OR
-- Any other object ball contacting a cushion with which it was not already in contact before the shot is played
-A ball is only deemed frozen if confirmed by the referee or player prior to the shot being taken.
+6h. Frozen balls
+(1) An object ball is deemed frozen whilst touching a cushion. It is a standard foul if the cue ball initially contacts a frozen ball first and the shot does not result in:
+- (a) A ball being potted OR
+- (b) The cue ball contacting a cushion OR
+- (c) The frozen ball contacting a cushion attached to a different rail OR
+- (d) Any other object ball contacting a cushion, with which it was not already in contact with, before the shot is played.
+(2) A ball is only deemed frozen if confirmed by the referee or player, prior to the shot being taken.
 
-14. Outside Interference
-There is no penalty if balls are moved by persons other than players taking part in the frame, as a result of players being bumped, or events deemed not within a player's control. The referee will return the balls as close as possible to their original positions. Re-racks will only be granted in extreme circumstances.
+6i. Outside interference
+(1) There is no penalty if balls are moved in these circumstances:
+- (a) By persons other than players taking part in the frame OR
+- (b) As a result of players being bumped OR
+- (c) Events deemed not within a player's control.
+(2) The referee will return the balls as close as possible to their original positions whenever possible. Re-racks will only be granted in extreme circumstances. The referee's decision is final.
+(3) The referee can reset the shot clock if they consider the situation warrants. The decision is at the referee's discretion.
 
-15. Shot Clock
+6j. Shot clock
 Each player is allotted 45 seconds for each shot. The tip of the cue must have made contact with the cue ball within this time or a standard foul shall be granted to the opponent. The 45-second shot clock will commence once all balls come to rest. The timekeeper will verbally count down from 5 seconds.
 One extension per frame is permitted per player, whereby the referee will add 15 seconds to the remaining time at the request of the player.
 
-16. Balls Falling into a Pocket
+6k. Balls falling into a pocket
 A shot is 'complete' when all balls have come to rest.
-After a shot is 'complete', any balls that drop into a pocket without being struck will be replaced to their original positions.
-During a shot 'in progress', any balls that drop into a pocket without being struck and wouldn't have been played as part of a shot shall be replaced to their original positions after all balls have come to rest.
-During a shot 'in progress', any balls that drop into a pocket without being struck and would have been played as part of a shot - in this instance ALL BALLS will be replaced to their original positions after all balls have come to rest.
+(1) After a shot is 'complete', any ball(s) that drops into a pocket, without being struck, will be replaced to their original positions.
+A shot is 'in progress' when the cue ball has been struck and all the balls have not come to a rest.
+(2) During a shot 'in progress', any ball(s) that drops into a pocket, without being struck and wouldn't have been played as part of a shot, shall be replaced to their original positions after all balls have come to rest.
+(3) During a shot 'in progress', any ball(s) that drops into a pocket, without being struck and would have been played as part of a shot, in this instance ALL BALLS will be replaced to their original positions after all balls have come to rest.
+After the balls have been reset to their original positions, the original player will always continue with no penalty, unless:
+- (a) A foul had been committed or
+- (b) The original player failed to pot a ball 'on' (the expectation to this is rule (3) where the original player will always continue).
 
-17. Balls off the Playing Surface
-It is a standard foul if a ball leaves the playing surface at any point during the frame and does not return by its own means and remains off the playing surface (other than being potted).
-If it is the cue ball, then it is ball in hand, to be played anywhere on the table.
-Object balls are re-spotted on the eight-ball spot or as near as possible to that spot in a direct line between the spot and the centre point of the top cushion.
-Object balls are re-spotted in the following order: eight-ball, then red, then yellow.
+6l. Balls off the playing surface
+It is a 'standard foul' if a ball leaves the playing surface at any point during the frame AND does not return by its own means and remains off the playing surface (other than being potted)
+(1) If it is the cue ball, then it is ball in hand, to be played anywhere on the table.
+(2) Object balls are re-spotted (See Rule 6m).
 
-18. Players' Responsibility
-It is the responsibility of each player to be aware of all rules. A referee on request may advise on the rules of the game but must not provide any subjective opinion that would affect the result of the frame. Players may always call for rule clarification during play; however, this is not considered as a timeout.
+6m. Returning object balls which leave the playing surface that remain off the table
+An object ball is re-spotted with its centre point on the eight-ball spot or as near as possible to that spot in a direct line between the spot and the centre point of the top cushion.
+Object balls are re-spotted in the following order:
+- (a) Eight-ball
+- (b) Red
+- (c) Yellow
+Return balls as close as possible to other balls without touching.
 
-19. Touching Balls
-A player must play away from ALL touching balls at an angle of perpendicular (90 degrees) or greater and fulfil the requirements of a 'legal shot'. A player shall not be penalised if playing away from touching balls causes any touching ball to rock or move slightly because it was resting on the cue ball.
-If the table is open and touching balls have been confirmed, the player must nominate a group (for clarity of the shot, not to decide a group for the remainder of the frame) and perform all the requirements of a legal shot.
-If the cue ball is touching an 'on' ball, the player is deemed to have made initial contact in order to fulfil the requirements of a legal shot.
+6n. Players' responsibility
+It is the responsibility of each player to be aware of all rules. However, a referee on request may advise on the rules of the game but must not provide any subjective opinion that would affect the result of the frame. Tournament officials will make every reasonable effort to make the information readily available to all players. However, the ultimate responsibility rests with each individual player. There is no recourse if a player does not obtain correct or complete information.
+Players may always call for rule(s) clarification during play. However, this is not considered as a "Timeout".
 
-20. Legal Shot
-To play a 'legal shot' the player must cause the cue ball's initial contact to be with a ball 'on' and THEN must either:
-- Pot any ball or balls (except the eight-ball if not ball 'on'), OR
-- Cause the cue ball or any object ball to contact a cushion
+6o. Touching balls
+(1) A player must play away from 'ALL' touching balls at an angle of perpendicular (90 degrees) or greater and fulfil the requirements of a 'legal shot'. A player shall not be penalised If playing away from touching ball(s) causes any touching ball to rock or move slightly because it was 'resting' on the cue ball.
+(2) If the table is 'open' and touching ball(s) have been confirmed, the player must, in the following order:
+- (a) Nominate a group. (This is for clarity of the shot, and not to decide a group for the remainder of the frame) See Rule 6a (1) on deciding groups.
+- (b) Perform all the requirements of a 'legal shot'.
+(3) If the groups have been decided and touching ball(s) has been confirmed, the player must perform all the requirements of a 'legal shot'.
+(4) If the cue ball is touching an 'on' ball, the player is deemed to have made 'initial contact' in order to fulfil the requirements of a 'legal shot'.
 
-21. Simultaneous Contact
+6p. Legal shot
+DEFINITION - To play a 'legal shot' the player must cause the cue ball's initial contact to be with a ball 'on' and THEN must either:
+- (a) Pot any ball or balls (except the eightball if not ball 'on') OR
+- (b) Cause the cue ball or any object ball to contact a cushion.
+
+6q. Simultaneous contact
 Simultaneous contact of object balls is allowed as long as one of the contacted object balls is 'on'.
 
-22. Completion of a Frame
-A frame is won when a player legally pots the eight-ball after all balls of their designated group have been potted.
+7. Completion of a Frame
+A frame is over when the eight-ball is potted on a legal shot and all the balls have come to rest or in a 'loss of frame' situation.
 
 These rules are the International Rules v2c (May 2023) as published by the EPA. For the full official rules, diagrams and supporting documents, visit www.epa.org.uk/rules
