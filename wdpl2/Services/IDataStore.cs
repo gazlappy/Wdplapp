@@ -12,7 +12,7 @@ public interface IDataStore
     /// <summary>
     /// Get all competitions for a season
     /// </summary>
-    Task<List<Competition>> GetCompetitionsAsync(Guid? seasonId);
+    Task<List<Competition>> GetCompetitionsAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new competition
@@ -32,7 +32,7 @@ public interface IDataStore
     /// <summary>
     /// Get all players for a season
     /// </summary>
-    Task<List<Player>> GetPlayersAsync(Guid? seasonId);
+    Task<List<Player>> GetPlayersAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new player
@@ -52,7 +52,7 @@ public interface IDataStore
     /// <summary>
     /// Get all teams for a season
     /// </summary>
-    Task<List<Team>> GetTeamsAsync(Guid? seasonId);
+    Task<List<Team>> GetTeamsAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new team
@@ -72,7 +72,7 @@ public interface IDataStore
     /// <summary>
     /// Get all venues for a season
     /// </summary>
-    Task<List<Venue>> GetVenuesAsync(Guid? seasonId);
+    Task<List<Venue>> GetVenuesAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new venue
@@ -92,7 +92,7 @@ public interface IDataStore
     /// <summary>
     /// Get all divisions for a season
     /// </summary>
-    Task<List<Division>> GetDivisionsAsync(Guid? seasonId);
+    Task<List<Division>> GetDivisionsAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new division
@@ -112,7 +112,7 @@ public interface IDataStore
     /// <summary>
     /// Get all fixtures for a season
     /// </summary>
-    Task<List<Fixture>> GetFixturesAsync(Guid? seasonId);
+    Task<List<Fixture>> GetFixturesAsync(Guid? seasonId, CancellationToken ct = default);
     
     /// <summary>
     /// Add a new fixture
@@ -132,7 +132,7 @@ public interface IDataStore
     /// <summary>
     /// Get all seasons
     /// </summary>
-    Task<List<Season>> GetSeasonsAsync();
+    Task<List<Season>> GetSeasonsAsync(CancellationToken ct = default);
     
     /// <summary>
     /// Add a new season

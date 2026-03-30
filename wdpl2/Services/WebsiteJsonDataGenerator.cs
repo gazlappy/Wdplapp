@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services;
@@ -103,6 +104,10 @@ public sealed class WebsiteJsonDataGenerator
         var venueById = venues.ToDictionary(v => v.Id, v => v);
         var settings = _league.Settings;
 
+        // Pre-compute standings for all teams
+        var allStandings = StandingsCalculator.Calculate(teams, fixtures, settings, trackForm: true)
+            .ToDictionary(s => s.TeamId);
+
         var teamsData = new List<object>();
 
         foreach (var team in teams.OrderBy(t => t.Name))
@@ -122,14 +127,12 @@ public sealed class WebsiteJsonDataGenerator
                 })
                 .ToList();
 
-            // Calculate team stats
+            // Build match history
             var teamFixtures = fixtures
                 .Where(f => f.Frames.Count != 0 && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                 .OrderByDescending(f => f.Date)
                 .ToList();
 
-            int played = 0, won = 0, lost = 0, framesFor = 0, framesAgainst = 0, deducted = 0, points = 0;
-            var recentForm = new List<string>();
             var matchHistory = new List<object>();
 
             foreach (var fixture in teamFixtures)
@@ -139,47 +142,7 @@ public sealed class WebsiteJsonDataGenerator
                 int oppScore = isHome ? fixture.AwayScore : fixture.HomeScore;
                 var opponentId = isHome ? fixture.AwayTeamId : fixture.HomeTeamId;
                 var opponent = teams.FirstOrDefault(t => t.Id == opponentId);
-                int latePenalty = isHome ? fixture.HomeLatePenalty : fixture.AwayLatePenalty;
-
-                played++;
-                framesFor += teamScore;
-                framesAgainst += oppScore;
-
-                // WDPL uses best-of-15 frames — no draws possible
-                string result;
-                if (teamScore > oppScore)
-                {
-                    won++;
-                    points += teamScore + settings.MatchWinBonus;
-                    result = "W";
-                }
-                else
-                {
-                    lost++;
-                    points += teamScore;
-                    result = "L";
-                }
-
-                // Apply late card penalty
-                if (latePenalty > 0)
-                {
-                    deducted += latePenalty;
-                    points -= latePenalty;
-                }
-
-                // Apply cancellation penalty
-                if (fixture.CancelledByTeam != FrameWinner.None && fixture.CancellationPenalty > 0)
-                {
-                    bool cancelledByThis = (isHome && fixture.CancelledByTeam == FrameWinner.Home)
-                                        || (!isHome && fixture.CancelledByTeam == FrameWinner.Away);
-                    if (cancelledByThis)
-                    {
-                        deducted += fixture.CancellationPenalty;
-                        points -= fixture.CancellationPenalty;
-                    }
-                }
-
-                if (recentForm.Count < 5) recentForm.Add(result);
+                string result = teamScore > oppScore ? "W" : "L";
 
                 matchHistory.Add(new
                 {
@@ -194,6 +157,8 @@ public sealed class WebsiteJsonDataGenerator
                 });
             }
 
+            var standing = allStandings.GetValueOrDefault(team.Id);
+
             teamsData.Add(new
             {
                 id = team.Id.ToString("N"),
@@ -202,16 +167,17 @@ public sealed class WebsiteJsonDataGenerator
                 divisionId = division?.Id.ToString("N") ?? "",
                 venue = venue?.Name ?? "",
                 providesFood = team.ProvidesFood,
-                played,
-                won,
-                lost,
-                framesFor,
-                framesAgainst,
-                framesDiff = framesFor - framesAgainst,
-                deducted,
-                points,
-                winPct = played > 0 ? Math.Round((double)won / played * 100, 1) : 0,
-                form = recentForm,
+                played = standing?.Played ?? 0,
+                won = standing?.Won ?? 0,
+                drawn = standing?.Drawn ?? 0,
+                lost = standing?.Lost ?? 0,
+                framesFor = standing?.FramesFor ?? 0,
+                framesAgainst = standing?.FramesAgainst ?? 0,
+                framesDiff = standing?.FrameDifference ?? 0,
+                deducted = standing?.Deducted ?? 0,
+                points = standing?.Points ?? 0,
+                winPct = standing != null && standing.Played > 0 ? Math.Round((double)standing.Won / standing.Played * 100, 1) : 0,
+                form = standing?.RecentForm.Take(5).Select(c => c.ToString()).ToList() ?? new List<string>(),
                 roster,
                 history = matchHistory.Take(20).ToList() // Last 20 matches
             });

@@ -60,8 +60,8 @@ public partial class TeamsViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadTeamsAsync();
-        _ = LoadReferenceDataAsync();
+        SafeFireAndForget(LoadTeamsAsync);
+        SafeFireAndForget(LoadReferenceDataAsync);
     }
 
     [RelayCommand]
@@ -78,7 +78,7 @@ public partial class TeamsViewModel : BaseViewModel
                 return;
             }
 
-            var allTeams = await _dataStore.GetTeamsAsync(_currentSeasonId);
+            var allTeams = await _dataStore.GetTeamsAsync(_currentSeasonId, LoadToken);
 
             if (!string.IsNullOrWhiteSpace(_searchText))
             {
@@ -109,12 +109,12 @@ public partial class TeamsViewModel : BaseViewModel
     {
         if (!_currentSeasonId.HasValue) return;
 
-        var players = await _dataStore.GetPlayersAsync(_currentSeasonId);
+        var players = await _dataStore.GetPlayersAsync(_currentSeasonId, LoadToken);
         _availablePlayers.Clear();
         foreach (var player in players)
             _availablePlayers.Add(player);
 
-        var venues = await _dataStore.GetVenuesAsync(_currentSeasonId);
+        var venues = await _dataStore.GetVenuesAsync(_currentSeasonId, LoadToken);
         _availableVenues.Clear();
         foreach (var venue in venues)
             _availableVenues.Add(venue);

@@ -557,7 +557,7 @@ namespace Wdpl2.Services
                 html.AppendLine("                    </thead>");
                 html.AppendLine("                    <tbody>");
                 
-                var standings = CalculateStandingsWithForm(divisionTeams, fixtures);
+                var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _league.Settings, trackForm: true);
                 var sortedStandings = StandingsSorter.Sort(
                     standings,
                     _league.Settings,
@@ -596,8 +596,8 @@ namespace Wdpl2.Services
                     if (_settings.StandingsShowLost) html.AppendLine($"                            <td>{standing.Lost}</td>");
                     if (_settings.StandingsShowFramesFor) html.AppendLine($"                            <td>{standing.FramesFor}</td>");
                     if (_settings.StandingsShowFramesAgainst) html.AppendLine($"                            <td>{standing.FramesAgainst}</td>");
-                    if (_settings.StandingsShowFramesDiff) html.AppendLine($"                            <td class=\"{(standing.FramesDiff > 0 ? "text-positive" : standing.FramesDiff < 0 ? "text-negative" : "")}\">{standing.FramesDiff:+0;-0;0}</td>");
-                    if (_settings.StandingsShowForm) html.AppendLine($"                            <td class=\"form\">{standing.FormDisplay}</td>");
+                    if (_settings.StandingsShowFramesDiff) html.AppendLine($"                            <td class=\"{(standing.FrameDifference > 0 ? "text-positive" : standing.FrameDifference < 0 ? "text-negative" : "")}\">{standing.FrameDifference:+0;-0;0}</td>");
+                    if (_settings.StandingsShowForm) html.AppendLine($"                            <td class=\"form\">{string.Join("", standing.RecentForm.Take(5).Select(f => f switch { 'W' => "&#128994;", 'L' => "&#128308;", _ => "&#9898;" }))}</td>");
                     if (_settings.StandingsShowDeducted) html.AppendLine($"                            <td{(standing.Deducted > 0 ? " class=\"text-negative\"" : "")}>{standing.Deducted}</td>");
                     if (_settings.StandingsShowPoints) html.AppendLine($"                            <td><strong>{standing.Points}</strong></td>");
                     html.AppendLine("                        </tr>");
@@ -1790,7 +1790,7 @@ namespace Wdpl2.Services
                         html.AppendLine($"                    <span>&#128197; {comp.StartDate.Value:dd MMM yyyy}</span>");
                     var compSeasonName = _league.Seasons.FirstOrDefault(s => s.Id == comp.SeasonId)?.Name;
                     if (!string.IsNullOrWhiteSpace(compSeasonName))
-                        html.AppendLine($"                    <span>&#127944; {compSeasonName}</span>");
+                        html.AppendLine($"                    <span>&#127921; {compSeasonName}</span>");
                     if (!string.IsNullOrWhiteSpace(comp.Notes))
                         html.AppendLine($"                    <span>&#128221; {comp.Notes}</span>");
                     html.AppendLine($"                </div>");
@@ -2433,97 +2433,7 @@ namespace Wdpl2.Services
             return string.Concat(results.TakeLast(count));
         }
         
-        private sealed class TeamStanding
-        {
-            public string TeamName { get; set; } = "";
-            public Guid TeamId { get; set; }
-            public int Played { get; set; }
-            public int Won { get; set; }
-            public int Lost { get; set; }
-            public int FramesFor { get; set; }
-            public int FramesAgainst { get; set; }
-            public int FramesDiff => FramesFor - FramesAgainst;
-            public int Deducted { get; set; }
-            public int Points { get; set; }
-            public List<char> RecentForm { get; set; } = new();
-            public string FormDisplay => string.Join("", RecentForm.Take(5).Select(f => f switch { 'W' => "&#128994;", 'L' => "&#128308;", _ => "&#9898;" }));
-        }
-        
-        private List<TeamStanding> CalculateStandings(List<Team> teams, List<Fixture> fixtures)
-        {
-            return CalculateStandingsWithForm(teams, fixtures);
-        }
-        
-        private List<TeamStanding> CalculateStandingsWithForm(List<Team> teams, List<Fixture> fixtures)
-        {
-            var standings = new List<TeamStanding>();
-            var settings = _league.Settings;
 
-            foreach (var team in teams)
-            {
-                var standing = new TeamStanding
-                {
-                    TeamId = team.Id,
-                    TeamName = team.Name ?? "Unknown"
-                };
-
-                // Get all completed fixtures for this team
-                var teamFixtures = fixtures
-                    .Where(f => f.Frames.Count != 0 && ( f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
-                    .OrderByDescending(f => f.Date)
-                    .ToList();
-
-                foreach (var fixture in teamFixtures)
-                {
-                    bool isHome = fixture.HomeTeamId == team.Id;
-                    int teamScore = isHome ? fixture.HomeScore : fixture.AwayScore;
-                    int oppScore = isHome ? fixture.AwayScore : fixture.HomeScore;
-                    int latePenalty = isHome ? fixture.HomeLatePenalty : fixture.AwayLatePenalty;
-
-                    standing.Played++;
-                    standing.FramesFor += teamScore;
-                    standing.FramesAgainst += oppScore;
-
-                    // WDPL uses best-of-15 frames — no draws possible
-                    if (teamScore > oppScore)
-                    {
-                        standing.Won++;
-                        standing.Points += teamScore + settings.MatchWinBonus;
-                        standing.RecentForm.Add('W');
-                    }
-                    else
-                    {
-                        standing.Lost++;
-                        standing.Points += teamScore;
-                        standing.RecentForm.Add('L');
-                    }
-
-                    // Apply late card penalty
-                    if (latePenalty > 0)
-                    {
-                        standing.Deducted += latePenalty;
-                        standing.Points -= latePenalty;
-                    }
-
-                    // Apply cancellation penalty
-                    if (fixture.CancelledByTeam != FrameWinner.None && fixture.CancellationPenalty > 0)
-                    {
-                        bool cancelledByThis = (isHome && fixture.CancelledByTeam == FrameWinner.Home)
-                                            || (!isHome && fixture.CancelledByTeam == FrameWinner.Away);
-                        if (cancelledByThis)
-                        {
-                            standing.Deducted += fixture.CancellationPenalty;
-                            standing.Points -= fixture.CancellationPenalty;
-                        }
-                    }
-                }
-
-                standings.Add(standing);
-            }
-
-            return standings;
-        }
-        
         #region Missing Methods
         
         private string GenerateGalleryPage(Season season, WebsiteTemplate template)

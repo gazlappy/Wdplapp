@@ -72,7 +72,7 @@ public partial class CompetitionsViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadCompetitionsAsync();
+        SafeFireAndForget(LoadCompetitionsAsync);
     }
 
     [RelayCommand]
@@ -82,7 +82,7 @@ public partial class CompetitionsViewModel : BaseViewModel
         
         try
         {
-            var competitions = await _dataStore.GetCompetitionsAsync(CurrentSeasonId);
+            var competitions = await _dataStore.GetCompetitionsAsync(CurrentSeasonId, LoadToken);
             
             Competitions.Clear();
             ActiveCompetitions.Clear();

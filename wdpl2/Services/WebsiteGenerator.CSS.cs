@@ -1482,9 +1482,9 @@ nav a:hover, nav a.active {
 .status-draft { background: #F3F4F6; color: #4B5563; }
 .competition-rounds, .competition-groups, .comp-groups, .comp-results { margin-top: 1rem; }
 .comp-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.group-round-title { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; padding-bottom: 4px; border-bottom: 2px solid var(--primary); display: inline-block; }
+.group-round-title { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; padding-bottom: 4px; border-bottom: 2px solid var(--primary-color); display: inline-block; }
 .round-section, .group-section { margin-bottom: 1.5rem; }
-.round-section h4, .group-section h4 { font-size: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 4px; display: inline-block; }
+.round-section h4, .group-section h4 { font-size: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 4px; display: inline-block; }
 .group-count { font-weight: 400; font-size: 0.85rem; color: var(--text-secondary); }
 .group-players { display: flex; flex-direction: column; gap: 4px; }
 .group-player { padding: 6px 10px; border-radius: 6px; background: #F9FAFB; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
@@ -1509,8 +1509,8 @@ tr.qualifying td { background: #EFF6FF; }
 /* Competition selector tabs */
 .comp-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .comp-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 20px; border: 2px solid #E5E7EB; border-radius: 10px; background: #fff; cursor: pointer; transition: all .2s; font-family: inherit; font-size: inherit; }
-.comp-tab:hover { border-color: var(--primary); background: #F8FAFC; }
-.comp-tab.active { border-color: var(--primary); background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.comp-tab:hover { border-color: var(--primary-color); background: #F8FAFC; }
+.comp-tab.active { border-color: var(--primary-color); background: var(--primary-color); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .comp-tab.active .badge { background: rgba(255,255,255,.25); color: #fff; }
 .comp-tab.active .comp-tab-name { color: #fff; }
 .comp-tab-name { font-weight: 700; font-size: 0.95rem; }

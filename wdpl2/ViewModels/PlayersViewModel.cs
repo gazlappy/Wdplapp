@@ -50,7 +50,7 @@ public partial class PlayersViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadPlayersAsync();
+        SafeFireAndForget(LoadPlayersAsync);
     }
 
     [RelayCommand]
@@ -67,7 +67,7 @@ public partial class PlayersViewModel : BaseViewModel
                 return;
             }
 
-            var allPlayers = await _dataStore.GetPlayersAsync(_currentSeasonId);
+            var allPlayers = await _dataStore.GetPlayersAsync(_currentSeasonId, LoadToken);
 
             if (!string.IsNullOrWhiteSpace(_searchText))
             {

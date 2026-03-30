@@ -96,10 +96,17 @@ public partial class SettingsViewModel : ObservableObject
     
     private async Task LoadNotificationStatusAsync()
     {
-        if (_notificationService != null)
+        try
         {
-            _notificationsEnabled = await _notificationService.AreNotificationsEnabledAsync();
-            _pendingNotifications = await _notificationService.GetPendingNotificationCountAsync();
+            if (_notificationService != null)
+            {
+                _notificationsEnabled = await _notificationService.AreNotificationsEnabledAsync();
+                _pendingNotifications = await _notificationService.GetPendingNotificationCountAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SettingsViewModel notification load error: {ex.Message}");
         }
     }
 

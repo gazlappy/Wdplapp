@@ -25,7 +25,10 @@ public partial class App : Application
             System.Diagnostics.Debug.WriteLine($"Database init failed: {ex.Message}");
         }
 
-        // Load data
+        // Bridge static DataStore to EF Core so both stores stay in sync
+        DataStore.SetServiceProvider(_services);
+
+        // Load data (entities come from EF Core, settings from JSON)
         DataStore.Load();
 
         // Apply saved theme settings

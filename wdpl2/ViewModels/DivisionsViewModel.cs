@@ -44,7 +44,7 @@ public partial class DivisionsViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadDivisionsAsync();
+        SafeFireAndForget(LoadDivisionsAsync);
     }
 
     [RelayCommand]
@@ -61,7 +61,7 @@ public partial class DivisionsViewModel : BaseViewModel
                 return;
             }
 
-            var allDivisions = await _dataStore.GetDivisionsAsync(_currentSeasonId);
+            var allDivisions = await _dataStore.GetDivisionsAsync(_currentSeasonId, LoadToken);
 
             if (!string.IsNullOrWhiteSpace(_searchText))
             {

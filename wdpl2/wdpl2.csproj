@@ -247,6 +247,7 @@
 	  <PackageReference Include="CommunityToolkit.Maui" Version="9.1.1" />
 	  <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 	  <PackageReference Include="DocumentFormat.OpenXml" Version="3.0.2" />
+	  <PackageReference Include="FluentFTP" Version="54.0.3" />
 	  <!-- Pin MAUI version to avoid TabbedPageStyle.xbf duplicate resource bug -->
 	  <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
 	  <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.40" />

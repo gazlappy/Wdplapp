@@ -63,8 +63,8 @@ public partial class FixturesViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadFixturesAsync();
-        _ = LoadReferenceDataAsync();
+        SafeFireAndForget(LoadFixturesAsync);
+        SafeFireAndForget(LoadReferenceDataAsync);
     }
 
     [RelayCommand]
@@ -81,7 +81,7 @@ public partial class FixturesViewModel : BaseViewModel
                 return;
             }
 
-            var allFixtures = await _dataStore.GetFixturesAsync(_currentSeasonId);
+            var allFixtures = await _dataStore.GetFixturesAsync(_currentSeasonId, LoadToken);
 
             // Apply division filter
             if (!_showAllDivisions && _selectedDivision != null)
@@ -130,17 +130,17 @@ public partial class FixturesViewModel : BaseViewModel
     {
         if (!_currentSeasonId.HasValue) return;
 
-        var divisions = await _dataStore.GetDivisionsAsync(_currentSeasonId);
+        var divisions = await _dataStore.GetDivisionsAsync(_currentSeasonId, LoadToken);
         _availableDivisions.Clear();
         foreach (var division in divisions)
             _availableDivisions.Add(division);
 
-        var teams = await _dataStore.GetTeamsAsync(_currentSeasonId);
+        var teams = await _dataStore.GetTeamsAsync(_currentSeasonId, LoadToken);
         _availableTeams.Clear();
         foreach (var team in teams)
             _availableTeams.Add(team);
 
-        var venues = await _dataStore.GetVenuesAsync(_currentSeasonId);
+        var venues = await _dataStore.GetVenuesAsync(_currentSeasonId, LoadToken);
         _availableVenues.Clear();
         foreach (var venue in venues)
             _availableVenues.Add(venue);

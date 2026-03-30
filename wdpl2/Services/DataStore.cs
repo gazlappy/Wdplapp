@@ -1,5 +1,8 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Storage;
+using Wdpl2.Data;
 using Wdpl2.Models;
 
 namespace Wdpl2;
@@ -24,7 +27,18 @@ public static partial class DataStore
     private static int _saveCount;
     private const int AutoBackupInterval = 5;
 
+    private static IServiceProvider? _services;
+
     public static LeagueData Data { get; private set; } = new();
+
+    /// <summary>
+    /// Set the DI service provider so entity data can be synchronised with EF Core.
+    /// Call this during app startup before <see cref="Load"/>.
+    /// </summary>
+    public static void SetServiceProvider(IServiceProvider services)
+    {
+        _services = services;
+    }
 
     private static void EnsureDataDirectory()
     {
@@ -61,6 +75,9 @@ public static partial class DataStore
         var json = JsonSerializer.Serialize(Data, JsonOpts);
         File.WriteAllText(DataPath, json);
 
+        // Push entity changes to EF Core so both stores stay in sync
+        SyncEntitiesToDatabase();
+
         // Auto-backup every N saves
         _saveCount++;
         if (_saveCount % AutoBackupInterval == 0)
@@ -85,7 +102,15 @@ public static partial class DataStore
             if (!File.Exists(BackupPath)) return false;
 
             File.Copy(BackupPath, DataPath, overwrite: true);
-            Load();
+
+            // Load settings from the restored JSON
+            var json = File.ReadAllText(DataPath);
+            Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
+
+            // Push the restored entity state to EF Core, then refresh from it
+            SyncEntitiesToDatabase();
+            RefreshEntitiesFromDatabase();
+
             return true;
         }
         catch
@@ -130,6 +155,9 @@ public static partial class DataStore
 
             // Also restore the persisted file so a restart doesn't load partial import data
             File.WriteAllText(DataPath, json);
+
+            // Push restored entities to EF Core
+            SyncEntitiesToDatabase();
 
             return true;
         }
@@ -198,15 +226,91 @@ public static partial class DataStore
             if (!File.Exists(DataPath))
             {
                 Data = new LeagueData();
-                return;
+            }
+            else
+            {
+                var json = File.ReadAllText(DataPath);
+                Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
             }
 
-            var json = File.ReadAllText(DataPath);
-            Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
+            // Overlay entity collections from EF Core (source of truth after migration)
+            RefreshEntitiesFromDatabase();
         }
         catch
         {
             Data = new LeagueData();
+        }
+    }
+
+    /// <summary>
+    /// Reload entity collections from the EF Core database into <see cref="Data"/>.
+    /// Settings, WebsiteSettings, and other non-entity data are preserved.
+    /// </summary>
+    public static void RefreshEntitiesFromDatabase()
+    {
+        if (_services == null) return;
+
+        try
+        {
+            using var scope = _services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
+
+            Data.Seasons = context.Seasons.AsNoTracking().ToList();
+            Data.Divisions = context.Divisions.AsNoTracking().ToList();
+            Data.Teams = context.Teams.AsNoTracking().ToList();
+            Data.Players = context.Players.AsNoTracking().ToList();
+            Data.Venues = context.Venues.AsNoTracking().ToList();
+            Data.Fixtures = context.Fixtures.AsNoTracking().ToList();
+            Data.Competitions = context.Competitions.AsNoTracking().ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"RefreshEntitiesFromDatabase failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Push the current entity collections from <see cref="Data"/> into the EF Core database.
+    /// Uses delete-all + re-insert within a transaction to avoid complex diff logic.
+    /// </summary>
+    private static void SyncEntitiesToDatabase()
+    {
+        if (_services == null) return;
+
+        try
+        {
+            using var scope = _services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
+
+            using var transaction = context.Database.BeginTransaction();
+
+            // Delete in child-first order to respect FK constraints
+            context.Database.ExecuteSqlRaw("DELETE FROM Competitions");
+            context.Database.ExecuteSqlRaw("DELETE FROM Fixtures");
+            context.Database.ExecuteSqlRaw("DELETE FROM Players");
+            context.Database.ExecuteSqlRaw("DELETE FROM Teams");
+            context.Database.ExecuteSqlRaw("DELETE FROM Venues");
+            context.Database.ExecuteSqlRaw("DELETE FROM Divisions");
+            context.Database.ExecuteSqlRaw("DELETE FROM Seasons");
+
+            // Clear the tracker so Add doesn't conflict with stale entries
+            context.ChangeTracker.Clear();
+
+            // Re-insert in parent-first order
+            context.Seasons.AddRange(Data.Seasons);
+            context.Divisions.AddRange(Data.Divisions);
+            context.Venues.AddRange(Data.Venues);
+            context.Teams.AddRange(Data.Teams);
+            context.Players.AddRange(Data.Players);
+            context.Fixtures.AddRange(Data.Fixtures);
+            context.Competitions.AddRange(Data.Competitions);
+
+            context.SaveChanges();
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SyncEntitiesToDatabase failed: {ex.Message}");
         }
     }
 }

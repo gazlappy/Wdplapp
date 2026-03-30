@@ -20,14 +20,19 @@ public static class ExportService
         var divFixtures = fixtures.Where(f => f.DivisionId == division.Id && f.Frames.Count > 0).ToList();
 
         var sb = new StringBuilder();
-        sb.AppendLine("Position,Team,Played,Won,Drawn,Lost,Frames For,Frames Against,Frame Diff,Points");
+        sb.AppendLine("Position,Team,Played,Won,Drawn,Lost,Frames For,Frames Against,Frame Diff,Deducted,Points");
 
-        var standings = CalculateStandings(divFixtures, divTeams, settings);
+        var standings = StandingsCalculator.Calculate(
+            divTeams, divFixtures, settings);
+        var sorted = StandingsSorter.Sort(
+            standings, settings,
+            s => s.Points, s => s.FramesFor, s => s.FramesAgainst, s => s.Won, s => s.TeamId,
+            divFixtures);
 
         int pos = 1;
-        foreach (var s in standings)
+        foreach (var s in sorted)
         {
-            sb.AppendLine($"{pos},{EscapeCsv(s.TeamName)},{s.Played},{s.Won},{s.Drawn},{s.Lost},{s.FramesFor},{s.FramesAgainst},{s.FrameDiff},{s.Points}");
+            sb.AppendLine($"{pos},{EscapeCsv(s.TeamName)},{s.Played},{s.Won},{s.Drawn},{s.Lost},{s.FramesFor},{s.FramesAgainst},{s.FrameDifference},{s.Deducted},{s.Points}");
             pos++;
         }
 
@@ -91,10 +96,14 @@ public static class ExportService
     public static string GenerateLeagueTableHtml(
         List<Fixture> fixtures, List<Team> teams, Division division, AppSettings settings)
     {
-        var standings = CalculateStandings(
-            fixtures.Where(f => f.DivisionId == division.Id && f.Frames.Count > 0).ToList(),
+        var standings = StandingsCalculator.Calculate(
             teams.Where(t => t.DivisionId == division.Id).ToList(),
+            fixtures.Where(f => f.DivisionId == division.Id && f.Frames.Count > 0).ToList(),
             settings);
+        var sorted = StandingsSorter.Sort(
+            standings, settings,
+            s => s.Points, s => s.FramesFor, s => s.FramesAgainst, s => s.Won, s => s.TeamId,
+            fixtures.Where(f => f.DivisionId == division.Id && f.Frames.Count > 0).ToList());
 
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
@@ -107,12 +116,12 @@ public static class ExportService
         sb.AppendLine("tr:nth-child(even){background:#f8f9fa}");
         sb.AppendLine("</style></head><body>");
         sb.AppendLine($"<h1>{division.Name} - League Table</h1>");
-        sb.AppendLine("<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>FF</th><th>FA</th><th>FD</th><th>Pts</th></tr>");
+        sb.AppendLine("<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>FF</th><th>FA</th><th>FD</th><th>Ded</th><th>Pts</th></tr>");
 
         int pos = 1;
-        foreach (var s in standings)
+        foreach (var s in sorted)
         {
-            sb.AppendLine($"<tr><td>{pos}</td><td style='text-align:left'>{s.TeamName}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td>{s.FramesFor}</td><td>{s.FramesAgainst}</td><td>{s.FrameDiff}</td><td><b>{s.Points}</b></td></tr>");
+            sb.AppendLine($"<tr><td>{pos}</td><td style='text-align:left'>{s.TeamName}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td>{s.FramesFor}</td><td>{s.FramesAgainst}</td><td>{s.FrameDifference}</td><td>{s.Deducted}</td><td><b>{s.Points}</b></td></tr>");
             pos++;
         }
 
@@ -136,76 +145,6 @@ public static class ExportService
             Title = title,
             File = new ShareFile(filePath)
         });
-    }
-
-    private sealed class TeamStanding
-    {
-        public string TeamName { get; set; } = "";
-        public Guid TeamId { get; set; }
-        public int Played { get; set; }
-        public int Won { get; set; }
-        public int Drawn { get; set; }
-        public int Lost { get; set; }
-        public int FramesFor { get; set; }
-        public int FramesAgainst { get; set; }
-        public int FrameDiff => FramesFor - FramesAgainst;
-        public int Points { get; set; }
-    }
-
-    private static List<TeamStanding> CalculateStandings(
-        List<Fixture> fixtures, List<Team> teams, AppSettings settings)
-    {
-        var standings = teams.ToDictionary(t => t.Id, t => new TeamStanding
-        {
-            TeamId = t.Id,
-            TeamName = t.Name ?? ""
-        });
-
-        var pointsForWin = settings?.MatchWinBonus ?? 3;
-        var pointsForDraw = settings?.MatchDrawBonus ?? 1;
-
-        foreach (var f in fixtures)
-        {
-            if (!standings.TryGetValue(f.HomeTeamId, out var home)) continue;
-            if (!standings.TryGetValue(f.AwayTeamId, out var away)) continue;
-
-            home.Played++;
-            away.Played++;
-            home.FramesFor += f.HomeScore;
-            home.FramesAgainst += f.AwayScore;
-            away.FramesFor += f.AwayScore;
-            away.FramesAgainst += f.HomeScore;
-
-            if (f.HomeScore > f.AwayScore)
-            {
-                home.Won++;
-                away.Lost++;
-                home.Points += pointsForWin;
-            }
-            else if (f.AwayScore > f.HomeScore)
-            {
-                away.Won++;
-                home.Lost++;
-                away.Points += pointsForWin;
-            }
-            else
-            {
-                home.Drawn++;
-                away.Drawn++;
-                home.Points += pointsForDraw;
-                away.Points += pointsForDraw;
-            }
-        }
-
-        return StandingsSorter.Sort(
-            standings.Values,
-            settings,
-            s => s.Points,
-            s => s.FramesFor,
-            s => s.FramesAgainst,
-            s => s.Won,
-            s => s.TeamId,
-            fixtures);
     }
 
     private static string EscapeCsv(string value)

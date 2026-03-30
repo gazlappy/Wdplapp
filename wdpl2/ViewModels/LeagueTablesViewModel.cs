@@ -45,7 +45,7 @@ public partial class LeagueTablesViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadDivisionsAsync();
+        SafeFireAndForget(LoadDivisionsAsync);
     }
 
     [RelayCommand]
@@ -62,7 +62,7 @@ public partial class LeagueTablesViewModel : BaseViewModel
                 return;
             }
 
-            var allDivisions = await _dataStore.GetDivisionsAsync(_currentSeasonId);
+            var allDivisions = await _dataStore.GetDivisionsAsync(_currentSeasonId, LoadToken);
 
             _divisions.Clear();
             foreach (var division in allDivisions)
@@ -98,113 +98,18 @@ public partial class LeagueTablesViewModel : BaseViewModel
 
         try
         {
-            // Get all teams in this division
-            var allTeams = await _dataStore.GetTeamsAsync(_currentSeasonId);
+            var allTeams = await _dataStore.GetTeamsAsync(_currentSeasonId, LoadToken);
             var divisionTeams = allTeams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
 
-            // Get all fixtures
-            var allFixtures = await _dataStore.GetFixturesAsync(_currentSeasonId);
+            var allFixtures = await _dataStore.GetFixturesAsync(_currentSeasonId, LoadToken);
             var divisionFixtures = allFixtures
                 .Where(f => f.DivisionId == _selectedDivision.Id && f.Frames.Count > 0)
                 .ToList();
 
-            // Calculate standings
-            var standingsDict = new System.Collections.Generic.Dictionary<Guid, TeamStanding>();
+            var standings = StandingsCalculator.Calculate(divisionTeams, divisionFixtures, DataStore.Data.Settings);
 
-            foreach (var team in divisionTeams)
-            {
-                standingsDict[team.Id] = new TeamStanding
-                {
-                    TeamId = team.Id,
-                    TeamName = team.Name ?? "Unknown",
-                    Played = 0,
-                    Won = 0,
-                    Drawn = 0,
-                    Lost = 0,
-                    FramesFor = 0,
-                    FramesAgainst = 0,
-                    Points = 0
-                };
-            }
-
-            foreach (var fixture in divisionFixtures)
-            {
-                if (standingsDict.ContainsKey(fixture.HomeTeamId))
-                {
-                    var homeStanding = standingsDict[fixture.HomeTeamId];
-                    homeStanding.Played++;
-                    homeStanding.FramesFor += fixture.HomeScore;
-                    homeStanding.FramesAgainst += fixture.AwayScore;
-
-                    if (fixture.HomeScore > fixture.AwayScore)
-                    {
-                        homeStanding.Won++;
-                        homeStanding.Points += 2;
-                    }
-                    else if (fixture.HomeScore == fixture.AwayScore)
-                    {
-                        homeStanding.Drawn++;
-                        homeStanding.Points += 1;
-                    }
-                    else
-                    {
-                        homeStanding.Lost++;
-                    }
-
-                    // Apply late card penalty
-                    homeStanding.Deducted += fixture.HomeLatePenalty;
-                    homeStanding.Points -= fixture.HomeLatePenalty;
-                }
-
-                if (standingsDict.ContainsKey(fixture.AwayTeamId))
-                {
-                    var awayStanding = standingsDict[fixture.AwayTeamId];
-                    awayStanding.Played++;
-                    awayStanding.FramesFor += fixture.AwayScore;
-                    awayStanding.FramesAgainst += fixture.HomeScore;
-
-                    if (fixture.AwayScore > fixture.HomeScore)
-                    {
-                        awayStanding.Won++;
-                        awayStanding.Points += 2;
-                    }
-                    else if (fixture.AwayScore == fixture.HomeScore)
-                    {
-                        awayStanding.Drawn++;
-                        awayStanding.Points += 1;
-                    }
-                    else
-                    {
-                        awayStanding.Lost++;
-                    }
-
-                    // Apply late card penalty
-                    awayStanding.Deducted += fixture.AwayLatePenalty;
-                    awayStanding.Points -= fixture.AwayLatePenalty;
-                }
-
-                // Apply cancellation penalty
-                if (fixture.CancelledByTeam == FrameWinner.Home && fixture.CancellationPenalty > 0)
-                {
-                    if (standingsDict.TryGetValue(fixture.HomeTeamId, out var cancelHome))
-                    {
-                        cancelHome.Deducted += fixture.CancellationPenalty;
-                        cancelHome.Points -= fixture.CancellationPenalty;
-                    }
-                }
-                else if (fixture.CancelledByTeam == FrameWinner.Away && fixture.CancellationPenalty > 0)
-                {
-                    if (standingsDict.TryGetValue(fixture.AwayTeamId, out var cancelAway))
-                    {
-                        cancelAway.Deducted += fixture.CancellationPenalty;
-                        cancelAway.Points -= fixture.CancellationPenalty;
-                    }
-                }
-            }
-
-            // Sort by configured tiebreaker order
             var sortedStandings = StandingsSorter.Sort(
-                standingsDict.Values,
+                standings,
                 DataStore.Data.Settings,
                 s => s.Points,
                 s => s.FramesFor,
@@ -213,11 +118,8 @@ public partial class LeagueTablesViewModel : BaseViewModel
                 s => s.TeamId,
                 divisionFixtures);
 
-            // Assign positions
             for (int i = 0; i < sortedStandings.Count; i++)
-            {
                 sortedStandings[i].Position = i + 1;
-            }
 
             _standings.Clear();
             foreach (var standing in sortedStandings)
@@ -235,26 +137,7 @@ public partial class LeagueTablesViewModel : BaseViewModel
     {
         if (value != null)
         {
-            _ = CalculateStandingsAsync();
+            SafeFireAndForget(CalculateStandingsAsync);
         }
     }
-}
-
-/// <summary>
-/// Team standing in league table
-/// </summary>
-public class TeamStanding
-{
-    public Guid TeamId { get; set; }
-    public string TeamName { get; set; } = "";
-    public int Position { get; set; }
-    public int Played { get; set; }
-    public int Won { get; set; }
-    public int Drawn { get; set; }
-    public int Lost { get; set; }
-    public int FramesFor { get; set; }
-    public int FramesAgainst { get; set; }
-    public int FrameDifference => FramesFor - FramesAgainst;
-    public int Deducted { get; set; }
-    public int Points { get; set; }
 }

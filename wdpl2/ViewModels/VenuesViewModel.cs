@@ -59,7 +59,7 @@ public partial class VenuesViewModel : BaseViewModel
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
         base.OnSeasonChanged(sender, e);
-        _ = LoadVenuesAsync();
+        SafeFireAndForget(LoadVenuesAsync);
     }
 
     [RelayCommand]
@@ -76,7 +76,7 @@ public partial class VenuesViewModel : BaseViewModel
                 return;
             }
 
-            var allVenues = await _dataStore.GetVenuesAsync(_currentSeasonId);
+            var allVenues = await _dataStore.GetVenuesAsync(_currentSeasonId, LoadToken);
 
             if (!string.IsNullOrWhiteSpace(_searchText))
             {
