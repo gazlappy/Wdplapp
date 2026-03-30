@@ -275,6 +275,33 @@ public static class RatingCalculator
             : settings.RatingStartValue;
     }
 
+    /// <summary>
+    /// Clears all VBA pre-calculated rating data from frames, forcing the app to
+    /// recalculate all ratings from scratch using the current <see cref="AppSettings"/>.
+    /// </summary>
+    /// <param name="fixtures">The fixtures whose frames should be cleared.</param>
+    /// <returns>The number of frames that had VBA data cleared.</returns>
+    public static int ClearVbaRatingData(List<Fixture> fixtures)
+    {
+        int cleared = 0;
+        foreach (var fixture in fixtures)
+        {
+            foreach (var frame in fixture.Frames)
+            {
+                if (frame.HomeOppRating.HasValue || frame.HomePlayerRating.HasValue ||
+                    frame.AwayOppRating.HasValue || frame.AwayPlayerRating.HasValue)
+                {
+                    frame.HomeOppRating = null;
+                    frame.HomePlayerRating = null;
+                    frame.AwayOppRating = null;
+                    frame.AwayPlayerRating = null;
+                    cleared++;
+                }
+            }
+        }
+        return cleared;
+    }
+
     // Helper class for frame data
     private sealed class FrameData
     {

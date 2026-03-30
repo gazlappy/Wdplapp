@@ -19,13 +19,18 @@ public partial class MatchDayDashboardPage : ContentPage
         
         FixturesList.ItemsSource = _fixtures;
         
-        SeasonService.Current.SeasonChanged += OnSeasonChanged;
-        
         LoadMatches();
     }
 
-    ~MatchDayDashboardPage()
+    protected override void OnAppearing()
     {
+        base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
         SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 

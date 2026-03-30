@@ -1158,7 +1158,7 @@ namespace Wdpl2.Services
                 
                 if (_settings.DivisionsShowMiniStandings && divisionTeams.Count != 0)
                 {
-                    var standings = CalculateStandings(divisionTeams, fixtures)
+                    var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _league.Settings)
                         .OrderByDescending(s => s.Points)
                         .Take(5)
                         .ToList();

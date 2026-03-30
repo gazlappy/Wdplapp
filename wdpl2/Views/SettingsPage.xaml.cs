@@ -307,6 +307,14 @@ namespace Wdpl2.Views
             };
             infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
 
+            var recalcBtn = new Button
+            {
+                Text = "\U0001F504 Recalculate All Ratings",
+                BackgroundColor = Color.FromArgb("#D97706"),
+                TextColor = Colors.White,
+                Command = new Command(async () => await OnRecalculateAllRatingsAsync())
+            };
+
             var buttons = new HorizontalStackLayout
             {
                 Spacing = 12,
@@ -317,6 +325,30 @@ namespace Wdpl2.Views
                     new Button { Text = "Reset to Defaults", BackgroundColor = Color.FromArgb("#FF6B6B"), TextColor = Colors.White, Command = new Command(OnResetClicked) }
                 }
             };
+
+            var recalcInfoContent = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.4,
+                Text = "Imported data from VBA/SQL may contain pre-calculated rating values.\n" +
+                       "Use this button to clear those and recalculate all ratings from scratch\n" +
+                       "using the current settings above."
+            };
+            recalcInfoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+
+            var recalcInfoFrame = new Border
+            {
+                Padding = 12,
+                Stroke = Color.FromArgb("#D97706"),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 8, 0, 0),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children = { recalcInfoContent, recalcBtn }
+                }
+            };
+            recalcInfoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FFFBEB"), Color.FromArgb("#422006"));
 
             var subtitleLabel = new Label { Text = "VBA-style opponent-based cumulative weighted rating system", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
             subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
@@ -331,6 +363,7 @@ namespace Wdpl2.Views
                     grid,
                     infoFrame,
                     buttons,
+                    recalcInfoFrame,
                     _statusLabel
                 }
             };
@@ -431,6 +464,7 @@ namespace Wdpl2.Views
                 if (!Settings.TiebreakerOrder.Contains(criterion))
                 {
                     Settings.TiebreakerOrder.Add(criterion);
+                    DataStore.Save();
                     RebuildTiebreakerRows();
                 }
                 addPicker.SelectedIndex = -1;
@@ -475,6 +509,7 @@ namespace Wdpl2.Views
                 upBtn.Clicked += (s, e) =>
                 {
                     (order[index - 1], order[index]) = (order[index], order[index - 1]);
+                    DataStore.Save();
                     RebuildTiebreakerRows();
                 };
 
@@ -482,6 +517,7 @@ namespace Wdpl2.Views
                 downBtn.Clicked += (s, e) =>
                 {
                     (order[index + 1], order[index]) = (order[index], order[index + 1]);
+                    DataStore.Save();
                     RebuildTiebreakerRows();
                 };
 
@@ -489,6 +525,7 @@ namespace Wdpl2.Views
                 removeBtn.Clicked += (s, e) =>
                 {
                     order.RemoveAt(index);
+                    DataStore.Save();
                     RebuildTiebreakerRows();
                 };
 
@@ -2166,6 +2203,62 @@ namespace Wdpl2.Views
 
             if (_statusLabel != null)
                 _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  Settings reset to defaults.";
+        }
+
+        private async System.Threading.Tasks.Task OnRecalculateAllRatingsAsync()
+        {
+            var data = DataStore.Data;
+
+            // Count frames with VBA data to show the user what will be affected
+            int vbaFrameCount = 0;
+            int totalFrames = 0;
+            foreach (var fixture in data.Fixtures)
+            {
+                foreach (var frame in fixture.Frames)
+                {
+                    totalFrames++;
+                    if (frame.HomePlayerRating.HasValue || frame.AwayPlayerRating.HasValue ||
+                        frame.HomeOppRating.HasValue || frame.AwayOppRating.HasValue)
+                    {
+                        vbaFrameCount++;
+                    }
+                }
+            }
+
+            if (vbaFrameCount == 0)
+            {
+                await DisplayAlert("No Imported Data",
+                    $"None of the {totalFrames} frames have VBA pre-calculated rating data.\n\n" +
+                    "All ratings are already being calculated using your current settings.",
+                    "OK");
+                return;
+            }
+
+            var confirm = await DisplayAlert(
+                "\U0001F504 Recalculate All Ratings",
+                $"This will clear VBA pre-calculated rating data from {vbaFrameCount} frame(s) " +
+                $"(out of {totalFrames} total).\n\n" +
+                "All ratings will then be recalculated from scratch using your current settings:\n" +
+                $"  • Start Value: {Settings.RatingStartValue}\n" +
+                $"  • Win Factor: {Settings.WinFactor:0.00}\n" +
+                $"  • Loss Factor: {Settings.LossFactor:0.00}\n" +
+                $"  • 8-Ball Factor: {(Settings.UseEightBallFactor ? Settings.EightBallFactor.ToString("0.00") : "disabled")}\n\n" +
+                "This cannot be undone. Continue?",
+                "Recalculate", "Cancel");
+
+            if (!confirm) return;
+
+            int cleared = RatingCalculator.ClearVbaRatingData(data.Fixtures);
+            DataStore.Save();
+
+            if (_statusLabel != null)
+                _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  Cleared VBA data from {cleared} frame(s). Ratings will now use current settings.";
+
+            await DisplayAlert($"{Emojis.Success} Ratings Recalculated",
+                $"Cleared imported rating data from {cleared} frame(s).\n\n" +
+                "All player ratings will now be calculated using your current settings " +
+                "the next time league tables or rating views are loaded.",
+                "OK");
         }
 
         private void ApplyResponsiveLayout(double width)

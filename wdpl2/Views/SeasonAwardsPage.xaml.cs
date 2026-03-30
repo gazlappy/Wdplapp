@@ -19,13 +19,18 @@ public partial class SeasonAwardsPage : ContentPage
         
         DivisionMVPsList.ItemsSource = _divisionMVPs;
         
-        SeasonService.Current.SeasonChanged += OnSeasonChanged;
-        
         LoadAwards();
     }
 
-    ~SeasonAwardsPage()
+    protected override void OnAppearing()
     {
+        base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
         SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 

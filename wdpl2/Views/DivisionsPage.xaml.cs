@@ -71,20 +71,13 @@ public partial class DivisionsPage : ContentPage
 
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
-        // SUBSCRIBE to global season changes
-        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-
         RefreshAll();
-    }
-
-    ~DivisionsPage()
-    {
-        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         try
         {
@@ -95,6 +88,12 @@ public partial class DivisionsPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"DivisionsPage OnAppearing Error: {ex}");
             SetStatus($"Error loading data: {ex.Message}");
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)

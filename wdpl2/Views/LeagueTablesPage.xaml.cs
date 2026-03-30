@@ -10,6 +10,7 @@ using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Storage;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 using IOPath = System.IO.Path;
@@ -100,21 +101,20 @@ public partial class LeagueTablesPage : ContentPage
         ExportBtn.Clicked += async (_, __) => await ExportCsvAsync();
         RecalculateBtn.Clicked += (_, __) => OnRecalculateClicked();
 
-        // SUBSCRIBE to global season changes
-        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-
         RefreshAll();
-    }
-
-    ~LeagueTablesPage()
-    {
-        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
         RefreshAll();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -361,7 +361,6 @@ public partial class LeagueTablesPage : ContentPage
         }
 
         var tById = teams.ToDictionary(t => t.Id, t => t);
-        int skippedBothTeams = 0;
 
         System.Diagnostics.Debug.WriteLine($"  RefreshTeamTable DIAGNOSTICS for '{seasonName}' / '{divName}':");
         System.Diagnostics.Debug.WriteLine($"    Total fixtures in DB: {data.Fixtures.Count}");
@@ -384,78 +383,35 @@ public partial class LeagueTablesPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"    !! Division team IDs=[{string.Join(", ", teamIds.Take(10).Select(id => id.ToString()[..8]))}]");
         }
 
-        var table = teams.ToDictionary(t => t.Id, t => new TeamRow { Team = t.Name ?? "", TeamId = t.Id });
+        var standings = StandingsCalculator.Calculate(teams, fixtures, DataStore.Data.Settings);
+        var standingsByTeam = standings.ToDictionary(s => s.TeamId);
 
-        foreach (var f in fixtures)
+        var table = teams.ToDictionary(t => t.Id, t =>
         {
-            if (!tById.TryGetValue(f.HomeTeamId, out var homeTeam) ||
-                !tById.TryGetValue(f.AwayTeamId, out var awayTeam))
+            var s = standingsByTeam.GetValueOrDefault(t.Id);
+            return new TeamRow
             {
-                skippedBothTeams++;
-                continue;
-            }
+                Team = t.Name ?? "", TeamId = t.Id,
+                P = s?.Played ?? 0, W = s?.Won ?? 0, L = s?.Lost ?? 0,
+                F = s?.FramesFor ?? 0, A = s?.FramesAgainst ?? 0,
+                Ded = s?.Deducted ?? 0, Pts = s?.Points ?? 0
+            };
+        });
 
-            var hs = f.HomeScore;
-            var @as = f.AwayScore;
-
-            var hr = table[f.HomeTeamId];
-            var ar = table[f.AwayTeamId];
-
-            hr.P++; ar.P++;
-            hr.F += hs; hr.A += @as;
-            ar.F += @as; ar.A += hs;
-
-            // WDPL uses best-of-15 frames - no draws possible
-            // Points = Frames Won + Win Bonus (for winner only)
-            if (hs > @as)
-            {
-                // Home wins
-                hr.W++; ar.L++;
-                hr.Pts += hs + Settings.MatchWinBonus;
-                ar.Pts += @as;
-            }
-            else
-            {
-                // Away wins (or technically a draw, but not possible in best-of-15)
-                ar.W++; hr.L++;
-                ar.Pts += @as + Settings.MatchWinBonus;
-                hr.Pts += hs;
-            }
-
-            // Apply late card penalties
-            if (f.HomeLatePenalty > 0)
-            {
-                hr.Ded += f.HomeLatePenalty;
-                hr.Pts -= f.HomeLatePenalty;
-            }
-            if (f.AwayLatePenalty > 0)
-            {
-                ar.Ded += f.AwayLatePenalty;
-                ar.Pts -= f.AwayLatePenalty;
-            }
-
-            // Apply cancellation penalty
-            if (f.CancelledByTeam == FrameWinner.Home && f.CancellationPenalty > 0)
-            {
-                hr.Ded += f.CancellationPenalty;
-                hr.Pts -= f.CancellationPenalty;
-            }
-            else if (f.CancelledByTeam == FrameWinner.Away && f.CancellationPenalty > 0)
-            {
-                ar.Ded += f.CancellationPenalty;
-                ar.Pts -= f.CancellationPenalty;
-            }
-        }
+        var skippedBothTeams = fixtures.Count(f => !tById.ContainsKey(f.HomeTeamId) || !tById.ContainsKey(f.AwayTeamId));
 
         if (skippedBothTeams > 0)
             System.Diagnostics.Debug.WriteLine($"    Skipped {skippedBothTeams} fixture(s) where one team not in division");
 
-        var rows = table.Values
-            .OrderByDescending(r => r.Pts)
-            .ThenByDescending(r => r.Diff)
-            .ThenByDescending(r => r.F)
-            .ThenBy(r => r.Team, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var rows = StandingsSorter.Sort(
+            table.Values,
+            DataStore.Data.Settings,
+            r => r.Pts,
+            r => r.F,
+            r => r.A,
+            r => r.W,
+            r => r.TeamId,
+            fixtures);
 
         for (int i = 0; i < rows.Count; i++)
             rows[i].Pos = i + 1;

@@ -145,33 +145,34 @@ public partial class PlayersPage : ContentPage
             ExportBtn.Clicked += async (_, __) => await ExportPlayersAsync();
             PlayersImport.ImportRequested += async (stream, fileName) => await ImportPlayersCsvAsync(stream, fileName);
 
-            SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"PlayersPage Constructor Error: {ex}");
-            SetStatus($"Initialization error: {ex.Message}");
-        }
-    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"PlayersPage Constructor Error: {ex}");
+                    SetStatus($"Initialization error: {ex.Message}");
+                }
+            }
 
-    protected override void OnAppearing()
-    {
-        base.OnAppearing();
-        try
-        {
-            RefreshAll();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"PlayersPage OnAppearing Error: {ex}");
-            SetStatus($"Error loading data: {ex.Message}");
-        }
-    }
+            protected override void OnAppearing()
+            {
+                base.OnAppearing();
+                SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
+                try
+                {
+                    RefreshAll();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"PlayersPage OnAppearing Error: {ex}");
+                    SetStatus($"Error loading data: {ex.Message}");
+                }
+            }
 
-    ~PlayersPage()
-    {
-        try { SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged; } catch { }
-    }
+            protected override void OnDisappearing()
+            {
+                base.OnDisappearing();
+                SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
+            }
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)
     {

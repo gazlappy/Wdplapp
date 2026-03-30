@@ -155,9 +155,6 @@ public partial class TeamsPage : ContentPage
         // NEW: Debug check button
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
-        // SUBSCRIBE to global season changes
-        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-
         RefreshAll();
     }
 
@@ -171,14 +168,10 @@ public partial class TeamsPage : ContentPage
 
     private Guid? _pendingTeamSelection;
 
-    ~TeamsPage()
-    {
-        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
-    }
-
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         try
         {
@@ -223,6 +216,12 @@ public partial class TeamsPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"TeamsPage OnAppearing Error: {ex}");
             SetStatus($"Error loading data: {ex.Message}");
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     // ========== BURGER MENU ==========

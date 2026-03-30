@@ -186,16 +186,8 @@ public partial class FixturesPage : ContentPage
             KeyboardCaptureEntry.TextChanged += OnKeyboardInput;
         }
 
-        // Subscribe to global season changes
-        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-
         System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor END, calling RefreshList ===");
         RefreshList();
-    }
-    
-    ~FixturesPage()
-    {
-        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
     
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -3157,10 +3149,17 @@ public partial class FixturesPage : ContentPage
 
     // ========== LIFECYCLE ==========
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
+
         if (!_servicesInitialized && Handler?.MauiContext != null)
         {
             try

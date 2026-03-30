@@ -63,20 +63,13 @@ public partial class VenuesPage : ContentPage
         ExportBtn.Clicked += async (_, __) => await ExportVenuesAsync();
         VenuesImport.ImportRequested += async (stream, fileName) => await ImportVenuesCsvAsync(stream, fileName);
 
-        // SUBSCRIBE to global season changes
-        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
-
         RefreshAll();
-    }
-
-    ~VenuesPage()
-    {
-        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
 
         try
         {
@@ -88,6 +81,12 @@ public partial class VenuesPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"VenuesPage OnAppearing Error: {ex}");
             SetStatus($"Error loading data: {ex.Message}");
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
     }
 
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)

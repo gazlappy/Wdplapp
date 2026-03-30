@@ -25,13 +25,18 @@ public partial class TeamAnalyticsPage : ContentPage
         PlayerContributionsList.ItemsSource = _playerContributions;
         OpponentRecordsList.ItemsSource = _opponentRecords;
         
-        SeasonService.Current.SeasonChanged += OnSeasonChanged;
-        
         LoadTeams();
     }
 
-    ~TeamAnalyticsPage()
+    protected override void OnAppearing()
     {
+        base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
         SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 

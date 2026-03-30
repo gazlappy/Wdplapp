@@ -26,13 +26,18 @@ public partial class WhatIfSimulatorPage : ContentPage
         RemainingFixturesList.ItemsSource = _remainingFixtures;
         PredictedStandingsList.ItemsSource = _predictedStandings;
         
-        SeasonService.Current.SeasonChanged += OnSeasonChanged;
-        
         LoadDivisions();
     }
 
-    ~WhatIfSimulatorPage()
+    protected override void OnAppearing()
     {
+        base.OnAppearing();
+        SeasonService.Current.SeasonChanged += OnSeasonChanged;
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
         SeasonService.Current.SeasonChanged -= OnSeasonChanged;
     }
 
