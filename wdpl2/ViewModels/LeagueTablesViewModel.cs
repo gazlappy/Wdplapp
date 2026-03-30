@@ -106,11 +106,12 @@ public partial class LeagueTablesViewModel : BaseViewModel
                 .Where(f => f.DivisionId == _selectedDivision.Id && f.Frames.Count > 0)
                 .ToList();
 
-            var standings = StandingsCalculator.Calculate(divisionTeams, divisionFixtures, DataStore.Data.Settings);
+            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            var standings = StandingsCalculator.Calculate(divisionTeams, divisionFixtures, settings);
 
             var sortedStandings = StandingsSorter.Sort(
                 standings,
-                DataStore.Data.Settings,
+                settings,
                 s => s.Points,
                 s => s.FramesFor,
                 s => s.FramesAgainst,

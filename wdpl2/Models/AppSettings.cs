@@ -172,51 +172,62 @@ namespace Wdpl2.Models
         /// <summary>Reset all settings to defaults.</summary>
         public void ResetToDefaults()
         {
-            // Player Ratings (VBA-compatible values)
-            RatingStartValue = 1000;   // VBA: RATINGSTART = 1000
-            RatingWeighting = 220;     // VBA display uses 220, 216, 212...
-            RatingsBias = 4;           // VBA: RatingBias = 4
-            WinFactor = 1.25;          // VBA: RATINGWIN = 1.25
-            LossFactor = 0.75;         // VBA: RATINGLOSE = 0.75
-            EightBallFactor = 1.35;    // VBA: RATING8BALL = 1.35
-            UseEightBallFactor = true;
-            MinFramesPercentage = 60;  // VBA: MinFrameRi = 0.6 (60%)
+            var defaults = new AppSettings();
+            CopyFrom(defaults);
+        }
+
+        /// <summary>Create a deep copy of this settings instance.</summary>
+        public AppSettings Clone()
+        {
+            var copy = new AppSettings();
+            copy.CopyFrom(this);
+            return copy;
+        }
+
+        /// <summary>Copy all values from another <see cref="AppSettings"/> instance.</summary>
+        public void CopyFrom(AppSettings source)
+        {
+            // Player Ratings
+            RatingStartValue = source.RatingStartValue;
+            RatingWeighting = source.RatingWeighting;
+            RatingsBias = source.RatingsBias;
+            WinFactor = source.WinFactor;
+            LossFactor = source.LossFactor;
+            EightBallFactor = source.EightBallFactor;
+            UseEightBallFactor = source.UseEightBallFactor;
+            MinFramesPercentage = source.MinFramesPercentage;
 
             // Match Scoring
-            MatchWinBonus = 2;         // VBA: WinBonus = 2
-            MatchDrawBonus = 1;
+            MatchWinBonus = source.MatchWinBonus;
+            MatchDrawBonus = source.MatchDrawBonus;
 
             // Fixture Defaults
-            DefaultFramesPerMatch = 15; // VBA/WDPL: Frames = 15
-            MaxFramesPerPlayer = 3;     // WDPL: Max 3 frames per player
-            DefaultMatchDay = DayOfWeek.Tuesday;
-            DefaultMatchTime = new TimeSpan(19, 30, 0);
-            DefaultRoundsPerOpponent = 2;
+            DefaultFramesPerMatch = source.DefaultFramesPerMatch;
+            MaxFramesPerPlayer = source.MaxFramesPerPlayer;
+            DefaultMatchDay = source.DefaultMatchDay;
+            DefaultMatchTime = source.DefaultMatchTime;
+            DefaultRoundsPerOpponent = source.DefaultRoundsPerOpponent;
 
             // League Table
-            PromotionSlots = 0;
-            RelegationSlots = 0;
-            TiebreakerOrder = new List<TiebreakerCriterion>
-            {
-                TiebreakerCriterion.FrameDifference,
-                TiebreakerCriterion.FramesFor
-            };
+            PromotionSlots = source.PromotionSlots;
+            RelegationSlots = source.RelegationSlots;
+            TiebreakerOrder = new List<TiebreakerCriterion>(source.TiebreakerOrder);
 
             // Backup
-            AutoBackupEnabled = true;
-            AutoBackupInterval = 5;
+            AutoBackupEnabled = source.AutoBackupEnabled;
+            AutoBackupInterval = source.AutoBackupInterval;
 
-            // Notification Settings
-            MatchRemindersEnabled = true;
-            ReminderHoursBefore = 2;
-            ResultNotificationsEnabled = false;
-            WeeklyFixtureListEnabled = false;
-            WeeklyFixtureDay = DayOfWeek.Monday;
-            WeeklyFixtureTime = new TimeSpan(9, 0, 0);
+            // Notifications
+            MatchRemindersEnabled = source.MatchRemindersEnabled;
+            ReminderHoursBefore = source.ReminderHoursBefore;
+            ResultNotificationsEnabled = source.ResultNotificationsEnabled;
+            WeeklyFixtureListEnabled = source.WeeklyFixtureListEnabled;
+            WeeklyFixtureDay = source.WeeklyFixtureDay;
+            WeeklyFixtureTime = source.WeeklyFixtureTime;
 
-            // Theme Settings
-            DarkModeEnabled = false;
-            UseSystemTheme = true;
+            // Theme
+            DarkModeEnabled = source.DarkModeEnabled;
+            UseSystemTheme = source.UseSystemTheme;
         }
 
         /// <summary>

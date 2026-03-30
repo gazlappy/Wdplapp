@@ -16,7 +16,17 @@ namespace Wdpl2.Views
 {
     public partial class SettingsPage : ContentPage
     {
-        private static AppSettings Settings => DataStore.Data.Settings;
+        private Guid? _editingSeasonId;
+        private AppSettings Settings => _editingSeasonId.HasValue
+            ? DataStore.Data.GetSettingsForSeason(_editingSeasonId)
+            : DataStore.Data.Settings;
+
+        /// <summary>
+        /// Returns true when we are editing a season-specific override (not the global defaults).
+        /// </summary>
+        private bool IsEditingSeasonOverride =>
+            _editingSeasonId.HasValue &&
+            DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _editingSeasonId.Value)?.Settings != null;
 
         // Theme-aware colors
         private static Color InfoBoxBackground => ThemeService.Current.IsDarkModeActive 
@@ -226,7 +236,7 @@ namespace Wdpl2.Views
             return stack;
         }
 
-        private static string GetCurrentThemeText()
+        private string GetCurrentThemeText()
         {
             var isDark = ThemeService.Current.IsDarkModeActive;
             var isSystem = Settings.UseSystemTheme;
@@ -360,6 +370,7 @@ namespace Wdpl2.Views
                 {
                     new Label { Text = "Player Rating System", FontSize = 20, FontAttributes = FontAttributes.Bold },
                     subtitleLabel,
+                    BuildSeasonScopeSelector("Player Ratings"),
                     grid,
                     infoFrame,
                     buttons,
@@ -432,6 +443,7 @@ namespace Wdpl2.Views
                 {
                     new Label { Text = "Match Scoring", FontSize = 20, FontAttributes = FontAttributes.Bold },
                     subtitleLabel,
+                    BuildSeasonScopeSelector("Match Scoring"),
                     grid,
                     infoFrame,
                     tiebreakerSection,
@@ -555,6 +567,102 @@ namespace Wdpl2.Views
             _ => criterion.ToString()
         };
 
+        /// <summary>
+        /// Builds a season scope selector that appears at the top of per-season settings panels.
+        /// Allows the user to choose "Global Defaults" or a specific season, and toggle custom overrides.
+        /// </summary>
+        private View BuildSeasonScopeSelector(string categoryToRefresh)
+        {
+            var seasons = DataStore.Data.Seasons.OrderByDescending(s => s.StartDate).ToList();
+
+            // Season picker: "Global Defaults" + each season
+            var seasonPicker = new Picker { Title = "Settings scope", HorizontalOptions = LayoutOptions.Fill };
+            seasonPicker.Items.Add("Global Defaults");
+            foreach (var s in seasons)
+                seasonPicker.Items.Add(s.Name ?? $"Season {s.StartDate.Year}");
+
+            // Set current selection
+            if (_editingSeasonId.HasValue)
+            {
+                var idx = seasons.FindIndex(s => s.Id == _editingSeasonId.Value);
+                seasonPicker.SelectedIndex = idx >= 0 ? idx + 1 : 0;
+            }
+            else
+            {
+                seasonPicker.SelectedIndex = 0;
+            }
+
+            // "Use custom settings" toggle (only visible when a season is selected)
+            var customToggle = new Switch { IsToggled = IsEditingSeasonOverride, HorizontalOptions = LayoutOptions.Start };
+            var customLabel = new Label { Text = "Use custom settings for this season", VerticalTextAlignment = TextAlignment.Center, FontSize = 13 };
+            var toggleRow = new HorizontalStackLayout { Spacing = 8, Children = { customToggle, customLabel } };
+            toggleRow.IsVisible = _editingSeasonId.HasValue;
+
+            // Scope info label
+            var scopeInfo = new Label { FontSize = 12, Margin = new Thickness(0, 4, 0, 0) };
+            scopeInfo.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
+
+            if (!_editingSeasonId.HasValue)
+                scopeInfo.Text = $"{Emojis.Info} Editing global defaults — applies to all seasons without custom settings.";
+            else if (IsEditingSeasonOverride)
+                scopeInfo.Text = $"{Emojis.Info} Editing custom settings for this season only.";
+            else
+                scopeInfo.Text = $"{Emojis.Info} This season uses global defaults. Toggle on to customise.";
+
+            seasonPicker.SelectedIndexChanged += (s, e) =>
+            {
+                if (seasonPicker.SelectedIndex <= 0)
+                    _editingSeasonId = null;
+                else
+                    _editingSeasonId = seasons[seasonPicker.SelectedIndex - 1].Id;
+
+                ShowCategory(categoryToRefresh);
+            };
+
+            customToggle.Toggled += (s, e) =>
+            {
+                if (!_editingSeasonId.HasValue) return;
+                var season = DataStore.Data.Seasons.FirstOrDefault(se => se.Id == _editingSeasonId.Value);
+                if (season == null) return;
+
+                if (e.Value)
+                {
+                    // Create a season override by cloning global settings
+                    season.Settings ??= DataStore.Data.Settings.Clone();
+                }
+                else
+                {
+                    // Remove the override — revert to global
+                    season.Settings = null;
+                }
+
+                DataStore.Save();
+                ShowCategory(categoryToRefresh);
+            };
+
+            var border = new Border
+            {
+                Padding = 12,
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 0, 0, 12),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new Label { Text = $"{Emojis.Settings} Settings Scope", FontAttributes = FontAttributes.Bold, FontSize = 14 },
+                        seasonPicker,
+                        toggleRow,
+                        scopeInfo
+                    }
+                }
+            };
+            border.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F8FAFC"), Color.FromArgb("#1F2937"));
+            border.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
+
+            return border;
+        }
+
         private View CreateFixtureDefaultsPanel()
         {
             _framesPerMatchEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "10", Text = Settings.DefaultFramesPerMatch.ToString() };
@@ -620,6 +728,7 @@ namespace Wdpl2.Views
                 {
                     new Label { Text = "Fixture Generation Defaults", FontSize = 20, FontAttributes = FontAttributes.Bold },
                     subtitleLabel,
+                    BuildSeasonScopeSelector("Fixture Defaults"),
                     grid,
                     infoFrame,
                     buttons,
@@ -2187,9 +2296,10 @@ namespace Wdpl2.Views
 
         private async void OnResetClicked()
         {
+            var scope = IsEditingSeasonOverride ? "this season's settings" : "the global default settings";
             var confirm = await DisplayAlert(
                 "Reset Settings",
-                "Are you sure you want to reset all settings to their default values?",
+                $"Are you sure you want to reset {scope} to their default values?",
                 "Reset",
                 "Cancel");
 

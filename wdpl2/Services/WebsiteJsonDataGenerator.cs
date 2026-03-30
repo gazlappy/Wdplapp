@@ -15,11 +15,13 @@ public sealed class WebsiteJsonDataGenerator
 {
     private readonly LeagueData _league;
     private readonly WebsiteSettings _settings;
+    private readonly AppSettings _leagueSettings;
 
-    public WebsiteJsonDataGenerator(LeagueData league, WebsiteSettings settings)
+    public WebsiteJsonDataGenerator(LeagueData league, WebsiteSettings settings, AppSettings leagueSettings)
     {
         _league = league;
         _settings = settings;
+        _leagueSettings = leagueSettings;
     }
 
     /// <summary>
@@ -28,7 +30,7 @@ public sealed class WebsiteJsonDataGenerator
     public string GeneratePlayersJson(List<Player> players, List<Team> teams, List<Fixture> fixtures)
     {
         var playerStats = CalculatePlayerStats(players, teams, fixtures);
-        var appSettings = _league.Settings;
+        var appSettings = _leagueSettings;
         var teamById = teams.ToDictionary(t => t.Id, t => t);
 
         // Apply minimum frames filter per division — mirrors the app's LeagueTablesPage
@@ -102,7 +104,7 @@ public sealed class WebsiteJsonDataGenerator
     {
         var divisionById = divisions.ToDictionary(d => d.Id, d => d);
         var venueById = venues.ToDictionary(v => v.Id, v => v);
-        var settings = _league.Settings;
+        var settings = _leagueSettings;
 
         // Pre-compute standings for all teams
         var allStandings = StandingsCalculator.Calculate(teams, fixtures, settings, trackForm: true)
@@ -197,7 +199,7 @@ public sealed class WebsiteJsonDataGenerator
     private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
     {
         var stats = new List<PlayerStat>();
-        var settings = _league.Settings;
+        var settings = _leagueSettings;
 
         // Get season start date for rating calculation
         var seasonId = _settings.SelectedSeasonId;

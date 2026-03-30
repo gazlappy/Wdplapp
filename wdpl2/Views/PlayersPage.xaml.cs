@@ -829,7 +829,7 @@ public partial class PlayersPage : ContentPage
             if (newTeam == null) return;
 
             // Calculate current stats - with null safety
-            int currentRating = DataStore.Data.Settings?.RatingStartValue ?? 1000;
+            int currentRating = DataStore.Data.GetSettingsForSeason(_selected.SeasonId)?.RatingStartValue ?? 1000;
             int framesPlayed = 0, wins = 0, losses = 0;
 
             try
@@ -838,7 +838,7 @@ public partial class PlayersPage : ContentPage
                 if (_selected.SeasonId.HasValue) seasonIds.Add(_selected.SeasonId.Value);
 
                 var fixtures = DataStore.Data.Fixtures?.Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty)).ToList() ?? new List<Fixture>();
-                var settings = DataStore.Data.Settings ?? new AppSettings();
+                var settings = DataStore.Data.GetSettingsForSeason(_selected.SeasonId);
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _selected.SeasonId);
                 var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
 

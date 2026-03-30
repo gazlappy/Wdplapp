@@ -348,7 +348,7 @@ public partial class TeamsPage : ContentPage
                 else totalLosses++;
 
                 // Calculate points (using settings)
-                var settings = DataStore.Data.Settings;
+                var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam?.SeasonId);
                 int ourPoints = ourScore; // Frames won
                 int theirPoints = theirScore;
 
@@ -482,7 +482,7 @@ public partial class TeamsPage : ContentPage
                 .ToList();
 
             // Get season start date for rating calculation
-            var settings = DataStore.Data.Settings;
+            var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam.SeasonId);
             var season = seasonIds.Count == 1
                 ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonIds[0])
                 : DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _selectedTeam.SeasonId);

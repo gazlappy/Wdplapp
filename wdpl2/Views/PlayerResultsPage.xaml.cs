@@ -36,7 +36,6 @@ public partial class PlayerResultsPage : ContentPage
         _results.Clear();
 
         var data = DataStore.Data;
-        var settings = data.Settings;
 
         // Get player info
         var player = data.Players.FirstOrDefault(p => p.Id == _playerId);
@@ -45,6 +44,8 @@ public partial class PlayerResultsPage : ContentPage
             TeamLabel.Text = "Team: Unknown";
             return;
         }
+
+        var settings = data.GetSettingsForSeason(player.SeasonId);
 
         // Get team info
         var team = player.TeamId.HasValue

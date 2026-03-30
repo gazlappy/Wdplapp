@@ -138,7 +138,7 @@ public partial class TeamAnalyticsPage : ContentPage
                 }
 
                 // Calculate points (frames + bonuses)
-                var settings = DataStore.Data.Settings;
+                var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
                 totalPoints += ourScore;
                 if (won) totalPoints += settings.MatchWinBonus;
                 else if (drew) totalPoints += settings.MatchDrawBonus;

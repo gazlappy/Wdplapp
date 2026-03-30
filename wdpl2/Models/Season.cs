@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Wdpl2.Models
 {
@@ -62,6 +63,13 @@ namespace Wdpl2.Models
 
         /// <summary>Date-only list of days where no fixtures should be scheduled.</summary>
         public List<DateTime> BlackoutDates { get; set; } = new();
+
+        /// <summary>
+        /// Optional per-season settings that override the global <see cref="LeagueData.Settings"/>.
+        /// When null, the season uses the global defaults.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public AppSettings? Settings { get; set; }
 
         /// <summary>Normalise Start/End and BlackoutDates to date-only (00:00) and dedupe.</summary>
         public void NormaliseDates()

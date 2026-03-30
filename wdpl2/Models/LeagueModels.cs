@@ -28,6 +28,21 @@ namespace Wdpl2.Models
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
 
+        /// <summary>
+        /// Resolve the effective <see cref="AppSettings"/> for a season.
+        /// Returns the season's own settings if customised, otherwise the global <see cref="Settings"/>.
+        /// </summary>
+        public AppSettings GetSettingsForSeason(Guid? seasonId)
+        {
+            if (seasonId.HasValue)
+            {
+                var season = Seasons.FirstOrDefault(s => s.Id == seasonId.Value);
+                if (season?.Settings != null)
+                    return season.Settings;
+            }
+            return Settings;
+        }
+
         /// <summary>Website settings for HTML generation and FTP upload.</summary>
         public WebsiteSettings WebsiteSettings { get; set; } = new();
         

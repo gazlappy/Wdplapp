@@ -19,8 +19,8 @@ namespace Wdpl2.Views;
 
 public partial class LeagueTablesPage : ContentPage
 {
-    // Access to settings
-    private static AppSettings Settings => DataStore.Data.Settings;
+    // Access to settings — resolved for the currently selected season
+    private AppSettings Settings => DataStore.Data.GetSettingsForSeason(_currentSeasonId);
 
     // Row types for tables
     private sealed class TeamRow
@@ -383,7 +383,7 @@ public partial class LeagueTablesPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"    !! Division team IDs=[{string.Join(", ", teamIds.Take(10).Select(id => id.ToString()[..8]))}]");
         }
 
-        var standings = StandingsCalculator.Calculate(teams, fixtures, DataStore.Data.Settings);
+        var standings = StandingsCalculator.Calculate(teams, fixtures, Settings);
         var standingsByTeam = standings.ToDictionary(s => s.TeamId);
 
         var table = teams.ToDictionary(t => t.Id, t =>
@@ -405,7 +405,7 @@ public partial class LeagueTablesPage : ContentPage
 
         var rows = StandingsSorter.Sort(
             table.Values,
-            DataStore.Data.Settings,
+            Settings,
             r => r.Pts,
             r => r.F,
             r => r.A,

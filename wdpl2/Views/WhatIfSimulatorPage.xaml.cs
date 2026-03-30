@@ -96,11 +96,12 @@ public partial class WhatIfSimulatorPage : ContentPage
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 
-        var standings = StandingsCalculator.Calculate(teams, fixtures, DataStore.Data.Settings);
+        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+        var standings = StandingsCalculator.Calculate(teams, fixtures, settings);
 
         var sorted = StandingsSorter.Sort(
             standings,
-            DataStore.Data.Settings,
+            settings,
             s => s.Points,
             s => s.FramesFor,
             s => s.FramesAgainst,
@@ -171,8 +172,9 @@ public partial class WhatIfSimulatorPage : ContentPage
     {
         if (sender is Button button && button.CommandParameter is SimulatedFixture fixture)
         {
-            fixture.PredictedHomeScore = DataStore.Data.Settings.DefaultFramesPerMatch;
-            fixture.PredictedAwayScore = DataStore.Data.Settings.DefaultFramesPerMatch - 2;
+            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            fixture.PredictedHomeScore = settings.DefaultFramesPerMatch;
+            fixture.PredictedAwayScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
             
             // Refresh the UI
@@ -186,8 +188,9 @@ public partial class WhatIfSimulatorPage : ContentPage
     {
         if (sender is Button button && button.CommandParameter is SimulatedFixture fixture)
         {
-            fixture.PredictedHomeScore = DataStore.Data.Settings.DefaultFramesPerMatch - 2;
-            fixture.PredictedAwayScore = DataStore.Data.Settings.DefaultFramesPerMatch;
+            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            fixture.PredictedHomeScore = settings.DefaultFramesPerMatch - 2;
+            fixture.PredictedAwayScore = settings.DefaultFramesPerMatch;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
             
             // Refresh the UI
@@ -199,10 +202,11 @@ public partial class WhatIfSimulatorPage : ContentPage
 
     private void OnAllHomeWinsClicked(object? sender, EventArgs e)
     {
+        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
-            fixture.PredictedHomeScore = DataStore.Data.Settings.DefaultFramesPerMatch;
-            fixture.PredictedAwayScore = DataStore.Data.Settings.DefaultFramesPerMatch - 2;
+            fixture.PredictedHomeScore = settings.DefaultFramesPerMatch;
+            fixture.PredictedAwayScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
         }
         
@@ -216,10 +220,11 @@ public partial class WhatIfSimulatorPage : ContentPage
 
     private void OnAllAwayWinsClicked(object? sender, EventArgs e)
     {
+        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
-            fixture.PredictedHomeScore = DataStore.Data.Settings.DefaultFramesPerMatch - 2;
-            fixture.PredictedAwayScore = DataStore.Data.Settings.DefaultFramesPerMatch;
+            fixture.PredictedHomeScore = settings.DefaultFramesPerMatch - 2;
+            fixture.PredictedAwayScore = settings.DefaultFramesPerMatch;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
         }
         
@@ -251,7 +256,7 @@ public partial class WhatIfSimulatorPage : ContentPage
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 
-        var settings = DataStore.Data.Settings;
+        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
         var standings = StandingsCalculator.Calculate(teams, completedFixtures, settings);
         var standingsDict = standings.ToDictionary(s => s.TeamId);
 

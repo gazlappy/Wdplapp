@@ -172,7 +172,7 @@ public partial class DashboardViewModel : BaseViewModel
 
                 // Top player by rating
                 var ratings = RatingCalculator.CalculateAllRatings(
-                    completed, players, teams, data.Settings, season.StartDate);
+                    completed, players, teams, data.GetSettingsForSeason(_currentSeasonId), season.StartDate);
 
                 var topPlayer = ratings.Values
                     .Where(r => r.Played >= 5)

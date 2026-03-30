@@ -470,12 +470,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
             var players = data.Players.Where(p => p.SeasonId == seasonId).ToList();
             var teams = data.Teams.Where(t => t.SeasonId == seasonId).ToList();
 
+            var seasonSettings = data.GetSettingsForSeason(seasonId);
             var ratings = RatingCalculator.CalculateAllRatings(
-                fixtures, players, teams, data.Settings, season?.StartDate ?? DateTime.Today);
+                fixtures, players, teams, seasonSettings, season?.StartDate ?? DateTime.Today);
 
             // Sort participants by rating (highest first)
             var seeded = participants
-                .OrderByDescending(id => ratings.TryGetValue(id, out var r) ? r.Rating : data.Settings.RatingStartValue)
+                .OrderByDescending(id => ratings.TryGetValue(id, out var r) ? r.Rating : seasonSettings.RatingStartValue)
                 .ToList();
 
             // Update participant order

@@ -138,7 +138,7 @@ public partial class SeasonAwardsPage : ContentPage
         {
             PlayerId = player.Id,
             PlayerName = player.FullName,
-            StartingRating = DataStore.Data.Settings.RatingStartValue
+            StartingRating = DataStore.Data.GetSettingsForSeason(_currentSeasonId).RatingStartValue
         };
 
         var playerTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId);

@@ -443,7 +443,7 @@ public partial class CompetitionsPage
 
         var sorted = StandingsSorter.Sort(
             stats,
-            DataStore.Data.Settings,
+            DataStore.Data.GetSettingsForSeason(_currentSeasonId),
             s => s.Value.pts,
             s => s.Value.ff,
             s => s.Value.fa,

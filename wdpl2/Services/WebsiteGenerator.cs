@@ -21,7 +21,10 @@ namespace Wdpl2.Services
     {
         private readonly LeagueData _league;
         private readonly WebsiteSettings _settings;
-        
+
+        /// <summary>Effective league settings resolved for the website's selected season.</summary>
+        private AppSettings _leagueSettings = null!;
+
         public WebsiteGenerator(LeagueData league, WebsiteSettings settings)
         {
             _league = league;
@@ -43,6 +46,8 @@ namespace Wdpl2.Services
             {
                 throw new InvalidOperationException("No season selected for website generation");
             }
+
+            _leagueSettings = _league.GetSettingsForSeason(season.Id);
             
             // Generate files based on template
             var template = WebsiteTemplate.GetTemplateById(_settings.SelectedTemplate) ?? WebsiteTemplate.Modern;
@@ -67,9 +72,9 @@ namespace Wdpl2.Services
                 
                 // Generate JSON data file and single template page (instead of individual HTML files per player)
                 var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings);
+                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
                 var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
-                
+
                 files["players-data.json"] = jsonGenerator.GeneratePlayersJson(players, teams, fixtures);
                 files["player.html"] = templateGenerator.GeneratePlayerTemplatePage(
                     season,
@@ -86,9 +91,9 @@ namespace Wdpl2.Services
                 
                 // Generate JSON data file and single template page for teams
                 var (divisions2, venues2, teams2, players2, fixtures2) = _league.GetSeasonData(season.Id);
-                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings);
+                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
                 var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
-                
+
                 files["teams-data.json"] = jsonGenerator.GenerateTeamsJson(teams2, divisions2, venues2, players2, fixtures2);
                 files["team.html"] = templateGenerator.GenerateTeamTemplatePage(
                     season,
@@ -361,10 +366,10 @@ namespace Wdpl2.Services
             {
                 minFramesRequired = _settings.PlayersMinGames;
             }
-            else if (_league.Settings.MinFramesPercentage > 0)
+            else if (_leagueSettings.MinFramesPercentage > 0)
             {
                 var maxFrames = playerStats.Count != 0 ? playerStats.Max(p => p.Played) : 0;
-                minFramesRequired = (int)Math.Ceiling(maxFrames * (_league.Settings.MinFramesPercentage / 100.0));
+                minFramesRequired = (int)Math.Ceiling(maxFrames * (_leagueSettings.MinFramesPercentage / 100.0));
             }
             
             var topPlayers = playerStats
@@ -557,10 +562,10 @@ namespace Wdpl2.Services
                 html.AppendLine("                    </thead>");
                 html.AppendLine("                    <tbody>");
                 
-                var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _league.Settings, trackForm: true);
+                var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _leagueSettings, trackForm: true);
                 var sortedStandings = StandingsSorter.Sort(
                     standings,
-                    _league.Settings,
+                    _leagueSettings,
                     s => s.Points,
                     s => s.FramesFor,
                     s => s.FramesAgainst,
@@ -954,7 +959,7 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-            var appSettings = _league.Settings;
+            var appSettings = _leagueSettings;
 
             AppendDocumentHead(html, $"Players - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
@@ -1158,7 +1163,7 @@ namespace Wdpl2.Services
                 
                 if (_settings.DivisionsShowMiniStandings && divisionTeams.Count != 0)
                 {
-                    var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _league.Settings)
+                    var standings = StandingsCalculator.Calculate(divisionTeams, fixtures, _leagueSettings)
                         .OrderByDescending(s => s.Points)
                         .Take(5)
                         .ToList();
@@ -2509,7 +2514,7 @@ namespace Wdpl2.Services
         private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
         {
             var stats = new List<PlayerStat>();
-            var settings = _league.Settings;
+            var settings = _leagueSettings;
             var teamById = teams.ToDictionary(t => t.Id, t => t);
             
             // Get season start date for rating calculation

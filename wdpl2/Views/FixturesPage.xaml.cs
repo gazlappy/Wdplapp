@@ -2584,7 +2584,7 @@ public partial class FixturesPage : ContentPage
         // Send result notification if enabled
         if (_reminderService != null && fixture.Frames.Count > 0)
         {
-            try { await _reminderService.NotifyMatchResultIfEnabledAsync(fixture, DataStore.Data.Settings); }
+            try { await _reminderService.NotifyMatchResultIfEnabledAsync(fixture, DataStore.Data.GetSettingsForSeason(fixture.SeasonId)); }
             catch { /* non-critical */ }
         }
 
@@ -2721,7 +2721,7 @@ public partial class FixturesPage : ContentPage
             var players = DataStore.Data.Players.Where(p => p.SeasonId == seasonId).ToList();
             var teams = DataStore.Data.Teams.Where(t => t.SeasonId == seasonId).ToList();
             var venues = DataStore.Data.Venues.Where(v => v.SeasonId == seasonId).ToList();
-            var frames = DataStore.Data.Settings.DefaultFramesPerMatch;
+            var frames = DataStore.Data.GetSettingsForSeason(_selectedFixture.SeasonId).DefaultFramesPerMatch;
 
             var html = ExportService.GenerateBlankScorecardHtml(_selectedFixture, teams, players, venues, frames);
             await ExportService.ShareFileAsync(html, $"scorecard_{_selectedFixture.Date:yyyyMMdd}.html", "Blank Scorecard");
@@ -2747,7 +2747,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var settings = DataStore.Data.Settings;
+        var settings = DataStore.Data.GetSettingsForSeason(_selectedFixture.SeasonId);
         if (!settings.MatchRemindersEnabled)
         {
             ReminderStatusLabel.Text = $"{Emojis.Warning} Reminders disabled";
@@ -2782,7 +2782,7 @@ public partial class FixturesPage : ContentPage
     {
         if (_reminderService == null || fixture.Date <= DateTime.Now) return;
 
-        var settings = DataStore.Data.Settings;
+        var settings = DataStore.Data.GetSettingsForSeason(fixture.SeasonId);
         if (!settings.MatchRemindersEnabled) return;
 
         try
@@ -2957,7 +2957,7 @@ public partial class FixturesPage : ContentPage
 
         try
         {
-            var settings = DataStore.Data.Settings;
+            var settings = DataStore.Data.GetSettingsForSeason(seasonId);
             var fixtures = Services.FixtureGenerator.Generate(
                 league: DataStore.Data,
                 seasonId: seasonId.Value,
