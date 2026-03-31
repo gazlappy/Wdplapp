@@ -117,6 +117,7 @@
                     <HorizontalStackLayout Grid.Row="13" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
                         <Button x:Name="SaveBtn" Text="Save" Clicked="OnSaveClicked" Style="{StaticResource PrimaryButtonStyle}" SemanticProperties.Description="Save season" />
                         <Button x:Name="DeleteBtn" Text="Delete" Clicked="OnDeleteClicked" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Delete season" />
+                        <Button x:Name="LockBtn" Text="🔒 Lock" Clicked="OnLockToggleClicked" SemanticProperties.Description="Lock or unlock season" />
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Grid.Row="14" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
@@ -235,15 +236,21 @@
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 8">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                     <Label
+                                        Text="🔒"
+                                        FontSize="12"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding IsLocked}" />
+                                    <Label
+                                        Grid.Column="1"
                                         Text="{Binding Name}"
                                         FontSize="14"
                                         FontAttributes="Bold"
                                         LineBreakMode="TailTruncation"
                                         VerticalOptions="Center" />
                                     <Ellipse
-                                        Grid.Column="1"
+                                        Grid.Column="2"
                                         WidthRequest="12"
                                         HeightRequest="12"
                                         VerticalOptions="Center">
@@ -457,6 +464,18 @@
                         <Label Text="Quick Actions" 
                                Style="{StaticResource SectionHeaderStyle}"
                                Margin="0,0,0,8" />
+
+                        <Button x:Name="LockInfoBtn" 
+                                Text="🔒 Lock Season"
+                                Clicked="OnLockToggleClicked"
+                                HorizontalOptions="Fill"
+                                SemanticProperties.Description="Lock or unlock season" />
+
+                        <Label x:Name="LockStatusLabel" 
+                               Text="" 
+                               FontSize="12"
+                               IsVisible="False"
+                               HorizontalOptions="Fill" />
 
                         <Button Text="Edit Season Details"
                                 Clicked="OnBurgerMenuClicked"

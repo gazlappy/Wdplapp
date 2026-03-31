@@ -145,6 +145,13 @@ public partial class CompetitionsPage : ContentPage
             return;
         }
 
+        if (DataStore.Data.IsSeasonLocked(_viewModel.CurrentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot create competitions — this season is locked.", "OK");
+            return;
+        }
+
         try
         {
             var wizard = new CompetitionWizardPage(_viewModel.CurrentSeasonId.Value);
@@ -181,6 +188,13 @@ public partial class CompetitionsPage : ContentPage
         if (competition == null)
         {
             SetStatus("No competition selected");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(competition.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot delete competitions — this season is locked.", "OK");
             return;
         }
 

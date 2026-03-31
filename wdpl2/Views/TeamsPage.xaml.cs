@@ -130,6 +130,12 @@ public partial class TeamsPage : ContentPage
 
         SaveBtn.Clicked += async (_, __) =>
         {
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                    "Cannot save changes — this season is locked.", "OK");
+                return;
+            }
             DataStore.Save();
             await DisplayAlert("Saved", "All changes have been saved.", "OK");
             SetStatus("Saved.");
@@ -820,11 +826,18 @@ public partial class TeamsPage : ContentPage
             _players.Add(p);
     }
 
-    private void OnAdd(object? sender, EventArgs e)
+    private async void OnAdd(object? sender, EventArgs e)
     {
         if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             SetStatus("Please select a season first on the Seasons page");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot add teams — this season is locked.", "OK");
             return;
         }
 
@@ -854,11 +867,18 @@ public partial class TeamsPage : ContentPage
         SetStatus($"Added: {name}");
     }
 
-    private void OnUpdate(object? sender, EventArgs e)
+    private async void OnUpdate(object? sender, EventArgs e)
     {
         if (_selectedTeam == null)
         {
             SetStatus("No team selected");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_selectedTeam.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot edit teams — this season is locked.", "OK");
             return;
         }
 
@@ -923,6 +943,13 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
+        if (DataStore.Data.IsSeasonLocked(_selectedTeam.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot delete teams — this season is locked.", "OK");
+            return;
+        }
+
         var confirm = await DisplayAlert("Delete Team", $"Delete '{_selectedTeam.Name}'?", "Yes", "No");
         if (!confirm) return;
 
@@ -966,6 +993,13 @@ public partial class TeamsPage : ContentPage
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
+        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot delete teams — this season is locked.", "OK");
+            return;
+        }
+
         var selectedItems = TeamsList.SelectedItems?.Cast<TeamListItem>().ToList();
 
         if (selectedItems == null || selectedItems.Count == 0)

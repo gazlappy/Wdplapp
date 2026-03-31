@@ -79,6 +79,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task SaveSelectedVenuesAsync(List<CompetitionVenue> venues)
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null)
             _competition.GroupSettings = new GroupStageSettings();
 
@@ -93,6 +95,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task SaveGroupDateAsync(DateTime? date)
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null)
             _competition.GroupSettings = new GroupStageSettings();
 
@@ -108,6 +112,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task SaveRoundDetailsAsync(Guid roundId, DateTime? date, List<CompetitionVenue>? venues)
     {
+        if (CheckSeasonLocked()) return;
+
         var round = _competition.Rounds.FirstOrDefault(r => r.Id == roundId);
         if (round == null)
         {
@@ -170,6 +176,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task SaveGroupCountAsync(int groupCount)
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null)
             _competition.GroupSettings = new GroupStageSettings();
 
@@ -255,6 +263,19 @@ public partial class CompetitionEditorViewModel : ObservableObject
         LoadCompetitionData();
     }
 
+    /// <summary>
+    /// Returns true and sets StatusMessage if the competition's season is locked.
+    /// </summary>
+    private bool CheckSeasonLocked()
+    {
+        if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
+        {
+            StatusMessage = "Cannot modify — season is locked";
+            return true;
+        }
+        return false;
+    }
+
     private void LoadCompetitionData()
     {
         Name = _competition.Name;
@@ -278,6 +299,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     {
         try
         {
+            if (CheckSeasonLocked()) return;
+
             _competition.Name = Name;
             _competition.Status = Status;
             _competition.StartDate = StartDate;
@@ -299,6 +322,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task SaveCompetitionAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
     }
@@ -376,6 +401,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveParticipantAsync(Guid participantId)
     {
+        if (CheckSeasonLocked()) return;
+
         _competition.ParticipantIds.Remove(participantId);
         _competition.DoublesTeams.RemoveAll(t => t.Id == participantId);
 
@@ -388,6 +415,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task ClearParticipantsAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         _competition.ParticipantIds.Clear();
         _competition.DoublesTeams.Clear();
 
@@ -400,6 +429,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateBracketAsync(bool randomize)
     {
+        if (CheckSeasonLocked()) return;
+
         try
         {
             int participantCount = _competition.Format == CompetitionFormat.DoublesKnockout
@@ -449,6 +480,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateSeededBracketAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         try
         {
             var seasonId = _competition.SeasonId ?? CurrentSeasonId;
@@ -502,6 +535,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateManualBracketAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         try
         {
             int participantCount = _competition.Format == CompetitionFormat.DoublesKnockout
@@ -536,6 +571,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task AssignParticipantToMatchAsync(Guid matchId, bool isSlot1, Guid participantId)
     {
+        if (CheckSeasonLocked()) return;
+
         try
         {
             foreach (var round in _competition.Rounds)
@@ -583,6 +620,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task GenerateGroupsAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null)
         {
             StatusMessage = "No group settings configured";
@@ -637,6 +676,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task RandomiseGroupsAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.Groups.Count == 0 || _competition.GroupSettings == null)
         {
             StatusMessage = "No groups to randomise";
@@ -684,6 +725,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task AdvanceToNextGroupRoundAsync(int newGroupCount, int advancePerGroup)
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null || _competition.Groups.Count == 0)
         {
             StatusMessage = "No groups to advance from";
@@ -765,6 +808,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task FinalizeGroupsAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.GroupSettings == null)
         {
             StatusMessage = "No group settings configured";
@@ -816,6 +861,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task AddParticipantIdsAsync(List<Guid> ids)
     {
+        if (CheckSeasonLocked()) return;
+
         foreach (var id in ids)
         {
             if (!_competition.ParticipantIds.Contains(id))
@@ -830,6 +877,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task AddDoublesTeamAsync(DoublesTeam team)
     {
+        if (CheckSeasonLocked()) return;
+
         _competition.DoublesTeams.Add(team);
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
@@ -842,6 +891,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task ToggleNoShowAsync(Guid participantId)
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.NoShowIds.Contains(participantId))
             _competition.NoShowIds.Remove(participantId);
         else
@@ -866,6 +917,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     public async Task CreatePlateFromGroupsAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         if (_competition.PlateCompetitionId.HasValue)
         {
             StatusMessage = "A plate competition already exists for this competition";
@@ -1014,6 +1067,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task ApplyBracketScoresAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         bool anyUpdates = false;
         int ftw = _competition.FramesToWin; // 0 = unlimited / not set
 
@@ -1091,6 +1146,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateLosersCupAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         try
         {
             var firstRound = _competition.Rounds.FirstOrDefault();
@@ -1210,6 +1267,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [RelayCommand]
     private async Task ApplyGroupScoresAsync()
     {
+        if (CheckSeasonLocked()) return;
+
         bool anyUpdates = false;
 
         foreach (var group in _competition.Groups)

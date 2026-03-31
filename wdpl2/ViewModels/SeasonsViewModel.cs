@@ -183,6 +183,12 @@ public partial class SeasonsViewModel : ObservableObject
             return;
         }
 
+        if (season.IsLocked)
+        {
+            SetStatus("Cannot delete — season is locked");
+            return;
+        }
+
         // Cascade delete from IDataStore (SQLite)
         await _dataStore.DeleteSeasonAsync(season);
         await _dataStore.SaveAsync();

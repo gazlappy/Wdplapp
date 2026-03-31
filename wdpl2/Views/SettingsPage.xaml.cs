@@ -2000,8 +2000,18 @@ namespace Wdpl2.Views
 
                 if (!finalConfirm) return;
 
-                // Perform deletion
-                var seasonIds = data.Seasons.Select(season => season.Id).ToList();
+                // Check for locked seasons
+                var lockedSeasons = data.Seasons.Where(season => season.IsLocked).ToList();
+                if (lockedSeasons.Count > 0)
+                {
+                    await DisplayAlert($"{Helpers.Emojis.Lock} Locked Seasons",
+                        $"{lockedSeasons.Count} season(s) are locked and will be skipped:\n" +
+                        string.Join("\n", lockedSeasons.Select(ls => $"• {ls.Name}")),
+                        "OK");
+                }
+
+                // Perform deletion (skip locked seasons)
+                var seasonIds = data.Seasons.Where(season => !season.IsLocked).Select(season => season.Id).ToList();
                 foreach (var id in seasonIds)
                 {
                     data.DeleteSeasonCascade(id);
@@ -2012,7 +2022,9 @@ namespace Wdpl2.Views
 
                 DataStore.Save();
 
-                statusLabel.Text = $"✅ Deleted {seasonCount} season{(seasonCount != 1 ? "s" : "")} and all associated data.";
+                var deletedCount = seasonIds.Count;
+                statusLabel.Text = $"✅ Deleted {deletedCount} season{(deletedCount != 1 ? "s" : "")} and all associated data." +
+                    (lockedSeasons.Count > 0 ? $" ({lockedSeasons.Count} locked season(s) kept.)" : "");
                 statusLabel.TextColor = Color.FromArgb("#10B981");
 
                 // Refresh the panel to update counts

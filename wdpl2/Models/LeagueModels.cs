@@ -43,6 +43,17 @@ namespace Wdpl2.Models
             return Settings;
         }
 
+        /// <summary>
+        /// Returns true if the season with the given ID is locked (read-only).
+        /// Returns false if <paramref name="seasonId"/> is null or no matching season is found.
+        /// </summary>
+        public bool IsSeasonLocked(Guid? seasonId)
+        {
+            if (!seasonId.HasValue) return false;
+            var season = Seasons.FirstOrDefault(s => s.Id == seasonId.Value);
+            return season?.IsLocked == true;
+        }
+
         /// <summary>Website settings for HTML generation and FTP upload.</summary>
         public WebsiteSettings WebsiteSettings { get; set; } = new();
         

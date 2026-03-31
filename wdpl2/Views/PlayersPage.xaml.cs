@@ -117,6 +117,12 @@ public partial class PlayersPage : ContentPage
             {
                 try
                 {
+                    if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+                    {
+                        await DisplayAlert($"{Emojis.Lock} Season Locked",
+                            "Cannot save changes — this season is locked.", "OK");
+                        return;
+                    }
                     DataStore.Save();
                     await DisplayAlert($"{Emojis.Success} Saved", "All changes saved successfully!", "OK");
                     SetStatus("Saved.");
@@ -573,11 +579,17 @@ public partial class PlayersPage : ContentPage
         TransferHistorySection.IsVisible = false;
     }
 
-    private void OnAdd(object? sender, EventArgs e)
+    private async void OnAdd(object? sender, EventArgs e)
     {
         try
         {
             if (!_currentSeasonId.HasValue) { SetStatus("Please select a season first"); return; }
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot add players — this season is locked.", "OK");
+                return;
+            }
             var first = FirstNameEntry.Text?.Trim() ?? "";
             var last = LastNameEntry.Text?.Trim() ?? "";
             if (string.IsNullOrEmpty(first) && string.IsNullOrEmpty(last)) { SetStatus("Name required"); return; }
@@ -597,11 +609,17 @@ public partial class PlayersPage : ContentPage
         catch (Exception ex) { SetStatus($"Add failed: {ex.Message}"); }
     }
 
-    private void OnUpdate(object? sender, EventArgs e)
+    private async void OnUpdate(object? sender, EventArgs e)
     {
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
+            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot edit players — this season is locked.", "OK");
+                return;
+            }
 
             _selected.FirstName = FirstNameEntry.Text?.Trim() ?? "";
             _selected.LastName = LastNameEntry.Text?.Trim() ?? "";
@@ -630,6 +648,12 @@ public partial class PlayersPage : ContentPage
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
+            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot delete players — this season is locked.", "OK");
+                return;
+            }
             if (!await DisplayAlert($"{Emojis.Warning} Delete Player", $"Delete '{_selected.FullName}'?", "Yes", "No")) return;
 
             DataStore.Data.Players.Remove(_selected);
@@ -671,6 +695,12 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot delete players — this season is locked.", "OK");
+                return;
+            }
             var selectedItems = PlayersList.SelectedItems?.Cast<PlayerListItem>().ToList();
             if (selectedItems == null || selectedItems.Count == 0)
             {
@@ -796,6 +826,12 @@ public partial class PlayersPage : ContentPage
             if (_selected == null)
             {
                 await DisplayAlert($"{Emojis.Info} No Player Selected", "Please select a player to transfer.", "OK");
+                return;
+            }
+            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot transfer players — this season is locked.", "OK");
                 return;
             }
             if (!_selected.TeamId.HasValue)

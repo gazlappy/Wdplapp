@@ -13,6 +13,9 @@ namespace Wdpl2.Models
     {
         public bool IsActive { get; set; } = true;
 
+        /// <summary>When true, the season and all its data are read-only and cannot be deleted.</summary>
+        public bool IsLocked { get; set; }
+
         public Guid Id { get; set; } = Guid.NewGuid();
 
         /// <summary>Human-friendly label, e.g. "Winter 2025".</summary>

@@ -102,6 +102,19 @@ public partial class FixturesPage : ContentPage
     private INotificationService? _notificationService;
     private bool _servicesInitialized = false;
 
+    /// <summary>Returns true (and shows alert) if the selected fixture's season is locked.</summary>
+    private async Task<bool> CheckSeasonLockedAsync(string action = "modify")
+    {
+        var seasonId = _selectedFixture?.SeasonId ?? DataStore.Data.ActiveSeasonId;
+        if (DataStore.Data.IsSeasonLocked(seasonId))
+        {
+            await DisplayAlert($"{Emojis.Lock} Season Locked",
+                $"Cannot {action} — this season is locked. Unlock it from the Seasons page first.", "OK");
+            return true;
+        }
+        return false;
+    }
+
     public FixturesPage()
     {
         System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor START ===");
@@ -2535,6 +2548,7 @@ public partial class FixturesPage : ContentPage
     private async System.Threading.Tasks.Task SaveFromUIAsync()
     {
         if (_selectedFixture == null) return;
+        if (await CheckSeasonLockedAsync("save results")) return;
 
         // Capture local reference — RefreshList() clears the ObservableCollection which
         // triggers SelectionChanged → OnSelectFixture(null) → _selectedFixture = null.
@@ -2592,9 +2606,10 @@ public partial class FixturesPage : ContentPage
             "Fixture results saved successfully!", "OK");
     }
 
-    private void OnClearFrames()
+    private async void OnClearFrames()
     {
         if (_selectedFixture == null) return;
+        if (await CheckSeasonLockedAsync("clear frames")) return;
 
         foreach (var row in _frameRows)
         {
@@ -2655,6 +2670,7 @@ public partial class FixturesPage : ContentPage
             await DisplayAlert("No Fixture", "Select a fixture to reschedule.", "OK");
             return;
         }
+        if (await CheckSeasonLockedAsync("reschedule")) return;
 
         var newDateStr = await DisplayPromptAsync("Reschedule Fixture",
             $"Current date: {_selectedFixture.Date:ddd dd MMM yyyy}\nEnter new date (dd/MM/yyyy):",
@@ -2881,6 +2897,13 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
+        if (DataStore.Data.IsSeasonLocked(seasonId))
+        {
+            await DisplayAlert($"{Emojis.Lock} Season Locked",
+                "Cannot delete fixtures — this season is locked.", "OK");
+            return;
+        }
+
         var ok = await DisplayAlert($"{Emojis.Warning} Delete Season Fixtures",
             "Delete all fixtures in the active season?", "Delete", "Cancel");
         if (!ok) return;
@@ -2903,6 +2926,7 @@ public partial class FixturesPage : ContentPage
 
     private async System.Threading.Tasks.Task OnGenerateFixturesAsync()
     {
+        if (await CheckSeasonLockedAsync("generate fixtures")) return;
         var seasonId = DataStore.Data.ActiveSeasonId;
         
         if (seasonId is null)

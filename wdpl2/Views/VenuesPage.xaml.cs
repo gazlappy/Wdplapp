@@ -48,6 +48,12 @@ public partial class VenuesPage : ContentPage
 
         SaveBtn.Clicked += async (_, __) =>
         {
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                    "Cannot save changes — this season is locked.", "OK");
+                return;
+            }
             DataStore.Save();
             await DisplayAlert("Saved", "All changes saved.", "OK");
             SetStatus("Saved.");
@@ -234,11 +240,18 @@ public partial class VenuesPage : ContentPage
         _tables.Clear();
     }
 
-    private void OnAddVenue(object? sender, EventArgs e)
+    private async void OnAddVenue(object? sender, EventArgs e)
     {
         if (!_currentSeasonId.HasValue)
         {
             SetStatus("Please select a season on the Seasons page first");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot add venues — this season is locked.", "OK");
             return;
         }
 
@@ -263,11 +276,18 @@ public partial class VenuesPage : ContentPage
         SetStatus($"Added: {name}");
     }
 
-    private void OnUpdateVenue(object? sender, EventArgs e)
+    private async void OnUpdateVenue(object? sender, EventArgs e)
     {
         if (_selectedVenue == null)
         {
             SetStatus("No venue selected");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot edit venues — this season is locked.", "OK");
             return;
         }
 
@@ -288,6 +308,13 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
+        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot delete venues — this season is locked.", "OK");
+            return;
+        }
+
         var confirm = await DisplayAlert("Delete Venue", $"Delete '{_selectedVenue.Name}'?", "Yes", "No");
         if (!confirm) return;
 
@@ -298,11 +325,18 @@ public partial class VenuesPage : ContentPage
         SetStatus("Deleted");
     }
 
-    private void OnAddTable(object? sender, EventArgs e)
+    private async void OnAddTable(object? sender, EventArgs e)
     {
         if (_selectedVenue == null)
         {
             SetStatus("Please select a venue first");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot add tables — this season is locked.", "OK");
             return;
         }
 
@@ -325,12 +359,19 @@ public partial class VenuesPage : ContentPage
         SetStatus($"Added table: {tableName}");
     }
 
-    private void OnRemoveTable(object? sender, EventArgs e)
+    private async void OnRemoveTable(object? sender, EventArgs e)
     {
         var selectedTable = TablesList.SelectedItem as VenueTable;
         if (selectedTable == null || _selectedVenue == null)
         {
             SetStatus("Please select a table to remove");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot remove tables — this season is locked.", "OK");
             return;
         }
 
@@ -380,6 +421,13 @@ public partial class VenuesPage : ContentPage
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
+        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot delete venues — this season is locked.", "OK");
+            return;
+        }
+
         var selectedItems = VenuesList.SelectedItems?.Cast<Venue>().ToList();
 
         if (selectedItems == null || selectedItems.Count == 0)

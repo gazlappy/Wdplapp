@@ -132,6 +132,12 @@ namespace Wdpl2.Views
 
         private async void OnSaveClicked(object sender, EventArgs e)
         {
+            if (_selected?.IsLocked == true)
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Locked", "This season is locked and cannot be edited. Unlock it first.", "OK");
+                return;
+            }
+
             var model = _selected ?? new Season { Id = Guid.NewGuid() };
 
             if (string.IsNullOrWhiteSpace(NameEntry.Text))
@@ -276,6 +282,12 @@ namespace Wdpl2.Views
             if (_selected == null)
             {
                 await DisplayAlert("Delete", "Select a season to delete.", "OK");
+                return;
+            }
+
+            if (_selected.IsLocked)
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Locked", "This season is locked and cannot be deleted. Unlock it first.", "OK");
                 return;
             }
 
@@ -451,6 +463,12 @@ namespace Wdpl2.Views
             if (_selected == null)
             {
                 await DisplayAlert("Generate Fixtures", "Select a season first.", "OK");
+                return;
+            }
+
+            if (_selected.IsLocked)
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Locked", "This season is locked. Unlock it to generate fixtures.", "OK");
                 return;
             }
 
@@ -667,26 +685,112 @@ namespace Wdpl2.Views
         {
             EmptyStatePanel.IsVisible = false;
             SeasonInfoPanel.IsVisible = true;
-            
+
             SelectedSeasonName.Text = season.Name;
             SelectedSeasonDates.Text = $"{season.StartDate:MMM d, yyyy} - {season.EndDate:MMM d, yyyy}";
             SelectedSeasonStatus.Text = season.IsActive ? "Active Season" : "Inactive";
-            
+
             // Update badge color by setting background directly instead of style
             SelectedSeasonStatusBadge.BackgroundColor = season.IsActive 
                 ? Color.FromArgb("#10B981") // SuccessColor
                 : Color.FromArgb("#06B6D4"); // InfoColor
-            
+
+            // Lock status
+            UpdateLockUI(season);
+
             // Calculate statistics
             var (divisions, venues, teams, players, fixtures) = DataStore.Data.GetSeasonData(season.Id);
             var competitions = DataStore.Data.Competitions?.Where(c => c.SeasonId == season.Id).ToList() ?? new List<Models.Competition>();
-            
+
             DivisionsCount.Text = divisions.Count.ToString();
             TeamsCount.Text = teams.Count.ToString();
             PlayersCount.Text = players.Count.ToString();
             FixturesCount.Text = fixtures.Count.ToString();
             VenuesCount.Text = venues.Count.ToString();
             CompetitionsCount.Text = competitions.Count.ToString();
+        }
+
+        private void UpdateLockUI(Season season)
+        {
+            if (season.IsLocked)
+            {
+                LockInfoBtn.Text = $"{Helpers.Emojis.Unlock} Unlock Season";
+                LockInfoBtn.BackgroundColor = Color.FromArgb("#D97706");
+                LockInfoBtn.TextColor = Colors.White;
+                LockBtn.Text = $"{Helpers.Emojis.Unlock} Unlock";
+                LockStatusLabel.Text = $"{Helpers.Emojis.Lock} This season is locked — no changes can be made to its data.";
+                LockStatusLabel.IsVisible = true;
+                LockStatusLabel.TextColor = Color.FromArgb("#DC2626");
+
+                // Disable destructive/editing actions in flyout
+                SaveBtn.IsEnabled = false;
+                DeleteBtn.IsEnabled = false;
+                GenerateBtn.IsEnabled = false;
+                ImportHistoricalBtn.IsEnabled = false;
+                FixDataBtn.IsEnabled = false;
+            }
+            else
+            {
+                LockInfoBtn.Text = $"{Helpers.Emojis.Lock} Lock Season";
+                LockInfoBtn.BackgroundColor = Color.FromArgb("#6B7280");
+                LockInfoBtn.TextColor = Colors.White;
+                LockBtn.Text = $"{Helpers.Emojis.Lock} Lock";
+                LockStatusLabel.IsVisible = false;
+
+                SaveBtn.IsEnabled = true;
+                DeleteBtn.IsEnabled = true;
+                GenerateBtn.IsEnabled = true;
+                ImportHistoricalBtn.IsEnabled = true;
+                FixDataBtn.IsEnabled = true;
+            }
+        }
+
+        private async void OnLockToggleClicked(object? sender, EventArgs e)
+        {
+            if (_selected == null)
+            {
+                await DisplayAlert("Lock", "Select a season first.", "OK");
+                return;
+            }
+
+            if (_selected.IsLocked)
+            {
+                var confirm = await DisplayAlert(
+                    $"{Helpers.Emojis.Unlock} Unlock Season",
+                    $"Unlock \"{_selected.Name}\"?\n\nThis will allow editing and deleting season data again.",
+                    "Unlock", "Cancel");
+                if (!confirm) return;
+
+                _selected.IsLocked = false;
+            }
+            else
+            {
+                var confirm = await DisplayAlert(
+                    $"{Helpers.Emojis.Lock} Lock Season",
+                    $"Lock \"{_selected.Name}\"?\n\nWhen locked:\n" +
+                    "• Fixtures, teams, players and venues cannot be added, edited or deleted\n" +
+                    "• The season itself cannot be deleted\n" +
+                    "• You can unlock it again later",
+                    "Lock", "Cancel");
+                if (!confirm) return;
+
+                _selected.IsLocked = true;
+            }
+
+            DataStore.Save();
+            UpdateLockUI(_selected);
+
+            // Refresh list to update lock icon
+            var selectedId = _selected.Id;
+            var tempList = _items.ToList();
+            _items.Clear();
+            foreach (var season in tempList)
+                _items.Add(season);
+            SeasonsList.SelectedItem = _items.FirstOrDefault(s => s.Id == selectedId);
+
+            StatusLabel.Text = _selected.IsLocked
+                ? $"{Helpers.Emojis.Lock} \"{_selected.Name}\" locked"
+                : $"{Helpers.Emojis.Unlock} \"{_selected.Name}\" unlocked";
         }
 
         private void HideSeasonInfo()
