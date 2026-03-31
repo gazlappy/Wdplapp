@@ -26,7 +26,7 @@ namespace Wdpl2.Services
     public sealed class FtpUploadService
     {
         private readonly WebsiteSettings _settings;
-        private FtpDataConnectionType? _dataConnectionType; // null = not determined yet
+        private FtpProfile? _connectionProfile; // null = not determined yet
 
         public FtpUploadService(WebsiteSettings settings)
         {
@@ -73,14 +73,9 @@ namespace Wdpl2.Services
                     TotalBytes = totalBytes
                 });
 
-                // Determine which mode works (passive or active)
-                if (!_dataConnectionType.HasValue)
-                {
-                    _dataConnectionType = await DetermineConnectionModeAsync();
-                }
-
+                // Determine best connection settings (encryption + data mode)
                 await using var client = CreateClient();
-                await client.Connect();
+                await ConnectAsync(client);
 
                 // Try to ensure the directory exists
                 progress?.Report(new UploadProgress
@@ -191,7 +186,7 @@ namespace Wdpl2.Services
                 var remotePath = NormalizePath(_settings.RemotePath);
 
                 await using var client = CreateClient();
-                await client.Connect();
+                await ConnectAsync(client);
 
                 var items = await client.GetNameListing(remotePath);
 
@@ -261,122 +256,17 @@ namespace Wdpl2.Services
             System.Diagnostics.Debug.WriteLine($"Testing FTP connection to: {host}:{_settings.FtpPort}{remotePath}");
             System.Diagnostics.Debug.WriteLine($"Username: {_settings.FtpUsername}");
 
-            // Try passive mode first, then active mode
-            var passiveResult = await TryConnectAsync(FtpDataConnectionType.AutoPassive);
-            if (passiveResult.success)
-            {
-                _dataConnectionType = FtpDataConnectionType.AutoPassive;
-                return (true, $"Connected (passive mode)! {passiveResult.message}");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"Passive mode failed: {passiveResult.message}, trying active mode...");
-
-            var activeResult = await TryConnectAsync(FtpDataConnectionType.AutoActive);
-            if (activeResult.success)
-            {
-                _dataConnectionType = FtpDataConnectionType.AutoActive;
-                return (true, $"Connected (active mode)! {activeResult.message}");
-            }
-
-            // Both failed - try to discover available paths
-            var discoveredPaths = await DiscoverAvailablePathsAsync();
-
-            // Build helpful error message
-            var errorDetails = new StringBuilder();
-            errorDetails.AppendLine("Connection failed with both passive and active modes.");
-            errorDetails.AppendLine();
-            errorDetails.AppendLine($"Host: {host}");
-            errorDetails.AppendLine($"Port: {_settings.FtpPort}");
-            errorDetails.AppendLine($"Path: {remotePath}");
-            errorDetails.AppendLine($"User: {_settings.FtpUsername}");
-            errorDetails.AppendLine();
-            errorDetails.AppendLine($"Passive error: {passiveResult.message}");
-            errorDetails.AppendLine($"Active error: {activeResult.message}");
-
-            if (discoveredPaths.Count != 0)
-            {
-                errorDetails.AppendLine();
-                errorDetails.AppendLine("ℹ️ Available paths found at root:");
-                foreach (var pathItem in discoveredPaths.Take(15))
-                {
-                    errorDetails.AppendLine($"  � {pathItem}");
-                }
-                if (discoveredPaths.Count > 15)
-                    errorDetails.AppendLine($"  ... and {discoveredPaths.Count - 15} more");
-            }
-
-            errorDetails.AppendLine();
-            errorDetails.AppendLine("Tips:");
-            errorDetails.AppendLine("� Check the FTP host - try with/without 'ftp.' prefix");
-            errorDetails.AppendLine("� Verify username includes domain (e.g., user@domain.com)");
-            errorDetails.AppendLine("� Check password is correct");
-            errorDetails.AppendLine("� Try path '/' first to see what's available");
-
-            return (false, errorDetails.ToString());
-        }
-
-        // ====== PRIVATE HELPERS ======
-
-        private AsyncFtpClient CreateClient(FtpDataConnectionType? dataConnectionOverride = null)
-        {
-            var host = _settings.FtpHost.Trim();
-            var port = _settings.FtpPort;
-
-            var client = new AsyncFtpClient(host, _settings.FtpUsername, _settings.FtpPassword, port)
-            {
-                Config =
-                {
-                    DataConnectionType = dataConnectionOverride ?? _dataConnectionType ?? FtpDataConnectionType.AutoPassive,
-                    ConnectTimeout = 15000,
-                    ReadTimeout = 15000,
-                    DataConnectionConnectTimeout = 15000,
-                    DataConnectionReadTimeout = 60000,
-                    EncryptionMode = FtpEncryptionMode.None,
-                }
-            };
-
-            return client;
-        }
-
-        private async Task<FtpDataConnectionType> DetermineConnectionModeAsync()
-        {
-            // Try passive first
-            if (await TestModeAsync(FtpDataConnectionType.AutoPassive))
-                return FtpDataConnectionType.AutoPassive;
-
-            // Try active
-            if (await TestModeAsync(FtpDataConnectionType.AutoActive))
-                return FtpDataConnectionType.AutoActive;
-
-            // Default to passive if both fail
-            return FtpDataConnectionType.AutoPassive;
-        }
-
-        private async Task<bool> TestModeAsync(FtpDataConnectionType mode)
-        {
             try
             {
-                await using var client = CreateClient(mode);
-                await client.Connect();
+                await using var client = CreateClient();
+                _connectionProfile = await client.AutoConnect();
 
-                var remotePath = NormalizePath(_settings.RemotePath);
-                await client.GetNameListing(remotePath);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private async Task<(bool success, string message)> TryConnectAsync(FtpDataConnectionType mode)
-        {
-            try
-            {
-                await using var client = CreateClient(mode);
-                await client.Connect();
-
-                var remotePath = NormalizePath(_settings.RemotePath);
+                var modeDesc = _connectionProfile?.Encryption switch
+                {
+                    FtpEncryptionMode.Explicit => "FTPS explicit",
+                    FtpEncryptionMode.Implicit => "FTPS implicit",
+                    _ => "plain FTP"
+                };
 
                 // Get names of items in directory
                 var rawItems = await client.GetNameListing(remotePath);
@@ -431,7 +321,7 @@ namespace Wdpl2.Services
                     message.AppendLine("ℹ️ Keep Remote Path as current setting to upload to this location.");
                 }
 
-                return (true, message.ToString());
+                return (true, $"Connected ({modeDesc})! {message}");
             }
             catch (FtpAuthenticationException)
             {
@@ -462,62 +352,70 @@ namespace Wdpl2.Services
             }
             catch (Exception ex)
             {
-                return (false, ex.Message);
+                var errorDetails = new StringBuilder();
+                errorDetails.AppendLine($"Connection failed: {ex.Message}");
+                errorDetails.AppendLine();
+                errorDetails.AppendLine($"Host: {host}");
+                errorDetails.AppendLine($"Port: {_settings.FtpPort}");
+                errorDetails.AppendLine($"Path: {remotePath}");
+                errorDetails.AppendLine($"User: {_settings.FtpUsername}");
+                errorDetails.AppendLine();
+                errorDetails.AppendLine("Tips:");
+                errorDetails.AppendLine("• Check the FTP host - try with/without 'ftp.' prefix");
+                errorDetails.AppendLine("• Verify username includes domain (e.g., user@domain.com)");
+                errorDetails.AppendLine("• Check password is correct");
+                errorDetails.AppendLine("• Try path '/' first to see what's available");
+
+                return (false, errorDetails.ToString());
             }
         }
 
-        /// <summary>
-        /// Discover available directories at the FTP root
-        /// </summary>
-        private async Task<List<string>> DiscoverAvailablePathsAsync()
+        // ====== PRIVATE HELPERS ======
+
+        private AsyncFtpClient CreateClient()
         {
-            var paths = new List<string>();
+            var host = _settings.FtpHost.Trim();
+            var port = _settings.FtpPort;
 
-            try
+            var client = new AsyncFtpClient(host, _settings.FtpUsername, _settings.FtpPassword, port)
             {
-                // Try to list root directory
-                await using var client = CreateClient(FtpDataConnectionType.AutoPassive);
+                Config =
+                {
+                    ConnectTimeout = 15000,
+                    ReadTimeout = 15000,
+                    DataConnectionConnectTimeout = 15000,
+                    DataConnectionReadTimeout = 60000,
+                    ValidateAnyCertificate = true,
+                }
+            };
+
+            // Apply previously discovered profile settings for faster reconnect
+            if (_connectionProfile != null)
+            {
+                client.Config.EncryptionMode = _connectionProfile.Encryption;
+                client.Config.DataConnectionType = _connectionProfile.DataConnection;
+            }
+
+            return client;
+        }
+
+        /// <summary>
+        /// Connect using a previously discovered profile, or auto-detect the best settings.
+        /// AutoConnect tries multiple encryption modes (Explicit TLS, Implicit TLS, None)
+        /// and data connection types (Passive, Active) to find what works.
+        /// </summary>
+        private async Task ConnectAsync(AsyncFtpClient client)
+        {
+            if (_connectionProfile != null)
+            {
+                // Fast path: reuse previously discovered settings
                 await client.Connect();
-
-                var items = await client.GetNameListing("/");
-                foreach (var item in items)
-                {
-                    var name = Path.GetFileName(item);
-                    if (!string.IsNullOrWhiteSpace(name))
-                    {
-                        paths.Add("/" + name);
-                    }
-                }
             }
-            catch
+            else
             {
-                // If root listing fails, try common paths
-                var commonPaths = new[] 
-                { 
-                    "/public_html/", 
-                    "/www/", 
-                    "/htdocs/",
-                    "/domains/",
-                    "/"
-                };
-
-                foreach (var testPath in commonPaths)
-                {
-                    try
-                    {
-                        await using var client = CreateClient(FtpDataConnectionType.AutoPassive);
-                        await client.Connect();
-                        await client.GetNameListing(testPath);
-                        paths.Add($"{testPath} ? (accessible)");
-                    }
-                    catch
-                    {
-                        // Path not accessible
-                    }
-                }
+                // First connection: auto-detect the best encryption + data mode
+                _connectionProfile = await client.AutoConnect();
             }
-
-            return paths;
         }
 
         private string NormalizePath(string? path)
