@@ -379,7 +379,10 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
-    
+
+    private async void OnSocialCardTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new SocialCardPage());
+
     private async void OnSeoTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new SeoSettingsPage());
     

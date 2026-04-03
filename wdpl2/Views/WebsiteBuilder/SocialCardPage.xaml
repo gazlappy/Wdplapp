@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.SocialCardPage"
+             Title="Post To Social Media">
+
+    <Grid ColumnDefinitions="380,*" ColumnSpacing="0">
+
+        <!-- ═══ LEFT PANEL: Card Settings ═══ -->
+        <ScrollView Grid.Column="0" BackgroundColor="#F8FAFC">
+            <VerticalStackLayout Padding="20,16" Spacing="12">
+
+                <Label Text="Social Cards" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
+                <Label Text="Generate shareable cards for social media" FontSize="12" TextColor="#64748B"/>
+
+                <!-- Action Buttons -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Text="&#128065; Preview" Clicked="OnPreviewClicked"
+                            BackgroundColor="#3B82F6" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="1" Text="&#128228; Share" Clicked="OnShareClicked"
+                            BackgroundColor="#10B981" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                </Grid>
+
+                <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
+
+                <!-- Card Type Selection -->
+                <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#EFF6FF">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#127912; Card Type" FontAttributes="Bold" FontSize="13" TextColor="#1E40AF"/>
+                        <Picker x:Name="CardTypePicker" Title="Select card type" SelectedIndexChanged="OnCardTypeChanged">
+                            <Picker.Items>
+                                <x:String>Result Card</x:String>
+                                <x:String>Fixture Card</x:String>
+                                <x:String>League Table</x:String>
+                                <x:String>Player Highlight</x:String>
+                                <x:String>Weekly Results</x:String>
+                                <x:String>Upcoming Fixtures</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <Label Text="Season" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="SeasonPicker" Title="Select Season" SelectedIndexChanged="OnSeasonChanged"/>
+
+                        <Label Text="Division" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="DivisionPicker" Title="All Divisions"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Result/Fixture Selection (shown for single-match cards) -->
+                <Frame x:Name="MatchSelectionFrame" BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White" IsVisible="False">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#127942; Select Match" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Label Text="Match" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="MatchPicker" Title="Select match"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Player Selection (shown for player highlight) -->
+                <Frame x:Name="PlayerSelectionFrame" BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White" IsVisible="False">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#11088; Select Player" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Picker x:Name="PlayerPicker" Title="Select player"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Card Style -->
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#127752; Card Style" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+
+                        <Label Text="Color Scheme" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="CardStylePicker" Title="Card style" SelectedIndexChanged="OnStyleChanged">
+                            <Picker.Items>
+                                <x:String>League Branding</x:String>
+                                <x:String>Dark</x:String>
+                                <x:String>Light</x:String>
+                                <x:String>Vibrant</x:String>
+                                <x:String>Minimal</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <Label Text="Card Size" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="CardSizePicker" Title="Card size" SelectedIndexChanged="OnStyleChanged">
+                            <Picker.Items>
+                                <x:String>Square (1080×1080)</x:String>
+                                <x:String>Portrait (1080×1350)</x:String>
+                                <x:String>Landscape (1200×628)</x:String>
+                                <x:String>Story (1080×1920)</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowLogoCheck" IsChecked="True" CheckedChanged="OnStyleChanged" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show league logo" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDateCheck" IsChecked="True" CheckedChanged="OnStyleChanged" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show date" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDivisionCheck" IsChecked="True" CheckedChanged="OnStyleChanged" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show division name" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowVenueCheck" IsChecked="True" CheckedChanged="OnStyleChanged" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show venue" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowWebsiteCheck" IsChecked="True" CheckedChanged="OnStyleChanged" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show website URL" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Custom Text -->
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#9997; Custom Text" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+
+                        <Label Text="Headline (optional)" FontSize="11" TextColor="#64748B"/>
+                        <Entry x:Name="HeadlineEntry" Placeholder="e.g. Match Night Results" FontSize="13"
+                               TextChanged="OnStyleChanged"/>
+
+                        <Label Text="Footer text (optional)" FontSize="11" TextColor="#64748B"/>
+                        <Entry x:Name="FooterTextEntry" Placeholder="e.g. Follow us on Facebook!" FontSize="13"
+                               TextChanged="OnStyleChanged"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Post To Social Media -->
+                <Frame BorderColor="#8B5CF6" Padding="14" CornerRadius="10" BackgroundColor="#F5F3FF">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="&#128228; Post To" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"/>
+                        <Label Text="Save or share your card directly" FontSize="11" TextColor="#7C3AED"/>
+
+                        <Button Text="&#128190; Save as Image" Clicked="OnSaveImageClicked"
+                                BackgroundColor="#6D28D9" TextColor="White" FontSize="12" Padding="8,10" CornerRadius="8"/>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+                            <Button Grid.Column="0" Grid.Row="0" Text="&#127760; Facebook" Clicked="OnPostFacebookClicked"
+                                    BackgroundColor="#1877F2" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                            <Button Grid.Column="1" Grid.Row="0" Text="&#120143; X / Twitter" Clicked="OnPostTwitterClicked"
+                                    BackgroundColor="#0F1419" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                            <Button Grid.Column="0" Grid.Row="1" Text="&#128247; Instagram" Clicked="OnPostInstagramClicked"
+                                    BackgroundColor="#E1306C" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                            <Button Grid.Column="1" Grid.Row="1" Text="&#128172; WhatsApp" Clicked="OnPostWhatsAppClicked"
+                                    BackgroundColor="#25D366" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                        </Grid>
+
+                        <Button Text="&#128203; Copy to Clipboard" Clicked="OnCopyClipboardClicked"
+                                BackgroundColor="Transparent" TextColor="#6D28D9" FontSize="12" Padding="6,9"
+                                CornerRadius="8" BorderColor="#C4B5FD" BorderWidth="1"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Divider line -->
+        <BoxView Grid.Column="0" WidthRequest="1" BackgroundColor="#E2E8F0" HorizontalOptions="End"/>
+
+        <!-- ═══ RIGHT PANEL: Card Preview ═══ -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="0">
+
+            <!-- Preview toolbar -->
+            <Grid BackgroundColor="#1E293B" Padding="14,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <Label Grid.Column="0" Text="Card Preview" FontAttributes="Bold" FontSize="14"
+                       TextColor="White" VerticalOptions="Center"/>
+                <Button Grid.Column="2" Text="&#128260; Refresh" Clicked="OnPreviewClicked"
+                        BackgroundColor="#3B82F6" TextColor="White" FontSize="12" Padding="12,8" CornerRadius="6"/>
+            </Grid>
+
+            <!-- Preview area -->
+            <Grid Grid.Row="1" BackgroundColor="#F1F5F9">
+                <!-- Placeholder -->
+                <VerticalStackLayout x:Name="PreviewPlaceholder"
+                                     VerticalOptions="Center" HorizontalOptions="Center" Spacing="16">
+                    <Label Text="&#128228;" FontSize="56" HorizontalOptions="Center"/>
+                    <Label Text="Select a card type and click Preview" FontSize="18"
+                           FontAttributes="Bold" TextColor="#475569" HorizontalOptions="Center"/>
+                    <Label Text="Generate shareable cards for Facebook, Twitter, Instagram and more" FontSize="13"
+                           TextColor="#94A3B8" HorizontalOptions="Center"/>
+                    <Button Text="&#128065; Generate Preview" Clicked="OnPreviewClicked"
+                            BackgroundColor="#3B82F6" TextColor="White" FontSize="13"
+                            Padding="24,12" CornerRadius="8" HorizontalOptions="Center" Margin="0,8,0,0"/>
+                </VerticalStackLayout>
+
+                <!-- WebView for preview -->
+                <WebView x:Name="PreviewWebView" IsVisible="False"/>
+            </Grid>
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
