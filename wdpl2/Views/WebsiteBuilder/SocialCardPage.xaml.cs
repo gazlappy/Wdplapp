@@ -18,6 +18,7 @@ public partial class SocialCardPage : ContentPage
     private readonly List<Player> _seasonPlayers = new();
     private readonly List<Venue> _seasonVenues = new();
     private string? _generatedHtml;
+    private string? _cachedShareText;
     private string? _lastSavedImagePath;
 
     public SocialCardPage()
@@ -146,6 +147,7 @@ public partial class SocialCardPage : ContentPage
         try
         {
             _generatedHtml = GenerateCardHtml(cardType);
+            _cachedShareText = BuildShareText(includeUrl: false);
             PreviewPlaceholder.IsVisible = false;
             PreviewWebView.IsVisible = true;
             PreviewWebView.Source = new HtmlWebViewSource { Html = _generatedHtml };
@@ -181,35 +183,140 @@ public partial class SocialCardPage : ContentPage
     }
 
     private async void OnPostFacebookClicked(object? sender, EventArgs e)
-        => await ShareToSocial("Facebook");
-
-    private async void OnPostTwitterClicked(object? sender, EventArgs e)
-        => await ShareToSocial("X / Twitter");
-
-    private async void OnPostInstagramClicked(object? sender, EventArgs e)
-        => await ShareToSocial("Instagram");
-
-    private async void OnPostWhatsAppClicked(object? sender, EventArgs e)
-        => await ShareToSocial("WhatsApp");
-
-    private async void OnCopyClipboardClicked(object? sender, EventArgs e)
     {
-        var text = BuildShareText();
-        await Clipboard.Default.SetTextAsync(text);
-        ShowStatus("Copied to clipboard!");
+        EnsureCardGenerated();
+        var shareText = GetShareText(includeUrl: true);
+
+        // Show the user exactly what will be copied, then open Facebook
+        var confirmed = await DisplayAlert(
+            "Post to Facebook",
+            $"This text will be copied to your clipboard:\n\n{shareText}\n\nClick 'Copy & Open' then paste (Ctrl+V) into your Facebook post.",
+            "Copy & Open Facebook",
+            "Cancel");
+
+        if (!confirmed) return;
+
+        await Clipboard.Default.SetTextAsync(shareText);
+
+        var fbPageUrl = League.WebsiteSettings.FacebookUrl;
+        var fbUrl = !string.IsNullOrWhiteSpace(fbPageUrl)
+            ? fbPageUrl
+            : "https://www.facebook.com/";
+
+        try
+        {
+            await Browser.Default.OpenAsync(new Uri(fbUrl), BrowserLaunchMode.SystemPreferred);
+            ShowStatus("\u2705 Post text copied — paste it into your Facebook post!");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Could not open Facebook: {ex.Message}", true);
+        }
     }
 
-    private async Task ShareToSocial(string platform)
+    private async void OnPostTwitterClicked(object? sender, EventArgs e)
+    {
+        EnsureCardGenerated();
+        var shareText = GetShareText(includeUrl: false);
+        var websiteUrl = League.WebsiteSettings.WebsiteUrl;
+
+        var tweetUrl = string.IsNullOrWhiteSpace(websiteUrl)
+            ? $"https://twitter.com/intent/tweet?text={Uri.EscapeDataString(shareText)}"
+            : $"https://twitter.com/intent/tweet?text={Uri.EscapeDataString(shareText)}&url={Uri.EscapeDataString(websiteUrl)}";
+
+        await Clipboard.Default.SetTextAsync(GetShareText(includeUrl: true));
+
+        try
+        {
+            await Browser.Default.OpenAsync(new Uri(tweetUrl), BrowserLaunchMode.SystemPreferred);
+            ShowStatus("\u2705 Opening X / Twitter — text also copied to clipboard!");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Could not open X / Twitter: {ex.Message}", true);
+        }
+    }
+
+    private async void OnPostInstagramClicked(object? sender, EventArgs e)
     {
         var path = await SaveCardToFile();
         if (path == null) return;
 
-        await Share.Default.RequestAsync(new ShareFileRequest
+        var shareText = GetShareText(includeUrl: true);
+        await Clipboard.Default.SetTextAsync(shareText);
+
+        ShowStatus("Card saved & text copied — paste into Instagram!");
+        await DisplayAlert("Instagram",
+            "Instagram doesn't support direct posting from desktop apps.\n\n" +
+            "Your card has been saved and the post text copied to your clipboard.\n\n" +
+            "1. Open Instagram on your phone\n" +
+            "2. Create a new post\n" +
+            "3. Upload the saved card image\n" +
+            "4. Paste the copied text as your caption\n\n" +
+            $"Card saved to:\n{path}", "OK");
+    }
+
+    private async void OnPostWhatsAppClicked(object? sender, EventArgs e)
+    {
+        EnsureCardGenerated();
+        var shareText = GetShareText(includeUrl: true);
+
+        await Clipboard.Default.SetTextAsync(shareText);
+
+        var waUrl = $"https://api.whatsapp.com/send?text={Uri.EscapeDataString(shareText)}";
+
+        try
         {
-            Title = $"Share to {platform}",
-            File = new ShareFile(path)
-        });
-        ShowStatus($"Sharing to {platform}...");
+            await Browser.Default.OpenAsync(new Uri(waUrl), BrowserLaunchMode.SystemPreferred);
+            ShowStatus("\u2705 Opening WhatsApp — text also copied to clipboard!");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Could not open WhatsApp: {ex.Message}", true);
+        }
+    }
+
+    private async void OnCopyClipboardClicked(object? sender, EventArgs e)
+    {
+        var text = GetShareText(includeUrl: true);
+        await Clipboard.Default.SetTextAsync(text);
+        ShowStatus("Copied to clipboard!");
+    }
+
+    private void EnsureCardGenerated()
+    {
+        if (string.IsNullOrEmpty(_generatedHtml))
+            OnPreviewClicked(null, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Returns the cached share text from when the card was generated,
+    /// falling back to BuildShareText if no cache exists.
+    /// </summary>
+    private string GetShareText(bool includeUrl)
+    {
+        var baseText = _cachedShareText ?? BuildShareText(includeUrl: false);
+        if (!includeUrl)
+            return baseText;
+
+        var settings = League.WebsiteSettings;
+        var season = SeasonPicker.SelectedItem as Season;
+        var sb = new StringBuilder(baseText);
+
+        if (season != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.AppendLine($"\U0001F3C1 {season.Name}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.WebsiteUrl))
+        {
+            sb.AppendLine();
+            sb.AppendLine(settings.WebsiteUrl);
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     private async Task<string?> SaveCardToFile()
@@ -243,35 +350,60 @@ public partial class SocialCardPage : ContentPage
         }
     }
 
-    private string BuildShareText()
+    private string BuildShareText(bool includeUrl = false)
     {
         var cardType = CardTypePicker.SelectedItem?.ToString() ?? "";
-        var season = SeasonPicker.SelectedItem as Season;
         var settings = League.WebsiteSettings;
         var sb = new StringBuilder();
-        sb.AppendLine($"{settings.LeagueName}");
 
         if (cardType is "Result Card" && MatchPicker.SelectedItem is FixtureDisplayItem resultItem)
         {
             var f = resultItem.Fixture;
             var home = _seasonTeams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "Home";
             var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away";
+            sb.AppendLine($"\U0001F3B1 {settings.LeagueName} \u2014 Result");
+            sb.AppendLine();
             sb.AppendLine($"{home} {f.HomeScore} - {f.AwayScore} {away}");
+            var venue = _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId)?.Name;
+            if (!string.IsNullOrEmpty(venue))
+                sb.AppendLine($"\U0001F4CD {venue}");
         }
         else if (cardType is "Fixture Card" && MatchPicker.SelectedItem is FixtureDisplayItem fixItem)
         {
             var f = fixItem.Fixture;
             var home = _seasonTeams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "Home";
             var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away";
-            sb.AppendLine($"{home} vs {away} — {f.Date:ddd dd MMM, h:mm tt}");
+            sb.AppendLine($"\U0001F4C5 {settings.LeagueName} \u2014 Upcoming");
+            sb.AppendLine();
+            sb.AppendLine($"{home} vs {away}");
+            sb.AppendLine($"\U0001F552 {f.Date:ddd dd MMM, h:mm tt}");
+            var venue = _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId)?.Name;
+            if (!string.IsNullOrEmpty(venue))
+                sb.AppendLine($"\U0001F4CD {venue}");
+        }
+        else if (cardType is "League Table")
+        {
+            sb.AppendLine($"\U0001F3C6 {settings.LeagueName} \u2014 League Table");
+        }
+        else if (cardType is "Player Highlight" && PlayerPicker.SelectedItem is PlayerDisplayItem playerItem)
+        {
+            sb.AppendLine($"\u2B50 {settings.LeagueName} \u2014 Player Spotlight");
+            sb.AppendLine();
+            sb.AppendLine($"\U0001F3B1 {playerItem.Player.Name}");
+        }
+        else if (cardType is "Weekly Results")
+        {
+            sb.AppendLine($"\U0001F4CA {settings.LeagueName} \u2014 This Week's Results");
+        }
+        else if (cardType is "Upcoming Fixtures")
+        {
+            sb.AppendLine($"\U0001F4C5 {settings.LeagueName} \u2014 Upcoming Fixtures");
         }
         else
         {
-            sb.AppendLine(cardType);
+            sb.AppendLine($"\U0001F3B1 {settings.LeagueName}");
+            if (!string.IsNullOrEmpty(cardType)) sb.AppendLine(cardType);
         }
-
-        if (season != null) sb.AppendLine(season.Name);
-        if (!string.IsNullOrWhiteSpace(settings.WebsiteUrl)) sb.AppendLine(settings.WebsiteUrl);
 
         return sb.ToString().TrimEnd();
     }
@@ -376,26 +508,44 @@ public partial class SocialCardPage : ContentPage
     font-family: 'Segoe UI',Inter,-apple-system,BlinkMacSystemFont,sans-serif;
     background: #F1F5F9;
     display: flex; justify-content: center; align-items: center;
-    min-height: 100vh; padding: 20px;
+    min-height: 100vh; padding: 4px;
+    overflow: hidden;
+  }}
+  .card-wrapper {{
+    transform-origin: center center;
   }}
   .card {{
-    width: {width}px; min-height: {height}px;
+    width: {width}px; height: {height}px;
     background: linear-gradient(135deg, {style.BgColor} 0%, {style.BgColor2} 100%);
     border-radius: 20px; overflow: hidden;
     display: flex; flex-direction: column;
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    transform-origin: top center;
   }}
   .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 24px; }}
-  @media (max-width:800px) {{ .card {{ transform: scale(0.5); }} }}
 </style>
 </head>
 <body>
-<div class='card'>
-  {headerSection}
-  <div class='card-content'>{content}</div>
-  {footerSection}
+<div class='card-wrapper' id='cardWrap'>
+  <div class='card'>
+    {headerSection}
+    <div class='card-content'>{content}</div>
+    {footerSection}
+  </div>
 </div>
+<script>
+  function scaleCard() {{
+    var wrap = document.getElementById('cardWrap');
+    var pad = 8;
+    var vw = window.innerWidth - pad;
+    var vh = window.innerHeight - pad;
+    var cw = {width}; var ch = {height};
+    var s = Math.min(vw / cw, vh / ch, 1);
+    wrap.style.transform = 'scale(' + s + ')';
+    document.body.style.height = Math.max(ch * s + pad, vh + pad) + 'px';
+  }}
+  scaleCard();
+  window.addEventListener('resize', scaleCard);
+</script>
 </body></html>";
     }
 
