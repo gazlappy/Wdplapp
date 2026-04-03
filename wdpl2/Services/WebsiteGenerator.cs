@@ -715,7 +715,13 @@ namespace Wdpl2.Services
             {
                 AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
             }
-            
+
+            // Add team calendar download section if enabled
+            if (_settings.FixturesShowCalendarDownload)
+            {
+                AppendTeamCalendarSection(html, season, teams, fixtures, venues);
+            }
+
             html.AppendLine("        </div>");
             html.AppendLine("    </div>");
             
@@ -828,6 +834,167 @@ namespace Wdpl2.Services
             html.AppendLine("                a.click();");
             html.AppendLine("                document.body.removeChild(a);");
             html.AppendLine("                URL.revokeObjectURL(url);");
+            html.AppendLine("            }");
+            html.AppendLine("            </script>");
+        }
+
+        private void AppendTeamCalendarSection(StringBuilder html, Season season, List<Team> teams, List<Fixture> fixtures, List<Venue> venues)
+        {
+            var leagueName = EscapeJsString(_settings.LeagueName);
+
+            // Build fixture data as JSON for client-side filtering
+            var allFixtures = fixtures
+                .Where(f => !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                .OrderBy(f => f.Date)
+                .ToList();
+
+            var teamsOrdered = teams.OrderBy(t => t.Name).ToList();
+
+            var fixtureJsonItems = new List<string>();
+            foreach (var f in allFixtures)
+            {
+                var homeName = EscapeJsString(teams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "Home");
+                var awayName = EscapeJsString(teams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away");
+                var venueName = f.VenueId.HasValue
+                    ? EscapeJsString(venues.FirstOrDefault(v => v.Id == f.VenueId.Value)?.Name ?? "")
+                    : "";
+                var dateIso = f.Date.ToString("yyyy-MM-ddTHH:mm:ss");
+                fixtureJsonItems.Add(
+                    $"{{\"homeId\":\"{f.HomeTeamId}\",\"awayId\":\"{f.AwayTeamId}\",\"home\":\"{homeName}\",\"away\":\"{awayName}\",\"date\":\"{dateIso}\",\"venue\":\"{venueName}\"}}");
+            }
+            var fixturesJson = "[" + string.Join(",", fixtureJsonItems) + "]";
+
+            var teamJsonItems = new List<string>();
+            foreach (var t in teamsOrdered)
+            {
+                teamJsonItems.Add($"{{\"id\":\"{t.Id}\",\"name\":\"{EscapeJsString(t.Name)}\"}}");
+            }
+            var teamsJson = "[" + string.Join(",", teamJsonItems) + "]";
+
+            html.AppendLine("            <!-- Team Calendar Download Section -->");
+            html.AppendLine("            <style>");
+            html.AppendLine("            .calendar-section { margin-top: 32px; }");
+            html.AppendLine("            .calendar-section h3 { margin-bottom: 16px; }");
+            html.AppendLine("            .calendar-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }");
+            html.AppendLine("            .calendar-controls select { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color, #E2E8F0); background: var(--card-bg, white); color: var(--text-color, #0F172A); font-size: 0.95rem; min-width: 220px; cursor: pointer; }");
+            html.AppendLine("            .calendar-controls select:focus { outline: none; border-color: var(--primary-color, #3B82F6); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }");
+            html.AppendLine("            .calendar-buttons { display: flex; gap: 10px; flex-wrap: wrap; }");
+            html.AppendLine("            .calendar-buttons button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }");
+            html.AppendLine("            .calendar-buttons .btn-ical { background: var(--primary-color, #3B82F6); color: white; }");
+            html.AppendLine("            .calendar-buttons .btn-ical:hover { filter: brightness(1.1); transform: translateY(-2px); }");
+            html.AppendLine("            .calendar-buttons .btn-gcal { background: var(--bg-alt, #F1F5F9); color: var(--text-color, #0F172A); border: 1px solid var(--border-color, #E2E8F0); }");
+            html.AppendLine("            .calendar-buttons .btn-gcal:hover { background: var(--card-bg, white); border-color: var(--primary-color, #3B82F6); color: var(--primary-color, #3B82F6); }");
+            html.AppendLine("            .calendar-buttons button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }");
+            html.AppendLine("            .calendar-fixture-count { font-size: 0.85rem; color: var(--text-secondary, #64748B); margin-top: 4px; }");
+            html.AppendLine("            @media (max-width: 768px) { .calendar-controls { flex-direction: column; } .calendar-controls select { width: 100%; } .calendar-buttons { flex-direction: column; width: 100%; } .calendar-buttons button { width: 100%; justify-content: center; } }");
+            html.AppendLine("            </style>");
+
+            html.AppendLine("            <div class=\"section calendar-section\">");
+            html.AppendLine("                <h3>&#128197; Team Fixture Calendar</h3>");
+            html.AppendLine("                <p style=\"color: var(--text-secondary, #64748B); margin-bottom: 16px; font-size: 0.95rem;\">Select a team to download their fixtures as a calendar file or add them to Google Calendar.</p>");
+            html.AppendLine("                <div class=\"calendar-controls\">");
+            html.AppendLine("                    <select id=\"calTeamSelect\" onchange=\"onCalTeamChanged()\">");
+            html.AppendLine("                        <option value=\"\">-- Select a team --</option>");
+
+            foreach (var t in teamsOrdered)
+            {
+                html.AppendLine($"                        <option value=\"{t.Id}\">{System.Net.WebUtility.HtmlEncode(t.Name)}</option>");
+            }
+
+            html.AppendLine("                    </select>");
+            html.AppendLine("                    <div class=\"calendar-buttons\">");
+            html.AppendLine("                        <button class=\"btn-ical\" id=\"btnIcal\" onclick=\"downloadIcal()\" disabled>&#128229; Download iCal (.ics)</button>");
+            html.AppendLine("                        <button class=\"btn-gcal\" id=\"btnGcal\" onclick=\"openGoogleCalendar()\" disabled>&#128197; Add to Google Calendar</button>");
+            html.AppendLine("                    </div>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div id=\"calFixtureCount\" class=\"calendar-fixture-count\"></div>");
+            html.AppendLine("            </div>");
+
+            // JavaScript for calendar generation
+            html.AppendLine("            <script>");
+            html.AppendLine($"            var _calFixtures = {fixturesJson};");
+            html.AppendLine($"            var _calTeams = {teamsJson};");
+            html.AppendLine($"            var _calLeagueName = '{leagueName}';");
+            html.AppendLine($"            var _calSeasonName = '{EscapeJsString(season.Name)}';");
+            html.AppendLine("            ");
+            html.AppendLine("            function onCalTeamChanged() {");
+            html.AppendLine("                var sel = document.getElementById('calTeamSelect').value;");
+            html.AppendLine("                var hasTeam = sel !== '';");
+            html.AppendLine("                document.getElementById('btnIcal').disabled = !hasTeam;");
+            html.AppendLine("                document.getElementById('btnGcal').disabled = !hasTeam;");
+            html.AppendLine("                var ct = document.getElementById('calFixtureCount');");
+            html.AppendLine("                if (hasTeam) {");
+            html.AppendLine("                    var fxs = getTeamFixtures(sel);");
+            html.AppendLine("                    var tn = _calTeams.find(function(t){return t.id===sel;});");
+            html.AppendLine("                    ct.textContent = fxs.length + ' upcoming fixture' + (fxs.length!==1?'s':'') + ' for ' + (tn?tn.name:'this team');");
+            html.AppendLine("                } else { ct.textContent = ''; }");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function getTeamFixtures(teamId) {");
+            html.AppendLine("                return _calFixtures.filter(function(f){ return f.homeId===teamId || f.awayId===teamId; });");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function pad2(n) { return n < 10 ? '0'+n : ''+n; }");
+            html.AppendLine("            ");
+            html.AppendLine("            function toIcsDate(d) {");
+            html.AppendLine("                return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + pad2(d.getMinutes()) + '00';");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function toGcalDate(d) {");
+            html.AppendLine("                return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + pad2(d.getMinutes()) + '00';");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function downloadIcal() {");
+            html.AppendLine("                var teamId = document.getElementById('calTeamSelect').value;");
+            html.AppendLine("                if (!teamId) return;");
+            html.AppendLine("                var fxs = getTeamFixtures(teamId);");
+            html.AppendLine("                if (fxs.length === 0) { alert('No upcoming fixtures for this team.'); return; }");
+            html.AppendLine("                var tn = _calTeams.find(function(t){return t.id===teamId;});");
+            html.AppendLine("                var teamName = tn ? tn.name : 'Team';");
+            html.AppendLine("                var lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//'+_calLeagueName+'//Fixtures//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:'+teamName+' - '+_calSeasonName];");
+            html.AppendLine("                fxs.forEach(function(f) {");
+            html.AppendLine("                    var d = new Date(f.date);");
+            html.AppendLine("                    var end = new Date(d.getTime() + 3*60*60*1000);");
+            html.AppendLine("                    var title = f.home + ' vs ' + f.away;");
+            html.AppendLine("                    var uid = f.homeId + '-' + f.awayId + '-' + toIcsDate(d) + '@' + _calLeagueName.replace(/\\s+/g,'');");
+            html.AppendLine("                    lines.push('BEGIN:VEVENT');");
+            html.AppendLine("                    lines.push('DTSTART:' + toIcsDate(d));");
+            html.AppendLine("                    lines.push('DTEND:' + toIcsDate(end));");
+            html.AppendLine("                    lines.push('SUMMARY:' + title);");
+            html.AppendLine("                    if (f.venue) lines.push('LOCATION:' + f.venue);");
+            html.AppendLine("                    lines.push('DESCRIPTION:' + _calLeagueName + ' - ' + _calSeasonName);");
+            html.AppendLine("                    lines.push('UID:' + uid);");
+            html.AppendLine("                    lines.push('END:VEVENT');");
+            html.AppendLine("                });");
+            html.AppendLine("                lines.push('END:VCALENDAR');");
+            html.AppendLine("                var blob = new Blob([lines.join('\\r\\n')], {type:'text/calendar;charset=utf-8'});");
+            html.AppendLine("                var url = URL.createObjectURL(blob);");
+            html.AppendLine("                var a = document.createElement('a');");
+            html.AppendLine("                a.href = url;");
+            html.AppendLine("                a.download = teamName.replace(/[^a-zA-Z0-9]/g,'_') + '_fixtures.ics';");
+            html.AppendLine("                document.body.appendChild(a);");
+            html.AppendLine("                a.click();");
+            html.AppendLine("                document.body.removeChild(a);");
+            html.AppendLine("                URL.revokeObjectURL(url);");
+            html.AppendLine("            }");
+            html.AppendLine("            ");
+            html.AppendLine("            function openGoogleCalendar() {");
+            html.AppendLine("                var teamId = document.getElementById('calTeamSelect').value;");
+            html.AppendLine("                if (!teamId) return;");
+            html.AppendLine("                var fxs = getTeamFixtures(teamId);");
+            html.AppendLine("                if (fxs.length === 0) { alert('No upcoming fixtures for this team.'); return; }");
+            html.AppendLine("                if (fxs.length > 1) {");
+            html.AppendLine("                    alert('Google Calendar links work one event at a time. The first fixture will be opened — for all fixtures use the iCal download instead.');");
+            html.AppendLine("                }");
+            html.AppendLine("                var f = fxs[0];");
+            html.AppendLine("                var d = new Date(f.date);");
+            html.AppendLine("                var end = new Date(d.getTime() + 3*60*60*1000);");
+            html.AppendLine("                var title = encodeURIComponent(f.home + ' vs ' + f.away);");
+            html.AppendLine("                var details = encodeURIComponent(_calLeagueName + ' - ' + _calSeasonName);");
+            html.AppendLine("                var location = encodeURIComponent(f.venue || '');");
+            html.AppendLine("                var dates = toGcalDate(d) + '/' + toGcalDate(end);");
+            html.AppendLine("                var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + title + '&dates=' + dates + '&details=' + details + '&location=' + location;");
+            html.AppendLine("                window.open(url, '_blank');");
             html.AppendLine("            }");
             html.AppendLine("            </script>");
         }

@@ -163,55 +163,43 @@ public partial class SocialCardPage : ContentPage
 
     private async void OnShareClicked(object? sender, EventArgs e)
     {
-        var path = await SaveCardToFile();
+        var path = await SaveCardAsImage();
         if (path == null) return;
+
+        var shareText = GetShareText(includeUrl: true);
+        await Clipboard.Default.SetTextAsync(shareText);
 
         await Share.Default.RequestAsync(new ShareFileRequest
         {
             Title = "Share Social Card",
             File = new ShareFile(path)
         });
+        ShowStatus("\u2705 Card shared — caption text also copied to clipboard!");
     }
 
     private async void OnSaveImageClicked(object? sender, EventArgs e)
     {
-        var path = await SaveCardToFile();
+        var path = await SaveCardAsImage();
         if (path == null) return;
 
         ShowStatus($"Saved to {Path.GetFileName(path)}");
-        await DisplayAlert("Saved", $"Card saved to:\n{path}", "OK");
+        await DisplayAlert("Saved", $"Card image saved to:\n{path}", "OK");
     }
 
     private async void OnPostFacebookClicked(object? sender, EventArgs e)
     {
-        EnsureCardGenerated();
+        var path = await SaveCardAsImage();
+        if (path == null) return;
+
         var shareText = GetShareText(includeUrl: true);
-
-        // Show the user exactly what will be copied, then open Facebook
-        var confirmed = await DisplayAlert(
-            "Post to Facebook",
-            $"This text will be copied to your clipboard:\n\n{shareText}\n\nClick 'Copy & Open' then paste (Ctrl+V) into your Facebook post.",
-            "Copy & Open Facebook",
-            "Cancel");
-
-        if (!confirmed) return;
-
         await Clipboard.Default.SetTextAsync(shareText);
 
-        var fbPageUrl = League.WebsiteSettings.FacebookUrl;
-        var fbUrl = !string.IsNullOrWhiteSpace(fbPageUrl)
-            ? fbPageUrl
-            : "https://www.facebook.com/";
-
-        try
+        await Share.Default.RequestAsync(new ShareFileRequest
         {
-            await Browser.Default.OpenAsync(new Uri(fbUrl), BrowserLaunchMode.SystemPreferred);
-            ShowStatus("\u2705 Post text copied — paste it into your Facebook post!");
-        }
-        catch (Exception ex)
-        {
-            ShowStatus($"Could not open Facebook: {ex.Message}", true);
-        }
+            Title = "Post to Facebook",
+            File = new ShareFile(path)
+        });
+        ShowStatus("\u2705 Card shared — caption text also copied to clipboard!");
     }
 
     private async void OnPostTwitterClicked(object? sender, EventArgs e)
@@ -239,7 +227,7 @@ public partial class SocialCardPage : ContentPage
 
     private async void OnPostInstagramClicked(object? sender, EventArgs e)
     {
-        var path = await SaveCardToFile();
+        var path = await SaveCardAsImage();
         if (path == null) return;
 
         var shareText = GetShareText(includeUrl: true);
@@ -248,7 +236,7 @@ public partial class SocialCardPage : ContentPage
         ShowStatus("Card saved & text copied — paste into Instagram!");
         await DisplayAlert("Instagram",
             "Instagram doesn't support direct posting from desktop apps.\n\n" +
-            "Your card has been saved and the post text copied to your clipboard.\n\n" +
+            "Your card image has been saved and the post text copied to your clipboard.\n\n" +
             "1. Open Instagram on your phone\n" +
             "2. Create a new post\n" +
             "3. Upload the saved card image\n" +
@@ -319,27 +307,62 @@ public partial class SocialCardPage : ContentPage
         return sb.ToString().TrimEnd();
     }
 
-    private async Task<string?> SaveCardToFile()
+    private async Task<string?> SaveCardAsImage()
     {
-        if (string.IsNullOrEmpty(_generatedHtml))
+        EnsureCardGenerated();
+        if (!PreviewWebView.IsVisible || string.IsNullOrEmpty(_generatedHtml))
         {
-            OnPreviewClicked(null, EventArgs.Empty);
-            if (string.IsNullOrEmpty(_generatedHtml))
-            {
-                ShowStatus("Generate a card first", true);
-                return null;
-            }
+            ShowStatus("Generate a card first", true);
+            return null;
         }
 
         try
         {
+            ShowStatus("Capturing card image...");
+
+            // Trigger html2canvas capture inside the WebView
+            await PreviewWebView.EvaluateJavaScriptAsync("startCapture()");
+
+            // Poll for the async result
+            string result = "";
+            for (int i = 0; i < 100; i++) // 10-second timeout
+            {
+                await Task.Delay(100);
+                result = await PreviewWebView.EvaluateJavaScriptAsync("getCaptureResult()") ?? "";
+                // EvaluateJavaScriptAsync returns JSON-encoded strings — strip surrounding quotes
+                if (result.Length >= 2 && result[0] == '"' && result[^1] == '"')
+                    result = result[1..^1];
+                if (!string.IsNullOrEmpty(result) && result != "PENDING")
+                    break;
+            }
+
+            if (string.IsNullOrEmpty(result) || result == "PENDING")
+            {
+                ShowStatus("Card capture timed out \u2014 try again", true);
+                return null;
+            }
+
+            if (result.StartsWith("ERROR:"))
+            {
+                ShowStatus(result[6..], true);
+                return null;
+            }
+
+            // Strip the data-URL prefix and decode the base64 PNG
+            const string prefix = "data:image/png;base64,";
+            if (result.StartsWith(prefix))
+                result = result[prefix.Length..];
+
+            var imageBytes = Convert.FromBase64String(result);
+
             var cardType = CardTypePicker.SelectedItem?.ToString() ?? "card";
             var safeName = string.Join("_", cardType.Split(Path.GetInvalidFileNameChars()));
-            var fileName = $"SocialCard_{safeName}_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+            var fileName = $"SocialCard_{safeName}_{DateTime.Now:yyyyMMdd_HHmmss}.png";
             var dir = Path.Combine(FileSystem.CacheDirectory, "SocialCards");
             Directory.CreateDirectory(dir);
             var filePath = Path.Combine(dir, fileName);
-            await File.WriteAllTextAsync(filePath, _generatedHtml);
+
+            await File.WriteAllBytesAsync(filePath, imageBytes);
             _lastSavedImagePath = filePath;
             return filePath;
         }
@@ -476,15 +499,15 @@ public partial class SocialCardPage : ContentPage
             if (logoData != null && logoData.Length > 0)
             {
                 var b64 = Convert.ToBase64String(logoData);
-                logoHtml = $"<img src='data:image/png;base64,{b64}' style='max-height:60px;max-width:180px;margin-bottom:8px;'/>";
+                logoHtml = $"<img src='data:image/png;base64,{b64}' style='max-height:120px;max-width:360px;margin-bottom:16px;'/>";
             }
         }
 
         var headerSection = $@"
-            <div style='text-align:center;padding:24px 20px 12px;'>
+            <div style='text-align:center;padding:48px 40px 24px;'>
                 {logoHtml}
-                <div style='font-size:22px;font-weight:800;color:{style.TextColor};letter-spacing:0.5px;'>{Escape(leagueName)}</div>
-                {(string.IsNullOrWhiteSpace(headline) ? "" : $"<div style='font-size:14px;color:{style.SubTextColor};margin-top:4px;'>{Escape(headline)}</div>")}
+                <div style='font-size:44px;font-weight:800;color:{style.TextColor};letter-spacing:0.5px;'>{Escape(leagueName)}</div>
+                {(string.IsNullOrWhiteSpace(headline) ? "" : $"<div style='font-size:28px;color:{style.SubTextColor};margin-top:8px;'>{Escape(headline)}</div>")}
             </div>";
 
         var footerSection = "";
@@ -494,7 +517,7 @@ public partial class SocialCardPage : ContentPage
             if (!string.IsNullOrWhiteSpace(footer)) parts.Add(Escape(footer));
             if (showWebsite && !string.IsNullOrWhiteSpace(websiteUrl)) parts.Add(Escape(websiteUrl));
             footerSection = $@"
-            <div style='text-align:center;padding:12px 20px 20px;font-size:12px;color:{style.SubTextColor};'>
+            <div style='text-align:center;padding:24px 40px 40px;font-size:24px;color:{style.SubTextColor};'>
                 {string.Join(" &bull; ", parts)}
             </div>";
         }
@@ -502,6 +525,7 @@ public partial class SocialCardPage : ContentPage
         return $@"<!DOCTYPE html>
 <html><head><meta charset='utf-8'/>
 <meta name='viewport' content='width=device-width,initial-scale=1'/>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'></script>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{ 
@@ -521,7 +545,7 @@ public partial class SocialCardPage : ContentPage
     display: flex; flex-direction: column;
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
   }}
-  .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 24px; }}
+  .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 48px; }}
 </style>
 </head>
 <body>
@@ -545,6 +569,21 @@ public partial class SocialCardPage : ContentPage
   }}
   scaleCard();
   window.addEventListener('resize', scaleCard);
+  window._captureData = '';
+  function startCapture() {{
+    window._captureData = 'PENDING';
+    if (typeof html2canvas === 'undefined') {{
+      window._captureData = 'ERROR:Image capture library not loaded. Check your internet connection.';
+      return;
+    }}
+    var wrap = document.getElementById('cardWrap');
+    var saved = wrap.style.transform;
+    wrap.style.transform = 'none';
+    html2canvas(document.querySelector('.card'), {{ scale: 1, useCORS: true, logging: false }})
+      .then(function(c) {{ wrap.style.transform = saved; window._captureData = c.toDataURL('image/png'); }})
+      .catch(function(e) {{ wrap.style.transform = saved; window._captureData = 'ERROR:' + e.message; }});
+  }}
+  function getCaptureResult() {{ return window._captureData || ''; }}
 </script>
 </body></html>";
     }
@@ -570,25 +609,25 @@ public partial class SocialCardPage : ContentPage
         var awayWin = f.AwayScore > f.HomeScore;
 
         return $@"
-        {(showDiv ? $"<div style='text-align:center;font-size:13px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;'>{Escape(division)}</div>" : "")}
-        {(showDate ? $"<div style='text-align:center;font-size:13px;color:{style.SubTextColor};margin-bottom:16px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
-        <div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:16px 0;'>
+        {(showDiv ? $"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(division)}</div>" : "")}
+        {(showDate ? $"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:24px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
+        <div style='display:flex;align-items:center;justify-content:center;gap:30px;padding:24px 0;'>
             <div style='flex:1;text-align:center;'>
-                <div style='font-size:20px;font-weight:700;color:{style.TextColor};{(homeWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(home)}</div>
+                <div style='font-size:40px;font-weight:700;color:{style.TextColor};{(homeWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(home)}</div>
             </div>
             <div style='text-align:center;'>
-                <div style='font-size:48px;font-weight:900;color:{style.TextColor};letter-spacing:4px;'>
+                <div style='font-size:96px;font-weight:900;color:{style.TextColor};letter-spacing:4px;'>
                     <span style='{(homeWin ? "color:" + style.Accent + ";" : "")}'>{f.HomeScore}</span>
                     <span style='color:{style.SubTextColor};margin:0 6px;'>-</span>
                     <span style='{(awayWin ? "color:" + style.Accent + ";" : "")}'>{f.AwayScore}</span>
                 </div>
-                <div style='font-size:11px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:2px;margin-top:4px;'>Final Score</div>
+                <div style='font-size:22px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:2px;margin-top:8px;'>Final Score</div>
             </div>
             <div style='flex:1;text-align:center;'>
-                <div style='font-size:20px;font-weight:700;color:{style.TextColor};{(awayWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(away)}</div>
+                <div style='font-size:40px;font-weight:700;color:{style.TextColor};{(awayWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(away)}</div>
             </div>
         </div>
-        {(showVenue ? $"<div style='text-align:center;font-size:12px;color:{style.SubTextColor};margin-top:16px;'>&#128205; {Escape(venue)}</div>" : "")}";
+        {(showVenue ? $"<div style='text-align:center;font-size:24px;color:{style.SubTextColor};margin-top:24px;'>&#128205; {Escape(venue)}</div>" : "")}";
     }
 
     // ── Fixture Card ──
@@ -609,21 +648,21 @@ public partial class SocialCardPage : ContentPage
         var showVenue = ShowVenueCheck.IsChecked && !string.IsNullOrEmpty(venue);
 
         return $@"
-        {(showDiv ? $"<div style='text-align:center;font-size:13px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;'>{Escape(division)}</div>" : "")}
-        {(showDate ? $"<div style='text-align:center;font-size:13px;color:{style.SubTextColor};margin-bottom:20px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
-        <div style='display:flex;align-items:center;justify-content:center;gap:20px;padding:20px 0;'>
+        {(showDiv ? $"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(division)}</div>" : "")}
+        {(showDate ? $"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:30px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
+        <div style='display:flex;align-items:center;justify-content:center;gap:30px;padding:30px 0;'>
             <div style='flex:1;text-align:center;'>
-                <div style='font-size:22px;font-weight:700;color:{style.TextColor};'>{Escape(home)}</div>
+                <div style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(home)}</div>
             </div>
             <div style='text-align:center;'>
-                <div style='font-size:28px;font-weight:800;color:{style.Accent};'>VS</div>
-                <div style='font-size:14px;font-weight:600;color:{style.TextColor};margin-top:4px;'>{f.Date:h:mm tt}</div>
+                <div style='font-size:56px;font-weight:800;color:{style.Accent};'>VS</div>
+                <div style='font-size:28px;font-weight:600;color:{style.TextColor};margin-top:8px;'>{f.Date:h:mm tt}</div>
             </div>
             <div style='flex:1;text-align:center;'>
-                <div style='font-size:22px;font-weight:700;color:{style.TextColor};'>{Escape(away)}</div>
+                <div style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(away)}</div>
             </div>
         </div>
-        {(showVenue ? $"<div style='text-align:center;font-size:12px;color:{style.SubTextColor};margin-top:16px;'>&#128205; {Escape(venue)}</div>" : "")}";
+        {(showVenue ? $"<div style='text-align:center;font-size:24px;color:{style.SubTextColor};margin-top:24px;'>&#128205; {Escape(venue)}</div>" : "")}";
     }
 
     // ── League Table ──
@@ -659,17 +698,17 @@ public partial class SocialCardPage : ContentPage
         var showDiv = ShowDivisionCheck.IsChecked && !string.IsNullOrEmpty(divName) && divName != "All Divisions";
 
         var sb = new StringBuilder();
-        if (showDiv) sb.Append($"<div style='text-align:center;font-size:13px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;'>{Escape(divName)}</div>");
+        if (showDiv) sb.Append($"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(divName)}</div>");
 
-        sb.Append($@"<table style='width:100%;border-collapse:collapse;font-size:13px;color:{style.TextColor};'>
+        sb.Append($@"<table style='width:100%;border-collapse:collapse;font-size:26px;color:{style.TextColor};'>
             <tr style='border-bottom:2px solid {style.Accent};'>
-                <th style='padding:8px 6px;text-align:center;width:30px;'>#</th>
-                <th style='padding:8px 6px;text-align:left;'>Team</th>
-                <th style='padding:8px 6px;text-align:center;'>P</th>
-                <th style='padding:8px 6px;text-align:center;'>W</th>
-                <th style='padding:8px 6px;text-align:center;'>L</th>
-                <th style='padding:8px 6px;text-align:center;'>FD</th>
-                <th style='padding:8px 6px;text-align:center;font-weight:800;'>Pts</th>
+                <th style='padding:14px 10px;text-align:center;width:50px;'>#</th>
+                <th style='padding:14px 10px;text-align:left;'>Team</th>
+                <th style='padding:14px 10px;text-align:center;'>P</th>
+                <th style='padding:14px 10px;text-align:center;'>W</th>
+                <th style='padding:14px 10px;text-align:center;'>L</th>
+                <th style='padding:14px 10px;text-align:center;'>FD</th>
+                <th style='padding:14px 10px;text-align:center;font-weight:800;'>Pts</th>
             </tr>");
 
         var maxRows = Math.Min(sorted.Count, 12);
@@ -680,18 +719,18 @@ public partial class SocialCardPage : ContentPage
             var isTop3 = i < 3;
             var posIcon = i switch { 0 => "&#129351;", 1 => "&#129352;", 2 => "&#129353;", _ => s.Position.ToString() };
             sb.Append($@"<tr style='background:{rowBg};{(isTop3 ? "font-weight:600;" : "")}'>
-                <td style='padding:7px 6px;text-align:center;'>{posIcon}</td>
-                <td style='padding:7px 6px;text-align:left;{(isTop3 ? "color:" + style.Accent + ";" : "")}'>{Escape(s.TeamName)}</td>
-                <td style='padding:7px 6px;text-align:center;'>{s.Played}</td>
-                <td style='padding:7px 6px;text-align:center;'>{s.Won}</td>
-                <td style='padding:7px 6px;text-align:center;'>{s.Lost}</td>
-                <td style='padding:7px 6px;text-align:center;'>{s.FrameDifference:+0;-0;0}</td>
-                <td style='padding:7px 6px;text-align:center;font-weight:800;'>{s.Points}</td>
+                <td style='padding:12px 10px;text-align:center;'>{posIcon}</td>
+                <td style='padding:12px 10px;text-align:left;{(isTop3 ? "color:" + style.Accent + ";" : "")}'>{Escape(s.TeamName)}</td>
+                <td style='padding:12px 10px;text-align:center;'>{s.Played}</td>
+                <td style='padding:12px 10px;text-align:center;'>{s.Won}</td>
+                <td style='padding:12px 10px;text-align:center;'>{s.Lost}</td>
+                <td style='padding:12px 10px;text-align:center;'>{s.FrameDifference:+0;-0;0}</td>
+                <td style='padding:12px 10px;text-align:center;font-weight:800;'>{s.Points}</td>
             </tr>");
         }
 
         if (sorted.Count > maxRows)
-            sb.Append($"<tr><td colspan='7' style='padding:8px;text-align:center;color:{style.SubTextColor};font-size:11px;'>+ {sorted.Count - maxRows} more teams</td></tr>");
+            sb.Append($"<tr><td colspan='7' style='padding:14px;text-align:center;color:{style.SubTextColor};font-size:22px;'>+ {sorted.Count - maxRows} more teams</td></tr>");
 
         sb.Append("</table>");
         return sb.ToString();
@@ -727,25 +766,25 @@ public partial class SocialCardPage : ContentPage
         var winPct = played > 0 ? (won * 100.0 / played).ToString("0.0") : "0.0";
 
         return $@"
-        <div style='text-align:center;padding:16px 0;'>
-            <div style='width:80px;height:80px;border-radius:50%;background:{style.Accent};margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:36px;color:white;font-weight:800;'>
+        <div style='text-align:center;padding:24px 0;'>
+            <div style='width:140px;height:140px;border-radius:50%;background:{style.Accent};margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:64px;color:white;font-weight:800;'>
                 {Escape(player.Name.Length > 0 ? player.Name[..1].ToUpper() : "?")}
             </div>
-            <div style='font-size:24px;font-weight:800;color:{style.TextColor};'>{Escape(player.Name)}</div>
-            {(!string.IsNullOrEmpty(teamName) ? $"<div style='font-size:14px;color:{style.SubTextColor};margin-top:4px;'>{Escape(teamName)}</div>" : "")}
+            <div style='font-size:44px;font-weight:800;color:{style.TextColor};'>{Escape(player.Name)}</div>
+            {(!string.IsNullOrEmpty(teamName) ? $"<div style='font-size:28px;color:{style.SubTextColor};margin-top:8px;'>{Escape(teamName)}</div>" : "")}
         </div>
-        <div style='display:flex;justify-content:center;gap:16px;margin-top:16px;'>
-            <div style='text-align:center;background:{style.BgColor2};border-radius:12px;padding:14px 20px;min-width:90px;'>
-                <div style='font-size:28px;font-weight:800;color:{style.Accent};'>{played}</div>
-                <div style='font-size:11px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Played</div>
+        <div style='display:flex;justify-content:center;gap:24px;margin-top:24px;'>
+            <div style='text-align:center;background:{style.BgColor2};border-radius:16px;padding:24px 36px;min-width:160px;'>
+                <div style='font-size:52px;font-weight:800;color:{style.Accent};'>{played}</div>
+                <div style='font-size:22px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Played</div>
             </div>
-            <div style='text-align:center;background:{style.BgColor2};border-radius:12px;padding:14px 20px;min-width:90px;'>
-                <div style='font-size:28px;font-weight:800;color:{style.Accent};'>{won}</div>
-                <div style='font-size:11px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Won</div>
+            <div style='text-align:center;background:{style.BgColor2};border-radius:16px;padding:24px 36px;min-width:160px;'>
+                <div style='font-size:52px;font-weight:800;color:{style.Accent};'>{won}</div>
+                <div style='font-size:22px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Won</div>
             </div>
-            <div style='text-align:center;background:{style.BgColor2};border-radius:12px;padding:14px 20px;min-width:90px;'>
-                <div style='font-size:28px;font-weight:800;color:{style.Accent};'>{winPct}%</div>
-                <div style='font-size:11px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Win Rate</div>
+            <div style='text-align:center;background:{style.BgColor2};border-radius:16px;padding:24px 36px;min-width:160px;'>
+                <div style='font-size:52px;font-weight:800;color:{style.Accent};'>{winPct}%</div>
+                <div style='font-size:22px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Win Rate</div>
             </div>
         </div>";
     }
@@ -766,7 +805,7 @@ public partial class SocialCardPage : ContentPage
         var sb = new StringBuilder();
 
         if (showDate && latest.Count > 0)
-            sb.Append($"<div style='text-align:center;font-size:13px;color:{style.SubTextColor};margin-bottom:16px;'>{latest.First().Date:dddd dd MMMM yyyy}</div>");
+            sb.Append($"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:24px;'>{latest.First().Date:dddd dd MMMM yyyy}</div>");
 
         foreach (var f in latest)
         {
@@ -775,10 +814,10 @@ public partial class SocialCardPage : ContentPage
             var homeWin = f.HomeScore > f.AwayScore;
             var awayWin = f.AwayScore > f.HomeScore;
 
-            sb.Append($@"<div style='display:flex;align-items:center;padding:8px 12px;margin:3px 0;background:{style.BgColor2}40;border-radius:8px;'>
-                <div style='flex:1;text-align:right;font-size:14px;font-weight:{(homeWin ? "700" : "400")};color:{style.TextColor};padding-right:10px;'>{Escape(home)}</div>
-                <div style='font-size:18px;font-weight:800;color:{style.Accent};min-width:60px;text-align:center;'>{f.HomeScore} - {f.AwayScore}</div>
-                <div style='flex:1;text-align:left;font-size:14px;font-weight:{(awayWin ? "700" : "400")};color:{style.TextColor};padding-left:10px;'>{Escape(away)}</div>
+            sb.Append($@"<div style='display:flex;align-items:center;padding:14px 20px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
+                <div style='flex:1;text-align:right;font-size:28px;font-weight:{(homeWin ? "700" : "400")};color:{style.TextColor};padding-right:16px;'>{Escape(home)}</div>
+                <div style='font-size:34px;font-weight:800;color:{style.Accent};min-width:100px;text-align:center;'>{f.HomeScore} - {f.AwayScore}</div>
+                <div style='flex:1;text-align:left;font-size:28px;font-weight:{(awayWin ? "700" : "400")};color:{style.TextColor};padding-left:16px;'>{Escape(away)}</div>
             </div>");
         }
 
@@ -802,7 +841,7 @@ public partial class SocialCardPage : ContentPage
         var sb = new StringBuilder();
 
         if (showDate && upcoming.Count > 0)
-            sb.Append($"<div style='text-align:center;font-size:13px;color:{style.SubTextColor};margin-bottom:16px;'>{upcoming.First().Date:dddd dd MMMM yyyy}</div>");
+            sb.Append($"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:24px;'>{upcoming.First().Date:dddd dd MMMM yyyy}</div>");
 
         foreach (var f in upcoming)
         {
@@ -810,17 +849,17 @@ public partial class SocialCardPage : ContentPage
             var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away";
             var venue = showVenue ? _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId)?.Name : null;
 
-            sb.Append($@"<div style='display:flex;align-items:center;padding:8px 12px;margin:3px 0;background:{style.BgColor2}40;border-radius:8px;'>
-                <div style='flex:1;text-align:right;font-size:14px;font-weight:600;color:{style.TextColor};padding-right:10px;'>{Escape(home)}</div>
-                <div style='text-align:center;min-width:50px;'>
-                    <div style='font-size:14px;font-weight:700;color:{style.Accent};'>VS</div>
-                    <div style='font-size:10px;color:{style.SubTextColor};'>{f.Date:h:mm tt}</div>
+            sb.Append($@"<div style='display:flex;align-items:center;padding:14px 20px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
+                <div style='flex:1;text-align:right;font-size:28px;font-weight:600;color:{style.TextColor};padding-right:16px;'>{Escape(home)}</div>
+                <div style='text-align:center;min-width:90px;'>
+                    <div style='font-size:28px;font-weight:700;color:{style.Accent};'>VS</div>
+                    <div style='font-size:20px;color:{style.SubTextColor};'>{f.Date:h:mm tt}</div>
                 </div>
-                <div style='flex:1;text-align:left;font-size:14px;font-weight:600;color:{style.TextColor};padding-left:10px;'>{Escape(away)}</div>
+                <div style='flex:1;text-align:left;font-size:28px;font-weight:600;color:{style.TextColor};padding-left:16px;'>{Escape(away)}</div>
             </div>");
 
             if (!string.IsNullOrEmpty(venue))
-                sb.Append($"<div style='text-align:center;font-size:10px;color:{style.SubTextColor};margin-bottom:4px;'>&#128205; {Escape(venue)}</div>");
+                sb.Append($"<div style='text-align:center;font-size:20px;color:{style.SubTextColor};margin-bottom:6px;'>&#128205; {Escape(venue)}</div>");
         }
 
         return sb.ToString();

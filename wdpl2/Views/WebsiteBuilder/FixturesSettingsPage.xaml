@@ -37,6 +37,10 @@
                             <CheckBox x:Name="ShowCountdownCheck" IsChecked="False" VerticalOptions="Center"/>
                             <Label Grid.Column="1" Text="Show Countdown Timer" VerticalOptions="Center"/>
                         </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowCalendarDownloadCheck" IsChecked="False" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show Team Calendar Download (iCal / Google)" VerticalOptions="Center"/>
+                        </Grid>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
             </Frame>

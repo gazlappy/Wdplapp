@@ -297,6 +297,7 @@ namespace Wdpl2.Models
         public bool FixturesGroupByDate { get; set; } = true;
         public bool FixturesGroupByWeek { get; set; } = false;
         public bool FixturesShowCountdown { get; set; } = false;
+        public bool FixturesShowCalendarDownload { get; set; } = true;
         public int FixturesPerPage { get; set; } = 20;
         public string FixturesDateFormat { get; set; } = "ddd dd MMM";
         public string FixturesHomeTeamAlign { get; set; } = "right";  // right, left, center
@@ -780,6 +781,7 @@ namespace Wdpl2.Models
             FixturesShowTime = true;
             FixturesGroupByDate = true;
             FixturesShowCountdown = false;
+            FixturesShowCalendarDownload = false;
             FixturesPerPage = 20;
             FixturesHomeTeamAlign = "right";
             FixturesAwayTeamAlign = "left";

@@ -32,6 +32,7 @@ public partial class FixturesSettingsPage : ContentPage
         ShowVenueCheck.IsChecked = settings.FixturesShowVenue;
         ShowDivisionCheck.IsChecked = settings.FixturesShowDivision;
         ShowCountdownCheck.IsChecked = settings.FixturesShowCountdown;
+        ShowCalendarDownloadCheck.IsChecked = settings.FixturesShowCalendarDownload;
         
         GroupByDateCheck.IsChecked = settings.FixturesGroupByDate;
         GroupByWeekCheck.IsChecked = settings.FixturesGroupByWeek;
@@ -68,6 +69,7 @@ public partial class FixturesSettingsPage : ContentPage
             settings.FixturesShowVenue = ShowVenueCheck.IsChecked;
             settings.FixturesShowDivision = ShowDivisionCheck.IsChecked;
             settings.FixturesShowCountdown = ShowCountdownCheck.IsChecked;
+            settings.FixturesShowCalendarDownload = ShowCalendarDownloadCheck.IsChecked;
             
             settings.FixturesGroupByDate = GroupByDateCheck.IsChecked;
             settings.FixturesGroupByWeek = GroupByWeekCheck.IsChecked;
