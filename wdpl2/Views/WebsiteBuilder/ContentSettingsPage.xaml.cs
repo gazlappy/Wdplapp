@@ -34,23 +34,6 @@ public partial class ContentSettingsPage : ContentPage
         ShowContactPageCheck.IsChecked = settings.ShowContactPage;
         ShowPoolGameCheck.IsChecked = settings.ShowPoolGame;
 
-        var layouts = (HomeLayoutPicker.ItemsSource as IList<string>)!;
-        var layoutIndex = layouts.IndexOf(settings.HomeLayout);
-        if (layoutIndex >= 0) HomeLayoutPicker.SelectedIndex = layoutIndex;
-
-        var styles = (StatsCardStylePicker.ItemsSource as IList<string>)!;
-        var styleIndex = styles.IndexOf(settings.StatsCardStyle);
-        if (styleIndex >= 0) StatsCardStylePicker.SelectedIndex = styleIndex;
-        StatsShowIconsCheck.IsChecked = settings.StatsShowIcons;
-        
-        HomeShowWelcomeSectionCheck.IsChecked = settings.HomeShowWelcomeSection;
-        HomeShowQuickStatsCheck.IsChecked = settings.HomeShowQuickStats;
-        HomeShowRecentResultsCheck.IsChecked = settings.HomeShowRecentResults;
-        HomeShowUpcomingFixturesCheck.IsChecked = settings.HomeShowUpcomingFixtures;
-        HomeShowLeagueLeadersCheck.IsChecked = settings.HomeShowLeagueLeaders;
-        HomeShowLatestNewsCheck.IsChecked = settings.HomeShowLatestNews;
-        HomeShowSponsorsCheck.IsChecked = settings.HomeShowSponsors;
-        
         HomeRecentResultsCountEntry.Text = settings.HomeRecentResultsCount.ToString();
         HomeUpcomingFixturesCountEntry.Text = settings.HomeUpcomingFixturesCount.ToString();
         HomeLeagueLeadersCountEntry.Text = settings.HomeLeagueLeadersCount.ToString();
@@ -95,18 +78,6 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowContactPage = ShowContactPageCheck.IsChecked;
             settings.ShowPoolGame = ShowPoolGameCheck.IsChecked;
 
-            settings.HomeLayout = HomeLayoutPicker.SelectedItem?.ToString() ?? "standard";
-            settings.StatsCardStyle = StatsCardStylePicker.SelectedItem?.ToString() ?? "gradient";
-            settings.StatsShowIcons = StatsShowIconsCheck.IsChecked;
-            
-            settings.HomeShowWelcomeSection = HomeShowWelcomeSectionCheck.IsChecked;
-            settings.HomeShowQuickStats = HomeShowQuickStatsCheck.IsChecked;
-            settings.HomeShowRecentResults = HomeShowRecentResultsCheck.IsChecked;
-            settings.HomeShowUpcomingFixtures = HomeShowUpcomingFixturesCheck.IsChecked;
-            settings.HomeShowLeagueLeaders = HomeShowLeagueLeadersCheck.IsChecked;
-            settings.HomeShowLatestNews = HomeShowLatestNewsCheck.IsChecked;
-            settings.HomeShowSponsors = HomeShowSponsorsCheck.IsChecked;
-            
             if (int.TryParse(HomeRecentResultsCountEntry.Text, out int recentResults))
                 settings.HomeRecentResultsCount = recentResults;
             if (int.TryParse(HomeUpcomingFixturesCountEntry.Text, out int upcomingFixtures))

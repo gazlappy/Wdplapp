@@ -45,22 +45,6 @@ public partial class LayoutSettingsPage : ContentPage
         LoadSettings();
     }
 
-    private static readonly Dictionary<string, string> LogoPositionToLabel = new()
-    {
-        ["above"] = "Above Title",
-        ["below"] = "Below Title",
-        ["left"] = "Left of Title",
-        ["right"] = "Right of Title",
-        ["top-left"] = "Top Left Corner",
-        ["top-right"] = "Top Right Corner",
-        ["bottom-left"] = "Bottom Left Corner",
-        ["bottom-right"] = "Bottom Right Corner",
-        ["hidden"] = "Hidden"
-    };
-
-    private static readonly Dictionary<string, string> LabelToLogoPosition =
-        LogoPositionToLabel.ToDictionary(kv => kv.Value, kv => kv.Key);
-
     private void LoadSettings()
     {
         var settings = League.WebsiteSettings;
@@ -98,11 +82,6 @@ public partial class LayoutSettingsPage : ContentPage
         ShowHeaderPatternCheck.IsChecked = settings.ShowHeaderPattern;
         ShowSeasonBadgeCheck.IsChecked = settings.ShowSeasonBadge;
 
-        // Logo position
-        if (LogoPositionToLabel.TryGetValue(settings.LogoPosition, out var posLabel))
-            SetPickerValue(LogoPositionPicker, posLabel);
-        UpdateLogoPositionHint();
-        
         // Navigation
         SetPickerValue(NavStylePicker, settings.NavStyle);
         SetPickerValue(NavPositionPicker, settings.NavPosition);
@@ -143,32 +122,6 @@ public partial class LayoutSettingsPage : ContentPage
     private void OnHeaderLayoutChanged(object? sender, EventArgs e)
     {
         UpdateHeaderLayoutDescription();
-        UpdateLogoPositionHint();
-    }
-
-    private void UpdateLogoPositionHint()
-    {
-        var layout = HeaderLayoutPicker.SelectedItem?.ToString();
-        string? hint = layout switch
-        {
-            "split" => "Split layout places logo on the left automatically",
-            "scoreboard" => "Scoreboard layout places logo on the left automatically",
-            "two-row" => "Two-row layout places logo in the top row automatically",
-            _ => null
-        };
-
-        var overrides = layout is "split" or "scoreboard" or "two-row";
-        LogoPositionPicker.IsEnabled = !overrides;
-
-        if (hint != null)
-        {
-            LogoPositionHint.Text = hint;
-            LogoPositionHint.IsVisible = true;
-        }
-        else
-        {
-            LogoPositionHint.IsVisible = false;
-        }
     }
 
     private void UpdateHeaderLayoutDescription()
@@ -228,11 +181,6 @@ public partial class LayoutSettingsPage : ContentPage
             settings.ShowHeaderPattern = ShowHeaderPatternCheck.IsChecked;
             settings.ShowSeasonBadge = ShowSeasonBadgeCheck.IsChecked;
 
-            // Logo position — save from Layout page (synced with Branding page)
-            var selectedPosLabel = LogoPositionPicker.SelectedItem?.ToString();
-            if (selectedPosLabel != null && LabelToLogoPosition.TryGetValue(selectedPosLabel, out var posValue))
-                settings.LogoPosition = posValue;
-            
             // Navigation
             settings.NavStyle = GetPickerValue(NavStylePicker, "pills");
             settings.NavPosition = GetPickerValue(NavPositionPicker, "center");

@@ -15,11 +15,8 @@
             </VerticalStackLayout>
 
             <Frame Grid.Row="1" BorderColor="#E5E7EB" Padding="10" CornerRadius="6"
-                   Margin="12,0,12,8" BackgroundColor="White">
-                <Grid ColumnDefinitions="*,Auto">
-                    <Label Text="Show Rules Page" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"/>
-                    <Switch x:Name="ShowRulesSwitch" Grid.Column="1" IsToggled="False"/>
-                </Grid>
+                   Margin="12,0,12,8" BackgroundColor="#F0FDF4">
+                <Label Text="Rules page visibility is controlled in Pages and Content settings." FontSize="11" TextColor="#6B7280" LineBreakMode="WordWrap"/>
             </Frame>
 
             <ScrollView Grid.Row="2">

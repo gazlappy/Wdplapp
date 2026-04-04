@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -599,7 +600,7 @@ public partial class WebsiteBuilderHub : ContentPage
             html = html.Replace("<head>", "<head>" + qsScript);
         }
 
-        PreviewWebView.Source = new HtmlWebViewSource { Html = html };
+        WebViewHelper.LoadHtml(PreviewWebView, html);
     }
 
     private string InlineJsonData(string html)

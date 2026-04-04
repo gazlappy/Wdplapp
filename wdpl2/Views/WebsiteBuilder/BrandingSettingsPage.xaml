@@ -103,6 +103,66 @@
                         <CheckBox x:Name="MaintainAspectRatioCheck" IsChecked="True"/>
                         <Label Text="Maintain aspect ratio" VerticalOptions="Center" FontSize="13"/>
                     </HorizontalStackLayout>
+
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,5"/>
+
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="DuplicateLogoCheck" IsChecked="False" CheckedChanged="OnDuplicateLogoChanged"/>
+                        <Label Text="Show logo on both sides of the title" VerticalOptions="Center" FontSize="13"/>
+                    </HorizontalStackLayout>
+                    <Label Text="Displays a logo on each side of the header title for a symmetrical look" FontSize="11" TextColor="#9CA3AF"/>
+
+                    <!-- Right Side Logo Options (shown when dual logo is enabled) -->
+                    <Frame x:Name="RightLogoFrame" BorderColor="#D1D5DB" Padding="12" CornerRadius="6" IsVisible="False" BackgroundColor="#F9FAFB">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Right Side Logo" FontSize="13" FontAttributes="Bold"/>
+                            <Label Text="Optionally use a different image for the right side. If not set, the main logo is used." FontSize="11" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Button x:Name="UploadRightLogoBtn"
+                                        Text="Upload Right Logo"
+                                        Clicked="OnUploadRightLogoClicked"
+                                        BackgroundColor="#3B82F6"
+                                        FontSize="12"/>
+                                <Button Grid.Column="1" x:Name="SelectRightCatalogBtn"
+                                        Text="From Catalog"
+                                        Clicked="OnSelectRightFromCatalogClicked"
+                                        BackgroundColor="#6B7280"
+                                        FontSize="12"/>
+                            </Grid>
+
+                            <!-- Right Logo Preview -->
+                            <Frame x:Name="RightLogoPreviewFrame" BorderColor="#E5E7EB" Padding="8" CornerRadius="4" IsVisible="False">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="Right Logo:" FontSize="11" TextColor="#6B7280"/>
+                                    <Image x:Name="RightLogoPreviewImage"
+                                           HeightRequest="60"
+                                           Aspect="AspectFit"
+                                           HorizontalOptions="Start"/>
+                                    <Label x:Name="RightLogoStatusLabel"
+                                           Text="Right logo loaded"
+                                           FontSize="10"
+                                           TextColor="#10B981"/>
+                                    <Button x:Name="RemoveRightLogoBtn"
+                                            Text="Remove (use main logo)"
+                                            Clicked="OnRemoveRightLogoClicked"
+                                            BackgroundColor="#EF4444"
+                                            FontSize="11"
+                                            HeightRequest="30"
+                                            HorizontalOptions="Start"/>
+                                </VerticalStackLayout>
+                            </Frame>
+
+                            <Label Text="Right Logo Size" FontSize="12" FontAttributes="Bold"/>
+                            <Grid ColumnDefinitions="Auto,80,Auto,80" ColumnSpacing="8" RowDefinitions="Auto">
+                                <Label Text="Width:" VerticalOptions="Center" FontSize="12"/>
+                                <Entry Grid.Column="1" x:Name="RightLogoWidthEntry" Text="300" Keyboard="Numeric" FontSize="12"/>
+                                <Label Grid.Column="2" Text="Height:" VerticalOptions="Center" FontSize="12"/>
+                                <Entry Grid.Column="3" x:Name="RightLogoHeightEntry" Text="150" Keyboard="Numeric" FontSize="12"/>
+                            </Grid>
+                            <Label Text="Size in pixels" FontSize="10" TextColor="#9CA3AF"/>
+                        </VerticalStackLayout>
+                    </Frame>
                 </VerticalStackLayout>
             </Frame>
             

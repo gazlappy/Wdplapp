@@ -150,7 +150,7 @@ public partial class SocialCardPage : ContentPage
             _cachedShareText = BuildShareText(includeUrl: false);
             PreviewPlaceholder.IsVisible = false;
             PreviewWebView.IsVisible = true;
-            PreviewWebView.Source = new HtmlWebViewSource { Html = _generatedHtml };
+            WebViewHelper.LoadHtml(PreviewWebView, _generatedHtml);
             ShowStatus("Card generated — ready to share!");
         }
         catch (Exception ex)

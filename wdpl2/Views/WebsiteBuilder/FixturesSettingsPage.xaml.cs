@@ -51,11 +51,6 @@ public partial class FixturesSettingsPage : ContentPage
         SetPickerValue(HomeTeamAlignPicker, settings.FixturesHomeTeamAlign);
         SetPickerValue(AwayTeamAlignPicker, settings.FixturesAwayTeamAlign);
         SetPickerValue(VsAlignPicker, settings.FixturesVsAlign);
-
-        // Printable fixtures sheet options
-        ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
-        SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
-        SheetTitleEntry.Text = settings.FixturesSheetTitle;
     }
 
     private async void OnSaveClicked(object sender, EventArgs e)
@@ -85,13 +80,6 @@ public partial class FixturesSettingsPage : ContentPage
             settings.FixturesAwayTeamAlign = AwayTeamAlignPicker.SelectedItem?.ToString() ?? "left";
             settings.FixturesVsAlign = VsAlignPicker.SelectedItem?.ToString() ?? "center";
 
-            // Printable fixtures sheet options
-            settings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
-            settings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
-            settings.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text) 
-                ? "Printable Fixtures Sheet" 
-                : SheetTitleEntry.Text;
-            
             DataStore.Save();
             
             await DisplayAlert("Saved", "Fixtures settings saved.", "OK");

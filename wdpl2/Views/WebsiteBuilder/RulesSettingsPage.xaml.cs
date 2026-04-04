@@ -36,7 +36,6 @@ public partial class RulesSettingsPage : ContentPage
     public RulesSettingsPage()
     {
         InitializeComponent();
-        ShowRulesSwitch.IsToggled = League.WebsiteSettings.ShowRules;
         _ = LoadAsync();
     }
 
@@ -260,7 +259,6 @@ public partial class RulesSettingsPage : ContentPage
             SaveBtn.IsEnabled = false;
 
             var settings = League.WebsiteSettings;
-            settings.ShowRules = ShowRulesSwitch.IsToggled;
 
             settings.ConstitutionContent = ReconstructText(0);
             settings.MatchRulesContent = ReconstructText(1);

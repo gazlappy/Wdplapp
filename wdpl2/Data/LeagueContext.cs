@@ -54,6 +54,10 @@ public class LeagueContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.HasIndex(e => e.StartDate);
             entity.HasIndex(e => e.IsActive);
+
+            // Settings is a navigation property to AppSettings (which has no primary key)
+            // and is managed by the JSON data store, not EF Core
+            entity.Ignore(e => e.Settings);
         });
 
         // ====== DIVISION CONFIGURATION ======

@@ -324,11 +324,11 @@ namespace Wdpl2.Services
                     AppendHomeUpcomingFixturesSection(html, teams, venues, fixtures);
                     break;
                 case "latest-news":
-                    if (_settings.HomeShowLatestNews && _settings.ShowNews)
+                    if (_settings.ShowNews)
                         AppendHomeLatestNewsSection(html);
                     break;
                 case "sponsors":
-                    if (_settings.HomeShowSponsors && _settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
+                    if (_settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
                         AppendSponsorsSection(html);
                     break;
             }
@@ -336,8 +336,6 @@ namespace Wdpl2.Services
         
         private void AppendHomeWelcomeSection(StringBuilder html, Season season)
         {
-            if (!_settings.HomeShowWelcomeSection) return;
-            
             html.AppendLine("            <div class=\"hero\">");
             html.AppendLine($"                <h2>Welcome to {season.Name}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{season.StartDate:MMMM d, yyyy} - {season.EndDate:MMMM d, yyyy}</p>");
@@ -350,8 +348,6 @@ namespace Wdpl2.Services
         
         private void AppendHomeQuickStatsSection(StringBuilder html, List<Team> teams, List<Player> players, List<Division> divisions, int completedFixtures)
         {
-            if (!_settings.HomeShowQuickStats) return;
-            
             var statColumns = _settings.StatsColumns;
             html.AppendLine($"            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax(min({(statColumns == 2 ? "280px" : statColumns == 3 ? "200px" : "180px")}, 100%), 1fr));\">");
             html.AppendLine("                <div class=\"stat-card\">");
@@ -375,7 +371,7 @@ namespace Wdpl2.Services
         
         private void AppendHomeLeagueLeadersSection(StringBuilder html, List<Player> players, List<Team> teams, List<Fixture> fixtures)
         {
-            if (!(_settings.HomeShowLeagueLeaders && _settings.ShowTopScorers)) return;
+            if (!_settings.ShowTopScorers) return;
             
             var playerStats = CalculatePlayerStats(players, teams, fixtures);
             
@@ -428,7 +424,7 @@ namespace Wdpl2.Services
         
         private void AppendHomeRecentResultsSection(StringBuilder html, List<Team> teams, List<Fixture> fixtures, int completedFixtures)
         {
-            if (!(_settings.HomeShowRecentResults && _settings.ShowResults && completedFixtures > 0)) return;
+            if (!(_settings.ShowResults && completedFixtures > 0)) return;
             
             html.AppendLine("            <section class=\"section\">");
             html.AppendLine("                <h3>&#127937; Recent Results</h3>");
@@ -462,7 +458,7 @@ namespace Wdpl2.Services
         
         private void AppendHomeUpcomingFixturesSection(StringBuilder html, List<Team> teams, List<Venue> venues, List<Fixture> fixtures)
         {
-            if (!(_settings.HomeShowUpcomingFixtures && _settings.ShowFixtures)) return;
+            if (!_settings.ShowFixtures) return;
             
             var upcomingFixtures = fixtures
                 .Where(f => f.Date > DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))

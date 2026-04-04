@@ -25,6 +25,28 @@
 
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
 
+                <!-- Embed on Fixtures Page -->
+                <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#F0F9FF">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="📄 Embed on Fixtures Page" FontAttributes="Bold" FontSize="13" TextColor="#0369A1"/>
+                        <Label Text="Add a collapsible printable fixtures sheet to the fixtures page" FontSize="11" TextColor="#64748B" LineBreakMode="WordWrap"/>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                                <CheckBox x:Name="ShowPrintableSheetCheck" IsChecked="False" VerticalOptions="Center"/>
+                                <Label Grid.Column="1" Text="Show Printable Fixtures Sheet" VerticalOptions="Center" FontSize="13"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                                <CheckBox x:Name="SheetDefaultExpandedCheck" IsChecked="False" VerticalOptions="Center"/>
+                                <Label Grid.Column="1" Text="Expanded by Default" VerticalOptions="Center" FontSize="13"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <Label Text="Section Title" FontSize="11" TextColor="#64748B" Margin="0,4,0,0"/>
+                        <Entry x:Name="SheetTitleEntry" Text="Printable Fixtures Sheet" Placeholder="Enter section title" FontSize="13"/>
+                    </VerticalStackLayout>
+                </Frame>
+
                 <!-- Season and Division Selection -->
                 <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#EFF6FF">
                     <VerticalStackLayout Spacing="10">
@@ -199,6 +221,7 @@
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                     <VerticalStackLayout Spacing="8">
                         <Label Text="&#127912; Design &amp; Styling" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Label Text="These settings apply to the printable fixtures sheet only and do not affect the website design." FontSize="11" TextColor="#6B7280" FontAttributes="Italic" LineBreakMode="WordWrap"/>
 
                         <!-- Layout Preset -->
                         <Label Text="&#128208; Layout Preset" FontSize="11" TextColor="#64748B" FontAttributes="Bold"/>
@@ -297,36 +320,31 @@
                             </Picker.ItemsSource>
                         </Picker>
 
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                            <VerticalStackLayout Spacing="4">
-                                <Label Text="Font Size" FontSize="11" TextColor="#64748B"/>
-                                <Picker x:Name="FontScalePicker" Title="Size" SelectedIndex="2">
-                                    <Picker.ItemsSource>
-                                        <x:Array Type="{x:Type x:String}">
-                                            <x:String>Extra Small</x:String>
-                                            <x:String>Small</x:String>
-                                            <x:String>Default</x:String>
-                                            <x:String>Medium</x:String>
-                                            <x:String>Large</x:String>
-                                            <x:String>Extra Large</x:String>
-                                        </x:Array>
-                                    </Picker.ItemsSource>
-                                </Picker>
-                            </VerticalStackLayout>
-                            <VerticalStackLayout Spacing="4">
-                                <Label Text="Font Weight" FontSize="11" TextColor="#64748B"/>
-                                <Picker x:Name="FontWeightPicker" Title="Weight" SelectedIndex="1">
-                                    <Picker.ItemsSource>
-                                        <x:Array Type="{x:Type x:String}">
-                                            <x:String>Light</x:String>
-                                            <x:String>Normal</x:String>
-                                            <x:String>Semi-Bold</x:String>
-                                            <x:String>Bold</x:String>
-                                        </x:Array>
-                                    </Picker.ItemsSource>
-                                </Picker>
-                            </VerticalStackLayout>
-                        </Grid>
+                        <Label Text="Font Size" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="FontScalePicker" Title="Size" SelectedIndex="2">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Extra Small</x:String>
+                                    <x:String>Small</x:String>
+                                    <x:String>Default</x:String>
+                                    <x:String>Medium</x:String>
+                                    <x:String>Large</x:String>
+                                    <x:String>Extra Large</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+
+                        <Label Text="Font Weight" FontSize="11" TextColor="#64748B"/>
+                        <Picker x:Name="FontWeightPicker" Title="Weight" SelectedIndex="1">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Light</x:String>
+                                    <x:String>Normal</x:String>
+                                    <x:String>Semi-Bold</x:String>
+                                    <x:String>Bold</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
 
                         <Label Text="Title Size" FontSize="11" TextColor="#64748B"/>
                         <Picker x:Name="TitleFontSizePicker" Title="Title Size" SelectedIndex="1">
@@ -348,7 +366,7 @@
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnToggleAdvancedClicked"/>
                             </Grid.GestureRecognizers>
-                            <Label Text="&#9881; Advanced Design Options" FontSize="11" TextColor="#64748B" FontAttributes="Bold" VerticalOptions="Center"/>
+                            <Label Text="&#9881; Advanced Design Options (printable sheet)" FontSize="11" TextColor="#64748B" FontAttributes="Bold" VerticalOptions="Center"/>
                             <Label x:Name="AdvancedToggleIcon" Grid.Column="1" Text="&#9654;" FontSize="10" TextColor="#94A3B8" VerticalOptions="Center"/>
                         </Grid>
 
@@ -366,239 +384,204 @@
                                 </Picker.ItemsSource>
                             </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Accent Colour" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="AccentColorPicker" Title="Accent" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Black</x:String>
-                                                <x:String>Navy</x:String>
-                                                <x:String>Forest</x:String>
-                                                <x:String>Burgundy</x:String>
-                                                <x:String>Slate</x:String>
-                                                <x:String>Royal Blue</x:String>
-                                                <x:String>Emerald</x:String>
-                                                <x:String>Crimson</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Title Style" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="TitleStylePicker" Title="Title" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Double Rule</x:String>
-                                                <x:String>Single Rule</x:String>
-                                                <x:String>Box Border</x:String>
-                                                <x:String>No Border</x:String>
-                                                <x:String>Gradient</x:String>
-                                                <x:String>Shadow</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Accent Colour" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="AccentColorPicker" Title="Accent" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Black</x:String>
+                                        <x:String>Navy</x:String>
+                                        <x:String>Forest</x:String>
+                                        <x:String>Burgundy</x:String>
+                                        <x:String>Slate</x:String>
+                                        <x:String>Royal Blue</x:String>
+                                        <x:String>Emerald</x:String>
+                                        <x:String>Crimson</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Grid Lines" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="GridBorderPicker" Title="Borders" SelectedIndex="1">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Fine</x:String>
-                                                <x:String>Medium</x:String>
-                                                <x:String>Bold</x:String>
-                                                <x:String>Double</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Home Badge" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="HomeBadgePicker" Title="Badge" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Pill</x:String>
-                                                <x:String>Bold Only</x:String>
-                                                <x:String>Underline</x:String>
-                                                <x:String>Highlight</x:String>
-                                                <x:String>None</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Title Style" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="TitleStylePicker" Title="Title" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Double Rule</x:String>
+                                        <x:String>Single Rule</x:String>
+                                        <x:String>Box Border</x:String>
+                                        <x:String>No Border</x:String>
+                                        <x:String>Gradient</x:String>
+                                        <x:String>Shadow</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Subtitle" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="SubtitleStylePicker" Title="Subtitle" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Filled Bar</x:String>
-                                                <x:String>Outline</x:String>
-                                                <x:String>Text Only</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Month Palette" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="MonthPalettePicker" Title="Palette" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Muted</x:String>
-                                                <x:String>Vibrant</x:String>
-                                                <x:String>Monochrome</x:String>
-                                                <x:String>Earth</x:String>
-                                                <x:String>Ocean</x:String>
-                                                <x:String>Pastel</x:String>
-                                                <x:String>Neon</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Grid Lines" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="GridBorderPicker" Title="Borders" SelectedIndex="1">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Fine</x:String>
+                                        <x:String>Medium</x:String>
+                                        <x:String>Bold</x:String>
+                                        <x:String>Double</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Column Banding" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="ColumnBandingPicker" Title="Banding" SelectedIndex="1">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>None</x:String>
-                                                <x:String>Subtle</x:String>
-                                                <x:String>Strong</x:String>
-                                                <x:String>Alternating</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Division Layout" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="DivisionLayoutPicker" Title="Layout" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Side by Side</x:String>
-                                                <x:String>Stacked</x:String>
-                                                <x:String>Compact (3 col)</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Home Badge" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="HomeBadgePicker" Title="Badge" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Pill</x:String>
+                                        <x:String>Bold Only</x:String>
+                                        <x:String>Underline</x:String>
+                                        <x:String>Highlight</x:String>
+                                        <x:String>None</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Card Style" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="CardStylePicker" Title="Cards" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Solid</x:String>
-                                                <x:String>Frosted Glass</x:String>
-                                                <x:String>Translucent</x:String>
-                                                <x:String>Outlined</x:String>
-                                                <x:String>Minimal</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Corners" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="CornerStylePicker" Title="Corners" SelectedIndex="1">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Sharp</x:String>
-                                                <x:String>Rounded</x:String>
-                                                <x:String>Extra Round</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Subtitle" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="SubtitleStylePicker" Title="Subtitle" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Filled Bar</x:String>
+                                        <x:String>Outline</x:String>
+                                        <x:String>Text Only</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Header Pattern" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="HeaderPatternPicker" Title="Pattern" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Crosshatch</x:String>
-                                                <x:String>Dots</x:String>
-                                                <x:String>Diagonal</x:String>
-                                                <x:String>Circles</x:String>
-                                                <x:String>None</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Row Striping" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="RowStripingPicker" Title="Striping" SelectedIndex="1">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>None</x:String>
-                                                <x:String>Subtle</x:String>
-                                                <x:String>Medium</x:String>
-                                                <x:String>Accent</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Month Palette" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="MonthPalettePicker" Title="Palette" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Muted</x:String>
+                                        <x:String>Vibrant</x:String>
+                                        <x:String>Monochrome</x:String>
+                                        <x:String>Earth</x:String>
+                                        <x:String>Ocean</x:String>
+                                        <x:String>Pastel</x:String>
+                                        <x:String>Neon</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="VS Separator" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="VsSeparatorPicker" Title="VS" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>v</x:String>
-                                                <x:String>vs</x:String>
-                                                <x:String>– dash</x:String>
-                                                <x:String>● dot</x:String>
-                                                <x:String>None</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Text="Footer Style" FontSize="11" TextColor="#64748B"/>
-                                    <Picker x:Name="FooterStylePicker" Title="Footer" SelectedIndex="0">
-                                        <Picker.ItemsSource>
-                                            <x:Array Type="{x:Type x:String}">
-                                                <x:String>Accent Top</x:String>
-                                                <x:String>Full Accent</x:String>
-                                                <x:String>Simple</x:String>
-                                                <x:String>Minimal</x:String>
-                                            </x:Array>
-                                        </Picker.ItemsSource>
-                                    </Picker>
-                                </VerticalStackLayout>
-                            </Grid>
+                            <Label Text="Column Banding" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="ColumnBandingPicker" Title="Banding" SelectedIndex="1">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>None</x:String>
+                                        <x:String>Subtle</x:String>
+                                        <x:String>Strong</x:String>
+                                        <x:String>Alternating</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Division Layout" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="DivisionLayoutPicker" Title="Layout" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Side by Side</x:String>
+                                        <x:String>Stacked</x:String>
+                                        <x:String>Compact (3 col)</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Card Style" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="CardStylePicker" Title="Cards" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Solid</x:String>
+                                        <x:String>Frosted Glass</x:String>
+                                        <x:String>Translucent</x:String>
+                                        <x:String>Outlined</x:String>
+                                        <x:String>Minimal</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Corners" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="CornerStylePicker" Title="Corners" SelectedIndex="1">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Sharp</x:String>
+                                        <x:String>Rounded</x:String>
+                                        <x:String>Extra Round</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Header Pattern" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="HeaderPatternPicker" Title="Pattern" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Crosshatch</x:String>
+                                        <x:String>Dots</x:String>
+                                        <x:String>Diagonal</x:String>
+                                        <x:String>Circles</x:String>
+                                        <x:String>None</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Row Striping" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="RowStripingPicker" Title="Striping" SelectedIndex="1">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>None</x:String>
+                                        <x:String>Subtle</x:String>
+                                        <x:String>Medium</x:String>
+                                        <x:String>Accent</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="VS Separator" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="VsSeparatorPicker" Title="VS" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>v</x:String>
+                                        <x:String>vs</x:String>
+                                        <x:String>– dash</x:String>
+                                        <x:String>● dot</x:String>
+                                        <x:String>None</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
+
+                            <Label Text="Footer Style" FontSize="11" TextColor="#64748B"/>
+                            <Picker x:Name="FooterStylePicker" Title="Footer" SelectedIndex="0">
+                                <Picker.ItemsSource>
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Accent Top</x:String>
+                                        <x:String>Full Accent</x:String>
+                                        <x:String>Simple</x:String>
+                                        <x:String>Minimal</x:String>
+                                    </x:Array>
+                                </Picker.ItemsSource>
+                            </Picker>
 
                             <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,2"/>
 
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="0" RowDefinitions="Auto,Auto">
+                            <VerticalStackLayout Spacing="4">
                                 <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
                                     <CheckBox x:Name="ShowMatchNightCheck" IsChecked="True" VerticalOptions="Center"/>
                                     <Label Grid.Column="1" Text="Match night banner" VerticalOptions="Center" FontSize="11"/>
                                 </Grid>
-                                <Grid Grid.Column="1" ColumnDefinitions="24,*" ColumnSpacing="4">
+                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
                                     <CheckBox x:Name="TitleUppercaseCheck" IsChecked="True" VerticalOptions="Center"/>
                                     <Label Grid.Column="1" Text="Uppercase title" VerticalOptions="Center" FontSize="11"/>
                                 </Grid>
-                                <Grid Grid.Row="1" ColumnDefinitions="24,*" ColumnSpacing="4">
+                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
                                     <CheckBox x:Name="MonthUppercaseCheck" IsChecked="True" VerticalOptions="Center"/>
                                     <Label Grid.Column="1" Text="Uppercase months" VerticalOptions="Center" FontSize="11"/>
                                 </Grid>
-                                <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="24,*" ColumnSpacing="4">
+                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
                                     <CheckBox x:Name="ShowGridLegendCheck" IsChecked="True" VerticalOptions="Center"/>
                                     <Label Grid.Column="1" Text="Grid legend" VerticalOptions="Center" FontSize="11"/>
                                 </Grid>
-                            </Grid>
+                            </VerticalStackLayout>
 
                             <Label Text="Text Density" FontSize="11" TextColor="#64748B"/>
                             <Picker x:Name="TextDensityPicker" Title="Text Density" SelectedIndex="1">

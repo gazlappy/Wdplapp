@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Maui.Controls;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -106,7 +107,7 @@ public partial class DragDropLayoutPage : ContentPage
                 "    </div>\n" + GetEditorScript() + "\n</body>");
         }
 
-        EditorWebView.Source = new HtmlWebViewSource { Html = html };
+        WebViewHelper.LoadHtml(EditorWebView, html);
     }
 
     private string InlineJsonData(string html)

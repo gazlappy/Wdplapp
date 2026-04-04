@@ -370,6 +370,23 @@ header .logo {{
 .header-content.header-logo-bottom-left .logo {{ position: absolute; bottom: 0; left: 0; margin: 0; }}
 .header-content.header-logo-bottom-right .logo {{ position: absolute; bottom: 0; right: 0; margin: 0; }}
 
+/* Dual logo: logo on both sides of the title */
+.header-content.header-dual-logo {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}}
+.header-content.header-dual-logo .header-text-group {{
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+}}
+.header-content.header-dual-logo .logo {{
+    flex-shrink: 0;
+    margin: 0;
+}}
+
 {twoRowCss}
 {animations}";
         }

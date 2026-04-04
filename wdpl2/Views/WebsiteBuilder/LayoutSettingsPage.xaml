@@ -234,23 +234,8 @@
 
                     <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,4"/>
 
-                    <Label Text="Logo Position" FontSize="12" TextColor="#6B7280"/>
-                    <Label x:Name="LogoPositionHint" FontSize="11" TextColor="#9CA3AF" IsVisible="False" LineBreakMode="WordWrap"/>
-                    <Picker x:Name="LogoPositionPicker" Title="Select Logo Position">
-                        <Picker.ItemsSource>
-                            <x:Array Type="{x:Type x:String}">
-                                <x:String>Above Title</x:String>
-                                <x:String>Below Title</x:String>
-                                <x:String>Left of Title</x:String>
-                                <x:String>Right of Title</x:String>
-                                <x:String>Top Left Corner</x:String>
-                                <x:String>Top Right Corner</x:String>
-                                <x:String>Bottom Left Corner</x:String>
-                                <x:String>Bottom Right Corner</x:String>
-                                <x:String>Hidden</x:String>
-                            </x:Array>
-                        </Picker.ItemsSource>
-                    </Picker>
+                    <Label Text="Logo position is configured in Site Branding settings" FontSize="11" TextColor="#9CA3AF" FontAttributes="Italic"/>
+                    <Label Text="Header layout can also be quick-applied via the Visual Layout Editor's Auto Layout" FontSize="11" TextColor="#9CA3AF" FontAttributes="Italic"/>
                 </VerticalStackLayout>
             </Frame>
             

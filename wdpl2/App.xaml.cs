@@ -13,6 +13,7 @@ public partial class App : Application
         _services = services;
         _seasonService = seasonService;
         _themeService = themeService;
+
         InitializeComponent();
 
         // Ensure database schema is up-to-date before any pages are constructed

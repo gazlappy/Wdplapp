@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Maui;
 using Plugin.LocalNotification;
 using Plugin.Maui.OCR;
@@ -91,11 +92,23 @@ public static class MauiProgram
         {
             if (File.Exists(dbPath))
             {
-                // Only delete if migration is still needed (DB has no data = safe to delete)
                 await context.Database.EnsureCreatedAsync();
-                if (await migrationService.IsMigrationNeededAsync())
+
+                // Validate schema matches current model by testing a real query
+                bool schemaValid = true;
+                try
                 {
-                    System.Diagnostics.Debug.WriteLine("Database empty - deleting for clean recreation with updated model...");
+                    await context.Seasons.AsNoTracking().Take(1).ToListAsync();
+                }
+                catch
+                {
+                    schemaValid = false;
+                    System.Diagnostics.Debug.WriteLine("Database schema mismatch detected - will recreate...");
+                }
+
+                if (!schemaValid || await migrationService.IsMigrationNeededAsync())
+                {
+                    System.Diagnostics.Debug.WriteLine("Database empty or schema changed - deleting for clean recreation...");
                     await context.Database.EnsureDeletedAsync();
                 }
             }

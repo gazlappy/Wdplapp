@@ -529,13 +529,8 @@ public PoolGamePage()
             var html = GenerateModularGameHtml();
             System.Diagnostics.Debug.WriteLine($"HTML Length: {html.Length} chars");
             
-            // Use HtmlWebViewSource for inline HTML
-            var htmlSource = new HtmlWebViewSource
-            {
-                Html = html
-            };
-            
-            GameWebView.Source = htmlSource;
+            // Use helper to safely load HTML (falls back to temp file for large content)
+            Helpers.WebViewHelper.LoadHtml(GameWebView, html);
             
             System.Diagnostics.Debug.WriteLine("WebView source set successfully");
         }

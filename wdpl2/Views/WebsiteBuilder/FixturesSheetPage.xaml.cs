@@ -67,6 +67,11 @@ public partial class FixturesSheetPage : ContentPage
         WebsiteUrlEntry.Text = settings.WebsiteUrl;
         EmailEntry.Text = settings.ContactEmail;
 
+        // Load printable sheet embed settings
+        ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
+        SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
+        SheetTitleEntry.Text = settings.FixturesSheetTitle;
+
         // Load logo from website settings if available (supports both uploaded and catalog logos)
         var effectiveLogo = settings.GetEffectiveLogoData();
         if (settings.UseCustomLogo && effectiveLogo != null && effectiveLogo.Length > 0)
@@ -945,6 +950,13 @@ public partial class FixturesSheetPage : ContentPage
 
         League.WebsiteSettings.FixturesSheetDesign = design;
 
+        // Save printable sheet embed settings
+        League.WebsiteSettings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
+        League.WebsiteSettings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
+        League.WebsiteSettings.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text) 
+            ? "Printable Fixtures Sheet" 
+            : SheetTitleEntry.Text;
+
         // Also persist the full settings so the website generator uses the designed sheet
         if (SeasonPicker.SelectedItem is Season season)
         {
@@ -1013,7 +1025,7 @@ public partial class FixturesSheetPage : ContentPage
             _generatedHtml = GenerateSheet();
             if (_generatedHtml == null) return;
 
-            PreviewWebView.Source = new HtmlWebViewSource { Html = _generatedHtml };
+            Helpers.WebViewHelper.LoadHtml(PreviewWebView, _generatedHtml);
             PreviewPlaceholder.IsVisible = false;
             PreviewWebView.IsVisible = true;
 

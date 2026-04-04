@@ -83,6 +83,7 @@ namespace Wdpl2.Services
             var hasBadge = _settings.ShowSeasonBadge;
             var layout = _settings.HeaderLayout;
             var logoPos = _settings.LogoPosition; // above, below, left, right, top-left, top-right, bottom-left, bottom-right, hidden
+            var dualLogo = _settings.DuplicateLogoBothSides && hasLogo && logoPos != "hidden";
 
             // Check if any sub-element has a freeform position set (from drag-drop editor)
             bool freeform = !string.IsNullOrEmpty(_settings.HeaderLogoPos)
@@ -91,6 +92,7 @@ namespace Wdpl2.Services
                          || !string.IsNullOrEmpty(_settings.HeaderBadgePos);
 
             string logoTag = "";
+            string logoTagRight = "";
             if (hasLogo && logoPos != "hidden")
             {
                 var imageOptimizer = new ImageOptimizationService();
@@ -98,15 +100,45 @@ namespace Wdpl2.Services
                 var dataUrl = imageOptimizer.ToDataUrl(logoData!, mimeType);
                 var posStyle = freeform ? BuildSubElementStyle(_settings.HeaderLogoPos) : "";
                 logoTag = $"<img src=\"{dataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo\" data-block-id=\"header-logo\" data-block-name=\"Logo\" style=\"max-width: {_settings.LogoMaxWidth}px; max-height: {_settings.LogoMaxHeight}px;{posStyle}\">";
+                if (dualLogo)
+                {
+                    // Use the right-side logo if set, otherwise fall back to the main logo
+                    var rightLogoData = _settings.GetEffectiveRightLogoData();
+                    var rightDataUrl = dataUrl;
+                    if (rightLogoData != null && rightLogoData != logoData)
+                    {
+                        var rightMime = imageOptimizer.GetMimeType("logo.png");
+                        rightDataUrl = imageOptimizer.ToDataUrl(rightLogoData, rightMime);
+                    }
+                    var rightMaxW = _settings.RightLogoMaxWidth;
+                    var rightMaxH = _settings.RightLogoMaxHeight;
+                    logoTagRight = $"<img src=\"{rightDataUrl}\" alt=\"{_settings.LeagueName}\" class=\"logo logo-right\" data-block-id=\"header-logo-right\" data-block-name=\"Logo (Right)\" style=\"max-width: {rightMaxW}px; max-height: {rightMaxH}px;\">";
+                }
             }
 
             // Determine CSS class for logo position (used in default/standard layouts)
-            var logoPosClass = (hasLogo && !freeform && logoPos != "hidden") ? $" header-logo-{logoPos}" : "";
+            var logoPosClass = (hasLogo && !freeform && logoPos != "hidden" && !dualLogo) ? $" header-logo-{logoPos}" : "";
+            var dualLogoClass = dualLogo ? " header-dual-logo" : "";
 
             html.AppendLine($"    <header {dataAttrs}>");
-            html.AppendLine($"        <div class=\"header-content{logoPosClass}{(freeform ? " header-freeform" : "")}\">");
+            html.AppendLine($"        <div class=\"header-content{logoPosClass}{dualLogoClass}{(freeform ? " header-freeform" : "")}\">");
 
-            switch (layout)
+            if (dualLogo)
+            {
+                // Dual logo layout: logo | title group (+ badge) | logo
+                html.AppendLine($"            {logoTag}");
+                html.AppendLine("            <div class=\"header-text-group\">");
+                html.AppendLine($"                <h1 data-block-id=\"header-title\" data-block-name=\"Title\">{_settings.LeagueName}</h1>");
+                if (hasSub)
+                    html.AppendLine($"                <p class=\"subtitle\" data-block-id=\"header-subtitle\" data-block-name=\"Subtitle\">{_settings.LeagueSubtitle}</p>");
+                if (hasBadge)
+                    html.AppendLine($"                <span class=\"season-badge\" data-block-id=\"header-badge\" data-block-name=\"Season Badge\">{season.Name}</span>");
+                html.AppendLine("            </div>");
+                html.AppendLine($"            {logoTagRight}");
+            }
+            else
+            {
+                switch (layout)
             {
                 case "split":
                     // Logo left, title group right, badge far right
@@ -152,6 +184,7 @@ namespace Wdpl2.Services
                     // Standard flow — uses LogoPosition to arrange elements
                     AppendDefaultHeaderContent(html, season, logoTag, hasLogo, hasSub, hasBadge, logoPos, freeform);
                     break;
+            }
             }
 
             html.AppendLine("        </div>");

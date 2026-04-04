@@ -14,6 +14,11 @@ public partial class BrandingSettingsPage : ContentPage
     private bool _usingCatalogLogo;
     private string? _currentCatalogLogoId;
 
+    // Right-side logo tracking
+    private byte[]? _rightLogoData;
+    private bool _usingRightCatalogLogo;
+    private string? _rightCatalogLogoId;
+
     public BrandingSettingsPage()
     {
         InitializeComponent();
@@ -44,7 +49,13 @@ public partial class BrandingSettingsPage : ContentPage
         LogoWidthEntry.Text = settings.LogoMaxWidth.ToString();
         LogoHeightEntry.Text = settings.LogoMaxHeight.ToString();
         MaintainAspectRatioCheck.IsChecked = settings.LogoMaintainAspectRatio;
-        
+        DuplicateLogoCheck.IsChecked = settings.DuplicateLogoBothSides;
+        RightLogoFrame.IsVisible = settings.DuplicateLogoBothSides;
+
+        // Load right logo size
+        RightLogoWidthEntry.Text = settings.RightLogoMaxWidth.ToString();
+        RightLogoHeightEntry.Text = settings.RightLogoMaxHeight.ToString();
+
         // Load logo data
         var effectiveLogo = settings.GetEffectiveLogoData();
         if (effectiveLogo != null && effectiveLogo.Length > 0)
@@ -53,6 +64,21 @@ public partial class BrandingSettingsPage : ContentPage
             _usingCatalogLogo = !string.IsNullOrEmpty(settings.SelectedCatalogLogoId);
             _currentCatalogLogoId = settings.SelectedCatalogLogoId;
             UpdateLogoPreview();
+        }
+
+        // Load right logo data (only custom right logo, not the fallback)
+        var rightLogoData = settings.RightLogoImageData;
+        if (rightLogoData == null && !string.IsNullOrEmpty(settings.RightLogoSelectedCatalogId))
+        {
+            var catalogItem = settings.LogoCatalog.Find(l => l.Id == settings.RightLogoSelectedCatalogId);
+            if (catalogItem != null) rightLogoData = catalogItem.ImageData;
+        }
+        if (rightLogoData != null && rightLogoData.Length > 0)
+        {
+            _rightLogoData = rightLogoData;
+            _usingRightCatalogLogo = !string.IsNullOrEmpty(settings.RightLogoSelectedCatalogId);
+            _rightCatalogLogoId = settings.RightLogoSelectedCatalogId;
+            UpdateRightLogoPreview();
         }
     }
 
@@ -251,6 +277,95 @@ public partial class BrandingSettingsPage : ContentPage
         }
     }
 
+    private void OnDuplicateLogoChanged(object sender, CheckedChangedEventArgs e)
+    {
+        RightLogoFrame.IsVisible = e.Value;
+    }
+
+    private async void OnUploadRightLogoClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select Right Side Logo",
+                FileTypes = FilePickerFileType.Images
+            });
+
+            if (result != null)
+            {
+                using var stream = await result.OpenReadAsync();
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                _rightLogoData = memoryStream.ToArray();
+                _usingRightCatalogLogo = false;
+                _rightCatalogLogoId = null;
+                UpdateRightLogoPreview();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to upload logo: {ex.Message}", "OK");
+        }
+    }
+
+    private async void OnSelectRightFromCatalogClicked(object sender, EventArgs e)
+    {
+        if (_logoCatalog.Count == 0)
+        {
+            await DisplayAlert("No Logos", "No logos saved in catalog. Upload a logo first, then save it to the catalog.", "OK");
+            return;
+        }
+
+        var logoNames = _logoCatalog.Select(l => l.Name).ToArray();
+        var selected = await DisplayActionSheet("Select Right Logo from Catalog", "Cancel", null, logoNames);
+
+        if (!string.IsNullOrEmpty(selected) && selected != "Cancel")
+        {
+            var logo = _logoCatalog.FirstOrDefault(l => l.Name == selected);
+            if (logo != null)
+            {
+                _rightLogoData = logo.ImageData;
+                _usingRightCatalogLogo = true;
+                _rightCatalogLogoId = logo.Id;
+                UpdateRightLogoPreview();
+            }
+        }
+    }
+
+    private void OnRemoveRightLogoClicked(object sender, EventArgs e)
+    {
+        _rightLogoData = null;
+        _usingRightCatalogLogo = false;
+        _rightCatalogLogoId = null;
+        RightLogoPreviewFrame.IsVisible = false;
+        RightLogoStatusLabel.Text = "";
+    }
+
+    private void UpdateRightLogoPreview()
+    {
+        if (_rightLogoData != null && _rightLogoData.Length > 0)
+        {
+            RightLogoPreviewImage.Source = ImageSource.FromStream(() => new MemoryStream(_rightLogoData));
+            RightLogoPreviewFrame.IsVisible = true;
+
+            if (_usingRightCatalogLogo)
+            {
+                var catalogItem = _logoCatalog.FirstOrDefault(l => l.Id == _rightCatalogLogoId);
+                RightLogoStatusLabel.Text = $"From catalog: {catalogItem?.Name ?? "Unknown"}";
+            }
+            else
+            {
+                RightLogoStatusLabel.Text = "Custom uploaded right logo";
+            }
+            RightLogoStatusLabel.TextColor = Color.FromArgb("#10B981");
+        }
+        else
+        {
+            RightLogoPreviewFrame.IsVisible = false;
+        }
+    }
+
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         try
@@ -269,7 +384,8 @@ public partial class BrandingSettingsPage : ContentPage
                 settings.LogoMaxHeight = height;
             
             settings.LogoMaintainAspectRatio = MaintainAspectRatioCheck.IsChecked;
-            
+            settings.DuplicateLogoBothSides = DuplicateLogoCheck.IsChecked;
+
             // Save logo data
             if (_uploadedLogoData != null && _uploadedLogoData.Length > 0)
             {
@@ -290,6 +406,31 @@ public partial class BrandingSettingsPage : ContentPage
                 settings.LogoImageData = null;
                 settings.SelectedCatalogLogoId = null;
                 settings.UseCustomLogo = false;
+            }
+
+            // Save right logo data
+            if (int.TryParse(RightLogoWidthEntry.Text, out int rw) && rw > 0)
+                settings.RightLogoMaxWidth = rw;
+            if (int.TryParse(RightLogoHeightEntry.Text, out int rh) && rh > 0)
+                settings.RightLogoMaxHeight = rh;
+
+            if (settings.DuplicateLogoBothSides && _rightLogoData != null && _rightLogoData.Length > 0)
+            {
+                if (_usingRightCatalogLogo)
+                {
+                    settings.RightLogoSelectedCatalogId = _rightCatalogLogoId;
+                    settings.RightLogoImageData = null;
+                }
+                else
+                {
+                    settings.RightLogoImageData = _rightLogoData;
+                    settings.RightLogoSelectedCatalogId = null;
+                }
+            }
+            else
+            {
+                settings.RightLogoImageData = null;
+                settings.RightLogoSelectedCatalogId = null;
             }
             
             DataStore.Save();

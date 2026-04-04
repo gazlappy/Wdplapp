@@ -398,6 +398,11 @@ namespace Wdpl2.Models
         public int ImageQuality { get; set; } = 85;
         public string LogoPosition { get; set; } = "above"; // above, below, left, right, top-left, top-right, bottom-left, bottom-right, hidden
         public bool LogoMaintainAspectRatio { get; set; } = true;
+        public bool DuplicateLogoBothSides { get; set; } = false;
+        public byte[]? RightLogoImageData { get; set; }
+        public string? RightLogoSelectedCatalogId { get; set; }
+        public int RightLogoMaxWidth { get; set; } = 300;
+        public int RightLogoMaxHeight { get; set; } = 150;
         public string? SelectedCatalogLogoId { get; set; }
         
         // Logo Catalog - stored logos that can be reused across website and fixtures sheets
@@ -422,7 +427,28 @@ namespace Wdpl2.Models
             
             return null;
         }
-        
+
+        /// <summary>
+        /// Get the effective right-side logo data. Falls back to the main logo if not set.
+        /// </summary>
+        public byte[]? GetEffectiveRightLogoData()
+        {
+            // If custom right logo data is set, use that
+            if (RightLogoImageData != null && RightLogoImageData.Length > 0)
+                return RightLogoImageData;
+
+            // Check if a catalog logo is selected for the right side
+            if (!string.IsNullOrEmpty(RightLogoSelectedCatalogId))
+            {
+                var catalogItem = LogoCatalog.Find(l => l.Id == RightLogoSelectedCatalogId);
+                if (catalogItem != null && catalogItem.ImageData.Length > 0)
+                    return catalogItem.ImageData;
+            }
+
+            // Fall back to the main logo
+            return GetEffectiveLogoData();
+        }
+
         /// <summary>
         /// Get effective layout blocks, migrating from HomeSectionOrder if needed
         /// </summary>
@@ -854,6 +880,11 @@ namespace Wdpl2.Models
             ImageQuality = 85;
             LogoPosition = "above";
             LogoMaintainAspectRatio = true;
+            DuplicateLogoBothSides = false;
+            RightLogoImageData = null;
+            RightLogoSelectedCatalogId = null;
+            RightLogoMaxWidth = 300;
+            RightLogoMaxHeight = 150;
             SelectedCatalogLogoId = null;
             // Note: Don't clear LogoCatalog on reset - keep saved logos
             
