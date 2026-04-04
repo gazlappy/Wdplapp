@@ -149,24 +149,46 @@ namespace Wdpl2.Services
             
             AppendDocumentHead(html, $"{_settings.LeagueName} - {season.Name}", season);
             html.AppendLine("<body>");
-            
+
+            // Inline mobile responsive styles for the homepage canvas layout
+            html.AppendLine(@"<style>
+@media (max-width: 768px) {
+    .page-canvas { gap: 8px !important; padding: 8px 0 !important; }
+    .page-canvas .container { padding: 0 clamp(16px, 5vw, 24px) !important; }
+    .page-canvas .section { padding: clamp(20px, 5vw, 28px) !important; }
+    .page-canvas .leader-item { padding: 16px 18px !important; gap: 6px 14px !important; }
+    .page-canvas .result-item,
+    .page-canvas .fixture-item { padding: 16px 18px !important; }
+    .page-canvas .results-list,
+    .page-canvas .fixtures-list { gap: 14px !important; }
+    .page-canvas .leaders-list { gap: 14px !important; }
+}
+@media (max-width: 480px) {
+    .page-canvas .container { padding: 0 clamp(14px, 4vw, 20px) !important; }
+    .page-canvas .section { padding: clamp(18px, 5vw, 24px) !important; }
+    .page-canvas .leader-item { padding: 14px 16px !important; gap: 4px 12px !important; }
+    .page-canvas .result-item,
+    .page-canvas .fixture-item { padding: 14px 16px !important; }
+}
+</style>");
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
-            
+
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             var completedFixtures = fixtures.Count(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None));
-            
+
             var blocks = _settings.GetEffectiveLayoutBlocks()
                 .Where(b => b.IsEnabled)
                 .OrderBy(b => b.Order)
                 .ToList();
-            
+
             LayoutBlock.AutoPositionBlocks(blocks);
-            
+
             var canvasHeight = blocks.Count != 0
                 ? blocks.Max(b => b.TopPx + (b.HeightPx > 0 ? b.HeightPx : 350)) + 100
                 : 800;
-            
+
             html.AppendLine($"    <div class=\"page-canvas\" style=\"min-height:{canvasHeight.ToString("F0", inv)}px;\">");
             
             foreach (var block in blocks)
@@ -330,7 +352,7 @@ namespace Wdpl2.Services
             if (!_settings.HomeShowQuickStats) return;
             
             var statColumns = _settings.StatsColumns;
-            html.AppendLine($"            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax({(statColumns == 2 ? "280px" : statColumns == 3 ? "200px" : "180px")}, 1fr));\">");
+            html.AppendLine($"            <div class=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax(min({(statColumns == 2 ? "280px" : statColumns == 3 ? "200px" : "180px")}, 100%), 1fr));\">");
             html.AppendLine("                <div class=\"stat-card\">");
             html.AppendLine($"                    <div class=\"stat-number\">{teams.Count}</div>");
             html.AppendLine("                    <div class=\"stat-label\">Teams</div>");

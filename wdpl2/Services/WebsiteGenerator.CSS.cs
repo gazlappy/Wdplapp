@@ -590,22 +590,22 @@ nav a:hover, nav a.active {{
 
 .stats-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+    gap: clamp(10px, 2vw, 20px);
     margin-bottom: var(--spacing);
 }}
 
 .stat-card {{
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 24px;
+    padding: clamp(16px, 4vw, 24px);
     text-align: center;
     {(_settings.EnableShadows ? "box-shadow: 0 2px 4px rgba(0,0,0,0.05);" : "")}
     {(_settings.CardShowTopAccent ? "border-top: 3px solid var(--primary-color);" : "")}
 }}
 
 .stat-number {{
-    font-size: 2.5rem;
+    font-size: clamp(1.5rem, 5vw, 2.5rem);
     font-weight: bold;
     color: var(--primary-color);
 }}
@@ -622,7 +622,7 @@ nav a:hover, nav a.active {{
 }}
 
 .data-table th, .data-table td {{
-    padding: 12px;
+    padding: clamp(6px, 1.5vw, 12px);
     text-align: left;
     border-bottom: 1px solid rgba(0,0,0,0.08);
 }}
@@ -669,10 +669,10 @@ nav a:hover, nav a.active {{
     display: grid;
     grid-template-columns: minmax(80px, 100px) 1fr auto 1fr minmax(100px, 150px);
     align-items: center;
-    padding: 16px;
+    padding: clamp(14px, 3vw, 16px);
     background: rgba(0,0,0,0.02);
     border-radius: calc(var(--border-radius) / 2);
-    gap: 10px;
+    gap: clamp(8px, 2vw, 12px);
 }}
 
 /* When no venue - 4 columns */
@@ -1335,13 +1335,41 @@ nav .nav-container {{ justify-content: center; }}
 /* Mobile: stack freeform canvas blocks vertically */
 .page-canvas {{
     min-height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px;
+    padding: 8px 0;
 }}
 .page-canvas > [data-block-id] {{
     position: relative !important;
     left: 0 !important;
     top: auto !important;
     width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
+    overflow: visible !important;
+    z-index: auto !important;
+}}
+.page-canvas .container {{
+    padding: 0 clamp(16px, 5vw, 24px);
+}}
+.page-canvas .section {{
+    padding: clamp(20px, 5vw, {_settings.SectionSpacing}px);
+}}
+.page-canvas .leader-item {{
+    padding: 16px 18px;
+    gap: 6px 14px;
+}}
+.page-canvas .result-item,
+.page-canvas .fixture-item {{
+    padding: 16px 18px;
+}}
+.page-canvas .results-list,
+.page-canvas .fixtures-list {{
+    gap: 14px;
+}}
+.page-canvas .leaders-list {{
+    gap: 14px;
 }}
 .header-freeform > [data-block-id] {{
     position: relative !important;
@@ -1360,6 +1388,14 @@ nav .nav-container {{ justify-content: center; }}
         text-align: center;
     }}
     .gallery-grid {{ grid-template-columns: repeat(2, 1fr); }}
+}}
+
+@media (max-width: 480px) {{
+    .page-canvas .container {{ padding: 0 clamp(14px, 4vw, 20px); }}
+    .page-canvas .section {{ padding: clamp(18px, 5vw, {_settings.SectionSpacing}px); }}
+    .page-canvas .leader-item {{ padding: 14px 16px; gap: 4px 12px; }}
+    .page-canvas .result-item,
+    .page-canvas .fixture-item {{ padding: 14px 16px; }}
 }}
 
 {_settings.CustomCss}
