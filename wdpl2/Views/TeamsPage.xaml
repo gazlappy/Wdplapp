@@ -7,144 +7,26 @@
     Title="Teams"
     SemanticProperties.Description="Teams management page">
 
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
-        
-        <!-- Header with Burger Menu Button -->
-        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
-            <Button 
-                x:Name="BurgerMenuBtn"
-                Text="☰"
-                FontSize="24"
-                WidthRequest="50"
-                HeightRequest="50"
-                Padding="0"
-                Margin="0,0,12,0"
-                BackgroundColor="{AppThemeBinding Light=#3B82F6, Dark=#2563EB}"
-                TextColor="White"
-                SemanticProperties.Description="Open menu"
-                SemanticProperties.Hint="Opens the team controls menu" />
-            
+    <Grid ColumnDefinitions="*,Auto,1.5*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+
+        <!-- Header -->
+        <Grid Grid.ColumnSpan="3" ColumnDefinitions="*,Auto">
             <Label 
-                Grid.Column="1"
                 Text="Manage Teams" 
                 FontSize="20" 
                 FontAttributes="Bold"
                 VerticalOptions="Center"
                 SemanticProperties.Description="Manage Teams" />
+            <Label 
+                x:Name="StatusLbl" 
+                Grid.Column="1"
+                Text="" 
+                FontAttributes="Italic" 
+                FontSize="12" 
+                TextColor="#666" 
+                VerticalOptions="Center"
+                SemanticProperties.Description="Status message" />
         </Grid>
-
-        <!-- Flyout Menu Overlay -->
-        <Border 
-            x:Name="FlyoutOverlay"
-            Grid.Row="1"
-            Grid.ColumnSpan="2"
-            IsVisible="False"
-            BackgroundColor="#80000000"
-            ZIndex="100"
-            SemanticProperties.Description="Menu overlay">
-            <Border.GestureRecognizers>
-                <TapGestureRecognizer x:Name="OverlayTap" />
-            </Border.GestureRecognizers>
-        </Border>
-
-        <!-- Flyout Menu Panel -->
-        <Border 
-            x:Name="FlyoutPanel"
-            Grid.Row="1"
-            Grid.ColumnSpan="2"
-            HorizontalOptions="Start"
-            WidthRequest="400"
-            IsVisible="False"
-            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
-            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
-            StrokeThickness="1"
-            StrokeShape="RoundRectangle 0,12,12,0"
-            Padding="16"
-            ZIndex="101"
-            SemanticProperties.Description="Team controls menu">
-            <ScrollView>
-                <VerticalStackLayout Spacing="12">
-                    
-                    <HorizontalStackLayout Spacing="8">
-                        <Label Text="⚙️ Controls" FontSize="18" FontAttributes="Bold" VerticalOptions="Center" />
-                        <Button 
-                            x:Name="CloseFlyoutBtn"
-                            Text="✕"
-                            FontSize="18"
-                            WidthRequest="40"
-                            HeightRequest="40"
-                            Padding="0"
-                            HorizontalOptions="EndAndExpand"
-                            BackgroundColor="{AppThemeBinding Light=#EF4444, Dark=#DC2626}"
-                            TextColor="White"
-                            SemanticProperties.Description="Close menu" />
-                    </HorizontalStackLayout>
-                    
-                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
-
-                    <Label Text="Team Details" FontSize="16" FontAttributes="Bold" />
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Team Name" FontSize="12" />
-                        <Entry x:Name="TeamNameEntry" SemanticProperties.Description="Team name" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Division" FontSize="12" />
-                        <Picker x:Name="DivisionPicker" ItemDisplayBinding="{Binding Name}" SemanticProperties.Description="Team division" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Venue" FontSize="12" />
-                        <Picker x:Name="VenuePicker" ItemDisplayBinding="{Binding Name}" SemanticProperties.Description="Team venue" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Table" FontSize="12" />
-                        <Picker x:Name="TablePicker" ItemDisplayBinding="{Binding Label}" SemanticProperties.Description="Team table" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Captain (Player)" FontSize="12" />
-                        <Picker x:Name="CaptainPicker" ItemDisplayBinding="{Binding FullName}" SemanticProperties.Description="Team captain" />
-                    </VerticalStackLayout>
-
-                    <Grid ColumnDefinitions="Auto,*" Padding="0,8,0,0">
-                        <Label Text="Serves Food" VerticalOptions="Center" FontSize="12" />
-                        <Switch x:Name="FoodSwitch" Grid.Column="1" SemanticProperties.Description="Team provides food" />
-                    </Grid>
-
-                    <Label Text="Actions" FontSize="16" FontAttributes="Bold" Margin="0,8,0,0" />
-
-                    <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="AddBtn" Text="+ Add" SemanticProperties.Description="Add new team" />
-                        <Button x:Name="UpdateBtn" Text="Update" SemanticProperties.Description="Update team" />
-                        <Button x:Name="DeleteBtn" Text="Delete" BackgroundColor="#EF4444" TextColor="White" SemanticProperties.Description="Delete team" />
-                    </HorizontalStackLayout>
-
-                    <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" SemanticProperties.Description="Toggle multi-select mode" />
-                        <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" SemanticProperties.Description="Delete selected teams" />
-                    </HorizontalStackLayout>
-
-                    <Label Text="Data Management" FontSize="16" FontAttributes="Bold" Margin="0,8,0,0" />
-
-                    <HorizontalStackLayout Spacing="8">
-                        <Button x:Name="SaveBtn" Text="💾 Save" SemanticProperties.Description="Save changes" />
-                        <Button x:Name="ReloadBtn" Text="🔄 Reload" SemanticProperties.Description="Reload data" />
-                    </HorizontalStackLayout>
-
-                    <Button x:Name="ExportBtn" Text="📤 Export CSV" SemanticProperties.Description="Export teams to CSV" />
-
-                    <ctrls:CsvImportBox x:Name="TeamsImport" Title="Import Teams (.csv)" SemanticProperties.Description="Import teams from CSV" />
-
-                    <Button x:Name="DebugCheckBtn" Text="🔍 Check Database" BackgroundColor="#FF6B00" TextColor="White" SemanticProperties.Description="Check database integrity" />
-
-                    <Label x:Name="StatusLbl" Text="" FontAttributes="Italic" FontSize="12" TextColor="#666" SemanticProperties.Description="Status message" />
-                    
-                </VerticalStackLayout>
-            </ScrollView>
-        </Border>
 
         <!-- Left: search + list -->
         <Border 
@@ -208,10 +90,89 @@
             </Grid>
         </Border>
 
-        <!-- Right: Head-to-Head Match Results + Team Players -->
+        <!-- Middle: Team Editor (always visible) -->
         <Border 
             Grid.Row="1" 
             Grid.Column="1"
+            WidthRequest="320"
+            StrokeShape="RoundRectangle 12" 
+            Padding="12"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
+            StrokeThickness="1"
+            SemanticProperties.Description="Team editor panel">
+            <ScrollView>
+                <VerticalStackLayout Spacing="10">
+
+                    <Label Text="⚙️ Team Details" FontSize="16" FontAttributes="Bold" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Team Name" FontSize="12" />
+                        <Entry x:Name="TeamNameEntry" SemanticProperties.Description="Team name" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Division" FontSize="12" />
+                        <Picker x:Name="DivisionPicker" ItemDisplayBinding="{Binding Name}" SemanticProperties.Description="Team division" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Venue" FontSize="12" />
+                        <Picker x:Name="VenuePicker" ItemDisplayBinding="{Binding Name}" SemanticProperties.Description="Team venue" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Table" FontSize="12" />
+                        <Picker x:Name="TablePicker" ItemDisplayBinding="{Binding Label}" SemanticProperties.Description="Team table" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Captain (Player)" FontSize="12" />
+                        <Picker x:Name="CaptainPicker" ItemDisplayBinding="{Binding FullName}" SemanticProperties.Description="Team captain" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="Auto,*" Padding="0,4,0,0">
+                        <Label Text="Serves Food" VerticalOptions="Center" FontSize="12" />
+                        <Switch x:Name="FoodSwitch" Grid.Column="1" SemanticProperties.Description="Team provides food" />
+                    </Grid>
+
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
+                    <Label Text="Actions" FontSize="14" FontAttributes="Bold" />
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="AddBtn" Text="+ Add" Margin="0,0,6,6" SemanticProperties.Description="Add new team" />
+                        <Button x:Name="UpdateBtn" Text="Update" Margin="0,0,6,6" SemanticProperties.Description="Update team" />
+                        <Button x:Name="DeleteBtn" Text="Delete" BackgroundColor="#EF4444" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Delete team" />
+                    </FlexLayout>
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Toggle multi-select mode" />
+                        <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Delete selected teams" />
+                    </FlexLayout>
+
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
+                    <Label Text="Data" FontSize="14" FontAttributes="Bold" />
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="SaveBtn" Text="💾 Save" Margin="0,0,6,6" SemanticProperties.Description="Save changes" />
+                        <Button x:Name="ReloadBtn" Text="🔄 Reload" Margin="0,0,6,6" SemanticProperties.Description="Reload data" />
+                        <Button x:Name="ExportBtn" Text="📤 Export" Margin="0,0,6,6" SemanticProperties.Description="Export teams to CSV" />
+                    </FlexLayout>
+
+                    <ctrls:CsvImportBox x:Name="TeamsImport" Title="Import Teams (.csv)" SemanticProperties.Description="Import teams from CSV" />
+
+                    <Button x:Name="DebugCheckBtn" Text="🔍 Check DB" BackgroundColor="#FF6B00" TextColor="White" SemanticProperties.Description="Check database integrity" />
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- Right: Head-to-Head Match Results + Team Players -->
+        <Border 
+            Grid.Row="1" 
+            Grid.Column="2"
             StrokeShape="RoundRectangle 12" 
             Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"

@@ -96,7 +96,6 @@ public partial class TeamsPage : ContentPage
     private Team? _selectedTeam;
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
-    private bool _isFlyoutOpen = false;
     private bool _showAllSeasons = false;
 
     public TeamsPage()
@@ -111,11 +110,6 @@ public partial class TeamsPage : ContentPage
         H2HList.ItemsSource = _h2hItems;
         H2HSeasonPicker.ItemsSource = _h2hSeasons;
         TeamPlayersList.ItemsSource = _teamPlayerItems;
-
-        // Burger menu
-        BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
-        CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
-        OverlayTap.Tapped += (_, __) => CloseFlyout();
 
         SearchEntry.TextChanged += (_, __) => RefreshTeamList(SearchEntry.Text);
         TeamsList.SelectionChanged += OnTeamSelected;
@@ -228,42 +222,6 @@ public partial class TeamsPage : ContentPage
     {
         base.OnDisappearing();
         SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
-    }
-
-    // ========== BURGER MENU ==========
-
-    private void OnBurgerMenuClicked(object? sender, EventArgs e)
-    {
-        if (_isFlyoutOpen)
-            CloseFlyout();
-        else
-            OpenFlyout();
-    }
-
-    private void OnCloseFlyoutClicked(object? sender, EventArgs e)
-    {
-        CloseFlyout();
-    }
-
-    private async void OpenFlyout()
-    {
-        _isFlyoutOpen = true;
-        FlyoutOverlay.IsVisible = true;
-        FlyoutPanel.IsVisible = true;
-
-        // Animate flyout sliding in
-        FlyoutPanel.TranslationX = -400;
-        await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
-    }
-
-    private async void CloseFlyout()
-    {
-        // Animate flyout sliding out
-        await FlyoutPanel.TranslateTo(-400, 0, 250, Easing.CubicIn);
-        
-        FlyoutOverlay.IsVisible = false;
-        FlyoutPanel.IsVisible = false;
-        _isFlyoutOpen = false;
     }
 
     // ========== HEAD-TO-HEAD ==========
@@ -863,6 +821,7 @@ public partial class TeamsPage : ContentPage
         };
 
         DataStore.Data.Teams.Add(team);
+        DataStore.Save();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -897,6 +856,7 @@ public partial class TeamsPage : ContentPage
         _selectedTeam.CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id;
         _selectedTeam.ProvidesFood = FoodSwitch.IsToggled;
 
+        DataStore.Save();
         var updatedName = _selectedTeam.Name; // Store name before RefreshTeamList clears selection
         RefreshTeamList(SearchEntry.Text);
         RefreshHeadToHead(); // Refresh H2H with updated team info
@@ -955,6 +915,7 @@ public partial class TeamsPage : ContentPage
 
         DataStore.Data.Teams.Remove(_selectedTeam);
         _selectedTeam = null;
+        DataStore.Save();
         RefreshTeamList(SearchEntry.Text);
         ClearEditor();
         RefreshHeadToHead();
@@ -1022,6 +983,7 @@ public partial class TeamsPage : ContentPage
             }
         }
 
+        DataStore.Save();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Deleted {deleted} team(s)");
     }
@@ -1109,6 +1071,7 @@ public partial class TeamsPage : ContentPage
             }
         }
 
+        DataStore.Save();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }

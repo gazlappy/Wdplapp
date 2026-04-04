@@ -28,8 +28,16 @@ public partial class SeasonSetupPage : ContentPage
     private readonly ObservableCollection<Season> _availableSeasons = new();
     private bool _copyDivisions = true;
     private bool _copyVenues = true;
-    private bool _copyTeams = true;
-    private bool _copyPlayers = true;
+
+    // Individual team/player selection
+    private List<Team> _sourceTeams = new();
+    private List<Player> _sourcePlayers = new();
+    private readonly HashSet<Guid> _selectedTeamIds = new();
+    private readonly HashSet<Guid> _selectedPlayerIds = new();
+    private VerticalStackLayout? _teamsContainer;
+    private VerticalStackLayout? _playersContainer;
+    private Label? _teamsCountLabel;
+    private Label? _playersCountLabel;
 
     public SeasonSetupPage()
     {
@@ -141,7 +149,10 @@ public partial class SeasonSetupPage : ContentPage
         seasonPicker.SelectedIndexChanged += (s, e) =>
         {
             if (seasonPicker.SelectedItem is Season season)
+            {
                 _sourceSeason = season;
+                PopulateSourceSeasonData(season);
+            }
         };
 
         var nameEntry = new Entry
@@ -156,12 +167,6 @@ public partial class SeasonSetupPage : ContentPage
         var copyVenuesSwitch = new Switch { IsToggled = true };
         copyVenuesSwitch.Toggled += (s, e) => _copyVenues = e.Value;
 
-        var copyTeamsSwitch = new Switch { IsToggled = true };
-        copyTeamsSwitch.Toggled += (s, e) => _copyTeams = e.Value;
-
-        var copyPlayersSwitch = new Switch { IsToggled = true };
-        copyPlayersSwitch.Toggled += (s, e) => _copyPlayers = e.Value;
-
         var optionsGrid = new Grid
         {
             ColumnDefinitions =
@@ -171,8 +176,6 @@ public partial class SeasonSetupPage : ContentPage
             },
             RowDefinitions =
             {
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto }
             },
@@ -186,11 +189,21 @@ public partial class SeasonSetupPage : ContentPage
         optionsGrid.Add(new Label { Text = "Copy Venues", VerticalOptions = LayoutOptions.Center }, 0, 1);
         optionsGrid.Add(copyVenuesSwitch, 1, 1);
 
-        optionsGrid.Add(new Label { Text = "Copy Teams", VerticalOptions = LayoutOptions.Center }, 0, 2);
-        optionsGrid.Add(copyTeamsSwitch, 1, 2);
+        // Teams selection section
+        _teamsContainer = new VerticalStackLayout { Spacing = 6 };
+        _teamsContainer.Children.Add(new Label
+        {
+            Text = "Select a source season to see available teams",
+            FontSize = 13, TextColor = Color.FromArgb("#94A3B8"), FontAttributes = FontAttributes.Italic
+        });
 
-        optionsGrid.Add(new Label { Text = "Copy Players", VerticalOptions = LayoutOptions.Center }, 0, 3);
-        optionsGrid.Add(copyPlayersSwitch, 1, 3);
+        // Players selection section
+        _playersContainer = new VerticalStackLayout { Spacing = 6 };
+        _playersContainer.Children.Add(new Label
+        {
+            Text = "Select a source season to see available players",
+            FontSize = 13, TextColor = Color.FromArgb("#94A3B8"), FontAttributes = FontAttributes.Italic
+        });
 
         return new VerticalStackLayout
         {
@@ -217,6 +230,10 @@ public partial class SeasonSetupPage : ContentPage
                 nameEntry,
                 new Label { Text = "What to Copy:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
                 optionsGrid,
+                new Label { Text = "\U0001F465 Teams", FontAttributes = FontAttributes.Bold, FontSize = 16, FontFamily = "Segoe UI Emoji", Margin = new Thickness(0, 16, 0, 0) },
+                _teamsContainer,
+                new Label { Text = "\U0001F464 Players", FontAttributes = FontAttributes.Bold, FontSize = 16, FontFamily = "Segoe UI Emoji", Margin = new Thickness(0, 16, 0, 0) },
+                _playersContainer,
                 new Border
                 {
                     Padding = 12,
@@ -535,9 +552,10 @@ public partial class SeasonSetupPage : ContentPage
             }
         }
 
-        if (_copyTeams)
+        // Copy selected teams
+        if (_selectedTeamIds.Count > 0)
         {
-            foreach (var team in DataStore.Data.Teams.Where(t => t.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var team in DataStore.Data.Teams.Where(t => t.SeasonId == _sourceSeason.Id && _selectedTeamIds.Contains(t.Id)).ToList())
             {
                 DataStore.Data.Teams.Add(new Team
                 {
@@ -551,9 +569,10 @@ public partial class SeasonSetupPage : ContentPage
             }
         }
 
-        if (_copyPlayers)
+        // Copy selected players
+        if (_selectedPlayerIds.Count > 0)
         {
-            foreach (var player in DataStore.Data.Players.Where(p => p.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var player in DataStore.Data.Players.Where(p => p.SeasonId == _sourceSeason.Id && _selectedPlayerIds.Contains(p.Id)).ToList())
             {
                 DataStore.Data.Players.Add(new Player
                 {
@@ -658,6 +677,218 @@ public partial class SeasonSetupPage : ContentPage
             "Next steps:\n\u2022 Add divisions\n\u2022 Add venues\n\u2022 Add teams\n\u2022 Add players", 
             "OK");
         await Navigation.PopAsync();
+    }
+
+    // ========== TEAM/PLAYER SELECTION ==========
+
+    private void PopulateSourceSeasonData(Season source)
+    {
+        _sourceTeams = DataStore.Data.Teams
+            .Where(t => t.SeasonId == source.Id)
+            .OrderBy(t => t.Name)
+            .ToList();
+
+        _sourcePlayers = DataStore.Data.Players
+            .Where(p => p.SeasonId == source.Id)
+            .OrderBy(p => p.LastName)
+            .ThenBy(p => p.FirstName)
+            .ToList();
+
+        // Select all by default
+        _selectedTeamIds.Clear();
+        foreach (var team in _sourceTeams)
+            _selectedTeamIds.Add(team.Id);
+
+        _selectedPlayerIds.Clear();
+        foreach (var player in _sourcePlayers)
+            _selectedPlayerIds.Add(player.Id);
+
+        BuildTeamsList();
+        BuildPlayersList();
+    }
+
+    private void BuildTeamsList()
+    {
+        if (_teamsContainer == null) return;
+        _teamsContainer.Children.Clear();
+
+        if (_sourceTeams.Count == 0)
+        {
+            _teamsContainer.Children.Add(new Label
+            {
+                Text = "No teams in selected season",
+                FontSize = 13, TextColor = Color.FromArgb("#94A3B8"), FontAttributes = FontAttributes.Italic
+            });
+            return;
+        }
+
+        // Header with count and Select All / Deselect All
+        _teamsCountLabel = new Label
+        {
+            Text = $"{_selectedTeamIds.Count} of {_sourceTeams.Count} selected",
+            FontSize = 13, TextColor = Color.FromArgb("#64748B"), VerticalOptions = LayoutOptions.Center
+        };
+
+        var selectAllBtn = new Button
+        {
+            Text = "Select All", FontSize = 12, Padding = new Thickness(12, 4),
+            BackgroundColor = Color.FromArgb("#3B82F6"), HeightRequest = 32
+        };
+        selectAllBtn.Clicked += (s, e) => ToggleAllTeams(true);
+
+        var deselectAllBtn = new Button
+        {
+            Text = "Deselect All", FontSize = 12, Padding = new Thickness(12, 4),
+            BackgroundColor = Color.FromArgb("#6B7280"), HeightRequest = 32
+        };
+        deselectAllBtn.Clicked += (s, e) => ToggleAllTeams(false);
+
+        _teamsContainer.Children.Add(new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children = { _teamsCountLabel, selectAllBtn, deselectAllBtn }
+        });
+
+        // Individual team checkboxes
+        foreach (var team in _sourceTeams)
+        {
+            var teamId = team.Id;
+            var cb = new CheckBox { IsChecked = _selectedTeamIds.Contains(teamId), VerticalOptions = LayoutOptions.Center };
+            cb.CheckedChanged += (s, e) =>
+            {
+                if (e.Value) _selectedTeamIds.Add(teamId); else _selectedTeamIds.Remove(teamId);
+                if (_teamsCountLabel != null)
+                    _teamsCountLabel.Text = $"{_selectedTeamIds.Count} of {_sourceTeams.Count} selected";
+            };
+
+            var divName = team.DivisionId.HasValue
+                ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == team.DivisionId.Value)?.Name
+                : null;
+
+            var row = new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children =
+                {
+                    cb,
+                    new Label { Text = team.Name ?? "(unnamed)", FontSize = 14, VerticalOptions = LayoutOptions.Center }
+                }
+            };
+
+            if (!string.IsNullOrWhiteSpace(divName))
+            {
+                row.Children.Add(new Label
+                {
+                    Text = $"({divName})", FontSize = 12,
+                    TextColor = Color.FromArgb("#94A3B8"), VerticalOptions = LayoutOptions.Center
+                });
+            }
+
+            _teamsContainer.Children.Add(row);
+        }
+    }
+
+    private void BuildPlayersList()
+    {
+        if (_playersContainer == null) return;
+        _playersContainer.Children.Clear();
+
+        if (_sourcePlayers.Count == 0)
+        {
+            _playersContainer.Children.Add(new Label
+            {
+                Text = "No players in selected season",
+                FontSize = 13, TextColor = Color.FromArgb("#94A3B8"), FontAttributes = FontAttributes.Italic
+            });
+            return;
+        }
+
+        // Header with count and Select All / Deselect All
+        _playersCountLabel = new Label
+        {
+            Text = $"{_selectedPlayerIds.Count} of {_sourcePlayers.Count} selected",
+            FontSize = 13, TextColor = Color.FromArgb("#64748B"), VerticalOptions = LayoutOptions.Center
+        };
+
+        var selectAllBtn = new Button
+        {
+            Text = "Select All", FontSize = 12, Padding = new Thickness(12, 4),
+            BackgroundColor = Color.FromArgb("#3B82F6"), HeightRequest = 32
+        };
+        selectAllBtn.Clicked += (s, e) => ToggleAllPlayers(true);
+
+        var deselectAllBtn = new Button
+        {
+            Text = "Deselect All", FontSize = 12, Padding = new Thickness(12, 4),
+            BackgroundColor = Color.FromArgb("#6B7280"), HeightRequest = 32
+        };
+        deselectAllBtn.Clicked += (s, e) => ToggleAllPlayers(false);
+
+        _playersContainer.Children.Add(new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children = { _playersCountLabel, selectAllBtn, deselectAllBtn }
+        });
+
+        // Individual player checkboxes
+        foreach (var player in _sourcePlayers)
+        {
+            var playerId = player.Id;
+            var cb = new CheckBox { IsChecked = _selectedPlayerIds.Contains(playerId), VerticalOptions = LayoutOptions.Center };
+            cb.CheckedChanged += (s, e) =>
+            {
+                if (e.Value) _selectedPlayerIds.Add(playerId); else _selectedPlayerIds.Remove(playerId);
+                if (_playersCountLabel != null)
+                    _playersCountLabel.Text = $"{_selectedPlayerIds.Count} of {_sourcePlayers.Count} selected";
+            };
+
+            var teamName = player.TeamId.HasValue
+                ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId.Value)?.Name
+                : null;
+
+            var row = new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children =
+                {
+                    cb,
+                    new Label { Text = player.FullName, FontSize = 14, VerticalOptions = LayoutOptions.Center }
+                }
+            };
+
+            if (!string.IsNullOrWhiteSpace(teamName))
+            {
+                row.Children.Add(new Label
+                {
+                    Text = $"({teamName})", FontSize = 12,
+                    TextColor = Color.FromArgb("#94A3B8"), VerticalOptions = LayoutOptions.Center
+                });
+            }
+
+            _playersContainer.Children.Add(row);
+        }
+    }
+
+    private void ToggleAllTeams(bool select)
+    {
+        _selectedTeamIds.Clear();
+        if (select)
+        {
+            foreach (var team in _sourceTeams)
+                _selectedTeamIds.Add(team.Id);
+        }
+        BuildTeamsList();
+    }
+
+    private void ToggleAllPlayers(bool select)
+    {
+        _selectedPlayerIds.Clear();
+        if (select)
+        {
+            foreach (var player in _sourcePlayers)
+                _selectedPlayerIds.Add(player.Id);
+        }
+        BuildPlayersList();
     }
 
     // ========== HELPER METHODS ==========

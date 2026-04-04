@@ -2988,7 +2988,9 @@ public partial class FixturesPage : ContentPage
                 startDate: season.StartDate,
                 matchNight: settings.DefaultMatchDay,
                 roundsPerOpponent: settings.DefaultRoundsPerOpponent,
-                kickoff: new TimeSpan(19, 30, 0));
+                kickoff: settings.DefaultMatchTime,
+                endDate: season.EndDate,
+                blackoutDates: season.BlackoutDates);
 
             DataStore.Data.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
             DataStore.Data.Fixtures.AddRange(fixtures);

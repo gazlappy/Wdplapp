@@ -26,18 +26,32 @@ namespace Wdpl2.Services
             DateTime startDate,
             DayOfWeek matchNight,
             int roundsPerOpponent = 2,
-            TimeSpan? kickoff = null)
+            TimeSpan? kickoff = null,
+            DateTime? endDate = null,
+            IReadOnlyList<DateTime>? blackoutDates = null)
         {
             if (league == null) throw new ArgumentNullException(nameof(league));
             if (roundsPerOpponent < 1) throw new ArgumentOutOfRangeException(nameof(roundsPerOpponent));
 
             var allFixtures = new List<Fixture>();
             var kick = kickoff ?? new TimeSpan(19, 30, 0);
+            var endDateOnly = endDate?.Date;
+            var blackouts = blackoutDates != null
+                ? new HashSet<DateTime>(blackoutDates.Select(d => d.Date))
+                : new HashSet<DateTime>();
 
             DateTime AlignToMatchNight(DateTime d)
             {
                 int diff = ((int)matchNight - (int)d.DayOfWeek + 7) % 7;
                 return d.Date.AddDays(diff);
+            }
+
+            DateTime SkipBlackouts(DateTime d)
+            {
+                int safety = 0;
+                while (blackouts.Contains(d.Date) && safety++ < 52)
+                    d = d.AddDays(7);
+                return d;
             }
 
             var venueTables = league.Venues?.ToDictionary(
@@ -48,9 +62,13 @@ namespace Wdpl2.Services
             var bookedByDate = new Dictionary<DateTime, HashSet<(Guid venueId, Guid tableId)>>();
             var teamBookedByDate = new Dictionary<DateTime, HashSet<Guid>>();
 
-            DateTime currentRoundDate = AlignToMatchNight(startDate);
+            DateTime currentRoundDate = SkipBlackouts(AlignToMatchNight(startDate));
 
             var seasonDivisions = league.Divisions.Where(d => d.SeasonId == seasonId).ToList();
+
+            // Build all rounds for every division up-front so they can be
+            // interleaved onto the same match nights.
+            var divisionRounds = new List<(Division division, List<List<(Team home, Team away)>> rounds)>();
 
             foreach (var division in seasonDivisions.OrderBy(d => d.Name))
             {
@@ -99,20 +117,37 @@ namespace Wdpl2.Services
                     allRounds.AddRange(rounds.Select(r => r.Select(p => swap ? (p.home, p.away) : (p.away, p.home)).ToList()));
                 }
 
-                foreach (var matchDay in allRounds)
-                {
-                    var dateKey = currentRoundDate.Date;
-                    if (!bookedByDate.ContainsKey(dateKey)) bookedByDate[dateKey] = new();
-                    if (!teamBookedByDate.ContainsKey(dateKey)) teamBookedByDate[dateKey] = new();
+                divisionRounds.Add((division, allRounds));
+            }
 
-                    foreach (var (home, away) in matchDay)
+            // Schedule all divisions' fixtures for the same round on the same
+            // match night so every division plays on the same dates.
+            int maxRounds = divisionRounds.Count > 0
+                ? divisionRounds.Max(dr => dr.rounds.Count)
+                : 0;
+
+            for (int roundIndex = 0; roundIndex < maxRounds; roundIndex++)
+            {
+                if (endDateOnly.HasValue && currentRoundDate.Date > endDateOnly.Value)
+                    break;
+
+                var dateKey = currentRoundDate.Date;
+                if (!bookedByDate.ContainsKey(dateKey)) bookedByDate[dateKey] = new();
+                if (!teamBookedByDate.ContainsKey(dateKey)) teamBookedByDate[dateKey] = new();
+
+                foreach (var (division, rounds) in divisionRounds)
+                {
+                    if (roundIndex >= rounds.Count) continue;
+
+                    foreach (var (home, away) in rounds[roundIndex])
                     {
                         if (teamBookedByDate[dateKey].Contains(home.Id) ||
                             teamBookedByDate[dateKey].Contains(away.Id))
                         {
                             allFixtures.Add(AllocateOnNextNight(
                                 league, seasonId, division, home, away, venueTables,
-                                bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick));
+                                bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick,
+                                endDateOnly, blackouts));
                             continue;
                         }
 
@@ -122,11 +157,12 @@ namespace Wdpl2.Services
 
                         allFixtures.Add(placed ? fx : AllocateOnNextNight(
                             league, seasonId, division, home, away, venueTables,
-                            bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick));
+                            bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick,
+                            endDateOnly, blackouts));
                     }
-
-                    currentRoundDate = currentRoundDate.AddDays(7);
                 }
+
+                currentRoundDate = SkipBlackouts(currentRoundDate.AddDays(7));
             }
 
             return allFixtures;
@@ -205,12 +241,18 @@ namespace Wdpl2.Services
             Dictionary<DateTime, HashSet<Guid>> teamBookedByDate,
             DateTime currentRoundDate,
             DayOfWeek matchNight,
-            TimeSpan kickoff)
+            TimeSpan kickoff,
+            DateTime? endDateOnly = null,
+            HashSet<DateTime>? blackouts = null)
         {
             int safety = 0;
             while (safety++ < 52)
             {
                 var dateKey = currentRoundDate.AddDays(7 * safety).Date;
+
+                if (blackouts != null && blackouts.Contains(dateKey)) continue;
+                if (endDateOnly.HasValue && dateKey > endDateOnly.Value) break;
+
                 if (!bookedByDate.ContainsKey(dateKey)) bookedByDate[dateKey] = new();
                 if (!teamBookedByDate.ContainsKey(dateKey)) teamBookedByDate[dateKey] = new();
 

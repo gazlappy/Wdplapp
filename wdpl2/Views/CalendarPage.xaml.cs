@@ -17,7 +17,7 @@ public partial class CalendarPage : ContentPage
     private HashSet<DateTime> _blackoutDates = [];
     private List<(DateTime Date, string Name)> _competitionDates = [];
     private HashSet<DateTime> _competitionDateSet = [];
-    private HashSet<DateTime> _bankHolidays = [];
+    private Dictionary<DateTime, string> _bankHolidays = [];
     private List<CalendarEvent> _calendarEvents = [];
 
     private enum CalendarView { Month, Year, Day }
@@ -32,6 +32,9 @@ public partial class CalendarPage : ContentPage
     private bool _showBlackouts = true;
     private bool _showTransferWindow = true;
     private bool _showCustomEvents = true;
+
+    // Day-of-week highlight for year view
+    private DayOfWeek? _highlightDayOfWeek;
 
     // Colors — loaded from settings, updated by ApplySettings()
     private Color FixtureColor = Color.FromArgb("#3B82F6");
@@ -462,7 +465,7 @@ public partial class CalendarPage : ContentPage
         _competitionDateSet = new HashSet<DateTime>(_competitionDates.Select(c => c.Date));
 
         // Calculate bank holidays for the season range
-        _bankHolidays = GetBankHolidays(season.StartDate.Year, season.EndDate.Year);
+        _bankHolidays = GetPresetHolidays(season.StartDate.Year, season.EndDate.Year);
 
         // Load user-created calendar events
         ReloadCalendarEvents();
@@ -639,7 +642,7 @@ public partial class CalendarPage : ContentPage
         bool isSeasonBound = season != null && (date == season.StartDate.Date || date == season.EndDate.Date);
         bool isMatchDay = _showLeagueMatches && season != null && date.DayOfWeek == season.MatchDayOfWeek && isInSeason;
         bool isCompetition = _showCompetitions && _competitionDateSet.Contains(date);
-        bool isBankHoliday = _showBankHolidays && _bankHolidays.Contains(date);
+        bool isBankHoliday = _showBankHolidays && _bankHolidays.ContainsKey(date);
         bool isTransferWindow = _showTransferWindow && season != null
             && season.TransferWindowStart.HasValue && season.TransferWindowEnd.HasValue
             && date >= season.TransferWindowStart.Value.Date && date <= season.TransferWindowEnd.Value.Date;
@@ -687,11 +690,15 @@ public partial class CalendarPage : ContentPage
         // Bank holiday marker
         if (isBankHoliday)
         {
+            var holName = _bankHolidays.TryGetValue(date, out var hName) ? hName : "Bank Hol";
+            var shortName = holName.Length > 12 ? holName[..12] + "…" : holName;
             stack.Children.Add(new Label
             {
-                Text = "🏦 Bank Hol",
+                Text = $"🏦 {shortName}",
                 FontSize = 9,
-                TextColor = BankHolidayColor
+                TextColor = BankHolidayColor,
+                LineBreakMode = LineBreakMode.TailTruncation,
+                MaxLines = 1
             });
         }
 
@@ -857,11 +864,85 @@ public partial class CalendarPage : ContentPage
         var season = SeasonPicker.SelectedItem as Season;
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
 
-        // Ensure bank holidays cover the displayed year
-        if (!_bankHolidays.Any(h => h.Year == _viewDate.Year))
+        // ── Day-of-week highlight selector ──
+        var highlightBar = new HorizontalStackLayout
         {
-            foreach (var h in GetBankHolidays(_viewDate.Year, _viewDate.Year))
-                _bankHolidays.Add(h);
+            Spacing = 4,
+            HorizontalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        highlightBar.Children.Add(new Label
+        {
+            Text = "Highlight:",
+            FontSize = 11,
+            TextColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280"),
+            VerticalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, 0, 4, 0)
+        });
+
+        string[] dowNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        DayOfWeek[] dowValues = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
+                                  DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+
+        for (int i = 0; i < 7; i++)
+        {
+            var dow = dowValues[i];
+            bool isActive = _highlightDayOfWeek == dow;
+            var btn = new Button
+            {
+                Text = dowNames[i],
+                FontSize = 10,
+                Padding = new Thickness(8, 4),
+                CornerRadius = 6,
+                MinimumHeightRequest = 28,
+                MinimumWidthRequest = 40,
+                BackgroundColor = isActive
+                    ? Color.FromArgb("#3B82F6")
+                    : isDark ? Color.FromArgb("#1F2937") : Color.FromArgb("#F1F5F9"),
+                TextColor = isActive
+                    ? Colors.White
+                    : isDark ? Color.FromArgb("#D1D5DB") : Color.FromArgb("#374151"),
+                BorderWidth = isActive ? 0 : 1,
+                BorderColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E2E8F0")
+            };
+            var capturedDow = dow;
+            btn.Clicked += (_, _) =>
+            {
+                _highlightDayOfWeek = _highlightDayOfWeek == capturedDow ? null : capturedDow;
+                Refresh();
+            };
+            highlightBar.Children.Add(btn);
+        }
+
+        // "Clear" button
+        if (_highlightDayOfWeek.HasValue)
+        {
+            var clearBtn = new Button
+            {
+                Text = "✕",
+                FontSize = 10,
+                Padding = new Thickness(6, 4),
+                CornerRadius = 6,
+                MinimumHeightRequest = 28,
+                MinimumWidthRequest = 28,
+                BackgroundColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E2E8F0"),
+                TextColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
+            };
+            clearBtn.Clicked += (_, _) =>
+            {
+                _highlightDayOfWeek = null;
+                Refresh();
+            };
+            highlightBar.Children.Add(clearBtn);
+        }
+
+        YearPlannerContainer.Children.Add(highlightBar);
+
+        // Ensure bank holidays cover the displayed year
+        if (!_bankHolidays.Keys.Any(h => h.Year == _viewDate.Year))
+        {
+            foreach (var kv in GetPresetHolidays(_viewDate.Year, _viewDate.Year))
+                _bankHolidays.TryAdd(kv.Key, kv.Value);
         }
 
         var fixturesByDate = FilteredFixtures()
@@ -1019,7 +1100,7 @@ public partial class CalendarPage : ContentPage
             var playedFixtures = FilteredFixtures().Count(f => f.Frames.Count > 0);
             var blackouts = _blackoutDates.Count;
             var competitions = _competitionDates.Count;
-            var bankHols = _bankHolidays.Count(h => h.Year == _viewDate.Year);
+            var bankHols = _bankHolidays.Keys.Count(h => h.Year == _viewDate.Year);
             var customEvents = _calendarEvents.Count;
             seasonInfo.Children.Add(new Label
             {
@@ -1032,7 +1113,7 @@ public partial class CalendarPage : ContentPage
             YearPlannerContainer.Children.Add(seasonInfo);
         }
 
-        YearPlannerContainer.Children.Insert(0, grid);
+        YearPlannerContainer.Children.Insert(1, grid);
     }
 
     private View BuildWallPlannerCell(int year, int month, int day, int daysInMonth,
@@ -1055,7 +1136,7 @@ public partial class CalendarPage : ContentPage
         bool isMatchDay = _showLeagueMatches && season != null && date.DayOfWeek == season.MatchDayOfWeek && isInSeason;
         bool isWeekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
         bool isCompetition = _showCompetitions && _competitionDateSet.Contains(date);
-        bool isBankHoliday = _showBankHolidays && _bankHolidays.Contains(date);
+        bool isBankHoliday = _showBankHolidays && _bankHolidays.ContainsKey(date);
         bool isTransferWindow = _showTransferWindow && season != null
             && season.TransferWindowStart.HasValue && season.TransferWindowEnd.HasValue
             && date >= season.TransferWindowStart.Value.Date && date <= season.TransferWindowEnd.Value.Date;
@@ -1219,16 +1300,33 @@ public partial class CalendarPage : ContentPage
             cellStack.Children.Add(dotRow);
         }
 
+        bool isHighlighted = _highlightDayOfWeek.HasValue && date.DayOfWeek == _highlightDayOfWeek.Value;
+
+        // Highlighted cells get a subtle tinted background boost
+        var finalBg = isHighlighted && !isToday
+            ? BlendHighlight(bgColor, isDark)
+            : bgColor;
+
         var border = new Border
         {
             Content = cellStack,
-            BackgroundColor = bgColor,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = isToday ? 4 : 2 },
+            BackgroundColor = finalBg,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = isToday ? 4 : isHighlighted ? 3 : 2 },
             Stroke = isToday ? TodayBorder
+                : isHighlighted ? Color.FromArgb(isDark ? "#60A5FA" : "#93C5FD")
                 : isSeasonBound ? SeasonColor
                 : Colors.Transparent,
-            StrokeThickness = isToday ? 2 : isSeasonBound ? 1 : 0,
-            Padding = new Thickness(0, 2)
+            StrokeThickness = isToday ? 2 : isHighlighted ? 1.5 : isSeasonBound ? 1 : 0,
+            Padding = new Thickness(0, 2),
+            Shadow = isHighlighted && !isToday
+                ? new Shadow
+                {
+                    Brush = new SolidColorBrush(Color.FromArgb(isDark ? "#3B82F6" : "#60A5FA")),
+                    Offset = new Point(0, 0),
+                    Radius = 6,
+                    Opacity = isDark ? 0.5f : 0.35f
+                }
+                : null
         };
 
         // Tap to show day options
@@ -1296,8 +1394,11 @@ public partial class CalendarPage : ContentPage
         if (_showBlackouts && _blackoutDates.Contains(date))
             badgeRow.Children.Add(MakeBadge("Blackout Date", "#EF4444", "#FEF2F2"));
 
-        if (_showBankHolidays && _bankHolidays.Contains(date))
-            badgeRow.Children.Add(MakeBadge("Bank Holiday", "#EC4899", "#FDF2F8"));
+        if (_showBankHolidays && _bankHolidays.ContainsKey(date))
+        {
+            var holName = _bankHolidays.TryGetValue(date, out var hName) ? hName : "Bank Holiday";
+            badgeRow.Children.Add(MakeBadge($"🏦 {holName}", "#EC4899", "#FDF2F8"));
+        }
 
         if (_showCompetitions && _competitionDateSet.Contains(date))
         {
@@ -1613,50 +1714,82 @@ public partial class CalendarPage : ContentPage
         return name[..10] + "…";
     }
 
-    // ────────────────────── UK Bank Holidays ──────────────────────
+    // ────────────────────── Preset Holidays ──────────────────────
 
-    private static HashSet<DateTime> GetBankHolidays(int startYear, int endYear)
+    private Dictionary<DateTime, string> GetPresetHolidays(int startYear, int endYear)
     {
-        var holidays = new HashSet<DateTime>();
+        var holidays = new Dictionary<DateTime, string>();
+        var presets = CalSettings.PresetHolidays;
+
+        // Seed defaults if the list is empty (first launch or after clearing)
+        if (presets.Count == 0)
+        {
+            presets.AddRange(PresetHoliday.CreateDefaults());
+            DataStore.Save();
+        }
+
         for (int y = startYear; y <= endYear; y++)
         {
-            // New Year's Day (substitute if weekend)
-            holidays.Add(SubstituteWeekend(new DateTime(y, 1, 1)));
-
-            // Good Friday & Easter Monday
-            var easter = CalculateEaster(y);
-            holidays.Add(easter.AddDays(-2)); // Good Friday
-            holidays.Add(easter.AddDays(1));  // Easter Monday
-
-            // Early May bank holiday (first Monday of May)
-            holidays.Add(FirstMonday(y, 5));
-
-            // Spring bank holiday (last Monday of May)
-            holidays.Add(LastMonday(y, 5));
-
-            // Summer bank holiday (last Monday of August)
-            holidays.Add(LastMonday(y, 8));
-
-            // Christmas Day (substitute if weekend)
-            var xmas = new DateTime(y, 12, 25);
-            var boxing = new DateTime(y, 12, 26);
-            if (xmas.DayOfWeek == DayOfWeek.Saturday)
+            foreach (var p in presets.Where(h => h.IsEnabled))
             {
-                holidays.Add(new DateTime(y, 12, 27)); // Mon
-                holidays.Add(new DateTime(y, 12, 28)); // Tue
-            }
-            else if (xmas.DayOfWeek == DayOfWeek.Sunday)
-            {
-                holidays.Add(new DateTime(y, 12, 27)); // Tue
-                holidays.Add(boxing);
-            }
-            else
-            {
-                holidays.Add(xmas);
-                holidays.Add(SubstituteWeekend(boxing));
+                var date = ResolveHolidayDate(p, y);
+                if (date.HasValue)
+                    holidays.TryAdd(date.Value, p.Name);
             }
         }
         return holidays;
+    }
+
+    /// <summary>Resolves the actual date of a preset holiday for a given year.</summary>
+    private static DateTime? ResolveHolidayDate(PresetHoliday holiday, int year)
+    {
+        if (holiday.IsBuiltIn)
+        {
+            return holiday.Rule switch
+            {
+                "new-year" => SubstituteWeekend(new DateTime(year, 1, 1)),
+                "good-friday" => CalculateEaster(year).AddDays(-2),
+                "easter-monday" => CalculateEaster(year).AddDays(1),
+                "early-may" => FirstMonday(year, 5),
+                "spring-bank" => LastMonday(year, 5),
+                "summer-bank" => LastMonday(year, 8),
+                "christmas" => ResolveChristmas(year),
+                "boxing-day" => ResolveBoxingDay(year),
+                _ => null
+            };
+        }
+
+        // Custom fixed-date holiday
+        if (holiday.FixedMonth >= 1 && holiday.FixedMonth <= 12
+            && holiday.FixedDay >= 1 && holiday.FixedDay <= DateTime.DaysInMonth(year, holiday.FixedMonth))
+        {
+            return new DateTime(year, holiday.FixedMonth, holiday.FixedDay);
+        }
+
+        return null;
+    }
+
+    private static DateTime ResolveChristmas(int year)
+    {
+        var xmas = new DateTime(year, 12, 25);
+        return xmas.DayOfWeek switch
+        {
+            DayOfWeek.Saturday => new DateTime(year, 12, 27),
+            DayOfWeek.Sunday => new DateTime(year, 12, 27),
+            _ => xmas
+        };
+    }
+
+    private static DateTime ResolveBoxingDay(int year)
+    {
+        var xmas = new DateTime(year, 12, 25);
+        var boxing = new DateTime(year, 12, 26);
+        return xmas.DayOfWeek switch
+        {
+            DayOfWeek.Saturday => new DateTime(year, 12, 28),
+            DayOfWeek.Sunday => boxing,
+            _ => SubstituteWeekend(boxing)
+        };
     }
 
     private static DateTime SubstituteWeekend(DateTime date) => date.DayOfWeek switch
@@ -1698,5 +1831,27 @@ public partial class CalendarPage : ContentPage
         int month = (h + l - 7 * m + 114) / 31;
         int day = (h + l - 7 * m + 114) % 31 + 1;
         return new DateTime(year, month, day);
+    }
+
+    /// <summary>
+    /// Blends a subtle blue highlight tint into the given background colour
+    /// to create the "glow" effect for day-of-week highlighting.
+    /// </summary>
+    private static Color BlendHighlight(Color bg, bool isDark)
+    {
+        // Mix ~15% blue highlight into the existing background
+        const float factor = 0.15f;
+        var highlight = isDark
+            ? Color.FromArgb("#1E3A5F")  // dark blue tint
+            : Color.FromArgb("#DBEAFE"); // light blue tint
+
+        float r = bg.Red + (highlight.Red - bg.Red) * factor;
+        float g = bg.Green + (highlight.Green - bg.Green) * factor;
+        float b = bg.Blue + (highlight.Blue - bg.Blue) * factor;
+
+        return new Color(
+            Math.Clamp(r, 0f, 1f),
+            Math.Clamp(g, 0f, 1f),
+            Math.Clamp(b, 0f, 1f));
     }
 }

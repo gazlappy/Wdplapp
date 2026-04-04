@@ -28,6 +28,7 @@ public partial class CalendarOptionsPage : ContentPage
     {
         "General",
         "Default Filters",
+        "Preset Events",
         "Colours",
         "Month View",
         "Year / Wall Planner",
@@ -57,6 +58,7 @@ public partial class CalendarOptionsPage : ContentPage
         {
             "General" => CreateGeneralPanel(),
             "Default Filters" => CreateDefaultFiltersPanel(),
+            "Preset Events" => CreatePresetEventsPanel(),
             "Colours" => CreateColoursPanel(),
             "Month View" => CreateMonthViewPanel(),
             "Year / Wall Planner" => CreateYearViewPanel(),
@@ -430,6 +432,283 @@ public partial class CalendarOptionsPage : ContentPage
         }));
 
         return root;
+    }
+
+    // ────────────────────── Preset Events ──────────────────────
+
+    private View CreatePresetEventsPanel()
+    {
+        var presets = Settings.PresetHolidays;
+        if (presets.Count == 0)
+        {
+            presets.AddRange(PresetHoliday.CreateDefaults());
+            DataStore.Save();
+        }
+
+        var builtIn = presets.Where(h => h.IsBuiltIn).ToList();
+        var custom = presets.Where(h => h.IsCustom).ToList();
+        var root = new VerticalStackLayout { Spacing = 0 };
+
+        root.Children.Add(SectionHeader("\ud83c\udfe6", "Preset Events",
+            $"{presets.Count(h => h.IsEnabled)} of {presets.Count} enabled"));
+
+        root.Children.Add(InfoBanner(
+            "Customise bank holidays and add your own recurring events. " +
+            "Disabled holidays won't appear on the calendar."));
+
+        // ── Built-in bank holidays ──
+        root.Children.Add(new Label
+        {
+            Text = "Bank Holidays",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = TitleText,
+            Margin = new Thickness(0, 8, 0, 8)
+        });
+
+        foreach (var h in builtIn)
+            root.Children.Add(CreatePresetHolidayCard(h, isBuiltIn: true));
+
+        // ── Custom holidays ──
+        root.Children.Add(new Label
+        {
+            Text = "Custom Holidays",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = TitleText,
+            Margin = new Thickness(0, 16, 0, 8)
+        });
+
+        if (custom.Count == 0)
+        {
+            root.Children.Add(new Label
+            {
+                Text = "No custom holidays yet — add your own below.",
+                FontSize = 12,
+                TextColor = SubtleText,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+        }
+        else
+        {
+            foreach (var h in custom)
+                root.Children.Add(CreatePresetHolidayCard(h, isBuiltIn: false));
+        }
+
+        // Add custom holiday button
+        var addBtn = new Button
+        {
+            Text = $"{Emojis.Add}  Add Custom Holiday",
+            Margin = new Thickness(0, 8, 0, 8)
+        };
+        addBtn.SetDynamicResource(Button.StyleProperty, "PrimaryButtonStyle");
+        addBtn.Clicked += OnAddCustomHolidayClicked;
+        root.Children.Add(addBtn);
+
+        // Reset to defaults button
+        var resetBtn = new Button
+        {
+            Text = $"{Emojis.Reload}  Reset to Default Bank Holidays",
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        resetBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
+        resetBtn.Clicked += OnResetPresetHolidaysClicked;
+        root.Children.Add(resetBtn);
+
+        return root;
+    }
+
+    private View CreatePresetHolidayCard(PresetHoliday holiday, bool isBuiltIn)
+    {
+        var card = new Border
+        {
+            Padding = 12,
+            Margin = new Thickness(0, 0, 0, 6),
+            BackgroundColor = CardBg,
+            Stroke = CardStroke,
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = 10 }
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = 44 },
+                new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto }
+            },
+            RowSpacing = 4,
+            ColumnSpacing = 10
+        };
+
+        // Enable/Disable toggle
+        var toggle = new Switch
+        {
+            IsToggled = holiday.IsEnabled,
+            VerticalOptions = LayoutOptions.Center
+        };
+        toggle.Toggled += (_, _) =>
+        {
+            holiday.IsEnabled = toggle.IsToggled;
+            DataStore.Save();
+        };
+        grid.Add(toggle, 0, 0);
+
+        // Name (editable via Entry for both built-in and custom)
+        var nameEntry = new Entry
+        {
+            Text = holiday.Name,
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Placeholder = "Holiday name"
+        };
+        nameEntry.SetAppThemeColor(Entry.TextColorProperty, Color.FromArgb("#111827"), Colors.White);
+        nameEntry.SetAppThemeColor(Entry.BackgroundColorProperty, Colors.Transparent, Colors.Transparent);
+        nameEntry.Unfocused += (_, _) =>
+        {
+            if (!string.IsNullOrWhiteSpace(nameEntry.Text))
+            {
+                holiday.Name = nameEntry.Text.Trim();
+                DataStore.Save();
+            }
+        };
+        grid.Add(nameEntry, 1, 0);
+
+        // Description / date info
+        var description = isBuiltIn
+            ? GetBuiltInRuleDescription(holiday.Rule)
+            : $"Fixed: {holiday.FixedDay:00}/{holiday.FixedMonth:00} every year";
+
+        var descLabel = new Label
+        {
+            Text = description,
+            FontSize = 11,
+            TextColor = SubtleText
+        };
+        grid.Add(descLabel, 1, 1);
+
+        // For custom holidays: month/day pickers
+        if (!isBuiltIn)
+        {
+            var dateRow = new HorizontalStackLayout { Spacing = 8 };
+
+            var monthPicker = new Picker { WidthRequest = 90, FontSize = 12 };
+            string[] months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            foreach (var m in months) monthPicker.Items.Add(m);
+            monthPicker.SelectedIndex = Math.Clamp(holiday.FixedMonth - 1, 0, 11);
+            monthPicker.SelectedIndexChanged += (_, _) =>
+            {
+                holiday.FixedMonth = monthPicker.SelectedIndex + 1;
+                DataStore.Save();
+                descLabel.Text = $"Fixed: {holiday.FixedDay:00}/{holiday.FixedMonth:00} every year";
+            };
+            dateRow.Children.Add(monthPicker);
+
+            var dayEntry = new Entry
+            {
+                Text = holiday.FixedDay.ToString(),
+                Keyboard = Keyboard.Numeric,
+                WidthRequest = 50,
+                FontSize = 12,
+                Placeholder = "Day"
+            };
+            dayEntry.Unfocused += (_, _) =>
+            {
+                if (int.TryParse(dayEntry.Text, out var d) && d >= 1 && d <= 31)
+                {
+                    holiday.FixedDay = d;
+                    DataStore.Save();
+                    descLabel.Text = $"Fixed: {holiday.FixedDay:00}/{holiday.FixedMonth:00} every year";
+                }
+            };
+            dateRow.Children.Add(dayEntry);
+
+            grid.Add(dateRow, 1, 2);
+
+            // Delete button for custom holidays
+            var deleteBtn = new Button
+            {
+                Text = Emojis.Delete,
+                BackgroundColor = Colors.Transparent,
+                TextColor = Color.FromArgb("#EF4444"),
+                FontSize = 16,
+                WidthRequest = 36,
+                HeightRequest = 36,
+                CornerRadius = 8,
+                Padding = 0,
+                VerticalOptions = LayoutOptions.Center
+            };
+            deleteBtn.Clicked += async (_, _) =>
+            {
+                bool confirm = await DisplayAlert("Delete Holiday",
+                    $"Delete \"{holiday.Name}\"?", "Delete", "Cancel");
+                if (!confirm) return;
+                Settings.PresetHolidays.Remove(holiday);
+                DataStore.Save();
+                ShowCategory("Preset Events");
+            };
+            grid.Add(deleteBtn, 2, 0);
+            Grid.SetRowSpan(deleteBtn, 3);
+        }
+
+        card.Content = grid;
+        return card;
+    }
+
+    private static string GetBuiltInRuleDescription(string? rule) => rule switch
+    {
+        "new-year" => "1st January (substituted if weekend)",
+        "good-friday" => "Friday before Easter Sunday",
+        "easter-monday" => "Monday after Easter Sunday",
+        "early-may" => "First Monday of May",
+        "spring-bank" => "Last Monday of May",
+        "summer-bank" => "Last Monday of August",
+        "christmas" => "25th December (substituted if weekend)",
+        "boxing-day" => "26th December (substituted if weekend)",
+        _ => "Built-in holiday"
+    };
+
+    private async void OnAddCustomHolidayClicked(object? sender, EventArgs e)
+    {
+        var name = await DisplayPromptAsync("Add Custom Holiday",
+            "Holiday name:", placeholder: "e.g. League Anniversary", maxLength: 60);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var monthStr = await DisplayPromptAsync("Month",
+            "Which month? (1–12):", initialValue: "1",
+            keyboard: Keyboard.Numeric, maxLength: 2);
+        if (!int.TryParse(monthStr, out var month) || month < 1 || month > 12) return;
+
+        var dayStr = await DisplayPromptAsync("Day",
+            $"Which day of month {month}? (1–{DateTime.DaysInMonth(DateTime.Today.Year, month)}):",
+            initialValue: "1", keyboard: Keyboard.Numeric, maxLength: 2);
+        if (!int.TryParse(dayStr, out var day) || day < 1 || day > 31) return;
+
+        Settings.PresetHolidays.Add(new PresetHoliday
+        {
+            Name = name.Trim(),
+            FixedMonth = month,
+            FixedDay = day,
+            IsCustom = true,
+            IsEnabled = true
+        });
+        DataStore.Save();
+        ShowCategory("Preset Events");
+    }
+
+    private async void OnResetPresetHolidaysClicked(object? sender, EventArgs e)
+    {
+        bool confirm = await DisplayAlert("Reset Preset Holidays",
+            "This will reset all bank holidays to defaults and remove any custom holidays. Continue?",
+            "Reset", "Cancel");
+        if (!confirm) return;
+
+        Settings.PresetHolidays.Clear();
+        Settings.PresetHolidays.AddRange(PresetHoliday.CreateDefaults());
+        DataStore.Save();
+        ShowCategory("Preset Events");
     }
 
     // ────────────────────── Events ──────────────────────

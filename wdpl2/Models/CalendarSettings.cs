@@ -84,4 +84,8 @@ public sealed class CalendarSettings
     // ── Events ──
     /// <summary>Default category for new events.</summary>
     public string DefaultEventCategory { get; set; } = "General";
+
+    // ── Preset Holidays ──
+    /// <summary>Customisable list of preset holidays (bank holidays, etc.).</summary>
+    public List<PresetHoliday> PresetHolidays { get; set; } = PresetHoliday.CreateDefaults();
 }

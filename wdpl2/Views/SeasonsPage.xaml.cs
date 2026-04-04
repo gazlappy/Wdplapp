@@ -492,13 +492,16 @@ namespace Wdpl2.Views
                 StatusLabel.Text = "Generating fixtures…";
                 GenerateBtn.IsEnabled = false;
 
+                var settings = League.GetSettingsForSeason(_selected.Id);
                 var fixtures = FixtureGenerator.Generate(
                     league: League,
                     seasonId: _selected.Id,
                     startDate: _selected.StartDate,
-                    matchNight: DayOfWeek.Tuesday,
-                    roundsPerOpponent: 2,
-                    kickoff: new TimeSpan(19, 30, 0));
+                    matchNight: settings.DefaultMatchDay,
+                    roundsPerOpponent: settings.DefaultRoundsPerOpponent,
+                    kickoff: settings.DefaultMatchTime,
+                    endDate: _selected.EndDate,
+                    blackoutDates: _selected.BlackoutDates);
 
                 League.Fixtures.RemoveAll(f => f.SeasonId == _selected.Id);
                 League.Fixtures.AddRange(fixtures);

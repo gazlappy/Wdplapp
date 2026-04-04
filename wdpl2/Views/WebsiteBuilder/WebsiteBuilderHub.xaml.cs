@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
@@ -264,46 +265,47 @@ public partial class WebsiteBuilderHub : ContentPage
     private void UpdateSetupProgress()
     {
         var s = League.WebsiteSettings;
-        var steps = 0;
         var total = 6;
+        var remaining = new List<string>();
 
         // 1. League name set
-        if (s.LeagueName != "My Pool League") steps++;
+        if (s.LeagueName == "My Pool League")
+            remaining.Add("Set your league name in Site Branding");
         // 2. Template chosen (always done)
-        if (!string.IsNullOrWhiteSpace(s.SelectedTemplate)) steps++;
+        if (string.IsNullOrWhiteSpace(s.SelectedTemplate))
+            remaining.Add("Choose a website template");
         // 3. Colors customized
-        if (s.PrimaryColor != "#3B82F6") steps++;
+        if (s.PrimaryColor == "#3B82F6")
+            remaining.Add("Customize your color scheme in Colors and Theme");
         // 4. At least one page enabled
-        if (s.ShowStandings || s.ShowFixtures || s.ShowResults || s.ShowPlayerStats) steps++;
+        if (!(s.ShowStandings || s.ShowFixtures || s.ShowResults || s.ShowPlayerStats))
+            remaining.Add("Enable at least one page in Pages and Content");
         // 5. Logo uploaded
-        if (s.UseCustomLogo) steps++;
+        if (!s.UseCustomLogo)
+            remaining.Add("Upload your league logo in Site Branding");
         // 6. Has been previewed at least once
-        if (s.LastGenerated != default) steps++;
+        if (s.LastGenerated == default)
+            remaining.Add("Preview your website at least once");
 
+        var steps = total - remaining.Count;
         var progress = (double)steps / total;
         SetupProgressBar.Progress = progress;
         SetupProgressLabel.Text = $"{steps}/{total}";
 
-        if (steps >= total)
+        if (remaining.Count == 0)
         {
             SetupHintLabel.Text = "All set! Your website is ready to deploy.";
             SetupProgressBar.ProgressColor = Color.FromArgb("#10B981");
             SetupProgressLabel.TextColor = Color.FromArgb("#10B981");
+            SetupRemainingLabel.IsVisible = false;
         }
         else
         {
-            var hint = steps switch
-            {
-                0 => "Start by setting your league name in Site Branding",
-                1 => "Choose a color scheme in Colors and Theme",
-                2 => "Upload your league logo in Site Branding",
-                3 => "Configure your pages in Pages and Content",
-                4 => "Click Preview to see how your site looks",
-                _ => "Almost there! Complete the remaining steps"
-            };
-            SetupHintLabel.Text = hint;
+            SetupHintLabel.Text = $"{remaining.Count} step{(remaining.Count == 1 ? "" : "s")} remaining:";
             SetupProgressBar.ProgressColor = Color.FromArgb("#3B82F6");
             SetupProgressLabel.TextColor = Color.FromArgb("#3B82F6");
+            SetupRemainingLabel.Text = string.Join("\n", remaining.Select(r => $"  ○  {r}"));
+            SetupRemainingLabel.IsVisible = true;
         }
     }
 

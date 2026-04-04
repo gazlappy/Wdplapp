@@ -22,6 +22,7 @@
                         </Grid>
                         <ProgressBar x:Name="SetupProgressBar" ProgressColor="#3B82F6" HeightRequest="6"/>
                         <Label x:Name="SetupHintLabel" FontSize="11" TextColor="#94A3B8"/>
+                        <Label x:Name="SetupRemainingLabel" FontSize="11" TextColor="#64748B" IsVisible="False"/>
                     </VerticalStackLayout>
                 </Frame>
 
