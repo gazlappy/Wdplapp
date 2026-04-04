@@ -7,6 +7,7 @@ namespace Wdpl2.Views;
 public partial class CalendarPage : ContentPage
 {
     private static LeagueData League => DataStore.Data;
+    private static CalendarSettings CalSettings => League.CalendarSettings;
 
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<Division> _divisions = new();
@@ -32,16 +33,16 @@ public partial class CalendarPage : ContentPage
     private bool _showTransferWindow = true;
     private bool _showCustomEvents = true;
 
-    // Colors
-    private static readonly Color FixtureColor = Color.FromArgb("#3B82F6");
-    private static readonly Color ResultColor = Color.FromArgb("#10B981");
-    private static readonly Color BlackoutColor = Color.FromArgb("#EF4444");
-    private static readonly Color SeasonColor = Color.FromArgb("#8B5CF6");
-    private static readonly Color TodayBorder = Color.FromArgb("#F59E0B");
-    private static readonly Color CompetitionColor = Color.FromArgb("#F97316");
-    private static readonly Color BankHolidayColor = Color.FromArgb("#EC4899");
-    private static readonly Color TransferWindowColor = Color.FromArgb("#06B6D4");
-    private static readonly Color CustomEventColor = Color.FromArgb("#14B8A6");
+    // Colors — loaded from settings, updated by ApplySettings()
+    private Color FixtureColor = Color.FromArgb("#3B82F6");
+    private Color ResultColor = Color.FromArgb("#10B981");
+    private Color BlackoutColor = Color.FromArgb("#EF4444");
+    private Color SeasonColor = Color.FromArgb("#8B5CF6");
+    private Color TodayBorder = Color.FromArgb("#F59E0B");
+    private Color CompetitionColor = Color.FromArgb("#F97316");
+    private Color BankHolidayColor = Color.FromArgb("#EC4899");
+    private Color TransferWindowColor = Color.FromArgb("#06B6D4");
+    private Color CustomEventColor = Color.FromArgb("#14B8A6");
 
     public CalendarPage()
     {
@@ -53,8 +54,74 @@ public partial class CalendarPage : ContentPage
         DivisionPicker.ItemsSource = _divisions;
         DivisionPicker.ItemDisplayBinding = new Binding("Name");
 
+        ApplySettings();
         BuildDayHeaders();
         LoadSeasons();
+    }
+
+    /// <summary>
+    /// Reads CalendarSettings and applies colours, filter defaults, and view preferences.
+    /// Called on construction and when returning from the CalendarOptionsPage.
+    /// </summary>
+    private void ApplySettings()
+    {
+        var s = CalSettings;
+
+        // Colors
+        FixtureColor = SafeColor(s.FixtureColor, "#3B82F6");
+        ResultColor = SafeColor(s.ResultColor, "#10B981");
+        BlackoutColor = SafeColor(s.BlackoutColor, "#EF4444");
+        SeasonColor = SafeColor(s.SeasonColor, "#8B5CF6");
+        TodayBorder = SafeColor(s.TodayColor, "#F59E0B");
+        CompetitionColor = SafeColor(s.CompetitionColor, "#F97316");
+        BankHolidayColor = SafeColor(s.BankHolidayColor, "#EC4899");
+        TransferWindowColor = SafeColor(s.TransferWindowColor, "#06B6D4");
+        CustomEventColor = SafeColor(s.CustomEventColor, "#14B8A6");
+
+        // Filter defaults
+        _showLeagueMatches = s.ShowLeagueMatches;
+        _showCompetitions = s.ShowCompetitions;
+        _showBankHolidays = s.ShowBankHolidays;
+        _showBlackouts = s.ShowBlackouts;
+        _showTransferWindow = s.ShowTransferWindow;
+        _showCustomEvents = s.ShowCustomEvents;
+
+        // Sync filter checkboxes
+        foreach (var cb in GetFilterCheckboxes())
+            cb.IsChecked = true; // will be overridden below
+        SyncFilterCheckboxes();
+
+        // Legend visibility
+        if (Content is Grid rootGrid && rootGrid.Children.Count > 2 && rootGrid.Children[^1] is Border legendBorder)
+            legendBorder.IsVisible = s.ShowLegend;
+
+        // Rebuild day headers in case week start changed
+        BuildDayHeaders();
+
+        // Reload events and refresh
+        ReloadCalendarEvents();
+        Refresh();
+    }
+
+    private void SyncFilterCheckboxes()
+    {
+        var checkboxes = GetFilterCheckboxes().ToList();
+        // Order: League, Competitions, BankHolidays, Blackouts, Transfer, Events
+        bool[] values = [_showLeagueMatches, _showCompetitions, _showBankHolidays,
+                         _showBlackouts, _showTransferWindow, _showCustomEvents];
+        for (int i = 0; i < Math.Min(checkboxes.Count, values.Length); i++)
+            checkboxes[i].IsChecked = values[i];
+    }
+
+    private static Color SafeColor(string? hex, string fallback)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(hex))
+                return Color.FromArgb(hex);
+        }
+        catch { /* ignored */ }
+        return Color.FromArgb(fallback);
     }
 
     // ────────────────────── Filter Handlers ──────────────────────
@@ -103,22 +170,164 @@ public partial class CalendarPage : ContentPage
         await ShowAddEventDialog(targetDate);
     }
 
+    private async void OnCalendarOptionsClicked(object? sender, EventArgs e)
+    {
+        var action = await DisplayActionSheet("Calendar Options", "Cancel", null,
+            "\U0001f4cc Add Event",
+            "\U0001f4c5 Jump to Date",
+            "\U0001f4cb View All Events",
+            _showLeagueMatches && _showCompetitions && _showBankHolidays && _showBlackouts && _showTransferWindow && _showCustomEvents
+                ? "\U0001f6ab Hide All Filters"
+                : "\u2705 Show All Filters",
+            "\u2699\ufe0f Calendar Settings");
+
+        switch (action)
+        {
+            case "\U0001f4cc Add Event":
+                var targetDate = _currentView == CalendarView.Day ? _viewDate : DateTime.Today;
+                await ShowAddEventDialog(targetDate);
+                break;
+
+            case "\U0001f4c5 Jump to Date":
+                var dateStr = await DisplayPromptAsync("Jump to Date",
+                    "Enter date (dd/MM/yyyy):",
+                    initialValue: _viewDate.ToString("dd/MM/yyyy"), maxLength: 10);
+                if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParseExact(dateStr.Trim(),
+                    ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"],
+                    null, System.Globalization.DateTimeStyles.None, out var jumpDate))
+                {
+                    _viewDate = jumpDate.Date;
+                    Refresh();
+                }
+                break;
+
+            case "\U0001f4cb View All Events":
+                var events = _calendarEvents.OrderBy(e2 => e2.Date).ToList();
+                if (events.Count == 0)
+                {
+                    await DisplayAlert("Events", "No custom events yet.", "OK");
+                    break;
+                }
+                var eventOptions = events
+                    .Select(e2 => $"{e2.Date:dd MMM} — {e2.Title} ({e2.Category})")
+                    .ToArray();
+                var picked = await DisplayActionSheet(
+                    $"{events.Count} event{(events.Count != 1 ? "s" : "")}", "Close", null, eventOptions);
+                if (picked != null && picked != "Close")
+                {
+                    var idx = Array.IndexOf(eventOptions, picked);
+                    if (idx >= 0 && idx < events.Count)
+                    {
+                        var evt = events[idx];
+                        var evtAction = await DisplayActionSheet(
+                            $"\U0001f4cc {evt.Title}", "Cancel", null,
+                            "\U0001f4c5 Go to Date", "\u270f\ufe0f Edit Event");
+                        if (evtAction == "\U0001f4c5 Go to Date")
+                        {
+                            _viewDate = evt.Date;
+                            SwitchView(CalendarView.Day);
+                        }
+                        else if (evtAction == "\u270f\ufe0f Edit Event")
+                        {
+                            await ShowEditEventDialog(evt);
+                        }
+                    }
+                }
+                break;
+
+            case "\U0001f6ab Hide All Filters":
+                SetAllFilters(false);
+                break;
+
+            case "\u2705 Show All Filters":
+                SetAllFilters(true);
+                break;
+
+            case "\u2699\ufe0f Calendar Settings":
+                var optionsPage = new CalendarOptionsPage();
+                optionsPage.Disappearing += (_, _) => ApplySettings();
+                await Navigation.PushModalAsync(new NavigationPage(optionsPage));
+                break;
+        }
+    }
+
+    private void SetAllFilters(bool value)
+    {
+        _showLeagueMatches = value;
+        _showCompetitions = value;
+        _showBankHolidays = value;
+        _showBlackouts = value;
+        _showTransferWindow = value;
+        _showCustomEvents = value;
+
+        // Sync the checkboxes — find them in the filter row
+        foreach (var child in GetFilterCheckboxes())
+            child.IsChecked = value;
+
+        Refresh();
+    }
+
+    private IEnumerable<CheckBox> GetFilterCheckboxes()
+    {
+        // The filter row is a HorizontalStackLayout containing nested HorizontalStackLayouts with CheckBoxes
+        // Walk the visual tree to find them
+        static IEnumerable<CheckBox> FindCheckBoxes(IView view)
+        {
+            if (view is CheckBox cb)
+            {
+                yield return cb;
+            }
+            else if (view is Layout layout)
+            {
+                foreach (var child in layout.Children)
+                    foreach (var found in FindCheckBoxes(child))
+                        yield return found;
+            }
+        }
+
+        // The toolbar is the first child (Border) in the page's root Grid
+        if (Content is Grid rootGrid && rootGrid.Children.Count > 0 && rootGrid.Children[0] is Border toolbarBorder)
+        {
+            foreach (var cb in FindCheckBoxes(toolbarBorder))
+                yield return cb;
+        }
+    }
+
     private async Task ShowAddEventDialog(DateTime defaultDate)
     {
         var title = await DisplayPromptAsync("Add Calendar Event",
-            "Event title:", placeholder: "e.g. Committee Meeting", maxLength: 100);
+            $"Event title for {defaultDate:ddd dd MMM yyyy}:",
+            placeholder: "e.g. Committee Meeting", maxLength: 100);
         if (string.IsNullOrWhiteSpace(title)) return;
 
         var categories = Enum.GetNames<CalendarEventCategory>();
-        var category = await DisplayActionSheet("Category", "Cancel", null, categories);
+        var category = await DisplayActionSheet("Event Type", "Cancel", null, categories);
         if (category is null or "Cancel") return;
+
+        // Offer to change the date
+        var changeDateAction = await DisplayActionSheet(
+            $"Date: {defaultDate:ddd dd MMM yyyy}", null, null,
+            "Keep this date", "Change date");
+        var eventDate = defaultDate;
+        if (changeDateAction == "Change date")
+        {
+            var dateStr = await DisplayPromptAsync("Event Date",
+                "Enter date (dd/MM/yyyy):",
+                initialValue: defaultDate.ToString("dd/MM/yyyy"), maxLength: 10);
+            if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParseExact(dateStr.Trim(),
+                ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"],
+                null, System.Globalization.DateTimeStyles.None, out var parsed))
+            {
+                eventDate = parsed.Date;
+            }
+        }
 
         var notes = await DisplayPromptAsync("Notes (optional)",
             "Any additional details:", placeholder: "Optional", accept: "Save", cancel: "Skip");
 
         var evt = new CalendarEvent
         {
-            Date = defaultDate.Date,
+            Date = eventDate,
             Title = title.Trim(),
             Category = Enum.TryParse<CalendarEventCategory>(category, out var cat) ? cat : CalendarEventCategory.General,
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
@@ -132,74 +341,78 @@ public partial class CalendarPage : ContentPage
 
     private async Task ShowEditEventDialog(CalendarEvent evt)
     {
-        var action = await DisplayActionSheet($"📌 {evt.Title}", "Cancel", "Delete",
-            "Edit Title", "Change Category", "Edit Notes", "Change Date");
+        var summary = $"\U0001f4cc {evt.Title}\n{evt.Category} · {evt.Date:ddd dd MMM yyyy}";
+        if (!string.IsNullOrWhiteSpace(evt.Notes))
+            summary += $"\n{evt.Notes}";
 
-        switch (action)
+        var action = await DisplayActionSheet(summary, "Cancel", "\u274c Delete",
+            $"\u270f\ufe0f Title: {evt.Title}",
+            $"\U0001f3f7\ufe0f Type: {evt.Category}",
+            $"\U0001f4c5 Date: {evt.Date:dd/MM/yyyy}",
+            $"\U0001f4dd Notes: {(string.IsNullOrWhiteSpace(evt.Notes) ? "(none)" : evt.Notes)}");
+
+        if (action != null && action.StartsWith("\u270f\ufe0f Title:"))
         {
-            case "Edit Title":
-                var newTitle = await DisplayPromptAsync("Edit Title", "Event title:",
-                    initialValue: evt.Title, maxLength: 100);
-                if (!string.IsNullOrWhiteSpace(newTitle))
-                {
-                    evt.Title = newTitle.Trim();
-                    DataStore.Save();
-                    ReloadCalendarEvents();
-                    Refresh();
-                }
-                break;
-
-            case "Change Category":
-                var categories = Enum.GetNames<CalendarEventCategory>();
-                var cat = await DisplayActionSheet("Category", "Cancel", null, categories);
-                if (cat is not null and not "Cancel" && Enum.TryParse<CalendarEventCategory>(cat, out var parsed))
-                {
-                    evt.Category = parsed;
-                    DataStore.Save();
-                    ReloadCalendarEvents();
-                    Refresh();
-                }
-                break;
-
-            case "Edit Notes":
-                var newNotes = await DisplayPromptAsync("Edit Notes", "Details:",
-                    initialValue: evt.Notes ?? "", accept: "Save", cancel: "Cancel");
-                if (newNotes != null)
-                {
-                    evt.Notes = string.IsNullOrWhiteSpace(newNotes) ? null : newNotes.Trim();
-                    DataStore.Save();
-                    ReloadCalendarEvents();
-                    Refresh();
-                }
-                break;
-
-            case "Change Date":
-                // Use a simple prompt for date since MAUI doesn't have a date picker dialog
-                var dateStr = await DisplayPromptAsync("Change Date",
-                    "Enter new date (dd/MM/yyyy):",
-                    initialValue: evt.Date.ToString("dd/MM/yyyy"), maxLength: 10);
-                if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParseExact(dateStr.Trim(),
-                    ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"],
-                    null, System.Globalization.DateTimeStyles.None, out var newDate))
-                {
-                    evt.Date = newDate.Date;
-                    DataStore.Save();
-                    ReloadCalendarEvents();
-                    Refresh();
-                }
-                break;
-
-            case "Delete":
-                bool confirm = await DisplayAlert("Delete Event",
-                    $"Delete '{evt.Title}'?", "Delete", "Cancel");
-                if (confirm)
-                {
-                    League.CalendarEvents.Remove(evt);
-                    DataStore.Save();
-                    ReloadCalendarEvents();
-                    Refresh();
-                }
-                break;
+            var newTitle = await DisplayPromptAsync("Edit Title", "Event title:",
+                initialValue: evt.Title, maxLength: 100);
+            if (!string.IsNullOrWhiteSpace(newTitle))
+            {
+                evt.Title = newTitle.Trim();
+                DataStore.Save();
+                ReloadCalendarEvents();
+                Refresh();
+            }
+        }
+        else if (action != null && action.StartsWith("\U0001f3f7\ufe0f Type:"))
+        {
+            var categories = Enum.GetNames<CalendarEventCategory>();
+            var cat = await DisplayActionSheet($"Current: {evt.Category}", "Cancel", null, categories);
+            if (cat is not null and not "Cancel" && Enum.TryParse<CalendarEventCategory>(cat, out var parsed))
+            {
+                evt.Category = parsed;
+                DataStore.Save();
+                ReloadCalendarEvents();
+                Refresh();
+            }
+        }
+        else if (action != null && action.StartsWith("\U0001f4c5 Date:"))
+        {
+            var dateStr = await DisplayPromptAsync("Change Date",
+                "Enter new date (dd/MM/yyyy):",
+                initialValue: evt.Date.ToString("dd/MM/yyyy"), maxLength: 10);
+            if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParseExact(dateStr.Trim(),
+                ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"],
+                null, System.Globalization.DateTimeStyles.None, out var newDate))
+            {
+                evt.Date = newDate.Date;
+                DataStore.Save();
+                ReloadCalendarEvents();
+                Refresh();
+            }
+        }
+        else if (action != null && action.StartsWith("\U0001f4dd Notes:"))
+        {
+            var newNotes = await DisplayPromptAsync("Edit Notes", "Details:",
+                initialValue: evt.Notes ?? "", accept: "Save", cancel: "Cancel");
+            if (newNotes != null)
+            {
+                evt.Notes = string.IsNullOrWhiteSpace(newNotes) ? null : newNotes.Trim();
+                DataStore.Save();
+                ReloadCalendarEvents();
+                Refresh();
+            }
+        }
+        else if (action == "\u274c Delete")
+        {
+            bool confirm = await DisplayAlert("Delete Event",
+                $"Delete '{evt.Title}' on {evt.Date:dd MMM yyyy}?", "Delete", "Cancel");
+            if (confirm)
+            {
+                League.CalendarEvents.Remove(evt);
+                DataStore.Save();
+                ReloadCalendarEvents();
+                Refresh();
+            }
         }
     }
 
@@ -365,7 +578,10 @@ public partial class CalendarPage : ContentPage
 
     private void BuildDayHeaders()
     {
-        string[] days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        DayHeaders.Children.Clear();
+        string[] days = CalSettings.WeekStartDay == 0
+            ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         for (int i = 0; i < 7; i++)
         {
             var label = new Label
@@ -392,8 +608,10 @@ public partial class CalendarPage : ContentPage
         var firstOfMonth = new DateTime(_viewDate.Year, _viewDate.Month, 1);
         var daysInMonth = DateTime.DaysInMonth(_viewDate.Year, _viewDate.Month);
 
-        // Monday = 0
-        int startCol = ((int)firstOfMonth.DayOfWeek + 6) % 7;
+        // Calculate start column based on week start preference
+        int startCol = CalSettings.WeekStartDay == 0
+            ? (int)firstOfMonth.DayOfWeek                   // Sunday = 0
+            : ((int)firstOfMonth.DayOfWeek + 6) % 7;        // Monday = 0
 
         var fixturesByDate = FilteredFixtures()
             .GroupBy(f => f.Date.Date)
@@ -433,10 +651,10 @@ public partial class CalendarPage : ContentPage
         var dayLabel = new Label
         {
             Text = date.Day.ToString(),
-            FontSize = 14,
+            FontSize = CalSettings.MonthDayFontSize,
             FontAttributes = isToday ? FontAttributes.Bold : FontAttributes.None,
-            TextColor = isToday ? Color.FromArgb("#F59E0B")
-                : isBlackout ? Color.FromArgb("#EF4444")
+            TextColor = isToday ? TodayBorder
+                : isBlackout ? BlackoutColor
                 : date.Month != _viewDate.Month ? Color.FromArgb("#9CA3AF")
                 : Application.Current?.RequestedTheme == AppTheme.Dark
                     ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#1F2937")
@@ -503,24 +721,25 @@ public partial class CalendarPage : ContentPage
         // Custom calendar events
         if (_showCustomEvents)
         {
+            var maxEvents = CalSettings.MonthMaxEventsPerCell;
             var dayEvents = _calendarEvents.Where(e => e.Date == date).ToList();
-            foreach (var evt in dayEvents.Take(2))
+            foreach (var evt in dayEvents.Take(maxEvents))
             {
                 stack.Children.Add(new Label
                 {
                     Text = $"📌 {evt.Title}",
-                    FontSize = 9,
+                    FontSize = CalSettings.MonthLabelFontSize,
                     TextColor = CustomEventColor,
                     LineBreakMode = LineBreakMode.TailTruncation,
                     MaxLines = 1
                 });
             }
-            if (dayEvents.Count > 2)
+            if (dayEvents.Count > maxEvents)
             {
                 stack.Children.Add(new Label
                 {
-                    Text = $"+{dayEvents.Count - 2} more",
-                    FontSize = 9,
+                    Text = $"+{dayEvents.Count - maxEvents} more",
+                    FontSize = CalSettings.MonthLabelFontSize,
                     TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
                         ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
                 });
@@ -530,7 +749,7 @@ public partial class CalendarPage : ContentPage
         // Fixtures
         if (_showLeagueMatches && dayFixtures != null)
         {
-            int maxShow = 3;
+            int maxShow = CalSettings.MonthMaxFixturesPerCell;
             int shown = 0;
             foreach (var f in dayFixtures.OrderBy(f => f.Date))
             {
@@ -539,7 +758,7 @@ public partial class CalendarPage : ContentPage
                     stack.Children.Add(new Label
                     {
                         Text = $"+{dayFixtures.Count - maxShow} more",
-                        FontSize = 9,
+                        FontSize = CalSettings.MonthLabelFontSize,
                         TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
                             ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
                     });
@@ -557,7 +776,7 @@ public partial class CalendarPage : ContentPage
                 stack.Children.Add(new Label
                 {
                     Text = text,
-                    FontSize = 9,
+                    FontSize = CalSettings.MonthLabelFontSize,
                     TextColor = hasResult ? ResultColor : FixtureColor,
                     LineBreakMode = LineBreakMode.TailTruncation,
                     MaxLines = 1
@@ -592,15 +811,36 @@ public partial class CalendarPage : ContentPage
                 : Application.Current?.RequestedTheme == AppTheme.Dark
                     ? Color.FromArgb("#374151") : Color.FromArgb("#E5E7EB"),
             StrokeThickness = isToday ? 2 : 1,
-            MinimumHeightRequest = 80
+            MinimumHeightRequest = CalSettings.MonthCellMinHeight
         };
 
-        // Tap to switch to day view
+        // Tap to show day options
         var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) =>
+        tap.Tapped += async (_, _) =>
         {
-            _viewDate = date;
-            SwitchView(CalendarView.Day);
+            var dayEvents = _calendarEvents.Where(e => e.Date == date).ToList();
+            var options = new List<string> { "\U0001f4c5 View Day", "\U0001f4cc Add Event" };
+            foreach (var evt in dayEvents.Take(3))
+                options.Add($"\u270f\ufe0f {evt.Title}");
+
+            var action = await DisplayActionSheet(
+                date.ToString("ddd dd MMM yyyy"), "Cancel", null, options.ToArray());
+
+            if (action == "\U0001f4c5 View Day")
+            {
+                _viewDate = date;
+                SwitchView(CalendarView.Day);
+            }
+            else if (action == "\U0001f4cc Add Event")
+            {
+                await ShowAddEventDialog(date);
+            }
+            else if (action != null && action.StartsWith("\u270f\ufe0f "))
+            {
+                var title = action[3..];
+                var evt = dayEvents.FirstOrDefault(e => e.Title == title);
+                if (evt != null) await ShowEditEventDialog(evt);
+            }
         };
         border.GestureRecognizers.Add(tap);
 
@@ -630,15 +870,15 @@ public partial class CalendarPage : ContentPage
 
         // ── Build the grid: 13 rows (header + 12 months), 33 cols (month label + day-of-week + days 1-31) ──
         var colDefs = new ColumnDefinitionCollection();
-        colDefs.Add(new ColumnDefinition(new GridLength(80)));  // Month name
+        colDefs.Add(new ColumnDefinition(new GridLength(CalSettings.YearMonthLabelWidth)));  // Month name
         colDefs.Add(new ColumnDefinition(new GridLength(24)));  // Day-of-week spacer column
         for (int d = 0; d < 31; d++)
-            colDefs.Add(new ColumnDefinition(new GridLength(42))); // Day cells
+            colDefs.Add(new ColumnDefinition(new GridLength(CalSettings.YearCellWidth))); // Day cells
 
         var rowDefs = new RowDefinitionCollection();
         rowDefs.Add(new RowDefinition(new GridLength(28))); // Header row
         for (int m = 0; m < 12; m++)
-            rowDefs.Add(new RowDefinition(new GridLength(38))); // Month rows
+            rowDefs.Add(new RowDefinition(new GridLength(CalSettings.YearRowHeight))); // Month rows
 
         var grid = new Grid
         {
@@ -883,19 +1123,20 @@ public partial class CalendarPage : ContentPage
         };
 
         // Day number (with count if fixtures)
-        var dayText = hasFixtures ? $"{dayFixtures!.Count}" : "";
+        var showCount = CalSettings.YearShowFixtureCount && hasFixtures;
+        var dayText = showCount ? $"{dayFixtures!.Count}" : "";
         cellStack.Children.Add(new Label
         {
             Text = dayText,
-            FontSize = hasFixtures ? 11 : 0,
+            FontSize = showCount ? 11 : 0,
             FontAttributes = FontAttributes.Bold,
             HorizontalTextAlignment = TextAlignment.Center,
             TextColor = textColor,
-            HeightRequest = hasFixtures ? 14 : 0
+            HeightRequest = showCount ? 14 : 0
         });
 
         // Dot indicators row
-        bool hasDots = hasFixtures || isBlackout || isSeasonBound || isCompetition || isBankHoliday || isTransferWindow || hasCustomEvent;
+        bool hasDots = CalSettings.YearShowDots && (hasFixtures || isBlackout || isSeasonBound || isCompetition || isBankHoliday || isTransferWindow || hasCustomEvent);
         if (hasDots)
         {
             var dotRow = new HorizontalStackLayout
@@ -990,12 +1231,33 @@ public partial class CalendarPage : ContentPage
             Padding = new Thickness(0, 2)
         };
 
-        // Tooltip-style: tap to see day details
+        // Tap to show day options
         var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) =>
+        tap.Tapped += async (_, _) =>
         {
-            _viewDate = date;
-            SwitchView(CalendarView.Day);
+            var dayEvts = _calendarEvents.Where(e => e.Date == date).ToList();
+            var options = new List<string> { "\U0001f4c5 View Day", "\U0001f4cc Add Event" };
+            foreach (var evt in dayEvts.Take(3))
+                options.Add($"\u270f\ufe0f {evt.Title}");
+
+            var action = await DisplayActionSheet(
+                date.ToString("ddd dd MMM yyyy"), "Cancel", null, options.ToArray());
+
+            if (action == "\U0001f4c5 View Day")
+            {
+                _viewDate = date;
+                SwitchView(CalendarView.Day);
+            }
+            else if (action == "\U0001f4cc Add Event")
+            {
+                await ShowAddEventDialog(date);
+            }
+            else if (action != null && action.StartsWith("\u270f\ufe0f "))
+            {
+                var title = action[3..];
+                var evt = dayEvts.FirstOrDefault(e => e.Title == title);
+                if (evt != null) await ShowEditEventDialog(evt);
+            }
         };
         border.GestureRecognizers.Add(tap);
 
@@ -1058,6 +1320,25 @@ public partial class CalendarPage : ContentPage
 
         if (badgeRow.Children.Count > 0)
             DayContent.Children.Add(badgeRow);
+
+        // "Add Event" button for this day
+        if (CalSettings.DayShowAddEventButton)
+        {
+            var addEventBtn = new Button
+            {
+                Text = "\U0001f4cc Add Event for " + date.ToString("dd MMM"),
+                BackgroundColor = CustomEventColor,
+                TextColor = Colors.White,
+                FontSize = 13,
+                FontAttributes = FontAttributes.Bold,
+                Padding = new Thickness(14, 6),
+                CornerRadius = 8,
+                HorizontalOptions = LayoutOptions.Start,
+                Margin = new Thickness(0, 4, 0, 4)
+            };
+            addEventBtn.Clicked += async (_, _) => await ShowAddEventDialog(date);
+            DayContent.Children.Add(addEventBtn);
+        }
 
         // Custom calendar events for this day
         if (_showCustomEvents)
@@ -1198,7 +1479,7 @@ public partial class CalendarPage : ContentPage
                 TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
                     ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#374151")
             });
-            if (div != null && div.Id != Guid.Empty)
+            if (CalSettings.DayShowDivision && div != null && div.Id != Guid.Empty)
             {
                 topRow.Children.Add(MakeBadge(div.Name, "#6366F1", "#EEF2FF"));
             }
@@ -1260,7 +1541,7 @@ public partial class CalendarPage : ContentPage
             card.Children.Add(matchRow);
 
             // Venue
-            if (venue != null)
+            if (CalSettings.DayShowVenue && venue != null)
             {
                 card.Children.Add(new Label
                 {
@@ -1273,7 +1554,7 @@ public partial class CalendarPage : ContentPage
             }
 
             // Frame details if result exists
-            if (hasResult && f.Frames.Count > 0)
+            if (CalSettings.DayShowFrameCount && hasResult && f.Frames.Count > 0)
             {
                 card.Children.Add(new Label
                 {

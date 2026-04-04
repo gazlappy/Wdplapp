@@ -59,6 +59,10 @@
                             BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
                             TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
                             FontSize="12" Padding="12,6" CornerRadius="6" HeightRequest="34"/>
+                    <Button Text="⚙ Options" Clicked="OnCalendarOptionsClicked"
+                            BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
+                            TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
+                            FontSize="12" Padding="12,6" CornerRadius="6" HeightRequest="34"/>
                 </HorizontalStackLayout>
 
                 <!-- Filter Checkboxes Row -->

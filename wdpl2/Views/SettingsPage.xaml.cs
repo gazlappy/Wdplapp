@@ -11,6 +11,7 @@ using Microsoft.Maui.Storage;
 using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using static Wdpl2.Helpers.PanelBuilder;
 
 namespace Wdpl2.Views
 {
@@ -27,39 +28,6 @@ namespace Wdpl2.Views
         private bool IsEditingSeasonOverride =>
             _editingSeasonId.HasValue &&
             DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _editingSeasonId.Value)?.Settings != null;
-
-        // Theme-aware colors
-        private static Color InfoBoxBackground => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#1E3A5F") 
-            : Color.FromArgb("#F0F9FF");
-        
-        private static Color InfoBoxText => ThemeService.Current.IsDarkModeActive 
-            ? Colors.White 
-            : Colors.Black;
-            
-        private static Color SubtitleText => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#9CA3AF") 
-            : Color.FromArgb("#666666");
-            
-        private static Color CardBackground => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#1F2937") 
-            : Color.FromArgb("#FAFAFA");
-            
-        private static Color CardBorder => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#374151") 
-            : Color.FromArgb("#E5E7EB");
-            
-        private static Color WarningBoxBackground => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#422006") 
-            : Color.FromArgb("#FFFBEB");
-            
-        private static Color SuccessBoxBackground => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#052E16") 
-            : Color.FromArgb("#F0FDF4");
-            
-        private static Color ErrorBoxBackground => ThemeService.Current.IsDarkModeActive 
-            ? Color.FromArgb("#450A0A") 
-            : Color.FromArgb("#FEF2F2");
 
         private readonly ObservableCollection<string> _categories = new()
         {
@@ -128,55 +96,30 @@ namespace Wdpl2.Views
             ContentPanel.Content = content;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  APPEARANCE
+        // ═══════════════════════════════════════════════════════════
+
         private View CreateAppearancePanel()
         {
             var useSystemThemeSwitch = new Switch { IsToggled = Settings.UseSystemTheme };
             var darkModeSwitch = new Switch { IsToggled = Settings.DarkModeEnabled, IsEnabled = !Settings.UseSystemTheme };
             var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            var grid = new Grid 
-            { 
-                ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = 80 } }, 
-                RowSpacing = 16 
-            };
-
-            // Theme Icon/Header
-            var headerStack = new HorizontalStackLayout { Spacing = 8 };
-            headerStack.Children.Add(new Label { Text = Emojis.Settings, FontSize = 24, VerticalTextAlignment = TextAlignment.Center });
-            headerStack.Children.Add(new Label { Text = "Theme Settings", FontSize = 18, FontAttributes = FontAttributes.Bold, VerticalTextAlignment = TextAlignment.Center });
-            grid.Add(headerStack, 0, 0);
-            Grid.SetColumnSpan(headerStack, 2);
-
-            // Use System Theme
-            grid.Add(new Label { Text = "Follow system theme:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
-            grid.Add(useSystemThemeSwitch, 1, 1);
-
-            // Dark Mode
-            var darkModeLabel = new Label { Text = "Dark mode:", VerticalTextAlignment = TextAlignment.Center };
-            grid.Add(darkModeLabel, 0, 2);
-            grid.Add(darkModeSwitch, 1, 2);
-
-            // Current theme indicator
-            var currentThemeLabel = new Label 
-            { 
+            var currentThemeLabel = new Label
+            {
                 Text = GetCurrentThemeText(),
-                FontSize = 14,
-                Margin = new Thickness(0, 8, 0, 0)
+                FontSize = 13,
+                TextColor = SubtleText,
+                Margin = new Thickness(0, 4, 0, 0)
             };
-            currentThemeLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
-            grid.Add(currentThemeLabel, 0, 3);
-            Grid.SetColumnSpan(currentThemeLabel, 2);
-
-            // Status label
-            grid.Add(statusLabel, 0, 4);
-            Grid.SetColumnSpan(statusLabel, 2);
 
             // Event handlers
             useSystemThemeSwitch.Toggled += (s, e) =>
             {
                 darkModeSwitch.IsEnabled = !e.Value;
                 Settings.UseSystemTheme = e.Value;
-                
+
                 if (e.Value)
                 {
                     ThemeService.Current.UseSystemTheme();
@@ -187,10 +130,10 @@ namespace Wdpl2.Views
                     ThemeService.Current.SetDarkMode(Settings.DarkModeEnabled);
                     statusLabel.Text = Settings.DarkModeEnabled ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 }
-                
+
                 currentThemeLabel.Text = GetCurrentThemeText();
                 DataStore.Save();
-                
+
                 // Refresh the panel after a short delay to allow theme to apply
                 Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
             };
@@ -202,45 +145,42 @@ namespace Wdpl2.Views
                 statusLabel.Text = e.Value ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 currentThemeLabel.Text = GetCurrentThemeText();
                 DataStore.Save();
-                
+
                 // Refresh the panel after a short delay to allow theme to apply
                 Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
             };
 
-            // Info panel
-            var infoLabel = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = $"{Emojis.Info} Theme Options:\n\n" +
-                       "� Follow system theme: Automatically switches between light and dark based on your device settings\n" +
-                       "� Dark mode: Manual control when system theme is disabled\n\n" +
-                       "The pool game will also update to match your theme preference."
-            };
-            infoLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 16, 0, 0),
-                Content = infoLabel
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+            var root = new VerticalStackLayout { Spacing = 0 };
 
-            var stack = new VerticalStackLayout { Spacing = 8 };
-            stack.Children.Add(grid);
-            stack.Children.Add(infoFrame);
+            root.Children.Add(SectionHeader(Emojis.Settings, "Theme Settings", "Control light and dark mode preferences"));
 
-            return stack;
+            root.Children.Add(Card(new VerticalStackLayout
+            {
+                Spacing = 0,
+                Children =
+                {
+                    SettingRow("Follow system theme", useSystemThemeSwitch, "Automatically switches based on your device settings"),
+                    SettingRow("Dark mode", darkModeSwitch, "Manual control when system theme is disabled"),
+                }
+            }));
+
+            root.Children.Add(currentThemeLabel);
+
+            root.Children.Add(InfoPanel("Theme Options",
+                "• Follow system theme: Automatically switches between light and dark based on your device settings\n" +
+                "• Dark mode: Manual control when system theme is disabled\n\n" +
+                "The pool game will also update to match your theme preference."));
+
+            root.Children.Add(statusLabel);
+
+            return root;
         }
 
         private string GetCurrentThemeText()
         {
             var isDark = ThemeService.Current.IsDarkModeActive;
             var isSystem = Settings.UseSystemTheme;
-            
+
             if (isSystem)
             {
                 return isDark ? "\U0001F319 System theme: Dark" : "\u2600\uFE0F System theme: Light";
@@ -248,209 +188,146 @@ namespace Wdpl2.Views
             return isDark ? "\U0001F319 Current: Dark mode" : "\u2600\uFE0F Current: Light mode";
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  PLAYER RATINGS
+        // ═══════════════════════════════════════════════════════════
+
         private View CreatePlayerRatingsPanel()
         {
-            _startingRatingEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "1500", Text = Settings.RatingStartValue.ToString() };
-            _ratingWeightingEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "100", Text = Settings.RatingWeighting.ToString() };
-            _ratingsBiasEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "5", Text = Settings.RatingsBias.ToString() };
-            _winFactorEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "1.0", Text = Settings.WinFactor.ToString("0.00") };
-            _lossFactorEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "1.0", Text = Settings.LossFactor.ToString("0.00") };
-            _eightBallFactorEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "1.5", Text = Settings.EightBallFactor.ToString("0.00") };
+            var (r1, startEntry) = NumericRow("Starting rating", Settings.RatingStartValue, "Initial rating for new players");
+            var (r2, weightEntry) = NumericRow("Rating weighting", Settings.RatingWeighting, "Base weight applied to each frame");
+            var (r3, biasEntry) = NumericRow("Ratings bias (decay)", Settings.RatingsBias, "Progressive weighting increase for later frames");
+            var (r4, winEntry) = DecimalRow("Win factor", Settings.WinFactor, "0.00", "Multiplier for winning frames");
+            var (r5, lossEntry) = DecimalRow("Loss factor", Settings.LossFactor, "0.00", "Multiplier for losing frames");
+            var (r6, eightEntry) = DecimalRow("8-ball factor", Settings.EightBallFactor, "0.00", "Bonus multiplier for 8-ball wins");
+            var (r7, minEntry) = NumericRow("Min frames % for table", Settings.MinFramesPercentage, "Percentage of max frames needed to appear in table");
+
+            _startingRatingEntry = startEntry;
+            _ratingWeightingEntry = weightEntry;
+            _ratingsBiasEntry = biasEntry;
+            _winFactorEntry = winEntry;
+            _lossFactorEntry = lossEntry;
+            _eightBallFactorEntry = eightEntry;
+            _minFramesEntry = minEntry;
+
             _useEightBallSwitch = new Switch { IsToggled = Settings.UseEightBallFactor };
-            _minFramesEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "60", Text = Settings.MinFramesPercentage.ToString() };
-            _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
-
-            var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = 140 } }, RowSpacing = 12 };
-
-            grid.Add(new Label { Text = "Starting rating:", VerticalTextAlignment = TextAlignment.Center }, 0, 0);
-            grid.Add(_startingRatingEntry, 1, 0);
-
-            grid.Add(new Label { Text = "Rating weighting:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
-            grid.Add(_ratingWeightingEntry, 1, 1);
-
-            grid.Add(new Label { Text = "Ratings bias (decay):", VerticalTextAlignment = TextAlignment.Center }, 0, 2);
-            grid.Add(_ratingsBiasEntry, 1, 2);
-
-            grid.Add(new Label { Text = "Win factor:", VerticalTextAlignment = TextAlignment.Center }, 0, 3);
-            grid.Add(_winFactorEntry, 1, 3);
-
-            grid.Add(new Label { Text = "Loss factor:", VerticalTextAlignment = TextAlignment.Center }, 0, 4);
-            grid.Add(_lossFactorEntry, 1, 4);
-
-            grid.Add(new Label { Text = "Use 8-ball factor:", VerticalTextAlignment = TextAlignment.Center }, 0, 5);
-            grid.Add(_useEightBallSwitch, 1, 5);
-
-            grid.Add(new Label { Text = "8-ball factor:", VerticalTextAlignment = TextAlignment.Center }, 0, 6);
-            grid.Add(_eightBallFactorEntry, 1, 6);
-
-            grid.Add(new Label { Text = "Min frames % for table:", VerticalTextAlignment = TextAlignment.Center }, 0, 7);
-            grid.Add(_minFramesEntry, 1, 7);
-
             _useEightBallSwitch.Toggled += (s, e) => _eightBallFactorEntry.IsEnabled = e.Value;
             _eightBallFactorEntry.IsEnabled = Settings.UseEightBallFactor;
 
-            var infoContent = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = "VBA-Style Cumulative Weighted Rating:\n\n" +
-                       "� Earlier frames have lower weight (Weighting - Bias � frames)\n" +
-                       "� Later frames have higher weight (progressive bias increase)\n" +
-                       "� Rating based on opponent strength at time of match\n" +
-                       "� Win against stronger opponent = higher rating gain\n\n" +
-                       "Min Frames %:\n" +
-                       "Percentage of maximum available frames needed to appear in ratings table.\n" +
-                       "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
-                       "All players still have ratings calculated.\n\n" +
-                       "Formula:\n" +
-                       "Rating = ?(OpponentRating � Factor � Weight) / ?Weight"
-            };
-            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = infoContent
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+            _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
             var recalcBtn = new Button
             {
                 Text = "\U0001F504 Recalculate All Ratings",
-                BackgroundColor = Color.FromArgb("#D97706"),
-                TextColor = Colors.White,
-                Command = new Command(async () => await OnRecalculateAllRatingsAsync())
+                Margin = new Thickness(0, 4, 0, 0)
             };
+            recalcBtn.SetDynamicResource(Button.StyleProperty, "WarningButtonStyle");
+            recalcBtn.Command = new Command(async () => await OnRecalculateAllRatingsAsync());
+
+            var saveBtn = new Button { Text = "Save Settings" };
+            saveBtn.SetDynamicResource(Button.StyleProperty, "PrimaryButtonStyle");
+            saveBtn.Command = new Command(OnSaveClicked);
+
+            var resetBtn = new Button { Text = "Reset to Defaults" };
+            resetBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
+            resetBtn.Command = new Command(OnResetClicked);
 
             var buttons = new HorizontalStackLayout
             {
                 Spacing = 12,
                 Margin = new Thickness(0, 16, 0, 0),
-                Children =
-                {
-                    new Button { Text = "Save Settings", Command = new Command(OnSaveClicked) },
-                    new Button { Text = "Reset to Defaults", BackgroundColor = Color.FromArgb("#FF6B6B"), TextColor = Colors.White, Command = new Command(OnResetClicked) }
-                }
+                Children = { saveBtn, resetBtn }
             };
 
-            var recalcInfoContent = new Label
+            var root = new VerticalStackLayout { Spacing = 0 };
+
+            root.Children.Add(SectionHeader(Emojis.Chart, "Player Rating System", "VBA-style opponent-based cumulative weighted rating system"));
+
+            root.Children.Add(BuildSeasonScopeSelector("Player Ratings"));
+
+            root.Children.Add(Card(new VerticalStackLayout
             {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = "Imported data from VBA/SQL may contain pre-calculated rating values.\n" +
-                       "Use this button to clear those and recalculate all ratings from scratch\n" +
-                       "using the current settings above."
-            };
-            recalcInfoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
+                Spacing = 0,
+                Children = { r1, r2, r3, r4, r5, SettingRow("Use 8-ball factor", _useEightBallSwitch), r6, r7 }
+            }));
 
-            var recalcInfoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#D97706"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = new VerticalStackLayout
-                {
-                    Spacing = 8,
-                    Children = { recalcInfoContent, recalcBtn }
-                }
-            };
-            recalcInfoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FFFBEB"), Color.FromArgb("#422006"));
+            root.Children.Add(InfoPanel("VBA-Style Cumulative Weighted Rating",
+                "• Earlier frames have lower weight (Weighting − Bias × frames)\n" +
+                "• Later frames have higher weight (progressive bias increase)\n" +
+                "• Rating based on opponent strength at time of match\n" +
+                "• Win against stronger opponent = higher rating gain\n\n" +
+                "Min Frames %:\n" +
+                "Percentage of maximum available frames needed to appear in ratings table.\n" +
+                "Example: If max is 30 frames and you set 60%, players need 18 frames.\n" +
+                "All players still have ratings calculated.\n\n" +
+                "Formula:\n" +
+                "Rating = Σ(OpponentRating × Factor × Weight) / ΣWeight"));
 
-            var subtitleLabel = new Label { Text = "VBA-style opponent-based cumulative weighted rating system", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
-            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            root.Children.Add(buttons);
 
-            return new VerticalStackLayout
-            {
-                Spacing = 12,
-                Children =
-                {
-                    new Label { Text = "Player Rating System", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    subtitleLabel,
-                    BuildSeasonScopeSelector("Player Ratings"),
-                    grid,
-                    infoFrame,
-                    buttons,
-                    recalcInfoFrame,
-                    _statusLabel
-                }
-            };
+            root.Children.Add(WarningPanel("Recalculate Ratings",
+                "Imported data from VBA/SQL may contain pre-calculated rating values.\n" +
+                "Use the button below to clear those and recalculate all ratings from scratch using the current settings."));
+
+            root.Children.Add(recalcBtn);
+            root.Children.Add(_statusLabel);
+
+            return root;
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  MATCH SCORING
+        // ═══════════════════════════════════════════════════════════
 
         private View CreateMatchScoringPanel()
         {
-            _pointsForWinEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "2", Text = Settings.MatchWinBonus.ToString() };
-            _pointsForDrawEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "1", Text = Settings.MatchDrawBonus.ToString() };
+            var (r1, winEntry) = NumericRow("Match win bonus", Settings.MatchWinBonus, "Bonus points for winning the match");
+            var (r2, drawEntry) = NumericRow("Match draw bonus", Settings.MatchDrawBonus, "Bonus points for a drawn match");
+
+            _pointsForWinEntry = winEntry;
+            _pointsForDrawEntry = drawEntry;
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = 140 } }, RowSpacing = 12 };
+            var saveBtn = new Button { Text = "Save Settings" };
+            saveBtn.SetDynamicResource(Button.StyleProperty, "PrimaryButtonStyle");
+            saveBtn.Command = new Command(OnSaveClicked);
 
-            grid.Add(new Label { Text = "Match win bonus:", VerticalTextAlignment = TextAlignment.Center }, 0, 0);
-            grid.Add(_pointsForWinEntry, 1, 0);
-
-            grid.Add(new Label { Text = "Match draw bonus:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
-            grid.Add(_pointsForDrawEntry, 1, 1);
-
-            var infoContent = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = "New Points System:\n\n" +
-                       "Team points = Frames Won + Bonus\n\n" +
-                       "· Win: Frames Won + Match Win Bonus\n" +
-                       "· Draw: Frames Won + Match Draw Bonus\n" +
-                       "· Loss: Frames Won (no bonus)\n\n" +
-                       "Example: Team wins 6-4 with Win Bonus=2:\n" +
-                       "  Winner gets 6+2=8 points\n" +
-                       "  Loser gets 4 points"
-            };
-            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = infoContent
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
-
-            // ── Tiebreaker Configuration ──
-            var tiebreakerSection = BuildTiebreakerSection();
+            var resetBtn = new Button { Text = "Reset to Defaults" };
+            resetBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
+            resetBtn.Command = new Command(OnResetClicked);
 
             var buttons = new HorizontalStackLayout
             {
                 Spacing = 12,
                 Margin = new Thickness(0, 16, 0, 0),
-                Children =
-                {
-                    new Button { Text = "Save Settings", Command = new Command(OnSaveClicked) },
-                    new Button { Text = "Reset to Defaults", BackgroundColor = Color.FromArgb("#FF6B6B"), TextColor = Colors.White, Command = new Command(OnResetClicked) }
-                }
+                Children = { saveBtn, resetBtn }
             };
 
-            var subtitleLabel = new Label { Text = "Configure how team match points are awarded", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
-            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            // Tiebreaker section
+            var tiebreakerSection = BuildTiebreakerSection();
 
-            return new VerticalStackLayout
-            {
-                Spacing = 12,
-                Children =
-                {
-                    new Label { Text = "Match Scoring", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    subtitleLabel,
-                    BuildSeasonScopeSelector("Match Scoring"),
-                    grid,
-                    infoFrame,
-                    tiebreakerSection,
-                    buttons,
-                    _statusLabel
-                }
-            };
+            var root = new VerticalStackLayout { Spacing = 0 };
+
+            root.Children.Add(SectionHeader(Emojis.Trophy, "Match Scoring", "Configure how team match points are awarded"));
+
+            root.Children.Add(BuildSeasonScopeSelector("Match Scoring"));
+
+            root.Children.Add(Card(new VerticalStackLayout { Spacing = 0, Children = { r1, r2 } }));
+
+            root.Children.Add(InfoPanel("Points System",
+                "Team points = Frames Won + Bonus\n\n" +
+                "• Win: Frames Won + Match Win Bonus\n" +
+                "• Draw: Frames Won + Match Draw Bonus\n" +
+                "• Loss: Frames Won (no bonus)\n\n" +
+                "Example: Team wins 6-4 with Win Bonus=2:\n" +
+                "  Winner gets 6+2=8 points\n" +
+                "  Loser gets 4 points"));
+
+            root.Children.Add(tiebreakerSection);
+            root.Children.Add(buttons);
+            root.Children.Add(_statusLabel);
+
+            return root;
         }
 
         /// <summary>
@@ -458,12 +335,15 @@ namespace Wdpl2.Views
         /// </summary>
         private View BuildTiebreakerSection()
         {
-            var header = new Label { Text = "Tiebreaker Order", FontSize = 18, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 16, 0, 0) };
-            var subtitle = new Label { Text = "When teams are level on points, these criteria are applied in order (top = highest priority)", FontSize = 13, Margin = new Thickness(0, 0, 0, 8) };
-            subtitle.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            var root = new VerticalStackLayout { Spacing = 4, Margin = new Thickness(0, 16, 0, 0) };
+
+            root.Children.Add(new Label { Text = "Tiebreaker Order", FontSize = 18, FontAttributes = FontAttributes.Bold, TextColor = TitleText });
+            var subtitle = new Label { Text = "When teams are level on points, these criteria are applied in order (top = highest priority)", FontSize = 13, TextColor = SubtleText, Margin = new Thickness(0, 0, 0, 8) };
+            root.Children.Add(subtitle);
 
             _tiebreakerListLayout = new VerticalStackLayout { Spacing = 6 };
             RebuildTiebreakerRows();
+            root.Children.Add(_tiebreakerListLayout);
 
             // "Add criterion" picker
             var allCriteria = Enum.GetValues<TiebreakerCriterion>();
@@ -482,11 +362,8 @@ namespace Wdpl2.Views
                 addPicker.SelectedIndex = -1;
             };
 
-            return new VerticalStackLayout
-            {
-                Spacing = 4,
-                Children = { header, subtitle, _tiebreakerListLayout, addPicker }
-            };
+            root.Children.Add(addPicker);
+            return root;
         }
 
         private void RebuildTiebreakerRows()
@@ -500,21 +377,32 @@ namespace Wdpl2.Views
                 int index = i; // capture
                 var criterion = order[index];
 
-                var row = new HorizontalStackLayout { Spacing = 8 };
+                var row = new Grid
+                {
+                    ColumnDefinitions =
+                    {
+                        new ColumnDefinition { Width = 30 },
+                        new ColumnDefinition(),
+                        new ColumnDefinition { Width = GridLength.Auto },
+                    },
+                    Padding = new Thickness(12, 8),
+                    BackgroundColor = FieldBg,
+                    MinimumHeightRequest = 40
+                };
 
                 var posLabel = new Label
                 {
                     Text = $"{index + 1}.",
                     FontAttributes = FontAttributes.Bold,
-                    WidthRequest = 24,
-                    VerticalTextAlignment = TextAlignment.Center
+                    VerticalTextAlignment = TextAlignment.Center,
+                    TextColor = BodyText
                 };
 
                 var nameLabel = new Label
                 {
                     Text = FormatCriterionName(criterion),
                     VerticalTextAlignment = TextAlignment.Center,
-                    WidthRequest = 160
+                    TextColor = BodyText
                 };
 
                 var upBtn = new Button { Text = "▲", FontSize = 11, WidthRequest = 36, HeightRequest = 32, Padding = 0, IsEnabled = index > 0 };
@@ -541,20 +429,24 @@ namespace Wdpl2.Views
                     RebuildTiebreakerRows();
                 };
 
-                row.Children.Add(posLabel);
-                row.Children.Add(nameLabel);
-                row.Children.Add(upBtn);
-                row.Children.Add(downBtn);
-                row.Children.Add(removeBtn);
+                var btnRow = new HorizontalStackLayout { Spacing = 4, Children = { upBtn, downBtn, removeBtn } };
+
+                row.Add(posLabel, 0, 0);
+                row.Add(nameLabel, 1, 0);
+                row.Add(btnRow, 2, 0);
 
                 _tiebreakerListLayout.Children.Add(row);
             }
 
             if (order.Count == 0)
             {
-                var emptyLabel = new Label { Text = "No tiebreakers configured — tied teams will share the same position.", FontSize = 12, FontAttributes = FontAttributes.Italic };
-                emptyLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
-                _tiebreakerListLayout.Children.Add(emptyLabel);
+                _tiebreakerListLayout.Children.Add(new Label
+                {
+                    Text = "No tiebreakers configured — tied teams will share the same position.",
+                    FontSize = 12,
+                    FontAttributes = FontAttributes.Italic,
+                    TextColor = SubtleText
+                });
             }
         }
 
@@ -569,19 +461,16 @@ namespace Wdpl2.Views
 
         /// <summary>
         /// Builds a season scope selector that appears at the top of per-season settings panels.
-        /// Allows the user to choose "Global Defaults" or a specific season, and toggle custom overrides.
         /// </summary>
         private View BuildSeasonScopeSelector(string categoryToRefresh)
         {
             var seasons = DataStore.Data.Seasons.OrderByDescending(s => s.StartDate).ToList();
 
-            // Season picker: "Global Defaults" + each season
             var seasonPicker = new Picker { Title = "Settings scope", HorizontalOptions = LayoutOptions.Fill };
             seasonPicker.Items.Add("Global Defaults");
             foreach (var s in seasons)
                 seasonPicker.Items.Add(s.Name ?? $"Season {s.StartDate.Year}");
 
-            // Set current selection
             if (_editingSeasonId.HasValue)
             {
                 var idx = seasons.FindIndex(s => s.Id == _editingSeasonId.Value);
@@ -592,15 +481,12 @@ namespace Wdpl2.Views
                 seasonPicker.SelectedIndex = 0;
             }
 
-            // "Use custom settings" toggle (only visible when a season is selected)
             var customToggle = new Switch { IsToggled = IsEditingSeasonOverride, HorizontalOptions = LayoutOptions.Start };
-            var customLabel = new Label { Text = "Use custom settings for this season", VerticalTextAlignment = TextAlignment.Center, FontSize = 13 };
+            var customLabel = new Label { Text = "Use custom settings for this season", VerticalTextAlignment = TextAlignment.Center, FontSize = 13, TextColor = BodyText };
             var toggleRow = new HorizontalStackLayout { Spacing = 8, Children = { customToggle, customLabel } };
             toggleRow.IsVisible = _editingSeasonId.HasValue;
 
-            // Scope info label
-            var scopeInfo = new Label { FontSize = 12, Margin = new Thickness(0, 4, 0, 0) };
-            scopeInfo.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#6B7280"), Color.FromArgb("#9CA3AF"));
+            var scopeInfo = new Label { FontSize = 12, TextColor = SubtleText, Margin = new Thickness(0, 4, 0, 0) };
 
             if (!_editingSeasonId.HasValue)
                 scopeInfo.Text = $"{Emojis.Info} Editing global defaults — applies to all seasons without custom settings.";
@@ -626,131 +512,105 @@ namespace Wdpl2.Views
                 if (season == null) return;
 
                 if (e.Value)
-                {
-                    // Create a season override by cloning global settings
                     season.Settings ??= DataStore.Data.Settings.Clone();
-                }
                 else
-                {
-                    // Remove the override — revert to global
                     season.Settings = null;
-                }
 
                 DataStore.Save();
                 ShowCategory(categoryToRefresh);
             };
 
-            var border = new Border
+            return Card(new VerticalStackLayout
             {
-                Padding = 12,
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 0, 0, 12),
-                Content = new VerticalStackLayout
+                Spacing = 8,
+                Children =
                 {
-                    Spacing = 8,
-                    Children =
-                    {
-                        new Label { Text = $"{Emojis.Settings} Settings Scope", FontAttributes = FontAttributes.Bold, FontSize = 14 },
-                        seasonPicker,
-                        toggleRow,
-                        scopeInfo
-                    }
+                    new Label { Text = $"{Emojis.Settings} Settings Scope", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = TitleText },
+                    seasonPicker,
+                    toggleRow,
+                    scopeInfo
                 }
-            };
-            border.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F8FAFC"), Color.FromArgb("#1F2937"));
-            border.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
-
-            return border;
+            });
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  FIXTURE DEFAULTS
+        // ═══════════════════════════════════════════════════════════
 
         private View CreateFixtureDefaultsPanel()
         {
-            _framesPerMatchEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "10", Text = Settings.DefaultFramesPerMatch.ToString() };
+            var (r1, framesEntry) = NumericRow("Frames per match", Settings.DefaultFramesPerMatch);
+
             _matchDayPicker = new Picker
             {
                 ItemsSource = Enum.GetValues(typeof(DayOfWeek)).Cast<DayOfWeek>().Select(d => d.ToString()).ToList(),
-                SelectedIndex = (int)Settings.DefaultMatchDay
+                SelectedIndex = (int)Settings.DefaultMatchDay,
+                WidthRequest = 160,
+                FontSize = 14
             };
+
             _matchTimePicker = new TimePicker { Format = "HH:mm", Time = Settings.DefaultMatchTime };
-            _roundsPerOpponentEntry = new Entry { Keyboard = Keyboard.Numeric, Placeholder = "2", Text = Settings.DefaultRoundsPerOpponent.ToString() };
+
+            var (r4, roundsEntry) = NumericRow("Rounds per opponent", Settings.DefaultRoundsPerOpponent);
+
+            _framesPerMatchEntry = framesEntry;
+            _roundsPerOpponentEntry = roundsEntry;
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = 140 } }, RowSpacing = 12 };
+            var saveBtn = new Button { Text = "Save Settings" };
+            saveBtn.SetDynamicResource(Button.StyleProperty, "PrimaryButtonStyle");
+            saveBtn.Command = new Command(OnSaveClicked);
 
-            grid.Add(new Label { Text = "Frames per match:", VerticalTextAlignment = TextAlignment.Center }, 0, 0);
-            grid.Add(_framesPerMatchEntry, 1, 0);
-
-            grid.Add(new Label { Text = "Default match day:", VerticalTextAlignment = TextAlignment.Center }, 0, 1);
-            grid.Add(_matchDayPicker, 1, 1);
-
-            grid.Add(new Label { Text = "Default match time:", VerticalTextAlignment = TextAlignment.Center }, 0, 2);
-            grid.Add(_matchTimePicker, 1, 2);
-
-            grid.Add(new Label { Text = "Rounds per opponent:", VerticalTextAlignment = TextAlignment.Center }, 0, 3);
-            grid.Add(_roundsPerOpponentEntry, 1, 3);
-
-            var infoContent = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = "These defaults are used when generating fixtures for a season. \nYou can override them when creating a specific season."
-            };
-            infoContent.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = infoContent
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+            var resetBtn = new Button { Text = "Reset to Defaults" };
+            resetBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
+            resetBtn.Command = new Command(OnResetClicked);
 
             var buttons = new HorizontalStackLayout
             {
                 Spacing = 12,
                 Margin = new Thickness(0, 16, 0, 0),
-                Children =
-                {
-                    new Button { Text = "Save Settings", Command = new Command(OnSaveClicked) },
-                    new Button { Text = "Reset to Defaults", BackgroundColor = Color.FromArgb("#FF6B6B"), TextColor = Colors.White, Command = new Command(OnResetClicked) }
-                }
+                Children = { saveBtn, resetBtn }
             };
 
-            var subtitleLabel = new Label { Text = "Default values used when generating new fixtures", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
-            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            var root = new VerticalStackLayout { Spacing = 0 };
 
-            return new VerticalStackLayout
+            root.Children.Add(SectionHeader(Emojis.Fixture, "Fixture Generation Defaults", "Default values used when generating new fixtures"));
+
+            root.Children.Add(BuildSeasonScopeSelector("Fixture Defaults"));
+
+            root.Children.Add(Card(new VerticalStackLayout
             {
-                Spacing = 12,
+                Spacing = 0,
                 Children =
                 {
-                    new Label { Text = "Fixture Generation Defaults", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    subtitleLabel,
-                    BuildSeasonScopeSelector("Fixture Defaults"),
-                    grid,
-                    infoFrame,
-                    buttons,
-                    _statusLabel
+                    r1,
+                    SettingRow("Default match day", _matchDayPicker),
+                    SettingRow("Default match time", _matchTimePicker),
+                    r4
                 }
-            };
+            }));
+
+            root.Children.Add(InfoBanner("These defaults are used when generating fixtures for a season. You can override them when creating a specific season."));
+
+            root.Children.Add(buttons);
+            root.Children.Add(_statusLabel);
+
+            return root;
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  NOTIFICATIONS
+        // ═══════════════════════════════════════════════════════════
 
         private View CreateNotificationsPanel()
         {
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            // ========== PHASE 3: USER PREFERENCES ==========
-            
-            // Match Reminders Enable/Disable
-            var matchRemindersSwitch = new Switch 
-            { 
-                IsToggled = Settings.MatchRemindersEnabled,
-                HorizontalOptions = LayoutOptions.Start
-            };
+            // ── User Preferences ──
+            var matchRemindersSwitch = new Switch { IsToggled = Settings.MatchRemindersEnabled };
+            var resultNotificationsSwitch = new Switch { IsToggled = Settings.ResultNotificationsEnabled };
+            var weeklyFixtureSwitch = new Switch { IsToggled = Settings.WeeklyFixtureListEnabled };
 
-            // Reminder Hours Picker
             var reminderHoursPicker = new Picker
             {
                 Title = "Select hours",
@@ -763,26 +623,12 @@ namespace Wdpl2.Views
                     6 => 3,
                     12 => 4,
                     24 => 5,
-                    _ => 1 // Default to 2 hours
+                    _ => 1
                 },
-                HorizontalOptions = LayoutOptions.FillAndExpand
+                WidthRequest = 140,
+                FontSize = 14
             };
 
-            // Result Notifications Enable/Disable
-            var resultNotificationsSwitch = new Switch 
-            { 
-                IsToggled = Settings.ResultNotificationsEnabled,
-                HorizontalOptions = LayoutOptions.Start
-            };
-
-            // Weekly Fixture List Enable/Disable
-            var weeklyFixtureSwitch = new Switch 
-            { 
-                IsToggled = Settings.WeeklyFixtureListEnabled,
-                HorizontalOptions = LayoutOptions.Start
-            };
-
-            // Event Handlers for Phase 3 Settings
             matchRemindersSwitch.Toggled += (s, e) =>
             {
                 Settings.MatchRemindersEnabled = e.Value;
@@ -795,13 +641,7 @@ namespace Wdpl2.Views
             {
                 Settings.ReminderHoursBefore = reminderHoursPicker.SelectedIndex switch
                 {
-                    0 => 1,
-                    1 => 2,
-                    2 => 4,
-                    3 => 6,
-                    4 => 12,
-                    5 => 24,
-                    _ => 2
+                    0 => 1, 1 => 2, 2 => 4, 3 => 6, 4 => 12, 5 => 24, _ => 2
                 };
                 DataStore.Save();
                 if (_statusLabel != null)
@@ -824,93 +664,19 @@ namespace Wdpl2.Views
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Weekly fixture list {(e.Value ? "enabled" : "disabled")}";
             };
 
-            // Preferences Grid
-            var preferencesGrid = new Grid 
-            { 
-                ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }, 
-                RowSpacing = 16,
-                Margin = new Thickness(0, 12, 0, 0)
-            };
+            // ── Buttons ──
+            var requestPermissionsBtn = new Button { Text = $"{Emojis.Bell} Request Notification Permissions" };
+            requestPermissionsBtn.SetDynamicResource(Button.StyleProperty, "PrimaryButtonStyle");
 
-            // Row 0: Match Reminders
-            preferencesGrid.Add(new Label 
-            { 
-                Text = $"{Emojis.Bell} Match Reminders:", 
-                VerticalTextAlignment = TextAlignment.Center,
-                FontAttributes = FontAttributes.Bold,
-                FontFamily = Emojis.GetFontFamily()
-            }, 0, 0);
-            preferencesGrid.Add(matchRemindersSwitch, 1, 0);
+            var testNotificationBtn = new Button { Text = $"{Emojis.Bell} Send Test Notification", Margin = new Thickness(0, 4) };
+            testNotificationBtn.SetDynamicResource(Button.StyleProperty, "SecondaryButtonStyle");
 
-            // Row 1: Reminder Hours (only if enabled)
-            preferencesGrid.Add(new Label 
-            { 
-                Text = "  Remind me:",
-                VerticalTextAlignment = TextAlignment.Center,
-                Margin = new Thickness(20, 0, 0, 0)
-            }, 0, 1);
-            preferencesGrid.Add(reminderHoursPicker, 1, 1);
+            var cancelAllBtn = new Button { Text = $"{Emojis.Error} Cancel All Notifications", Margin = new Thickness(0, 4) };
+            cancelAllBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
 
-            // Row 2: Result Notifications
-            preferencesGrid.Add(new Label 
-            { 
-                Text = $"{Emojis.Success} Result Notifications:", 
-                VerticalTextAlignment = TextAlignment.Center,
-                FontAttributes = FontAttributes.Bold,
-                FontFamily = Emojis.GetFontFamily()
-            }, 0, 2);
-            preferencesGrid.Add(resultNotificationsSwitch, 1, 2);
+            var pendingLabel = new Label { Text = "Pending notifications: Checking...", FontSize = 12, TextColor = SubtleText, Margin = new Thickness(0, 8, 0, 0) };
 
-            // Row 3: Weekly Fixture List
-            preferencesGrid.Add(new Label 
-            { 
-                Text = $"{Emojis.Calendar} Weekly Fixture List:", 
-                VerticalTextAlignment = TextAlignment.Center,
-                FontAttributes = FontAttributes.Bold,
-                FontFamily = Emojis.GetFontFamily()
-            }, 0, 3);
-            preferencesGrid.Add(weeklyFixtureSwitch, 1, 3);
-
-            // Request Permissions Button
-            var requestPermissionsBtn = new Button
-            {
-                Text = $"{Emojis.Bell} Request Notification Permissions",
-                BackgroundColor = Color.FromArgb("#3B82F6"),
-                TextColor = Colors.White,
-                Margin = new Thickness(0, 16, 0, 8),
-                FontFamily = Emojis.GetFontFamily()
-            };
-
-            // Test Notification Button
-            var testNotificationBtn = new Button
-            {
-                Text = $"{Emojis.Bell} Send Test Notification",
-                BackgroundColor = Color.FromArgb("#10B981"),
-                TextColor = Colors.White,
-                Margin = new Thickness(0, 4),
-                FontFamily = Emojis.GetFontFamily()
-            };
-
-            // Pending Notifications Label
-            var pendingLabel = new Label
-            {
-                Text = "Pending notifications: Checking...",
-                FontSize = 12,
-                Margin = new Thickness(0, 8, 0, 0)
-            };
-            pendingLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
-
-            // Cancel All Button
-            var cancelAllBtn = new Button
-            {
-                Text = $"{Emojis.Error} Cancel All Notifications",
-                BackgroundColor = Color.FromArgb("#EF4444"),
-                TextColor = Colors.White,
-                Margin = new Thickness(0, 4),
-                FontFamily = Emojis.GetFontFamily()
-            };
-
-            // Request Permissions Event Handler
+            // ── Event Handlers ──
             requestPermissionsBtn.Clicked += async (s, e) =>
             {
                 try
@@ -943,7 +709,6 @@ namespace Wdpl2.Views
                 }
             };
 
-            // Test Notification Event Handler
             testNotificationBtn.Clicked += async (s, e) =>
             {
                 try
@@ -971,7 +736,6 @@ namespace Wdpl2.Views
                 }
             };
 
-            // Cancel All Event Handler
             cancelAllBtn.Clicked += async (s, e) =>
             {
                 try
@@ -996,145 +760,60 @@ namespace Wdpl2.Views
                 }
             };
 
-            // Info Frame - Updated for Phase 3
-            var infoHeaderLabel = new Label 
-            { 
-                Text = $"{Emojis.Info} About Notifications", 
-                FontAttributes = FontAttributes.Bold, 
-                FontSize = 14,
-                FontFamily = Emojis.GetFontFamily()
-            };
-            infoHeaderLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var infoBodyLabel = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                FormattedText = new FormattedString
-                {
-                    Spans =
-                    {
-                        new Span { Text = "Notification Types:\n", FontAttributes = FontAttributes.Bold },
-                        new Span { Text = $"{Emojis.Bell} Match Reminders - Get notified before your matches\n" },
-                        new Span { Text = $"{Emojis.Success} Result Alerts - Instant notifications when results are posted\n" },
-                        new Span { Text = $"{Emojis.Calendar} Weekly Summary - Monday morning fixture list\n\n" },
-                        new Span { Text = "Customization:\n", FontAttributes = FontAttributes.Bold },
-                        new Span { Text = $"{Emojis.Success} Choose reminder timing (1-24 hours before match)\n" },
-                        new Span { Text = $"{Emojis.Success} Enable/disable each notification type independently\n" },
-                        new Span { Text = $"{Emojis.Success} Settings saved automatically when changed\n\n" },
-                        new Span { Text = "How It Works:\n", FontAttributes = FontAttributes.Bold },
-                        new Span { Text = "� Reminders scheduled automatically when fixtures are generated or saved\n" },
-                        new Span { Text = "� Past matches don't get reminders\n" },
-                        new Span { Text = "� Settings apply to all future notifications\n" },
-                        new Span { Text = "� Works on iOS, Android, and Windows" }
-                    }
-                }
-            };
-            infoBodyLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 16, 0, 0),
-                Content = new VerticalStackLayout
-                {
-                    Spacing = 8,
-                    Children = { infoHeaderLabel, infoBodyLabel }
-                }
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#F0F9FF"), Color.FromArgb("#1E3A5F"));
+            // ── Build layout ──
+            var root = new VerticalStackLayout { Spacing = 0 };
 
-            var warningHeaderLabel = new Label 
-            { 
-                Text = $"{Emojis.Warning} Important", 
-                FontAttributes = FontAttributes.Bold, 
-                FontSize = 14, 
-                FontFamily = Emojis.GetFontFamily()
-            };
-            warningHeaderLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var warningBodyLabel = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                FormattedText = new FormattedString
-                {
-                    Spans =
-                    {
-                        new Span { Text = $"{Emojis.Info} You must grant notification permissions first\n" },
-                        new Span { Text = $"{Emojis.Info} Changing reminder time affects new notifications only\n" },
-                        new Span { Text = $"{Emojis.Info} Battery saver mode may delay notifications\n" },
-                        new Span { Text = $"{Emojis.Info} Test notifications to ensure they're working" }
-                    }
-                }
-            };
-            warningBodyLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-            
-            var warningFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#F59E0B"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = new VerticalStackLayout
-                {
-                    Spacing = 8,
-                    Children = { warningHeaderLabel, warningBodyLabel }
-                }
-            };
-            warningFrame.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FFFBEB"), Color.FromArgb("#422006"));
+            root.Children.Add(SectionHeader(Emojis.Bell, "Match Notifications", "Customize your notification preferences"));
 
-            var subtitleLabel = new Label { Text = "Customize your notification preferences", FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
-            subtitleLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
-            
-            var preferencesCard = new Border
+            root.Children.Add(Card(new VerticalStackLayout
             {
-                Padding = 16,
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = new VerticalStackLayout
+                Spacing = 0,
+                Children =
                 {
-                    Spacing = 8,
-                    Children =
-                    {
-                        new Label { Text = $"{Emojis.Bell} Notification Preferences", FontAttributes = FontAttributes.Bold, FontSize = 16 },
-                        preferencesGrid
-                    }
+                    SettingRow($"{Emojis.Bell} Match reminders", matchRemindersSwitch, "Get notified before your matches"),
+                    SettingRow("  Remind me", reminderHoursPicker, "How long before the match"),
+                    SettingRow($"{Emojis.Success} Result notifications", resultNotificationsSwitch, "Instant alerts when results are posted"),
+                    SettingRow($"{Emojis.Calendar} Weekly fixture list", weeklyFixtureSwitch, "Monday morning fixture summary"),
                 }
-            };
-            preferencesCard.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FAFAFA"), Color.FromArgb("#1F2937"));
-            preferencesCard.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
+            }));
 
-            var scrollView = new ScrollView
+            root.Children.Add(Card(new VerticalStackLayout
             {
-                Content = new VerticalStackLayout
+                Spacing = 8,
+                Children =
                 {
-                    Spacing = 12,
-                    Children =
-                    {
-                        new Label { Text = "Match Notifications", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                        subtitleLabel,
-                        
-                        // Phase 3: User Preferences Section
-                        preferencesCard,
-                        
-                        // Permissions & Management Section
-                        new Label { Text = "Setup & Testing", FontAttributes = FontAttributes.Bold, FontSize = 16, Margin = new Thickness(0, 16, 0, 0) },
-                        requestPermissionsBtn,
-                        testNotificationBtn,
-                        pendingLabel,
-                        cancelAllBtn,
-                        
-                        infoFrame,
-                        warningFrame,
-                        _statusLabel
-                    }
+                    new Label { Text = "Setup & Testing", FontAttributes = FontAttributes.Bold, FontSize = 16, TextColor = TitleText },
+                    requestPermissionsBtn,
+                    testNotificationBtn,
+                    pendingLabel,
+                    cancelAllBtn,
                 }
-            };
+            }, new Thickness(0, 12, 0, 0)));
 
-            // Check pending notifications after a short delay to ensure Handler is ready
+            root.Children.Add(InfoPanel("About Notifications",
+                "Notification Types:\n" +
+                $"{Emojis.Bell} Match Reminders — Get notified before your matches\n" +
+                $"{Emojis.Success} Result Alerts — Instant notifications when results are posted\n" +
+                $"{Emojis.Calendar} Weekly Summary — Monday morning fixture list\n\n" +
+                "Customization:\n" +
+                "• Choose reminder timing (1-24 hours before match)\n" +
+                "• Enable/disable each notification type independently\n" +
+                "• Settings saved automatically when changed\n\n" +
+                "How It Works:\n" +
+                "• Reminders scheduled automatically when fixtures are generated or saved\n" +
+                "• Past matches don't get reminders\n" +
+                "• Settings apply to all future notifications\n" +
+                "• Works on iOS, Android, and Windows"));
+
+            root.Children.Add(WarningPanel("Important",
+                $"{Emojis.Info} You must grant notification permissions first\n" +
+                $"{Emojis.Info} Changing reminder time affects new notifications only\n" +
+                $"{Emojis.Info} Battery saver mode may delay notifications\n" +
+                $"{Emojis.Info} Test notifications to ensure they're working"));
+
+            root.Children.Add(_statusLabel);
+
+            // Check pending notifications after a short delay
             Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(500), async () =>
             {
                 try
@@ -1156,34 +835,29 @@ namespace Wdpl2.Views
                 }
             });
 
-            return scrollView;
+            return root;
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  DIVISION MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
 
         private View CreateDivisionManagementPanel()
         {
             var data = DataStore.Data;
             var seasons = data.Seasons.OrderByDescending(s => s.StartDate).ToList();
 
-            // ── Season picker ──
-            var seasonPicker = new Picker
-            {
-                Title = "Select Season",
-                HorizontalOptions = LayoutOptions.Fill
-            };
+            var seasonPicker = new Picker { Title = "Select Season", HorizontalOptions = LayoutOptions.Fill };
             foreach (var s in seasons)
                 seasonPicker.Items.Add(s.Name ?? $"Season {s.StartDate.Year}");
-
             if (seasons.Count > 0)
                 seasonPicker.SelectedIndex = 0;
 
-            // ── Container for division cards ──
             var divisionListContainer = new VerticalStackLayout { Spacing = 8 };
             var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 4, 0, 0) };
 
-            // Track selected divisions for bulk operations
             var selectedDivisionIds = new HashSet<Guid>();
 
-            // Bulk action buttons (hidden until selections made)
             var splitBtn = new Button
             {
                 Text = $"{Emojis.Season} Split Selected to New Season",
@@ -1206,12 +880,7 @@ namespace Wdpl2.Views
                 IsVisible = false
             };
 
-            var selectionLabel = new Label
-            {
-                FontSize = 12,
-                IsVisible = false
-            };
-            selectionLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
+            var selectionLabel = new Label { FontSize = 12, TextColor = SubtleText, IsVisible = false };
 
             void UpdateBulkButtons()
             {
@@ -1241,12 +910,7 @@ namespace Wdpl2.Views
 
                 if (divisions.Count == 0)
                 {
-                    divisionListContainer.Children.Add(new Label
-                    {
-                        Text = "No divisions in this season.",
-                        FontSize = 14,
-                        TextColor = SubtitleText
-                    });
+                    divisionListContainer.Children.Add(EmptyState(Emojis.Division, "No divisions", "No divisions in this season."));
                     return;
                 }
 
@@ -1276,15 +940,16 @@ namespace Wdpl2.Views
                         Text = div.Name ?? "(unnamed)",
                         FontSize = 16,
                         FontAttributes = FontAttributes.Bold,
-                        VerticalTextAlignment = TextAlignment.Center
+                        VerticalTextAlignment = TextAlignment.Center,
+                        TextColor = TitleText
                     };
 
                     var statsLabel = new Label
                     {
                         Text = $"{teamCount} teams · {playerCount} players · {fixtureCount} fixtures",
-                        FontSize = 12
+                        FontSize = 12,
+                        TextColor = SubtleText
                     };
-                    statsLabel.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#666666"), Color.FromArgb("#9CA3AF"));
 
                     var renameBtn = new Button
                     {
@@ -1393,31 +1058,14 @@ namespace Wdpl2.Views
                         statusLabel.Text = $"{Emojis.Success} Deleted \"{capturedDiv.Name}\"";
                     };
 
-                    var headerRow = new HorizontalStackLayout { Spacing = 8 };
-                    headerRow.Children.Add(selectBox);
-                    headerRow.Children.Add(nameLabel);
+                    var headerRow = new HorizontalStackLayout { Spacing = 8, Children = { selectBox, nameLabel } };
+                    var btnRow = new HorizontalStackLayout { Spacing = 6, Children = { renameBtn, mergeBtn, deleteBtn } };
 
-                    var btnRow = new HorizontalStackLayout { Spacing = 6 };
-                    btnRow.Children.Add(renameBtn);
-                    btnRow.Children.Add(mergeBtn);
-                    btnRow.Children.Add(deleteBtn);
-
-                    var cardContent = new VerticalStackLayout { Spacing = 4 };
-                    cardContent.Children.Add(headerRow);
-                    cardContent.Children.Add(statsLabel);
-                    cardContent.Children.Add(btnRow);
-
-                    var card = new Border
+                    divisionListContainer.Children.Add(Card(new VerticalStackLayout
                     {
-                        Padding = 12,
-                        StrokeThickness = 1,
-                        StrokeShape = new RoundRectangle { CornerRadius = 8 },
-                        Content = cardContent
-                    };
-                    card.SetAppThemeColor(Border.StrokeProperty, CardBorder, CardBorder);
-                    card.SetAppThemeColor(Border.BackgroundColorProperty, CardBackground, CardBackground);
-
-                    divisionListContainer.Children.Add(card);
+                        Spacing = 4,
+                        Children = { headerRow, statsLabel, btnRow }
+                    }));
                 }
             }
 
@@ -1455,7 +1103,6 @@ namespace Wdpl2.Views
 
                 if (!confirm) return;
 
-                // Create the new season
                 var newSeason = new Season
                 {
                     Id = Guid.NewGuid(),
@@ -1473,14 +1120,12 @@ namespace Wdpl2.Views
                 UpdateSeasonDatesFromFixtures(data, sourceSeasonId);
                 DataStore.Save();
 
-                // Refresh seasons list in picker
                 seasons.Clear();
                 seasons.AddRange(data.Seasons.OrderByDescending(ss => ss.StartDate));
                 seasonPicker.Items.Clear();
                 foreach (var ss in seasons)
                     seasonPicker.Items.Add(ss.Name ?? $"Season {ss.StartDate.Year}");
 
-                // Select the source season
                 var idx = seasons.FindIndex(ss => ss.Id == sourceSeasonId);
                 seasonPicker.SelectedIndex = idx >= 0 ? idx : 0;
                 RefreshDivisionList();
@@ -1544,11 +1189,10 @@ namespace Wdpl2.Views
             var autoCleanBtn = new Button
             {
                 Text = $"{Emojis.Wrench} Auto-Clean Duplicates",
-                BackgroundColor = Color.FromArgb("#F59E0B"),
-                TextColor = Colors.White,
                 Padding = new Thickness(24, 14),
                 HorizontalOptions = LayoutOptions.Start
             };
+            autoCleanBtn.SetDynamicResource(Button.StyleProperty, "WarningButtonStyle");
 
             autoCleanBtn.Clicked += async (s, e) =>
             {
@@ -1560,7 +1204,6 @@ namespace Wdpl2.Views
 
                 int mergedCount = 0;
 
-                // Group by normalized name (handles "Red" vs "Red Division", "1st" vs "First")
                 var groups = seasonDivisions
                     .GroupBy(d => DivisionHelper.NormalizeDivisionName(d.Name ?? ""), StringComparer.OrdinalIgnoreCase)
                     .Where(g => g.Count() > 1);
@@ -1579,7 +1222,6 @@ namespace Wdpl2.Views
                     }
                 }
 
-                // Also merge ordinal equivalents that didn't group above
                 var remaining = data.Divisions.Where(d => d.SeasonId == seasonId).ToList();
                 var alreadyMerged = new HashSet<Guid>();
                 for (int i = 0; i < remaining.Count; i++)
@@ -1605,7 +1247,6 @@ namespace Wdpl2.Views
                     }
                 }
 
-                // Normalize remaining division names
                 int renamedCount = 0;
                 foreach (var div in data.Divisions.Where(d => d.SeasonId == seasonId))
                 {
@@ -1618,7 +1259,6 @@ namespace Wdpl2.Views
                     }
                 }
 
-                // Delete empty divisions
                 int deletedCount = 0;
                 var emptyDivisions = data.Divisions
                     .Where(d => d.SeasonId == seasonId)
@@ -1643,56 +1283,38 @@ namespace Wdpl2.Views
                 }
             };
 
-            // ── Info panel ──
-            var infoLabel = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.4,
-                Text = $"{Emojis.Info} Division Management:\n\n" +
-                       "• Rename: Change a division's display name\n" +
-                       "• Merge: Combine two divisions (moves all teams & fixtures)\n" +
-                       "• Delete: Remove empty divisions (no teams/fixtures)\n" +
-                       "• Auto-Clean: Automatically merge duplicates like \"1st\" & \"First\",\n" +
-                       "  \"Red\" & \"Red Division\", normalize names, and remove empties\n\n" +
-                       "Select divisions with checkboxes to:\n" +
-                       "• Split to New Season: Create a new season from selected divisions\n" +
-                       "• Move to Season: Move selected divisions to an existing season\n" +
-                       "  (Teams, players, and fixtures move with the division)"
-            };
-            infoLabel.SetAppThemeColor(Label.TextColorProperty, Colors.Black, Colors.White);
-
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 8, 0, 0),
-                Content = infoLabel
-            };
-            infoFrame.SetAppThemeColor(Border.BackgroundColorProperty, InfoBoxBackground, InfoBoxBackground);
-
             // Initial load
             RefreshDivisionList();
 
-            var mainStack = new VerticalStackLayout
-            {
-                Spacing = 12,
-                Children =
-                {
-                    new Label { Text = $"{Emojis.Division} Division Management", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "View, rename, merge, move, and split divisions across seasons", FontSize = 14, TextColor = SubtitleText, Margin = new Thickness(0, 0, 0, 8) },
-                    seasonPicker,
-                    autoCleanBtn,
-                    selectionLabel,
-                    new HorizontalStackLayout { Spacing = 8, Children = { splitBtn, moveBtn } },
-                    statusLabel,
-                    divisionListContainer,
-                    infoFrame
-                }
-            };
+            var root = new VerticalStackLayout { Spacing = 0 };
 
-            var scrollView = new ScrollView { Content = mainStack };
-            return scrollView;
+            root.Children.Add(SectionHeader(Emojis.Division, "Division Management", "View, rename, merge, move, and split divisions across seasons"));
+
+            root.Children.Add(Card(new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children = { SettingRow("Season", seasonPicker), autoCleanBtn }
+            }));
+
+            root.Children.Add(selectionLabel);
+
+            var bulkRow = new HorizontalStackLayout { Spacing = 8, Margin = new Thickness(0, 8, 0, 0), Children = { splitBtn, moveBtn } };
+            root.Children.Add(bulkRow);
+            root.Children.Add(statusLabel);
+            root.Children.Add(divisionListContainer);
+
+            root.Children.Add(InfoPanel("Division Management",
+                "• Rename: Change a division's display name\n" +
+                "• Merge: Combine two divisions (moves all teams & fixtures)\n" +
+                "• Delete: Remove empty divisions (no teams/fixtures)\n" +
+                "• Auto-Clean: Automatically merge duplicates like \"1st\" & \"First\",\n" +
+                "  \"Red\" & \"Red Division\", normalize names, and remove empties\n\n" +
+                "Select divisions with checkboxes to:\n" +
+                "• Split to New Season: Create a new season from selected divisions\n" +
+                "• Move to Season: Move selected divisions to an existing season\n" +
+                "  (Teams, players, and fixtures move with the division)"));
+
+            return new ScrollView { Content = root };
         }
 
         /// <summary>
@@ -1727,32 +1349,25 @@ namespace Wdpl2.Views
         }
 
         /// <summary>
-        /// Move selected divisions and all associated data (teams, players, fixtures)
-        /// from one season to another.
+        /// Move selected divisions and all associated data from one season to another.
         /// </summary>
         private static void MoveDivisionsToSeason(
             LeagueData data, List<Guid> divisionIds, Guid sourceSeasonId, Guid targetSeasonId)
         {
-            // Collect team IDs belonging to these divisions
             var teamIds = new HashSet<Guid>(
                 data.Teams
                     .Where(t => t.DivisionId.HasValue && divisionIds.Contains(t.DivisionId.Value))
                     .Select(t => t.Id));
 
-            // Move divisions
             foreach (var div in data.Divisions.Where(d => divisionIds.Contains(d.Id)))
             {
                 div.SeasonId = targetSeasonId;
                 div.ModifiedDate = DateTime.UtcNow;
             }
 
-            // Move teams
             foreach (var team in data.Teams.Where(t => teamIds.Contains(t.Id)))
-            {
                 team.SeasonId = targetSeasonId;
-            }
 
-            // Move players on those teams
             foreach (var player in data.Players.Where(p =>
                          p.SeasonId == sourceSeasonId &&
                          p.TeamId.HasValue &&
@@ -1762,14 +1377,12 @@ namespace Wdpl2.Views
                 player.ModifiedDate = DateTime.UtcNow;
             }
 
-            // Move fixtures in these divisions
             foreach (var fixture in data.Fixtures.Where(f =>
                          f.DivisionId.HasValue && divisionIds.Contains(f.DivisionId.Value)))
             {
                 fixture.SeasonId = targetSeasonId;
             }
 
-            // Also move fixtures that reference these teams but have no division set
             foreach (var fixture in data.Fixtures.Where(f =>
                          f.SeasonId == sourceSeasonId &&
                          !f.DivisionId.HasValue &&
@@ -1778,7 +1391,6 @@ namespace Wdpl2.Views
                 fixture.SeasonId = targetSeasonId;
             }
 
-            // Move venues that are only used by teams in the moved set
             var movedVenueIds = data.Teams
                 .Where(t => teamIds.Contains(t.Id) && t.VenueId.HasValue)
                 .Select(t => t.VenueId!.Value)
@@ -1790,7 +1402,6 @@ namespace Wdpl2.Views
                 var venue = data.Venues.FirstOrDefault(v => v.Id == venueId);
                 if (venue == null) continue;
 
-                // Only move the venue if no other teams in the source season reference it
                 var otherTeamsUsingVenue = data.Teams.Any(t =>
                     t.SeasonId == sourceSeasonId &&
                     !teamIds.Contains(t.Id) &&
@@ -1821,44 +1432,42 @@ namespace Wdpl2.Views
             season.ModifiedDate = DateTime.UtcNow;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  DATA MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+
         private View CreateDataManagementPanel()
         {
             var statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            // ========== ORPHAN SCAN RESULTS ==========
-            var orphanResultsLabel = new Label { Text = "", FontSize = 12, LineHeight = 1.4 };
+            // Orphan scan results
+            var orphanResultsLabel = new Label { Text = "", FontSize = 12, LineHeight = 1.4, TextColor = BodyText };
             var orphanResultsBorder = new Border
             {
                 IsVisible = false,
                 Padding = 12,
                 Margin = new Thickness(0, 12, 0, 0),
                 StrokeThickness = 1,
-                StrokeShape = new RoundRectangle { CornerRadius = 8 }
+                StrokeShape = new RoundRectangle { CornerRadius = 8 },
+                BackgroundColor = CardBg,
+                Stroke = CardStroke,
+                Content = orphanResultsLabel
             };
-            orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E5E7EB"), Color.FromArgb("#374151"));
-            orphanResultsBorder.SetAppThemeColor(Border.BackgroundColorProperty, CardBackground, CardBackground);
-            orphanResultsBorder.Content = orphanResultsLabel;
 
             var cleanButton = new Button
             {
                 Text = $"{Emojis.Delete} Remove Orphaned Data",
-                BackgroundColor = Color.FromArgb("#EF4444"),
-                TextColor = Colors.White,
-                Padding = new Thickness(24, 14),
-                HorizontalOptions = LayoutOptions.Start,
                 IsVisible = false,
                 Margin = new Thickness(0, 8, 0, 0)
             };
+            cleanButton.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
 
-            // ========== SCAN BUTTON ==========
             var scanButton = new Button
             {
                 Text = $"{Emojis.Wrench} Scan for Orphaned Data",
-                BackgroundColor = Color.FromArgb("#F59E0B"),
-                TextColor = Colors.White,
-                Padding = new Thickness(24, 14),
                 HorizontalOptions = LayoutOptions.Start
             };
+            scanButton.SetDynamicResource(Button.StyleProperty, "WarningButtonStyle");
 
             scanButton.Clicked += (s, e) =>
             {
@@ -1878,19 +1487,19 @@ namespace Wdpl2.Views
                 sb.AppendLine($"Seasons in database: {data.Seasons.Count}");
                 sb.AppendLine();
                 sb.AppendLine("Orphaned records (no valid season):");
-                sb.AppendLine($"  � Divisions: {orphanDivisions}");
-                sb.AppendLine($"  � Venues: {orphanVenues}");
-                sb.AppendLine($"  � Teams: {orphanTeams}");
-                sb.AppendLine($"  � Players: {orphanPlayers}");
-                sb.AppendLine($"  � Fixtures: {orphanFixtures}");
-                sb.AppendLine($"  � Competitions: {orphanCompetitions}");
+                sb.AppendLine($"  • Divisions: {orphanDivisions}");
+                sb.AppendLine($"  • Venues: {orphanVenues}");
+                sb.AppendLine($"  • Teams: {orphanTeams}");
+                sb.AppendLine($"  • Players: {orphanPlayers}");
+                sb.AppendLine($"  • Fixtures: {orphanFixtures}");
+                sb.AppendLine($"  • Competitions: {orphanCompetitions}");
                 sb.AppendLine();
                 sb.AppendLine($"Total orphaned records: {totalOrphans}");
 
                 if (totalOrphans == 0)
                 {
                     sb.AppendLine();
-                    sb.AppendLine("✅ Storage is clean � no orphaned data found.");
+                    sb.AppendLine("✅ Storage is clean — no orphaned data found.");
                 }
 
                 orphanResultsLabel.Text = sb.ToString();
@@ -1899,13 +1508,13 @@ namespace Wdpl2.Views
 
                 if (totalOrphans > 0)
                 {
-                    orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#F59E0B"), Color.FromArgb("#F59E0B"));
+                    orphanResultsBorder.Stroke = Color.FromArgb("#F59E0B");
                     statusLabel.Text = $"{Emojis.Warning} Found {totalOrphans} orphaned records.";
                     statusLabel.TextColor = Color.FromArgb("#F59E0B");
                 }
                 else
                 {
-                    orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
+                    orphanResultsBorder.Stroke = Color.FromArgb("#10B981");
                     statusLabel.Text = "✅ No orphaned data found.";
                     statusLabel.TextColor = Color.FromArgb("#10B981");
                 }
@@ -1927,12 +1536,12 @@ namespace Wdpl2.Views
                 var confirm = await DisplayAlert(
                     "Clean Storage",
                     $"This will permanently remove {total} orphaned records:\n\n" +
-                    $"� {orphanDivisions} Division(s)\n" +
-                    $"� {orphanVenues} Venue(s)\n" +
-                    $"� {orphanTeams} Team(s)\n" +
-                    $"� {orphanPlayers} Player(s)\n" +
-                    $"� {orphanFixtures} Fixture(s)\n" +
-                    $"� {orphanCompetitions} Competition(s)\n\n" +
+                    $"• {orphanDivisions} Division(s)\n" +
+                    $"• {orphanVenues} Venue(s)\n" +
+                    $"• {orphanTeams} Team(s)\n" +
+                    $"• {orphanPlayers} Player(s)\n" +
+                    $"• {orphanFixtures} Fixture(s)\n" +
+                    $"• {orphanCompetitions} Competition(s)\n\n" +
                     "This cannot be undone!",
                     "Yes, Clean Storage",
                     "Cancel");
@@ -1943,21 +1552,19 @@ namespace Wdpl2.Views
                 DataStore.Save();
 
                 orphanResultsLabel.Text = $"✅ Removed {total} orphaned records.\n\nStorage is now clean.";
-                orphanResultsBorder.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#10B981"), Color.FromArgb("#10B981"));
+                orphanResultsBorder.Stroke = Color.FromArgb("#10B981");
                 cleanButton.IsVisible = false;
                 statusLabel.Text = $"✅ Cleaned {total} orphaned records.";
                 statusLabel.TextColor = Color.FromArgb("#10B981");
             };
 
-            // ========== DELETE ALL SEASONS ==========
+            // Delete All Seasons
             var deleteAllSeasonsBtn = new Button
             {
                 Text = $"{Emojis.Delete} Delete All Seasons",
-                BackgroundColor = Color.FromArgb("#DC2626"),
-                TextColor = Colors.White,
-                Padding = new Thickness(24, 14),
                 HorizontalOptions = LayoutOptions.Start
             };
+            deleteAllSeasonsBtn.SetDynamicResource(Button.StyleProperty, "DangerButtonStyle");
 
             deleteAllSeasonsBtn.Clicked += async (s, e) =>
             {
@@ -2000,7 +1607,6 @@ namespace Wdpl2.Views
 
                 if (!finalConfirm) return;
 
-                // Check for locked seasons
                 var lockedSeasons = data.Seasons.Where(season => season.IsLocked).ToList();
                 if (lockedSeasons.Count > 0)
                 {
@@ -2010,16 +1616,11 @@ namespace Wdpl2.Views
                         "OK");
                 }
 
-                // Perform deletion (skip locked seasons)
                 var seasonIds = data.Seasons.Where(season => !season.IsLocked).Select(season => season.Id).ToList();
                 foreach (var id in seasonIds)
-                {
                     data.DeleteSeasonCascade(id);
-                }
 
-                // Also clean up any orphaned data
                 data.CleanupOrphans();
-
                 DataStore.Save();
 
                 var deletedCount = seasonIds.Count;
@@ -2027,69 +1628,62 @@ namespace Wdpl2.Views
                     (lockedSeasons.Count > 0 ? $" ({lockedSeasons.Count} locked season(s) kept.)" : "");
                 statusLabel.TextColor = Color.FromArgb("#10B981");
 
-                // Refresh the panel to update counts
                 ShowCategory("Data Management");
             };
 
-            var deleteAllSeasonsBorder = new Border
+            // ── Build layout ──
+            var root = new VerticalStackLayout { Spacing = 0 };
+
+            root.Children.Add(SectionHeader(Emojis.Wrench, "Data Management", "Scan and remove orphaned data, or reset all seasons"));
+
+            root.Children.Add(Card(new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children = { scanButton, orphanResultsBorder, cleanButton }
+            }));
+
+            // Danger zone card
+            var dangerCard = new Border
             {
                 Padding = 16,
                 StrokeThickness = 1,
                 Stroke = Color.FromArgb("#DC2626"),
+                StrokeShape = new RoundRectangle { CornerRadius = 10 },
                 Margin = new Thickness(0, 24, 0, 0),
+                BackgroundColor = PanelBuilder.IsDark ? Color.FromArgb("#450A0A") : Color.FromArgb("#FEF2F2"),
                 Content = new VerticalStackLayout
                 {
                     Spacing = 12,
                     Children =
                     {
-                        new Label
-                        {
-                            Text = "⚠️ Danger Zone",
-                            FontSize = 16,
-                            FontAttributes = FontAttributes.Bold,
-                            TextColor = Color.FromArgb("#DC2626")
-                        },
+                        new Label { Text = "⚠️ Danger Zone", FontSize = 16, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#DC2626") },
                         new Label
                         {
                             Text = "Delete all seasons and their associated data (divisions, teams, players, fixtures, venues, competitions). " +
                                    "This is useful after a bad import that created many unwanted seasons. A backup file (.bak) is kept automatically.",
                             FontSize = 13,
-                            LineHeight = 1.4
+                            LineHeight = 1.4,
+                            TextColor = BodyText
                         },
                         deleteAllSeasonsBtn
                     }
                 }
             };
-            deleteAllSeasonsBorder.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#FEF2F2"), Color.FromArgb("#450A0A"));
 
-            return new VerticalStackLayout
-            {
-                Spacing = 12,
-                Children =
-                {
-                    new Label { Text = "Data Management", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label
-                    {
-                        Text = "Scan and remove data that is not associated with any season. " +
-                               "This can happen when seasons are deleted but some records were left behind.",
-                        FontSize = 14,
-                        TextColor = SubtitleText,
-                        Margin = new Thickness(0, 0, 0, 8)
-                    },
-                    scanButton,
-                    orphanResultsBorder,
-                    cleanButton,
-                    deleteAllSeasonsBorder,
-                    statusLabel
-                }
-            };
+            root.Children.Add(dangerCard);
+            root.Children.Add(statusLabel);
+
+            return root;
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  ABOUT
+        // ═══════════════════════════════════════════════════════════
 
         private View CreateAboutPanel()
         {
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
-            // Version label with easter egg
             var versionLabel = new Label
             {
                 Text = "WDPL2 v2.0.0",
@@ -2104,94 +1698,48 @@ namespace Wdpl2.Views
             {
                 Text = "The Next Generation Pool League Manager",
                 FontSize = 14,
-                TextColor = Color.FromArgb("#666"),
+                TextColor = SubtleText,
                 HorizontalTextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 16)
             };
 
-            var infoFrame = new Border
-            {
-                Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0F9FF"),
-                Stroke = Color.FromArgb("#3B82F6"),
-                StrokeThickness = 1,
-                Content = new VerticalStackLayout
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        new Label { Text = "How Settings Work", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
-                        new Label
-                        {
-                            FontSize = 12,
-                            LineHeight = 1.4,
-                            TextColor = Colors.Black,
-                            Text = "� Settings are saved with your league data\n" +
-                                   "� Player ratings use VBA-style cumulative weighted calculation\n" +
-                                   "� Rating changes based on opponent strength at time of match\n" +
-                                   "� Changes to rating settings require refreshing the Tables page\n" +
-                                   "� Fixture defaults only apply to newly generated fixtures\n" +
-                                   "� Use 'Reset to Defaults' to restore original values"
-                        }
-                    }
-                }
-            };
-
-            var techStack = new Border
-            {
-                Padding = 12,
-                BackgroundColor = Color.FromArgb("#F0FDF4"),
-                Stroke = Color.FromArgb("#10B981"),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 12, 0, 0),
-                Content = new VerticalStackLayout
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        new Label { Text = "Technology Stack", FontAttributes = FontAttributes.Bold, FontSize = 14, TextColor = Colors.Black },
-                        new Label
-                        {
-                            FontSize = 12,
-                            LineHeight = 1.4,
-                            TextColor = Colors.Black,
-                            Text = "� .NET 9 MAUI (Multi-platform App UI)\n" +
-                                   "� C# 13\n" +
-                                   "� Cross-platform: Windows, macOS, iOS, Android\n" +
-                                   "� JSON local storage\n" +
-                                   "� VBA-compatible rating algorithm"
-                        }
-                    }
-                }
-            };
-
-            // Hidden hint for easter egg
             var hintLabel = new Label
             {
                 Text = $"{Emojis.Sparkles} Tip: Some secrets are hidden in plain sight...",
                 FontSize = 11,
-                TextColor = Color.FromArgb("#999"),
+                TextColor = SubtleText,
                 HorizontalTextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 24, 0, 0),
                 FontAttributes = FontAttributes.Italic
             };
 
-            return new VerticalStackLayout
-            {
-                Spacing = 12,
-                Children =
-                {
-                    versionLabel,
-                    subtitleLabel,
-                    new Label { Text = "About This App", FontSize = 20, FontAttributes = FontAttributes.Bold },
-                    new Label { Text = "Information about league settings and data management", FontSize = 14, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 0, 0, 8) },
-                    infoFrame,
-                    techStack,
-                    hintLabel,
-                    _statusLabel
-                }
-            };
+            var root = new VerticalStackLayout { Spacing = 0 };
+
+            root.Children.Add(versionLabel);
+            root.Children.Add(subtitleLabel);
+
+            root.Children.Add(SectionHeader(Emojis.Info, "About This App", "Information about league settings and data management"));
+
+            root.Children.Add(InfoPanel("How Settings Work",
+                "• Settings are saved with your league data\n" +
+                "• Player ratings use VBA-style cumulative weighted calculation\n" +
+                "• Rating changes based on opponent strength at time of match\n" +
+                "• Changes to rating settings require refreshing the Tables page\n" +
+                "• Fixture defaults only apply to newly generated fixtures\n" +
+                "• Use 'Reset to Defaults' to restore original values"));
+
+            root.Children.Add(SuccessBanner(
+                ".NET 9 MAUI (Multi-platform App UI) · C# 13 · Cross-platform: Windows, macOS, iOS, Android · JSON local storage · VBA-compatible rating algorithm"));
+
+            root.Children.Add(hintLabel);
+            root.Children.Add(_statusLabel);
+
+            return root;
         }
+
+        // ═══════════════════════════════════════════════════════════
+        //  SAVE / RESET / RECALCULATE
+        // ═══════════════════════════════════════════════════════════
 
         private async void OnSaveClicked()
         {
@@ -2331,7 +1879,6 @@ namespace Wdpl2.Views
         {
             var data = DataStore.Data;
 
-            // Count frames with VBA data to show the user what will be affected
             int vbaFrameCount = 0;
             int totalFrames = 0;
             foreach (var fixture in data.Fixtures)

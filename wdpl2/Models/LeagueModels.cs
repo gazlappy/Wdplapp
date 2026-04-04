@@ -28,6 +28,9 @@ namespace Wdpl2.Models
         /// <summary>User-created calendar events (meetings, socials, deadlines, etc.).</summary>
         public List<CalendarEvent> CalendarEvents { get; set; } = new();
 
+        /// <summary>Calendar page display and behaviour settings.</summary>
+        public CalendarSettings CalendarSettings { get; set; } = new();
+
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
 
