@@ -280,7 +280,8 @@ namespace Wdpl2.Services
                 NavLink("competitions.html", "Competitions", "Competitions");
             
             // UK 8-Ball Pool Game
-            NavLink("pool-game.html", "\U0001F3B1 Play Pool", "Pool Game");
+            if (_settings.ShowPoolGame)
+                NavLink("pool-game.html", "\U0001F3B1 Play Pool", "Pool Game");
             
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 NavLink("gallery.html", "Gallery", "Gallery");

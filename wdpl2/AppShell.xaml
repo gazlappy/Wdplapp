@@ -34,6 +34,10 @@
             <ShellContent Title="Fixtures" ContentTemplate="{DataTemplate views:FixturesPage}" />
         </Tab>
 
+        <Tab Title="Calendar" Icon="calendar.png">
+            <ShellContent Title="Calendar" ContentTemplate="{DataTemplate views:CalendarPage}" />
+        </Tab>
+
         <Tab Title="Competitions">
             <ShellContent Title="Competitions" ContentTemplate="{DataTemplate views:CompetitionsPage}" />
         </Tab>

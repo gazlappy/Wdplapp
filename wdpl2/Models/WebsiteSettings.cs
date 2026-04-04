@@ -237,7 +237,8 @@ namespace Wdpl2.Models
         public bool ShowSponsors { get; set; } = false;
         public bool ShowRules { get; set; } = false;
         public bool ShowContactPage { get; set; } = false;
-        
+        public bool ShowPoolGame { get; set; } = true;
+
         // Home Page Options
         public bool HomeShowWelcomeSection { get; set; } = true;
         public bool HomeShowQuickStats { get; set; } = true;

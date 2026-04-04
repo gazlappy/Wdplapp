@@ -102,6 +102,10 @@
                             <CheckBox x:Name="ShowContactPageCheck" IsChecked="False" VerticalOptions="Center"/>
                             <Label Grid.Column="1" Text="Contact Page" VerticalOptions="Center"/>
                         </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowPoolGameCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Pool Game (🎱 Play Pool)" VerticalOptions="Center"/>
+                        </Grid>
                     </VerticalStackLayout>
                 </VerticalStackLayout>
             </Frame>

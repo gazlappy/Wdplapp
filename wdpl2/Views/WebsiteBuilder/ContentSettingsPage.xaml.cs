@@ -32,7 +32,8 @@ public partial class ContentSettingsPage : ContentPage
         ShowSponsorsCheck.IsChecked = settings.ShowSponsors;
         ShowRulesCheck.IsChecked = settings.ShowRules;
         ShowContactPageCheck.IsChecked = settings.ShowContactPage;
-        
+        ShowPoolGameCheck.IsChecked = settings.ShowPoolGame;
+
         var layouts = (HomeLayoutPicker.ItemsSource as IList<string>)!;
         var layoutIndex = layouts.IndexOf(settings.HomeLayout);
         if (layoutIndex >= 0) HomeLayoutPicker.SelectedIndex = layoutIndex;
@@ -92,7 +93,8 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowSponsors = ShowSponsorsCheck.IsChecked;
             settings.ShowRules = ShowRulesCheck.IsChecked;
             settings.ShowContactPage = ShowContactPageCheck.IsChecked;
-            
+            settings.ShowPoolGame = ShowPoolGameCheck.IsChecked;
+
             settings.HomeLayout = HomeLayoutPicker.SelectedItem?.ToString() ?? "standard";
             settings.StatsCardStyle = StatsCardStylePicker.SelectedItem?.ToString() ?? "gradient";
             settings.StatsShowIcons = StatsShowIconsCheck.IsChecked;

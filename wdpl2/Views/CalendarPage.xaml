@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Wdpl2.Views.CalendarPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Season Calendar">
+
+    <Grid RowDefinitions="Auto,*" Padding="0" RowSpacing="0">
+
+        <!-- ═══════════ TOP TOOLBAR ═══════════ -->
+        <Border Grid.Row="0" StrokeThickness="0" Padding="16,12"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A1A}">
+            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" RowSpacing="10">
+
+                <!-- Season Picker -->
+                <HorizontalStackLayout Grid.Row="0" Grid.ColumnSpan="3" Spacing="10">
+                    <Label Text="Season" FontSize="13" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    <Picker x:Name="SeasonPicker" WidthRequest="220"
+                            SelectedIndexChanged="OnSeasonChanged"/>
+                    <Label Text="Division" FontSize="13" VerticalOptions="Center" Margin="16,0,0,0"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    <Picker x:Name="DivisionPicker" WidthRequest="200"
+                            SelectedIndexChanged="OnDivisionChanged"/>
+                </HorizontalStackLayout>
+
+                <!-- Navigation: Back / Title / Forward -->
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="6">
+                    <Button x:Name="PrevButton" Text="◀" Clicked="OnPrevClicked"
+                            BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
+                            TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
+                            FontSize="14" Padding="10,6" CornerRadius="6" HeightRequest="34"/>
+                    <Button Text="Today" Clicked="OnTodayClicked"
+                            BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#1E3A5F}"
+                            TextColor="{AppThemeBinding Light=#2563EB, Dark=#60A5FA}"
+                            FontSize="12" Padding="10,6" CornerRadius="6" HeightRequest="34"/>
+                    <Button x:Name="NextButton" Text="▶" Clicked="OnNextClicked"
+                            BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
+                            TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
+                            FontSize="14" Padding="10,6" CornerRadius="6" HeightRequest="34"/>
+                </HorizontalStackLayout>
+
+                <Label x:Name="TitleLabel" Grid.Row="1" Grid.Column="1"
+                       FontSize="20" FontAttributes="Bold" VerticalOptions="Center"
+                       HorizontalTextAlignment="Center"
+                       TextColor="{AppThemeBinding Light=#111827, Dark=#F9FAFB}"/>
+
+                <!-- View Switcher -->
+                <HorizontalStackLayout Grid.Row="1" Grid.Column="2" Spacing="4">
+                    <Button x:Name="MonthViewBtn" Text="Month" Clicked="OnMonthViewClicked"
+                            BackgroundColor="{AppThemeBinding Light=#2563EB, Dark=#2563EB}"
+                            TextColor="White"
+                            FontSize="12" Padding="12,6" CornerRadius="6" HeightRequest="34"/>
+                    <Button x:Name="YearViewBtn" Text="Year" Clicked="OnYearViewClicked"
+                            BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
+                            TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
+                            FontSize="12" Padding="12,6" CornerRadius="6" HeightRequest="34"/>
+                    <Button x:Name="DayViewBtn" Text="Day" Clicked="OnDayViewClicked"
+                            BackgroundColor="{AppThemeBinding Light=#F3F4F6, Dark=#374151}"
+                            TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"
+                            FontSize="12" Padding="12,6" CornerRadius="6" HeightRequest="34"/>
+                </HorizontalStackLayout>
+
+                <!-- Filter Checkboxes Row -->
+                <HorizontalStackLayout Grid.Row="2" Grid.ColumnSpan="3" Spacing="14">
+                    <Label Text="Show:" FontSize="12" FontAttributes="Bold" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#374151, Dark=#D1D5DB}"/>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowLeagueMatchesChanged"
+                                  Color="#3B82F6" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="League" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowCompetitionsChanged"
+                                  Color="#F97316" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="Competitions" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowBankHolidaysChanged"
+                                  Color="#EC4899" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="Bank Holidays" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowBlackoutsChanged"
+                                  Color="#EF4444" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="Blackouts" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowTransferWindowChanged"
+                                  Color="#06B6D4" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="Transfers" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="2">
+                        <CheckBox IsChecked="True" CheckedChanged="OnShowCustomEventsChanged"
+                                  Color="#14B8A6" VerticalOptions="Center" Scale="0.75"/>
+                        <Label Text="Events" FontSize="11" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                    </HorizontalStackLayout>
+
+                    <!-- Add Event button -->
+                    <Button Text="＋ Add Event" Clicked="OnAddEventClicked"
+                            BackgroundColor="{AppThemeBinding Light=#14B8A6, Dark=#0D9488}"
+                            TextColor="White"
+                            FontSize="11" FontAttributes="Bold"
+                            Padding="10,4" CornerRadius="6" HeightRequest="30"
+                            VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════ CONTENT AREA ═══════════ -->
+        <Grid Grid.Row="1">
+
+            <!-- MONTH VIEW -->
+            <ScrollView x:Name="MonthView" IsVisible="True">
+                <Grid RowDefinitions="Auto,*" Padding="16" RowSpacing="8">
+                    <!-- Day-of-week headers -->
+                    <Grid x:Name="DayHeaders" ColumnDefinitions="*,*,*,*,*,*,*" HeightRequest="32"/>
+                    <!-- Calendar grid -->
+                    <Grid x:Name="MonthGrid" Grid.Row="1"
+                          ColumnDefinitions="*,*,*,*,*,*,*"
+                          RowDefinitions="*,*,*,*,*,*"
+                          RowSpacing="4" ColumnSpacing="4"/>
+                </Grid>
+            </ScrollView>
+
+            <!-- YEAR VIEW (Wall Planner) -->
+            <ScrollView x:Name="YearView" IsVisible="False" Orientation="Both">
+                <VerticalStackLayout x:Name="YearPlannerContainer" Padding="8" Spacing="0"/>
+            </ScrollView>
+
+            <!-- DAY VIEW -->
+            <ScrollView x:Name="DayView" IsVisible="False" Padding="16">
+                <VerticalStackLayout x:Name="DayContent" Spacing="10"/>
+            </ScrollView>
+        </Grid>
+
+        <!-- ═══════════ LEGEND (overlaid at bottom) ═══════════ -->
+        <Border Grid.Row="1" VerticalOptions="End" HorizontalOptions="Center"
+                Margin="0,0,0,12" Padding="12,8" StrokeShape="RoundRectangle 8"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFFEE, Dark=#1A1A1AEE}"
+                Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}" StrokeThickness="1">
+            <HorizontalStackLayout Spacing="16">
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#3B82F6"/>
+                    <Label Text="Fixture" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#10B981"/>
+                    <Label Text="Result" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#F97316"/>
+                    <Label Text="Competition" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#EC4899"/>
+                    <Label Text="Bank Holiday" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#EF4444"/>
+                    <Label Text="Blackout" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#06B6D4"/>
+                    <Label Text="Transfer" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#8B5CF6"/>
+                    <Label Text="Season" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="4">
+                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="2" Color="#14B8A6"/>
+                    <Label Text="Event" FontSize="11" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#6B7280, Dark=#9CA3AF}"/>
+                </HorizontalStackLayout>
+            </HorizontalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

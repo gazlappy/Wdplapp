@@ -126,7 +126,8 @@ namespace Wdpl2.Services
                 files["rows-reports.html"] = GenerateRowsReportsPage(season, template);
 
             // Add UK 8-Ball Pool Game
-            files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
+            if (_settings.ShowPoolGame)
+                files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
             
             // Custom pages
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished))

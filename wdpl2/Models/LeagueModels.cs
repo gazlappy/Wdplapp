@@ -25,6 +25,9 @@ namespace Wdpl2.Models
         /// <summary>Doubles pair ratings (imported from HTML or calculated from doubles frames).</summary>
         public List<DoublesPairing> DoublesPairings { get; set; } = new();
 
+        /// <summary>User-created calendar events (meetings, socials, deadlines, etc.).</summary>
+        public List<CalendarEvent> CalendarEvents { get; set; } = new();
+
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
 
