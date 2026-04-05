@@ -586,6 +586,10 @@ namespace Wdpl2.Models
         public List<RowsReport> RowsReports { get; set; } = new();
         public int RowsReportsPerPage { get; set; } = 10;
         
+        // Entry Forms
+        public bool ShowEntryForms { get; set; } = false;
+        public List<EntryForm> EntryForms { get; set; } = new();
+
         // Rules Content
         public string RulesContent { get; set; } = "";
         public string ConstitutionContent { get; set; } = "";
@@ -918,9 +922,13 @@ namespace Wdpl2.Models
             MatchRulesContent = "";
             EpaRulesContent = "";
             
+            // Entry Forms
+            ShowEntryForms = false;
+            EntryForms.Clear();
+
             // Custom pages
             CustomPages.Clear();
-            
+
             // GitHub
             GitHubToken = "";
             GitHubUsername = "";
@@ -1072,6 +1080,92 @@ namespace Wdpl2.Models
         public byte[]? ImageData { get; set; }
     }
     
+    /// <summary>
+    /// Entry form for team entries, competition entries, etc.
+    /// </summary>
+    public sealed class EntryForm
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string FormType { get; set; } = "custom"; // team-entry, competition-entry, custom
+        public List<EntryFormField> Fields { get; set; } = new();
+        public bool IsPublished { get; set; } = true;
+        public bool IsClosed { get; set; } = false;
+        public DateTime DateCreated { get; set; } = DateTime.Now;
+        public DateTime? ClosingDate { get; set; }
+        public string SubmitButtonText { get; set; } = "Submit Entry";
+        public string ConfirmationMessage { get; set; } = "Thank you for your entry!";
+        public int SortOrder { get; set; }
+        public List<EntryFormSubmission> Submissions { get; set; } = new();
+
+        /// <summary>Create a pre-configured team entry form</summary>
+        public static EntryForm CreateTeamEntryForm() => new()
+        {
+            Title = "Team Entry Form",
+            Description = "Enter your team for the upcoming season. Please complete all required fields.",
+            FormType = "team-entry",
+            SubmitButtonText = "Submit Team Entry",
+            Fields = new List<EntryFormField>
+            {
+                new() { Label = "Team Name", FieldType = "text", IsRequired = true, Placeholder = "e.g. The Aces", SortOrder = 0 },
+                new() { Label = "Captain Name", FieldType = "text", IsRequired = true, Placeholder = "Full name", SortOrder = 1 },
+                new() { Label = "Captain Phone", FieldType = "phone", IsRequired = true, Placeholder = "07...", SortOrder = 2 },
+                new() { Label = "Captain Email", FieldType = "email", IsRequired = true, Placeholder = "captain@email.com", SortOrder = 3 },
+                new() { Label = "Home Venue", FieldType = "text", IsRequired = true, Placeholder = "Venue name", SortOrder = 4 },
+                new() { Label = "Preferred Match Night", FieldType = "select", IsRequired = false, Options = "Monday,Tuesday,Wednesday,Thursday,Friday", SortOrder = 5 },
+                new() { Label = "Number of Players", FieldType = "number", IsRequired = false, Placeholder = "e.g. 8", SortOrder = 6 },
+                new() { Label = "Additional Notes", FieldType = "textarea", IsRequired = false, Placeholder = "Any other information...", SortOrder = 7 },
+            }
+        };
+
+        /// <summary>Create a pre-configured competition entry form</summary>
+        public static EntryForm CreateCompetitionEntryForm() => new()
+        {
+            Title = "Competition Entry Form",
+            Description = "Enter the competition. Please complete all required fields.",
+            FormType = "competition-entry",
+            SubmitButtonText = "Submit Entry",
+            Fields = new List<EntryFormField>
+            {
+                new() { Label = "Player Name", FieldType = "text", IsRequired = true, Placeholder = "Full name", SortOrder = 0 },
+                new() { Label = "Team", FieldType = "text", IsRequired = true, Placeholder = "Your team name", SortOrder = 1 },
+                new() { Label = "Phone Number", FieldType = "phone", IsRequired = true, Placeholder = "07...", SortOrder = 2 },
+                new() { Label = "Email Address", FieldType = "email", IsRequired = false, Placeholder = "player@email.com", SortOrder = 3 },
+                new() { Label = "Partner Name (doubles only)", FieldType = "text", IsRequired = false, Placeholder = "Leave blank for singles", SortOrder = 4 },
+                new() { Label = "Additional Notes", FieldType = "textarea", IsRequired = false, Placeholder = "Any other information...", SortOrder = 5 },
+            }
+        };
+    }
+
+    /// <summary>
+    /// A submission/entry logged against an entry form
+    /// </summary>
+    public sealed class EntryFormSubmission
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public DateTime SubmittedDate { get; set; } = DateTime.Now;
+        public string Status { get; set; } = "pending"; // pending, confirmed, rejected
+        public string EntryName { get; set; } = ""; // quick label e.g. team name or person name
+        public string Notes { get; set; } = "";
+        public Dictionary<string, string> FieldValues { get; set; } = new();
+        public Guid? LinkedTeamId { get; set; }
+    }
+
+    /// <summary>
+    /// A field within an entry form
+    /// </summary>
+    public sealed class EntryFormField
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Label { get; set; } = "";
+        public string FieldType { get; set; } = "text"; // text, email, phone, textarea, select, number, date, checkbox
+        public bool IsRequired { get; set; } = true;
+        public string Placeholder { get; set; } = "";
+        public string Options { get; set; } = ""; // for select: comma-separated options
+        public int SortOrder { get; set; }
+    }
+
     /// <summary>
     /// Custom page definition
     /// </summary>

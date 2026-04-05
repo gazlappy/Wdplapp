@@ -56,6 +56,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (_generatedFiles.ContainsKey("sponsors.html")) pages.Add("Sponsors");
         if (_generatedFiles.ContainsKey("news.html")) pages.Add("News");
         if (_generatedFiles.ContainsKey("rows-reports.html")) pages.Add("Rows Reports");
+        if (_generatedFiles.ContainsKey("entry-forms.html")) pages.Add("Entry Forms");
 
         // Custom pages
         foreach (var key in _generatedFiles.Keys.Where(k => k.EndsWith(".html") && !IsKnownPage(k)))
@@ -75,7 +76,7 @@ public partial class WebsiteBuilderHub : ContentPage
         fileName is "index.html" or "standings.html" or "fixtures.html" or "results.html"
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
-            or "rows-reports.html"
+            or "rows-reports.html" or "entry-forms.html"
             or "player.html" or "team.html" or "pool-game.html" or "style.css"
             or "sitemap.xml" or "players-data.json" or "teams-data.json";
     
@@ -85,6 +86,7 @@ public partial class WebsiteBuilderHub : ContentPage
         UpdateGalleryCount();
         UpdateRowsReportsCount();
         UpdateRulesSummary();
+        UpdateEntryFormsCount();
         UpdateSummaryLabels();
 
         // Auto-refresh preview when returning from settings sub-pages
@@ -148,6 +150,7 @@ public partial class WebsiteBuilderHub : ContentPage
         UpdateGalleryCount();
         UpdateRowsReportsCount();
         UpdateRulesSummary();
+        UpdateEntryFormsCount();
         UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
@@ -204,6 +207,16 @@ public partial class WebsiteBuilderHub : ContentPage
             : "Enabled · No content yet";
     }
 
+    private void UpdateEntryFormsCount()
+    {
+        var count = League.WebsiteSettings.EntryForms.Count;
+        var published = League.WebsiteSettings.EntryForms.Count(f => f.IsPublished && !f.IsClosed);
+        var totalEntries = League.WebsiteSettings.EntryForms.Sum(f => f.Submissions.Count);
+        EntryFormsSummaryLabel.Text = count == 0
+            ? "No forms created yet"
+            : $"{count} form{(count == 1 ? "" : "s")} ({published} active) \u2022 {totalEntries} entr{(totalEntries == 1 ? "y" : "ies")} logged";
+    }
+
     private void UpdateSummaryLabels()
     {
         var s = League.WebsiteSettings;
@@ -246,6 +259,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (s.ShowSponsors) pageCount++;
         if (s.ShowRules) pageCount++;
         if (s.ShowContactPage) pageCount++;
+        if (s.ShowEntryForms && s.EntryForms.Count > 0) pageCount++;
         ContentSummaryLabel.Text = $"{pageCount} page{(pageCount == 1 ? "" : "s")} enabled · {Capitalize(s.HomeLayout)} home";
 
         // SEO
@@ -379,7 +393,10 @@ public partial class WebsiteBuilderHub : ContentPage
 
     private async void OnRulesTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new RulesSettingsPage());
-    
+
+    private async void OnEntryFormsTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new EntryFormsSettingsPage());
+
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
 

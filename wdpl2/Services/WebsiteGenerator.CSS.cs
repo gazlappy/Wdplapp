@@ -1240,6 +1240,275 @@ nav a:hover, nav a.active {{
     display: block;
 }}
 
+/* Entry Forms */
+.entry-form-card {{
+    border-left: 4px solid var(--primary-color);
+}}
+
+.entry-form-header {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}}
+
+.entry-form-header h3 {{
+    margin: 0;
+    font-size: 1.25rem;
+}}
+
+.entry-form-badge {{
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+.entry-form-badge.open {{
+    background: #D1FAE5;
+    color: #065F46;
+}}
+
+.entry-form-badge.closed {{
+    background: #FEE2E2;
+    color: #991B1B;
+}}
+
+.entry-form-desc {{
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.6;
+}}
+
+.entry-form-deadline {{
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}}
+
+.entry-form-closed-msg {{
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    text-align: center;
+    color: #991B1B;
+}}
+
+.entry-form {{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+}}
+
+.form-group {{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}}
+
+.form-group label {{
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}}
+
+.form-group .required {{
+    color: #EF4444;
+}}
+
+.form-group input,
+.form-group textarea,
+.form-group select {{
+    padding: 10px 14px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: var(--card-bg);
+    color: var(--text-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {{
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 59,130,246), 0.15);
+}}
+
+.form-group textarea {{
+    resize: vertical;
+    min-height: 80px;
+}}
+
+.checkbox-label {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+    cursor: pointer;
+}}
+
+.checkbox-label input[type=""checkbox""] {{
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color);
+}}
+
+.entry-form-submit {{
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: {(_settings.ButtonRounded ? "20px" : "var(--border-radius)")};
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    align-self: flex-start;
+    font-family: inherit;
+}}
+
+.entry-form-submit:hover {{
+    opacity: 0.9;
+    transform: translateY(-1px);
+}}
+
+.entry-form-confirmation {{
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-radius: var(--border-radius);
+    padding: 20px;
+    text-align: center;
+    color: #065F46;
+    font-size: 1.05rem;
+}}
+
+.entry-form-field-info {{
+    color: var(--text-secondary, #64748B);
+    font-size: 0.9rem;
+    margin: 4px 0 0 0;
+    font-style: italic;
+}}
+
+.entry-form-contact {{
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: var(--border-radius);
+    padding: 16px 20px;
+    margin: 16px 0;
+}}
+
+.entry-form-contact p {{
+    margin: 4px 0;
+    color: #1E40AF;
+}}
+
+.entry-form-contact a {{
+    color: #2563EB;
+    font-weight: 600;
+}}
+
+.submissions-log {{
+    margin-top: 24px;
+    border-top: 2px solid rgba(0,0,0,0.08);
+    padding-top: 20px;
+}}
+
+.submissions-log h4 {{
+    margin: 0 0 12px 0;
+    color: var(--text-color);
+    font-size: 1.1rem;
+}}
+
+.submissions-log-count {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: normal;
+}}
+
+.submissions-log-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}}
+
+.submission-item {{
+    background: rgba(0,0,0,0.02);
+    border-radius: calc(var(--border-radius) / 2);
+    padding: 12px 16px;
+    border-left: 3px solid var(--primary-color, #3B82F6);
+}}
+
+.submission-item .submission-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}}
+
+.submission-item .submission-name {{
+    font-weight: 600;
+    color: var(--text-color);
+}}
+
+.submission-item .submission-date {{
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}}
+
+.submission-item .submission-fields {{
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}}
+
+.submissions-log-empty {{
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.9rem;
+}}
+
+.submissions-log-actions {{
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}}
+
+.submissions-log-actions button {{
+    padding: 6px 14px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: calc(var(--border-radius) / 2);
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-size: 0.8rem;
+    cursor: pointer;
+}}
+
+.submissions-log-actions button:hover {{
+    background: rgba(0,0,0,0.05);
+}}
+
+@media print {{
+    .entry-form-submit {{ display: none; }}
+    .entry-form-contact {{ border: 1px solid #999; }}
+    .submissions-log-actions {{ display: none; }}
+}}
+
+@media (max-width: 768px) {{
+    .entry-form-header {{
+        flex-direction: column;
+        align-items: flex-start;
+    }}
+}}
+
 footer {{
     background: #1E293B;
     color: #E2E8F0;

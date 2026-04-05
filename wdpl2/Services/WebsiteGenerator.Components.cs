@@ -330,7 +330,10 @@ namespace Wdpl2.Services
             
             if (_settings.ShowRules && _settings.HasAnyRulesContent)
                 NavLink("rules.html", "Rules", "Rules");
-            
+
+            if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
+                NavLink("entry-forms.html", "Entry Forms", "Entry Forms");
+
             if (_settings.ShowContactPage && _settings.HasContactInfo)
                 NavLink("contact.html", "Contact", "Contact");
             

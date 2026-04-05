@@ -125,6 +125,9 @@ namespace Wdpl2.Services
             if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
                 files["rows-reports.html"] = GenerateRowsReportsPage(season, template);
 
+            if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
+                files["entry-forms.html"] = GenerateEntryFormsPage(season, template);
+
             // Add UK 8-Ball Pool Game
             if (_settings.ShowPoolGame)
                 files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
@@ -1029,7 +1032,10 @@ namespace Wdpl2.Services
                 .Replace("\r", "\\r")
                 .Replace("`", "\\`");
         }
-        
+
+        private static string Esc(string? input) =>
+            System.Net.WebUtility.HtmlEncode(input ?? "");
+
         private string GenerateResultsPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();
@@ -2339,7 +2345,247 @@ namespace Wdpl2.Services
                 return player?.FullName;
             }
         }
-        
+
+        private string GenerateEntryFormsPage(Season season, WebsiteTemplate template)
+        {
+            return GenerateFullPage($"Entry Forms - {_settings.LeagueName}", season, "Entry Forms", html =>
+            {
+                html.AppendLine("            <div class=\"hero\">");
+                html.AppendLine("                <h2>&#128203; Entry Forms</h2>");
+                html.AppendLine("                <p class=\"hero-dates\">Season entries &amp; registrations</p>");
+                html.AppendLine("            </div>");
+
+                var publishedForms = _settings.EntryForms
+                    .Where(f => f.IsPublished)
+                    .OrderBy(f => f.SortOrder)
+                    .ThenByDescending(f => f.DateCreated)
+                    .ToList();
+
+                if (publishedForms.Count != 0)
+                {
+                    foreach (var form in publishedForms)
+                    {
+                        var formId = $"form-{form.Id:N}";
+                        var isClosed = form.IsClosed || (form.ClosingDate.HasValue && form.ClosingDate.Value < DateTime.Now);
+
+                        html.AppendLine($"            <div class=\"section entry-form-card\" id=\"{formId}\">");
+
+                        // Form header
+                        html.AppendLine("                <div class=\"entry-form-header\">");
+                        html.AppendLine($"                    <h3>{Esc(form.Title)}</h3>");
+                        if (isClosed)
+                            html.AppendLine("                    <span class=\"entry-form-badge closed\">Closed</span>");
+                        else
+                            html.AppendLine("                    <span class=\"entry-form-badge open\">Open</span>");
+                        html.AppendLine("                </div>");
+
+                        if (!string.IsNullOrWhiteSpace(form.Description))
+                            html.AppendLine($"                <p class=\"entry-form-desc\">{Esc(form.Description)}</p>");
+
+                        if (form.ClosingDate.HasValue)
+                            html.AppendLine($"                <p class=\"entry-form-deadline\">&#9200; Closing date: <strong>{form.ClosingDate.Value:dddd dd MMMM yyyy}</strong></p>");
+
+                        if (isClosed)
+                        {
+                            html.AppendLine("                <div class=\"entry-form-closed-msg\">");
+                            html.AppendLine("                    <p>&#128683; This form is now closed for entries.</p>");
+                            html.AppendLine("                </div>");
+                        }
+                        else
+                        {
+                            // Fillable form with print-based submission
+                            if (form.Fields.Count != 0)
+                            {
+                                html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
+                                html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
+
+                                foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
+                                {
+                                    var fieldId = $"field-{field.Id:N}";
+                                    var requiredAttr = field.IsRequired ? " required" : "";
+                                    var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
+                                    var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
+
+                                    html.AppendLine("                    <div class=\"form-group\">");
+
+                                    switch (field.FieldType)
+                                    {
+                                        case "textarea":
+                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldId}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
+                                            break;
+
+                                        case "select":
+                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}>");
+                                            html.AppendLine("                            <option value=\"\">-- Select --</option>");
+                                            if (!string.IsNullOrWhiteSpace(field.Options))
+                                            {
+                                                foreach (var opt in field.Options.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                                    html.AppendLine($"                            <option value=\"{Esc(opt)}\">{Esc(opt)}</option>");
+                                            }
+                                            html.AppendLine("                        </select>");
+                                            break;
+
+                                        case "checkbox":
+                                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
+                                            break;
+
+                                        default:
+                                            var inputType = field.FieldType switch
+                                            {
+                                                "email" => "email",
+                                                "phone" => "tel",
+                                                "number" => "number",
+                                                "date" => "date",
+                                                _ => "text"
+                                            };
+                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldId}\"{placeholder}{requiredAttr}>");
+                                            break;
+                                    }
+
+                                    html.AppendLine("                    </div>");
+                                }
+
+                                var submitText = !string.IsNullOrWhiteSpace(form.SubmitButtonText) ? Esc(form.SubmitButtonText) : "Submit Entry";
+                                html.AppendLine($"                    <button type=\"submit\" class=\"entry-form-submit\">{submitText}</button>");
+                                html.AppendLine("                </form>");
+                                html.AppendLine($"                <div class=\"entry-form-confirmation\" id=\"{formId}-confirm\" style=\"display:none;\">");
+                                html.AppendLine("                    <p>&#9989; Your entry has been submitted successfully! The league secretary will review it shortly.</p>");
+                                html.AppendLine("                </div>");
+
+                                // Submissions log section
+                                html.AppendLine($"                <div class=\"submissions-log\" id=\"{formId}-log\">");
+                                html.AppendLine($"                    <h4>&#128203; Entries Log <span class=\"submissions-log-count\" id=\"{formId}-log-count\"></span></h4>");
+                                html.AppendLine($"                    <div class=\"submissions-log-list\" id=\"{formId}-log-list\">");
+                                html.AppendLine("                        <p class=\"submissions-log-empty\">No entries submitted yet.</p>");
+                                html.AppendLine("                    </div>");
+                                html.AppendLine($"                    <div class=\"submissions-log-actions\" id=\"{formId}-log-actions\" style=\"display:none;\">");
+                                html.AppendLine($"                        <button type=\"button\" onclick=\"exportSubmissions('{formId}')\">&#128229; Export</button>");
+                                html.AppendLine($"                        <button type=\"button\" onclick=\"clearSubmissions('{formId}')\">&#128465; Clear All</button>");
+                                html.AppendLine("                    </div>");
+                                html.AppendLine("                </div>");
+
+                                // Embed field labels as JSON for JS to read
+                                var fieldLabels = form.Fields.OrderBy(f => f.SortOrder)
+                                    .Select(f => $"{{\"id\":\"field-{f.Id:N}\",\"label\":\"{Esc(f.Label).Replace("\"", "\\\"")}\",\"type\":\"{f.FieldType}\"}}")
+                                    .ToList();
+                                html.AppendLine($"                <script>window.formFields = window.formFields || {{}}; window.formFields['{formId}'] = [{string.Join(",", fieldLabels)}];</script>");
+                            }
+
+                            // Contact information
+                            var hasContact = !string.IsNullOrWhiteSpace(_settings.ContactEmail) || !string.IsNullOrWhiteSpace(_settings.ContactPhone);
+                            if (hasContact)
+                            {
+                                html.AppendLine("                <div class=\"entry-form-contact\">");
+                                html.AppendLine("                    <p><strong>&#128222; Contact the league secretary:</strong></p>");
+                                if (!string.IsNullOrWhiteSpace(_settings.ContactPhone))
+                                    html.AppendLine($"                    <p>Phone: <a href=\"tel:{Esc(_settings.ContactPhone)}\">{Esc(_settings.ContactPhone)}</a></p>");
+                                if (!string.IsNullOrWhiteSpace(_settings.ContactEmail))
+                                    html.AppendLine($"                    <p>Email: <a href=\"mailto:{Esc(_settings.ContactEmail)}\">{Esc(_settings.ContactEmail)}</a></p>");
+                                html.AppendLine("                </div>");
+                            }
+                        }
+
+                        html.AppendLine("            </div>");
+                    }
+                }
+                else
+                {
+                    html.AppendLine("            <div class=\"section\">");
+                    html.AppendLine("                <p class=\"empty-message\">No entry forms are currently available. Check back soon!</p>");
+                    html.AppendLine("            </div>");
+                }
+
+                // Form submission JavaScript
+                html.AppendLine("            <script>");
+                html.AppendLine("            function getStorageKey(formId) { return 'entries-' + formId; }");
+                html.AppendLine("            function getSubmissions(formId) {");
+                html.AppendLine("                try { return JSON.parse(localStorage.getItem(getStorageKey(formId)) || '[]'); }");
+                html.AppendLine("                catch(e) { return []; }");
+                html.AppendLine("            }");
+                html.AppendLine("            function saveSubmissions(formId, subs) {");
+                html.AppendLine("                localStorage.setItem(getStorageKey(formId), JSON.stringify(subs));");
+                html.AppendLine("            }");
+                html.AppendLine("            function handleEntrySubmit(form) {");
+                html.AppendLine("                if (!form.checkValidity()) { form.reportValidity(); return false; }");
+                html.AppendLine("                var formId = form.id.replace('-form', '');");
+                html.AppendLine("                var fields = window.formFields[formId] || [];");
+                html.AppendLine("                var values = {};");
+                html.AppendLine("                var entryName = '';");
+                html.AppendLine("                for (var i = 0; i < fields.length; i++) {");
+                html.AppendLine("                    var el = document.getElementById(fields[i].id);");
+                html.AppendLine("                    if (!el) continue;");
+                html.AppendLine("                    var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
+                html.AppendLine("                    values[fields[i].label] = val;");
+                html.AppendLine("                    if (i === 0 && val) entryName = val;");
+                html.AppendLine("                }");
+                html.AppendLine("                var sub = { date: new Date().toISOString(), name: entryName, values: values };");
+                html.AppendLine("                var subs = getSubmissions(formId);");
+                html.AppendLine("                subs.push(sub);");
+                html.AppendLine("                saveSubmissions(formId, subs);");
+                html.AppendLine("                var inputs = form.querySelectorAll('input,textarea,select');");
+                html.AppendLine("                for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
+                html.AppendLine("                var btn = form.querySelector('button[type=submit]');");
+                html.AppendLine("                if (btn) btn.style.display = 'none';");
+                html.AppendLine("                var confirmDiv = document.getElementById(formId + '-confirm');");
+                html.AppendLine("                if (confirmDiv) confirmDiv.style.display = 'block';");
+                html.AppendLine("                renderLog(formId);");
+                html.AppendLine("                return false;");
+                html.AppendLine("            }");
+                html.AppendLine("            function renderLog(formId) {");
+                html.AppendLine("                var subs = getSubmissions(formId);");
+                html.AppendLine("                var list = document.getElementById(formId + '-log-list');");
+                html.AppendLine("                var count = document.getElementById(formId + '-log-count');");
+                html.AppendLine("                var actions = document.getElementById(formId + '-log-actions');");
+                html.AppendLine("                if (!list) return;");
+                html.AppendLine("                if (count) count.textContent = '(' + subs.length + ')';");
+                html.AppendLine("                if (subs.length === 0) {");
+                html.AppendLine("                    list.innerHTML = '<p class=\"submissions-log-empty\">No entries submitted yet.</p>';");
+                html.AppendLine("                    if (actions) actions.style.display = 'none';");
+                html.AppendLine("                    return;");
+                html.AppendLine("                }");
+                html.AppendLine("                if (actions) actions.style.display = 'flex';");
+                html.AppendLine("                var html = '';");
+                html.AppendLine("                for (var i = subs.length - 1; i >= 0; i--) {");
+                html.AppendLine("                    var s = subs[i];");
+                html.AppendLine("                    var d = new Date(s.date);");
+                html.AppendLine("                    var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});");
+                html.AppendLine("                    var fieldsHtml = '';");
+                html.AppendLine("                    for (var key in s.values) {");
+                html.AppendLine("                        if (s.values[key]) fieldsHtml += '<strong>' + key + ':</strong> ' + s.values[key] + ' &bull; ';");
+                html.AppendLine("                    }");
+                html.AppendLine("                    if (fieldsHtml.endsWith(' &bull; ')) fieldsHtml = fieldsHtml.slice(0, -8);");
+                html.AppendLine("                    html += '<div class=\"submission-item\">';");
+                html.AppendLine("                    html += '<div class=\"submission-header\"><span class=\"submission-name\">' + (s.name || 'Entry #' + (i+1)) + '</span>';");
+                html.AppendLine("                    html += '<span class=\"submission-date\">' + dateStr + '</span></div>';");
+                html.AppendLine("                    html += '<div class=\"submission-fields\">' + fieldsHtml + '</div></div>';");
+                html.AppendLine("                }");
+                html.AppendLine("                list.innerHTML = html;");
+                html.AppendLine("            }");
+                html.AppendLine("            function exportSubmissions(formId) {");
+                html.AppendLine("                var subs = getSubmissions(formId);");
+                html.AppendLine("                if (subs.length === 0) { alert('No entries to export.'); return; }");
+                html.AppendLine("                var blob = new Blob([JSON.stringify(subs, null, 2)], {type:'application/json'});");
+                html.AppendLine("                var a = document.createElement('a');");
+                html.AppendLine("                a.href = URL.createObjectURL(blob);");
+                html.AppendLine("                a.download = formId + '-entries.json';");
+                html.AppendLine("                a.click();");
+                html.AppendLine("            }");
+                html.AppendLine("            function clearSubmissions(formId) {");
+                html.AppendLine("                if (!confirm('Clear all entries for this form?')) return;");
+                html.AppendLine("                saveSubmissions(formId, []);");
+                html.AppendLine("                renderLog(formId);");
+                html.AppendLine("            }");
+                // Auto-render logs on page load for each form
+                html.AppendLine("            document.addEventListener('DOMContentLoaded', function() {");
+                html.AppendLine("                if (window.formFields) { for (var fid in window.formFields) renderLog(fid); }");
+                html.AppendLine("            });");
+                html.AppendLine("            </script>");
+            });
+        }
+
         private string GenerateCustomPage(Season season, WebsiteTemplate template, CustomPage page)
         {
             var html = new StringBuilder();
