@@ -14,6 +14,7 @@ namespace Wdpl2.Views
 
         private readonly ObservableCollection<Season> _items = new();
         private readonly ObservableCollection<string> _exclusionDates = new();
+        private readonly Dictionary<string, string> _exclusionTitles = new();
         private Season? _selected;
         private bool _isFlyoutOpen = false;
 
@@ -35,6 +36,10 @@ namespace Wdpl2.Views
 
             // Wire doubles toggle to show/hide frame count fields
             DoublesSwitch.Toggled += OnDoublesToggled;
+
+            // Keep exclusion date picker range in sync with season dates
+            StartPicker.DateSelected += OnSeasonDateChanged;
+            EndPicker.DateSelected += OnSeasonDateChanged;
 
             RefreshList(selectFirst: true);
         }
@@ -196,8 +201,13 @@ namespace Wdpl2.Views
             }
 
             model.BlackoutDates = _exclusionDates
-                .Select(s => DateTime.Parse(s))
+                .Select(s =>
+                {
+                    var datePart = s.Contains(" — ") ? s[..s.IndexOf(" — ")] : s;
+                    return DateTime.Parse(datePart);
+                })
                 .ToList();
+            model.BlackoutDateTitles = new Dictionary<string, string>(_exclusionTitles);
 
             model.IncludeDoubles = DoublesSwitch.IsToggled;
             model.SinglesFrameCount = int.TryParse(SinglesFramesEntry.Text, out var sc) ? sc : 0;
@@ -215,6 +225,7 @@ namespace Wdpl2.Views
                 existing.EndDate = model.EndDate;
                 existing.IsActive = model.IsActive;
                 existing.BlackoutDates = model.BlackoutDates;
+                existing.BlackoutDateTitles = model.BlackoutDateTitles;
                 existing.IncludeDoubles = model.IncludeDoubles;
                 existing.SinglesFrameCount = model.SinglesFrameCount;
                 existing.DoublesFrameCount = model.DoublesFrameCount;
@@ -537,27 +548,39 @@ namespace Wdpl2.Views
         private async void OnAddExclusionClicked(object sender, EventArgs e)
         {
             var selectedDate = ExclusionDatePicker.Date;
-            var dateString = selectedDate.ToString("ddd, dd MMM yyyy");
+            var dateKey = selectedDate.ToString("yyyy-MM-dd");
 
-            if (_exclusionDates.Contains(dateString))
+            if (_exclusionTitles.ContainsKey(dateKey))
             {
                 await DisplayAlert("Duplicate", "This date is already in the exclusion list.", "OK");
                 return;
             }
 
-            _exclusionDates.Add(dateString);
+            var title = (ExclusionTitleEntry.Text ?? "").Trim();
+            _exclusionTitles[dateKey] = title;
+
+            var displayText = string.IsNullOrWhiteSpace(title)
+                ? selectedDate.ToString("ddd, dd MMM yyyy")
+                : $"{selectedDate:ddd, dd MMM yyyy} — {title}";
+
+            _exclusionDates.Add(displayText);
 
             var sorted = _exclusionDates
-                .Select(s => DateTime.Parse(s))
-                .OrderBy(d => d)
-                .Select(d => d.ToString("ddd, dd MMM yyyy"))
+                .Select(s =>
+                {
+                    var datePart = s.Contains(" — ") ? s[..s.IndexOf(" — ")] : s;
+                    return (Display: s, Date: DateTime.Parse(datePart));
+                })
+                .OrderBy(x => x.Date)
+                .Select(x => x.Display)
                 .ToList();
 
             _exclusionDates.Clear();
-            foreach (var date in sorted)
-                _exclusionDates.Add(date);
+            foreach (var item in sorted)
+                _exclusionDates.Add(item);
 
-            StatusLabel.Text = $"Added exclusion date: {dateString}";
+            ExclusionTitleEntry.Text = "";
+            StatusLabel.Text = $"Added exclusion date: {displayText}";
         }
 
         private void OnRemoveExclusionClicked(object sender, EventArgs e)
@@ -565,6 +588,9 @@ namespace Wdpl2.Views
             if (sender is Button btn && btn.CommandParameter is string dateString)
             {
                 _exclusionDates.Remove(dateString);
+                var datePart = dateString.Contains(" — ") ? dateString[..dateString.IndexOf(" — ")] : dateString;
+                if (DateTime.TryParse(datePart, out var dt))
+                    _exclusionTitles.Remove(dt.ToString("yyyy-MM-dd"));
                 StatusLabel.Text = $"Removed exclusion date: {dateString}";
             }
         }
@@ -605,6 +631,10 @@ namespace Wdpl2.Views
                 DoublesFramesEntry.Text = string.Empty;
                 SetDoublesFieldsVisible(false);
                 _exclusionDates.Clear();
+                _exclusionTitles.Clear();
+                ExclusionDatePicker.MinimumDate = DateTime.Today;
+                ExclusionDatePicker.MaximumDate = DateTime.Today.AddMonths(6);
+                ExclusionDatePicker.Date = DateTime.Today;
                 HideSeasonInfo();
                 return;
             }
@@ -620,11 +650,17 @@ namespace Wdpl2.Views
             SetDoublesFieldsVisible(s.IncludeDoubles);
 
             _exclusionDates.Clear();
+            _exclusionTitles.Clear();
             if (s.BlackoutDates != null)
             {
                 foreach (var date in s.BlackoutDates.OrderBy(d => d))
                 {
-                    _exclusionDates.Add(date.ToString("ddd, dd MMM yyyy"));
+                    var dateKey = date.ToString("yyyy-MM-dd");
+                    var title = s.BlackoutDateTitles?.GetValueOrDefault(dateKey, "") ?? "";
+                    _exclusionTitles[dateKey] = title;
+                    _exclusionDates.Add(string.IsNullOrWhiteSpace(title)
+                        ? date.ToString("ddd, dd MMM yyyy")
+                        : $"{date:ddd, dd MMM yyyy} — {title}");
                 }
             }
 
@@ -635,6 +671,17 @@ namespace Wdpl2.Views
             {
                 ExclusionDatePicker.Date = s.StartDate;
             }
+        }
+
+        private void OnSeasonDateChanged(object? sender, DateChangedEventArgs e)
+        {
+            ExclusionDatePicker.MinimumDate = StartPicker.Date;
+            ExclusionDatePicker.MaximumDate = EndPicker.Date;
+
+            if (ExclusionDatePicker.Date < StartPicker.Date)
+                ExclusionDatePicker.Date = StartPicker.Date;
+            else if (ExclusionDatePicker.Date > EndPicker.Date)
+                ExclusionDatePicker.Date = EndPicker.Date;
         }
 
         private void OnDoublesToggled(object? sender, ToggledEventArgs e)

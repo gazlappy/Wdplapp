@@ -68,6 +68,12 @@ namespace Wdpl2.Models
         public List<DateTime> BlackoutDates { get; set; } = new();
 
         /// <summary>
+        /// Titles/descriptions for blackout dates, keyed by ISO date string (yyyy-MM-dd).
+        /// Used for display on the calendar. Dates without an entry have no title.
+        /// </summary>
+        public Dictionary<string, string> BlackoutDateTitles { get; set; } = new();
+
+        /// <summary>
         /// Optional per-season settings that override the global <see cref="LeagueData.Settings"/>.
         /// When null, the season uses the global defaults.
         /// </summary>

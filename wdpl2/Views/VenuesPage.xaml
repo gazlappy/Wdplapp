@@ -7,170 +7,39 @@
     Title="Venues"
     SemanticProperties.Description="Venues management page">
 
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
-        
-        <!-- Header with Burger Menu Button -->
-        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
-            <Button 
-                x:Name="BurgerMenuBtn"
-                Text="☰"
-                FontSize="24"
-                WidthRequest="50"
-                HeightRequest="50"
-                Padding="0"
-                Margin="0,0,12,0"
-                BackgroundColor="{StaticResource PrimaryColor}"
-                TextColor="White"
-                SemanticProperties.Description="Open menu"
-                SemanticProperties.Hint="Opens the venue controls and actions menu" />
-            
+    <Grid ColumnDefinitions="*,Auto,1.5*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+
+        <!-- Header -->
+        <Grid Grid.ColumnSpan="3" ColumnDefinitions="*,Auto">
             <Label 
-                Grid.Column="1"
                 Text="Manage Venues" 
-                Style="{StaticResource PageTitleStyle}"
+                FontSize="20" 
+                FontAttributes="Bold"
                 VerticalOptions="Center"
                 SemanticProperties.Description="Manage Venues" />
+            <Label 
+                x:Name="StatusLbl" 
+                Grid.Column="1"
+                Text="" 
+                FontAttributes="Italic" 
+                FontSize="12" 
+                TextColor="#666" 
+                VerticalOptions="Center"
+                SemanticProperties.Description="Status message" />
         </Grid>
-
-        <!-- Flyout Menu Overlay -->
-        <Border 
-            x:Name="FlyoutOverlay"
-            Grid.Row="1"
-            Grid.ColumnSpan="2"
-            IsVisible="False"
-            BackgroundColor="#80000000"
-            ZIndex="100"
-            SemanticProperties.Description="Menu overlay">
-            <Border.GestureRecognizers>
-                <TapGestureRecognizer x:Name="OverlayTap" />
-            </Border.GestureRecognizers>
-        </Border>
-
-        <!-- Flyout Menu Panel -->
-        <Border 
-            x:Name="FlyoutPanel"
-            Grid.Row="1"
-            Grid.ColumnSpan="2"
-            HorizontalOptions="Start"
-            WidthRequest="400"
-            IsVisible="False"
-            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1F1F1F}"
-            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
-            StrokeThickness="1"
-            StrokeShape="RoundRectangle 0,12,12,0"
-            Padding="{StaticResource LargePadding}"
-            ZIndex="101"
-            SemanticProperties.Description="Venue controls menu">
-            <ScrollView>
-                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
-                    
-                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Label Text="Controls" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
-                        <Button 
-                            x:Name="CloseFlyoutBtn"
-                            Text="✕"
-                            FontSize="18"
-                            WidthRequest="40"
-                            HeightRequest="40"
-                            Padding="0"
-                            HorizontalOptions="EndAndExpand"
-                            Style="{StaticResource DangerButtonStyle}"
-                            CornerRadius="20"
-                            SemanticProperties.Description="Close menu" />
-                    </HorizontalStackLayout>
-                    
-                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
-
-                    <Label Text="Venue Details" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Venue Name" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="VenueNameEntry" SemanticProperties.Description="Venue name" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Address" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="AddressEntry" SemanticProperties.Description="Venue address" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Notes" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="NotesEntry" SemanticProperties.Description="Venue notes" />
-                    </VerticalStackLayout>
-
-                    <!-- Tables Section -->
-                    <Label Text="Tables" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,12,0,4" />
-                    
-                    <Border
-                        HeightRequest="150"
-                        StrokeShape="RoundRectangle 8"
-                        Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
-                        StrokeThickness="1"
-                        BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}">
-                        <CollectionView x:Name="TablesList" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables list">
-                            <CollectionView.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Padding="8" ColumnDefinitions="*,Auto">
-                                        <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="14" />
-                                        <Label Grid.Column="1" Text="{Binding MaxTeams, StringFormat='Max: {0}'}" 
-                                               Style="{StaticResource CaptionStyle}" 
-                                               Margin="0,0,8,0" 
-                                               VerticalOptions="Center" />
-                                    </Grid>
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>
-                        </CollectionView>
-                    </Border>
-
-                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Entry x:Name="NewTableEntry" Placeholder="New table name..." HorizontalOptions="FillAndExpand" SemanticProperties.Description="New table name" />
-                        <Button x:Name="AddTableBtn" Text="+ Add Table" SemanticProperties.Description="Add table" />
-                    </HorizontalStackLayout>
-
-                    <Button x:Name="RemoveTableBtn" Text="Remove Selected Table" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Remove selected table" />
-
-                    <Label Text="Actions" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
-
-                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="AddVenueBtn" Text="+ Add" SemanticProperties.Description="Add new venue" />
-                        <Button x:Name="UpdateVenueBtn" Text="Update" SemanticProperties.Description="Update venue" />
-                        <Button x:Name="DeleteVenueBtn" Text="Delete" Style="{StaticResource DangerButtonStyle}" SemanticProperties.Description="Delete venue" />
-                    </HorizontalStackLayout>
-
-                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="MultiSelectBtn" Text="Multi-Select OFF" BackgroundColor="{StaticResource Gray500}" TextColor="White" SemanticProperties.Description="Toggle multi-select mode" />
-                        <Button x:Name="BulkDeleteBtn" Text="Delete Selected" Style="{StaticResource DangerButtonStyle}" IsVisible="False" SemanticProperties.Description="Delete selected venues" />
-                    </HorizontalStackLayout>
-
-                    <Label Text="Data Management" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
-
-                    <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SaveBtn" Text="Save" SemanticProperties.Description="Save changes" />
-                        <Button x:Name="ReloadBtn" Text="Reload" SemanticProperties.Description="Reload data" />
-                    </HorizontalStackLayout>
-
-                    <Button x:Name="ExportBtn" Text="Export CSV" SemanticProperties.Description="Export venues to CSV" />
-
-                    <ctrls:CsvImportBox x:Name="VenuesImport" Title="Import Venues (.csv)" SemanticProperties.Description="Import venues from CSV" />
-
-                    <Label x:Name="StatusLbl" Text="" Style="{StaticResource StatusTextStyle}" SemanticProperties.Description="Status message" />
-                    
-                </VerticalStackLayout>
-            </ScrollView>
-        </Border>
 
         <!-- Left: search + list -->
         <Border 
             Grid.Row="1" 
             StrokeShape="RoundRectangle 12" 
-            Padding="{StaticResource MediumPadding}"
+            Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
-            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1"
             SemanticProperties.Description="Venues list panel">
-            <Grid RowDefinitions="Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8">
                 <Entry x:Name="SearchEntry" Placeholder="Search venues..." SemanticProperties.Description="Search venues" />
-                
+
                 <CollectionView 
                     x:Name="VenuesList" 
                     Grid.Row="1"
@@ -180,7 +49,7 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border
-                                Padding="{StaticResource StandardPadding}"
+                                Padding="8"
                                 Margin="0,0,0,4"
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 StrokeThickness="0"
@@ -193,7 +62,7 @@
                                         VerticalOptions="Center" />
                                     <Border
                                         Grid.Column="1"
-                                        BackgroundColor="{StaticResource PrimaryColor}"
+                                        BackgroundColor="#3B82F6"
                                         StrokeThickness="0"
                                         Padding="8,2"
                                         StrokeShape="RoundRectangle 10"
@@ -207,7 +76,8 @@
                                         Grid.Row="1"
                                         Grid.ColumnSpan="2"
                                         Text="{Binding Address}" 
-                                        Style="{StaticResource CaptionStyle}"
+                                        FontSize="11"
+                                        TextColor="#666"
                                         LineBreakMode="TailTruncation" />
                                 </Grid>
                             </Border>
@@ -217,19 +87,114 @@
             </Grid>
         </Border>
 
-        <!-- Right: Venue Details Panel - Enhanced -->
+        <!-- Middle: Venue Editor (always visible) -->
         <Border 
             Grid.Row="1" 
             Grid.Column="1"
+            WidthRequest="320"
             StrokeShape="RoundRectangle 12" 
-            Padding="{StaticResource MediumPadding}"
+            Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
-            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
+            StrokeThickness="1"
+            SemanticProperties.Description="Venue editor panel">
+            <ScrollView>
+                <VerticalStackLayout Spacing="10">
+
+                    <Label Text="⚙️ Venue Details" FontSize="16" FontAttributes="Bold" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Venue Name" FontSize="12" />
+                        <Entry x:Name="VenueNameEntry" SemanticProperties.Description="Venue name" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Address" FontSize="12" />
+                        <Entry x:Name="AddressEntry" SemanticProperties.Description="Venue address" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Notes" FontSize="12" />
+                        <Entry x:Name="NotesEntry" SemanticProperties.Description="Venue notes" />
+                    </VerticalStackLayout>
+
+                    <!-- Tables Section -->
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
+                    <Label Text="Tables" FontSize="14" FontAttributes="Bold" />
+
+                    <Border
+                        HeightRequest="150"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
+                        StrokeThickness="1"
+                        BackgroundColor="{AppThemeBinding Light=White, Dark=#2A2A2A}">
+                        <CollectionView x:Name="TablesList" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables list">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="8" ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="14" />
+                                        <Label Grid.Column="1" Text="{Binding MaxTeams, StringFormat='Max: {0}'}" 
+                                               FontSize="11" TextColor="#666"
+                                               Margin="0,0,8,0" 
+                                               VerticalOptions="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Border>
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Entry x:Name="NewTableEntry" Placeholder="New table name..." WidthRequest="180" Margin="0,0,6,6" SemanticProperties.Description="New table name" />
+                        <Button x:Name="AddTableBtn" Text="+ Table" Margin="0,0,6,6" SemanticProperties.Description="Add table" />
+                    </FlexLayout>
+
+                    <Button x:Name="RemoveTableBtn" Text="Remove Selected Table" BackgroundColor="#EF4444" TextColor="White" SemanticProperties.Description="Remove selected table" />
+
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
+                    <Label Text="Actions" FontSize="14" FontAttributes="Bold" />
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="AddVenueBtn" Text="+ Add" Margin="0,0,6,6" SemanticProperties.Description="Add new venue" />
+                        <Button x:Name="UpdateVenueBtn" Text="Update" Margin="0,0,6,6" SemanticProperties.Description="Update venue" />
+                        <Button x:Name="DeleteVenueBtn" Text="Delete" BackgroundColor="#EF4444" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Delete venue" />
+                    </FlexLayout>
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Toggle multi-select mode" />
+                        <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Delete selected venues" />
+                    </FlexLayout>
+
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
+                    <Label Text="Data" FontSize="14" FontAttributes="Bold" />
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
+                        <Button x:Name="SaveBtn" Text="💾 Save" Margin="0,0,6,6" SemanticProperties.Description="Save changes" />
+                        <Button x:Name="ReloadBtn" Text="🔄 Reload" Margin="0,0,6,6" SemanticProperties.Description="Reload data" />
+                        <Button x:Name="ExportBtn" Text="📤 Export" Margin="0,0,6,6" SemanticProperties.Description="Export venues to CSV" />
+                    </FlexLayout>
+
+                    <ctrls:CsvImportBox x:Name="VenuesImport" Title="Import Venues (.csv)" SemanticProperties.Description="Import venues from CSV" />
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- Right: Venue Details Panel -->
+        <Border 
+            Grid.Row="1" 
+            Grid.Column="2"
+            StrokeShape="RoundRectangle 12" 
+            Padding="12"
+            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1"
             SemanticProperties.Description="Venue details panel">
             <ScrollView>
-                <VerticalStackLayout Spacing="{StaticResource MediumSpacing}">
-                    
+                <VerticalStackLayout Spacing="12">
+
                     <!-- Empty State -->
                     <VerticalStackLayout 
                         x:Name="EmptyStatePanel"
@@ -247,11 +212,12 @@
                             Text="Select a venue"
                             FontSize="18"
                             FontAttributes="Bold"
-                            TextColor="{StaticResource Gray500}"
+                            TextColor="#999"
                             HorizontalOptions="Center" />
                         <Label 
                             Text="Click a venue from the list to view details, edit information, or manage tables"
-                            Style="{StaticResource CaptionStyle}"
+                            FontSize="12"
+                            TextColor="#999"
                             HorizontalOptions="Center"
                             HorizontalTextAlignment="Center"
                             MaximumWidthRequest="300" />
@@ -259,16 +225,16 @@
 
                     <!-- Venue Info Panel (initially hidden) -->
                     <VerticalStackLayout x:Name="VenueInfoPanel" IsVisible="False" Spacing="16" SemanticProperties.Description="Selected venue details">
-                        
+
                         <!-- Header with venue name -->
                         <Grid ColumnDefinitions="*,Auto">
                             <VerticalStackLayout Spacing="4">
                                 <Label x:Name="SelectedVenueName" FontSize="22" FontAttributes="Bold" />
-                                <Label x:Name="SelectedVenueAddress" Style="{StaticResource CaptionStyle}" />
+                                <Label x:Name="SelectedVenueAddress" FontSize="12" TextColor="#666" />
                             </VerticalStackLayout>
                             <Border
                                 Grid.Column="1"
-                                BackgroundColor="{StaticResource PrimaryColor}"
+                                BackgroundColor="#3B82F6"
                                 StrokeThickness="0"
                                 Padding="12,6"
                                 StrokeShape="RoundRectangle 16"
@@ -281,12 +247,12 @@
                             </Border>
                         </Grid>
 
-                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
-                        
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
                         <!-- Stats Cards -->
-                        <Label Text="STATISTICS" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                        <Label Text="STATISTICS" FontSize="11" TextColor="#666" FontAttributes="Bold" />
                         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
-                            
+
                             <!-- Teams Card -->
                             <Border 
                                 BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#1E3A5F}"
@@ -295,11 +261,11 @@
                                 Padding="16">
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="🏆" FontSize="24" />
-                                    <Label x:Name="VenueTeamCount" FontSize="28" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}" />
-                                    <Label Text="Teams" Style="{StaticResource CaptionStyle}" />
+                                    <Label x:Name="VenueTeamCount" FontSize="28" FontAttributes="Bold" TextColor="#3B82F6" />
+                                    <Label Text="Teams" FontSize="11" TextColor="#666" />
                                 </VerticalStackLayout>
                             </Border>
-                            
+
                             <!-- Tables Card -->
                             <Border 
                                 Grid.Column="1"
@@ -310,10 +276,10 @@
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="🎱" FontSize="24" />
                                     <Label x:Name="VenueTableCountStat" FontSize="28" FontAttributes="Bold" TextColor="#16A34A" />
-                                    <Label Text="Tables" Style="{StaticResource CaptionStyle}" />
+                                    <Label Text="Tables" FontSize="11" TextColor="#666" />
                                 </VerticalStackLayout>
                             </Border>
-                            
+
                             <!-- Fixtures Card -->
                             <Border 
                                 Grid.Row="1"
@@ -324,10 +290,10 @@
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="📅" FontSize="24" />
                                     <Label x:Name="VenueFixtureCount" FontSize="28" FontAttributes="Bold" TextColor="#CA8A04" />
-                                    <Label Text="Fixtures" Style="{StaticResource CaptionStyle}" />
+                                    <Label Text="Fixtures" FontSize="11" TextColor="#666" />
                                 </VerticalStackLayout>
                             </Border>
-                            
+
                             <!-- Capacity Card -->
                             <Border 
                                 Grid.Row="1"
@@ -339,27 +305,27 @@
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="👥" FontSize="24" />
                                     <Label x:Name="VenueCapacity" FontSize="28" FontAttributes="Bold" TextColor="#DB2777" />
-                                    <Label Text="Max Teams" Style="{StaticResource CaptionStyle}" />
+                                    <Label Text="Max Teams" FontSize="11" TextColor="#666" />
                                 </VerticalStackLayout>
                             </Border>
                         </Grid>
-                        
-                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
-                        
+
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
+
                         <!-- Tables List -->
-                        <Label Text="TABLES AT THIS VENUE" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                        <Label Text="TABLES AT THIS VENUE" FontSize="11" TextColor="#666" FontAttributes="Bold" />
                         <Border
                             StrokeShape="RoundRectangle 8"
-                            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
                             StrokeThickness="1"
-                            BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                            BackgroundColor="{AppThemeBinding Light=White, Dark=#2A2A2A}"
                             HeightRequest="120">
                             <CollectionView x:Name="VenueTablesDisplay" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables at this venue">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,8" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                             <Border
-                                                BackgroundColor="{StaticResource PrimaryColor}"
+                                                BackgroundColor="#3B82F6"
                                                 WidthRequest="36"
                                                 HeightRequest="36"
                                                 StrokeThickness="0"
@@ -372,7 +338,7 @@
                                             </Border>
                                             <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
                                                 <Label Text="{Binding Label}" FontSize="14" FontAttributes="Bold" />
-                                                <Label Text="{Binding MaxTeams, StringFormat='Max {0} teams'}" Style="{StaticResource CaptionStyle}" />
+                                                <Label Text="{Binding MaxTeams, StringFormat='Max {0} teams'}" FontSize="11" TextColor="#666" />
                                             </VerticalStackLayout>
                                             <Label 
                                                 Grid.Column="2" 
@@ -385,20 +351,20 @@
                                 </CollectionView.ItemTemplate>
                                 <CollectionView.EmptyView>
                                     <VerticalStackLayout Padding="20" HorizontalOptions="Center">
-                                        <Label Text="No tables defined" Style="{StaticResource CaptionStyle}" HorizontalOptions="Center" />
-                                        <Label Text="Use the menu to add tables" Style="{StaticResource CaptionStyle}" HorizontalOptions="Center" />
+                                        <Label Text="No tables defined" FontSize="11" TextColor="#666" HorizontalOptions="Center" />
+                                        <Label Text="Use the editor to add tables" FontSize="11" TextColor="#666" HorizontalOptions="Center" />
                                     </VerticalStackLayout>
                                 </CollectionView.EmptyView>
                             </CollectionView>
                         </Border>
-                        
+
                         <!-- Teams at Venue -->
-                        <Label Text="TEAMS AT THIS VENUE" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" Margin="0,8,0,0" />
+                        <Label Text="TEAMS AT THIS VENUE" FontSize="11" TextColor="#666" FontAttributes="Bold" Margin="0,8,0,0" />
                         <Border
                             StrokeShape="RoundRectangle 8"
-                            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                            Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
                             StrokeThickness="1"
-                            BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                            BackgroundColor="{AppThemeBinding Light=White, Dark=#2A2A2A}"
                             HeightRequest="100">
                             <CollectionView x:Name="VenueTeamsDisplay" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Teams at this venue">
                                 <CollectionView.ItemTemplate>
@@ -421,21 +387,21 @@
                                     </DataTemplate>
                                 </CollectionView.ItemTemplate>
                                 <CollectionView.EmptyView>
-                                    <Label Text="No teams assigned to this venue" Style="{StaticResource CaptionStyle}" Padding="20" HorizontalOptions="Center" />
+                                    <Label Text="No teams assigned to this venue" FontSize="11" TextColor="#666" Padding="20" HorizontalOptions="Center" />
                                 </CollectionView.EmptyView>
                             </CollectionView>
                         </Border>
-                        
+
                         <!-- Notes -->
                         <VerticalStackLayout x:Name="NotesSection" IsVisible="False" Spacing="4">
-                            <Label Text="NOTES" Style="{StaticResource CaptionStyle}" FontAttributes="Bold" />
+                            <Label Text="NOTES" FontSize="11" TextColor="#666" FontAttributes="Bold" />
                             <Border
                                 StrokeShape="RoundRectangle 8"
-                                Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
+                                Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
                                 StrokeThickness="1"
-                                BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Gray800}}"
+                                BackgroundColor="{AppThemeBinding Light=White, Dark=#2A2A2A}"
                                 Padding="12">
-                                <Label x:Name="SelectedVenueNotes" Style="{StaticResource CaptionStyle}" />
+                                <Label x:Name="SelectedVenueNotes" FontSize="12" TextColor="#666" />
                             </Border>
                         </VerticalStackLayout>
 

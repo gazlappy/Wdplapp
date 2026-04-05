@@ -84,6 +84,29 @@ public partial class TeamsPage : ContentPage
         };
     }
 
+    public sealed class TeamFixtureItem
+    {
+        public Guid FixtureId { get; set; }
+        public DateTime Date { get; set; }
+        public string DateText => Date.ToString("ddd dd MMM");
+        public string OpponentName { get; set; } = "";
+        public string VenueName { get; set; } = "";
+        public string DivisionName { get; set; } = "";
+        public bool IsHome { get; set; }
+        public bool HasResult { get; set; }
+        public int OurScore { get; set; }
+        public int TheirScore { get; set; }
+        public string ResultText => HasResult ? $"{OurScore} - {TheirScore}" : "vs";
+        public string HomeAwayText => IsHome ? "H" : "A";
+        public Color HomeAwayColor => IsHome ? Color.FromArgb("#3B82F6") : Color.FromArgb("#F59E0B");
+        public Color ResultColor => !HasResult ? Color.FromArgb("#6B7280")
+            : OurScore > TheirScore ? Color.FromArgb("#10B981")
+            : OurScore < TheirScore ? Color.FromArgb("#EF4444")
+            : Color.FromArgb("#6B7280");
+        public string ResultIcon => !HasResult ? "" : OurScore > TheirScore ? "W" : OurScore < TheirScore ? "L" : "D";
+        public Color ResultIconColor => ResultColor;
+    }
+
     private readonly ObservableCollection<TeamListItem> _teamItems = new();
     private readonly ObservableCollection<Division> _divisions = new();
     private readonly ObservableCollection<Venue> _venues = new();
@@ -92,6 +115,7 @@ public partial class TeamsPage : ContentPage
     private readonly ObservableCollection<TeamHeadToHeadItem> _h2hItems = new();
     private readonly ObservableCollection<Season> _h2hSeasons = new();
     private readonly ObservableCollection<TeamPlayerItem> _teamPlayerItems = new();
+    private readonly ObservableCollection<TeamFixtureItem> _teamFixtureItems = new();
 
     private Team? _selectedTeam;
     private bool _isMultiSelectMode = false;
@@ -110,6 +134,7 @@ public partial class TeamsPage : ContentPage
         H2HList.ItemsSource = _h2hItems;
         H2HSeasonPicker.ItemsSource = _h2hSeasons;
         TeamPlayersList.ItemsSource = _teamPlayerItems;
+        TeamFixturesList.ItemsSource = _teamFixtureItems;
 
         SearchEntry.TextChanged += (_, __) => RefreshTeamList(SearchEntry.Text);
         TeamsList.SelectionChanged += OnTeamSelected;
@@ -239,6 +264,7 @@ public partial class TeamsPage : ContentPage
                 EmptyStatePanel.IsVisible = true;
                 H2HSection.IsVisible = false;
                 TeamPlayersSection.IsVisible = false;
+                TeamFixturesSection.IsVisible = false;
                 return;
             }
 
@@ -248,6 +274,7 @@ public partial class TeamsPage : ContentPage
             EmptyStatePanel.IsVisible = false;
             H2HSection.IsVisible = true;
             TeamPlayersSection.IsVisible = true;
+            TeamFixturesSection.IsVisible = true;
 
             SelectedTeamName.Text = _selectedTeam.Name ?? "Unknown Team";
             
@@ -406,6 +433,9 @@ public partial class TeamsPage : ContentPage
             // Refresh team players list
             RefreshTeamPlayers(seasonIds);
 
+            // Refresh team fixtures list
+            RefreshTeamFixtures(seasonIds);
+
             SetStatus($"Found {_h2hItems.Count} opponent(s)");
         }
         catch (Exception ex)
@@ -505,6 +535,67 @@ public partial class TeamsPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"RefreshTeamPlayers Error: {ex}");
             TeamPlayersCountLabel.Text = "Error loading players";
+        }
+    }
+
+    private void RefreshTeamFixtures(List<Guid> seasonIds)
+    {
+        try
+        {
+            _teamFixtureItems.Clear();
+
+            if (_selectedTeam == null)
+            {
+                TeamFixturesCountLabel.Text = "";
+                return;
+            }
+
+            var fixtures = DataStore.Data.Fixtures
+                .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
+                .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
+                .OrderBy(f => f.Date)
+                .ToList();
+
+            if (fixtures.Count == 0)
+            {
+                TeamFixturesCountLabel.Text = "0 fixtures";
+                return;
+            }
+
+            foreach (var f in fixtures)
+            {
+                var isHome = f.HomeTeamId == _selectedTeam.Id;
+                var opponentId = isHome ? f.AwayTeamId : f.HomeTeamId;
+                var opponent = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == opponentId);
+                var venue = DataStore.Data.Venues?.SelectMany(v => new[] { v }).FirstOrDefault(v => v.Id == f.VenueId);
+                var division = DataStore.Data.Divisions?.FirstOrDefault(d => d.Id == f.DivisionId);
+                var hasResult = f.Frames.Count > 0;
+
+                var ourScore = isHome ? f.HomeScore : f.AwayScore;
+                var theirScore = isHome ? f.AwayScore : f.HomeScore;
+
+                _teamFixtureItems.Add(new TeamFixtureItem
+                {
+                    FixtureId = f.Id,
+                    Date = f.Date,
+                    OpponentName = opponent?.Name ?? "Unknown",
+                    VenueName = venue?.Name ?? "",
+                    DivisionName = division?.Name ?? "",
+                    IsHome = isHome,
+                    HasResult = hasResult,
+                    OurScore = ourScore,
+                    TheirScore = theirScore
+                });
+            }
+
+            var played = _teamFixtureItems.Count(f => f.HasResult);
+            var remaining = _teamFixtureItems.Count - played;
+            TeamFixturesCountLabel.Text = $"{_teamFixtureItems.Count} fixture(s) • {played} played • {remaining} remaining";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"RefreshTeamFixtures Error: {ex}");
+            TeamFixturesCountLabel.Text = "Error loading fixtures";
         }
     }
 

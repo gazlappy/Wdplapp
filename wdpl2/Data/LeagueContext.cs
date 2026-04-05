@@ -58,6 +58,7 @@ public class LeagueContext : DbContext
             // Settings is a navigation property to AppSettings (which has no primary key)
             // and is managed by the JSON data store, not EF Core
             entity.Ignore(e => e.Settings);
+            entity.Ignore(e => e.BlackoutDateTitles);
         });
 
         // ====== DIVISION CONFIGURATION ======

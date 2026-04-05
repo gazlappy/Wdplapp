@@ -14,7 +14,7 @@ public partial class CalendarPage : ContentPage
     private List<Fixture> _seasonFixtures = [];
     private List<Team> _seasonTeams = [];
     private List<Venue> _seasonVenues = [];
-    private HashSet<DateTime> _blackoutDates = [];
+    private Dictionary<DateTime, string> _blackoutDates = [];
     private List<(DateTime Date, string Name)> _competitionDates = [];
     private HashSet<DateTime> _competitionDateSet = [];
     private Dictionary<DateTime, string> _bankHolidays = [];
@@ -35,6 +35,9 @@ public partial class CalendarPage : ContentPage
 
     // Day-of-week highlight for year view
     private DayOfWeek? _highlightDayOfWeek;
+
+    // Zoom level for year/wall planner view
+    private double _yearZoomLevel = 1.0;
 
     // Colors — loaded from settings, updated by ApplySettings()
     private Color FixtureColor = Color.FromArgb("#3B82F6");
@@ -448,7 +451,12 @@ public partial class CalendarPage : ContentPage
         _seasonFixtures = League.Fixtures.Where(f => f.SeasonId == id).ToList();
         _seasonTeams = League.Teams.Where(t => t.SeasonId == id).ToList();
         _seasonVenues = League.Venues.Where(v => v.SeasonId == id).ToList();
-        _blackoutDates = new HashSet<DateTime>(season.BlackoutDates.Select(d => d.Date));
+        _blackoutDates = season.BlackoutDates
+            .Select(d => d.Date)
+            .Distinct()
+            .ToDictionary(
+                d => d,
+                d => season.BlackoutDateTitles?.GetValueOrDefault(d.ToString("yyyy-MM-dd"), "") ?? "");
 
         // Load competition dates for this season
         _competitionDates = League.Competitions
@@ -637,7 +645,7 @@ public partial class CalendarPage : ContentPage
     private Border BuildMonthCell(DateTime date, Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season)
     {
         bool isToday = date == DateTime.Today;
-        bool isBlackout = _showBlackouts && _blackoutDates.Contains(date);
+        bool isBlackout = _showBlackouts && _blackoutDates.ContainsKey(date);
         bool isInSeason = season != null && date >= season.StartDate.Date && date <= season.EndDate.Date;
         bool isSeasonBound = season != null && (date == season.StartDate.Date || date == season.EndDate.Date);
         bool isMatchDay = _showLeagueMatches && season != null && date.DayOfWeek == season.MatchDayOfWeek && isInSeason;
@@ -679,11 +687,16 @@ public partial class CalendarPage : ContentPage
         // Blackout marker
         if (isBlackout)
         {
+            var boTitle = _blackoutDates.TryGetValue(date, out var bt) && !string.IsNullOrWhiteSpace(bt)
+                ? $"🚫 {bt}"
+                : "🚫 Blackout";
             stack.Children.Add(new Label
             {
-                Text = "🚫 Blackout",
+                Text = boTitle,
                 FontSize = 9,
-                TextColor = BlackoutColor
+                TextColor = BlackoutColor,
+                LineBreakMode = LineBreakMode.TailTruncation,
+                MaxLines = 1
             });
         }
 
@@ -821,6 +834,11 @@ public partial class CalendarPage : ContentPage
             MinimumHeightRequest = CalSettings.MonthCellMinHeight
         };
 
+        // Hover tooltip preview
+        var tooltip = BuildTooltipText(date, fixturesByDate, season);
+        if (!string.IsNullOrEmpty(tooltip))
+            ToolTipProperties.SetText(border, tooltip);
+
         // Tap to show day options
         var tap = new TapGestureRecognizer();
         tap.Tapped += async (_, _) =>
@@ -936,7 +954,102 @@ public partial class CalendarPage : ContentPage
             highlightBar.Children.Add(clearBtn);
         }
 
+        // ── Zoom controls ──
+        var zoomBar = new HorizontalStackLayout
+        {
+            Spacing = 4,
+            HorizontalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        zoomBar.Children.Add(new Label
+        {
+            Text = "Zoom:",
+            FontSize = 11,
+            TextColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280"),
+            VerticalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, 0, 4, 0)
+        });
+
+        var zoomOutBtn = new Button
+        {
+            Text = "−",
+            FontSize = 14,
+            Padding = new Thickness(8, 2),
+            CornerRadius = 6,
+            MinimumHeightRequest = 28,
+            MinimumWidthRequest = 32,
+            BackgroundColor = isDark ? Color.FromArgb("#1F2937") : Color.FromArgb("#F1F5F9"),
+            TextColor = isDark ? Color.FromArgb("#D1D5DB") : Color.FromArgb("#374151"),
+            BorderWidth = 1,
+            BorderColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E2E8F0")
+        };
+        zoomOutBtn.Clicked += (_, _) =>
+        {
+            if (_yearZoomLevel > 0.5)
+            {
+                _yearZoomLevel = Math.Round(_yearZoomLevel - 0.1, 1);
+                Refresh();
+            }
+        };
+        zoomBar.Children.Add(zoomOutBtn);
+
+        var zoomLabel = new Label
+        {
+            Text = $"{(int)(_yearZoomLevel * 100)}%",
+            FontSize = 11,
+            FontAttributes = FontAttributes.Bold,
+            VerticalOptions = LayoutOptions.Center,
+            HorizontalTextAlignment = TextAlignment.Center,
+            WidthRequest = 40,
+            TextColor = isDark ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#374151")
+        };
+        zoomBar.Children.Add(zoomLabel);
+
+        var zoomInBtn = new Button
+        {
+            Text = "+",
+            FontSize = 14,
+            Padding = new Thickness(8, 2),
+            CornerRadius = 6,
+            MinimumHeightRequest = 28,
+            MinimumWidthRequest = 32,
+            BackgroundColor = isDark ? Color.FromArgb("#1F2937") : Color.FromArgb("#F1F5F9"),
+            TextColor = isDark ? Color.FromArgb("#D1D5DB") : Color.FromArgb("#374151"),
+            BorderWidth = 1,
+            BorderColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E2E8F0")
+        };
+        zoomInBtn.Clicked += (_, _) =>
+        {
+            if (_yearZoomLevel < 2.5)
+            {
+                _yearZoomLevel = Math.Round(_yearZoomLevel + 0.1, 1);
+                Refresh();
+            }
+        };
+        zoomBar.Children.Add(zoomInBtn);
+
+        if (Math.Abs(_yearZoomLevel - 1.0) > 0.01)
+        {
+            var resetBtn = new Button
+            {
+                Text = "Reset",
+                FontSize = 10,
+                Padding = new Thickness(8, 4),
+                CornerRadius = 6,
+                MinimumHeightRequest = 28,
+                BackgroundColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E2E8F0"),
+                TextColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
+            };
+            resetBtn.Clicked += (_, _) =>
+            {
+                _yearZoomLevel = 1.0;
+                Refresh();
+            };
+            zoomBar.Children.Add(resetBtn);
+        }
+
         YearPlannerContainer.Children.Add(highlightBar);
+        YearPlannerContainer.Children.Add(zoomBar);
 
         // Ensure bank holidays cover the displayed year
         if (!_bankHolidays.Keys.Any(h => h.Year == _viewDate.Year))
@@ -949,17 +1062,24 @@ public partial class CalendarPage : ContentPage
             .GroupBy(f => f.Date.Date)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // ── Compute zoomed dimensions ──
+        double zCellW = CalSettings.YearCellWidth * _yearZoomLevel;
+        double zRowH = CalSettings.YearRowHeight * _yearZoomLevel;
+        double zMonthLabelW = CalSettings.YearMonthLabelWidth * _yearZoomLevel;
+        double zHeaderH = 28 * _yearZoomLevel;
+        double zDowColW = 24 * _yearZoomLevel;
+
         // ── Build the grid: 13 rows (header + 12 months), 33 cols (month label + day-of-week + days 1-31) ──
         var colDefs = new ColumnDefinitionCollection();
-        colDefs.Add(new ColumnDefinition(new GridLength(CalSettings.YearMonthLabelWidth)));  // Month name
-        colDefs.Add(new ColumnDefinition(new GridLength(24)));  // Day-of-week spacer column
+        colDefs.Add(new ColumnDefinition(new GridLength(zMonthLabelW)));  // Month name
+        colDefs.Add(new ColumnDefinition(new GridLength(zDowColW)));  // Day-of-week spacer column
         for (int d = 0; d < 31; d++)
-            colDefs.Add(new ColumnDefinition(new GridLength(CalSettings.YearCellWidth))); // Day cells
+            colDefs.Add(new ColumnDefinition(new GridLength(zCellW))); // Day cells
 
         var rowDefs = new RowDefinitionCollection();
-        rowDefs.Add(new RowDefinition(new GridLength(28))); // Header row
+        rowDefs.Add(new RowDefinition(new GridLength(zHeaderH))); // Header row
         for (int m = 0; m < 12; m++)
-            rowDefs.Add(new RowDefinition(new GridLength(CalSettings.YearRowHeight))); // Month rows
+            rowDefs.Add(new RowDefinition(new GridLength(zRowH))); // Month rows
 
         var grid = new Grid
         {
@@ -977,7 +1097,7 @@ public partial class CalendarPage : ContentPage
         var monthHeader = new Label
         {
             Text = _viewDate.Year.ToString(),
-            FontSize = 11,
+            FontSize = 11 * _yearZoomLevel,
             FontAttributes = FontAttributes.Bold,
             HorizontalTextAlignment = TextAlignment.Center,
             VerticalTextAlignment = TextAlignment.Center,
@@ -1002,7 +1122,7 @@ public partial class CalendarPage : ContentPage
             var dayHeader = new Label
             {
                 Text = d.ToString(),
-                FontSize = 10,
+                FontSize = 10 * _yearZoomLevel,
                 FontAttributes = FontAttributes.Bold,
                 HorizontalTextAlignment = TextAlignment.Center,
                 VerticalTextAlignment = TextAlignment.Center,
@@ -1028,7 +1148,7 @@ public partial class CalendarPage : ContentPage
             var monthLabel = new Label
             {
                 Text = monthNames[m - 1],
-                FontSize = 12,
+                FontSize = 12 * _yearZoomLevel,
                 FontAttributes = FontAttributes.Bold,
                 HorizontalTextAlignment = TextAlignment.Center,
                 VerticalTextAlignment = TextAlignment.Center,
@@ -1054,7 +1174,7 @@ public partial class CalendarPage : ContentPage
             var dowLabel = new Label
             {
                 Text = dowLetters[(int)firstDow],
-                FontSize = 9,
+                FontSize = 9 * _yearZoomLevel,
                 HorizontalTextAlignment = TextAlignment.Center,
                 VerticalTextAlignment = TextAlignment.Center,
                 TextColor = Color.FromArgb("#9CA3AF"),
@@ -1069,7 +1189,7 @@ public partial class CalendarPage : ContentPage
             {
                 int col = d + 1; // offset by month-name col and dow col
                 var cell = BuildWallPlannerCell(_viewDate.Year, m, d, daysInMonth,
-                    fixturesByDate, season, isDark);
+                    fixturesByDate, season, isDark, _yearZoomLevel);
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, col);
                 grid.Children.Add(cell);
@@ -1113,11 +1233,11 @@ public partial class CalendarPage : ContentPage
             YearPlannerContainer.Children.Add(seasonInfo);
         }
 
-        YearPlannerContainer.Children.Insert(1, grid);
+        YearPlannerContainer.Children.Insert(2, grid);
     }
 
     private View BuildWallPlannerCell(int year, int month, int day, int daysInMonth,
-        Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season, bool isDark)
+        Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season, bool isDark, double zoom = 1.0)
     {
         // Days beyond the month's range — empty/disabled cell
         if (day > daysInMonth)
@@ -1130,7 +1250,7 @@ public partial class CalendarPage : ContentPage
 
         var date = new DateTime(year, month, day);
         bool isToday = date == DateTime.Today;
-        bool isBlackout = _showBlackouts && _blackoutDates.Contains(date);
+        bool isBlackout = _showBlackouts && _blackoutDates.ContainsKey(date);
         bool isInSeason = season != null && date >= season.StartDate.Date && date <= season.EndDate.Date;
         bool isSeasonBound = season != null && (date == season.StartDate.Date || date == season.EndDate.Date);
         bool isMatchDay = _showLeagueMatches && season != null && date.DayOfWeek == season.MatchDayOfWeek && isInSeason;
@@ -1209,20 +1329,22 @@ public partial class CalendarPage : ContentPage
         cellStack.Children.Add(new Label
         {
             Text = dayText,
-            FontSize = showCount ? 11 : 0,
+            FontSize = showCount ? 11 * zoom : 0,
             FontAttributes = FontAttributes.Bold,
             HorizontalTextAlignment = TextAlignment.Center,
             TextColor = textColor,
-            HeightRequest = showCount ? 14 : 0
+            HeightRequest = showCount ? 14 * zoom : 0
         });
 
         // Dot indicators row
+        double dotSize = 6 * zoom;
+        double dotRadius = 3 * zoom;
         bool hasDots = CalSettings.YearShowDots && (hasFixtures || isBlackout || isSeasonBound || isCompetition || isBankHoliday || isTransferWindow || hasCustomEvent);
         if (hasDots)
         {
             var dotRow = new HorizontalStackLayout
             {
-                Spacing = 2,
+                Spacing = 2 * zoom,
                 HorizontalOptions = LayoutOptions.Center
             };
 
@@ -1231,7 +1353,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = SeasonColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1240,7 +1362,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = BlackoutColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1249,7 +1371,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = ResultColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
             else if (hasFixtures)
@@ -1257,7 +1379,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = FixtureColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1266,7 +1388,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = CompetitionColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1275,7 +1397,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = BankHolidayColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1284,7 +1406,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = CustomEventColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1293,7 +1415,7 @@ public partial class CalendarPage : ContentPage
                 dotRow.Children.Add(new BoxView
                 {
                     Color = TransferWindowColor,
-                    WidthRequest = 6, HeightRequest = 6, CornerRadius = 3
+                    WidthRequest = dotSize, HeightRequest = dotSize, CornerRadius = dotRadius
                 });
             }
 
@@ -1317,7 +1439,7 @@ public partial class CalendarPage : ContentPage
                 : isSeasonBound ? SeasonColor
                 : Colors.Transparent,
             StrokeThickness = isToday ? 2 : isHighlighted ? 1.5 : isSeasonBound ? 1 : 0,
-            Padding = new Thickness(0, 2),
+            Padding = new Thickness(0, 2 * zoom),
             Shadow = isHighlighted && !isToday
                 ? new Shadow
                 {
@@ -1328,6 +1450,11 @@ public partial class CalendarPage : ContentPage
                 }
                 : null
         };
+
+        // Hover tooltip preview
+        var tooltip = BuildTooltipText(date, fixturesByDate, season);
+        if (!string.IsNullOrEmpty(tooltip))
+            ToolTipProperties.SetText(border, tooltip);
 
         // Tap to show day options
         var tap = new TapGestureRecognizer();
@@ -1391,8 +1518,13 @@ public partial class CalendarPage : ContentPage
                 badgeRow.Children.Add(MakeBadge("Match Night", "#3B82F6", "#EFF6FF"));
         }
 
-        if (_showBlackouts && _blackoutDates.Contains(date))
-            badgeRow.Children.Add(MakeBadge("Blackout Date", "#EF4444", "#FEF2F2"));
+        if (_showBlackouts && _blackoutDates.ContainsKey(date))
+        {
+            var boTitle = _blackoutDates.TryGetValue(date, out var bt) && !string.IsNullOrWhiteSpace(bt)
+                ? $"🚫 {bt}"
+                : "Blackout Date";
+            badgeRow.Children.Add(MakeBadge(boTitle, "#EF4444", "#FEF2F2"));
+        }
 
         if (_showBankHolidays && _bankHolidays.ContainsKey(date))
         {
@@ -1712,6 +1844,84 @@ public partial class CalendarPage : ContentPage
         if (words.Length >= 2)
             return string.Concat(words.Select(w => w[0]));
         return name[..10] + "…";
+    }
+
+    private string BuildTooltipText(DateTime date, Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season)
+    {
+        var lines = new List<string> { date.ToString("dddd, dd MMMM yyyy") };
+
+        // Season info
+        if (season != null)
+        {
+            if (date == season.StartDate.Date)
+                lines.Add("▶ Season Start");
+            else if (date == season.EndDate.Date)
+                lines.Add("◀ Season End");
+        }
+
+        // Blackout
+        if (_showBlackouts && _blackoutDates.TryGetValue(date, out var boTitle))
+            lines.Add(!string.IsNullOrWhiteSpace(boTitle) ? $"🚫 {boTitle}" : "🚫 Blackout");
+
+        // Bank holiday
+        if (_showBankHolidays && _bankHolidays.TryGetValue(date, out var holName))
+            lines.Add($"🏦 {holName}");
+
+        // Competition
+        if (_showCompetitions && _competitionDateSet.Contains(date))
+        {
+            foreach (var comp in _competitionDates.Where(c => c.Date == date))
+                lines.Add($"🏆 {comp.Name}");
+        }
+
+        // Transfer window
+        if (_showTransferWindow && season != null
+            && season.TransferWindowStart.HasValue && season.TransferWindowEnd.HasValue
+            && date >= season.TransferWindowStart.Value.Date && date <= season.TransferWindowEnd.Value.Date)
+        {
+            if (date == season.TransferWindowStart.Value.Date)
+                lines.Add("🔄 Transfer Window Opens");
+            else if (date == season.TransferWindowEnd.Value.Date)
+                lines.Add("🔄 Transfer Window Closes");
+            else
+                lines.Add("🔄 Transfer Window");
+        }
+
+        // Custom events
+        if (_showCustomEvents)
+        {
+            foreach (var evt in _calendarEvents.Where(e => e.Date == date))
+                lines.Add($"📌 {evt.Title}");
+        }
+
+        // Fixtures
+        if (_showLeagueMatches && fixturesByDate.TryGetValue(date, out var dayFixtures))
+        {
+            if (dayFixtures.Count > 0)
+                lines.Add($"— {dayFixtures.Count} fixture{(dayFixtures.Count != 1 ? "s" : "")} —");
+
+            foreach (var f in dayFixtures.OrderBy(f => f.Date).Take(6))
+            {
+                var home = _seasonTeams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "?";
+                var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "?";
+                bool hasResult = f.Frames.Count > 0;
+                var matchLine = hasResult
+                    ? $"{home} {f.HomeScore}-{f.AwayScore} {away}"
+                    : $"{home} v {away}";
+
+                var venue = _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId);
+                if (venue != null)
+                    matchLine += $"  📍 {venue.Name}";
+
+                lines.Add(matchLine);
+            }
+
+            if (dayFixtures.Count > 6)
+                lines.Add($"+{dayFixtures.Count - 6} more...");
+        }
+
+        // Only return tooltip if there's something beyond the date header
+        return lines.Count > 1 ? string.Join("\n", lines) : string.Empty;
     }
 
     // ────────────────────── Preset Holidays ──────────────────────

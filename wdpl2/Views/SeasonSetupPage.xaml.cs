@@ -28,6 +28,8 @@ public partial class SeasonSetupPage : ContentPage
     private readonly ObservableCollection<Season> _availableSeasons = new();
     private bool _copyDivisions = true;
     private bool _copyVenues = true;
+    private DatePicker? _copyStartDatePicker;
+    private DatePicker? _copyEndDatePicker;
 
     // Individual team/player selection
     private List<Team> _sourceTeams = new();
@@ -151,6 +153,10 @@ public partial class SeasonSetupPage : ContentPage
             if (seasonPicker.SelectedItem is Season season)
             {
                 _sourceSeason = season;
+                if (_copyStartDatePicker != null)
+                    _copyStartDatePicker.Date = season.StartDate.AddYears(1);
+                if (_copyEndDatePicker != null)
+                    _copyEndDatePicker.Date = season.EndDate.AddYears(1);
                 PopulateSourceSeasonData(season);
             }
         };
@@ -159,6 +165,19 @@ public partial class SeasonSetupPage : ContentPage
         {
             Placeholder = "New season name (e.g., Spring 2025)",
             Margin = new Thickness(0, 10, 0, 0)
+        };
+
+        _copyStartDatePicker = new DatePicker
+        {
+            Date = DateTime.Today,
+            MinimumDate = DateTime.Today.AddYears(-1),
+            MaximumDate = DateTime.Today.AddYears(5)
+        };
+        _copyEndDatePicker = new DatePicker
+        {
+            Date = DateTime.Today.AddMonths(3),
+            MinimumDate = DateTime.Today.AddYears(-1),
+            MaximumDate = DateTime.Today.AddYears(5)
         };
 
         var copyDivisionsSwitch = new Switch { IsToggled = true };
@@ -228,6 +247,10 @@ public partial class SeasonSetupPage : ContentPage
                 seasonPicker,
                 new Label { Text = "New Season Name:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
                 nameEntry,
+                new Label { Text = "Start Date:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
+                _copyStartDatePicker,
+                new Label { Text = "End Date:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
+                _copyEndDatePicker,
                 new Label { Text = "What to Copy:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
                 optionsGrid,
                 new Label { Text = "\U0001F465 Teams", FontAttributes = FontAttributes.Bold, FontSize = 16, FontFamily = "Segoe UI Emoji", Margin = new Thickness(0, 16, 0, 0) },
@@ -327,6 +350,19 @@ public partial class SeasonSetupPage : ContentPage
             Margin = new Thickness(0, 10, 0, 0)
         };
 
+        var templateStartDatePicker = new DatePicker
+        {
+            Date = DateTime.Today,
+            MinimumDate = DateTime.Today.AddYears(-1),
+            MaximumDate = DateTime.Today.AddYears(5)
+        };
+        var templateEndDatePicker = new DatePicker
+        {
+            Date = DateTime.Today.AddMonths(3),
+            MinimumDate = DateTime.Today.AddYears(-1),
+            MaximumDate = DateTime.Today.AddYears(5)
+        };
+
         return new ScrollView
         {
             Content = new VerticalStackLayout
@@ -350,7 +386,11 @@ public partial class SeasonSetupPage : ContentPage
                     },
                     templateList,
                     new Label { Text = "Season Name:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
-                    nameEntry
+                    nameEntry,
+                    new Label { Text = "Start Date:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
+                    templateStartDatePicker,
+                    new Label { Text = "End Date:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
+                    templateEndDatePicker
                 }
             }
         };
@@ -507,8 +547,8 @@ public partial class SeasonSetupPage : ContentPage
         _newSeason = new Season
         {
             Name = nameEntry.Text.Trim(),
-            StartDate = _sourceSeason.StartDate.AddYears(1), // Assume next year
-            EndDate = _sourceSeason.EndDate.AddYears(1),
+            StartDate = _copyStartDatePicker?.Date ?? _sourceSeason.StartDate.AddYears(1),
+            EndDate = _copyEndDatePicker?.Date ?? _sourceSeason.EndDate.AddYears(1),
             MatchDayOfWeek = _sourceSeason.MatchDayOfWeek,
             MatchStartTime = _sourceSeason.MatchStartTime,
             FramesPerMatch = _sourceSeason.FramesPerMatch,
@@ -608,11 +648,14 @@ public partial class SeasonSetupPage : ContentPage
 
         SetStatus("Creating season from template...");
 
+        var startDate = FindDatePickerInContent();
+        var endDate = FindDatePickerInContent(1);
+
         _newSeason = new Season
         {
             Name = nameEntry.Text.Trim(),
-            StartDate = DateTime.Today,
-            EndDate = DateTime.Today.AddMonths(3),
+            StartDate = startDate?.Date ?? DateTime.Today,
+            EndDate = endDate?.Date ?? DateTime.Today.AddMonths(3),
             MatchDayOfWeek = DataStore.Data.Settings.DefaultMatchDay,
             MatchStartTime = DataStore.Data.Settings.DefaultMatchTime,
             FramesPerMatch = _selectedTemplate.FramesPerMatch,
@@ -926,6 +969,11 @@ public partial class SeasonSetupPage : ContentPage
         if (ContentPanel.Content is VerticalStackLayout vsl)
         {
             var pickers = FindDatePickersRecursive(vsl);
+            return pickers.Count > index ? pickers[index] : null;
+        }
+        else if (ContentPanel.Content is ScrollView sv && sv.Content is VerticalStackLayout svVsl)
+        {
+            var pickers = FindDatePickersRecursive(svVsl);
             return pickers.Count > index ? pickers[index] : null;
         }
         return null;

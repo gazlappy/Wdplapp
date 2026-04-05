@@ -20,7 +20,6 @@ public partial class VenuesPage : ContentPage
     private Venue? _selectedVenue;
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
-    private bool _isFlyoutOpen = false;
 
     public VenuesPage()
     {
@@ -28,11 +27,6 @@ public partial class VenuesPage : ContentPage
 
         VenuesList.ItemsSource = _venues;
         TablesList.ItemsSource = _tables;
-
-        // Wire up burger menu and flyout
-        BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
-        CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
-        OverlayTap.Tapped += (_, __) => CloseFlyout();
 
         SearchEntry.TextChanged += (_, __) => RefreshVenues(SearchEntry.Text);
         VenuesList.SelectionChanged += OnVenueSelected;
@@ -557,39 +551,6 @@ public partial class VenuesPage : ContentPage
     }
 
     private void SetStatus(string msg) => StatusLbl.Text = $"{DateTime.Now:HH:mm:ss} {msg}";
-    private void OnBurgerMenuClicked(object? sender, EventArgs e)
-    {
-        if (_isFlyoutOpen)
-            CloseFlyout();
-        else
-            OpenFlyout();
-    }
-
-    private void OnCloseFlyoutClicked(object? sender, EventArgs e)
-    {
-        CloseFlyout();
-    }
-
-    private async void OpenFlyout()
-    {
-        _isFlyoutOpen = true;
-        FlyoutOverlay.IsVisible = true;
-        FlyoutPanel.IsVisible = true;
-
-        // Animate flyout sliding in
-        FlyoutPanel.TranslationX = -400;
-        await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
-    }
-
-    private async void CloseFlyout()
-    {
-        // Animate flyout sliding out
-        await FlyoutPanel.TranslateTo(-400, 0, 250, Easing.CubicIn);
-        
-        FlyoutOverlay.IsVisible = false;
-        FlyoutPanel.IsVisible = false;
-        _isFlyoutOpen = false;
-    }
 
     private void ShowVenueInfo(Venue venue)
     {

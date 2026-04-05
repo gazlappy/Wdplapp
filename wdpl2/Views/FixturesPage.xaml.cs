@@ -1658,52 +1658,10 @@ public partial class FixturesPage : ContentPage
 
         var data = DataStore.Data;
 
-        // Auto-repair: assign TeamId for unassigned players in this season
-        // This fixes players created by season copy with TeamId = null
-        var seasonId = _selectedFixture.SeasonId;
-        var unassignedPlayers = data.Players
-            .Where(p => p.SeasonId == seasonId && !p.TeamId.HasValue)
-            .ToList();
-
-        if (unassignedPlayers.Count > 0)
-        {
-            var targetTeamsByName = data.Teams
-                .Where(t => t.SeasonId == seasonId)
-                .GroupBy(t => t.Name?.Trim()?.ToLower() ?? "")
-                .Where(g => !string.IsNullOrWhiteSpace(g.Key))
-                .ToDictionary(g => g.Key, g => g.First().Id);
-
-            foreach (var player in unassignedPlayers)
-            {
-                // Find the same player (by name) in other seasons to get their team
-                var historicalPlayer = data.Players
-                    .Where(p => p.SeasonId != seasonId && p.TeamId.HasValue
-                        && string.Equals(p.FirstName?.Trim(), player.FirstName?.Trim(), StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(p.LastName?.Trim(), player.LastName?.Trim(), StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(p =>
-                    {
-                        var s = data.Seasons.FirstOrDefault(s => s.Id == p.SeasonId);
-                        return s?.StartDate ?? DateTime.MinValue;
-                    })
-                    .FirstOrDefault();
-
-                if (historicalPlayer?.TeamId != null)
-                {
-                    var oldTeam = data.Teams.FirstOrDefault(t => t.Id == historicalPlayer.TeamId.Value);
-                    if (oldTeam != null
-                        && !string.IsNullOrWhiteSpace(oldTeam.Name)
-                        && targetTeamsByName.TryGetValue(oldTeam.Name.Trim().ToLower(), out var newTeamId))
-                    {
-                        player.TeamId = newTeamId;
-                        System.Diagnostics.Debug.WriteLine($"  Auto-assigned '{player.FirstName} {player.LastName}' to team '{oldTeam.Name}'");
-                    }
-                }
-            }
-        }
-
-        // Get home team players
+        // Get home team players (filter by season to prevent cross-season leakage)
+        var fixtureSeasonId = _selectedFixture.SeasonId;
         var homePlayers = data.Players
-            .Where(p => p.TeamId == _selectedFixture.HomeTeamId)
+            .Where(p => p.TeamId == _selectedFixture.HomeTeamId && p.SeasonId == fixtureSeasonId)
             .OrderBy(p => p.LastName ?? "")
             .ThenBy(p => p.FirstName ?? "")
             .ToList();
@@ -1729,9 +1687,9 @@ public partial class FixturesPage : ContentPage
         // Add VOID button for home team
         HomePlayersQuickPanel.Children.Add(CreateVoidButton(true));
 
-        // Get away team players
+        // Get away team players (filter by season to prevent cross-season leakage)
         var awayPlayers = data.Players
-            .Where(p => p.TeamId == _selectedFixture.AwayTeamId)
+            .Where(p => p.TeamId == _selectedFixture.AwayTeamId && p.SeasonId == fixtureSeasonId)
             .OrderBy(p => p.LastName ?? "")
             .ThenBy(p => p.FirstName ?? "")
             .ToList();

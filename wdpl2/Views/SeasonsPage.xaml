@@ -157,6 +157,10 @@
                             <DatePicker x:Name="ExclusionDatePicker" 
                                        HorizontalOptions="FillAndExpand"
                                        SemanticProperties.Description="Exclusion date to add" />
+                            <Entry x:Name="ExclusionTitleEntry"
+                                   Placeholder="Title (e.g. Christmas Day)"
+                                   HorizontalOptions="FillAndExpand"
+                                   SemanticProperties.Description="Title for the exclusion date" />
                             <Button x:Name="AddExclusionBtn" 
                                    Text="+ Add" 
                                    Clicked="OnAddExclusionClicked"

@@ -75,7 +75,6 @@ public partial class PlayersPage : ContentPage
     private Player? _selected;
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
-    private bool _isFlyoutOpen = false;
     private bool _showAllSeasons = false;
 
     public PlayersPage()
@@ -89,10 +88,6 @@ public partial class PlayersPage : ContentPage
             H2HList.ItemsSource = _h2hItems;
             H2HSeasonPicker.ItemsSource = _h2hSeasons;
             TransferHistoryList.ItemsSource = _transferHistory;
-
-            BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
-            CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
-            OverlayTap.Tapped += (_, __) => CloseFlyout();
 
             PlayersList.SelectionChanged += OnSelectionChanged;
             SearchEntry.TextChanged += (_, __) => SafeRefreshPlayers(SearchEntry?.Text);
@@ -179,30 +174,6 @@ public partial class PlayersPage : ContentPage
                 base.OnDisappearing();
                 SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
             }
-
-    private void OnBurgerMenuClicked(object? sender, EventArgs e)
-    {
-        if (_isFlyoutOpen) CloseFlyout(); else OpenFlyout();
-    }
-
-    private void OnCloseFlyoutClicked(object? sender, EventArgs e) => CloseFlyout();
-
-    private async void OpenFlyout()
-    {
-        _isFlyoutOpen = true;
-        FlyoutOverlay.IsVisible = true;
-        FlyoutPanel.IsVisible = true;
-        FlyoutPanel.TranslationX = -400;
-        await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
-    }
-
-    private async void CloseFlyout()
-    {
-        await FlyoutPanel.TranslateTo(-400, 0, 250, Easing.CubicIn);
-        FlyoutOverlay.IsVisible = false;
-        FlyoutPanel.IsVisible = false;
-        _isFlyoutOpen = false;
-    }
 
     private void RefreshHeadToHead()
     {
@@ -635,10 +606,18 @@ public partial class PlayersPage : ContentPage
                 _selected.DeactivationReason = null;
             }
 
-            _selected.TeamId = (TeamPicker.SelectedItem as Team)?.Id;
+            var selectedTeam = TeamPicker.SelectedItem as Team;
+            if (selectedTeam != null && selectedTeam.SeasonId != _selected.SeasonId)
+            {
+                await DisplayAlert($"{Emojis.Warning} Wrong Season",
+                    $"The team '{selectedTeam.Name}' belongs to a different season. Please select a team from this player's season.", "OK");
+                return;
+            }
+            _selected.TeamId = selectedTeam?.Id;
+            var updatedName = _selected.FullName;
             SafeRefreshPlayers(SearchEntry?.Text);
             RefreshHeadToHead();
-            SetStatus($"Updated: {_selected.FullName}");
+            SetStatus($"Updated: {updatedName}");
         }
         catch (Exception ex) { SetStatus($"Update failed: {ex.Message}"); }
     }
