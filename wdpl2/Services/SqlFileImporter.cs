@@ -363,28 +363,36 @@ namespace Wdpl2.Services
                 var parsed = await ParseSqlFileAsync(sqlFilePath);
                 result.DetectedDialect = parsed.DetectedDialect;
 
-                // Store name lookups in result for reference
-                result.VbaPlayerIdToName = new Dictionary<int, string>(parsed.PlayerIdToName);
-                result.VbaTeamIdToName = new Dictionary<int, string>(parsed.TeamIdToName);
-
-                // Import in order of dependencies
-                await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result, targetSeasonId);
-
-                if (result.DetectedSeason != null)
+                // Detect native WDPL export format vs VBA/Access format
+                if (IsNativeFormat(parsed))
                 {
-                    await ImportDivisions(parsed.Tables, importedData, existingData, result);
-                    await ImportVenues(parsed, importedData, existingData, result);
-                    await ImportTeams(parsed, importedData, existingData, result);
-                    await ImportPlayers(parsed, importedData, existingData, result);
-                    await ImportFixtures(parsed.Tables, importedData, existingData, result);
-                    await ImportResults(parsed.Tables, importedData, existingData, result);
-
-                    // Import competitions (after players/teams are imported so we can link participants)
-                    await ImportCompetitions(parsed.Tables, importedData, existingData, result);
+                    await ImportNativeFormatAsync(parsed, importedData, existingData, replaceExisting, result, targetSeasonId);
                 }
                 else
                 {
-                    result.Errors.Add("No season detected - cannot import other data");
+                    // Store name lookups in result for reference
+                    result.VbaPlayerIdToName = new Dictionary<int, string>(parsed.PlayerIdToName);
+                    result.VbaTeamIdToName = new Dictionary<int, string>(parsed.TeamIdToName);
+
+                    // Import in order of dependencies (VBA/Access format)
+                    await ImportSeasonData(parsed.Tables, importedData, existingData, replaceExisting, result, targetSeasonId);
+
+                    if (result.DetectedSeason != null)
+                    {
+                        await ImportDivisions(parsed.Tables, importedData, existingData, result);
+                        await ImportVenues(parsed, importedData, existingData, result);
+                        await ImportTeams(parsed, importedData, existingData, result);
+                        await ImportPlayers(parsed, importedData, existingData, result);
+                        await ImportFixtures(parsed.Tables, importedData, existingData, result);
+                        await ImportResults(parsed.Tables, importedData, existingData, result);
+
+                        // Import competitions (after players/teams are imported so we can link participants)
+                        await ImportCompetitions(parsed.Tables, importedData, existingData, result);
+                    }
+                    else
+                    {
+                        result.Errors.Add("No season detected - cannot import other data");
+                    }
                 }
 
                 result.Success = result.Errors.Count == 0;

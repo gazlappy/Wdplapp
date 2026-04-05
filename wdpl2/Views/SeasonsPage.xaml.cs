@@ -843,6 +843,37 @@ namespace Wdpl2.Views
                 : $"{Helpers.Emojis.Unlock} \"{_selected.Name}\" unlocked";
         }
 
+        private async void OnExportSqlClicked(object? sender, EventArgs e)
+        {
+            if (_selected == null)
+            {
+                await DisplayAlert("Export SQL", "Select a season first.", "OK");
+                return;
+            }
+
+            try
+            {
+                StatusLabel.Text = "Generating SQL export…";
+                ExportSqlBtn.IsEnabled = false;
+
+                var sql = SqlExportService.GenerateSeasonSql(DataStore.Data, _selected.Id);
+                var fileName = $"{_selected.Name.Replace(" ", "_")}_Export_{DateTime.Now:yyyyMMdd_HHmmss}.sql";
+
+                await ExportService.ShareFileAsync(sql, fileName, $"SQL Export — {_selected.Name}");
+                StatusLabel.Text = $"{Helpers.Emojis.Success} SQL exported for \"{_selected.Name}\"";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OnExportSqlClicked Error: {ex}");
+                await DisplayAlert($"{Helpers.Emojis.Error} Export Failed", ex.Message, "OK");
+                StatusLabel.Text = $"Export failed: {ex.Message}";
+            }
+            finally
+            {
+                ExportSqlBtn.IsEnabled = true;
+            }
+        }
+
         private void HideSeasonInfo()
         {
             EmptyStatePanel.IsVisible = true;

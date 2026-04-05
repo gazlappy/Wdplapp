@@ -493,6 +493,14 @@
                                 HorizontalOptions="Fill"
                                 SemanticProperties.Description="Generate fixtures for season" />
 
+                        <Button x:Name="ExportSqlBtn"
+                                Text="💾 Export Season SQL"
+                                Clicked="OnExportSqlClicked"
+                                BackgroundColor="#6366F1"
+                                TextColor="White"
+                                HorizontalOptions="Fill"
+                                SemanticProperties.Description="Export entire season data as SQL script" />
+
                     </VerticalStackLayout>
 
                 </VerticalStackLayout>
