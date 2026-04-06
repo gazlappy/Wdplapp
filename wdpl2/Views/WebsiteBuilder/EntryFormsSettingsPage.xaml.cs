@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
@@ -13,6 +14,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     private readonly ObservableCollection<CrossRefItem> _crossRefItems = new();
     private Guid? _selectedFormId;
     private Guid? _selectedEntryId;
+    private FormSubmissionListener? _listener;
 
     public EntryFormsSettingsPage()
     {
@@ -22,6 +24,69 @@ public partial class EntryFormsSettingsPage : ContentPage
         CrossRefList.ItemsSource = _crossRefItems;
         ShowEntryFormsSwitch.IsToggled = League.WebsiteSettings.ShowEntryForms;
         LoadForms();
+        UpdateRecordsHeader();
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _listener = new FormSubmissionListener();
+        _listener.SubmissionReceived += OnSubmissionReceived;
+        _listener.Start();
+        ListenerStatusLabel.Text = _listener.IsListening ? "\u25cf Listening" : "\u25cb Offline";
+        ListenerStatusLabel.TextColor = _listener.IsListening
+            ? Color.FromArgb("#10B981")
+            : Color.FromArgb("#EF4444");
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        if (_listener != null)
+        {
+            _listener.SubmissionReceived -= OnSubmissionReceived;
+            _listener.Dispose();
+            _listener = null;
+        }
+    }
+
+    private void OnSubmissionReceived(SubmissionReceivedArgs args)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            // Parse the form ID — website sends "form-{guid:N}"
+            var rawId = args.FormId;
+            if (rawId.StartsWith("form-", StringComparison.OrdinalIgnoreCase))
+                rawId = rawId[5..];
+
+            if (!Guid.TryParse(rawId, out var formGuid)) return;
+
+            var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == formGuid);
+            if (form == null) return;
+
+            var submission = new EntryFormSubmission
+            {
+                EntryName = args.EntryName,
+                Notes = "Submitted via website",
+            };
+
+            // Map values to form fields
+            foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
+            {
+                submission.FieldValues[field.Label] =
+                    args.FieldValues.TryGetValue(field.Label, out var val) ? val : "";
+            }
+
+            form.Submissions.Add(submission);
+            DataStore.Save();
+
+            // If this form is currently selected, refresh the records panel
+            if (_selectedFormId == formGuid)
+            {
+                RefreshEntries(form);
+                RefreshCrossReference(form);
+            }
+        });
     }
 
     // ── Display items ───────────────────────────────────────────────────
@@ -160,6 +225,11 @@ public partial class EntryFormsSettingsPage : ContentPage
         EditorPlaceholder.IsVisible = true;
         DeleteFormBtn.IsEnabled = false;
         DuplicateFormBtn.IsEnabled = false;
+        RecordsPanel.IsVisible = false;
+        RecordsPlaceholder.IsVisible = true;
+        AddEntryBtn.IsEnabled = false;
+        RefreshEntriesBtn.IsEnabled = false;
+        UpdateRecordsHeader();
     }
 
     private void OnDuplicateFormClicked(object? sender, EventArgs e)
@@ -208,10 +278,17 @@ public partial class EntryFormsSettingsPage : ContentPage
         else
             ClosingDatePicker.Date = DateTime.Now.AddDays(30);
 
+        // Left side: show editor
         EditorPlaceholder.IsVisible = false;
         EditorForm.IsVisible = true;
         DeleteFormBtn.IsEnabled = true;
         DuplicateFormBtn.IsEnabled = true;
+
+        // Right side: show records
+        RecordsPlaceholder.IsVisible = false;
+        RecordsPanel.IsVisible = true;
+        AddEntryBtn.IsEnabled = true;
+        RefreshEntriesBtn.IsEnabled = true;
 
         RebuildFieldsPanel(form);
         RefreshEntries(form);
@@ -411,7 +488,31 @@ public partial class EntryFormsSettingsPage : ContentPage
             });
         }
 
-        EntriesHeaderLabel.Text = $"ENTRIES ({form.Submissions.Count})";
+        UpdateRecordsHeader();
+    }
+
+    private void UpdateRecordsHeader()
+    {
+        if (_selectedFormId.HasValue)
+        {
+            var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+            var count = form?.Submissions.Count ?? 0;
+            EntriesHeaderLabel.Text = $"RECORDS ({count})";
+        }
+        else
+        {
+            EntriesHeaderLabel.Text = "RECORDS (0)";
+        }
+    }
+
+    private void OnRefreshEntriesClicked(object? sender, EventArgs e)
+    {
+        if (!_selectedFormId.HasValue) return;
+        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        if (form == null) return;
+
+        RefreshEntries(form);
+        RefreshCrossReference(form);
     }
 
     private void OnAddEntryClicked(object? sender, EventArgs e)

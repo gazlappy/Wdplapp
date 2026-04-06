@@ -479,6 +479,9 @@ body {{
     background: var(--background-color);
     color: var(--text-color);
     line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }}
 
 .container {{
@@ -536,12 +539,14 @@ nav a:hover, nav a.active {{
 
 .content-area {{
     padding: var(--spacing) 0;
+    flex: 1;
 }}
 
 /* Freeform canvas layout for home page */
 .page-canvas {{
     position: relative;
     overflow: visible;
+    flex: 1;
 }}
 
 .page-canvas > [data-block-id] {{
@@ -1300,6 +1305,55 @@ nav a:hover, nav a.active {{
     color: #991B1B;
 }}
 
+.entry-forms-list {{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}}
+
+.featured-page-card {{
+    padding: 0 !important;
+}}
+
+.featured-page-link {{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 28px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s;
+    border-radius: var(--border-radius);
+}}
+
+.featured-page-link:hover {{
+    background: rgba(0,0,0,0.03);
+}}
+
+.featured-page-icon {{
+    font-size: 2rem;
+    flex-shrink: 0;
+}}
+
+.featured-page-info h3 {{
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+}}
+
+.featured-page-info p {{
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}}
+
+.featured-page-arrow {{
+    margin-left: auto;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}}
+
 .entry-form {{
     display: flex;
     flex-direction: column;
@@ -1417,89 +1471,9 @@ nav a:hover, nav a.active {{
     font-weight: 600;
 }}
 
-.submissions-log {{
-    margin-top: 24px;
-    border-top: 2px solid rgba(0,0,0,0.08);
-    padding-top: 20px;
-}}
-
-.submissions-log h4 {{
-    margin: 0 0 12px 0;
-    color: var(--text-color);
-    font-size: 1.1rem;
-}}
-
-.submissions-log-count {{
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    font-weight: normal;
-}}
-
-.submissions-log-list {{
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}}
-
-.submission-item {{
-    background: rgba(0,0,0,0.02);
-    border-radius: calc(var(--border-radius) / 2);
-    padding: 12px 16px;
-    border-left: 3px solid var(--primary-color, #3B82F6);
-}}
-
-.submission-item .submission-header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-}}
-
-.submission-item .submission-name {{
-    font-weight: 600;
-    color: var(--text-color);
-}}
-
-.submission-item .submission-date {{
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}}
-
-.submission-item .submission-fields {{
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}}
-
-.submissions-log-empty {{
-    color: var(--text-secondary);
-    font-style: italic;
-    font-size: 0.9rem;
-}}
-
-.submissions-log-actions {{
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-}}
-
-.submissions-log-actions button {{
-    padding: 6px 14px;
-    border: 1px solid rgba(0,0,0,0.15);
-    border-radius: calc(var(--border-radius) / 2);
-    background: var(--card-bg);
-    color: var(--text-color);
-    font-size: 0.8rem;
-    cursor: pointer;
-}}
-
-.submissions-log-actions button:hover {{
-    background: rgba(0,0,0,0.05);
-}}
-
 @media print {{
     .entry-form-submit {{ display: none; }}
     .entry-form-contact {{ border: 1px solid #999; }}
-    .submissions-log-actions {{ display: none; }}
 }}
 
 @media (max-width: 768px) {{
@@ -1513,7 +1487,7 @@ footer {{
     background: #1E293B;
     color: #E2E8F0;
     padding: 40px 20px;
-    margin-top: 40px;
+    margin-top: auto;
 }}
 
 .footer-content {{

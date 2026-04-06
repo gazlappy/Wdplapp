@@ -44,8 +44,10 @@ namespace Wdpl2.Models
                     LeftPercent = 51, TopPx = 1090, WidthPercent = 47,  ZIndex = 1 },
             new() { Id = "sponsors",           BlockType = "sponsors",           DisplayName = "Sponsors",            Icon = "\u2B50",     IsEnabled = false, ColumnSpan = 2, Order = 8,
                     LeftPercent = 2,  TopPx = 1410, WidthPercent = 96,  ZIndex = 1 },
-            new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 9,  IsStructural = true,
-                    LeftPercent = 0,  TopPx = 1430, WidthPercent = 100, ZIndex = 10 },
+            new() { Id = "featured-pages",    BlockType = "featured-pages",    DisplayName = "Featured Pages",    Icon = "\U0001F4CC", IsEnabled = false, ColumnSpan = 2, Order = 9,
+                    LeftPercent = 2,  TopPx = 1690, WidthPercent = 96,  ZIndex = 1 },
+            new() { Id = "footer",             BlockType = "footer",             DisplayName = "Footer",              Icon = "\U0001F4CB", IsEnabled = true,  ColumnSpan = 2, Order = 10, IsStructural = true,
+                    LeftPercent = 0,  TopPx = 1710, WidthPercent = 100, ZIndex = 10 },
         ];
         
         /// <summary>
@@ -247,6 +249,7 @@ namespace Wdpl2.Models
         public bool HomeShowLeagueLeaders { get; set; } = true;
         public bool HomeShowLatestNews { get; set; } = false;
         public bool HomeShowSponsors { get; set; } = false;
+        public List<string> HomeFeaturedPages { get; set; } = new();
         public int HomeRecentResultsCount { get; set; } = 5;
         public int HomeUpcomingFixturesCount { get; set; } = 5;
         public int HomeLeagueLeadersCount { get; set; } = 5;
@@ -456,7 +459,30 @@ namespace Wdpl2.Models
         {
             // If we already have blocks with structural items, use them
             if (HomeLayoutBlocks.Count > 0 && HomeLayoutBlocks.Any(b => b.IsStructural))
-                return HomeLayoutBlocks.OrderBy(b => b.Order).ToList();
+            {
+                // Migrate renamed block types
+                var oldEntry = HomeLayoutBlocks.Find(b => b.BlockType == "entry-forms");
+                if (oldEntry != null)
+                {
+                    oldEntry.Id = "featured-pages";
+                    oldEntry.BlockType = "featured-pages";
+                    oldEntry.DisplayName = "Featured Pages";
+                    oldEntry.Icon = "\U0001F4CC";
+                }
+
+                // Inject any new default blocks that were added after the user's layout was saved
+                var allDefaults = LayoutBlock.GetDefaultBlocks();
+                var blocks = HomeLayoutBlocks.OrderBy(b => b.Order).ToList();
+                foreach (var def in allDefaults.Where(d => !d.IsStructural))
+                {
+                    if (!blocks.Any(b => b.BlockType == def.BlockType))
+                    {
+                        def.Order = blocks.Max(b => b.Order) + 1;
+                        blocks.Add(def);
+                    }
+                }
+                return blocks;
+            }
             
             // Migrate: add structural blocks around existing content blocks
             var defaults = LayoutBlock.GetDefaultBlocks();
@@ -768,6 +794,7 @@ namespace Wdpl2.Models
             HomeShowLeagueLeaders = true;
             HomeShowLatestNews = false;
             HomeShowSponsors = false;
+            HomeFeaturedPages.Clear();
             HomeRecentResultsCount = 5;
             HomeUpcomingFixturesCount = 5;
             HomeLeagueLeadersCount = 5;

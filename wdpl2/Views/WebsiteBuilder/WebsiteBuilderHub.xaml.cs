@@ -245,6 +245,18 @@ public partial class WebsiteBuilderHub : ContentPage
         // Layout
         LayoutSummaryLabel.Text = $"{Capitalize(s.HeaderLayout)} header · {s.HeaderFontFamily} font";
 
+        // Home Page
+        var homeSections = 0;
+        if (s.HomeShowWelcomeSection) homeSections++;
+        if (s.HomeShowQuickStats) homeSections++;
+        if (s.HomeShowLeagueLeaders) homeSections++;
+        if (s.HomeShowRecentResults) homeSections++;
+        if (s.HomeShowUpcomingFixtures) homeSections++;
+        if (s.HomeShowLatestNews) homeSections++;
+        if (s.HomeShowSponsors) homeSections++;
+        homeSections += s.HomeFeaturedPages.Count;
+        HomeSummaryLabel.Text = $"{homeSections} section{(homeSections == 1 ? "" : "s")} visible";
+
         // Content — count enabled pages
         var pageCount = 0;
         if (s.ShowStandings) pageCount++;
@@ -384,6 +396,9 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private async void OnContentTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new ContentSettingsPage());
+
+    private async void OnHomeTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new HomeSettingsPage());
     
     private async void OnGalleryTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new GallerySettingsPage());
@@ -408,6 +423,49 @@ public partial class WebsiteBuilderHub : ContentPage
     
     private async void OnDeploymentTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new DeploymentSettingsPage());
+
+    private void OnSettingsSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        var query = e.NewTextValue?.Trim().ToLowerInvariant();
+        var isSearching = !string.IsNullOrEmpty(query);
+
+        var tiles = new (Frame tile, string[] keywords)[]
+        {
+            (BrandingTile, ["branding", "site branding", "name", "logo", "favicon", "league name"]),
+            (ContactTile, ["contact", "social", "email", "phone", "social links", "facebook", "twitter"]),
+            (DragDropTile, ["visual layout", "drag", "drop", "page layout", "editor"]),
+            (ColorsTile, ["colors", "colour", "theme", "color scheme", "presets", "primary color"]),
+            (LayoutTile, ["layout", "styling", "header", "nav", "footer", "fonts", "navigation", "font"]),
+            (HomeTile, ["home", "home page", "welcome", "quick stats", "league leaders", "recent results", "upcoming fixtures", "hide", "show", "sections", "featured", "featured pages"]),
+            (ContentTile, ["content", "pages", "home", "standings", "fixtures", "results", "players", "divisions"]),
+            (GalleryTile, ["gallery", "photos", "images", "photo"]),
+            (RowsReportsTile, ["rows reports", "match reports", "weekly", "reports"]),
+            (RulesTile, ["rules", "league rules", "constitution", "match rules"]),
+            (EntryFormsTile, ["entry forms", "forms", "entries", "submissions", "entry"]),
+            (FixturesSheetTile, ["fixtures sheet", "print", "printable", "fixtures"]),
+            (SocialCardTile, ["social media", "share", "result cards", "post"]),
+            (SeoTile, ["seo", "advanced", "meta tags", "custom css", "html", "sitemap", "meta"]),
+            (DeploymentTile, ["deployment", "deploy", "export", "github pages", "ftp", "publish", "upload"]),
+        };
+
+        foreach (var (tile, keywords) in tiles)
+            tile.IsVisible = !isSearching || keywords.Any(k => k.Contains(query!));
+
+        var sections = new (Label label, Frame[] sectionTiles)[]
+        {
+            (BrandingSectionLabel, [BrandingTile, ContactTile]),
+            (DesignSectionLabel, [DragDropTile, ColorsTile, LayoutTile]),
+            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile]),
+            (PrintExportSectionLabel, [FixturesSheetTile]),
+            (SocialSectionLabel, [SocialCardTile]),
+            (AdvancedSectionLabel, [SeoTile, DeploymentTile]),
+        };
+
+        foreach (var (label, sectionTiles) in sections)
+            label.IsVisible = !isSearching || sectionTiles.Any(t => t.IsVisible);
+
+        ResetBtn.IsVisible = !isSearching;
+    }
 
     private async void OnResetClicked(object sender, EventArgs e)
     {

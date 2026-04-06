@@ -13,6 +13,10 @@
                 <Label Text="Website Builder" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
                 <Label Text="Design and publish your league website" FontSize="12" TextColor="#64748B"/>
 
+                <SearchBar x:Name="SettingsSearchBar" Placeholder="🔍 Search settings..." 
+                           TextChanged="OnSettingsSearchChanged"
+                           BackgroundColor="White" FontSize="13" Margin="0,4,0,0"/>
+
                 <!-- Setup Progress -->
                 <Frame BorderColor="#E2E8F0" Padding="12" CornerRadius="10" BackgroundColor="White">
                     <VerticalStackLayout Spacing="6">
@@ -57,10 +61,10 @@
                 </Frame>
 
                 <!-- ── Branding ── -->
-                <Label Text="BRANDING" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="BrandingSectionLabel" Text="BRANDING" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="BrandingTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnBrandingTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#EFF6FF" Padding="0" CornerRadius="8" 
@@ -75,7 +79,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="ContactTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnContactTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#F0FDF4" Padding="0" CornerRadius="8"
@@ -91,10 +95,10 @@
                 </Frame>
 
                 <!-- ── Design ── -->
-                <Label Text="DESIGN" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="DesignSectionLabel" Text="DESIGN" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#F59E0B" Padding="0" CornerRadius="10" BackgroundColor="#FFFBEB">
+                <Frame x:Name="DragDropTile" BorderColor="#F59E0B" Padding="0" CornerRadius="10" BackgroundColor="#FFFBEB">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnDragDropLayoutTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#FEF3C7" Padding="0" CornerRadius="8"
@@ -109,7 +113,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="ColorsTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnColorsTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#FDF2F8" Padding="0" CornerRadius="8"
@@ -124,7 +128,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="LayoutTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnLayoutTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#EFF6FF" Padding="0" CornerRadius="8"
@@ -140,10 +144,25 @@
                 </Frame>
 
                 <!-- ── Content ── -->
-                <Label Text="CONTENT" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="ContentSectionLabel" Text="CONTENT" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="HomeTile" BorderColor="#F59E0B" Padding="0" CornerRadius="10" BackgroundColor="#FFFBEB">
+                    <Grid Padding="14" ColumnDefinitions="36,*,Auto">
+                        <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnHomeTapped"/></Grid.GestureRecognizers>
+                        <Frame Grid.Column="0" BackgroundColor="#FEF3C7" Padding="0" CornerRadius="8"
+                               HeightRequest="36" WidthRequest="36" HasShadow="False" BorderColor="Transparent">
+                            <Label Text="&#127968;" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Frame>
+                        <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" VerticalOptions="Center">
+                            <Label Text="Home Page" FontAttributes="Bold" FontSize="13" TextColor="#92400E"/>
+                            <Label x:Name="HomeSummaryLabel" Text="Show/hide sections, counts" FontSize="11" TextColor="#A16207"/>
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="›" FontSize="22" TextColor="#D97706" VerticalOptions="Center"/>
+                    </Grid>
+                </Frame>
+
+                <Frame x:Name="ContentTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnContentTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#F0FDF4" Padding="0" CornerRadius="8"
@@ -158,7 +177,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="GalleryTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnGalleryTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#FEF3C7" Padding="0" CornerRadius="8"
@@ -173,7 +192,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="RowsReportsTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnRowsReportsTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#EDE9FE" Padding="0" CornerRadius="8"
@@ -188,7 +207,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="RulesTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnRulesTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#FEF2F2" Padding="0" CornerRadius="8"
@@ -203,7 +222,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="EntryFormsTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnEntryFormsTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#FEF3C7" Padding="0" CornerRadius="8"
@@ -219,10 +238,10 @@
                 </Frame>
 
                 <!-- ── Print/Export ── -->
-                <Label Text="PRINT &amp; EXPORT" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="PrintExportSectionLabel" Text="PRINT &amp; EXPORT" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#10B981" Padding="0" CornerRadius="10" BackgroundColor="#F0FDF4">
+                <Frame x:Name="FixturesSheetTile" BorderColor="#10B981" Padding="0" CornerRadius="10" BackgroundColor="#F0FDF4">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnFixturesSheetTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#D1FAE5" Padding="0" CornerRadius="8"
@@ -238,10 +257,10 @@
                 </Frame>
 
                 <!-- ── Social ── -->
-                <Label Text="SOCIAL" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="SocialSectionLabel" Text="SOCIAL" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#8B5CF6" Padding="0" CornerRadius="10" BackgroundColor="#F5F3FF">
+                <Frame x:Name="SocialCardTile" BorderColor="#8B5CF6" Padding="0" CornerRadius="10" BackgroundColor="#F5F3FF">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSocialCardTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#EDE9FE" Padding="0" CornerRadius="8"
@@ -257,10 +276,10 @@
                 </Frame>
 
                 <!-- ── Advanced ── -->
-                <Label Text="ADVANCED" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <Label x:Name="AdvancedSectionLabel" Text="ADVANCED" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
 
-                <Frame BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                <Frame x:Name="SeoTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSeoTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#F5F3FF" Padding="0" CornerRadius="8"
@@ -275,7 +294,7 @@
                     </Grid>
                 </Frame>
 
-                <Frame BorderColor="#3B82F6" Padding="0" CornerRadius="10" BackgroundColor="#EFF6FF">
+                <Frame x:Name="DeploymentTile" BorderColor="#3B82F6" Padding="0" CornerRadius="10" BackgroundColor="#EFF6FF">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">
                         <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnDeploymentTapped"/></Grid.GestureRecognizers>
                         <Frame Grid.Column="0" BackgroundColor="#DBEAFE" Padding="0" CornerRadius="8"

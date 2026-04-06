@@ -189,13 +189,17 @@ namespace Wdpl2.Services
 
             LayoutBlock.AutoPositionBlocks(blocks);
 
-            var canvasHeight = blocks.Count != 0
-                ? blocks.Max(b => b.TopPx + (b.HeightPx > 0 ? b.HeightPx : 350)) + 100
+            // Separate footer from canvas blocks so it flows naturally at the bottom
+            var canvasBlocks = blocks.Where(b => b.BlockType != "footer").ToList();
+            var footerBlock = blocks.FirstOrDefault(b => b.BlockType == "footer");
+
+            var canvasHeight = canvasBlocks.Count != 0
+                ? canvasBlocks.Max(b => b.TopPx + (b.HeightPx > 0 ? b.HeightPx : 350)) + 100
                 : 800;
 
             html.AppendLine($"    <div class=\"page-canvas\" style=\"min-height:{canvasHeight.ToString("F0", inv)}px;\">");
-            
-            foreach (var block in blocks)
+
+            foreach (var block in canvasBlocks)
             {
                 var left = block.LeftPercent.ToString("F1", inv);
                 var top = block.TopPx.ToString("F0", inv);
@@ -203,10 +207,10 @@ namespace Wdpl2.Services
                 var posStyle = $"position:absolute; left:{left}%; top:{top}px; width:{width}%; max-width:{width}%; z-index:{block.ZIndex};";
                 if (block.HeightPx > 0)
                     posStyle += $" height:{block.HeightPx.ToString("F0", inv)}px; overflow:auto;";
-                
+
                 var dataAttrs = $"data-block-id=\"{block.BlockType}\" data-block-name=\"{block.DisplayName}\" data-structural=\"{(block.IsStructural ? "true" : "false")}\"";
                 var allAttrs = $"{dataAttrs} style=\"{posStyle}\"";
-                
+
                 switch (block.BlockType)
                 {
                     case "header":
@@ -214,9 +218,6 @@ namespace Wdpl2.Services
                         break;
                     case "nav":
                         AppendNavBlock(html, "Home", allAttrs);
-                        break;
-                    case "footer":
-                        AppendFooterBlock(html, allAttrs);
                         break;
                     default:
                         html.AppendLine($"        <div {allAttrs}>");
@@ -227,12 +228,38 @@ namespace Wdpl2.Services
                         break;
                 }
             }
-            
+
             html.AppendLine("    </div>");
-            
+
+            // Footer rendered outside canvas in normal document flow for sticky footer
+            if (footerBlock != null)
+            {
+                var footerAttrs = $"data-block-id=\"footer\" data-block-name=\"{footerBlock.DisplayName}\" data-structural=\"true\"";
+                AppendFooterBlock(html, footerAttrs);
+            }
+
+            // Script to adjust canvas height based on actual rendered block sizes
+            html.AppendLine(@"<script>
+(function(){
+    function adjustCanvas(){
+        var c=document.querySelector('.page-canvas');
+        if(!c)return;
+        var max=0;
+        for(var i=0;i<c.children.length;i++){
+            var el=c.children[i];
+            var b=el.offsetTop+el.offsetHeight;
+            if(b>max)max=b;
+        }
+        if(max>0)c.style.minHeight=(max+60)+'px';
+    }
+    window.addEventListener('load',adjustCanvas);
+    window.addEventListener('resize',adjustCanvas);
+})();
+</script>");
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
                 html.AppendLine(_settings.CustomBodyEndHtml);
-            
+
             html.AppendLine("</body>");
             html.AppendLine("</html>");
             
@@ -312,27 +339,36 @@ namespace Wdpl2.Services
             switch (blockType)
             {
                 case "welcome":
-                    AppendHomeWelcomeSection(html, season);
+                    if (_settings.HomeShowWelcomeSection)
+                        AppendHomeWelcomeSection(html, season);
                     break;
                 case "quick-stats":
-                    AppendHomeQuickStatsSection(html, teams, players, divisions, completedFixtures);
+                    if (_settings.HomeShowQuickStats)
+                        AppendHomeQuickStatsSection(html, teams, players, divisions, completedFixtures);
                     break;
                 case "league-leaders":
-                    AppendHomeLeagueLeadersSection(html, players, teams, fixtures);
+                    if (_settings.HomeShowLeagueLeaders)
+                        AppendHomeLeagueLeadersSection(html, players, teams, fixtures);
                     break;
                 case "recent-results":
-                    AppendHomeRecentResultsSection(html, teams, fixtures, completedFixtures);
+                    if (_settings.HomeShowRecentResults)
+                        AppendHomeRecentResultsSection(html, teams, fixtures, completedFixtures);
                     break;
                 case "upcoming-fixtures":
-                    AppendHomeUpcomingFixturesSection(html, teams, venues, fixtures);
+                    if (_settings.HomeShowUpcomingFixtures)
+                        AppendHomeUpcomingFixturesSection(html, teams, venues, fixtures);
                     break;
                 case "latest-news":
-                    if (_settings.ShowNews)
+                    if (_settings.ShowNews && _settings.HomeShowLatestNews)
                         AppendHomeLatestNewsSection(html);
                     break;
                 case "sponsors":
-                    if (_settings.ShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
+                    if (_settings.ShowSponsors && _settings.HomeShowSponsors && _settings.Sponsors.Any(s => s.IsActive))
                         AppendSponsorsSection(html);
+                    break;
+                case "featured-pages":
+                    if (_settings.HomeFeaturedPages.Count > 0)
+                        AppendHomeFeaturedPages(html, season, divisions, venues, teams, players, fixtures);
                     break;
             }
         }
@@ -534,6 +570,220 @@ namespace Wdpl2.Services
             html.AppendLine("                </div>");
             if (_settings.ShowNews)
                 html.AppendLine("                <p class=\"view-all\"><a href=\"news.html\">View All News &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+
+        private void AppendHomeFeaturedPages(StringBuilder html, Season season,
+            List<Division> divisions, List<Venue> venues, List<Team> teams,
+            List<Player> players, List<Fixture> fixtures)
+        {
+            foreach (var page in _settings.HomeFeaturedPages)
+            {
+                switch (page)
+                {
+                    case "entry-forms":
+                        if (_settings.ShowEntryForms)
+                            AppendHomeActiveEntryForm(html);
+                        break;
+                    case "standings":
+                        if (_settings.ShowStandings)
+                            AppendHomeStandingsSection(html, divisions, teams, fixtures);
+                        break;
+                    case "competitions":
+                        if (_settings.ShowCompetitions)
+                            AppendHomeFeaturedPageCard(html, "\U0001F3C6", "Competitions", "View cup draws, knockout brackets and competition results.", "competitions.html");
+                        break;
+                    case "gallery":
+                        if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
+                            AppendHomeFeaturedPageCard(html, "\U0001F4F7", "Photo Gallery", $"{_settings.GalleryImages.Count} photo{(_settings.GalleryImages.Count == 1 ? "" : "s")} from the season.", "gallery.html");
+                        break;
+                    case "rules":
+                        if (_settings.ShowRules && _settings.HasAnyRulesContent)
+                            AppendHomeFeaturedPageCard(html, "\U0001F4D6", "League Rules", "View the official league rules and regulations.", "rules.html");
+                        break;
+                    case "contact":
+                        if (_settings.ShowContactPage && _settings.HasContactInfo)
+                            AppendHomeFeaturedPageCard(html, "\U0001F4E7", "Contact Us", "Get in touch with the league committee.", "contact.html");
+                        break;
+                    case "rows-reports":
+                        if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
+                            AppendHomeFeaturedPageCard(html, "\U0001F4CA", "Rows Reports", $"{_settings.RowsReports.Count} report{(_settings.RowsReports.Count == 1 ? "" : "s")} available.", "rows-reports.html");
+                        break;
+                }
+            }
+        }
+
+        private void AppendHomeActiveEntryForm(StringBuilder html)
+        {
+            var activeForm = _settings.EntryForms
+                .Where(f => f.IsPublished && !f.IsClosed && (!f.ClosingDate.HasValue || f.ClosingDate.Value >= DateTime.Now))
+                .OrderBy(f => f.SortOrder)
+                .ThenByDescending(f => f.DateCreated)
+                .FirstOrDefault();
+
+            if (activeForm == null) return;
+
+            var formId = $"form-{activeForm.Id:N}";
+
+            html.AppendLine("            <section class=\"section entry-form-card\">");
+            html.AppendLine("                <div class=\"entry-form-header\">");
+            html.AppendLine($"                    <h3>&#128203; {Esc(activeForm.Title)}</h3>");
+            html.AppendLine("                    <span class=\"entry-form-badge open\">Open</span>");
+            html.AppendLine("                </div>");
+
+            if (!string.IsNullOrWhiteSpace(activeForm.Description))
+                html.AppendLine($"                <p class=\"entry-form-desc\">{Esc(activeForm.Description)}</p>");
+
+            if (activeForm.ClosingDate.HasValue)
+                html.AppendLine($"                <p class=\"entry-form-deadline\">&#9200; Closing date: <strong>{activeForm.ClosingDate.Value:dddd dd MMMM yyyy}</strong></p>");
+
+            if (activeForm.Fields.Count != 0)
+            {
+                html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
+                html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
+
+                foreach (var field in activeForm.Fields.OrderBy(f => f.SortOrder))
+                {
+                    var fieldId = $"field-{field.Id:N}";
+                    var requiredAttr = field.IsRequired ? " required" : "";
+                    var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
+                    var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
+
+                    html.AppendLine("                    <div class=\"form-group\">");
+
+                    switch (field.FieldType)
+                    {
+                        case "textarea":
+                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldId}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
+                            break;
+                        case "select":
+                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}>");
+                            html.AppendLine("                            <option value=\"\">-- Select --</option>");
+                            if (!string.IsNullOrWhiteSpace(field.Options))
+                            {
+                                foreach (var opt in field.Options.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                    html.AppendLine($"                            <option value=\"{Esc(opt)}\">{Esc(opt)}</option>");
+                            }
+                            html.AppendLine("                        </select>");
+                            break;
+                        case "checkbox":
+                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
+                            break;
+                        default:
+                            var inputType = field.FieldType switch
+                            {
+                                "email" => "email",
+                                "phone" => "tel",
+                                "number" => "number",
+                                "date" => "date",
+                                _ => "text"
+                            };
+                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
+                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldId}\"{placeholder}{requiredAttr}>");
+                            break;
+                    }
+
+                    html.AppendLine("                    </div>");
+                }
+
+                var submitText = !string.IsNullOrWhiteSpace(activeForm.SubmitButtonText) ? Esc(activeForm.SubmitButtonText) : "Submit Entry";
+                html.AppendLine($"                    <button type=\"submit\" class=\"entry-form-submit\">{submitText}</button>");
+                html.AppendLine("                </form>");
+                html.AppendLine($"                <div class=\"entry-form-confirmation\" id=\"{formId}-confirm\" style=\"display:none;\">");
+                html.AppendLine("                    <p>&#9989; Your entry has been submitted successfully! The league secretary will review it shortly.</p>");
+                html.AppendLine("                </div>");
+
+                var fieldLabels = activeForm.Fields.OrderBy(f => f.SortOrder)
+                    .Select(f => $"{{\"id\":\"field-{f.Id:N}\",\"label\":\"{Esc(f.Label).Replace("\"", "\\\"")}\",\"type\":\"{f.FieldType}\"}}")
+                    .ToList();
+                html.AppendLine($"                <script>window.formFields = window.formFields || {{}}; window.formFields['{formId}'] = [{string.Join(",", fieldLabels)}];</script>");
+
+                // Include form submission JS
+                html.AppendLine("                <script>");
+                html.AppendLine("                function handleEntrySubmit(form) {");
+                html.AppendLine("                    if (!form.checkValidity()) { form.reportValidity(); return false; }");
+                html.AppendLine("                    var formId = form.id.replace('-form', '');");
+                html.AppendLine("                    var fields = window.formFields[formId] || [];");
+                html.AppendLine("                    var values = {};");
+                html.AppendLine("                    var entryName = '';");
+                html.AppendLine("                    for (var i = 0; i < fields.length; i++) {");
+                html.AppendLine("                        var el = document.getElementById(fields[i].id);");
+                html.AppendLine("                        if (!el) continue;");
+                html.AppendLine("                        var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
+                html.AppendLine("                        values[fields[i].label] = val;");
+                html.AppendLine("                        if (i === 0 && val) entryName = val;");
+                html.AppendLine("                    }");
+                html.AppendLine("                    var inputs = form.querySelectorAll('input,textarea,select');");
+                html.AppendLine("                    for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
+                html.AppendLine("                    var btn = form.querySelector('button[type=submit]');");
+                html.AppendLine("                    if (btn) btn.style.display = 'none';");
+                html.AppendLine("                    var confirmDiv = document.getElementById(formId + '-confirm');");
+                html.AppendLine("                    if (confirmDiv) confirmDiv.style.display = 'block';");
+                html.AppendLine($"                    fetch('http://localhost:{FormSubmissionListener.Port}/api/entry-submit', {{");
+                html.AppendLine("                        method: 'POST',");
+                html.AppendLine("                        headers: { 'Content-Type': 'application/json' },");
+                html.AppendLine("                        body: JSON.stringify({ formId: formId, name: entryName, values: values })");
+                html.AppendLine("                    }).catch(function() {});");
+                html.AppendLine("                    return false;");
+                html.AppendLine("                }");
+                html.AppendLine("                </script>");
+            }
+
+            html.AppendLine("                <p class=\"view-all\"><a href=\"entry-forms.html\">View All Entry Forms &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+
+        private void AppendHomeStandingsSection(StringBuilder html, List<Division> divisions, List<Team> teams, List<Fixture> fixtures)
+        {
+            var firstDiv = divisions.OrderBy(d => d.Name).FirstOrDefault();
+            if (firstDiv == null) return;
+
+            var divTeams = teams.Where(t => t.DivisionId == firstDiv.Id).ToList();
+            if (divTeams.Count == 0) return;
+
+            var standings = StandingsCalculator.Calculate(divTeams, fixtures, _leagueSettings, trackForm: true);
+            var sorted = StandingsSorter.Sort(standings, _leagueSettings,
+                s => s.Points, s => s.FramesFor, s => s.FramesAgainst, s => s.Won, s => s.TeamId, fixtures);
+
+            html.AppendLine("            <section class=\"section\">");
+            html.AppendLine($"                <h3>&#127942; {firstDiv.Name} Standings</h3>");
+            html.AppendLine("                <div class=\"table-responsive\">");
+            html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
+            html.AppendLine("                    <thead><tr>");
+            html.AppendLine("                        <th>Pos</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th>");
+            html.AppendLine("                    </tr></thead>");
+            html.AppendLine("                    <tbody>");
+
+            var pos = 1;
+            foreach (var s in sorted.Take(8))
+            {
+                var posDisplay = pos <= 3 && _settings.StandingsShowMedals
+                    ? (pos switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => pos.ToString() })
+                    : pos.ToString();
+                html.AppendLine($"                        <tr><td>{posDisplay}</td><td><strong>{s.TeamName}</strong></td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
+                pos++;
+            }
+
+            html.AppendLine("                    </tbody>");
+            html.AppendLine("                </table>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <p class=\"view-all\"><a href=\"standings.html\">View Full Standings &#8594;</a></p>");
+            html.AppendLine("            </section>");
+        }
+
+        private static void AppendHomeFeaturedPageCard(StringBuilder html, string icon, string title, string description, string href)
+        {
+            html.AppendLine("            <section class=\"section featured-page-card\">");
+            html.AppendLine($"                <a href=\"{href}\" class=\"featured-page-link\">");
+            html.AppendLine($"                    <span class=\"featured-page-icon\">{icon}</span>");
+            html.AppendLine($"                    <div class=\"featured-page-info\">");
+            html.AppendLine($"                        <h3>{title}</h3>");
+            html.AppendLine($"                        <p>{description}</p>");
+            html.AppendLine($"                    </div>");
+            html.AppendLine("                    <span class=\"featured-page-arrow\">&#8594;</span>");
+            html.AppendLine("                </a>");
             html.AppendLine("            </section>");
         }
 
@@ -2455,18 +2705,6 @@ namespace Wdpl2.Services
                                 html.AppendLine("                    <p>&#9989; Your entry has been submitted successfully! The league secretary will review it shortly.</p>");
                                 html.AppendLine("                </div>");
 
-                                // Submissions log section
-                                html.AppendLine($"                <div class=\"submissions-log\" id=\"{formId}-log\">");
-                                html.AppendLine($"                    <h4>&#128203; Entries Log <span class=\"submissions-log-count\" id=\"{formId}-log-count\"></span></h4>");
-                                html.AppendLine($"                    <div class=\"submissions-log-list\" id=\"{formId}-log-list\">");
-                                html.AppendLine("                        <p class=\"submissions-log-empty\">No entries submitted yet.</p>");
-                                html.AppendLine("                    </div>");
-                                html.AppendLine($"                    <div class=\"submissions-log-actions\" id=\"{formId}-log-actions\" style=\"display:none;\">");
-                                html.AppendLine($"                        <button type=\"button\" onclick=\"exportSubmissions('{formId}')\">&#128229; Export</button>");
-                                html.AppendLine($"                        <button type=\"button\" onclick=\"clearSubmissions('{formId}')\">&#128465; Clear All</button>");
-                                html.AppendLine("                    </div>");
-                                html.AppendLine("                </div>");
-
                                 // Embed field labels as JSON for JS to read
                                 var fieldLabels = form.Fields.OrderBy(f => f.SortOrder)
                                     .Select(f => $"{{\"id\":\"field-{f.Id:N}\",\"label\":\"{Esc(f.Label).Replace("\"", "\\\"")}\",\"type\":\"{f.FieldType}\"}}")
@@ -2498,16 +2736,8 @@ namespace Wdpl2.Services
                     html.AppendLine("            </div>");
                 }
 
-                // Form submission JavaScript
+                // Form submission JavaScript — POSTs to local app listener
                 html.AppendLine("            <script>");
-                html.AppendLine("            function getStorageKey(formId) { return 'entries-' + formId; }");
-                html.AppendLine("            function getSubmissions(formId) {");
-                html.AppendLine("                try { return JSON.parse(localStorage.getItem(getStorageKey(formId)) || '[]'); }");
-                html.AppendLine("                catch(e) { return []; }");
-                html.AppendLine("            }");
-                html.AppendLine("            function saveSubmissions(formId, subs) {");
-                html.AppendLine("                localStorage.setItem(getStorageKey(formId), JSON.stringify(subs));");
-                html.AppendLine("            }");
                 html.AppendLine("            function handleEntrySubmit(form) {");
                 html.AppendLine("                if (!form.checkValidity()) { form.reportValidity(); return false; }");
                 html.AppendLine("                var formId = form.id.replace('-form', '');");
@@ -2521,67 +2751,19 @@ namespace Wdpl2.Services
                 html.AppendLine("                    values[fields[i].label] = val;");
                 html.AppendLine("                    if (i === 0 && val) entryName = val;");
                 html.AppendLine("                }");
-                html.AppendLine("                var sub = { date: new Date().toISOString(), name: entryName, values: values };");
-                html.AppendLine("                var subs = getSubmissions(formId);");
-                html.AppendLine("                subs.push(sub);");
-                html.AppendLine("                saveSubmissions(formId, subs);");
                 html.AppendLine("                var inputs = form.querySelectorAll('input,textarea,select');");
                 html.AppendLine("                for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
                 html.AppendLine("                var btn = form.querySelector('button[type=submit]');");
                 html.AppendLine("                if (btn) btn.style.display = 'none';");
                 html.AppendLine("                var confirmDiv = document.getElementById(formId + '-confirm');");
                 html.AppendLine("                if (confirmDiv) confirmDiv.style.display = 'block';");
-                html.AppendLine("                renderLog(formId);");
+                html.AppendLine($"                fetch('http://localhost:{FormSubmissionListener.Port}/api/entry-submit', {{");
+                html.AppendLine("                    method: 'POST',");
+                html.AppendLine("                    headers: { 'Content-Type': 'application/json' },");
+                html.AppendLine("                    body: JSON.stringify({ formId: formId, name: entryName, values: values })");
+                html.AppendLine("                }).catch(function() {});");
                 html.AppendLine("                return false;");
                 html.AppendLine("            }");
-                html.AppendLine("            function renderLog(formId) {");
-                html.AppendLine("                var subs = getSubmissions(formId);");
-                html.AppendLine("                var list = document.getElementById(formId + '-log-list');");
-                html.AppendLine("                var count = document.getElementById(formId + '-log-count');");
-                html.AppendLine("                var actions = document.getElementById(formId + '-log-actions');");
-                html.AppendLine("                if (!list) return;");
-                html.AppendLine("                if (count) count.textContent = '(' + subs.length + ')';");
-                html.AppendLine("                if (subs.length === 0) {");
-                html.AppendLine("                    list.innerHTML = '<p class=\"submissions-log-empty\">No entries submitted yet.</p>';");
-                html.AppendLine("                    if (actions) actions.style.display = 'none';");
-                html.AppendLine("                    return;");
-                html.AppendLine("                }");
-                html.AppendLine("                if (actions) actions.style.display = 'flex';");
-                html.AppendLine("                var html = '';");
-                html.AppendLine("                for (var i = subs.length - 1; i >= 0; i--) {");
-                html.AppendLine("                    var s = subs[i];");
-                html.AppendLine("                    var d = new Date(s.date);");
-                html.AppendLine("                    var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});");
-                html.AppendLine("                    var fieldsHtml = '';");
-                html.AppendLine("                    for (var key in s.values) {");
-                html.AppendLine("                        if (s.values[key]) fieldsHtml += '<strong>' + key + ':</strong> ' + s.values[key] + ' &bull; ';");
-                html.AppendLine("                    }");
-                html.AppendLine("                    if (fieldsHtml.endsWith(' &bull; ')) fieldsHtml = fieldsHtml.slice(0, -8);");
-                html.AppendLine("                    html += '<div class=\"submission-item\">';");
-                html.AppendLine("                    html += '<div class=\"submission-header\"><span class=\"submission-name\">' + (s.name || 'Entry #' + (i+1)) + '</span>';");
-                html.AppendLine("                    html += '<span class=\"submission-date\">' + dateStr + '</span></div>';");
-                html.AppendLine("                    html += '<div class=\"submission-fields\">' + fieldsHtml + '</div></div>';");
-                html.AppendLine("                }");
-                html.AppendLine("                list.innerHTML = html;");
-                html.AppendLine("            }");
-                html.AppendLine("            function exportSubmissions(formId) {");
-                html.AppendLine("                var subs = getSubmissions(formId);");
-                html.AppendLine("                if (subs.length === 0) { alert('No entries to export.'); return; }");
-                html.AppendLine("                var blob = new Blob([JSON.stringify(subs, null, 2)], {type:'application/json'});");
-                html.AppendLine("                var a = document.createElement('a');");
-                html.AppendLine("                a.href = URL.createObjectURL(blob);");
-                html.AppendLine("                a.download = formId + '-entries.json';");
-                html.AppendLine("                a.click();");
-                html.AppendLine("            }");
-                html.AppendLine("            function clearSubmissions(formId) {");
-                html.AppendLine("                if (!confirm('Clear all entries for this form?')) return;");
-                html.AppendLine("                saveSubmissions(formId, []);");
-                html.AppendLine("                renderLog(formId);");
-                html.AppendLine("            }");
-                // Auto-render logs on page load for each form
-                html.AppendLine("            document.addEventListener('DOMContentLoaded', function() {");
-                html.AppendLine("                if (window.formFields) { for (var fid in window.formFields) renderLog(fid); }");
-                html.AppendLine("            });");
                 html.AppendLine("            </script>");
             });
         }
