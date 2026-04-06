@@ -616,6 +616,11 @@ namespace Wdpl2.Models
         public bool ShowEntryForms { get; set; } = false;
         public List<EntryForm> EntryForms { get; set; } = new();
 
+        // Form submission service (e.g. Getform.io)
+        public string FormServiceUrl { get; set; } = "";
+        public string FormServiceApiToken { get; set; } = "";
+        public string FormServiceFetchUrl { get; set; } = "";
+
         // Rules Content
         public string RulesContent { get; set; } = "";
         public string ConstitutionContent { get; set; } = "";
@@ -1124,7 +1129,11 @@ namespace Wdpl2.Models
         public string SubmitButtonText { get; set; } = "Submit Entry";
         public string ConfirmationMessage { get; set; } = "Thank you for your entry!";
         public int SortOrder { get; set; }
+        public byte[]? LogoImageData { get; set; }
         public List<EntryFormSubmission> Submissions { get; set; } = new();
+
+        /// <summary>External submission IDs already imported (prevents duplicates on re-fetch).</summary>
+        public List<string> ImportedExternalIds { get; set; } = new();
 
         /// <summary>Create a pre-configured team entry form</summary>
         public static EntryForm CreateTeamEntryForm() => new()

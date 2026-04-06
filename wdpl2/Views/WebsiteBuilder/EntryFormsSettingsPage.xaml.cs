@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Net.Http;
 using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
@@ -14,7 +15,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     private readonly ObservableCollection<CrossRefItem> _crossRefItems = new();
     private Guid? _selectedFormId;
     private Guid? _selectedEntryId;
-    private FormSubmissionListener? _listener;
+    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     public EntryFormsSettingsPage()
     {
@@ -23,6 +24,8 @@ public partial class EntryFormsSettingsPage : ContentPage
         EntriesCollection.ItemsSource = _entries;
         CrossRefList.ItemsSource = _crossRefItems;
         ShowEntryFormsSwitch.IsToggled = League.WebsiteSettings.ShowEntryForms;
+        FormServiceUrlEntry.Text = League.WebsiteSettings.FormServiceUrl;
+        FormServiceTokenEntry.Text = League.WebsiteSettings.FormServiceApiToken;
         LoadForms();
         UpdateRecordsHeader();
     }
@@ -30,63 +33,378 @@ public partial class EntryFormsSettingsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        _listener = new FormSubmissionListener();
-        _listener.SubmissionReceived += OnSubmissionReceived;
-        _listener.Start();
-        ListenerStatusLabel.Text = _listener.IsListening ? "\u25cf Listening" : "\u25cb Offline";
-        ListenerStatusLabel.TextColor = _listener.IsListening
-            ? Color.FromArgb("#10B981")
-            : Color.FromArgb("#EF4444");
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        if (_listener != null)
+    }
+
+    private void OnSaveServiceSettingsClicked(object sender, EventArgs e)
+    {
+        League.WebsiteSettings.FormServiceUrl = FormServiceUrlEntry.Text?.Trim() ?? "";
+        League.WebsiteSettings.FormServiceApiToken = FormServiceTokenEntry.Text?.Trim() ?? "";
+        DataStore.Save();
+        FetchStatusLabel.Text = "\u2705 Settings saved";
+        FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
+        FetchStatusLabel.IsVisible = true;
+    }
+
+    private async void OnFetchSubmissionsClicked(object sender, EventArgs e)
+    {
+        var serviceUrl = League.WebsiteSettings.FormServiceUrl?.Trim() ?? "";
+        var apiToken = League.WebsiteSettings.FormServiceApiToken?.Trim() ?? "";
+
+        if (string.IsNullOrWhiteSpace(serviceUrl))
         {
-            _listener.SubmissionReceived -= OnSubmissionReceived;
-            _listener.Dispose();
-            _listener = null;
+            await DisplayAlert("Not Configured", "Enter your form service endpoint URL first.", "OK");
+            return;
+        }
+
+        FetchSubmissionsBtn.IsEnabled = false;
+        FetchStatusLabel.Text = "Fetching submissions...";
+        FetchStatusLabel.TextColor = Color.FromArgb("#3B82F6");
+        FetchStatusLabel.IsVisible = true;
+
+        try
+        {
+            var baseUrl = BuildApiUrl(serviceUrl);
+            var isForminit = baseUrl.Contains("forminit.com", StringComparison.OrdinalIgnoreCase);
+
+            var allSubmissions = new List<WebsiteSubmissionDto>();
+            var page = 1;
+            var lastPage = 1;
+
+            do
+            {
+                var pageUrl = isForminit
+                    ? AppendQuery(baseUrl, $"page={page}&size=100")
+                    : baseUrl;
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, pageUrl);
+                request.Headers.TryAddWithoutValidation("Accept", "application/json");
+
+                if (!string.IsNullOrWhiteSpace(apiToken))
+                {
+                    if (isForminit)
+                        request.Headers.TryAddWithoutValidation("X-API-Key", apiToken);
+                    else
+                        request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiToken}");
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                // DEBUG: dump raw API response for inspection
+                var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WDPL", "forminit_debug.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(debugPath)!);
+                await File.WriteAllTextAsync(debugPath, json);
+
+                var (subs, parsedLastPage) = ParseServiceResponse(json);
+                allSubmissions.AddRange(subs);
+
+                if (parsedLastPage > 0) lastPage = parsedLastPage;
+                page++;
+
+                if (page <= lastPage)
+                    FetchStatusLabel.Text = $"Fetching page {page} of {lastPage}...";
+
+            } while (isForminit && page <= lastPage);
+
+            if (allSubmissions.Count == 0)
+            {
+                FetchStatusLabel.Text = "No submissions found";
+                FetchStatusLabel.TextColor = Color.FromArgb("#94A3B8");
+                return;
+            }
+
+            var imported = ImportSubmissions(allSubmissions);
+
+            if (imported > 0)
+            {
+                FetchStatusLabel.Text = $"\u2705 Imported {imported} new submission{(imported != 1 ? "s" : "")} (of {allSubmissions.Count} total)";
+                FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
+            }
+            else if (!_selectedFormId.HasValue)
+            {
+                FetchStatusLabel.Text = $"\u26A0 Found {allSubmissions.Count} submission{(allSubmissions.Count != 1 ? "s" : "")} but no form is selected";
+                FetchStatusLabel.TextColor = Color.FromArgb("#F59E0B");
+            }
+            else
+            {
+                FetchStatusLabel.Text = $"\u2714 All {allSubmissions.Count} submission{(allSubmissions.Count != 1 ? "s" : "")} already imported";
+                FetchStatusLabel.TextColor = Color.FromArgb("#94A3B8");
+            }
+        }
+        catch (Exception ex)
+        {
+            FetchStatusLabel.Text = $"\u26A0 Error: {ex.Message}";
+            FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
+        }
+        finally
+        {
+            FetchSubmissionsBtn.IsEnabled = true;
         }
     }
 
-    private void OnSubmissionReceived(SubmissionReceivedArgs args)
+    private static string BuildApiUrl(string serviceUrl)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        // Getform.io: convert https://getform.io/f/{hash} to https://api.getform.io/v1/forms/{hash}
+        if (serviceUrl.Contains("getform.io/f/", StringComparison.OrdinalIgnoreCase))
         {
-            // Parse the form ID — website sends "form-{guid:N}"
-            var rawId = args.FormId;
+            var hash = serviceUrl.Split("/f/", StringSplitOptions.None).LastOrDefault()?.Trim('/') ?? "";
+            return $"https://api.getform.io/v1/forms/{hash}";
+        }
+
+        // Forminit: convert https://forminit.com/f/{hash} to https://api.forminit.com/v1/forms/{hash}
+        if (serviceUrl.Contains("forminit.com/f/", StringComparison.OrdinalIgnoreCase))
+        {
+            var hash = serviceUrl.Split("/f/", StringSplitOptions.None).LastOrDefault()?.Trim('/') ?? "";
+            return $"https://api.forminit.com/v1/forms/{hash}";
+        }
+
+        return serviceUrl;
+    }
+
+    private static string AppendQuery(string url, string queryParams)
+    {
+        var separator = url.Contains('?') ? '&' : '?';
+        return $"{url}{separator}{queryParams}";
+    }
+
+    private static (List<WebsiteSubmissionDto> submissions, int lastPage) ParseServiceResponse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var lastPage = 0;
+
+        // Try common response shapes: array, { data: { submissions: [] } }, { submissions: [] }, { data: [] }
+        JsonElement array;
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            array = root;
+        }
+        else if (root.TryGetProperty("data", out var data))
+        {
+            if (data.ValueKind == JsonValueKind.Array)
+                array = data;
+            else if (data.TryGetProperty("submissions", out var subs) && subs.ValueKind == JsonValueKind.Array)
+            {
+                array = subs;
+                // Forminit pagination: { data: { pagination: { lastPage: N } } }
+                if (data.TryGetProperty("pagination", out var pag) && pag.TryGetProperty("lastPage", out var lp))
+                    lastPage = lp.GetInt32();
+            }
+            else
+                return ([], 0);
+        }
+        else if (root.TryGetProperty("submissions", out var subs2) && subs2.ValueKind == JsonValueKind.Array)
+        {
+            array = subs2;
+        }
+        else
+        {
+            return ([], 0);
+        }
+
+        var result = new List<WebsiteSubmissionDto>();
+        foreach (var item in array.EnumerateArray())
+        {
+            var dto = new WebsiteSubmissionDto { Values = new Dictionary<string, string>() };
+
+            // Extract known meta fields
+            dto.ExternalId = TryGetString(item, "_id") ?? TryGetString(item, "id")
+                ?? TryGetString(item, "hashId") ?? "";
+            dto.FormId = TryGetString(item, "_formId") ?? TryGetString(item, "formId") ?? "";
+            dto.Name = TryGetString(item, "_entryName") ?? TryGetString(item, "name") ?? "";
+
+            var dateStr = TryGetString(item, "submissionDate") ?? TryGetString(item, "date")
+                ?? TryGetString(item, "created_at") ?? TryGetString(item, "submittedAt") ?? "";
+            if (DateTime.TryParse(dateStr, out var dt))
+                dto.SubmittedAt = dt;
+
+            // Forminit nests form data inside a "blocks" object
+            var fieldsSource = item.TryGetProperty("blocks", out var blocks) && blocks.ValueKind == JsonValueKind.Object
+                ? blocks : item;
+
+            // First pass: extract _formId and _entryName from blocks if not already set
+            if (string.IsNullOrEmpty(dto.FormId))
+                dto.FormId = TryGetString(fieldsSource, "_formId") ?? "";
+            if (string.IsNullOrEmpty(dto.Name))
+                dto.Name = TryGetString(fieldsSource, "_entryName") ?? "";
+
+            // Collect field values — skip meta properties
+            var metaKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "_id", "id", "hashId", "_formId", "formId", "_entryName", "name", "created_at", "submittedAt",
+                  "submissionDate", "date", "status", "submissionStatus", "sender", "tracking",
+                  "submissionInfo", "files" };
+
+            foreach (var prop in fieldsSource.EnumerateObject())
+            {
+                if (prop.Name.StartsWith("_") || metaKeys.Contains(prop.Name))
+                    continue;
+                if (prop.Value.ValueKind == JsonValueKind.Object)
+                {
+                    // Forminit nested block format: { "type_key": { "label": "...", "value": "..." } }
+                    var blockLabel = TryGetString(prop.Value, "label");
+                    var blockValue = TryGetAnyString(prop.Value, "value");
+                    if (!string.IsNullOrEmpty(blockLabel) && blockValue != null)
+                        dto.Values[blockLabel] = blockValue;
+                    continue;
+                }
+                if (prop.Value.ValueKind == JsonValueKind.Array)
+                    continue;
+                // Handle all value types safely (string, number, bool, null)
+                dto.Values[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
+                    ? (prop.Value.GetString() ?? "")
+                    : prop.Value.ToString();
+            }
+
+            result.Add(dto);
+        }
+
+        return (result, lastPage);
+    }
+
+    private static string? TryGetString(JsonElement el, string prop) =>
+        el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    /// <summary>Reads a property value as a string regardless of JSON type (string, bool, number).</summary>
+    private static string? TryGetAnyString(JsonElement el, string prop)
+    {
+        if (!el.TryGetProperty(prop, out var v)) return null;
+        return v.ValueKind == JsonValueKind.String ? v.GetString()
+            : v.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ? null
+            : v.ToString();
+    }
+
+    private int ImportSubmissions(List<WebsiteSubmissionDto> submissions)
+    {
+        var imported = 0;
+
+        foreach (var sub in submissions)
+        {
+            var rawId = sub.FormId ?? "";
             if (rawId.StartsWith("form-", StringComparison.OrdinalIgnoreCase))
                 rawId = rawId[5..];
 
-            if (!Guid.TryParse(rawId, out var formGuid)) return;
+            Guid formGuid;
+            if (!Guid.TryParse(rawId, out formGuid))
+            {
+                // No formId in submission — fall back to the currently selected form
+                if (_selectedFormId.HasValue)
+                    formGuid = _selectedFormId.Value;
+                else
+                    continue;
+            }
 
             var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == formGuid);
-            if (form == null) return;
+            if (form == null) continue;
+
+            // Skip if already imported (by external ID or by matching name+date)
+            var extId = sub.ExternalId ?? "";
+            if (!string.IsNullOrEmpty(extId) && form.ImportedExternalIds.Contains(extId))
+                continue;
 
             var submission = new EntryFormSubmission
             {
-                EntryName = args.EntryName,
-                Notes = "Submitted via website",
+                EntryName = sub.Name ?? "",
+                Notes = "Fetched from form service",
+                SubmittedDate = sub.SubmittedAt ?? DateTime.Now,
             };
 
-            // Map values to form fields
             foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
             {
                 submission.FieldValues[field.Label] =
-                    args.FieldValues.TryGetValue(field.Label, out var val) ? val : "";
+                    sub.Values != null && sub.Values.TryGetValue(field.Label, out var val) ? val : "";
             }
 
             form.Submissions.Add(submission);
+            if (!string.IsNullOrEmpty(extId))
+                form.ImportedExternalIds.Add(extId);
+            imported++;
+        }
+
+        if (imported > 0)
+        {
             DataStore.Save();
 
-            // If this form is currently selected, refresh the records panel
-            if (_selectedFormId == formGuid)
+            if (_selectedFormId.HasValue)
             {
-                RefreshEntries(form);
-                RefreshCrossReference(form);
+                var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId.Value);
+                if (form != null)
+                {
+                    RefreshEntries(form);
+                    RefreshCrossReference(form);
+                }
             }
-        });
+
+            UpdateRecordsHeader();
+        }
+
+        return imported;
+    }
+
+    private async void OnImportSubmissionsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select submissions JSON file",
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.WinUI, new[] { ".json" } }
+                })
+            });
+
+            if (result == null) return;
+
+            var json = await File.ReadAllTextAsync(result.FullPath);
+
+            // Try service format first, then localStorage format
+            List<WebsiteSubmissionDto> submissions;
+            try
+            {
+                var (parsed, _) = ParseServiceResponse(json);
+                submissions = parsed;
+            }
+            catch
+            {
+                submissions = JsonSerializer.Deserialize<List<WebsiteSubmissionDto>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? [];
+            }
+
+            if (submissions.Count == 0)
+            {
+                await DisplayAlert("No Submissions", "The file contained no submissions.", "OK");
+                return;
+            }
+
+            var imported = ImportSubmissions(submissions);
+
+            await DisplayAlert("Import Complete",
+                $"Imported {imported} of {submissions.Count} submission{(submissions.Count != 1 ? "s" : "")}.",
+                "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Import Error", $"Failed to import: {ex.Message}", "OK");
+        }
+    }
+
+    /// <summary>DTO for submissions from both API and file imports.</summary>
+    private sealed class WebsiteSubmissionDto
+    {
+        public string? ExternalId { get; set; }
+        public string? FormId { get; set; }
+        public string? Name { get; set; }
+        public Dictionary<string, string>? Values { get; set; }
+        public DateTime? SubmittedAt { get; set; }
     }
 
     // ── Display items ───────────────────────────────────────────────────
@@ -245,6 +563,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             FormType = original.FormType,
             SubmitButtonText = original.SubmitButtonText,
             ConfirmationMessage = original.ConfirmationMessage,
+            LogoImageData = original.LogoImageData != null ? (byte[])original.LogoImageData.Clone() : null,
             Fields = original.Fields.Select(f => new EntryFormField
             {
                 Label = f.Label,
@@ -278,6 +597,8 @@ public partial class EntryFormsSettingsPage : ContentPage
         else
             ClosingDatePicker.Date = DateTime.Now.AddDays(30);
 
+        UpdateFormLogoPreview(form);
+
         // Left side: show editor
         EditorPlaceholder.IsVisible = false;
         EditorForm.IsVisible = true;
@@ -300,8 +621,14 @@ public partial class EntryFormsSettingsPage : ContentPage
         FieldsPanel.Children.Clear();
         NoFieldsLabel.IsVisible = form.Fields.Count == 0;
 
-        foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
+        var orderedFields = form.Fields.OrderBy(f => f.SortOrder).ToList();
+
+        for (int idx = 0; idx < orderedFields.Count; idx++)
         {
+            var field = orderedFields[idx];
+            var capturedField = field;
+            var capturedIdx = idx;
+
             var card = new Frame
             {
                 BorderColor = Color.FromArgb("#E2E8F0"),
@@ -315,6 +642,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             {
                 ColumnDefinitions = new ColumnDefinitionCollection
                 {
+                    new ColumnDefinition(GridLength.Auto),
                     new ColumnDefinition(GridLength.Star),
                     new ColumnDefinition(GridLength.Auto),
                     new ColumnDefinition(GridLength.Auto),
@@ -329,6 +657,44 @@ public partial class EntryFormsSettingsPage : ContentPage
                 RowSpacing = 6,
             };
 
+            // Up/down reorder buttons
+            var moveStack = new VerticalStackLayout { Spacing = 2, VerticalOptions = LayoutOptions.Center };
+            var upBtn = new Button
+            {
+                Text = "\u25B2",
+                BackgroundColor = Colors.Transparent,
+                TextColor = capturedIdx == 0 ? Color.FromArgb("#CBD5E1") : Color.FromArgb("#3B82F6"),
+                FontSize = 10,
+                Padding = new Thickness(2),
+                WidthRequest = 28,
+                HeightRequest = 24,
+                IsEnabled = capturedIdx > 0,
+            };
+            upBtn.Clicked += (_, _) =>
+            {
+                SwapFieldOrder(form, capturedField, -1);
+                RebuildFieldsPanel(form);
+            };
+            var downBtn = new Button
+            {
+                Text = "\u25BC",
+                BackgroundColor = Colors.Transparent,
+                TextColor = capturedIdx == orderedFields.Count - 1 ? Color.FromArgb("#CBD5E1") : Color.FromArgb("#3B82F6"),
+                FontSize = 10,
+                Padding = new Thickness(2),
+                WidthRequest = 28,
+                HeightRequest = 24,
+                IsEnabled = capturedIdx < orderedFields.Count - 1,
+            };
+            downBtn.Clicked += (_, _) =>
+            {
+                SwapFieldOrder(form, capturedField, 1);
+                RebuildFieldsPanel(form);
+            };
+            moveStack.Add(upBtn);
+            moveStack.Add(downBtn);
+            grid.Add(moveStack, 0, 0);
+
             var labelEntry = new Entry
             {
                 Text = field.Label,
@@ -336,9 +702,8 @@ public partial class EntryFormsSettingsPage : ContentPage
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold,
             };
-            var capturedField = field;
             labelEntry.TextChanged += (_, args) => capturedField.Label = args.NewTextValue;
-            grid.Add(labelEntry, 0, 0);
+            grid.Add(labelEntry, 1, 0);
 
             var typePicker = new Picker
             {
@@ -352,14 +717,14 @@ public partial class EntryFormsSettingsPage : ContentPage
                 if (typePicker.SelectedItem is string t)
                     capturedField.FieldType = t;
             };
-            grid.Add(typePicker, 1, 0);
+            grid.Add(typePicker, 2, 0);
 
             var requiredSwitch = new Switch { IsToggled = field.IsRequired };
             requiredSwitch.Toggled += (_, args) => capturedField.IsRequired = args.Value;
             var requiredStack = new HorizontalStackLayout { Spacing = 4 };
             requiredStack.Add(new Label { Text = "Req", FontSize = 11, TextColor = Color.FromArgb("#94A3B8"), VerticalOptions = LayoutOptions.Center });
             requiredStack.Add(requiredSwitch);
-            grid.Add(requiredStack, 2, 0);
+            grid.Add(requiredStack, 3, 0);
 
             var deleteBtn = new Button
             {
@@ -376,7 +741,7 @@ public partial class EntryFormsSettingsPage : ContentPage
                 form.Fields.Remove(capturedField);
                 RebuildFieldsPanel(form);
             };
-            grid.Add(deleteBtn, 3, 0);
+            grid.Add(deleteBtn, 4, 0);
 
             var row1 = new Grid { ColumnDefinitions = new ColumnDefinitionCollection { new(GridLength.Star), new(GridLength.Star) }, ColumnSpacing = 8 };
             var placeholderEntry = new Entry
@@ -402,12 +767,82 @@ public partial class EntryFormsSettingsPage : ContentPage
             };
             row1.Add(optionsEntry, 1, 0);
 
-            Grid.SetColumnSpan(row1, 4);
+            Grid.SetColumnSpan(row1, 5);
             grid.Add(row1, 0, 1);
 
             card.Content = grid;
             FieldsPanel.Children.Add(card);
         }
+    }
+
+    private static void SwapFieldOrder(EntryForm form, EntryFormField field, int direction)
+    {
+        var ordered = form.Fields.OrderBy(f => f.SortOrder).ToList();
+        var idx = ordered.IndexOf(field);
+        var targetIdx = idx + direction;
+        if (targetIdx < 0 || targetIdx >= ordered.Count) return;
+
+        var other = ordered[targetIdx];
+        (field.SortOrder, other.SortOrder) = (other.SortOrder, field.SortOrder);
+    }
+
+    private void UpdateFormLogoPreview(EntryForm form)
+    {
+        if (form.LogoImageData != null && form.LogoImageData.Length > 0)
+        {
+            FormLogoPreview.Source = ImageSource.FromStream(() => new MemoryStream(form.LogoImageData));
+            FormLogoPreview.IsVisible = true;
+            NoLogoLabel.IsVisible = false;
+            ClearFormLogoBtn.IsVisible = true;
+        }
+        else
+        {
+            FormLogoPreview.Source = null;
+            FormLogoPreview.IsVisible = false;
+            NoLogoLabel.IsVisible = true;
+            ClearFormLogoBtn.IsVisible = false;
+        }
+    }
+
+    private async void OnUploadFormLogoClicked(object? sender, EventArgs e)
+    {
+        if (!_selectedFormId.HasValue) return;
+        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        if (form == null) return;
+
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select Form Logo",
+                FileTypes = FilePickerFileType.Images
+            });
+
+            if (result != null)
+            {
+                using var stream = await result.OpenReadAsync();
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                form.LogoImageData = ms.ToArray();
+                DataStore.Save();
+                UpdateFormLogoPreview(form);
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to upload logo: {ex.Message}", "OK");
+        }
+    }
+
+    private void OnClearFormLogoClicked(object? sender, EventArgs e)
+    {
+        if (!_selectedFormId.HasValue) return;
+        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        if (form == null) return;
+
+        form.LogoImageData = null;
+        DataStore.Save();
+        UpdateFormLogoPreview(form);
     }
 
     private void OnAddFieldClicked(object? sender, EventArgs e)

@@ -126,7 +126,10 @@ namespace Wdpl2.Services
                 files["rows-reports.html"] = GenerateRowsReportsPage(season, template);
 
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
+            {
                 files["entry-forms.html"] = GenerateEntryFormsPage(season, template);
+                files["_submissions.html"] = GenerateSubmissionsAdminPage(season, template);
+            }
 
             // Add UK 8-Ball Pool Game
             if (_settings.ShowPoolGame)
@@ -626,6 +629,14 @@ namespace Wdpl2.Services
             var formId = $"form-{activeForm.Id:N}";
 
             html.AppendLine("            <section class=\"section entry-form-card\">");
+
+            if (activeForm.LogoImageData != null && activeForm.LogoImageData.Length > 0)
+            {
+                var imgOpt = new ImageOptimizationService();
+                var dataUrl = imgOpt.ToDataUrl(activeForm.LogoImageData, imgOpt.GetMimeType("logo.png"));
+                html.AppendLine($"                <div class=\"entry-form-logo\"><img src=\"{dataUrl}\" alt=\"{Esc(activeForm.Title)}\"></div>");
+            }
+
             html.AppendLine("                <div class=\"entry-form-header\">");
             html.AppendLine($"                    <h3>&#128203; {Esc(activeForm.Title)}</h3>");
             html.AppendLine("                    <span class=\"entry-form-badge open\">Open</span>");
@@ -641,10 +652,12 @@ namespace Wdpl2.Services
             {
                 html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
                 html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
+                html.AppendLine($"                    <input type=\"hidden\" name=\"_formId\" value=\"{formId}\">");
 
                 foreach (var field in activeForm.Fields.OrderBy(f => f.SortOrder))
                 {
                     var fieldId = $"field-{field.Id:N}";
+                    var fieldName = Esc(field.Label);
                     var requiredAttr = field.IsRequired ? " required" : "";
                     var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
                     var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
@@ -655,11 +668,11 @@ namespace Wdpl2.Services
                     {
                         case "textarea":
                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldId}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
+                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldName}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
                             break;
                         case "select":
                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}>");
+                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}>");
                             html.AppendLine("                            <option value=\"\">-- Select --</option>");
                             if (!string.IsNullOrWhiteSpace(field.Options))
                             {
@@ -669,7 +682,7 @@ namespace Wdpl2.Services
                             html.AppendLine("                        </select>");
                             break;
                         case "checkbox":
-                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
+                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
                             break;
                         default:
                             var inputType = field.FieldType switch
@@ -681,7 +694,7 @@ namespace Wdpl2.Services
                                 _ => "text"
                             };
                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldId}\"{placeholder}{requiredAttr}>");
+                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldName}\"{placeholder}{requiredAttr}>");
                             break;
                     }
 
@@ -701,34 +714,7 @@ namespace Wdpl2.Services
                 html.AppendLine($"                <script>window.formFields = window.formFields || {{}}; window.formFields['{formId}'] = [{string.Join(",", fieldLabels)}];</script>");
 
                 // Include form submission JS
-                html.AppendLine("                <script>");
-                html.AppendLine("                function handleEntrySubmit(form) {");
-                html.AppendLine("                    if (!form.checkValidity()) { form.reportValidity(); return false; }");
-                html.AppendLine("                    var formId = form.id.replace('-form', '');");
-                html.AppendLine("                    var fields = window.formFields[formId] || [];");
-                html.AppendLine("                    var values = {};");
-                html.AppendLine("                    var entryName = '';");
-                html.AppendLine("                    for (var i = 0; i < fields.length; i++) {");
-                html.AppendLine("                        var el = document.getElementById(fields[i].id);");
-                html.AppendLine("                        if (!el) continue;");
-                html.AppendLine("                        var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
-                html.AppendLine("                        values[fields[i].label] = val;");
-                html.AppendLine("                        if (i === 0 && val) entryName = val;");
-                html.AppendLine("                    }");
-                html.AppendLine("                    var inputs = form.querySelectorAll('input,textarea,select');");
-                html.AppendLine("                    for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
-                html.AppendLine("                    var btn = form.querySelector('button[type=submit]');");
-                html.AppendLine("                    if (btn) btn.style.display = 'none';");
-                html.AppendLine("                    var confirmDiv = document.getElementById(formId + '-confirm');");
-                html.AppendLine("                    if (confirmDiv) confirmDiv.style.display = 'block';");
-                html.AppendLine($"                    fetch('http://localhost:{FormSubmissionListener.Port}/api/entry-submit', {{");
-                html.AppendLine("                        method: 'POST',");
-                html.AppendLine("                        headers: { 'Content-Type': 'application/json' },");
-                html.AppendLine("                        body: JSON.stringify({ formId: formId, name: entryName, values: values })");
-                html.AppendLine("                    }).catch(function() {});");
-                html.AppendLine("                    return false;");
-                html.AppendLine("                }");
-                html.AppendLine("                </script>");
+                AppendEntryFormSubmitScript(html, "                ");
             }
 
             html.AppendLine("                <p class=\"view-all\"><a href=\"entry-forms.html\">View All Entry Forms &#8594;</a></p>");
@@ -2620,6 +2606,14 @@ namespace Wdpl2.Services
 
                         html.AppendLine($"            <div class=\"section entry-form-card\" id=\"{formId}\">");
 
+                        // Form logo
+                        if (form.LogoImageData != null && form.LogoImageData.Length > 0)
+                        {
+                            var imgOpt = new ImageOptimizationService();
+                            var dataUrl = imgOpt.ToDataUrl(form.LogoImageData, imgOpt.GetMimeType("logo.png"));
+                            html.AppendLine($"                <div class=\"entry-form-logo\"><img src=\"{dataUrl}\" alt=\"{Esc(form.Title)}\"></div>");
+                        }
+
                         // Form header
                         html.AppendLine("                <div class=\"entry-form-header\">");
                         html.AppendLine($"                    <h3>{Esc(form.Title)}</h3>");
@@ -2648,10 +2642,12 @@ namespace Wdpl2.Services
                             {
                                 html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
                                 html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
+                                html.AppendLine($"                    <input type=\"hidden\" name=\"_formId\" value=\"{formId}\">");
 
                                 foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
                                 {
                                     var fieldId = $"field-{field.Id:N}";
+                                    var fieldName = Esc(field.Label);
                                     var requiredAttr = field.IsRequired ? " required" : "";
                                     var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
                                     var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
@@ -2662,12 +2658,12 @@ namespace Wdpl2.Services
                                     {
                                         case "textarea":
                                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldId}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
+                                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldName}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
                                             break;
 
                                         case "select":
                                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}>");
+                                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}>");
                                             html.AppendLine("                            <option value=\"\">-- Select --</option>");
                                             if (!string.IsNullOrWhiteSpace(field.Options))
                                             {
@@ -2678,7 +2674,7 @@ namespace Wdpl2.Services
                                             break;
 
                                         case "checkbox":
-                                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldId}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
+                                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
                                             break;
 
                                         default:
@@ -2691,7 +2687,7 @@ namespace Wdpl2.Services
                                                 _ => "text"
                                             };
                                             html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldId}\"{placeholder}{requiredAttr}>");
+                                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldName}\"{placeholder}{requiredAttr}>");
                                             break;
                                     }
 
@@ -2736,36 +2732,171 @@ namespace Wdpl2.Services
                     html.AppendLine("            </div>");
                 }
 
-                // Form submission JavaScript — POSTs to local app listener
-                html.AppendLine("            <script>");
-                html.AppendLine("            function handleEntrySubmit(form) {");
-                html.AppendLine("                if (!form.checkValidity()) { form.reportValidity(); return false; }");
-                html.AppendLine("                var formId = form.id.replace('-form', '');");
-                html.AppendLine("                var fields = window.formFields[formId] || [];");
-                html.AppendLine("                var values = {};");
-                html.AppendLine("                var entryName = '';");
-                html.AppendLine("                for (var i = 0; i < fields.length; i++) {");
-                html.AppendLine("                    var el = document.getElementById(fields[i].id);");
-                html.AppendLine("                    if (!el) continue;");
-                html.AppendLine("                    var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
-                html.AppendLine("                    values[fields[i].label] = val;");
-                html.AppendLine("                    if (i === 0 && val) entryName = val;");
-                html.AppendLine("                }");
-                html.AppendLine("                var inputs = form.querySelectorAll('input,textarea,select');");
-                html.AppendLine("                for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
-                html.AppendLine("                var btn = form.querySelector('button[type=submit]');");
-                html.AppendLine("                if (btn) btn.style.display = 'none';");
-                html.AppendLine("                var confirmDiv = document.getElementById(formId + '-confirm');");
-                html.AppendLine("                if (confirmDiv) confirmDiv.style.display = 'block';");
-                html.AppendLine($"                fetch('http://localhost:{FormSubmissionListener.Port}/api/entry-submit', {{");
-                html.AppendLine("                    method: 'POST',");
-                html.AppendLine("                    headers: { 'Content-Type': 'application/json' },");
-                html.AppendLine("                    body: JSON.stringify({ formId: formId, name: entryName, values: values })");
-                html.AppendLine("                }).catch(function() {});");
-                html.AppendLine("                return false;");
-                html.AppendLine("            }");
-                html.AppendLine("            </script>");
+                // Form submission JavaScript
+                AppendEntryFormSubmitScript(html, "            ");
             });
+        }
+
+        /// <summary>
+        /// Emits the handleEntrySubmit(form) script block.
+        /// If a form service URL is configured, submissions POST via fetch with Forminit SDK headers;
+        /// otherwise they save to localStorage.
+        /// </summary>
+        private void AppendEntryFormSubmitScript(StringBuilder html, string indent)
+        {
+            var serviceUrl = _settings.FormServiceUrl?.Trim() ?? "";
+            var useService = !string.IsNullOrEmpty(serviceUrl);
+
+            html.AppendLine($"{indent}<script>");
+            html.AppendLine($"{indent}function handleEntrySubmit(form) {{");
+            html.AppendLine($"{indent}    if (!form.checkValidity()) {{ form.reportValidity(); return false; }}");
+            html.AppendLine($"{indent}    var formId = form.id.replace('-form', '');");
+            html.AppendLine($"{indent}    var fields = window.formFields[formId] || [];");
+            html.AppendLine($"{indent}    var values = {{}};");
+            html.AppendLine($"{indent}    var entryName = '';");
+            html.AppendLine($"{indent}    for (var i = 0; i < fields.length; i++) {{");
+            html.AppendLine($"{indent}        var el = document.getElementById(fields[i].id);");
+            html.AppendLine($"{indent}        if (!el) continue;");
+            html.AppendLine($"{indent}        var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
+            html.AppendLine($"{indent}        values[fields[i].label] = val;");
+            html.AppendLine($"{indent}        if (i === 0 && val) entryName = val;");
+            html.AppendLine($"{indent}    }}");
+
+            // Always save to localStorage as a backup
+            html.AppendLine($"{indent}    try {{");
+            html.AppendLine($"{indent}        var subs = JSON.parse(localStorage.getItem('wdpl2_submissions') || '[]');");
+            html.AppendLine($"{indent}        subs.push({{ formId: formId, name: entryName, values: values, submittedAt: new Date().toISOString() }});");
+            html.AppendLine($"{indent}        localStorage.setItem('wdpl2_submissions', JSON.stringify(subs));");
+            html.AppendLine($"{indent}    }} catch(e) {{}}");
+
+            if (useService)
+            {
+                // Submit via fetch with Forminit JSON blocks format.
+                // Forminit requires: { blocks: [{ type, name, value, properties: { label } }] }
+                // Valid block types: text, email, number, checkbox, select
+                html.AppendLine($"{indent}    var typeMap = {{ 'text':'text','textarea':'text','email':'email','phone':'text','number':'number','date':'text','select':'select','checkbox':'checkbox' }};");
+                html.AppendLine($"{indent}    var blocks = [];");
+                html.AppendLine($"{indent}    blocks.push({{ type: 'text', name: '_formId', value: formId, properties: {{ label: '_formId' }} }});");
+                html.AppendLine($"{indent}    for (var b = 0; b < fields.length; b++) {{");
+                html.AppendLine($"{indent}        var bel = document.getElementById(fields[b].id);");
+                html.AppendLine($"{indent}        if (!bel) continue;");
+                html.AppendLine($"{indent}        var bval = fields[b].type === 'checkbox' ? (bel.checked ? 'Yes' : 'No') : bel.value;");
+                html.AppendLine($"{indent}        var bname = fields[b].label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');");
+                html.AppendLine($"{indent}        blocks.push({{ type: typeMap[fields[b].type] || 'text', name: bname, value: bval, properties: {{ label: fields[b].label }} }});");
+                html.AppendLine($"{indent}    }}");
+                html.AppendLine($"{indent}    var btn = form.querySelector('button[type=submit]');");
+                html.AppendLine($"{indent}    if (btn) {{ btn.disabled = true; btn.textContent = 'Submitting\u2026'; }}");
+                html.AppendLine($"{indent}    fetch('{EscJs(serviceUrl)}', {{");
+                html.AppendLine($"{indent}        method: 'POST',");
+                html.AppendLine($"{indent}        headers: {{ 'Content-Type': 'application/json', 'FormInit-SDK-Version': '0.2.3', 'Accept': 'application/json' }},");
+                html.AppendLine($"{indent}        body: JSON.stringify({{ blocks: blocks }})");
+                html.AppendLine($"{indent}    }}).then(function(r) {{ return r.json(); }}).then(function(data) {{");
+                html.AppendLine($"{indent}        if (data.success) {{");
+                html.AppendLine($"{indent}            var inputs = form.querySelectorAll('input,textarea,select');");
+                html.AppendLine($"{indent}            for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
+                html.AppendLine($"{indent}            if (btn) btn.style.display = 'none';");
+                html.AppendLine($"{indent}            var confirmDiv = document.getElementById(formId + '-confirm');");
+                html.AppendLine($"{indent}            if (confirmDiv) confirmDiv.style.display = 'block';");
+                html.AppendLine($"{indent}        }} else {{");
+                html.AppendLine($"{indent}            alert('Submission error: ' + (data.message || 'Please try again.'));");
+                html.AppendLine($"{indent}            if (btn) {{ btn.disabled = false; btn.textContent = 'Submit Entry'; }}");
+                html.AppendLine($"{indent}        }}");
+                html.AppendLine($"{indent}    }}).catch(function(err) {{");
+                html.AppendLine($"{indent}        alert('Network error: ' + err.message);");
+                html.AppendLine($"{indent}        if (btn) {{ btn.disabled = false; btn.textContent = 'Submit Entry'; }}");
+                html.AppendLine($"{indent}    }});");
+            }
+            else
+            {
+                // No service configured — disable the form and show confirmation
+                html.AppendLine($"{indent}    var inputs = form.querySelectorAll('input,textarea,select');");
+                html.AppendLine($"{indent}    for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
+                html.AppendLine($"{indent}    var btn = form.querySelector('button[type=submit]');");
+                html.AppendLine($"{indent}    if (btn) btn.style.display = 'none';");
+                html.AppendLine($"{indent}    var confirmDiv = document.getElementById(formId + '-confirm');");
+                html.AppendLine($"{indent}    if (confirmDiv) confirmDiv.style.display = 'block';");
+            }
+
+            html.AppendLine($"{indent}    return false;");
+            html.AppendLine($"{indent}}}");
+            html.AppendLine($"{indent}</script>");
+        }
+
+        /// <summary>Escapes a string for safe use inside a JS string literal (single-quoted).</summary>
+        private static string EscJs(string s) => s.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"");
+
+        private string GenerateSubmissionsAdminPage(Season season, WebsiteTemplate template)
+        {
+            var html = new StringBuilder();
+
+            AppendDocumentHead(html, $"Submissions - {_settings.LeagueName}", season);
+            html.AppendLine("<body>");
+
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+
+            AppendHeader(html, season);
+            AppendNavigation(html, "Submissions");
+
+            html.AppendLine("    <div class=\"content-area\">");
+            html.AppendLine("        <div class=\"container\">");
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine("                <h2>&#128203; Submission Collection</h2>");
+            html.AppendLine("                <p>Download pending form submissions to import into the league app</p>");
+            html.AppendLine("            </div>");
+            html.AppendLine("            <div class=\"section\">");
+            html.AppendLine("                <div style=\"display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;\">");
+            html.AppendLine("                    <span id=\"sub-count\" style=\"font-size:1.1rem;font-weight:600;\"></span>");
+            html.AppendLine("                    <button id=\"download-btn\" onclick=\"downloadSubmissions()\" style=\"padding:10px 20px;background:#10B981;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;\" disabled>&#128229; Download JSON</button>");
+            html.AppendLine("                    <button id=\"clear-btn\" onclick=\"clearSubmissions()\" style=\"padding:10px 20px;background:#EF4444;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;\" disabled>&#128465; Clear All</button>");
+            html.AppendLine("                </div>");
+            html.AppendLine("                <div id=\"sub-list\"></div>");
+            html.AppendLine("            </div>");
+            html.AppendLine("        </div>");
+            html.AppendLine("    </div>");
+
+            AppendFooter(html);
+
+            html.AppendLine("    <script>");
+            html.AppendLine("    function loadSubmissions() {");
+            html.AppendLine("        var subs = JSON.parse(localStorage.getItem('wdpl2_submissions') || '[]');");
+            html.AppendLine("        var countEl = document.getElementById('sub-count');");
+            html.AppendLine("        var listEl = document.getElementById('sub-list');");
+            html.AppendLine("        var dlBtn = document.getElementById('download-btn');");
+            html.AppendLine("        var clrBtn = document.getElementById('clear-btn');");
+            html.AppendLine("        countEl.textContent = subs.length + ' pending submission' + (subs.length !== 1 ? 's' : '');");
+            html.AppendLine("        dlBtn.disabled = subs.length === 0;");
+            html.AppendLine("        clrBtn.disabled = subs.length === 0;");
+            html.AppendLine("        if (subs.length === 0) { listEl.innerHTML = '<p style=\"color:#94A3B8;\">No pending submissions. Entries submitted on the forms pages will appear here.</p>'; return; }");
+            html.AppendLine("        var html = '<table style=\"width:100%;border-collapse:collapse;\">';");
+            html.AppendLine("        html += '<thead><tr style=\"background:#F1F5F9;\"><th style=\"padding:8px;text-align:left;\">Name</th><th style=\"padding:8px;text-align:left;\">Form</th><th style=\"padding:8px;text-align:left;\">Date</th></tr></thead><tbody>';");
+            html.AppendLine("        for (var i = 0; i < subs.length; i++) {");
+            html.AppendLine("            var d = new Date(subs[i].submittedAt);");
+            html.AppendLine("            html += '<tr style=\"border-bottom:1px solid #E2E8F0;\"><td style=\"padding:8px;\">' + (subs[i].name || '(unnamed)') + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + (subs[i].formId || '') + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString() + '</td></tr>';");
+            html.AppendLine("        }");
+            html.AppendLine("        html += '</tbody></table>';");
+            html.AppendLine("        listEl.innerHTML = html;");
+            html.AppendLine("    }");
+            html.AppendLine("    function downloadSubmissions() {");
+            html.AppendLine("        var subs = localStorage.getItem('wdpl2_submissions') || '[]';");
+            html.AppendLine("        var blob = new Blob([subs], { type: 'application/json' });");
+            html.AppendLine("        var a = document.createElement('a');");
+            html.AppendLine("        a.href = URL.createObjectURL(blob);");
+            html.AppendLine("        a.download = 'wdpl2-submissions.json';");
+            html.AppendLine("        document.body.appendChild(a); a.click(); document.body.removeChild(a);");
+            html.AppendLine("        URL.revokeObjectURL(a.href);");
+            html.AppendLine("    }");
+            html.AppendLine("    function clearSubmissions() {");
+            html.AppendLine("        if (!confirm('Clear all pending submissions? Make sure you have downloaded them first.')) return;");
+            html.AppendLine("        localStorage.removeItem('wdpl2_submissions');");
+            html.AppendLine("        loadSubmissions();");
+            html.AppendLine("    }");
+            html.AppendLine("    loadSubmissions();");
+            html.AppendLine("    </script>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
         }
 
         private string GenerateCustomPage(Season season, WebsiteTemplate template, CustomPage page)

@@ -473,6 +473,10 @@ h1, h2, h3, h4, h5, h6, p, span, div, a, li {{
 
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
+html {{ overflow-x: hidden; }}
+
+img {{ max-width: 100%; height: auto; }}
+
 body {{
     font-family: var(--font-family), var(--font-family-emoji);
     font-size: {_settings.BaseFontSize}px;
@@ -673,6 +677,8 @@ nav a:hover, nav a.active {{
 
 .table-responsive {{
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }}
 
 .text-positive {{ color: #10B981; }}
@@ -1250,6 +1256,18 @@ nav a:hover, nav a.active {{
     border-left: 4px solid var(--primary-color);
 }}
 
+.entry-form-logo {{
+    text-align: center;
+    margin-bottom: 16px;
+}}
+
+.entry-form-logo img {{
+    max-height: 100px;
+    max-width: 280px;
+    height: auto;
+    width: auto;
+}}
+
 .entry-form-header {{
     display: flex;
     align-items: center;
@@ -1571,6 +1589,7 @@ footer a {{
 header {{ padding: 24px 16px; }}
 header h1 {{ font-size: 1.6rem; letter-spacing: -0.01em; }}
 header .subtitle {{ font-size: 0.9rem; }}
+header .logo {{ max-width: 120px !important; max-height: 60px !important; }}
 .header-content.header-logo-left,
 .header-content.header-logo-right {{
     flex-direction: column;
@@ -1589,8 +1608,23 @@ header .subtitle {{ font-size: 0.9rem; }}
     margin: 0 auto 12px;
     display: block;
 }}
+.header-content.header-dual-logo {{
+    flex-direction: column;
+    gap: 12px;
+}}
 .hero h2 {{ font-size: 1.5rem; }}
-nav .nav-container {{ justify-content: center; }}
+nav .nav-container {{
+    justify-content: center;
+    padding: 10px 12px;
+    gap: 4px;
+}}
+nav a {{
+    padding: 6px 10px;
+    font-size: 0.85rem;
+}}
+.container {{ padding: 0 14px; }}
+.section {{ padding: clamp(16px, 4vw, 24px); margin-bottom: 16px; }}
+.content-area {{ padding: 16px 0; }}
 .two-col-row {{ grid-template-columns: 1fr; }}
 /* Mobile: stack freeform canvas blocks vertically */
 .page-canvas {{
@@ -1637,25 +1671,79 @@ nav .nav-container {{ justify-content: center; }}
     top: auto !important;
 }}
 .result-item, .fixture-item {{ 
-        grid-template-columns: 1fr !important;
-        text-align: center;
-        gap: 8px;
-    }}
-    .result-item .date, .fixture-item .date,
-    .result-item .venue, .fixture-item .venue,
-    .result-item .team, .fixture-item .team,
-    .result-item .score, .fixture-item .vs {{
-        text-align: center;
-    }}
-    .gallery-grid {{ grid-template-columns: repeat(2, 1fr); }}
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    gap: 8px;
+}}
+.result-item .date, .fixture-item .date,
+.result-item .venue, .fixture-item .venue,
+.result-item .team, .fixture-item .team,
+.result-item .score, .fixture-item .vs {{
+    text-align: center;
+}}
+.result-item .score {{ font-size: 1.1rem; min-width: auto; padding: 0 8px; }}
+.date {{ min-width: auto; }}
+.gallery-grid {{ grid-template-columns: repeat(2, 1fr); gap: 10px; }}
+/* Tables: scroll horizontally on mobile */
+.data-table {{ font-size: 0.85rem; }}
+.data-table th, .data-table td {{ padding: 8px 6px; }}
+.table-responsive {{ -webkit-overflow-scrolling: touch; }}
+/* Leader items: tighter on mobile */
+.leader-item {{ gap: 10px; padding: 10px; }}
+.leader-item .rank {{ font-size: 1.2rem; min-width: 32px; }}
+.leader-item .player-team {{ font-size: 0.8rem; }}
+/* Stat cards */
+.stats-grid {{ gap: 10px; }}
+.stat-card {{ padding: 14px; }}
+.stat-number {{ font-size: 1.4rem; }}
+/* Entry form */
+.entry-form-submit {{ width: 100%; text-align: center; padding: 14px 20px; }}
+.form-group input, .form-group textarea, .form-group select {{ font-size: 16px; padding: 12px 14px; }}
+.entry-form-logo img {{ max-height: 70px; max-width: 200px; }}
+/* Featured pages */
+.featured-page-link {{ padding: 16px 18px; gap: 14px; }}
+.featured-page-icon {{ font-size: 1.5rem; }}
+.featured-page-info h3 {{ font-size: 1rem; }}
+.featured-page-info p {{ font-size: 0.85rem; }}
+/* Standings table on home */
+.home-standings th, .home-standings td {{ padding: 6px 5px; font-size: 0.8rem; }}
+/* Footer */
+footer {{ padding: 24px 16px; }}
+.footer-content {{ font-size: 0.85rem; }}
+.footer-social {{ gap: 10px; margin: 14px 0; }}
+/* Mini stats */
+.mini-stats {{ flex-wrap: wrap; gap: 10px; }}
+.mini-stats .stat-card {{ flex: 1 1 calc(50% - 10px); min-width: 0; }}
+.contact-grid {{ grid-template-columns: 1fr; gap: 16px; }}
+.sponsors-grid {{ grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }}
 }}
 
 @media (max-width: 480px) {{
-    .page-canvas .container {{ padding: 0 clamp(14px, 4vw, 20px); }}
-    .page-canvas .section {{ padding: clamp(18px, 5vw, {_settings.SectionSpacing}px); }}
-    .page-canvas .leader-item {{ padding: 14px 16px; gap: 4px 12px; }}
-    .page-canvas .result-item,
-    .page-canvas .fixture-item {{ padding: 14px 16px; }}
+header {{ padding: 18px 12px; }}
+header h1 {{ font-size: 1.3rem; }}
+header .subtitle {{ font-size: 0.8rem; }}
+header .logo {{ max-width: 90px !important; max-height: 50px !important; }}
+nav a {{ padding: 5px 8px; font-size: 0.8rem; }}
+.container {{ padding: 0 10px; }}
+.section {{ padding: 14px; }}
+.hero h2 {{ font-size: 1.3rem; }}
+.hero {{ padding: 24px 12px; }}
+.page-canvas .container {{ padding: 0 clamp(14px, 4vw, 20px); }}
+.page-canvas .section {{ padding: clamp(18px, 5vw, {_settings.SectionSpacing}px); }}
+.page-canvas .leader-item {{ padding: 14px 16px; gap: 4px 12px; }}
+.page-canvas .result-item,
+.page-canvas .fixture-item {{ padding: 14px 16px; }}
+.gallery-grid {{ grid-template-columns: 1fr; }}
+.stats-grid {{ grid-template-columns: 1fr 1fr; }}
+.stat-card {{ padding: 12px; }}
+.stat-number {{ font-size: 1.2rem; }}
+.leader-item .rank {{ font-size: 1rem; min-width: 28px; }}
+.data-table {{ font-size: 0.8rem; }}
+.data-table th, .data-table td {{ padding: 6px 4px; }}
+.featured-page-link {{ padding: 14px; gap: 10px; }}
+.entry-form-header h3 {{ font-size: 1.1rem; }}
+.entry-form-logo img {{ max-height: 50px; max-width: 160px; }}
+footer {{ padding: 20px 12px; }}
 }}
 
 {_settings.CustomCss}
