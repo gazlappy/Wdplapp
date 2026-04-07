@@ -63,8 +63,22 @@
                                 Margin="0,0,0,4"
                                 BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                 Opacity="{Binding Opacity}"
-                                StrokeThickness="0"
+                                Stroke="Transparent"
+                                StrokeThickness="2"
                                 StrokeShape="RoundRectangle 8">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroupList>
+                                        <VisualStateGroup x:Name="CommonStates">
+                                            <VisualState x:Name="Normal" />
+                                            <VisualState x:Name="Selected">
+                                                <VisualState.Setters>
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#DBEAFE, Dark=#1E3A5F}" />
+                                                    <Setter Property="Stroke" Value="{AppThemeBinding Light=#3B82F6, Dark=#60A5FA}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateGroupList>
+                                </VisualStateManager.VisualStateGroups>
                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                                     <Border
                                         BackgroundColor="{Binding AvatarColor}"
@@ -93,10 +107,15 @@
                                     </VerticalStackLayout>
                                     <Label 
                                         Grid.Column="2" 
-                                        Text="{Binding TeamLabel}" 
+                                        Text="{Binding DisplayTeamLabel}" 
                                         FontSize="12" 
-                                        TextColor="#666" 
-                                        VerticalOptions="Center" />
+                                        TextColor="{Binding TeamLabelColor}" 
+                                        TextDecorations="Underline"
+                                        VerticalOptions="Center">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnPlayerTeamLabelTapped" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
                                     <Label 
                                         Grid.Column="3" 
                                         Text="{Binding TransferBadge}" 
@@ -177,6 +196,7 @@
 
                     <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
                         <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Toggle multi-select mode" />
+                        <Button x:Name="BulkAssignTeamBtn" Text="📋 Assign Team" BackgroundColor="#3B82F6" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Assign selected players to a team" />
                         <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Delete selected players" />
                     </FlexLayout>
 

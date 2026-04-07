@@ -7,6 +7,7 @@
     Title="Teams"
     SemanticProperties.Description="Teams management page">
 
+    <Grid>
     <Grid ColumnDefinitions="*,Auto,1.5*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
 
         <!-- Header -->
@@ -148,7 +149,9 @@
 
                     <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
                         <Button x:Name="MultiSelectBtn" Text="☐ Multi-Select OFF" BackgroundColor="#6B7280" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Toggle multi-select mode" />
+                        <Button x:Name="BulkAssignDivisionBtn" Text="📋 Assign Division" BackgroundColor="#3B82F6" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Assign selected teams to a division" />
                         <Button x:Name="BulkDeleteBtn" Text="🗑️ Delete Selected" BackgroundColor="#DC2626" TextColor="White" IsVisible="False" Margin="0,0,6,6" SemanticProperties.Description="Delete selected teams" />
+                        <Button x:Name="RandomDivisionBtn" Text="🎲 Random Division Assign" BackgroundColor="#8B5CF6" TextColor="White" Margin="0,0,6,6" SemanticProperties.Description="Randomly assign teams to divisions evenly" />
                     </FlexLayout>
 
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#E0E0E0, Dark=#333333}" />
@@ -474,5 +477,7 @@
                 </VerticalStackLayout>
             </ScrollView>
         </Border>
+    </Grid>
+    <ctrls:LoadingOverlay x:Name="LoadingOverlay" Message="Assigning divisions..."/>
     </Grid>
 </ContentPage>

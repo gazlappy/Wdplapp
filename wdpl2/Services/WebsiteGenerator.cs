@@ -53,7 +53,7 @@ namespace Wdpl2.Services
             var template = WebsiteTemplate.GetTemplateById(_settings.SelectedTemplate) ?? WebsiteTemplate.Modern;
             
             // Core files
-            files["index.html"] = GenerateIndexPage(season, template);
+            files["home.html"] = GenerateIndexPage(season, template);
             files["style.css"] = GenerateStylesheet(template);
             
             // Optional pages

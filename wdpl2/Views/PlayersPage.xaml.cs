@@ -24,6 +24,8 @@ public partial class PlayersPage : ContentPage
         public string? Last { get; set; }
         public string FullName => string.Join(" ", new[] { First, Last }.Where(s => !string.IsNullOrWhiteSpace(s)));
         public string TeamLabel { get; set; } = "";
+        public string DisplayTeamLabel => string.IsNullOrEmpty(TeamLabel) ? "+ team" : TeamLabel;
+        public Color TeamLabelColor => string.IsNullOrEmpty(TeamLabel) ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#3B82F6");
         public string Initials => $"{(string.IsNullOrWhiteSpace(First) ? "" : First![0].ToString())}{(string.IsNullOrWhiteSpace(Last) ? "" : Last![0].ToString())}";
         
         // Status properties
@@ -106,6 +108,7 @@ public partial class PlayersPage : ContentPage
             UpdateBtn.Clicked += OnUpdate;
             DeleteBtn.Clicked += OnDelete;
             MultiSelectBtn.Clicked += OnToggleMultiSelect;
+            BulkAssignTeamBtn.Clicked += OnBulkAssignTeam;
             BulkDeleteBtn.Clicked += OnBulkDelete;
 
             SaveBtn.Clicked += async (_, __) =>
@@ -656,6 +659,7 @@ public partial class PlayersPage : ContentPage
             PlayersList.SelectionMode = SelectionMode.Multiple;
             MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
+            BulkAssignTeamBtn.IsVisible = true;
             BulkDeleteBtn.IsVisible = true;
             UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = AddBtn.IsEnabled = false;
         }
@@ -664,6 +668,7 @@ public partial class PlayersPage : ContentPage
             PlayersList.SelectionMode = SelectionMode.Single;
             MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
+            BulkAssignTeamBtn.IsVisible = false;
             BulkDeleteBtn.IsVisible = false;
             UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = AddBtn.IsEnabled = true;
         }
@@ -923,6 +928,132 @@ public partial class PlayersPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"OnTransferPlayerAsync Error: {ex}");
             await DisplayAlert($"{Emojis.Error} Error", $"Transfer failed: {ex.Message}", "OK");
             SetStatus($"Transfer failed: {ex.Message}");
+        }
+    }
+
+    private async void OnBulkAssignTeam(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot assign players \u2014 this season is locked.", "OK");
+                return;
+            }
+            var selectedItems = PlayersList.SelectedItems?.Cast<PlayerListItem>().ToList();
+            if (selectedItems == null || selectedItems.Count == 0)
+            {
+                await DisplayAlert($"{Emojis.Info} No Selection", "Please select players to assign.", "OK");
+                return;
+            }
+
+            var availableTeams = DataStore.Data.Teams?
+                .Where(t => t != null && t.SeasonId == _currentSeasonId)
+                .OrderBy(t => t.Name ?? "").ToList() ?? [];
+
+            if (availableTeams.Count == 0)
+            {
+                await DisplayAlert($"{Emojis.Info} No Teams", "No teams exist for this season. Create teams first.", "OK");
+                return;
+            }
+
+            var teamNames = availableTeams.Select(t => t.Name ?? "Unknown").ToArray();
+            var chosen = await DisplayActionSheet(
+                $"Assign {selectedItems.Count} player(s) to team:", "Cancel", "— No Team —", teamNames);
+            if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+
+            Guid? newTeamId = null;
+            string teamLabel;
+            if (chosen != "— No Team —")
+            {
+                var team = availableTeams.FirstOrDefault(t => t.Name == chosen);
+                if (team == null) return;
+                newTeamId = team.Id;
+                teamLabel = team.Name ?? "Unknown";
+            }
+            else
+            {
+                teamLabel = "no team";
+            }
+
+            int count = 0;
+            foreach (var item in selectedItems)
+            {
+                var player = DataStore.Data.Players?.FirstOrDefault(p => p.Id == item.Id);
+                if (player != null)
+                {
+                    player.TeamId = newTeamId;
+                    count++;
+                }
+            }
+
+            SafeRefreshPlayers(SearchEntry?.Text);
+            SetStatus($"{Emojis.Success} Assigned {count} player(s) to {teamLabel}");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Error", $"Bulk assign failed: {ex.Message}", "OK");
+        }
+    }
+
+    private async void OnPlayerTeamLabelTapped(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_isMultiSelectMode) return;
+
+            var label = sender as Label;
+            var item = label?.BindingContext as PlayerListItem;
+            if (item == null) return;
+
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Emojis.Lock} Season Locked",
+                    "Cannot change team \u2014 this season is locked.", "OK");
+                return;
+            }
+
+            var player = DataStore.Data.Players?.FirstOrDefault(p => p.Id == item.Id);
+            if (player == null) return;
+
+            var availableTeams = DataStore.Data.Teams?
+                .Where(t => t != null && t.SeasonId == player.SeasonId)
+                .OrderBy(t => t.Name ?? "").ToList() ?? [];
+
+            if (availableTeams.Count == 0)
+            {
+                await DisplayAlert($"{Emojis.Info} No Teams", "No teams exist for this season.", "OK");
+                return;
+            }
+
+            var teamNames = availableTeams.Select(t => t.Name ?? "Unknown").ToArray();
+            var chosen = await DisplayActionSheet(
+                $"Assign {player.FullName} to:", "Cancel", "— No Team —", teamNames);
+            if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+
+            if (chosen == "— No Team —")
+            {
+                player.TeamId = null;
+            }
+            else
+            {
+                var team = availableTeams.FirstOrDefault(t => t.Name == chosen);
+                if (team == null) return;
+                player.TeamId = team.Id;
+            }
+
+            SafeRefreshPlayers(SearchEntry?.Text);
+
+            // Re-select in editor if this was the active player
+            if (_selected?.Id == player.Id)
+                LoadEditor(player);
+
+            SetStatus($"Assigned {player.FullName} to {chosen}");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Quick assign failed: {ex.Message}");
         }
     }
 

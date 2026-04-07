@@ -145,7 +145,9 @@ public partial class TeamsPage : ContentPage
         UpdateBtn.Clicked += OnUpdate;
         DeleteBtn.Clicked += OnDelete;
         MultiSelectBtn.Clicked += OnToggleMultiSelect;
+        BulkAssignDivisionBtn.Clicked += OnBulkAssignDivision;
         BulkDeleteBtn.Clicked += OnBulkDelete;
+        RandomDivisionBtn.Clicked += OnRandomDivisionAssign;
 
         SaveBtn.Clicked += async (_, __) =>
         {
@@ -1022,6 +1024,7 @@ public partial class TeamsPage : ContentPage
             TeamsList.SelectionMode = SelectionMode.Multiple;
             MultiSelectBtn.Text = "? Multi-Select ON";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#10B981");
+            BulkAssignDivisionBtn.IsVisible = true;
             BulkDeleteBtn.IsVisible = true;
 
             UpdateBtn.IsEnabled = false;
@@ -1033,6 +1036,7 @@ public partial class TeamsPage : ContentPage
             TeamsList.SelectionMode = SelectionMode.Single;
             MultiSelectBtn.Text = "? Multi-Select OFF";
             MultiSelectBtn.BackgroundColor = Color.FromArgb("#6B7280");
+            BulkAssignDivisionBtn.IsVisible = false;
             BulkDeleteBtn.IsVisible = false;
 
             UpdateBtn.IsEnabled = true;
@@ -1077,6 +1081,164 @@ public partial class TeamsPage : ContentPage
         DataStore.Save();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Deleted {deleted} team(s)");
+    }
+
+    private async void OnBulkAssignDivision(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            {
+                await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                    "Cannot assign divisions \u2014 this season is locked.", "OK");
+                return;
+            }
+
+            var selectedItems = TeamsList.SelectedItems?.Cast<TeamListItem>().ToList();
+            if (selectedItems == null || selectedItems.Count == 0)
+            {
+                await DisplayAlert($"{Helpers.Emojis.Info} No Selection", "Please select teams to assign.", "OK");
+                return;
+            }
+
+            var availableDivisions = DataStore.Data.Divisions
+                .Where(d => d.SeasonId == _currentSeasonId)
+                .OrderBy(d => d.Name)
+                .ToList();
+
+            if (availableDivisions.Count == 0)
+            {
+                await DisplayAlert($"{Helpers.Emojis.Info} No Divisions", "No divisions exist for this season. Create divisions first.", "OK");
+                return;
+            }
+
+            var divisionNames = availableDivisions.Select(d => d.Name ?? "Unknown").ToArray();
+            var chosen = await DisplayActionSheet(
+                $"Assign {selectedItems.Count} team(s) to division:", "Cancel", "\u2014 No Division \u2014", divisionNames);
+            if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+
+            Guid? newDivisionId = null;
+            string divisionLabel;
+            if (chosen != "\u2014 No Division \u2014")
+            {
+                var division = availableDivisions.FirstOrDefault(d => d.Name == chosen);
+                if (division == null) return;
+                newDivisionId = division.Id;
+                divisionLabel = division.Name ?? "Unknown";
+            }
+            else
+            {
+                divisionLabel = "no division";
+            }
+
+            int count = 0;
+            foreach (var item in selectedItems)
+            {
+                var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
+                if (team != null)
+                {
+                    team.DivisionId = newDivisionId;
+                    count++;
+                }
+            }
+
+            RefreshTeamList(SearchEntry?.Text);
+
+            if (_selectedTeam != null)
+                LoadEditor(_selectedTeam);
+
+            SetStatus($"{Helpers.Emojis.Success} Assigned {count} team(s) to {divisionLabel}");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Helpers.Emojis.Error} Error", $"Bulk assign failed: {ex.Message}", "OK");
+        }
+    }
+
+    private async void OnRandomDivisionAssign(object? sender, EventArgs e)
+    {
+        if (!_currentSeasonId.HasValue)
+        {
+            await DisplayAlert("No Season", "Please select a season first.", "OK");
+            return;
+        }
+
+        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
+                "Cannot modify teams \u2014 this season is locked.", "OK");
+            return;
+        }
+
+        var divisions = DataStore.Data.Divisions
+            .Where(d => d.SeasonId == _currentSeasonId)
+            .OrderBy(d => d.Name)
+            .ToList();
+
+        if (divisions.Count < 2)
+        {
+            await DisplayAlert("Not Enough Divisions",
+                "You need at least 2 divisions in the current season to use random assignment.", "OK");
+            return;
+        }
+
+        var teams = DataStore.Data.Teams
+            .Where(t => t.SeasonId == _currentSeasonId)
+            .ToList();
+
+        if (teams.Count == 0)
+        {
+            await DisplayAlert("No Teams", "There are no teams in the current season.", "OK");
+            return;
+        }
+
+        var perDiv = teams.Count / divisions.Count;
+        var remainder = teams.Count % divisions.Count;
+        var summary = string.Join("\n", divisions.Select((d, i) =>
+            $"  {d.Name}: {perDiv + (i < remainder ? 1 : 0)} teams"));
+
+        var confirm = await DisplayAlert(
+            "Random Division Assign",
+            $"This will randomly assign {teams.Count} team(s) across {divisions.Count} division(s) as evenly as possible:\n\n{summary}\n\nExisting division assignments will be overwritten. Continue?",
+            "Assign", "Cancel");
+
+        if (!confirm) return;
+
+        // Shuffle teams using Fisher-Yates
+        var rng = new Random();
+        var shuffled = teams.ToList();
+        for (int i = shuffled.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
+        }
+
+        // Build division assignments as lists of team names (round-robin)
+        var divisionNames = divisions.Select(d => d.Name).ToList();
+        var divisionAssignments = new List<List<string>>();
+        for (int d = 0; d < divisions.Count; d++)
+            divisionAssignments.Add([]);
+
+        for (int i = 0; i < shuffled.Count; i++)
+            divisionAssignments[i % divisions.Count].Add(shuffled[i].Name);
+
+        // Show animated draw
+        var teamNames = shuffled.Select(t => t.Name).ToList();
+        var animPage = new DivisionDrawAnimationPage(teamNames, divisionNames, divisionAssignments);
+        await Navigation.PushModalAsync(animPage);
+        await animPage.GetResultAsync();
+
+        // Apply the actual DivisionId assignments
+        for (int i = 0; i < shuffled.Count; i++)
+            shuffled[i].DivisionId = divisions[i % divisions.Count].Id;
+
+        DataStore.Save();
+        RefreshTeamList(SearchEntry.Text);
+
+        if (_selectedTeam != null)
+            LoadEditor(_selectedTeam);
+
+        SetStatus($"Randomly assigned {teams.Count} team(s) across {divisions.Count} division(s)");
     }
 
     private async Task ExportTeamsAsync()

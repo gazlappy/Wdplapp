@@ -292,7 +292,7 @@ namespace Wdpl2.Services
                 html.AppendLine($"            <a href=\"{href}\"{activeClass}>{text}</a>");
             }
             
-            NavLink("index.html", "Home", "Home");
+            NavLink("home.html", "Home", "Home");
             
             if (_settings.ShowStandings)
                 NavLink("standings.html", "Standings", "Standings");

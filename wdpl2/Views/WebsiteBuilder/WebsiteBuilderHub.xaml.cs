@@ -94,6 +94,7 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             try
             {
+                LoadingOverlay.Show("Refreshing preview...");
                 SaveSeasonAndTemplate();
 
                 // Reload competitions from SQLite
@@ -117,6 +118,10 @@ public partial class WebsiteBuilderHub : ContentPage
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Auto-refresh error: {ex.Message}");
+            }
+            finally
+            {
+                LoadingOverlay.Hide();
             }
         }
     }
@@ -519,6 +524,7 @@ public partial class WebsiteBuilderHub : ContentPage
             StatusLabel.IsVisible = true;
             PreviewBtn.IsEnabled = false;
             RefreshPreviewBtn.IsEnabled = false;
+            LoadingOverlay.Show("Generating website...");
 
             // Load competitions from SQLite
             try
@@ -557,6 +563,7 @@ public partial class WebsiteBuilderHub : ContentPage
         }
         finally
         {
+            LoadingOverlay.Hide();
             PreviewBtn.IsEnabled = true;
             RefreshPreviewBtn.IsEnabled = true;
         }
@@ -609,7 +616,7 @@ public partial class WebsiteBuilderHub : ContentPage
         var pageName = PreviewPagePicker.SelectedItem?.ToString();
         return pageName?.ToLowerInvariant() switch
         {
-            "home" => "index.html",
+            "home" => "home.html",
             "standings" => "standings.html",
             "fixtures" => "fixtures.html",
             "results" => "results.html",
@@ -622,7 +629,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "sponsors" => "sponsors.html",
             "news" => "news.html",
             "rows reports" => "rows-reports.html",
-            _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "index.html"
+            _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "home.html"
         };
     }
 
@@ -630,7 +637,7 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         return fileName.ToLowerInvariant() switch
         {
-            "index.html" => "Home",
+            "home.html" => "Home",
             "standings.html" => "Standings",
             "fixtures.html" => "Fixtures",
             "results.html" => "Results",
