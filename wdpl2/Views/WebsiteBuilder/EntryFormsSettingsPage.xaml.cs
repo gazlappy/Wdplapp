@@ -50,6 +50,73 @@ public partial class EntryFormsSettingsPage : ContentPage
         FetchStatusLabel.IsVisible = true;
     }
 
+    private async void OnCreateBinClicked(object sender, EventArgs e)
+    {
+        var apiKey = FormServiceTokenEntry.Text?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            await DisplayAlert("API Key Required",
+                "Enter your jsonbin.io X-Master-Key first.\n\nSign up free at jsonbin.io, then copy the key from the dashboard.", "OK");
+            return;
+        }
+
+        CreateBinBtn.IsEnabled = false;
+        FetchStatusLabel.Text = "Creating bin...";
+        FetchStatusLabel.TextColor = Color.FromArgb("#3B82F6");
+        FetchStatusLabel.IsVisible = true;
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.jsonbin.io/v3/b");
+            request.Headers.TryAddWithoutValidation("X-Master-Key", apiKey);
+            request.Content = new StringContent("{\"_init\":true}", System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Extract error message from jsonbin.io response body
+                var errorMsg = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                try
+                {
+                    using var errDoc = JsonDocument.Parse(json);
+                    if (errDoc.RootElement.TryGetProperty("message", out var msg))
+                        errorMsg = msg.GetString() ?? errorMsg;
+                }
+                catch { /* use status code message */ }
+
+                if (!apiKey.StartsWith("$2a$", StringComparison.Ordinal))
+                    errorMsg += "\n\nHint: jsonbin.io keys start with '$2a$'. You may have an old key from another service. Sign up at jsonbin.io and copy your X-Master-Key from the dashboard.";
+
+                FetchStatusLabel.Text = $"\u26A0 {errorMsg}";
+                FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var binId = doc.RootElement.GetProperty("metadata").GetProperty("id").GetString();
+
+            var binUrl = $"https://api.jsonbin.io/v3/b/{binId}";
+            FormServiceUrlEntry.Text = binUrl;
+            League.WebsiteSettings.FormServiceUrl = binUrl;
+            League.WebsiteSettings.FormServiceApiToken = apiKey;
+            DataStore.Save();
+
+            FetchStatusLabel.Text = "\u2705 Bin created and saved!";
+            FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
+        }
+        catch (Exception ex)
+        {
+            FetchStatusLabel.Text = $"\u26A0 Error: {ex.Message}";
+            FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
+        }
+        finally
+        {
+            CreateBinBtn.IsEnabled = true;
+        }
+    }
+
     private async void OnFetchSubmissionsClicked(object sender, EventArgs e)
     {
         var serviceUrl = League.WebsiteSettings.FormServiceUrl?.Trim() ?? "";
@@ -69,49 +136,23 @@ public partial class EntryFormsSettingsPage : ContentPage
         try
         {
             var baseUrl = BuildApiUrl(serviceUrl);
-            var isForminit = baseUrl.Contains("forminit.com", StringComparison.OrdinalIgnoreCase);
 
-            var allSubmissions = new List<WebsiteSubmissionDto>();
-            var page = 1;
-            var lastPage = 1;
+            using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
+            request.Headers.TryAddWithoutValidation("Accept", "application/json");
 
-            do
+            if (!string.IsNullOrWhiteSpace(apiToken))
             {
-                var pageUrl = isForminit
-                    ? AppendQuery(baseUrl, $"page={page}&size=100")
-                    : baseUrl;
+                if (baseUrl.Contains("jsonbin.io", StringComparison.OrdinalIgnoreCase))
+                    request.Headers.TryAddWithoutValidation("X-Master-Key", apiToken);
+                else
+                    request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiToken}");
+            }
 
-                using var request = new HttpRequestMessage(HttpMethod.Get, pageUrl);
-                request.Headers.TryAddWithoutValidation("Accept", "application/json");
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
 
-                if (!string.IsNullOrWhiteSpace(apiToken))
-                {
-                    if (isForminit)
-                        request.Headers.TryAddWithoutValidation("X-API-Key", apiToken);
-                    else
-                        request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiToken}");
-                }
-
-                var response = await _httpClient.SendAsync(request);
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync();
-
-                // DEBUG: dump raw API response for inspection
-                var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WDPL", "forminit_debug.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(debugPath)!);
-                await File.WriteAllTextAsync(debugPath, json);
-
-                var (subs, parsedLastPage) = ParseServiceResponse(json);
-                allSubmissions.AddRange(subs);
-
-                if (parsedLastPage > 0) lastPage = parsedLastPage;
-                page++;
-
-                if (page <= lastPage)
-                    FetchStatusLabel.Text = $"Fetching page {page} of {lastPage}...";
-
-            } while (isForminit && page <= lastPage);
+            var json = await response.Content.ReadAsStringAsync();
+            var (allSubmissions, _) = ParseServiceResponse(json);
 
             if (allSubmissions.Count == 0)
             {
@@ -151,18 +192,13 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     private static string BuildApiUrl(string serviceUrl)
     {
-        // Getform.io: convert https://getform.io/f/{hash} to https://api.getform.io/v1/forms/{hash}
-        if (serviceUrl.Contains("getform.io/f/", StringComparison.OrdinalIgnoreCase))
+        // jsonbin.io: ensure /latest suffix for reading
+        if (serviceUrl.Contains("jsonbin.io", StringComparison.OrdinalIgnoreCase))
         {
-            var hash = serviceUrl.Split("/f/", StringSplitOptions.None).LastOrDefault()?.Trim('/') ?? "";
-            return $"https://api.getform.io/v1/forms/{hash}";
-        }
-
-        // Forminit: convert https://forminit.com/f/{hash} to https://api.forminit.com/v1/forms/{hash}
-        if (serviceUrl.Contains("forminit.com/f/", StringComparison.OrdinalIgnoreCase))
-        {
-            var hash = serviceUrl.Split("/f/", StringSplitOptions.None).LastOrDefault()?.Trim('/') ?? "";
-            return $"https://api.forminit.com/v1/forms/{hash}";
+            var url = serviceUrl.TrimEnd('/');
+            if (!url.EndsWith("/latest", StringComparison.OrdinalIgnoreCase))
+                url += "/latest";
+            return url;
         }
 
         return serviceUrl;
@@ -204,6 +240,10 @@ public partial class EntryFormsSettingsPage : ContentPage
         {
             array = subs2;
         }
+        else if (root.TryGetProperty("record", out var rec) && rec.ValueKind == JsonValueKind.Array)
+        {
+            array = rec;
+        }
         else
         {
             return ([], 0);
@@ -225,41 +265,34 @@ public partial class EntryFormsSettingsPage : ContentPage
             if (DateTime.TryParse(dateStr, out var dt))
                 dto.SubmittedAt = dt;
 
-            // Forminit nests form data inside a "blocks" object
-            var fieldsSource = item.TryGetProperty("blocks", out var blocks) && blocks.ValueKind == JsonValueKind.Object
-                ? blocks : item;
-
-            // First pass: extract _formId and _entryName from blocks if not already set
-            if (string.IsNullOrEmpty(dto.FormId))
-                dto.FormId = TryGetString(fieldsSource, "_formId") ?? "";
-            if (string.IsNullOrEmpty(dto.Name))
-                dto.Name = TryGetString(fieldsSource, "_entryName") ?? "";
-
-            // Collect field values — skip meta properties
-            var metaKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                { "_id", "id", "hashId", "_formId", "formId", "_entryName", "name", "created_at", "submittedAt",
-                  "submissionDate", "date", "status", "submissionStatus", "sender", "tracking",
-                  "submissionInfo", "files" };
-
-            foreach (var prop in fieldsSource.EnumerateObject())
+            // Check for nested "values" object (jsonbin.io / localStorage format)
+            if (item.TryGetProperty("values", out var valuesObj) && valuesObj.ValueKind == JsonValueKind.Object)
             {
-                if (prop.Name.StartsWith("_") || metaKeys.Contains(prop.Name))
-                    continue;
-                if (prop.Value.ValueKind == JsonValueKind.Object)
+                foreach (var vp in valuesObj.EnumerateObject())
                 {
-                    // Forminit nested block format: { "type_key": { "label": "...", "value": "..." } }
-                    var blockLabel = TryGetString(prop.Value, "label");
-                    var blockValue = TryGetAnyString(prop.Value, "value");
-                    if (!string.IsNullOrEmpty(blockLabel) && blockValue != null)
-                        dto.Values[blockLabel] = blockValue;
-                    continue;
+                    dto.Values[vp.Name] = vp.Value.ValueKind == JsonValueKind.String
+                        ? (vp.Value.GetString() ?? "")
+                        : vp.Value.ToString();
                 }
-                if (prop.Value.ValueKind == JsonValueKind.Array)
-                    continue;
-                // Handle all value types safely (string, number, bool, null)
-                dto.Values[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
-                    ? (prop.Value.GetString() ?? "")
-                    : prop.Value.ToString();
+            }
+            else
+            {
+                // Flat format: collect field values from top-level properties, skipping meta keys
+                var metaKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "_id", "id", "hashId", "_formId", "formId", "_entryName", "name", "created_at", "submittedAt",
+                      "submissionDate", "date", "status", "submissionStatus", "sender", "tracking",
+                      "submissionInfo", "files", "values" };
+
+                foreach (var prop in item.EnumerateObject())
+                {
+                    if (prop.Name.StartsWith("_") || metaKeys.Contains(prop.Name))
+                        continue;
+                    if (prop.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                        continue;
+                    dto.Values[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
+                        ? (prop.Value.GetString() ?? "")
+                        : prop.Value.ToString();
+                }
             }
 
             result.Add(dto);

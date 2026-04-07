@@ -193,17 +193,20 @@
                 <Frame Padding="10,8" Margin="10,6,10,0" CornerRadius="8" BorderColor="#E2E8F0" BackgroundColor="#F8FAFC" HasShadow="False">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="&#127760; FORM COLLECTION SERVICE" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8" CharacterSpacing="1.5"/>
-                        <Label Text="Use a free form backend like forminit.com. Create a form, paste the endpoint URL below, then go to Account &#8594; API Key to get your token."
+                        <Label Text="Uses jsonbin.io to collect form submissions. Sign up free at jsonbin.io, copy your X-Master-Key, paste it below, then click Create Bin."
                                FontSize="10" TextColor="#94A3B8" LineBreakMode="WordWrap"/>
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="6">
-                            <Label Text="Endpoint URL" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="FormServiceUrlEntry" Placeholder="https://forminit.com/f/abc123" FontSize="11"/>
-                            <Label Grid.Row="1" Text="API Token" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
-                            <Entry Grid.Row="1" Grid.Column="1" x:Name="FormServiceTokenEntry" Placeholder="fi_xxxxxxxxx" FontSize="11" IsPassword="True"/>
+                            <Label Text="Bin URL" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
+                            <Entry Grid.Column="1" x:Name="FormServiceUrlEntry" Placeholder="https://api.jsonbin.io/v3/b/..." FontSize="11"/>
+                            <Label Grid.Row="1" Text="X-Master-Key" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
+                            <Entry Grid.Row="1" Grid.Column="1" x:Name="FormServiceTokenEntry" Placeholder="$2a$10$..." FontSize="11" IsPassword="True"/>
                         </Grid>
                         <HorizontalStackLayout Spacing="6">
                             <Button x:Name="SaveServiceBtn" Text="&#128190; Save" Clicked="OnSaveServiceSettingsClicked"
                                     BackgroundColor="#10B981" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"/>
+                            <Button x:Name="CreateBinBtn" Text="&#128259; Create Bin" Clicked="OnCreateBinClicked"
+                                    BackgroundColor="#3B82F6" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"
+                                    ToolTipProperties.Text="Create a new jsonbin.io bin using the API key above"/>
                             <Button x:Name="FetchSubmissionsBtn" Text="&#128229; Fetch Submissions" Clicked="OnFetchSubmissionsClicked"
                                     BackgroundColor="#8B5CF6" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"/>
                             <Button x:Name="ImportFileBtn" Text="&#128194; Import File" Clicked="OnImportSubmissionsClicked"

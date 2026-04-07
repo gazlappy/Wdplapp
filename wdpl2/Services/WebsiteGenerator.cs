@@ -2739,13 +2739,14 @@ namespace Wdpl2.Services
 
         /// <summary>
         /// Emits the handleEntrySubmit(form) script block.
-        /// If a form service URL is configured, submissions POST via fetch with Forminit SDK headers;
+        /// If a form service URL and API token are configured, submissions are sent to jsonbin.io;
         /// otherwise they save to localStorage.
         /// </summary>
         private void AppendEntryFormSubmitScript(StringBuilder html, string indent)
         {
             var serviceUrl = _settings.FormServiceUrl?.Trim() ?? "";
-            var useService = !string.IsNullOrEmpty(serviceUrl);
+            var apiToken = _settings.FormServiceApiToken?.Trim() ?? "";
+            var useService = !string.IsNullOrEmpty(serviceUrl) && !string.IsNullOrEmpty(apiToken);
 
             html.AppendLine($"{indent}<script>");
             html.AppendLine($"{indent}function handleEntrySubmit(form) {{");
@@ -2771,34 +2772,33 @@ namespace Wdpl2.Services
 
             if (useService)
             {
-                // Submit via fetch with Forminit JSON blocks format.
-                // Forminit requires: { blocks: [{ type, name, value, properties: { label } }] }
-                // Valid block types: text, email, number, checkbox, select
-                html.AppendLine($"{indent}    var typeMap = {{ 'text':'text','textarea':'text','email':'email','phone':'text','number':'number','date':'text','select':'select','checkbox':'checkbox' }};");
-                html.AppendLine($"{indent}    var blocks = [];");
-                html.AppendLine($"{indent}    blocks.push({{ type: 'text', name: '_formId', value: formId, properties: {{ label: '_formId' }} }});");
-                html.AppendLine($"{indent}    for (var b = 0; b < fields.length; b++) {{");
-                html.AppendLine($"{indent}        var bel = document.getElementById(fields[b].id);");
-                html.AppendLine($"{indent}        if (!bel) continue;");
-                html.AppendLine($"{indent}        var bval = fields[b].type === 'checkbox' ? (bel.checked ? 'Yes' : 'No') : bel.value;");
-                html.AppendLine($"{indent}        var bname = fields[b].label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');");
-                html.AppendLine($"{indent}        blocks.push({{ type: typeMap[fields[b].type] || 'text', name: bname, value: bval, properties: {{ label: fields[b].label }} }});");
-                html.AppendLine($"{indent}    }}");
+                // Submit to jsonbin.io: read current bin → append submission → write back
+                html.AppendLine($"{indent}    var binUrl = '{EscJs(serviceUrl)}';");
+                html.AppendLine($"{indent}    var apiKey = '{EscJs(apiToken)}';");
+                html.AppendLine($"{indent}    var subId = Date.now().toString(36) + Math.random().toString(36).slice(2,7);");
+                html.AppendLine($"{indent}    var newSub = {{ id: subId, formId: formId, name: entryName, values: values, submittedAt: new Date().toISOString() }};");
                 html.AppendLine($"{indent}    var btn = form.querySelector('button[type=submit]');");
                 html.AppendLine($"{indent}    if (btn) {{ btn.disabled = true; btn.textContent = 'Submitting\u2026'; }}");
-                html.AppendLine($"{indent}    fetch('{EscJs(serviceUrl)}', {{");
-                html.AppendLine($"{indent}        method: 'POST',");
-                html.AppendLine($"{indent}        headers: {{ 'Content-Type': 'application/json', 'FormInit-SDK-Version': '0.2.3', 'Accept': 'application/json' }},");
-                html.AppendLine($"{indent}        body: JSON.stringify({{ blocks: blocks }})");
-                html.AppendLine($"{indent}    }}).then(function(r) {{ return r.json(); }}).then(function(data) {{");
-                html.AppendLine($"{indent}        if (data.success) {{");
+                html.AppendLine($"{indent}    fetch(binUrl + '/latest', {{");
+                html.AppendLine($"{indent}        headers: {{ 'X-Master-Key': apiKey, 'X-Bin-Meta': 'false' }}");
+                html.AppendLine($"{indent}    }}).then(function(r) {{ return r.ok ? r.json() : []; }})");
+                html.AppendLine($"{indent}    .then(function(arr) {{");
+                html.AppendLine($"{indent}        if (!Array.isArray(arr)) arr = [];");
+                html.AppendLine($"{indent}        arr.push(newSub);");
+                html.AppendLine($"{indent}        return fetch(binUrl, {{");
+                html.AppendLine($"{indent}            method: 'PUT',");
+                html.AppendLine($"{indent}            headers: {{ 'Content-Type': 'application/json', 'X-Master-Key': apiKey }},");
+                html.AppendLine($"{indent}            body: JSON.stringify(arr)");
+                html.AppendLine($"{indent}        }});");
+                html.AppendLine($"{indent}    }}).then(function(r) {{");
+                html.AppendLine($"{indent}        if (r.ok) {{");
                 html.AppendLine($"{indent}            var inputs = form.querySelectorAll('input,textarea,select');");
                 html.AppendLine($"{indent}            for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
                 html.AppendLine($"{indent}            if (btn) btn.style.display = 'none';");
                 html.AppendLine($"{indent}            var confirmDiv = document.getElementById(formId + '-confirm');");
                 html.AppendLine($"{indent}            if (confirmDiv) confirmDiv.style.display = 'block';");
                 html.AppendLine($"{indent}        }} else {{");
-                html.AppendLine($"{indent}            alert('Submission error: ' + (data.message || 'Please try again.'));");
+                html.AppendLine($"{indent}            alert('Submission error. Please try again.');");
                 html.AppendLine($"{indent}            if (btn) {{ btn.disabled = false; btn.textContent = 'Submit Entry'; }}");
                 html.AppendLine($"{indent}        }}");
                 html.AppendLine($"{indent}    }}).catch(function(err) {{");
