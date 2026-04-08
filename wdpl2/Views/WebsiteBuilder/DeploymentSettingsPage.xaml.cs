@@ -26,16 +26,20 @@ public partial class DeploymentSettingsPage : ContentPage
     private void LoadSettings()
     {
         var settings = League.WebsiteSettings;
-        
+
         FtpHostEntry.Text = settings.FtpHost;
         FtpPortEntry.Text = settings.FtpPort.ToString();
         FtpUsernameEntry.Text = settings.FtpUsername;
         FtpPasswordEntry.Text = settings.FtpPassword;
         FtpPathEntry.Text = settings.RemotePath;
-        
+
         GitHubTokenEntry.Text = settings.GitHubToken;
         GitHubUsernameEntry.Text = settings.GitHubUsername;
         GitHubRepoEntry.Text = settings.GitHubRepoName;
+
+        // Cloud sync
+        CloudSyncSwitch.IsToggled = settings.EnableCloudSync;
+        UpdateLastSyncLabel();
     }
 
     private void SaveSettings()
@@ -52,7 +56,9 @@ public partial class DeploymentSettingsPage : ContentPage
         settings.GitHubToken = GitHubTokenEntry.Text?.Trim() ?? "";
         settings.GitHubUsername = GitHubUsernameEntry.Text?.Trim() ?? "";
         settings.GitHubRepoName = GitHubRepoEntry.Text?.Trim() ?? "";
-        
+
+        settings.EnableCloudSync = CloudSyncSwitch.IsToggled;
+
         DataStore.Save();
     }
 
@@ -475,8 +481,169 @@ public partial class DeploymentSettingsPage : ContentPage
         }
         finally
         {
-            UploadFtpBtn.IsEnabled = true;
-            ProgressBar.IsVisible = false;
-        }
-    }
-}
+                    UploadFtpBtn.IsEnabled = true;
+                        ProgressBar.IsVisible = false;
+                    }
+                }
+
+                // ── Cloud Sync ─────────────────────────────────────────────
+
+                private void OnCloudSyncToggled(object sender, ToggledEventArgs e)
+                {
+                    SaveSettings();
+                }
+
+                private void UpdateLastSyncLabel()
+                {
+                    var last = League.WebsiteSettings.LastCloudSyncUtc;
+                    LastSyncLabel.Text = last == default
+                        ? "Never synced"
+                        : $"Last synced: {last.ToLocalTime():dd MMM yyyy HH:mm}";
+                }
+
+                private bool ValidateGitHubCredentials()
+                {
+                    return !string.IsNullOrWhiteSpace(GitHubTokenEntry.Text)
+                        && !string.IsNullOrWhiteSpace(GitHubUsernameEntry.Text)
+                        && !string.IsNullOrWhiteSpace(GitHubRepoEntry.Text);
+                }
+
+                private async void OnCloudValidateClicked(object sender, EventArgs e)
+                {
+                    if (!ValidateGitHubCredentials())
+                    {
+                        await DisplayAlert("Missing", "Enter your GitHub token, username, and repository in the GitHub Pages section above.", "OK");
+                        return;
+                    }
+
+                    SaveSettings();
+                    CloudValidateBtn.IsEnabled = false;
+                    CloudSyncStatusFrame.IsVisible = true;
+                    CloudSyncStatusLabel.Text = "Testing connection...";
+                    CloudSyncStatusFrame.BackgroundColor = Color.FromArgb("#FEF3C7");
+
+                    try
+                    {
+                        var s = League.WebsiteSettings;
+                        using var sync = new CloudSyncService(s.GitHubToken, s.GitHubUsername, s.GitHubRepoName);
+                        var (ok, msg) = await sync.ValidateAsync();
+
+                        CloudSyncStatusLabel.Text = msg;
+                        CloudSyncStatusFrame.BackgroundColor = ok ? Color.FromArgb("#D1FAE5") : Color.FromArgb("#FEE2E2");
+                    }
+                    catch (Exception ex)
+                    {
+                        CloudSyncStatusLabel.Text = ex.Message;
+                        CloudSyncStatusFrame.BackgroundColor = Color.FromArgb("#FEE2E2");
+                    }
+                    finally
+                    {
+                        CloudValidateBtn.IsEnabled = true;
+                    }
+                }
+
+                private async void OnCloudPushClicked(object sender, EventArgs e)
+                {
+                    if (!ValidateGitHubCredentials())
+                    {
+                        await DisplayAlert("Missing", "Enter your GitHub token, username, and repository in the GitHub Pages section above.", "OK");
+                        return;
+                    }
+
+                    var confirm = await DisplayAlert("Push to Cloud",
+                        "This will upload your current league data to the cloud, overwriting any existing cloud data. Continue?",
+                        "Push", "Cancel");
+                    if (!confirm) return;
+
+                    SaveSettings();
+                    CloudPushBtn.IsEnabled = false;
+                    StatusLabel.IsVisible = true;
+                    StatusLabel.Text = "Pushing to cloud...";
+                    StatusLabel.TextColor = Color.FromArgb("#3B82F6");
+
+                    try
+                    {
+                        var s = League.WebsiteSettings;
+                        using var sync = new CloudSyncService(s.GitHubToken, s.GitHubUsername, s.GitHubRepoName);
+                        var progress = new Progress<string>(msg =>
+                            MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
+
+                        var (ok, msg) = await sync.PushAsync(League, progress);
+
+                        StatusLabel.Text = msg;
+                        StatusLabel.TextColor = ok ? Color.FromArgb("#10B981") : Color.FromArgb("#EF4444");
+
+                        if (ok)
+                        {
+                            s.LastCloudSyncUtc = DateTime.UtcNow;
+                            DataStore.Save();
+                            UpdateLastSyncLabel();
+                            await DisplayAlert("Pushed", "League data uploaded to cloud.", "OK");
+                        }
+                        else
+                        {
+                            await DisplayAlert("Failed", msg, "OK");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusLabel.Text = $"Error: {ex.Message}";
+                        StatusLabel.TextColor = Color.FromArgb("#EF4444");
+                    }
+                    finally
+                    {
+                        CloudPushBtn.IsEnabled = true;
+                    }
+                }
+
+                private async void OnCloudPullClicked(object sender, EventArgs e)
+                {
+                    if (!ValidateGitHubCredentials())
+                    {
+                        await DisplayAlert("Missing", "Enter your GitHub token, username, and repository in the GitHub Pages section above.", "OK");
+                        return;
+                    }
+
+                    var confirm = await DisplayAlert("Pull from Cloud",
+                        "This will replace ALL local data with the cloud version. Make sure you have pushed your latest changes from another machine first.\n\nA backup will be created before pulling.",
+                        "Pull", "Cancel");
+                    if (!confirm) return;
+
+                    SaveSettings();
+                    CloudPullBtn.IsEnabled = false;
+                    StatusLabel.IsVisible = true;
+                    StatusLabel.Text = "Pulling from cloud...";
+                    StatusLabel.TextColor = Color.FromArgb("#3B82F6");
+
+                    try
+                    {
+                        var progress = new Progress<string>(msg =>
+                            MainThread.BeginInvokeOnMainThread(() => StatusLabel.Text = msg));
+
+                        var (ok, msg) = await DataStore.PullFromCloudAsync(progress);
+
+                        StatusLabel.Text = msg;
+                        StatusLabel.TextColor = ok ? Color.FromArgb("#10B981") : Color.FromArgb("#EF4444");
+
+                        if (ok)
+                        {
+                            UpdateLastSyncLabel();
+                            LoadSettings();
+                            await DisplayAlert("Pulled", "Local data replaced with cloud version. Restart the app to see all changes.", "OK");
+                        }
+                        else
+                        {
+                            await DisplayAlert("Failed", msg, "OK");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusLabel.Text = $"Error: {ex.Message}";
+                        StatusLabel.TextColor = Color.FromArgb("#EF4444");
+                    }
+                    finally
+                    {
+                        CloudPullBtn.IsEnabled = true;
+                    }
+                }
+            }

@@ -387,7 +387,11 @@ namespace Wdpl2.Models
         public string GitHubToken { get; set; } = "";
         public string GitHubUsername { get; set; } = "";
         public string GitHubRepoName { get; set; } = "";
-        
+
+        // Cloud Sync Settings (uses the same GitHub repo)
+        public bool EnableCloudSync { get; set; } = false;
+        public DateTime LastCloudSyncUtc { get; set; }
+
         // Generation Settings
         public Guid? SelectedSeasonId { get; set; }
         public string SelectedTemplate { get; set; } = "modern";
@@ -965,6 +969,10 @@ namespace Wdpl2.Models
             GitHubToken = "";
             GitHubUsername = "";
             GitHubRepoName = "";
+
+            // Cloud Sync
+            EnableCloudSync = false;
+            LastCloudSyncUtc = default;
         }
         
         /// <summary>

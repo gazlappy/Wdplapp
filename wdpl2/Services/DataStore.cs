@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Storage;
 using Wdpl2.Data;
 using Wdpl2.Models;
+using Wdpl2.Services;
 
 namespace Wdpl2;
 
@@ -89,6 +90,103 @@ public static partial class DataStore
             }
             catch { /* non-critical */ }
         }
+
+        // Push to cloud if enabled (fire-and-forget)
+        PushToCloudIfEnabled();
+    }
+
+    /// <summary>
+    /// Push the current data to the cloud (GitHub repo) if cloud sync is enabled.
+    /// Runs as fire-and-forget so Save() remains synchronous.
+    /// </summary>
+    private static void PushToCloudIfEnabled()
+    {
+        try
+        {
+            var settings = Data.WebsiteSettings;
+            if (!settings.EnableCloudSync) return;
+            if (string.IsNullOrWhiteSpace(settings.GitHubToken) ||
+                string.IsNullOrWhiteSpace(settings.GitHubUsername) ||
+                string.IsNullOrWhiteSpace(settings.GitHubRepoName))
+                return;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var sync = new CloudSyncService(
+                        settings.GitHubToken, settings.GitHubUsername, settings.GitHubRepoName);
+                    var (success, message) = await sync.PushAsync(Data);
+                    if (success)
+                    {
+                        settings.LastCloudSyncUtc = DateTime.UtcNow;
+                        System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push succeeded");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push failed: {message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push error: {ex.Message}");
+                }
+            });
+        }
+        catch { /* non-critical */ }
+    }
+
+    /// <summary>
+    /// Manually pull league data from the cloud and replace local data.
+    /// Returns (success, message).
+    /// </summary>
+    public static async Task<(bool success, string message)> PullFromCloudAsync(IProgress<string>? progress = null)
+    {
+        var settings = Data.WebsiteSettings;
+        if (string.IsNullOrWhiteSpace(settings.GitHubToken) ||
+            string.IsNullOrWhiteSpace(settings.GitHubUsername) ||
+            string.IsNullOrWhiteSpace(settings.GitHubRepoName))
+        {
+            return (false, "GitHub credentials not configured. Set them in Deployment Settings.");
+        }
+
+        // Create a backup before pulling
+        CreatePreImportSnapshot();
+
+        using var sync = new CloudSyncService(
+            settings.GitHubToken, settings.GitHubUsername, settings.GitHubRepoName);
+
+        var (success, message, data) = await sync.PullAsync(progress);
+        if (!success || data == null)
+        {
+            ClearPreImportSnapshot();
+            return (false, message);
+        }
+
+        // Preserve local credentials (the cloud copy has them stripped out)
+        data.WebsiteSettings.GitHubToken = settings.GitHubToken;
+        data.WebsiteSettings.GitHubUsername = settings.GitHubUsername;
+        data.WebsiteSettings.GitHubRepoName = settings.GitHubRepoName;
+        data.WebsiteSettings.EnableCloudSync = settings.EnableCloudSync;
+        data.WebsiteSettings.LastCloudSyncUtc = DateTime.UtcNow;
+        data.WebsiteSettings.FtpHost = settings.FtpHost;
+        data.WebsiteSettings.FtpUsername = settings.FtpUsername;
+        data.WebsiteSettings.FtpPassword = settings.FtpPassword;
+        data.WebsiteSettings.FormServiceApiToken = settings.FormServiceApiToken;
+        data.WebsiteSettings.FormServiceUrl = settings.FormServiceUrl;
+        data.WebsiteSettings.FormServiceFetchUrl = settings.FormServiceFetchUrl;
+
+        // Replace local data
+        Data = data;
+
+        // Persist locally
+        EnsureDataDirectory();
+        var json = JsonSerializer.Serialize(Data, JsonOpts);
+        File.WriteAllText(DataPath, json);
+        SyncEntitiesToDatabase();
+
+        ClearPreImportSnapshot();
+        return (true, "League data pulled from cloud and loaded successfully.");
     }
 
     /// <summary>

@@ -131,8 +131,54 @@
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-            
+
+            <!-- Cloud Sync Section -->
+            <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,10,0,0"/>
+
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="&#x2601; Cloud Sync" FontSize="16" FontAttributes="Bold" TextColor="#3B82F6"/>
+                    <Label Text="Sync your league data across multiple machines using your GitHub repo" FontSize="12" TextColor="#6B7280"/>
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Switch x:Name="CloudSyncSwitch" Toggled="OnCloudSyncToggled"/>
+                        <Label Text="Enable auto-sync on save" VerticalOptions="Center" FontSize="13"/>
+                    </HorizontalStackLayout>
+
+                    <Label x:Name="CloudSyncInfoLabel" 
+                           Text="Uses your GitHub credentials above. Data stored at data/league-data.json in your repo." 
+                           FontSize="11" TextColor="#9CA3AF"/>
+
+                    <Label x:Name="LastSyncLabel" 
+                           Text="Never synced" 
+                           FontSize="12" TextColor="#6B7280"/>
+
+                    <Frame x:Name="CloudSyncStatusFrame" BackgroundColor="#FEF3C7" BorderColor="#F59E0B" Padding="8" CornerRadius="6" IsVisible="False">
+                        <Label x:Name="CloudSyncStatusLabel" Text="" FontSize="12" TextColor="#92400E"/>
+                    </Frame>
+
+                    <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
+                        <Button Grid.Column="0" 
+                                x:Name="CloudPushBtn" 
+                                Text="Push to Cloud" 
+                                Clicked="OnCloudPushClicked" 
+                                BackgroundColor="#3B82F6"/>
+                        <Button Grid.Column="1" 
+                                x:Name="CloudPullBtn" 
+                                Text="Pull from Cloud" 
+                                Clicked="OnCloudPullClicked" 
+                                BackgroundColor="#6B7280"/>
+                        <Button Grid.Column="2" 
+                                x:Name="CloudValidateBtn" 
+                                Text="Test" 
+                                Clicked="OnCloudValidateClicked" 
+                                BackgroundColor="#9CA3AF" 
+                                WidthRequest="60"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
         </VerticalStackLayout>
     </ScrollView>
-    
+
 </ContentPage>
