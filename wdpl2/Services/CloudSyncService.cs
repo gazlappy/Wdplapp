@@ -136,32 +136,59 @@ public sealed class CloudSyncService : IDisposable
         {
             progress?.Report("Downloading league data...");
 
-            var response = await _httpClient.GetAsync(
-                $"{GitHubApiBase}/repos/{_username}/{_repoName}/contents/{SyncFilePath}");
+            var url = $"{GitHubApiBase}/repos/{_username}/{_repoName}/contents/{SyncFilePath}";
+            System.Diagnostics.Debug.WriteLine($"[CloudSync] Pull URL: {url}");
+
+            var response = await _httpClient.GetAsync(url);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 progress?.Report("No cloud data found.");
-                return (false, "No league data found in the cloud. Push your data first.", null);
+                return (false, "No league data found in the cloud. Either push your data first, " +
+                    "or check that the GitHub Username and Repository Name match the machine that pushed.", null);
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
                 System.Diagnostics.Debug.WriteLine($"[CloudSync] Pull failed: {response.StatusCode} - {errorBody}");
-                return (false, $"Download failed ({response.StatusCode}).", null);
+                return (false, $"Download failed ({response.StatusCode}). Check your GitHub token has repo scope.", null);
             }
 
             progress?.Report("Parsing data...");
             var body = await response.Content.ReadAsStringAsync();
             var fileInfo = JsonSerializer.Deserialize<JsonElement>(body);
 
-            // GitHub Contents API returns base64-encoded content
-            var base64Content = fileInfo.GetProperty("content").GetString() ?? "";
-            // GitHub adds newlines in the base64 string — strip them
-            base64Content = base64Content.Replace("\n", "").Replace("\r", "");
-            var jsonBytes = Convert.FromBase64String(base64Content);
-            var json = Encoding.UTF8.GetString(jsonBytes);
+            string json;
+
+            // GitHub Contents API returns base64-encoded content for files under ~1 MB.
+            // For larger files the content field is null and we must use download_url.
+            var base64Content = fileInfo.TryGetProperty("content", out var contentEl)
+                ? contentEl.GetString() : null;
+
+            if (!string.IsNullOrEmpty(base64Content))
+            {
+                base64Content = base64Content.Replace("\n", "").Replace("\r", "");
+                var jsonBytes = Convert.FromBase64String(base64Content);
+                json = Encoding.UTF8.GetString(jsonBytes);
+            }
+            else
+            {
+                // Large file — fall back to raw download URL
+                var downloadUrl = fileInfo.TryGetProperty("download_url", out var dlEl)
+                    ? dlEl.GetString() : null;
+
+                if (string.IsNullOrEmpty(downloadUrl))
+                    return (false, "Data file exists but is too large to download via the Contents API " +
+                        "and no download URL was provided.", null);
+
+                progress?.Report("Downloading large data file...");
+                var rawResponse = await _httpClient.GetAsync(downloadUrl);
+                if (!rawResponse.IsSuccessStatusCode)
+                    return (false, $"Failed to download data file ({rawResponse.StatusCode}).", null);
+
+                json = await rawResponse.Content.ReadAsStringAsync();
+            }
 
             var data = JsonSerializer.Deserialize<LeagueData>(json, new JsonSerializerOptions
             {
