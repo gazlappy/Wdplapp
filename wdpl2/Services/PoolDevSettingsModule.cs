@@ -6,11 +6,23 @@ namespace Wdpl2.Services;
 /// </summary>
 public static class PoolDevSettingsModule
 {
+    private static bool IsDebug
+    {
+        get
+        {
+#if DEBUG
+            return true;
+#else
+            return false;
+#endif
+        }
+    }
+
     public static string GenerateJavaScript()
     {
-#if !DEBUG
-        return "// Dev settings disabled in release builds";
-#else
+        if (!IsDebug)
+            return "// Dev settings disabled in release builds";
+
         return @"
 // ============================================
 // POOL DEVELOPER SETTINGS MODULE
@@ -2127,6 +2139,5 @@ const PoolDevSettings = {
 
 console.log('PoolDevSettings module loaded');
 ";
-#endif
     }
 }
