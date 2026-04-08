@@ -44194,7 +44194,7 @@
     "GitHubUsername": "",
     "GitHubRepoName": "",
     "EnableCloudSync": false,
-    "LastCloudSyncUtc": "2026-04-08T18:09:56.7339601Z",
+    "LastCloudSyncUtc": "2026-04-08T18:58:42.6268863Z",
     "SelectedSeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
     "SelectedTemplate": "modern",
     "LastGenerated": "2026-04-07T13:15:22.4224533+01:00",
@@ -44448,7 +44448,7 @@
           {
             "Id": "ffffd7e2-31e0-450e-8abf-92b9f6c719ee",
             "SubmittedDate": "2026-04-08T12:24:12.939+01:00",
-            "Status": "confirmed",
+            "Status": "pending",
             "EntryName": "Mylows minions",
             "Notes": "Fetched from form service",
             "FieldValues": {
