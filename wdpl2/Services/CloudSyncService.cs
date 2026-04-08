@@ -136,12 +136,22 @@ public sealed class CloudSyncService : IDisposable
         {
             progress?.Report("Downloading league data...");
 
-            var url = $"{GitHubApiBase}/repos/{_username}/{_repoName}/contents/{SyncFilePath}";
-            System.Diagnostics.Debug.WriteLine($"[CloudSync] Pull URL: {url}");
+            // Try both branch names to match the push behaviour
+            HttpResponseMessage? response = null;
+            foreach (var branch in new[] { "main", "master" })
+            {
+                var url = $"{GitHubApiBase}/repos/{_username}/{_repoName}/contents/{SyncFilePath}?ref={branch}";
+                System.Diagnostics.Debug.WriteLine($"[CloudSync] Pull trying: {url}");
 
-            var response = await _httpClient.GetAsync(url);
+                response = await _httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CloudSync] Found data on '{branch}' branch");
+                    break;
+                }
+            }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            if (response == null || response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 progress?.Report("No cloud data found.");
                 return (false, "No league data found in the cloud. Either push your data first, " +
