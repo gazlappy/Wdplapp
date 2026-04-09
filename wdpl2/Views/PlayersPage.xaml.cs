@@ -78,6 +78,11 @@ public partial class PlayersPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _showAllSeasons = false;
+    private bool _showUnassigned = false;
+    private bool _hideInactive = false;
+    private string _sortOption = "A ? Z";
+
+    private static readonly string[] SortOptions = ["A ? Z", "Z ? A", "By Team", "Newest First"];
 
     public PlayersPage()
     {
@@ -98,6 +103,26 @@ public partial class PlayersPage : ContentPage
             ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
             {
                 _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+                SafeRefreshPlayers(SearchEntry?.Text);
+            };
+
+            ShowUnassignedCheck.CheckedChanged += (_, __) =>
+            {
+                _showUnassigned = ShowUnassignedCheck.IsChecked;
+                SafeRefreshPlayers(SearchEntry?.Text);
+            };
+
+            HideInactiveCheck.CheckedChanged += (_, __) =>
+            {
+                _hideInactive = HideInactiveCheck.IsChecked;
+                SafeRefreshPlayers(SearchEntry?.Text);
+            };
+
+            SortPicker.ItemsSource = SortOptions;
+            SortPicker.SelectedIndex = 0;
+            SortPicker.SelectedIndexChanged += (_, __) =>
+            {
+                _sortOption = SortPicker.SelectedItem as string ?? "A ? Z";
                 SafeRefreshPlayers(SearchEntry?.Text);
             };
 
@@ -412,19 +437,35 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var players = _showAllSeasons
-                ? DataStore.Data.Players.Where(p => p != null).OrderBy(p => p.LastName ?? "").ThenBy(p => p.FirstName ?? "").ToList()
-                : DataStore.Data.Players.Where(p => p != null && p.SeasonId == _currentSeasonId).OrderBy(p => p.LastName ?? "").ThenBy(p => p.FirstName ?? "").ToList();
+            var teamLookup = _showAllSeasons
+                ? DataStore.Data.Teams?.Where(t => t != null).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>()
+                : DataStore.Data.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>();
+
+            var playersQuery = _showAllSeasons
+                ? DataStore.Data.Players.Where(p => p != null)
+                : DataStore.Data.Players.Where(p => p != null && p.SeasonId == _currentSeasonId);
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var lower = search.ToLower();
-                players = players.Where(p => (p.FirstName ?? "").ToLower().Contains(lower) || (p.LastName ?? "").ToLower().Contains(lower)).ToList();
+                playersQuery = playersQuery.Where(p => (p.FirstName ?? "").ToLower().Contains(lower) || (p.LastName ?? "").ToLower().Contains(lower));
             }
 
-            var teamLookup = _showAllSeasons
-                ? DataStore.Data.Teams?.Where(t => t != null).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>()
-                : DataStore.Data.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>();
+            if (_showUnassigned)
+                playersQuery = playersQuery.Where(p => !p.TeamId.HasValue);
+
+            if (_hideInactive)
+                playersQuery = playersQuery.Where(p => p.IsActive);
+
+            string TeamName(Player p) => p.TeamId.HasValue && teamLookup.TryGetValue(p.TeamId.Value, out var n) ? n : "\uffff";
+
+            var players = _sortOption switch
+            {
+                "Z \u2192 A" => playersQuery.OrderByDescending(p => p.LastName ?? "").ThenByDescending(p => p.FirstName ?? "").ToList(),
+                "By Team" => playersQuery.OrderBy(TeamName).ThenBy(p => p.LastName ?? "").ThenBy(p => p.FirstName ?? "").ToList(),
+                "Newest First" => playersQuery.OrderByDescending(p => p.Id).ToList(),
+                _ => playersQuery.OrderBy(p => p.LastName ?? "").ThenBy(p => p.FirstName ?? "").ToList()
+            };
 
             foreach (var p in players)
             {
@@ -457,6 +498,10 @@ public partial class PlayersPage : ContentPage
     }
 
     private void OnShowAllSeasonsTapped(object? sender, EventArgs e) => ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
+
+    private void OnShowUnassignedTapped(object? sender, EventArgs e) => ShowUnassignedCheck.IsChecked = !ShowUnassignedCheck.IsChecked;
+
+    private void OnHideInactiveTapped(object? sender, EventArgs e) => HideInactiveCheck.IsChecked = !HideInactiveCheck.IsChecked;
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {

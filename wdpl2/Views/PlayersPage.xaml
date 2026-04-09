@@ -37,22 +37,40 @@
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1"
             SemanticProperties.Description="Players list panel">
-            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+            <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
                 <Entry x:Name="SearchEntry" Placeholder="Search players..." SemanticProperties.Description="Search players" />
 
-                <!-- Show All Seasons Toggle -->
-                <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
+                <!-- Filter Toggles -->
+                <HorizontalStackLayout Grid.Row="1" Spacing="4" Padding="4,0">
                     <CheckBox x:Name="ShowAllSeasonsCheck" SemanticProperties.Description="Show players from all seasons" />
-                    <Label Text="Show all seasons" VerticalOptions="Center" FontSize="14">
+                    <Label Text="All seasons" VerticalOptions="Center" FontSize="13" Margin="0,0,8,0">
                         <Label.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnShowAllSeasonsTapped" />
                         </Label.GestureRecognizers>
                     </Label>
+                    <CheckBox x:Name="ShowUnassignedCheck" SemanticProperties.Description="Show only players not assigned to a team" />
+                    <Label Text="Unassigned" VerticalOptions="Center" FontSize="13" Margin="0,0,8,0">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnShowUnassignedTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                    <CheckBox x:Name="HideInactiveCheck" SemanticProperties.Description="Hide inactive players" />
+                    <Label Text="Hide inactive" VerticalOptions="Center" FontSize="13">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHideInactiveTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </HorizontalStackLayout>
+
+                <!-- Sort Options -->
+                <HorizontalStackLayout Grid.Row="2" Spacing="8" Padding="4,0">
+                    <Label Text="Sort:" VerticalOptions="Center" FontSize="13" TextColor="{AppThemeBinding Light=#666, Dark=#999}" />
+                    <Picker x:Name="SortPicker" WidthRequest="160" FontSize="13" SemanticProperties.Description="Sort players by" />
                 </HorizontalStackLayout>
 
                 <CollectionView 
                     x:Name="PlayersList" 
-                    Grid.Row="2"
+                    Grid.Row="3"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always"
                     SemanticProperties.Description="Players list">
