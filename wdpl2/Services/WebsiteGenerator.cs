@@ -154,7 +154,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var inv = CultureInfo.InvariantCulture;
             
-            AppendDocumentHead(html, $"{_settings.LeagueName} - {season.Name}", season);
+            AppendDocumentHead(html, $"{_settings.HomeWelcomeTitle.Replace("{season}", season.Name)} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
 
             // Inline mobile responsive styles for the homepage canvas layout
@@ -379,7 +379,7 @@ namespace Wdpl2.Services
         private void AppendHomeWelcomeSection(StringBuilder html, Season season)
         {
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine($"                <h2>Welcome to {season.Name}</h2>");
+            html.AppendLine($"                <h2>{Esc(_settings.HomeWelcomeTitle.Replace("{season}", season.Name))}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{season.StartDate:MMMM d, yyyy} - {season.EndDate:MMMM d, yyyy}</p>");
             if (!string.IsNullOrWhiteSpace(_settings.WelcomeMessage))
             {
@@ -778,7 +778,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             
-            AppendDocumentHead(html, $"Standings - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.StandingsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -790,7 +790,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>League Standings</h2>");
+            html.AppendLine($"                <h2>{Esc(_settings.StandingsPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{season.Name}</p>");
             html.AppendLine("            </div>");
             
@@ -892,7 +892,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             
-            AppendDocumentHead(html, $"Fixtures - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.FixturesPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -904,7 +904,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128197; Fixtures</h2>");
+            html.AppendLine($"                <h2>&#128197; {Esc(_settings.FixturesPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Upcoming Matches</p>");
             html.AppendLine("            </div>");
             
@@ -1277,7 +1277,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             
-            AppendDocumentHead(html, $"Results - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.ResultsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1289,7 +1289,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#127937; Match Results</h2>");
+            html.AppendLine($"                <h2>&#127937; {Esc(_settings.ResultsPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Latest Results</p>");
             html.AppendLine("            </div>");
             
@@ -1389,7 +1389,7 @@ namespace Wdpl2.Services
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             var appSettings = _leagueSettings;
 
-            AppendDocumentHead(html, $"Players - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.PlayersPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
 
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1401,7 +1401,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#127942; Player Statistics</h2>");
+            html.AppendLine($"                <h2>&#127942; {Esc(_settings.PlayersPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
             html.AppendLine("            </div>");
 
@@ -1531,7 +1531,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             
-            AppendDocumentHead(html, $"Divisions - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.DivisionsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1543,7 +1543,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#127941; Divisions</h2>");
+            html.AppendLine($"                <h2>&#127941; {Esc(_settings.DivisionsPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{divisions.Count} Division(s)</p>");
             html.AppendLine("            </div>");
             
@@ -1643,7 +1643,7 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
 
-            AppendDocumentHead(html, $"Rules - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.RulesPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
 
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1655,7 +1655,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128214; League Rules</h2>");
+            html.AppendLine($"                <h2>&#128214; {Esc(_settings.RulesPageTitle)}</h2>");
             html.AppendLine("            </div>");
 
             // Build the list of sections that have content
@@ -1848,7 +1848,7 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
             
-            AppendDocumentHead(html, $"Contact - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.ContactPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1860,7 +1860,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128231; Contact Us</h2>");
+            html.AppendLine($"                <h2>&#128231; {Esc(_settings.ContactPageTitle)}</h2>");
             html.AppendLine("            </div>");
             html.AppendLine("            <div class=\"section\">");
             html.AppendLine("                <div class=\"contact-grid\">");
@@ -1930,7 +1930,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var imageOptimizer = new ImageOptimizationService();
             
-            AppendDocumentHead(html, $"Sponsors - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.SponsorsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1942,7 +1942,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#129309; Our Sponsors</h2>");
+            html.AppendLine($"                <h2>&#129309; {Esc(_settings.SponsorsPageTitle)}</h2>");
             html.AppendLine("                <p class=\"hero-dates\">Thank you to our supporters</p>");
             html.AppendLine("            </div>");
             
@@ -2000,7 +2000,7 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
             
-            AppendDocumentHead(html, $"News - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.NewsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -2012,9 +2012,9 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128240; Latest News</h2>");
+            html.AppendLine($"                <h2>&#128240; {Esc(_settings.NewsPageTitle)}</h2>");
             html.AppendLine("            </div>");
-            
+
             var publishedNews = _settings.NewsItems
                 .Where(n => n.IsPublished)
                 .OrderByDescending(n => n.IsPinned)
@@ -2063,10 +2063,10 @@ namespace Wdpl2.Services
         {
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
 
-            return GenerateFullPage($"Rows Reports - {_settings.LeagueName}", season, "Rows Reports", html =>
+            return GenerateFullPage($"{_settings.RowsReportsPageTitle} - {_settings.LeagueName}", season, "Rows Reports", html =>
             {
                 html.AppendLine("            <div class=\"hero\">");
-                html.AppendLine("                <h2>&#128221; Rows Reports</h2>");
+                html.AppendLine($"                <h2>&#128221; {Esc(_settings.RowsReportsPageTitle)}</h2>");
                 html.AppendLine("                <p class=\"hero-dates\">Weekly match reports and round-ups</p>");
                 html.AppendLine("            </div>");
 
@@ -2151,7 +2151,7 @@ namespace Wdpl2.Services
         {
             var html = new StringBuilder();
 
-            AppendDocumentHead(html, $"Competitions - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.CompetitionsPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
 
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -2163,7 +2163,7 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#127942; Competitions</h2>");
+            html.AppendLine($"                <h2>&#127942; {Esc(_settings.CompetitionsPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">{_settings.LeagueName}</p>");
             html.AppendLine("            </div>");
 
@@ -2584,10 +2584,10 @@ namespace Wdpl2.Services
 
         private string GenerateEntryFormsPage(Season season, WebsiteTemplate template)
         {
-            return GenerateFullPage($"Entry Forms - {_settings.LeagueName}", season, "Entry Forms", html =>
+            return GenerateFullPage($"{_settings.EntryFormsPageTitle} - {_settings.LeagueName}", season, "Entry Forms", html =>
             {
                 html.AppendLine("            <div class=\"hero\">");
-                html.AppendLine("                <h2>&#128203; Entry Forms</h2>");
+                html.AppendLine($"                <h2>&#128203; {Esc(_settings.EntryFormsPageTitle)}</h2>");
                 html.AppendLine("                <p class=\"hero-dates\">Season entries &amp; registrations</p>");
                 html.AppendLine("            </div>");
 
@@ -3191,7 +3191,7 @@ namespace Wdpl2.Services
             var html = new StringBuilder();
             var imageOptimizer = new ImageOptimizationService();
             
-            AppendDocumentHead(html, $"Gallery - {_settings.LeagueName}", season);
+            AppendDocumentHead(html, $"{_settings.GalleryPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -3203,9 +3203,9 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128247; Photo Gallery</h2>");
+            html.AppendLine($"                <h2>&#128247; {Esc(_settings.GalleryPageTitle)}</h2>");
             html.AppendLine("            </div>");
-            
+
             var images = _settings.GalleryImages.OrderBy(i => i.SortOrder).ToList();
             var categories = images.Select(i => i.Category).Distinct().ToList();
             

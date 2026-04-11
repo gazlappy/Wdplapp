@@ -95,14 +95,14 @@ public partial class SocialCardPage : ContentPage
         List<FixtureDisplayItem> items;
         if (cardType == "Result Card")
         {
-            items = fixtures.Where(f => f.Frames.Count > 0)
+            items = fixtures.Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 .OrderByDescending(f => f.Date)
                 .Select(f => new FixtureDisplayItem(f, _seasonTeams))
                 .ToList();
         }
         else
         {
-            items = fixtures.Where(f => f.Frames.Count == 0 && f.Date >= DateTime.Today.AddDays(-1))
+            items = fixtures.Where(f => !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 .OrderBy(f => f.Date)
                 .Select(f => new FixtureDisplayItem(f, _seasonTeams))
                 .ToList();
@@ -673,18 +673,50 @@ public partial class SocialCardPage : ContentPage
         if (season == null) return "";
 
         var divId = (DivisionPicker.SelectedItem as Division)?.Id;
-        var teams = _seasonTeams.AsEnumerable();
-        var fixtures = _seasonFixtures.AsEnumerable();
-        if (divId.HasValue && divId.Value != Guid.Empty)
+        var isAllDivisions = !divId.HasValue || divId.Value == Guid.Empty;
+
+        if (isAllDivisions)
         {
-            teams = teams.Where(t => t.DivisionId == divId.Value);
-            fixtures = fixtures.Where(f => f.DivisionId == divId.Value);
+            // Generate a separate table for each division
+            var realDivisions = _divisions.Where(d => d.Id != Guid.Empty).ToList();
+            if (realDivisions.Count == 0)
+                return $"<p style='text-align:center;color:{style.SubTextColor}'>No divisions found</p>";
+
+            // Count divisions that actually have teams
+            var activeDivs = realDivisions
+                .Where(d => _seasonTeams.Any(t => t.DivisionId == d.Id))
+                .ToList();
+            var divCount = Math.Max(activeDivs.Count, 1);
+
+            var sb = new StringBuilder();
+            foreach (var div in activeDivs)
+            {
+                var divTeams = _seasonTeams.Where(t => t.DivisionId == div.Id).ToList();
+                var divFixtures = _seasonFixtures.Where(f => f.DivisionId == div.Id).ToList();
+
+                sb.Append(BuildLeagueTableHtml(style, season, divTeams, divFixtures, div.Name, divCount));
+            }
+
+            return sb.Length > 0
+                ? sb.ToString()
+                : $"<p style='text-align:center;color:{style.SubTextColor}'>No teams found</p>";
         }
+        else
+        {
+            var teams = _seasonTeams.Where(t => t.DivisionId == divId!.Value).ToList();
+            var fixtures = _seasonFixtures.Where(f => f.DivisionId == divId!.Value).ToList();
+            if (teams.Count == 0)
+                return $"<p style='text-align:center;color:{style.SubTextColor}'>No teams found</p>";
 
-        var teamList = teams.ToList();
-        var fixtureList = fixtures.ToList();
-        if (teamList.Count == 0) return $"<p style='text-align:center;color:{style.SubTextColor}'>No teams found</p>";
+            var divName = _divisions.FirstOrDefault(d => d.Id == divId)?.Name ?? "";
+            var showDiv = ShowDivisionCheck.IsChecked && !string.IsNullOrEmpty(divName) && divName != "All Divisions";
+            return BuildLeagueTableHtml(style, season, teams, fixtures, showDiv ? divName : null, 1);
+        }
+    }
 
+    private string BuildLeagueTableHtml(CardStyle style, Season season,
+        List<Team> teamList, List<Fixture> fixtureList, string? divisionName, int totalDivisions)
+    {
         var appSettings = League.GetSettingsForSeason(season.Id);
         var standings = StandingsCalculator.Calculate(teamList, fixtureList, appSettings);
         var sorted = StandingsSorter.Sort(
@@ -694,24 +726,33 @@ public partial class SocialCardPage : ContentPage
 
         for (int i = 0; i < sorted.Count; i++) sorted[i].Position = i + 1;
 
-        var divName = _divisions.FirstOrDefault(d => d.Id == divId)?.Name ?? "";
-        var showDiv = ShowDivisionCheck.IsChecked && !string.IsNullOrEmpty(divName) && divName != "All Divisions";
+        // Scale down sizing when multiple divisions must share the card
+        var compact = totalDivisions > 1;
+        var fontSize = compact ? "18px" : "26px";
+        var headerPad = compact ? "8px 6px" : "14px 10px";
+        var cellPad = compact ? "6px 6px" : "12px 10px";
+        var divFontSize = compact ? "18px" : "26px";
+        var divMargin = compact ? "14px 0 8px" : "0 0 20px";
+        var moreSize = compact ? "15px" : "22px";
+        var maxRows = compact
+            ? Math.Min(sorted.Count, Math.Max(12 / totalDivisions, 5))
+            : Math.Min(sorted.Count, 12);
 
         var sb = new StringBuilder();
-        if (showDiv) sb.Append($"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(divName)}</div>");
+        if (!string.IsNullOrEmpty(divisionName))
+            sb.Append($"<div style='text-align:center;font-size:{divFontSize};color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:{divMargin};'>{Escape(divisionName)}</div>");
 
-        sb.Append($@"<table style='width:100%;border-collapse:collapse;font-size:26px;color:{style.TextColor};'>
+        sb.Append($@"<table style='width:100%;border-collapse:collapse;font-size:{fontSize};color:{style.TextColor};'>
             <tr style='border-bottom:2px solid {style.Accent};'>
-                <th style='padding:14px 10px;text-align:center;width:50px;'>#</th>
-                <th style='padding:14px 10px;text-align:left;'>Team</th>
-                <th style='padding:14px 10px;text-align:center;'>P</th>
-                <th style='padding:14px 10px;text-align:center;'>W</th>
-                <th style='padding:14px 10px;text-align:center;'>L</th>
-                <th style='padding:14px 10px;text-align:center;'>FD</th>
-                <th style='padding:14px 10px;text-align:center;font-weight:800;'>Pts</th>
+                <th style='padding:{headerPad};text-align:center;width:40px;'>#</th>
+                <th style='padding:{headerPad};text-align:left;'>Team</th>
+                <th style='padding:{headerPad};text-align:center;'>P</th>
+                <th style='padding:{headerPad};text-align:center;'>W</th>
+                <th style='padding:{headerPad};text-align:center;'>L</th>
+                <th style='padding:{headerPad};text-align:center;'>FD</th>
+                <th style='padding:{headerPad};text-align:center;font-weight:800;'>Pts</th>
             </tr>");
 
-        var maxRows = Math.Min(sorted.Count, 12);
         for (int i = 0; i < maxRows; i++)
         {
             var s = sorted[i];
@@ -719,18 +760,18 @@ public partial class SocialCardPage : ContentPage
             var isTop3 = i < 3;
             var posIcon = i switch { 0 => "&#129351;", 1 => "&#129352;", 2 => "&#129353;", _ => s.Position.ToString() };
             sb.Append($@"<tr style='background:{rowBg};{(isTop3 ? "font-weight:600;" : "")}'>
-                <td style='padding:12px 10px;text-align:center;'>{posIcon}</td>
-                <td style='padding:12px 10px;text-align:left;{(isTop3 ? "color:" + style.Accent + ";" : "")}'>{Escape(s.TeamName)}</td>
-                <td style='padding:12px 10px;text-align:center;'>{s.Played}</td>
-                <td style='padding:12px 10px;text-align:center;'>{s.Won}</td>
-                <td style='padding:12px 10px;text-align:center;'>{s.Lost}</td>
-                <td style='padding:12px 10px;text-align:center;'>{s.FrameDifference:+0;-0;0}</td>
-                <td style='padding:12px 10px;text-align:center;font-weight:800;'>{s.Points}</td>
+                <td style='padding:{cellPad};text-align:center;'>{posIcon}</td>
+                <td style='padding:{cellPad};text-align:left;{(isTop3 ? "color:" + style.Accent + ";" : "")}'>{Escape(s.TeamName)}</td>
+                <td style='padding:{cellPad};text-align:center;'>{s.Played}</td>
+                <td style='padding:{cellPad};text-align:center;'>{s.Won}</td>
+                <td style='padding:{cellPad};text-align:center;'>{s.Lost}</td>
+                <td style='padding:{cellPad};text-align:center;'>{s.FrameDifference:+0;-0;0}</td>
+                <td style='padding:{cellPad};text-align:center;font-weight:800;'>{s.Points}</td>
             </tr>");
         }
 
         if (sorted.Count > maxRows)
-            sb.Append($"<tr><td colspan='7' style='padding:14px;text-align:center;color:{style.SubTextColor};font-size:22px;'>+ {sorted.Count - maxRows} more teams</td></tr>");
+            sb.Append($"<tr><td colspan='7' style='padding:{cellPad};text-align:center;color:{style.SubTextColor};font-size:{moreSize};'>+ {sorted.Count - maxRows} more teams</td></tr>");
 
         sb.Append("</table>");
         return sb.ToString();
@@ -746,7 +787,7 @@ public partial class SocialCardPage : ContentPage
         var player = item.Player;
         var teamName = _seasonTeams.FirstOrDefault(t => t.Id == player.TeamId)?.Name ?? "";
 
-        var playerFixtures = _seasonFixtures.Where(f => f.Frames.Count > 0);
+        var playerFixtures = _seasonFixtures.Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None));
         int played = 0, won = 0;
         foreach (var f in playerFixtures)
         {
@@ -794,7 +835,7 @@ public partial class SocialCardPage : ContentPage
     private string GenerateWeeklyResultsContent(CardStyle style)
     {
         var divId = (DivisionPicker.SelectedItem as Division)?.Id;
-        var fixtures = _seasonFixtures.Where(f => f.Frames.Count > 0).AsEnumerable();
+        var fixtures = _seasonFixtures.Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None)).AsEnumerable();
         if (divId.HasValue && divId.Value != Guid.Empty)
             fixtures = fixtures.Where(f => f.DivisionId == divId.Value);
 
@@ -829,11 +870,16 @@ public partial class SocialCardPage : ContentPage
     private string GenerateUpcomingFixturesContent(CardStyle style)
     {
         var divId = (DivisionPicker.SelectedItem as Division)?.Id;
-        var fixtures = _seasonFixtures.Where(f => f.Frames.Count == 0 && f.Date >= DateTime.Today.AddDays(-1)).AsEnumerable();
+        var unplayed = _seasonFixtures.Where(f => !f.Frames.Any(fr => fr.Winner != FrameWinner.None)).AsEnumerable();
         if (divId.HasValue && divId.Value != Guid.Empty)
-            fixtures = fixtures.Where(f => f.DivisionId == divId.Value);
+            unplayed = unplayed.Where(f => f.DivisionId == divId.Value);
 
-        var upcoming = fixtures.OrderBy(f => f.Date).Take(8).ToList();
+        // Find the nearest match date among all unplayed fixtures, then show that round
+        var ordered = unplayed.OrderBy(f => f.Date).ToList();
+        if (ordered.Count == 0) return $"<p style='text-align:center;color:{style.SubTextColor}'>No upcoming fixtures</p>";
+
+        var nextDate = ordered.First().Date.Date;
+        var upcoming = ordered.Where(f => f.Date.Date == nextDate).Take(8).ToList();
         if (upcoming.Count == 0) return $"<p style='text-align:center;color:{style.SubTextColor}'>No upcoming fixtures</p>";
 
         var showDate = ShowDateCheck.IsChecked;
@@ -882,7 +928,7 @@ public partial class SocialCardPage : ContentPage
             Fixture = fixture;
             var home = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId)?.Name ?? "?";
             var away = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId)?.Name ?? "?";
-            if (fixture.Frames.Count > 0)
+            if (fixture.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 Display = $"{fixture.Date:dd MMM} — {home} {fixture.HomeScore}-{fixture.AwayScore} {away}";
             else
                 Display = $"{fixture.Date:dd MMM} — {home} vs {away}";

@@ -39,7 +39,9 @@ public static class StandingsCalculator
         }
 
         // When tracking form, process newest-first so Take(N) yields most recent results.
-        var completed = fixtures.Where(f => f.Frames.Count > 0);
+        // Only include fixtures where at least one frame has actually been played
+        // (pre-created frames with FrameWinner.None should not count as completed).
+        var completed = fixtures.Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None));
         var ordered = trackForm
             ? completed.OrderByDescending(f => f.Date)
             : completed;

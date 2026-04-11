@@ -3,148 +3,300 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebsiteBuilder.ContentSettingsPage"
              Title="Pages and Content">
-    
+
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
-            
-            <Label Text="Pages and Content" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
-            <Label Text="Choose pages and configure their settings" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
-            
-            <!-- Pages to Include -->
-            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
-                <VerticalStackLayout Spacing="12">
-                    <Label Text="Pages to Include" FontSize="14" FontAttributes="Bold"/>
-                    <Label Text="Toggle pages on/off and tap Settings to customize" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
-                    
-                    <VerticalStackLayout Spacing="8">
-                        <!-- Standings -->
-                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowStandingsCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="League Standings" VerticalOptions="Center"/>
-                            <Button Grid.Column="2" Text="Settings" Clicked="OnStandingsSettingsClicked" 
-                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
-                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
-                        </Grid>
-                        
-                        <!-- Fixtures -->
-                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowFixturesCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Fixtures" VerticalOptions="Center"/>
-                            <Button Grid.Column="2" Text="Settings" Clicked="OnFixturesSettingsClicked" 
-                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
-                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
-                        </Grid>
-                        
-                        <!-- Results -->
-                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowResultsCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Results" VerticalOptions="Center"/>
-                            <Button Grid.Column="2" Text="Settings" Clicked="OnResultsSettingsClicked" 
-                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
-                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
-                        </Grid>
-                        
-                        <!-- Player Stats -->
-                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowPlayerStatsCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Player Stats" VerticalOptions="Center"/>
-                            <Button Grid.Column="2" Text="Settings" Clicked="OnPlayersSettingsClicked" 
-                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
-                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
-                        </Grid>
-                        
-                        <!-- Divisions -->
-                        <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowDivisionsCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Divisions" VerticalOptions="Center"/>
-                            <Button Grid.Column="2" Text="Settings" Clicked="OnDivisionsSettingsClicked" 
-                                    BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
-                                    FontSize="12" Padding="8,4" HeightRequest="32"/>
-                        </Grid>
-                    </VerticalStackLayout>
-                    
-                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,5"/>
-                    
-                    <VerticalStackLayout Spacing="6">
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowCompetitionsCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Competitions" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowGalleryCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Photo Gallery" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowTopScorersCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Top Scorers on Home" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowRecentFormCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Recent Form in Tables" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowNewsCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="News Page" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowRowsReportsCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Rows Reports (Weekly Match Reports)" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowSponsorsCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Sponsors Page" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowRulesCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Rules Page" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowContactPageCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Contact Page" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowPoolGameCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Pool Game (🎱 Play Pool)" VerticalOptions="Center"/>
-                        </Grid>
-                    </VerticalStackLayout>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Pages &amp; Content" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Choose which pages appear on your website, customise their titles and navigation labels" FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+            <!-- ═══════════════════ PAGES TO INCLUDE ═══════════════════ -->
+            <Border Stroke="#E5E7EB" StrokeShape="RoundRectangle 10" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Text="&#128196;" FontSize="18" VerticalOptions="Center"/>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="Pages to Include" FontSize="15" FontAttributes="Bold"/>
+                            <Label Text="Toggle pages on or off and tap the cog to configure each page" FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,4"/>
+
+                    <!-- Main pages with settings buttons -->
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto">
+                        <Label Text="&#128202;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="League Standings" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowStandingsCheck" IsToggled="True" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnStandingsSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="&#128197;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Fixtures" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowFixturesCheck" IsToggled="True" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnFixturesSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="&#127937;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Results" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowResultsCheck" IsToggled="True" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnResultsSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="&#128101;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Player Statistics" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowPlayerStatsCheck" IsToggled="True" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnPlayersSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="&#128203;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Divisions" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowDivisionsCheck" IsToggled="True" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnDivisionsSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,4"/>
+
+                    <!-- Additional pages (no separate settings page) -->
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#127942;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Competitions" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowCompetitionsCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128247;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Photo Gallery" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowGalleryCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128240;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="News Page" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowNewsCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128221;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Rows Reports" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowRowsReportsCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="⭐" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Sponsors Page" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowSponsorsCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128220;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Rules Page" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowRulesCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128231;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Contact Page" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowContactPageCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#127921;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Pool Game (🎱 Play Pool)" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowPoolGameCheck" IsToggled="True" VerticalOptions="Center"/>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,4"/>
+
+                    <!-- Home page feature toggles -->
+                    <Label Text="Home Page Features" FontSize="13" FontAttributes="Bold" TextColor="#6B7280"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128200;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Top Scorers on Home" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowTopScorersCheck" IsToggled="True" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#128293;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Recent Form in Tables" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowRecentFormCheck" IsToggled="True" VerticalOptions="Center"/>
+                    </Grid>
                 </VerticalStackLayout>
-            </Frame>
-            
-            <!-- Home Page Settings -->
-            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
-                <VerticalStackLayout Spacing="12">
-                    <Label Text="Home Page Settings" FontSize="14" FontAttributes="Bold"/>
-                    <Label Text="Section layout, visibility, and ordering are configured in the Visual Layout Editor. The counts below control how many items appear in each home page section." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            </Border>
+
+            <!-- ═══════════════════ LABELS & TITLES ═══════════════════ -->
+            <Border Stroke="#E5E7EB" StrokeShape="RoundRectangle 10" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="6">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Text="&#9998;" FontSize="18" VerticalOptions="Center"/>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="Labels &amp; Titles" FontSize="15" FontAttributes="Bold"/>
+                            <Label Text="Customise navigation bar labels and page headings. Use {season} in the Home title to insert the season name." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                    </Grid>
 
                     <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,2"/>
 
-                    <VerticalStackLayout Spacing="10">
-                        <Grid ColumnDefinitions="*,100" ColumnSpacing="10">
-                            <Label Text="Recent Results" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="HomeRecentResultsCountEntry" Placeholder="5" Keyboard="Numeric"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,100" ColumnSpacing="10">
-                            <Label Text="Upcoming Fixtures" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="HomeUpcomingFixturesCountEntry" Placeholder="5" Keyboard="Numeric"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,100" ColumnSpacing="10">
-                            <Label Text="League Leaders" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="HomeLeagueLeadersCountEntry" Placeholder="5" Keyboard="Numeric"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,100" ColumnSpacing="10">
-                            <Label Text="Stats Columns" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="StatsColumnsEntry" Placeholder="4" Keyboard="Numeric"/>
-                        </Grid>
-                    </VerticalStackLayout>
+                    <!-- Column headers -->
+                    <Grid ColumnDefinitions="75,*,*" ColumnSpacing="6" Padding="0,0,0,2">
+                        <Label Text="PAGE" FontSize="10" FontAttributes="Bold" TextColor="#9CA3AF" VerticalOptions="End"/>
+                        <Label Grid.Column="1" Text="NAV LABEL" FontSize="10" FontAttributes="Bold" TextColor="#9CA3AF" VerticalOptions="End"/>
+                        <Label Grid.Column="2" Text="PAGE TITLE" FontSize="10" FontAttributes="Bold" TextColor="#9CA3AF" VerticalOptions="End"/>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB"/>
+
+                    <!-- Data rows -->
+                    <Grid ColumnDefinitions="75,*,*" ColumnSpacing="6"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          RowSpacing="2">
+
+                        <!-- Home -->
+                        <Label Text="Home" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Column="1" x:Name="HomeNavLabelEntry" Placeholder="Home" FontSize="12"/>
+                        <Entry Grid.Column="2" x:Name="HomeWelcomeTitleEntry" Placeholder="Welcome to {season}" FontSize="12"/>
+
+                        <!-- Standings -->
+                        <Label Grid.Row="1" Text="Standings" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="1" Grid.Column="1" x:Name="StandingsNavLabelEntry" Placeholder="Standings" FontSize="12"/>
+                        <Entry Grid.Row="1" Grid.Column="2" x:Name="StandingsPageTitleEntry" Placeholder="League Standings" FontSize="12"/>
+
+                        <!-- Fixtures -->
+                        <Label Grid.Row="2" Text="Fixtures" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="2" Grid.Column="1" x:Name="FixturesNavLabelEntry" Placeholder="Fixtures" FontSize="12"/>
+                        <Entry Grid.Row="2" Grid.Column="2" x:Name="FixturesPageTitleEntry" Placeholder="Fixtures" FontSize="12"/>
+
+                        <!-- Results -->
+                        <Label Grid.Row="3" Text="Results" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="3" Grid.Column="1" x:Name="ResultsNavLabelEntry" Placeholder="Results" FontSize="12"/>
+                        <Entry Grid.Row="3" Grid.Column="2" x:Name="ResultsPageTitleEntry" Placeholder="Match Results" FontSize="12"/>
+
+                        <!-- Players -->
+                        <Label Grid.Row="4" Text="Players" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="4" Grid.Column="1" x:Name="PlayersNavLabelEntry" Placeholder="Players" FontSize="12"/>
+                        <Entry Grid.Row="4" Grid.Column="2" x:Name="PlayersPageTitleEntry" Placeholder="Player Statistics" FontSize="12"/>
+
+                        <!-- Divisions -->
+                        <Label Grid.Row="5" Text="Divisions" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="5" Grid.Column="1" x:Name="DivisionsNavLabelEntry" Placeholder="Divisions" FontSize="12"/>
+                        <Entry Grid.Row="5" Grid.Column="2" x:Name="DivisionsPageTitleEntry" Placeholder="Divisions" FontSize="12"/>
+
+                        <!-- Competitions -->
+                        <Label Grid.Row="6" Text="Comps" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="6" Grid.Column="1" x:Name="CompetitionsNavLabelEntry" Placeholder="Competitions" FontSize="12"/>
+                        <Entry Grid.Row="6" Grid.Column="2" x:Name="CompetitionsPageTitleEntry" Placeholder="Competitions" FontSize="12"/>
+
+                        <!-- Pool Game (nav label only) -->
+                        <Label Grid.Row="7" Text="Pool Game" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="7" Grid.Column="1" x:Name="PoolGameNavLabelEntry" Placeholder="&#x1F3B1; Play Pool" FontSize="12"/>
+                        <Label Grid.Row="7" Grid.Column="2" Text="—" FontSize="12" TextColor="#D1D5DB" VerticalOptions="Center" HorizontalOptions="Center"/>
+
+                        <!-- Gallery -->
+                        <Label Grid.Row="8" Text="Gallery" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="8" Grid.Column="1" x:Name="GalleryNavLabelEntry" Placeholder="Gallery" FontSize="12"/>
+                        <Entry Grid.Row="8" Grid.Column="2" x:Name="GalleryPageTitleEntry" Placeholder="Photo Gallery" FontSize="12"/>
+
+                        <!-- News -->
+                        <Label Grid.Row="9" Text="News" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="9" Grid.Column="1" x:Name="NewsNavLabelEntry" Placeholder="News" FontSize="12"/>
+                        <Entry Grid.Row="9" Grid.Column="2" x:Name="NewsPageTitleEntry" Placeholder="Latest News" FontSize="12"/>
+
+                        <!-- Rows Reports -->
+                        <Label Grid.Row="10" Text="Reports" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="10" Grid.Column="1" x:Name="RowsReportsNavLabelEntry" Placeholder="Rows Reports" FontSize="12"/>
+                        <Entry Grid.Row="10" Grid.Column="2" x:Name="RowsReportsPageTitleEntry" Placeholder="Rows Reports" FontSize="12"/>
+
+                        <!-- Sponsors -->
+                        <Label Grid.Row="11" Text="Sponsors" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="11" Grid.Column="1" x:Name="SponsorsNavLabelEntry" Placeholder="Sponsors" FontSize="12"/>
+                        <Entry Grid.Row="11" Grid.Column="2" x:Name="SponsorsPageTitleEntry" Placeholder="Our Sponsors" FontSize="12"/>
+
+                        <!-- Rules -->
+                        <Label Grid.Row="12" Text="Rules" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="12" Grid.Column="1" x:Name="RulesNavLabelEntry" Placeholder="Rules" FontSize="12"/>
+                        <Entry Grid.Row="12" Grid.Column="2" x:Name="RulesPageTitleEntry" Placeholder="League Rules" FontSize="12"/>
+
+                        <!-- Entry Forms -->
+                        <Label Grid.Row="13" Text="Entry Forms" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="13" Grid.Column="1" x:Name="EntryFormsNavLabelEntry" Placeholder="Entry Forms" FontSize="12"/>
+                        <Entry Grid.Row="13" Grid.Column="2" x:Name="EntryFormsPageTitleEntry" Placeholder="Entry Forms" FontSize="12"/>
+
+                        <!-- Contact -->
+                        <Label Grid.Row="14" Text="Contact" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="14" Grid.Column="1" x:Name="ContactNavLabelEntry" Placeholder="Contact" FontSize="12"/>
+                        <Entry Grid.Row="14" Grid.Column="2" x:Name="ContactPageTitleEntry" Placeholder="Contact Us" FontSize="12"/>
+                    </Grid>
                 </VerticalStackLayout>
-            </Frame>
-            
-            <Button Text="Save Changes" 
+            </Border>
+
+            <!-- ═══════════════════ HOME PAGE SETTINGS ═══════════════════ -->
+            <Border Stroke="#E5E7EB" StrokeShape="RoundRectangle 10" Padding="16" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Text="&#127968;" FontSize="18" VerticalOptions="Center"/>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="Home Page Counts" FontSize="15" FontAttributes="Bold"/>
+                            <Label Text="Control how many items appear in each home page section. Layout and ordering are configured in the Visual Layout Editor." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#E5E7EB" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,80" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+                        <Label Text="Recent Results" VerticalOptions="Center" FontSize="13" TextColor="#374151"/>
+                        <Entry Grid.Column="1" x:Name="HomeRecentResultsCountEntry" Placeholder="5" Keyboard="Numeric" FontSize="13" HorizontalTextAlignment="Center"/>
+
+                        <Label Grid.Row="1" Text="Upcoming Fixtures" VerticalOptions="Center" FontSize="13" TextColor="#374151"/>
+                        <Entry Grid.Row="1" Grid.Column="1" x:Name="HomeUpcomingFixturesCountEntry" Placeholder="5" Keyboard="Numeric" FontSize="13" HorizontalTextAlignment="Center"/>
+
+                        <Label Grid.Row="2" Text="League Leaders" VerticalOptions="Center" FontSize="13" TextColor="#374151"/>
+                        <Entry Grid.Row="2" Grid.Column="1" x:Name="HomeLeagueLeadersCountEntry" Placeholder="5" Keyboard="Numeric" FontSize="13" HorizontalTextAlignment="Center"/>
+
+                        <Label Grid.Row="3" Text="Stats Columns" VerticalOptions="Center" FontSize="13" TextColor="#374151"/>
+                        <Entry Grid.Row="3" Grid.Column="1" x:Name="StatsColumnsEntry" Placeholder="4" Keyboard="Numeric" FontSize="13" HorizontalTextAlignment="Center"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Save button -->
+            <Button Text="&#128190;  Save Changes" 
                     Clicked="OnSaveClicked" 
                     BackgroundColor="#10B981"
-                    Margin="0,10,0,0"/>
-            
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    FontSize="16"
+                    CornerRadius="10"
+                    HeightRequest="48"
+                    Margin="0,8,0,20"/>
+
         </VerticalStackLayout>
     </ScrollView>
-    
+
 </ContentPage>

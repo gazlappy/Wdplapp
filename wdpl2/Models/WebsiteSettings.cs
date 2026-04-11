@@ -241,6 +241,39 @@ namespace Wdpl2.Models
         public bool ShowContactPage { get; set; } = false;
         public bool ShowPoolGame { get; set; } = true;
 
+        // Page Titles (displayed as the heading on each page)
+        public string HomeWelcomeTitle { get; set; } = "Welcome to {season}";
+        public string StandingsPageTitle { get; set; } = "League Standings";
+        public string FixturesPageTitle { get; set; } = "Fixtures";
+        public string ResultsPageTitle { get; set; } = "Match Results";
+        public string PlayersPageTitle { get; set; } = "Player Statistics";
+        public string DivisionsPageTitle { get; set; } = "Divisions";
+        public string CompetitionsPageTitle { get; set; } = "Competitions";
+        public string GalleryPageTitle { get; set; } = "Photo Gallery";
+        public string NewsPageTitle { get; set; } = "Latest News";
+        public string RowsReportsPageTitle { get; set; } = "Rows Reports";
+        public string SponsorsPageTitle { get; set; } = "Our Sponsors";
+        public string RulesPageTitle { get; set; } = "League Rules";
+        public string ContactPageTitle { get; set; } = "Contact Us";
+        public string EntryFormsPageTitle { get; set; } = "Entry Forms";
+
+        // Navigation Labels (displayed in the nav bar across the top)
+        public string HomeNavLabel { get; set; } = "Home";
+        public string StandingsNavLabel { get; set; } = "Standings";
+        public string FixturesNavLabel { get; set; } = "Fixtures";
+        public string ResultsNavLabel { get; set; } = "Results";
+        public string PlayersNavLabel { get; set; } = "Players";
+        public string DivisionsNavLabel { get; set; } = "Divisions";
+        public string CompetitionsNavLabel { get; set; } = "Competitions";
+        public string PoolGameNavLabel { get; set; } = "\U0001F3B1 Play Pool";
+        public string GalleryNavLabel { get; set; } = "Gallery";
+        public string NewsNavLabel { get; set; } = "News";
+        public string RowsReportsNavLabel { get; set; } = "Rows Reports";
+        public string SponsorsNavLabel { get; set; } = "Sponsors";
+        public string RulesNavLabel { get; set; } = "Rules";
+        public string EntryFormsNavLabel { get; set; } = "Entry Forms";
+        public string ContactNavLabel { get; set; } = "Contact";
+
         // Home Page Options
         public bool HomeShowWelcomeSection { get; set; } = true;
         public bool HomeShowQuickStats { get; set; } = true;
@@ -794,7 +827,24 @@ namespace Wdpl2.Models
             ShowSponsors = false;
             ShowRules = false;
             ShowContactPage = false;
-            
+
+            // Navigation labels
+            HomeNavLabel = "Home";
+            StandingsNavLabel = "Standings";
+            FixturesNavLabel = "Fixtures";
+            ResultsNavLabel = "Results";
+            PlayersNavLabel = "Players";
+            DivisionsNavLabel = "Divisions";
+            CompetitionsNavLabel = "Competitions";
+            PoolGameNavLabel = "\U0001F3B1 Play Pool";
+            GalleryNavLabel = "Gallery";
+            NewsNavLabel = "News";
+            RowsReportsNavLabel = "Rows Reports";
+            SponsorsNavLabel = "Sponsors";
+            RulesNavLabel = "Rules";
+            EntryFormsNavLabel = "Entry Forms";
+            ContactNavLabel = "Contact";
+
             // Home page
             HomeShowWelcomeSection = true;
             HomeShowQuickStats = true;
