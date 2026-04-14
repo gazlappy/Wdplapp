@@ -665,9 +665,12 @@ public partial class WebsiteBuilderHub : ContentPage
             return;
         }
 
-        // Inline CSS
+        // Inline CSS (handle optional cache-buster query string)
         if (_generatedFiles.TryGetValue("style.css", out var css))
-            html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", $"<style>{css}</style>");
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
+                $"<style>{css}</style>");
 
         // Inline JSON data so fetch() works in the WebView
         html = InlineJsonData(html);
@@ -695,35 +698,33 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchPattern(html, "fetch('players-data.json')",
-                ".then(function(r) { return r.json(); })", escaped);
+            html = ReplaceFetchWithInline(html, "players-data.json", escaped);
         }
 
         if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
         {
             var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchPattern(html, "fetch('teams-data.json')",
-                ".then(function(r) { return r.json(); })", escaped);
+            html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
         }
 
         return html;
     }
 
-    private static string ReplaceFetchPattern(string html, string fetchPart, string thenPart, string escapedJson)
+    /// <summary>
+    /// Replaces fetch('file.json') or fetch('file.json?v=' + cacheBuster) plus
+    /// the following .then(function(r) { return r.json(); }) with an inline
+    /// Promise.resolve(JSON.parse('...')) so the preview works without HTTP.
+    /// </summary>
+    private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
     {
-        var idx = html.IndexOf(fetchPart, StringComparison.Ordinal);
-        if (idx < 0) return html;
-
-        var afterFetch = idx + fetchPart.Length;
-        var thenIdx = html.IndexOf(thenPart, afterFetch, StringComparison.Ordinal);
-        if (thenIdx < 0) return html;
-
-        var endIdx = thenIdx + thenPart.Length;
-        return string.Concat(
-            html.AsSpan(0, idx),
-            $"Promise.resolve(JSON.parse('{escapedJson}'))",
-            html.AsSpan(endIdx));
+        // Match both plain fetch('file.json') and cache-busted fetch('file.json?v=' + cacheBuster)
+        var pattern = @"fetch\('" + System.Text.RegularExpressions.Regex.Escape(fileName)
+            + @"(?:\?v='\s*\+\s*cacheBuster)?'\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            pattern,
+            $"Promise.resolve(JSON.parse('{escapedJson}'))");
     }
 
     private void OnPreviewNavigating(object? sender, WebNavigatingEventArgs e)

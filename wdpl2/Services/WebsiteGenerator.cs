@@ -25,6 +25,9 @@ namespace Wdpl2.Services
         /// <summary>Effective league settings resolved for the website's selected season.</summary>
         private AppSettings _leagueSettings = null!;
 
+        /// <summary>Cache-busting version string derived from build time (UTC ticks). Appended to CSS/JSON URLs so browsers fetch fresh files after each website regeneration.</summary>
+        private readonly string _cacheBuster = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+
         public WebsiteGenerator(LeagueData league, WebsiteSettings settings)
         {
             _league = league;
@@ -78,6 +81,7 @@ namespace Wdpl2.Services
                 files["players-data.json"] = jsonGenerator.GeneratePlayersJson(players, teams, fixtures);
                 files["player.html"] = templateGenerator.GeneratePlayerTemplatePage(
                     season,
+                    _cacheBuster,
                     AppendDocumentHead,
                     AppendHeader,
                     AppendNavigation,
@@ -97,6 +101,7 @@ namespace Wdpl2.Services
                 files["teams-data.json"] = jsonGenerator.GenerateTeamsJson(teams2, divisions2, venues2, players2, fixtures2);
                 files["team.html"] = templateGenerator.GenerateTeamTemplatePage(
                     season,
+                    _cacheBuster,
                     AppendDocumentHead,
                     AppendHeader,
                     AppendNavigation,

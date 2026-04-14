@@ -61,7 +61,7 @@ namespace Wdpl2.Services
                 html.AppendLine($"    <link href=\"https://fonts.googleapis.com/css2?family={families}&display=swap\" rel=\"stylesheet\">");
             }
 
-            html.AppendLine("    <link rel=\"stylesheet\" href=\"style.css\">");
+            html.AppendLine($"    <link rel=\"stylesheet\" href=\"style.css?v={_cacheBuster}\">");
 
             // Custom head HTML
             if (!string.IsNullOrWhiteSpace(_settings.CustomHeadHtml))

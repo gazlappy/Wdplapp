@@ -24,6 +24,7 @@ public sealed class WebsiteTemplatePageGenerator
     /// </summary>
     public string GeneratePlayerTemplatePage(
         Season season,
+        string cacheBuster,
         Action<StringBuilder, string, Season> appendDocumentHead,
         Action<StringBuilder, Season> appendHeader,
         Action<StringBuilder, string> appendNavigation,
@@ -85,10 +86,11 @@ public sealed class WebsiteTemplatePageGenerator
         var leagueName = _settings.LeagueName.Replace("'", "\\'");
         html.AppendLine(@"    <script>
 (function() {
+    var cacheBuster = '" + cacheBuster + @"';
     var urlParams = new URLSearchParams(window.location.search);
     var playerId = urlParams.get('id');
     if (!playerId) { showError(); return; }
-    fetch('players-data.json')
+    fetch('players-data.json?v=' + cacheBuster)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var player = data.players.find(function(p) { return p.id === playerId; });
@@ -144,6 +146,7 @@ public sealed class WebsiteTemplatePageGenerator
     /// </summary>
     public string GenerateTeamTemplatePage(
         Season season,
+        string cacheBuster,
         Action<StringBuilder, string, Season> appendDocumentHead,
         Action<StringBuilder, Season> appendHeader,
         Action<StringBuilder, string> appendNavigation,
@@ -218,10 +221,11 @@ public sealed class WebsiteTemplatePageGenerator
         var leagueName = _settings.LeagueName.Replace("'", "\\'");
         html.AppendLine(@"    <script>
 (function() {
+    var cacheBuster = '" + cacheBuster + @"';
     var urlParams = new URLSearchParams(window.location.search);
     var teamId = urlParams.get('id');
     if (!teamId) { showError(); return; }
-    fetch('teams-data.json')
+    fetch('teams-data.json?v=' + cacheBuster)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var team = data.teams.find(function(t) { return t.id === teamId; });
