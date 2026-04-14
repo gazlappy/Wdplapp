@@ -12,6 +12,9 @@ namespace Wdpl2.Views
     {
         private static LeagueData League => DataStore.Data;
 
+        /// <summary>Em-dash separator used between date and title in exclusion date display strings.</summary>
+        private const string Separator = " \u2014 ";
+
         private readonly ObservableCollection<Season> _items = new();
         private readonly ObservableCollection<string> _exclusionDates = new();
         private readonly Dictionary<string, string> _exclusionTitles = new();
@@ -203,7 +206,7 @@ namespace Wdpl2.Views
             model.BlackoutDates = _exclusionDates
                 .Select(s =>
                 {
-                    var datePart = s.Contains(" — ") ? s[..s.IndexOf(" — ")] : s;
+                    var datePart = s.Contains(Separator) ? s[..s.IndexOf(Separator)] : s;
                     return DateTime.Parse(datePart);
                 })
                 .ToList();
@@ -559,16 +562,79 @@ namespace Wdpl2.Views
             var title = (ExclusionTitleEntry.Text ?? "").Trim();
             _exclusionTitles[dateKey] = title;
 
-            var displayText = string.IsNullOrWhiteSpace(title)
-                ? selectedDate.ToString("ddd, dd MMM yyyy")
-                : $"{selectedDate:ddd, dd MMM yyyy} — {title}";
+            var displayText = FormatExclusionDisplay(selectedDate, title);
 
             _exclusionDates.Add(displayText);
+            SortExclusionDates();
 
+            ExclusionTitleEntry.Text = "";
+            StatusLabel.Text = $"Added exclusion date: {displayText}";
+        }
+
+        private async void OnEditExclusionClicked(object sender, EventArgs e)
+        {
+            if (sender is not Button btn || btn.CommandParameter is not string dateString) return;
+
+            var datePart = dateString.Contains(Separator) ? dateString[..dateString.IndexOf(Separator)] : dateString;
+            if (!DateTime.TryParse(datePart, out var date)) return;
+
+            var dateKey = date.ToString("yyyy-MM-dd");
+            var currentTitle = _exclusionTitles.GetValueOrDefault(dateKey, "");
+
+            var newTitle = await DisplayPromptAsync(
+                "Edit Exclusion Date",
+                $"Title for {date:ddd, dd MMM yyyy}:",
+                initialValue: currentTitle,
+                placeholder: "e.g. Christmas Day");
+
+            if (newTitle == null) return; // cancelled
+
+            newTitle = newTitle.Trim();
+            _exclusionTitles[dateKey] = newTitle;
+
+            // Update the display string
+            var newDisplay = FormatExclusionDisplay(date, newTitle);
+            var index = _exclusionDates.IndexOf(dateString);
+            if (index >= 0)
+                _exclusionDates[index] = newDisplay;
+
+            // Sync title to any matching calendar event on the same date
+            var calEvent = DataStore.Data.CalendarEvents
+                .FirstOrDefault(ce => ce.Date.Date == date.Date);
+            if (calEvent != null && !string.IsNullOrWhiteSpace(newTitle))
+            {
+                calEvent.Title = newTitle;
+                DataStore.SaveJsonOnly();
+            }
+
+            StatusLabel.Text = $"Updated: {newDisplay}";
+        }
+
+        private void OnRemoveExclusionClicked(object sender, EventArgs e)
+        {
+            if (sender is Button btn && btn.CommandParameter is string dateString)
+            {
+                _exclusionDates.Remove(dateString);
+                var datePart = dateString.Contains(Separator) ? dateString[..dateString.IndexOf(Separator)] : dateString;
+                if (DateTime.TryParse(datePart, out var dt))
+                    _exclusionTitles.Remove(dt.ToString("yyyy-MM-dd"));
+                StatusLabel.Text = $"Removed exclusion date: {dateString}";
+            }
+        }
+
+        /// <summary>Format an exclusion date for display in the list.</summary>
+        private static string FormatExclusionDisplay(DateTime date, string title) =>
+            string.IsNullOrWhiteSpace(title)
+                ? date.ToString("ddd, dd MMM yyyy")
+                : $"{date:ddd, dd MMM yyyy}{Separator}{title}";
+
+        /// <summary>Sort the exclusion dates collection by date.</summary>
+        private void SortExclusionDates()
+        {
             var sorted = _exclusionDates
                 .Select(s =>
                 {
-                    var datePart = s.Contains(" — ") ? s[..s.IndexOf(" — ")] : s;
+                    var datePart = s.Contains(Separator) ? s[..s.IndexOf(Separator)] : s;
                     return (Display: s, Date: DateTime.Parse(datePart));
                 })
                 .OrderBy(x => x.Date)
@@ -578,21 +644,6 @@ namespace Wdpl2.Views
             _exclusionDates.Clear();
             foreach (var item in sorted)
                 _exclusionDates.Add(item);
-
-            ExclusionTitleEntry.Text = "";
-            StatusLabel.Text = $"Added exclusion date: {displayText}";
-        }
-
-        private void OnRemoveExclusionClicked(object sender, EventArgs e)
-        {
-            if (sender is Button btn && btn.CommandParameter is string dateString)
-            {
-                _exclusionDates.Remove(dateString);
-                var datePart = dateString.Contains(" — ") ? dateString[..dateString.IndexOf(" — ")] : dateString;
-                if (DateTime.TryParse(datePart, out var dt))
-                    _exclusionTitles.Remove(dt.ToString("yyyy-MM-dd"));
-                StatusLabel.Text = $"Removed exclusion date: {dateString}";
-            }
         }
 
         private void RefreshList(bool selectFirst = false, Guid? selectId = null)
@@ -653,14 +704,26 @@ namespace Wdpl2.Views
             _exclusionTitles.Clear();
             if (s.BlackoutDates != null)
             {
+                var calendarEvents = DataStore.Data.CalendarEvents;
                 foreach (var date in s.BlackoutDates.OrderBy(d => d))
                 {
                     var dateKey = date.ToString("yyyy-MM-dd");
                     var title = s.BlackoutDateTitles?.GetValueOrDefault(dateKey, "") ?? "";
+
+                    // If no title set, try to match from a calendar event on the same date
+                    if (string.IsNullOrWhiteSpace(title))
+                    {
+                        var matchingEvent = calendarEvents.FirstOrDefault(ce => ce.Date.Date == date.Date);
+                        if (matchingEvent != null && !string.IsNullOrWhiteSpace(matchingEvent.Title))
+                        {
+                            title = matchingEvent.Title;
+                            s.BlackoutDateTitles ??= new();
+                            s.BlackoutDateTitles[dateKey] = title;
+                        }
+                    }
+
                     _exclusionTitles[dateKey] = title;
-                    _exclusionDates.Add(string.IsNullOrWhiteSpace(title)
-                        ? date.ToString("ddd, dd MMM yyyy")
-                        : $"{date:ddd, dd MMM yyyy} — {title}");
+                    _exclusionDates.Add(FormatExclusionDisplay(date, title));
                 }
             }
 

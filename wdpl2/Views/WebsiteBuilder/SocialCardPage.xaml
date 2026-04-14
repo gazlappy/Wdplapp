@@ -35,6 +35,8 @@
                                 <x:String>Player Highlight</x:String>
                                 <x:String>Weekly Results</x:String>
                                 <x:String>Upcoming Fixtures</x:String>
+                                <x:String>Competition Results</x:String>
+                                <x:String>Competition Fixtures</x:String>
                             </Picker.Items>
                         </Picker>
 
@@ -60,6 +62,14 @@
                     <VerticalStackLayout Spacing="8">
                         <Label Text="&#11088; Select Player" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Picker x:Name="PlayerPicker" Title="Select player"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Competition Selection (shown for competition results) -->
+                <Frame x:Name="CompetitionSelectionFrame" BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White" IsVisible="False">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#127942; Select Competition" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Picker x:Name="CompetitionPicker" Title="Select competition"/>
                     </VerticalStackLayout>
                 </Frame>
 

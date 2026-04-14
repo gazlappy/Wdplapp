@@ -310,6 +310,29 @@ public partial class CalendarPage : ContentPage
         var category = await DisplayActionSheet("Event Type", "Cancel", null, categories);
         if (category is null or "Cancel") return;
 
+        // If Competition category, offer to link a competition
+        Guid? competitionId = null;
+        if (category == nameof(CalendarEventCategory.Competition))
+        {
+            var season = SeasonPicker.SelectedItem as Season;
+            var comps = League.Competitions
+                .Where(c => season == null || c.SeasonId == season.Id)
+                .Where(c => c.Status != CompetitionStatus.Draft)
+                .OrderByDescending(c => c.StartDate)
+                .ToList();
+
+            if (comps.Count > 0)
+            {
+                var compNames = comps.Select(c => c.Name).ToArray();
+                var selected = await DisplayActionSheet("Link to Competition", "Cancel", "None", compNames);
+                if (selected is not null and not "Cancel")
+                {
+                    var comp = selected == "None" ? null : comps.FirstOrDefault(c => c.Name == selected);
+                    competitionId = comp?.Id;
+                }
+            }
+        }
+
         // Offer to change the date
         var changeDateAction = await DisplayActionSheet(
             $"Date: {defaultDate:ddd dd MMM yyyy}", null, null,
@@ -336,7 +359,8 @@ public partial class CalendarPage : ContentPage
             Date = eventDate,
             Title = title.Trim(),
             Category = Enum.TryParse<CalendarEventCategory>(category, out var cat) ? cat : CalendarEventCategory.General,
-            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            CompetitionId = competitionId
         };
 
         League.CalendarEvents.Add(evt);
@@ -347,15 +371,26 @@ public partial class CalendarPage : ContentPage
 
     private async Task ShowEditEventDialog(CalendarEvent evt)
     {
+        var compName = evt.CompetitionId.HasValue
+            ? League.Competitions.FirstOrDefault(c => c.Id == evt.CompetitionId.Value)?.Name
+            : null;
+
         var summary = $"\U0001f4cc {evt.Title}\n{evt.Category} · {evt.Date:ddd dd MMM yyyy}";
+        if (!string.IsNullOrEmpty(compName))
+            summary += $"\n🏆 {compName}";
         if (!string.IsNullOrWhiteSpace(evt.Notes))
             summary += $"\n{evt.Notes}";
 
-        var action = await DisplayActionSheet(summary, "Cancel", "\u274c Delete",
+        var options = new List<string>
+        {
             $"\u270f\ufe0f Title: {evt.Title}",
             $"\U0001f3f7\ufe0f Type: {evt.Category}",
             $"\U0001f4c5 Date: {evt.Date:dd/MM/yyyy}",
-            $"\U0001f4dd Notes: {(string.IsNullOrWhiteSpace(evt.Notes) ? "(none)" : evt.Notes)}");
+            $"\U0001f3c6 Competition: {(string.IsNullOrEmpty(compName) ? "(none)" : compName)}",
+            $"\U0001f4dd Notes: {(string.IsNullOrWhiteSpace(evt.Notes) ? "(none)" : evt.Notes)}"
+        };
+
+        var action = await DisplayActionSheet(summary, "Cancel", "\u274c Delete", options.ToArray());
 
         if (action != null && action.StartsWith("\u270f\ufe0f Title:"))
         {
@@ -394,6 +429,47 @@ public partial class CalendarPage : ContentPage
                 DataStore.Save();
                 ReloadCalendarEvents();
                 Refresh();
+            }
+        }
+        else if (action != null && action.StartsWith("\U0001f3c6 Competition:"))
+        {
+            var season = SeasonPicker.SelectedItem as Season;
+            var comps = League.Competitions
+                .Where(c => season == null || c.SeasonId == season.Id)
+                .Where(c => c.Status != CompetitionStatus.Draft)
+                .OrderByDescending(c => c.StartDate)
+                .ToList();
+
+            if (comps.Count > 0)
+            {
+                var compNames = comps.Select(c => c.Name).ToArray();
+                var selected = await DisplayActionSheet(
+                    $"Current: {(string.IsNullOrEmpty(compName) ? "None" : compName)}",
+                    "Cancel", "Remove Link", compNames);
+
+                if (selected == "Remove Link")
+                {
+                    evt.CompetitionId = null;
+                    DataStore.Save();
+                    ReloadCalendarEvents();
+                    Refresh();
+                }
+                else if (selected is not null and not "Cancel")
+                {
+                    var comp = comps.FirstOrDefault(c => c.Name == selected);
+                    if (comp != null)
+                    {
+                        evt.CompetitionId = comp.Id;
+                        DataStore.Save();
+                        ReloadCalendarEvents();
+                        Refresh();
+                    }
+                }
+            }
+            else
+            {
+                await DisplayAlert("No Competitions",
+                    "No competitions found for this season.", "OK");
             }
         }
         else if (action != null && action.StartsWith("\U0001f4dd Notes:"))
@@ -745,11 +821,12 @@ public partial class CalendarPage : ContentPage
             var dayEvents = _calendarEvents.Where(e => e.Date == date).ToList();
             foreach (var evt in dayEvents.Take(maxEvents))
             {
+                var isCompEvt = evt.Category == CalendarEventCategory.Competition;
                 stack.Children.Add(new Label
                 {
-                    Text = $"📌 {evt.Title}",
+                    Text = $"{(isCompEvt ? "🏆" : "📌")} {evt.Title}",
                     FontSize = CalSettings.MonthLabelFontSize,
-                    TextColor = CustomEventColor,
+                    TextColor = isCompEvt ? CompetitionColor : CustomEventColor,
                     LineBreakMode = LineBreakMode.TailTruncation,
                     MaxLines = 1
                 });
@@ -1590,9 +1667,12 @@ public partial class CalendarPage : ContentPage
 
                 foreach (var evt in dayEvents)
                 {
+                    var isCompEvt = evt.Category == CalendarEventCategory.Competition;
                     var evtCard = new VerticalStackLayout { Spacing = 4, Padding = new Thickness(16, 12) };
                     var evtTopRow = new HorizontalStackLayout { Spacing = 8 };
-                    evtTopRow.Children.Add(MakeBadge(evt.Category.ToString(), "#14B8A6", "#F0FDFA"));
+                    evtTopRow.Children.Add(MakeBadge(evt.Category.ToString(),
+                        isCompEvt ? "#F97316" : "#14B8A6",
+                        isCompEvt ? "#FFF7ED" : "#F0FDFA"));
                     evtTopRow.Children.Add(new Label
                     {
                         Text = evt.Title,
@@ -1603,6 +1683,21 @@ public partial class CalendarPage : ContentPage
                             ? Color.FromArgb("#F9FAFB") : Color.FromArgb("#111827")
                     });
                     evtCard.Children.Add(evtTopRow);
+
+                    // Show linked competition name
+                    if (evt.CompetitionId.HasValue)
+                    {
+                        var linkedComp = League.Competitions.FirstOrDefault(c => c.Id == evt.CompetitionId.Value);
+                        if (linkedComp != null)
+                        {
+                            evtCard.Children.Add(new Label
+                            {
+                                Text = $"🏆 {linkedComp.Name}",
+                                FontSize = 13,
+                                TextColor = CompetitionColor
+                            });
+                        }
+                    }
 
                     if (!string.IsNullOrWhiteSpace(evt.Notes))
                     {
@@ -1619,7 +1714,7 @@ public partial class CalendarPage : ContentPage
                     {
                         Content = evtCard,
                         StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
-                        Stroke = CustomEventColor,
+                        Stroke = isCompEvt ? CompetitionColor : CustomEventColor,
                         StrokeThickness = 1,
                         BackgroundColor = Application.Current?.RequestedTheme == AppTheme.Dark
                             ? Color.FromArgb("#111827") : Color.FromArgb("#FFFFFF")

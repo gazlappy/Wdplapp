@@ -19,6 +19,12 @@ public sealed class CalendarEvent
     /// <summary>Category for colour-coding and filtering.</summary>
     public CalendarEventCategory Category { get; set; } = CalendarEventCategory.General;
 
+    /// <summary>Optional link to a competition.</summary>
+    public Guid? CompetitionId { get; set; }
+
+    /// <summary>Optional link to a specific competition round (auto-created events).</summary>
+    public Guid? RoundId { get; set; }
+
     /// <summary>When this record was created.</summary>
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 }
@@ -31,5 +37,6 @@ public enum CalendarEventCategory
     Social,
     Deadline,
     Training,
+    Competition,
     Other
 }

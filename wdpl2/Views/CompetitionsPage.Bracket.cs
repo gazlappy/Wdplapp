@@ -208,9 +208,6 @@ public partial class CompetitionsPage
                 ? "Final"
                 : r == totalRounds - 2 ? "Semi-Finals" : round.Name ?? $"Round {r + 1}";
 
-            var completed = round.Matches.Count(m => m.IsComplete);
-            var total = round.Matches.Count;
-
             var hdrStack = new VerticalStackLayout
             {
                 Spacing = 2,
@@ -226,23 +223,13 @@ public partial class CompetitionsPage
             });
             hdrStack.Children.Add(new Label
             {
-                Text = $"{completed}/{total}",
+                Text = round.Date.HasValue
+                    ? round.Date.Value.ToString("dd MMM yyyy")
+                    : "Date TBC",
                 FontSize = 11,
-                TextColor = completed == total && total > 0 ? _accentGreen : _subtleText,
+                TextColor = _subtleText,
                 HorizontalTextAlignment = TextAlignment.Center
             });
-
-            // Date
-            if (round.Date.HasValue)
-            {
-                hdrStack.Children.Add(new Label
-                {
-                    Text = $"\U0001F4C5 {round.Date.Value:dd MMM yyyy}",
-                    FontSize = 10,
-                    TextColor = _subtleText,
-                    HorizontalTextAlignment = TextAlignment.Center
-                });
-            }
 
             // Venues & tables
             if (round.SelectedVenues.Count > 0)
@@ -617,7 +604,7 @@ public partial class CompetitionsPage
 
         bool hasP1 = match.Participant1Id.HasValue;
         bool hasP2 = match.Participant2Id.HasValue;
-        bool canScore = hasP1 && hasP2 && !match.IsComplete;
+        bool canScore = hasP1 && hasP2;
 
         bool p1Won = match.IsComplete && match.WinnerId == match.Participant1Id;
         bool p2Won = match.IsComplete && match.WinnerId == match.Participant2Id;

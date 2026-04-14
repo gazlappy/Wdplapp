@@ -907,7 +907,13 @@ namespace Wdpl2.Services
             html.AppendLine($"                <h2>&#128197; {Esc(_settings.FixturesPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Upcoming Matches</p>");
             html.AppendLine("            </div>");
-            
+
+            // Team calendar downloads at the top of the page
+            if (_settings.FixturesShowCalendarDownload)
+            {
+                AppendTeamCalendarSection(html, season, teams, fixtures, venues);
+            }
+
             var upcomingFixtures = fixtures
                 .Where(f => f.Date >= DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 .OrderBy(f => f.Date)
@@ -972,12 +978,6 @@ namespace Wdpl2.Services
             if (_settings.FixturesShowPrintableSheet)
             {
                 AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
-            }
-
-            // Add team calendar download section if enabled
-            if (_settings.FixturesShowCalendarDownload)
-            {
-                AppendTeamCalendarSection(html, season, teams, fixtures, venues);
             }
 
             html.AppendLine("        </div>");
@@ -2333,35 +2333,64 @@ namespace Wdpl2.Services
             int totalRounds = orderedRounds.Count;
             if (totalRounds == 0) return;
 
-            html.AppendLine("                <div class=\"bk-scroll\">");
-            html.AppendLine("                <div class=\"bk-grid\">");
+            // Build grid column widths: 220px per round, 28px per connector
+            var colWidths = new List<string>();
+            for (int ri = 0; ri < totalRounds; ri++)
+            {
+                colWidths.Add("220px");
+                if (ri < totalRounds - 1)
+                    colWidths.Add("28px");
+            }
 
+            html.AppendLine("                <div class=\"bk-scroll\">");
+            html.AppendLine($"                <div class=\"bk-grid\" style=\"grid-template-columns:{string.Join(" ", colWidths)}\">");
+
+            // ── Row 1: Round headers ────────────────────────────────────
             for (int ri = 0; ri < totalRounds; ri++)
             {
                 var round = orderedRounds[ri];
+                int gridCol = 2 * ri + 1;
                 string label = ri == totalRounds - 1 ? "Final"
                     : ri == totalRounds - 2 ? "Semi-Finals"
                     : (round.Name ?? $"Round {round.RoundNumber}");
-                int completed = round.Matches.Count(m => m.IsComplete);
-                int total = round.Matches.Count;
-                var progColor = completed == total && total > 0 ? "#10B981" : "#6B7280";
-
                 var roundDateHtml = round.Date.HasValue
                     ? $"<div class=\"round-date\">{round.Date.Value:dd MMM yyyy}</div>"
-                    : "";
-                html.AppendLine("                    <div class=\"bk-round\">");
-                html.AppendLine($"                        <div class=\"bk-hdr\"><div class=\"bk-rn\">{label}</div>{roundDateHtml}<div class=\"bk-rp\" style=\"color:{progColor}\">{completed}/{total}</div></div>");
-                html.AppendLine("                        <div class=\"bk-body\">");
+                    : "<div class=\"round-date\">Date TBC</div>";
+
+                // Round-level venue info (matching app display)
+                var venueHtml = "";
+                if (round.SelectedVenues.Count > 0)
+                {
+                    var venueText = string.Join(", ", round.SelectedVenues.Select(v =>
+                    {
+                        var tables = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                        return string.IsNullOrEmpty(tables) ? v.VenueName : $"{v.VenueName} ({tables})";
+                    }));
+                    venueHtml = $"<div class=\"bk-rv\">&#128205; {System.Net.WebUtility.HtmlEncode(venueText)}</div>";
+                }
+
+                html.AppendLine($"                    <div class=\"bk-hdr\" style=\"grid-column:{gridCol};grid-row:1\">");
+                html.AppendLine($"                        <div class=\"bk-rn\">{label}</div>{roundDateHtml}{venueHtml}");
+                html.AppendLine($"                    </div>");
+            }
+
+            // ── Row 2: Match bodies + connector columns ─────────────────
+            for (int ri = 0; ri < totalRounds; ri++)
+            {
+                var round = orderedRounds[ri];
+                int gridCol = 2 * ri + 1;
+
+                html.AppendLine($"                    <div class=\"bk-body\" style=\"grid-column:{gridCol};grid-row:2\">");
                 foreach (var match in round.Matches)
                     AppendBracketCard(html, match, comp, players, teams);
-                html.AppendLine("                        </div>");
                 html.AppendLine("                    </div>");
 
-                // Connector column between rounds
+                // Connector column between rounds (row 2 only — aligned with match bodies)
                 if (ri < totalRounds - 1)
                 {
+                    int connCol = 2 * ri + 2;
                     int pairs = orderedRounds[ri + 1].Matches.Count;
-                    html.AppendLine("                    <div class=\"bk-conn\">");
+                    html.AppendLine($"                    <div class=\"bk-conn\" style=\"grid-column:{connCol};grid-row:2\">");
                     for (int p = 0; p < pairs; p++)
                         html.AppendLine("                        <div class=\"bk-cg\"><span class=\"bk-hl\" style=\"top:25%\"></span><span class=\"bk-hl\" style=\"top:75%\"></span><span class=\"bk-vl\"></span><span class=\"bk-rl\"></span></div>");
                     html.AppendLine("                    </div>");
@@ -2374,20 +2403,30 @@ namespace Wdpl2.Services
 
         private void AppendBracketCard(StringBuilder html, CompetitionMatch match, Competition comp, List<Player> players, List<Team> teams)
         {
-            var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams) ?? "TBD";
-            var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams) ?? "TBD";
+            var p1Name = GetWebParticipantName(match.Participant1Id, comp, players, teams);
+            var p2Name = GetWebParticipantName(match.Participant2Id, comp, players, teams);
+            bool p1Bye = p1Name == null && match.IsComplete;
+            bool p2Bye = p2Name == null && match.IsComplete;
+            var p1 = p1Name ?? (p1Bye ? "BYE" : "TBD");
+            var p2 = p2Name ?? (p2Bye ? "BYE" : "TBD");
             bool p1w = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
             bool p2w = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
 
+            // Winner checkmark to match app display
+            var p1Display = p1w ? $"&#10004; {p1}" : p1;
+            var p2Display = p2w ? $"&#10004; {p2}" : p2;
+
             var cardClass = match.IsComplete ? "bk-card bk-done" : "bk-card";
             html.AppendLine($"                        <div class=\"{cardClass}\">");
-            html.AppendLine($"                            <div class=\"bk-player{(p1w ? " bk-w" : "")}{(p1 == "TBD" ? " bk-tbd" : "")}\">");
-            html.AppendLine($"                                <span class=\"bk-name\">{p1}</span><span class=\"bk-sc{(p1w ? " bk-sw" : "")}\">{match.Participant1Score}</span>");
+            html.AppendLine($"                            <div class=\"bk-player{(p1w ? " bk-w" : "")}{(p1Bye ? " bk-bye" : p1Name == null ? " bk-tbd" : "")}\">");
+            html.AppendLine($"                                <span class=\"bk-name\">{p1Display}</span><span class=\"bk-sc{(p1w ? " bk-sw" : "")}\">{match.Participant1Score}</span>");
             html.AppendLine($"                            </div>");
             html.AppendLine($"                            <div class=\"bk-dv\"></div>");
-            html.AppendLine($"                            <div class=\"bk-player{(p2w ? " bk-w" : "")}{(p2 == "TBD" ? " bk-tbd" : "")}\">");
-            html.AppendLine($"                                <span class=\"bk-name\">{p2}</span><span class=\"bk-sc{(p2w ? " bk-sw" : "")}\">{match.Participant2Score}</span>");
+            html.AppendLine($"                            <div class=\"bk-player{(p2w ? " bk-w" : "")}{(p2Bye ? " bk-bye" : p2Name == null ? " bk-tbd" : "")}\">");
+            html.AppendLine($"                                <span class=\"bk-name\">{p2Display}</span><span class=\"bk-sc{(p2w ? " bk-sw" : "")}\">{match.Participant2Score}</span>");
             html.AppendLine($"                            </div>");
+            if (!string.IsNullOrEmpty(match.VenueDisplay))
+                html.AppendLine($"                            <div class=\"bk-venue\">&#128205; {System.Net.WebUtility.HtmlEncode(match.VenueDisplay)}</div>");
             html.AppendLine($"                        </div>");
         }
 
@@ -2494,16 +2533,20 @@ namespace Wdpl2.Services
 
         private void AppendMatchRow(StringBuilder html, CompetitionMatch match, Competition comp, List<Player> players, List<Team> teams)
         {
-            var p1 = GetWebParticipantName(match.Participant1Id, comp, players, teams);
-            var p2 = GetWebParticipantName(match.Participant2Id, comp, players, teams);
+            var p1Name = GetWebParticipantName(match.Participant1Id, comp, players, teams);
+            var p2Name = GetWebParticipantName(match.Participant2Id, comp, players, teams);
+            var p1 = p1Name ?? (match.IsComplete ? "BYE" : "TBD");
+            var p2 = p2Name ?? (match.IsComplete ? "BYE" : "TBD");
             var isP1Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant1Id;
             var isP2Winner = match.WinnerId.HasValue && match.WinnerId == match.Participant2Id;
 
             html.AppendLine($"                        <div class=\"match-row{(match.IsComplete ? " match-complete" : "")}\">");
-            html.AppendLine($"                            <span class=\"match-player{(isP1Winner ? " winner" : "")}\">{p1 ?? "TBD"}</span>");
+            html.AppendLine($"                            <span class=\"match-player{(isP1Winner ? " winner" : "")}\">{p1}</span>");
             html.AppendLine($"                            <span class=\"match-score\">{match.Participant1Score} - {match.Participant2Score}</span>");
-            html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2 ?? "TBD"}</span>");
+            html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2}</span>");
             html.AppendLine($"                        </div>");
+            if (!string.IsNullOrEmpty(match.VenueDisplay))
+                html.AppendLine($"                        <div class=\"match-venue\">&#128205; {System.Net.WebUtility.HtmlEncode(match.VenueDisplay)}</div>");
         }
         
         private static int GetParticipantCount(Competition comp)

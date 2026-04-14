@@ -473,9 +473,22 @@ namespace Wdpl2.Models
                     tableSlots.Add((venue.VenueId, venue.VenueName, table.TableId, table.Label));
             }
 
+            // Separate playable matches from BYEs (where a participant is missing)
+            var playable = matches.Where(m => m.Participant1Id.HasValue && m.Participant2Id.HasValue).ToList();
+            var byes = matches.Where(m => !m.Participant1Id.HasValue || !m.Participant2Id.HasValue).ToList();
+
+            // Clear venue on BYE matches
+            foreach (var m in byes)
+            {
+                m.VenueId = null;
+                m.VenueName = null;
+                m.TableId = null;
+                m.TableLabel = null;
+            }
+
             if (tableSlots.Count == 0)
             {
-                foreach (var m in matches)
+                foreach (var m in playable)
                 {
                     m.VenueId = null;
                     m.VenueName = null;
@@ -485,13 +498,71 @@ namespace Wdpl2.Models
                 return;
             }
 
-            for (int i = 0; i < matches.Count; i++)
+            for (int i = 0; i < playable.Count; i++)
             {
                 var slot = tableSlots[i % tableSlots.Count];
-                matches[i].VenueId = slot.VenueId;
-                matches[i].VenueName = slot.VenueName;
-                matches[i].TableId = slot.TableId;
-                matches[i].TableLabel = slot.TableLabel;
+                playable[i].VenueId = slot.VenueId;
+                playable[i].VenueName = slot.VenueName;
+                playable[i].TableId = slot.TableId;
+                playable[i].TableLabel = slot.TableLabel;
+            }
+        }
+
+        /// <summary>
+        /// Randomly assign matches in a round to available venue tables (shuffled).
+        /// Same as AssignMatchVenueTables but randomises the table order.
+        /// </summary>
+        public static void ShuffleMatchVenueTables(List<CompetitionMatch> matches, List<CompetitionVenue> venues)
+        {
+            if (matches.Count == 0) return;
+
+            var tableSlots = new List<(Guid VenueId, string VenueName, Guid TableId, string TableLabel)>();
+            foreach (var venue in venues)
+            {
+                foreach (var table in venue.SelectedTables)
+                    tableSlots.Add((venue.VenueId, venue.VenueName, table.TableId, table.Label));
+            }
+
+            // Separate playable matches from BYEs (where a participant is missing)
+            var playable = matches.Where(m => m.Participant1Id.HasValue && m.Participant2Id.HasValue).ToList();
+            var byes = matches.Where(m => !m.Participant1Id.HasValue || !m.Participant2Id.HasValue).ToList();
+
+            // Clear venue on BYE matches
+            foreach (var m in byes)
+            {
+                m.VenueId = null;
+                m.VenueName = null;
+                m.TableId = null;
+                m.TableLabel = null;
+            }
+
+            if (tableSlots.Count == 0)
+            {
+                foreach (var m in playable)
+                {
+                    m.VenueId = null;
+                    m.VenueName = null;
+                    m.TableId = null;
+                    m.TableLabel = null;
+                }
+                return;
+            }
+
+            // Shuffle table slots randomly
+            var rng = Random.Shared;
+            for (int i = tableSlots.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (tableSlots[i], tableSlots[j]) = (tableSlots[j], tableSlots[i]);
+            }
+
+            for (int i = 0; i < playable.Count; i++)
+            {
+                var slot = tableSlots[i % tableSlots.Count];
+                playable[i].VenueId = slot.VenueId;
+                playable[i].VenueName = slot.VenueName;
+                playable[i].TableId = slot.TableId;
+                playable[i].TableLabel = slot.TableLabel;
             }
         }
 

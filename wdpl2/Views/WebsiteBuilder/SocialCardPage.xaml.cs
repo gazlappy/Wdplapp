@@ -17,6 +17,7 @@ public partial class SocialCardPage : ContentPage
     private readonly List<Team> _seasonTeams = new();
     private readonly List<Player> _seasonPlayers = new();
     private readonly List<Venue> _seasonVenues = new();
+    private readonly List<Competition> _seasonCompetitions = new();
     private string? _generatedHtml;
     private string? _cachedShareText;
     private string? _lastSavedImagePath;
@@ -66,6 +67,9 @@ public partial class SocialCardPage : ContentPage
         _seasonVenues.Clear();
         _seasonVenues.AddRange(League.Venues.Where(v => v.SeasonId == id));
 
+        _seasonCompetitions.Clear();
+        _seasonCompetitions.AddRange(League.Competitions.Where(c => c.SeasonId == id));
+
         _divisions.Clear();
         _divisions.Add(new Division { Name = "All Divisions", Id = Guid.Empty });
         foreach (var d in League.Divisions.Where(d => d.SeasonId == id))
@@ -74,6 +78,7 @@ public partial class SocialCardPage : ContentPage
 
         PopulateMatchPicker();
         PopulatePlayerPicker();
+        PopulateCompetitionPicker();
     }
 
     private void OnCardTypeChanged(object? sender, EventArgs e)
@@ -81,7 +86,9 @@ public partial class SocialCardPage : ContentPage
         var cardType = CardTypePicker.SelectedItem?.ToString() ?? "";
         MatchSelectionFrame.IsVisible = cardType is "Result Card" or "Fixture Card";
         PlayerSelectionFrame.IsVisible = cardType == "Player Highlight";
+        CompetitionSelectionFrame.IsVisible = cardType is "Competition Results" or "Competition Fixtures";
         PopulateMatchPicker();
+        PopulateCompetitionPicker();
     }
 
     private void PopulateMatchPicker()
@@ -122,6 +129,18 @@ public partial class SocialCardPage : ContentPage
         PlayerPicker.ItemsSource = items;
         PlayerPicker.ItemDisplayBinding = new Binding("Display");
         if (items.Count > 0) PlayerPicker.SelectedIndex = 0;
+    }
+
+    private void PopulateCompetitionPicker()
+    {
+        var items = _seasonCompetitions
+            .Where(c => c.Status != CompetitionStatus.Draft)
+            .OrderByDescending(c => c.StartDate)
+            .Select(c => new CompetitionDisplayItem(c))
+            .ToList();
+        CompetitionPicker.ItemsSource = items;
+        CompetitionPicker.ItemDisplayBinding = new Binding("Display");
+        if (items.Count > 0) CompetitionPicker.SelectedIndex = 0;
     }
 
     private void OnStyleChanged(object? sender, EventArgs e) { }
@@ -422,6 +441,48 @@ public partial class SocialCardPage : ContentPage
         {
             sb.AppendLine($"\U0001F4C5 {settings.LeagueName} \u2014 Upcoming Fixtures");
         }
+        else if (cardType is "Competition Fixtures" && CompetitionPicker.SelectedItem is CompetitionDisplayItem compFixItem)
+        {
+            var comp = compFixItem.Competition;
+            sb.AppendLine($"\U0001F4C5 {settings.LeagueName} \u2014 {comp.Name}");
+            sb.AppendLine();
+            sb.AppendLine("Upcoming Matches");
+        }
+        else if (cardType is "Competition Results" && CompetitionPicker.SelectedItem is CompetitionDisplayItem compItem)
+        {
+            var comp = compItem.Competition;
+            var formatLabel = comp.Format switch
+            {
+                CompetitionFormat.SinglesKnockout => "Singles Knockout",
+                CompetitionFormat.DoublesKnockout => "Doubles Knockout",
+                CompetitionFormat.TeamKnockout => "Team Knockout",
+                CompetitionFormat.RoundRobin => "Round Robin",
+                CompetitionFormat.Swiss => "Swiss",
+                CompetitionFormat.SinglesGroupStage => "Singles Group Stage",
+                CompetitionFormat.DoublesGroupStage => "Doubles Group Stage",
+                _ => ""
+            };
+            sb.AppendLine($"\U0001F3C6 {settings.LeagueName} \u2014 {comp.Name}");
+            if (!string.IsNullOrEmpty(formatLabel))
+            {
+                sb.AppendLine();
+                sb.AppendLine($"\U0001F3B1 {formatLabel}");
+            }
+            if (comp.Status == CompetitionStatus.Completed)
+            {
+                var finalRound = comp.Rounds.OrderByDescending(r => r.RoundNumber).FirstOrDefault();
+                var finalMatch = finalRound?.Matches.FirstOrDefault(m => m.IsComplete && m.WinnerId.HasValue);
+                if (finalMatch != null)
+                {
+                    var winnerName = GetParticipantName(finalMatch.WinnerId, comp);
+                    if (!string.IsNullOrEmpty(winnerName))
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine($"\U0001F947 Winner: {winnerName}");
+                    }
+                }
+            }
+        }
         else
         {
             sb.AppendLine($"\U0001F3B1 {settings.LeagueName}");
@@ -452,6 +513,8 @@ public partial class SocialCardPage : ContentPage
             "Player Highlight" => GeneratePlayerHighlightContent(style),
             "Weekly Results" => GenerateWeeklyResultsContent(style),
             "Upcoming Fixtures" => GenerateUpcomingFixturesContent(style),
+            "Competition Results" => GenerateCompetitionCardContent(style),
+            "Competition Fixtures" => GenerateCompetitionFixturesContent(style),
             _ => "<p>Select a card type</p>"
         };
 
@@ -911,7 +974,201 @@ public partial class SocialCardPage : ContentPage
         return sb.ToString();
     }
 
-    // ────────────────────── Helpers ──────────────────────
+    // ── Competition Results ──
+
+    private string GenerateCompetitionCardContent(CardStyle style)
+    {
+        if (CompetitionPicker.SelectedItem is not CompetitionDisplayItem item)
+            return $"<p style='text-align:center;color:{style.SubTextColor}'>Select a competition first</p>";
+
+        var comp = item.Competition;
+        var formatLabel = comp.Format switch
+        {
+            CompetitionFormat.SinglesKnockout => "Singles Knockout",
+            CompetitionFormat.DoublesKnockout => "Doubles Knockout",
+            CompetitionFormat.TeamKnockout => "Team Knockout",
+            CompetitionFormat.RoundRobin => "Round Robin",
+            CompetitionFormat.Swiss => "Swiss",
+            CompetitionFormat.SinglesGroupStage => "Singles Group Stage",
+            CompetitionFormat.DoublesGroupStage => "Doubles Group Stage",
+            _ => ""
+        };
+
+        var sb = new StringBuilder();
+
+        // Competition name and format badge
+        sb.Append($"<div style='text-align:center;margin-bottom:20px;'>");
+        sb.Append($"<div style='font-size:36px;font-weight:800;color:{style.TextColor};'>{Escape(comp.Name)}</div>");
+        sb.Append($"<div style='display:inline-block;background:{style.Accent}30;color:{style.Accent};padding:6px 18px;border-radius:20px;font-size:20px;font-weight:600;margin-top:10px;'>{Escape(formatLabel)}</div>");
+        if (comp.Status == CompetitionStatus.Completed)
+            sb.Append($"<div style='display:inline-block;background:#10B98130;color:#10B981;padding:6px 18px;border-radius:20px;font-size:20px;font-weight:600;margin-top:10px;margin-left:8px;'>Completed</div>");
+        sb.Append("</div>");
+
+        // Show winner if completed
+        if (comp.Status == CompetitionStatus.Completed)
+        {
+            var finalRound = comp.Rounds.OrderByDescending(r => r.RoundNumber).FirstOrDefault();
+            var finalMatch = finalRound?.Matches.FirstOrDefault(m => m.IsComplete && m.WinnerId.HasValue);
+            if (finalMatch != null)
+            {
+                var winnerName = GetParticipantName(finalMatch.WinnerId, comp);
+                var runnerUpId = finalMatch.WinnerId == finalMatch.Participant1Id
+                    ? finalMatch.Participant2Id
+                    : finalMatch.Participant1Id;
+                var runnerUpName = GetParticipantName(runnerUpId, comp);
+
+                sb.Append($"<div style='text-align:center;padding:20px 0;'>");
+                sb.Append($"<div style='font-size:52px;margin-bottom:8px;'>&#127942;</div>");
+                sb.Append($"<div style='font-size:36px;font-weight:800;color:{style.Accent};'>{Escape(winnerName ?? "Winner")}</div>");
+                sb.Append($"<div style='font-size:22px;color:{style.SubTextColor};margin-top:6px;'>defeated {Escape(runnerUpName ?? "?")} {finalMatch.Participant1Score} - {finalMatch.Participant2Score}</div>");
+                sb.Append("</div>");
+            }
+        }
+
+        // Show latest round matches
+        var latestRound = comp.Rounds
+            .Where(r => r.Matches.Any(m => m.IsComplete))
+            .OrderByDescending(r => r.RoundNumber)
+            .FirstOrDefault();
+
+        if (latestRound != null)
+        {
+            var completedMatches = latestRound.Matches
+                .Where(m => m.IsComplete && m.Participant1Id.HasValue && m.Participant2Id.HasValue)
+                .Take(8)
+                .ToList();
+
+            if (completedMatches.Count > 0)
+            {
+                if (comp.Status != CompetitionStatus.Completed)
+                    sb.Append($"<div style='text-align:center;font-size:24px;color:{style.Accent};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:16px 0 12px;'>{Escape(latestRound.Name)}</div>");
+
+                foreach (var m in completedMatches)
+                {
+                    var p1 = GetParticipantName(m.Participant1Id, comp) ?? "?";
+                    var p2 = GetParticipantName(m.Participant2Id, comp) ?? "?";
+                    var p1Win = m.WinnerId == m.Participant1Id;
+                    var p2Win = m.WinnerId == m.Participant2Id;
+
+                    sb.Append($@"<div style='display:flex;align-items:center;padding:12px 16px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
+                        <div style='flex:1;text-align:right;font-size:24px;font-weight:{(p1Win ? "700" : "400")};color:{style.TextColor};padding-right:12px;{(p1Win ? "color:" + style.Accent + ";" : "")}'>{Escape(p1)}</div>
+                        <div style='font-size:28px;font-weight:800;color:{style.Accent};min-width:80px;text-align:center;'>{m.Participant1Score} - {m.Participant2Score}</div>
+                        <div style='flex:1;text-align:left;font-size:24px;font-weight:{(p2Win ? "700" : "400")};color:{style.TextColor};padding-left:12px;{(p2Win ? "color:" + style.Accent + ";" : "")}'>{Escape(p2)}</div>
+                    </div>");
+                }
+
+                var totalInRound = latestRound.Matches.Count(m => m.IsComplete && m.Participant1Id.HasValue && m.Participant2Id.HasValue);
+                if (totalInRound > 8)
+                    sb.Append($"<div style='text-align:center;font-size:20px;color:{style.SubTextColor};margin-top:8px;'>+ {totalInRound - 8} more matches</div>");
+            }
+        }
+        else if (comp.Status != CompetitionStatus.Completed)
+        {
+            // No completed matches yet — show participant count
+            var count = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage
+                ? comp.DoublesTeams.Count
+                : comp.ParticipantIds.Count;
+            sb.Append($"<div style='text-align:center;padding:30px 0;'>");
+            sb.Append($"<div style='font-size:52px;font-weight:800;color:{style.Accent};'>{count}</div>");
+            sb.Append($"<div style='font-size:24px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:1px;'>Participants</div>");
+            sb.Append("</div>");
+        }
+
+        return sb.ToString();
+    }
+
+    // ── Competition Fixtures ──
+
+    private string GenerateCompetitionFixturesContent(CardStyle style)
+    {
+        if (CompetitionPicker.SelectedItem is not CompetitionDisplayItem item)
+            return $"<p style='text-align:center;color:{style.SubTextColor}'>Select a competition first</p>";
+
+        var comp = item.Competition;
+        var formatLabel = comp.Format switch
+        {
+            CompetitionFormat.SinglesKnockout => "Singles Knockout",
+            CompetitionFormat.DoublesKnockout => "Doubles Knockout",
+            CompetitionFormat.TeamKnockout => "Team Knockout",
+            CompetitionFormat.RoundRobin => "Round Robin",
+            CompetitionFormat.Swiss => "Swiss",
+            CompetitionFormat.SinglesGroupStage => "Singles Group Stage",
+            CompetitionFormat.DoublesGroupStage => "Doubles Group Stage",
+            _ => ""
+        };
+
+        var sb = new StringBuilder();
+
+        // Competition name and format badge
+        sb.Append($"<div style='text-align:center;margin-bottom:20px;'>");
+        sb.Append($"<div style='font-size:36px;font-weight:800;color:{style.TextColor};'>{Escape(comp.Name)}</div>");
+        sb.Append($"<div style='display:inline-block;background:{style.Accent}30;color:{style.Accent};padding:6px 18px;border-radius:20px;font-size:20px;font-weight:600;margin-top:10px;'>{Escape(formatLabel)}</div>");
+        sb.Append("</div>");
+
+        // Find the earliest round with unplayed matches (where both participants are known)
+        var upcomingRound = comp.Rounds
+            .Where(r => r.Matches.Any(m => !m.IsComplete && m.Participant1Id.HasValue && m.Participant2Id.HasValue))
+            .OrderBy(r => r.RoundNumber)
+            .FirstOrDefault();
+
+        if (upcomingRound != null)
+        {
+            var upcomingMatches = upcomingRound.Matches
+                .Where(m => !m.IsComplete && m.Participant1Id.HasValue && m.Participant2Id.HasValue)
+                .Take(8)
+                .ToList();
+
+            // Round name and date
+            sb.Append($"<div style='text-align:center;font-size:24px;color:{style.Accent};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:16px 0 4px;'>{Escape(upcomingRound.Name)}</div>");
+            if (upcomingRound.Date.HasValue)
+                sb.Append($"<div style='text-align:center;font-size:20px;color:{style.SubTextColor};margin-bottom:12px;'>{upcomingRound.Date.Value:dddd dd MMMM yyyy}</div>");
+            else
+                sb.Append("<div style='margin-bottom:12px;'></div>");
+
+            foreach (var m in upcomingMatches)
+            {
+                var p1 = GetParticipantName(m.Participant1Id, comp) ?? "?";
+                var p2 = GetParticipantName(m.Participant2Id, comp) ?? "?";
+                var venueHtml = !string.IsNullOrEmpty(m.VenueDisplay)
+                    ? $"<div style='font-size:16px;color:{style.SubTextColor};margin-top:2px;'>&#128205; {Escape(m.VenueDisplay)}</div>"
+                    : "";
+
+                sb.Append($@"<div style='padding:12px 16px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
+                    <div style='display:flex;align-items:center;'>
+                        <div style='flex:1;text-align:right;font-size:24px;font-weight:600;color:{style.TextColor};padding-right:12px;'>{Escape(p1)}</div>
+                        <div style='font-size:28px;font-weight:700;color:{style.Accent};min-width:60px;text-align:center;'>VS</div>
+                        <div style='flex:1;text-align:left;font-size:24px;font-weight:600;color:{style.TextColor};padding-left:12px;'>{Escape(p2)}</div>
+                    </div>
+                    {venueHtml}
+                </div>");
+            }
+
+            var totalUpcoming = upcomingRound.Matches.Count(m => !m.IsComplete && m.Participant1Id.HasValue && m.Participant2Id.HasValue);
+            if (totalUpcoming > 8)
+                sb.Append($"<div style='text-align:center;font-size:20px;color:{style.SubTextColor};margin-top:8px;'>+ {totalUpcoming - 8} more matches</div>");
+        }
+        else
+        {
+            sb.Append($"<div style='text-align:center;padding:30px 0;'>");
+            sb.Append($"<div style='font-size:36px;color:{style.SubTextColor};'>No upcoming matches</div>");
+            sb.Append("</div>");
+        }
+
+        return sb.ToString();
+    }
+
+    private string? GetParticipantName(Guid? id, Competition comp)
+    {
+        if (!id.HasValue) return null;
+
+        if (comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage)
+            return comp.DoublesTeams.FirstOrDefault(t => t.Id == id.Value)?.TeamName;
+
+        if (comp.Format == CompetitionFormat.TeamKnockout)
+            return _seasonTeams.FirstOrDefault(t => t.Id == id.Value)?.Name;
+
+        return _seasonPlayers.FirstOrDefault(p => p.Id == id.Value)?.Name;
+    }
 
     private static string Escape(string text) =>
         System.Net.WebUtility.HtmlEncode(text ?? "");
@@ -945,6 +1202,24 @@ public partial class SocialCardPage : ContentPage
             Player = player;
             var team = teams.FirstOrDefault(t => t.Id == player.TeamId)?.Name;
             Display = string.IsNullOrEmpty(team) ? player.Name : $"{player.Name} ({team})";
+        }
+    }
+
+    private sealed class CompetitionDisplayItem
+    {
+        public Competition Competition { get; }
+        public string Display { get; }
+
+        public CompetitionDisplayItem(Competition competition)
+        {
+            Competition = competition;
+            var status = competition.Status switch
+            {
+                CompetitionStatus.Completed => " ✅",
+                CompetitionStatus.InProgress => " 🔴",
+                _ => ""
+            };
+            Display = $"{competition.Name}{status}";
         }
     }
 

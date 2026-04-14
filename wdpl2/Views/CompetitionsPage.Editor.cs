@@ -727,6 +727,12 @@ public partial class CompetitionsPage
     {
         content.Children.Add(new Label { Text = "Bracket", FontSize = 16, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 4) });
 
+        // Pre-draw venue/table selection (before bracket is generated)
+        if (competition.Rounds.Count == 0)
+        {
+            AddPreDrawVenueSelection(content, competition);
+        }
+
         // Draw order indicator
         content.Children.Add(new Label
         {
@@ -755,7 +761,7 @@ public partial class CompetitionsPage
             }
         });
 
-        // Round schedule � dates and tables per KO round
+        // Round schedule — dates and tables per KO round (after bracket exists)
         if (competition.Rounds.Count > 0)
             AddRoundScheduleUI(content, competition);
 
@@ -830,6 +836,70 @@ public partial class CompetitionsPage
                     });
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Adds venue/table selection UI for knockout competitions BEFORE the draw is generated.
+    /// Stores selections in GroupSettings.SelectedVenues so they can be applied to round 1 after generation.
+    /// </summary>
+    private void AddPreDrawVenueSelection(VerticalStackLayout content, Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        var settings = competition.GroupSettings ?? new GroupStageSettings();
+
+        content.Children.Add(new Label
+        {
+            Text = "\U0001F3AF Select Venues & Tables",
+            FontSize = 14,
+            FontAttributes = FontAttributes.Bold,
+            Margin = new Thickness(0, 0, 0, 2)
+        });
+        content.Children.Add(new Label
+        {
+            Text = "Choose the tables available for round 1 before generating the draw.",
+            FontSize = 11,
+            TextColor = Colors.Gray,
+            FontAttributes = FontAttributes.Italic,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        // Date picker for round 1
+        var datePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 13 };
+        datePicker.DateSelected += async (s, e) =>
+        {
+            await _editorViewModel.SaveGroupDateAsync(e.NewDate);
+            SetStatus(_editorViewModel.StatusMessage);
+            if (_selectedCompetition != null)
+                ShowCompetitionEditor(_selectedCompetition);
+        };
+        content.Children.Add(CreateLabeledField("Date:", datePicker));
+
+        // Venue/table checkboxes (reuses existing mechanism)
+        AddVenueSelectionUI(content, competition, settings);
+
+        int totalTables = settings.SelectedVenues.Sum(v => v.TableCount);
+        if (totalTables > 0)
+        {
+            content.Children.Add(new Label
+            {
+                Text = $"\u2705 {settings.SelectedVenues.Count} venue(s), {totalTables} table(s) selected",
+                FontSize = 13,
+                TextColor = Color.FromArgb("#10B981"),
+                Margin = new Thickness(0, 2, 0, 6)
+            });
+        }
+        else
+        {
+            content.Children.Add(new Label
+            {
+                Text = "\u26A0\uFE0F Optional: select tables to auto-assign to round 1",
+                FontSize = 12,
+                TextColor = Colors.Gray,
+                FontAttributes = FontAttributes.Italic,
+                Margin = new Thickness(0, 2, 0, 6)
+            });
         }
     }
 
@@ -942,7 +1012,6 @@ public partial class CompetitionsPage
         if (_editorViewModel == null) return;
 
         var allVenues = await _editorViewModel.GetAvailableVenuesAsync();
-        bool isPlate = competition.ParentCompetitionId.HasValue;
 
         foreach (var round in competition.Rounds.OrderBy(r => r.RoundNumber))
         {
@@ -992,12 +1061,13 @@ public partial class CompetitionsPage
             // Table selection for this round
             if (allVenues.Count > 0 && allVenues.Any(v => v.Tables.Count > 0))
             {
-                // Get tables restricted by parent comp on this date
+                // Get tables in use by other competitions on this date
                 var restrictedTableIds = new HashSet<Guid>();
-                if (isPlate && round.Date.HasValue)
+                var tableConflictSource = new Dictionary<Guid, string>();
+                if (round.Date.HasValue)
                 {
-                    var restricted = await _editorViewModel.GetTablesInUseByParentOnDateAsync(round.Date.Value);
-                    restrictedTableIds = new HashSet<Guid>(restricted);
+                    tableConflictSource = await _editorViewModel.GetTablesInUseByOtherCompsOnDateAsync(round.Date.Value);
+                    restrictedTableIds = new HashSet<Guid>(tableConflictSource.Keys);
                 }
 
                 var selectedTableIds = new HashSet<Guid>(
@@ -1050,7 +1120,10 @@ public partial class CompetitionsPage
 
                         var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed" : table.Label;
                         if (isRestricted)
-                            tableLabelText += $" {Emojis.Warning} main comp";
+                        {
+                            var conflictName = tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : "another comp";
+                            tableLabelText += $" {Emojis.Warning} {conflictName}";
+                        }
 
                         var tableLabel = new Label
                         {
@@ -1080,8 +1153,8 @@ public partial class CompetitionsPage
                     roundStack.Children.Add(new Label { Text = "Tables:", FontSize = 12, FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 2, 0, 0) });
                     roundStack.Children.Add(tablesLayout);
 
-                    // Warning if all tables are restricted (plate conflict)
-                    if (isPlate && totalAvailableTables == 0 && totalRestrictedTables > 0)
+                    // Warning if all tables are restricted (conflict with other competitions)
+                    if (totalAvailableTables == 0 && totalRestrictedTables > 0)
                     {
                         roundStack.Children.Add(new Border
                         {
@@ -1091,17 +1164,17 @@ public partial class CompetitionsPage
                             Stroke = Color.FromArgb("#FECACA"),
                             Content = new Label
                             {
-                                Text = "⚠️ All tables are in use by the main competition on this date. Choose a different date or add more tables.",
+                                Text = "⚠️ All tables are in use by other competitions on this date. Choose a different date or add more tables.",
                                 FontSize = 11,
                                 TextColor = Color.FromArgb("#DC2626")
                             }
                         });
                     }
-                    else if (isPlate && totalRestrictedTables > 0)
+                    else if (totalRestrictedTables > 0)
                     {
                         roundStack.Children.Add(new Label
                         {
-                            Text = $"⚠️ {totalRestrictedTables} table(s) unavailable � in use by main competition on this date",
+                            Text = $"⚠️ {totalRestrictedTables} table(s) in use by other competitions on this date",
                             FontSize = 11,
                             TextColor = Color.FromArgb("#D97706"),
                             FontAttributes = FontAttributes.Italic
@@ -1121,6 +1194,26 @@ public partial class CompetitionsPage
                             FontSize = 11,
                             TextColor = Color.FromArgb("#10B981")
                         });
+
+                        var capturedRoundForShuffle = round;
+                        var randomiseBtn = new Button
+                        {
+                            Text = "🎲 Randomise Venues",
+                            FontSize = 12,
+                            Padding = new Thickness(10, 4),
+                            BackgroundColor = Color.FromArgb("#6366F1"),
+                            TextColor = Colors.White,
+                            HorizontalOptions = LayoutOptions.Start,
+                            Margin = new Thickness(0, 4, 0, 0)
+                        };
+                        randomiseBtn.Clicked += async (s, e) =>
+                        {
+                            await _editorViewModel!.RandomiseVenueAssignmentsAsync(capturedRoundForShuffle.Id);
+                            SetStatus(_editorViewModel.StatusMessage);
+                            if (_selectedCompetition != null)
+                                ShowCompetitionEditor(_selectedCompetition);
+                        };
+                        roundStack.Children.Add(randomiseBtn);
                     }
                 }
             }
@@ -1212,13 +1305,13 @@ public partial class CompetitionsPage
             return;
         }
 
-        // For plate competitions, check if parent uses tables on the group date
-        bool isPlate = competition.ParentCompetitionId.HasValue;
+        // Check tables in use by OTHER competitions on the same date
         var restrictedTableIds = new HashSet<Guid>();
-        if (isPlate && settings.GroupDate.HasValue)
+        var tableConflictSource = new Dictionary<Guid, string>(); // tableId → comp name
+        if (settings.GroupDate.HasValue)
         {
-            var restricted = await _editorViewModel.GetTablesInUseByParentOnDateAsync(settings.GroupDate.Value);
-            restrictedTableIds = new HashSet<Guid>(restricted);
+            tableConflictSource = await _editorViewModel.GetTablesInUseByOtherCompsOnDateAsync(settings.GroupDate.Value);
+            restrictedTableIds = new HashSet<Guid>(tableConflictSource.Keys);
         }
 
         // Build a quick lookup of already-selected table IDs
@@ -1268,7 +1361,10 @@ public partial class CompetitionsPage
 
                 var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed Table" : table.Label;
                 if (isRestricted)
-                    tableLabelText += $" {Emojis.Warning} main comp";
+                {
+                    var conflictName = tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : "another comp";
+                    tableLabelText += $" {Emojis.Warning} {conflictName}";
+                }
 
                 var tableLabel = new Label
                 {
@@ -1319,8 +1415,8 @@ public partial class CompetitionsPage
 
         container.Children.Add(venuesBorder);
 
-        // Warning for plate table conflicts
-        if (isPlate && restrictedTableIds.Count > 0)
+        // Warning for table conflicts with other competitions
+        if (restrictedTableIds.Count > 0)
         {
             int totalTables = venues.Sum(v => v.Tables.Count);
             if (restrictedTableIds.Count >= totalTables)
@@ -1334,7 +1430,7 @@ public partial class CompetitionsPage
                     Margin = new Thickness(0, 4, 0, 0),
                     Content = new Label
                     {
-                        Text = "⚠️ All tables are in use by the main competition on this date. Choose a different group date or add more tables to your venues.",
+                        Text = "⚠️ All tables are in use by other competitions on this date. Choose a different date or add more tables.",
                         FontSize = 11,
                         TextColor = Color.FromArgb("#DC2626")
                     }
@@ -1344,7 +1440,7 @@ public partial class CompetitionsPage
             {
                 container.Children.Add(new Label
                 {
-                    Text = $"⚠️ {restrictedTableIds.Count} table(s) unavailable � in use by main competition on this date",
+                    Text = $"⚠️ {restrictedTableIds.Count} table(s) in use by other competitions on this date",
                     FontSize = 11,
                     TextColor = Color.FromArgb("#D97706"),
                     FontAttributes = FontAttributes.Italic,
