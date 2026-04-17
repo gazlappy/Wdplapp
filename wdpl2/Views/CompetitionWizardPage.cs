@@ -29,7 +29,7 @@ public class CompetitionWizardPage : ContentPage
     private bool _nameManuallyEdited;
     private DateTime _startDate = DateTime.Today;
     private int _bestOf = 7;
-    private int _numberOfGroups = 4;
+    private int _numberOfGroups = 0;
     private int _topAdvance = 2;
     private int _lowerToPlate = 2;
     private bool _allLosersToPlate = true;
@@ -606,10 +606,6 @@ public class CompetitionWizardPage : ContentPage
 
     private void BuildGroupStageCard()
     {
-        var groupsStepper = new Stepper { Minimum = 2, Maximum = 16, Increment = 1, Value = _numberOfGroups };
-        var groupsLabel = new Label { Text = _numberOfGroups.ToString(), FontSize = 15, FontAttributes = FontAttributes.Bold, TextColor = Dark, VerticalTextAlignment = TextAlignment.Center };
-        groupsStepper.ValueChanged += (_, e) => { _numberOfGroups = (int)e.NewValue; groupsLabel.Text = _numberOfGroups.ToString(); };
-
         var advanceStepper = new Stepper { Minimum = 1, Maximum = 4, Increment = 1, Value = _topAdvance };
         var advanceLabel = new Label { Text = _topAdvance.ToString(), FontSize = 15, FontAttributes = FontAttributes.Bold, TextColor = Dark, VerticalTextAlignment = TextAlignment.Center };
         advanceStepper.ValueChanged += (_, e) => { _topAdvance = (int)e.NewValue; advanceLabel.Text = _topAdvance.ToString(); };
@@ -624,7 +620,13 @@ public class CompetitionWizardPage : ContentPage
             Spacing = 14,
             Children =
             {
-                StepperField("Number of Groups", groupsLabel, groupsStepper),
+                new Label
+                {
+                    Text = "\u2139\uFE0F Number of groups will be configured after adding players, with recommended group sizes.",
+                    FontSize = 12,
+                    TextColor = Blue,
+                    Margin = new Thickness(0, 0, 0, 4)
+                },
                 StepperField("Top players advance (per group)", advanceLabel, advanceStepper),
                 InlineField("Create Plate Competition", plateSwitch),
                 InlineField("All non-qualifiers to Plate", allLosersSwitch)
@@ -661,7 +663,7 @@ public class CompetitionWizardPage : ContentPage
         if (_selectedFormat is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage)
         {
             summaryContent.Children.Add(new BoxView { HeightRequest = 1, Color = GrayBorder, Margin = new Thickness(0, 4) });
-            summaryContent.Children.Add(SummaryRow("\U0001F4CA", "Groups", _numberOfGroups.ToString()));
+            summaryContent.Children.Add(SummaryRow("\U0001F4CA", "Groups", "Set after adding players"));
             summaryContent.Children.Add(SummaryRow("\u2B06\uFE0F", "Advance", $"Top {_topAdvance} per group"));
             summaryContent.Children.Add(SummaryRow("\U0001F3C5", "Plate", _createPlate ? "Yes" : "No"));
         }
