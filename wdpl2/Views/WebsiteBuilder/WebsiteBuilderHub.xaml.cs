@@ -670,7 +670,7 @@ public partial class WebsiteBuilderHub : ContentPage
             html = System.Text.RegularExpressions.Regex.Replace(
                 html,
                 @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
-                $"<style>{css}</style>");
+                _ => $"<style>{css}</style>");
 
         // Inline JSON data so fetch() works in the WebView
         html = InlineJsonData(html);
@@ -724,7 +724,7 @@ public partial class WebsiteBuilderHub : ContentPage
         return System.Text.RegularExpressions.Regex.Replace(
             html,
             pattern,
-            $"Promise.resolve(JSON.parse('{escapedJson}'))");
+            _ => $"Promise.resolve(JSON.parse('{escapedJson}'))");
     }
 
     private void OnPreviewNavigating(object? sender, WebNavigatingEventArgs e)

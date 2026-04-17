@@ -401,8 +401,9 @@ namespace Wdpl2.Services
             html.AppendLine($"                    <div class=\"stat-number\">{teams.Count}</div>");
             html.AppendLine("                    <div class=\"stat-label\">Teams</div>");
             html.AppendLine("                </div>");
+            var activePlayers = players.Count(p => p.IsActive && p.TeamId != null);
             html.AppendLine("                <div class=\"stat-card\">");
-            html.AppendLine($"                    <div class=\"stat-number\">{players.Count}</div>");
+            html.AppendLine($"                    <div class=\"stat-number\">{activePlayers}</div>");
             html.AppendLine("                    <div class=\"stat-label\">Players</div>");
             html.AppendLine("                </div>");
             html.AppendLine("                <div class=\"stat-card\">");

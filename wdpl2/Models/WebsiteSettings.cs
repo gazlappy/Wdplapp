@@ -1042,6 +1042,12 @@ namespace Wdpl2.Models
             !string.IsNullOrWhiteSpace(ContactEmail) || 
             !string.IsNullOrWhiteSpace(ContactPhone) ||
             !string.IsNullOrWhiteSpace(ContactAddress);
+
+        /// <summary>
+        /// Content hashes of files from the last successful upload.
+        /// Used to detect which files have changed and need re-uploading.
+        /// </summary>
+        public Dictionary<string, string> UploadedFileHashes { get; set; } = new();
     }
     
     /// <summary>
