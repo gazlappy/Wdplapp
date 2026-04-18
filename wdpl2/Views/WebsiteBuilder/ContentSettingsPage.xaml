@@ -126,6 +126,13 @@
                     <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
 
                     <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                        <Label Text="&#127942;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Roll of Honour (History)" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowHistoryCheck" IsToggled="False" VerticalOptions="Center"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
                         <Label Text="&#127921;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
                         <Label Grid.Column="1" Text="Pool Game (🎱 Play Pool)" VerticalOptions="Center" FontSize="14"/>
                         <Switch Grid.Column="2" x:Name="ShowPoolGameCheck" IsToggled="True" VerticalOptions="Center"/>
@@ -175,7 +182,7 @@
 
                     <!-- Data rows -->
                     <Grid ColumnDefinitions="75,*,*" ColumnSpacing="6"
-                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           RowSpacing="2">
 
                         <!-- Home -->
@@ -252,6 +259,11 @@
                         <Label Grid.Row="14" Text="Contact" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
                         <Entry Grid.Row="14" Grid.Column="1" x:Name="ContactNavLabelEntry" Placeholder="Contact" FontSize="12"/>
                         <Entry Grid.Row="14" Grid.Column="2" x:Name="ContactPageTitleEntry" Placeholder="Contact Us" FontSize="12"/>
+
+                        <!-- History -->
+                        <Label Grid.Row="15" Text="History" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
+                        <Entry Grid.Row="15" Grid.Column="1" x:Name="HistoryNavLabelEntry" Placeholder="History" FontSize="12"/>
+                        <Entry Grid.Row="15" Grid.Column="2" x:Name="HistoryPageTitleEntry" Placeholder="Roll of Honour" FontSize="12"/>
                     </Grid>
                 </VerticalStackLayout>
             </Border>

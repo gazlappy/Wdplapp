@@ -334,9 +334,12 @@ namespace Wdpl2.Services
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
                 NavLink("entry-forms.html", _settings.EntryFormsNavLabel, "Entry Forms");
 
+            if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
+                NavLink("history.html", _settings.HistoryNavLabel, "History");
+
             if (_settings.ShowContactPage && _settings.HasContactInfo)
                 NavLink("contact.html", _settings.ContactNavLabel, "Contact");
-            
+
             // Custom pages in nav
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished && p.ShowInNav).OrderBy(p => p.NavOrder))
             {

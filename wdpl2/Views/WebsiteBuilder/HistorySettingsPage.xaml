@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.HistorySettingsPage"
+             Title="Roll of Honour">
+
+    <Grid RowDefinitions="Auto,*" RowSpacing="0">
+
+        <!-- Toolbar -->
+        <HorizontalStackLayout Padding="16,12" Spacing="8" BackgroundColor="#F8FAFC">
+            <Button x:Name="ImportBtn" Text="📥 Import from Excel" Clicked="OnImportClicked"
+                    BackgroundColor="#3B82F6" TextColor="White" FontSize="13" CornerRadius="8" Padding="12,8"/>
+            <Button x:Name="ClearBtn" Text="🗑 Clear All" Clicked="OnClearClicked"
+                    BackgroundColor="#EF4444" TextColor="White" FontSize="13" CornerRadius="8" Padding="12,8"/>
+            <Label x:Name="StatusLabel" Text="" FontSize="12" TextColor="#6B7280" VerticalOptions="Center" Margin="8,0,0,0"/>
+        </HorizontalStackLayout>
+
+        <!-- Honours list -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout x:Name="HonoursList" Padding="16" Spacing="16"/>
+        </ScrollView>
+    </Grid>
+</ContentPage>

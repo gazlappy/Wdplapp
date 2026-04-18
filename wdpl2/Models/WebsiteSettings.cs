@@ -672,6 +672,12 @@ namespace Wdpl2.Models
 
         // Custom Pages
         public List<CustomPage> CustomPages { get; set; } = new();
+
+        // Historic Honours (Roll of Honour)
+        public bool ShowHistory { get; set; } = false;
+        public List<HistoricHonour> HistoricHonours { get; set; } = new();
+        public string HistoryPageTitle { get; set; } = "Roll of Honour";
+        public string HistoryNavLabel { get; set; } = "History";
         
         /// <summary>
         /// Available font families
@@ -1263,6 +1269,19 @@ namespace Wdpl2.Models
         public bool IsRequired { get; set; } = true;
         public string Placeholder { get; set; } = "";
         public string Options { get; set; } = ""; // for select: comma-separated options
+        public int SortOrder { get; set; }
+    }
+
+    /// <summary>
+    /// A historic honour/achievement (e.g. Singles Cup winner 1994)
+    /// </summary>
+    public sealed class HistoricHonour
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Season { get; set; } = ""; // e.g. "1994", "1988 - 1991"
+        public string Title { get; set; } = ""; // e.g. "Singles", "Premier Division"
+        public string Winner { get; set; } = "";
+        public string RunnerUp { get; set; } = "";
         public int SortOrder { get; set; }
     }
 

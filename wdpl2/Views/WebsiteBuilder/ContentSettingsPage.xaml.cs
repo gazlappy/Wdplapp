@@ -33,6 +33,7 @@ public partial class ContentSettingsPage : ContentPage
         ShowRulesCheck.IsToggled = settings.ShowRules;
         ShowContactPageCheck.IsToggled = settings.ShowContactPage;
         ShowPoolGameCheck.IsToggled = settings.ShowPoolGame;
+        ShowHistoryCheck.IsToggled = settings.ShowHistory;
 
         HomeRecentResultsCountEntry.Text = settings.HomeRecentResultsCount.ToString();
         HomeUpcomingFixturesCountEntry.Text = settings.HomeUpcomingFixturesCount.ToString();
@@ -69,6 +70,8 @@ public partial class ContentSettingsPage : ContentPage
         RulesNavLabelEntry.Text = settings.RulesNavLabel;
         EntryFormsNavLabelEntry.Text = settings.EntryFormsNavLabel;
         ContactNavLabelEntry.Text = settings.ContactNavLabel;
+        HistoryNavLabelEntry.Text = settings.HistoryNavLabel;
+        HistoryPageTitleEntry.Text = settings.HistoryPageTitle;
     }
 
     // Navigation to page-specific settings
@@ -108,6 +111,7 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowRules = ShowRulesCheck.IsToggled;
             settings.ShowContactPage = ShowContactPageCheck.IsToggled;
             settings.ShowPoolGame = ShowPoolGameCheck.IsToggled;
+            settings.ShowHistory = ShowHistoryCheck.IsToggled;
 
             if (int.TryParse(HomeRecentResultsCountEntry.Text, out int recentResults))
                 settings.HomeRecentResultsCount = recentResults;
@@ -146,6 +150,8 @@ public partial class ContentSettingsPage : ContentPage
                 settings.ContactPageTitle = ContactPageTitleEntry.Text.Trim();
             if (!string.IsNullOrWhiteSpace(EntryFormsPageTitleEntry.Text))
                 settings.EntryFormsPageTitle = EntryFormsPageTitleEntry.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(HistoryPageTitleEntry.Text))
+                settings.HistoryPageTitle = HistoryPageTitleEntry.Text.Trim();
 
             if (!string.IsNullOrWhiteSpace(HomeNavLabelEntry.Text))
                 settings.HomeNavLabel = HomeNavLabelEntry.Text.Trim();
@@ -177,6 +183,8 @@ public partial class ContentSettingsPage : ContentPage
                 settings.EntryFormsNavLabel = EntryFormsNavLabelEntry.Text.Trim();
             if (!string.IsNullOrWhiteSpace(ContactNavLabelEntry.Text))
                 settings.ContactNavLabel = ContactNavLabelEntry.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(HistoryNavLabelEntry.Text))
+                settings.HistoryNavLabel = HistoryNavLabelEntry.Text.Trim();
 
             DataStore.Save();
             

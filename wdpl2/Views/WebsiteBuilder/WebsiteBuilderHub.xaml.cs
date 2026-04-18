@@ -156,6 +156,7 @@ public partial class WebsiteBuilderHub : ContentPage
         UpdateRowsReportsCount();
         UpdateRulesSummary();
         UpdateEntryFormsCount();
+        UpdateHistorySummary();
         UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
@@ -220,6 +221,14 @@ public partial class WebsiteBuilderHub : ContentPage
         EntryFormsSummaryLabel.Text = count == 0
             ? "No forms created yet"
             : $"{count} form{(count == 1 ? "" : "s")} ({published} active) \u2022 {totalEntries} entr{(totalEntries == 1 ? "y" : "ies")} logged";
+    }
+
+    private void UpdateHistorySummary()
+    {
+        var honours = League.WebsiteSettings.HistoricHonours;
+        HistorySummaryLabel.Text = honours.Count == 0
+            ? "Import historic winners and runners-up"
+            : $"{honours.Count} honours across {honours.Select(h => h.Season).Distinct().Count()} seasons";
     }
 
     private void UpdateSummaryLabels()
@@ -417,6 +426,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private async void OnEntryFormsTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new EntryFormsSettingsPage());
 
+    private async void OnHistoryTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new HistorySettingsPage());
+
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
 
@@ -447,6 +459,7 @@ public partial class WebsiteBuilderHub : ContentPage
             (RowsReportsTile, ["rows reports", "match reports", "weekly", "reports"]),
             (RulesTile, ["rules", "league rules", "constitution", "match rules"]),
             (EntryFormsTile, ["entry forms", "forms", "entries", "submissions", "entry"]),
+            (HistoryTile, ["history", "honours", "roll of honour", "historic", "winners"]),
             (FixturesSheetTile, ["fixtures sheet", "print", "printable", "fixtures"]),
             (SocialCardTile, ["social media", "share", "result cards", "post"]),
             (SeoTile, ["seo", "advanced", "meta tags", "custom css", "html", "sitemap", "meta"]),
@@ -460,7 +473,7 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             (BrandingSectionLabel, [BrandingTile, ContactTile]),
             (DesignSectionLabel, [DragDropTile, ColorsTile, LayoutTile]),
-            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile]),
+            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile, HistoryTile]),
             (PrintExportSectionLabel, [FixturesSheetTile]),
             (SocialSectionLabel, [SocialCardTile]),
             (AdvancedSectionLabel, [SeoTile, DeploymentTile]),
