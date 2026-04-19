@@ -40,18 +40,24 @@ public partial class FixturesSheetPage : ContentPage
         if (active != null)
             SeasonPicker.SelectedItem = active;
 
-        // Load saved website-embed settings
         var ws = League.WebsiteSettings;
-        ShowPrintableSheetCheck.IsChecked = ws.FixturesShowPrintableSheet;
-        SheetDefaultExpandedCheck.IsChecked = ws.FixturesSheetDefaultExpanded;
-        SheetTitleEntry.Text = ws.FixturesSheetTitle;
-
-        WebsiteUrlEntry.Text = ws.WebsiteUrl;
-        EmailEntry.Text = ws.ContactEmail;
 
         // Load saved fixtures sheet settings
         var fs = League.FixturesSheetSettings;
+        TitleEntry.Text = fs.Title;
+        ShowTeamNumbersCheck.IsChecked = fs.ShowTeamNumbers;
+        ShowDivisionListsCheck.IsChecked = fs.ShowDivisionLists;
+        ShowVenueInfoCheck.IsChecked = fs.ShowVenueInfo;
+        ShowSpecialEventsCheck.IsChecked = fs.ShowSpecialEvents;
+        ShowFooterCheck.IsChecked = fs.ShowFooterNotes;
+        LandscapeRadio.IsChecked = fs.IsLandscape;
+        PortraitRadio.IsChecked = !fs.IsLandscape;
         FooterNotesEntry.Text = fs.FooterNotes;
+        ExtraFooterNotesContainer.Children.Clear();
+        foreach (var note in fs.ExtraFooterNotes)
+            AddExtraFooterNoteRow(note);
+        WebsiteUrlEntry.Text = fs.FooterWebsite ?? ws.WebsiteUrl;
+        EmailEntry.Text = fs.FooterEmail ?? ws.ContactEmail;
         ContactNameEntry.Text = fs.FooterContactName;
         ContactPhoneEntry.Text = fs.FooterContactPhone;
         ReportNameEntry.Text = fs.FooterReportName;
@@ -73,6 +79,8 @@ public partial class FixturesSheetPage : ContentPage
         var (divisions, _, _, _, _) = League.GetSeasonData(season.Id);
         foreach (var d in divisions)
             _divisions.Add(new DivisionItem { Id = d.Id, Name = d.Name, IsSelected = true });
+
+        SyncExclusionDates(season);
     }
 
     private FixturesSheetSettings BuildSettings()
@@ -82,6 +90,7 @@ public partial class FixturesSheetPage : ContentPage
         {
             LeagueName = ws.LeagueName,
             SeasonName = (SeasonPicker.SelectedItem as Season)?.Name ?? "",
+            Title = TitleEntry.Text,
             ShowTeamNumbers = ShowTeamNumbersCheck.IsChecked,
             ShowDivisionLists = ShowDivisionListsCheck.IsChecked,
             ShowVenueInfo = ShowVenueInfoCheck.IsChecked,
@@ -89,6 +98,11 @@ public partial class FixturesSheetPage : ContentPage
             ShowFooterNotes = ShowFooterCheck.IsChecked,
             IsLandscape = LandscapeRadio.IsChecked,
             FooterNotes = FooterNotesEntry.Text,
+            ExtraFooterNotes = ExtraFooterNotesContainer.Children
+                .OfType<Grid>()
+                .Select(g => g.Children.OfType<Entry>().FirstOrDefault()?.Text?.Trim() ?? "")
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToList(),
             FooterWebsite = WebsiteUrlEntry.Text,
             FooterEmail = EmailEntry.Text,
             FooterContactName = ContactNameEntry.Text,
@@ -117,16 +131,26 @@ public partial class FixturesSheetPage : ContentPage
 
         // Persist settings
         League.FixturesSheetSettings = settings;
-        var ws = League.WebsiteSettings;
-        ws.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
-        ws.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
-        ws.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text)
-            ? "Printable Fixtures Sheet" : SheetTitleEntry.Text;
         DataStore.Save();
 
         var divIds = GetSelectedDivisionIds();
         var gen = new FixturesSheetGenerator(League, settings);
         return gen.GenerateFixturesSheet(season.Id, divIds.Count > 0 ? divIds : null);
+    }
+
+    private void OnSaveClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var settings = BuildSettings();
+            League.FixturesSheetSettings = settings;
+            DataStore.Save();
+            SetStatus("Settings saved \u2713", true);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error saving: {ex.Message}", false);
+        }
     }
 
     private void OnPreviewClicked(object? sender, EventArgs e)
@@ -178,6 +202,47 @@ public partial class FixturesSheetPage : ContentPage
         // Load the sheet in the preview — the user can use the browser's print
         WebViewHelper.LoadHtml(PreviewWebView, _generatedHtml);
         SetStatus("Ready to print — use Ctrl+P in the preview", true);
+    }
+
+    private void OnSyncExclusionDatesClicked(object? sender, EventArgs e)
+    {
+        if (SeasonPicker.SelectedItem is not Season season) return;
+        SyncExclusionDates(season);
+        SetStatus($"Synced {season.BlackoutDates.Count} exclusion date(s) from season", true);
+    }
+
+    private void SyncExclusionDates(Season season)
+    {
+        // Remove previously synced exclusion dates
+        var manualEvents = _events.Where(e => !e.IsFromSeason).ToList();
+        _events.Clear();
+
+        // Add season blackout dates
+        foreach (var date in season.BlackoutDates.OrderBy(d => d))
+        {
+            var key = date.ToString("yyyy-MM-dd");
+            var title = season.BlackoutDateTitles.TryGetValue(key, out var t) && !string.IsNullOrWhiteSpace(t)
+                ? t
+                : "No Fixtures";
+            _events.Add(new EventItem
+            {
+                Date = date,
+                Description = title,
+                DayOfWeek = date.ToString("dddd"),
+                Color = "#FECACA",
+                IsFromSeason = true,
+            });
+        }
+
+        // Re-add manual events
+        foreach (var e in manualEvents)
+            _events.Add(e);
+
+        // Sort all by date
+        var sorted = _events.OrderBy(x => x.Date).ToList();
+        _events.Clear();
+        foreach (var item in sorted)
+            _events.Add(item);
     }
 
     private void OnAddEventClicked(object? sender, EventArgs e)
@@ -259,6 +324,37 @@ public partial class FixturesSheetPage : ContentPage
         public string Description { get; set; } = "";
         public string DayOfWeek { get; set; } = "";
         public string Color { get; set; } = "#FDE68A";
+        public bool IsFromSeason { get; set; }
         public string DateDisplay => Date.ToString("dd MMM");
+        public string SourceBadge => IsFromSeason ? "(season)" : "";
+    }
+
+    private void OnAddExtraFooterNoteClicked(object? sender, EventArgs e)
+    {
+        AddExtraFooterNoteRow("");
+    }
+
+    private void AddExtraFooterNoteRow(string text)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(new GridLength(34))],
+            ColumnSpacing = 4
+        };
+        var entry = new Entry { Placeholder = "Extra footer note...", Text = text, FontSize = 12 };
+        var removeBtn = new Button
+        {
+            Text = "✕",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#EF4444"),
+            FontSize = 13,
+            HeightRequest = 34,
+            WidthRequest = 34,
+            Padding = 0
+        };
+        removeBtn.Clicked += (_, _) => ExtraFooterNotesContainer.Children.Remove(grid);
+        grid.Add(entry, 0);
+        grid.Add(removeBtn, 1);
+        ExtraFooterNotesContainer.Children.Add(grid);
     }
 }

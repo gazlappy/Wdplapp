@@ -923,6 +923,12 @@ namespace Wdpl2.Services
                 AppendTeamCalendarSection(html, season, teams, fixtures, venues);
             }
 
+            // Printable fixtures sheet at the top of the page
+            if (_settings.FixturesShowPrintableSheet)
+            {
+                AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
+            }
+
             var upcomingFixtures = fixtures
                 .Where(f => f.Date >= DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 .OrderBy(f => f.Date)
@@ -981,12 +987,6 @@ namespace Wdpl2.Services
                 html.AppendLine("            <div class=\"section\">");
                 html.AppendLine("                <p class=\"empty-message\">No upcoming fixtures scheduled.</p>");
                 html.AppendLine("            </div>");
-            }
-            
-            // Add printable fixtures sheet section if enabled
-            if (_settings.FixturesShowPrintableSheet)
-            {
-                AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
             }
 
             html.AppendLine("        </div>");

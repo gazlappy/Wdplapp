@@ -224,6 +224,7 @@ namespace Wdpl2.Models
         public bool ShowPoweredBy { get; set; } = true;
         public string CustomFooterText { get; set; } = "";
         public string CopyrightText { get; set; } = "";
+        public List<string> FooterNotes { get; set; } = [];
         
         // Content Options - Main Toggles
         public bool ShowStandings { get; set; } = true;
@@ -819,6 +820,7 @@ namespace Wdpl2.Models
             ShowPoweredBy = true;
             CustomFooterText = "";
             CopyrightText = "";
+            FooterNotes.Clear();
             
             // Content toggles
             ShowStandings = true;

@@ -8,25 +8,17 @@
             <VerticalStackLayout Padding="20,16" Spacing="12">
                 <Label Text="Fixtures Sheet" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
                 <Label Text="Classic paper-style printable fixture sheet" FontSize="12" TextColor="#64748B"/>
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                    <Button Grid.Column="0" Text="Preview" Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" FontSize="12" Padding="8,10" CornerRadius="8"/>
-                    <Button Grid.Column="1" Text="Export" Clicked="OnExportClicked" BackgroundColor="#10B981" FontSize="12" Padding="8,10" CornerRadius="8"/>
-                    <Button Grid.Column="2" Text="Print" Clicked="OnPrintClicked" BackgroundColor="#64748B" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Text="&#x1F4BE; Save" Clicked="OnSaveClicked" BackgroundColor="#8B5CF6" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="1" Text="Preview" Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="2" Text="Export" Clicked="OnExportClicked" BackgroundColor="#10B981" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="3" Text="Print" Clicked="OnPrintClicked" BackgroundColor="#64748B" FontSize="12" Padding="8,10" CornerRadius="8"/>
                 </Grid>
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
-                <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#F0F9FF">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="Embed on Fixtures Page" FontAttributes="Bold" FontSize="13" TextColor="#0369A1"/>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowPrintableSheetCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Show on Fixtures Page" VerticalOptions="Center" FontSize="13"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="SheetDefaultExpandedCheck" IsChecked="False" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Expanded by Default" VerticalOptions="Center" FontSize="13"/>
-                        </Grid>
-                        <Label Text="Section Title" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="SheetTitleEntry" Text="Printable Fixtures Sheet" Placeholder="Title" FontSize="13"/>
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Title" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Entry x:Name="TitleEntry" Placeholder="e.g. WDPL 2025 League (auto-generated if blank)" FontSize="12"/>
                     </VerticalStackLayout>
                 </Frame>
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
@@ -91,6 +83,9 @@
                     <VerticalStackLayout Spacing="6">
                         <Label Text="Footer" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Entry x:Name="FooterNotesEntry" Placeholder="Footer notes (shown in red)" FontSize="12"/>
+                        <Label Text="Extra Footer Notes" FontSize="11" TextColor="#6B7280"/>
+                        <VerticalStackLayout x:Name="ExtraFooterNotesContainer" Spacing="4"/>
+                        <Button Text="+ Add Footer Note" FontSize="11" BackgroundColor="#3B82F6" TextColor="White" CornerRadius="6" HeightRequest="34" Clicked="OnAddExtraFooterNoteClicked"/>
                         <Entry x:Name="WebsiteUrlEntry" Placeholder="Website URL" FontSize="12"/>
                         <Entry x:Name="EmailEntry" Placeholder="Email address" FontSize="12"/>
                         <Entry x:Name="ContactNameEntry" Placeholder="Match contact name" FontSize="12"/>
@@ -101,7 +96,10 @@
                 </Frame>
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="Key Dates / Events" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <Label Text="Key Dates / Events" FontAttributes="Bold" FontSize="13" TextColor="#1E293B" VerticalOptions="Center"/>
+                            <Button Grid.Column="1" Text="&#x1F504; Sync Exclusion Dates" Clicked="OnSyncExclusionDatesClicked" BackgroundColor="#F59E0B" TextColor="White" FontSize="11" Padding="8,4" CornerRadius="6"/>
+                        </Grid>
                         <Grid ColumnDefinitions="*,80,Auto" ColumnSpacing="6">
                             <Entry x:Name="EventDescEntry" Grid.Column="0" Placeholder="Description" FontSize="12"/>
                             <DatePicker x:Name="EventDatePicker" Grid.Column="1" FontSize="11"/>
@@ -110,10 +108,11 @@
                         <CollectionView x:Name="EventsCollection" HeightRequest="120">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Padding="4" ColumnDefinitions="80,*,30" ColumnSpacing="4">
+                                    <Grid Padding="4" ColumnDefinitions="80,*,Auto,30" ColumnSpacing="4">
                                         <Label Grid.Column="0" Text="{Binding DateDisplay}" FontSize="11" VerticalOptions="Center"/>
                                         <Label Grid.Column="1" Text="{Binding Description}" FontSize="11" VerticalOptions="Center"/>
-                                        <Button Grid.Column="2" Text="X" Clicked="OnRemoveEventClicked" BackgroundColor="Transparent" TextColor="#EF4444" FontSize="12" Padding="0"/>
+                                        <Label Grid.Column="2" Text="{Binding SourceBadge}" FontSize="9" TextColor="#94A3B8" VerticalOptions="Center"/>
+                                        <Button Grid.Column="3" Text="X" Clicked="OnRemoveEventClicked" BackgroundColor="Transparent" TextColor="#EF4444" FontSize="12" Padding="0"/>
                                     </Grid>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>

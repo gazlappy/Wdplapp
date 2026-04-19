@@ -385,7 +385,18 @@ namespace Wdpl2.Services
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomFooterText))
                 html.AppendLine($"            <p class=\"footer-custom\">{_settings.CustomFooterText}</p>");
-            
+
+            if (_settings.FooterNotes.Count > 0)
+            {
+                html.AppendLine("            <div class=\"footer-notes\">");
+                foreach (var note in _settings.FooterNotes)
+                {
+                    if (!string.IsNullOrWhiteSpace(note))
+                        html.AppendLine($"                <p class=\"footer-note\">{note}</p>");
+                }
+                html.AppendLine("            </div>");
+            }
+
             var copyrightText = !string.IsNullOrWhiteSpace(_settings.CopyrightText)
                 ? _settings.CopyrightText
                 : $"© {DateTime.Now.Year} {_settings.LeagueName}";

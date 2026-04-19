@@ -16,6 +16,8 @@ public class FixturesSheetSettings
 {
     public string LeagueName { get; set; } = "";
     public string SeasonName { get; set; } = "";
+    [JsonConverter(typeof(LenientStringConverter))]
+    public string? Title { get; set; }
     public bool ShowTeamNumbers { get; set; } = true;
     public bool ShowDivisionLists { get; set; } = true;
     public bool ShowVenueInfo { get; set; } = true;
@@ -25,6 +27,7 @@ public class FixturesSheetSettings
     public string AccentColor { get; set; } = "#1a1a8b";
     [JsonConverter(typeof(LenientStringConverter))]
     public string? FooterNotes { get; set; }
+    public List<string> ExtraFooterNotes { get; set; } = [];
     [JsonConverter(typeof(LenientStringConverter))]
     public string? FooterWebsite { get; set; }
     public string? FooterEmail { get; set; }
@@ -188,15 +191,18 @@ public class FixturesSheetGenerator
         sb.AppendLine("<div class=\"fixtures-sheet\">");
 
         // Title
+        var titleText = !string.IsNullOrWhiteSpace(_settings.Title)
+            ? _settings.Title
+            : $"{_settings.LeagueName} {season.Name} League";
         var logoData = _settings.GetEffectiveLogoData();
         if (!string.IsNullOrWhiteSpace(logoData))
         {
             var src = logoData.StartsWith("data:") ? logoData : $"data:image/png;base64,{logoData}";
-            sb.AppendLine($"<div class=\"sheet-title\"><img class=\"sheet-logo\" src=\"{src}\" alt=\"Logo\" /><span>{Esc(_settings.LeagueName)} {Esc(season.Name)} League</span></div>");
+            sb.AppendLine($"<div class=\"sheet-title\"><img class=\"sheet-logo\" src=\"{src}\" alt=\"Logo\" /><span>{Esc(titleText)}</span></div>");
         }
         else
         {
-            sb.AppendLine($"<h1 class=\"sheet-title\">{Esc(_settings.LeagueName)} {Esc(season.Name)} League</h1>");
+            sb.AppendLine($"<h1 class=\"sheet-title\">{Esc(titleText)}</h1>");
         }
 
         // Subtitle
@@ -261,32 +267,10 @@ public class FixturesSheetGenerator
             .OrderBy(g => g.Key)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // Build event lookup from manual special events
+        // Build event lookup from special events (includes synced season blackout dates)
         var eventsByDate = _settings.SpecialEvents
             .GroupBy(e => e.Date.Date)
             .ToDictionary(g => g.Key, g => g.ToList());
-
-        // Merge season blackout/exclusion dates as event cards
-        foreach (var blackout in season.BlackoutDates)
-        {
-            var d = blackout.Date;
-            var title = season.BlackoutDateTitles.TryGetValue(d.ToString("yyyy-MM-dd"), out var t) && !string.IsNullOrWhiteSpace(t)
-                ? t
-                : "No Fixtures";
-
-            var evt = new SpecialEvent
-            {
-                Date = d,
-                DayOfWeek = d.DayOfWeek.ToString(),
-                Description = title,
-                Color = "#FECACA"
-            };
-
-            if (eventsByDate.TryGetValue(d, out var existing))
-                existing.Add(evt);
-            else
-                eventsByDate[d] = [evt];
-        }
 
         // Merge all dates (fixture weeks + standalone events) into one timeline
         var allDates = weeks.Keys.Union(eventsByDate.Keys).OrderBy(d => d).ToList();
@@ -357,16 +341,18 @@ public class FixturesSheetGenerator
 
     private void GenerateKeyDates(StringBuilder sb)
     {
-        sb.AppendLine("<table class=\"kd\">");
+        sb.AppendLine("<div class=\"kd-grid\">");
         foreach (var evt in _settings.SpecialEvents.OrderBy(e => e.Date))
         {
-            sb.AppendLine($"<tr style=\"background:{evt.Color};\">");
-            sb.AppendLine($"<td class=\"kd-day\">{evt.DayOfWeek}</td>");
-            sb.AppendLine($"<td class=\"kd-date\">{evt.Date:dd-MMM}</td>");
-            sb.AppendLine($"<td class=\"kd-desc\">{Esc(evt.Description)}</td>");
-            sb.AppendLine("</tr>");
+            sb.AppendLine($"<div class=\"kd-card\" style=\"border-left:4px solid {evt.Color};\">");
+            sb.AppendLine($"<div class=\"kd-date-block\">");
+            sb.AppendLine($"<div class=\"kd-day\">{evt.DayOfWeek}</div>");
+            sb.AppendLine($"<div class=\"kd-date\">{evt.Date:dd-MMM}</div>");
+            sb.AppendLine("</div>");
+            sb.AppendLine($"<div class=\"kd-desc\">{Esc(evt.Description)}</div>");
+            sb.AppendLine("</div>");
         }
-        sb.AppendLine("</table>");
+        sb.AppendLine("</div>");
     }
 
     // ── Division Lists ───────────────────────────────────────
@@ -420,6 +406,12 @@ public class FixturesSheetGenerator
         sb.AppendLine("<div class=\"sheet-footer\">");
         if (!string.IsNullOrWhiteSpace(_settings.FooterNotes))
             sb.AppendLine($"<div class=\"footer-notes\">{Esc(_settings.FooterNotes)}</div>");
+
+        foreach (var note in _settings.ExtraFooterNotes)
+        {
+            if (!string.IsNullOrWhiteSpace(note))
+                sb.AppendLine($"<div class=\"footer-notes footer-note-extra\">{Esc(note)}</div>");
+        }
 
         var lines = new List<string>();
         if (!string.IsNullOrWhiteSpace(_settings.FooterContactName) && !string.IsNullOrWhiteSpace(_settings.FooterContactPhone))
@@ -580,23 +572,55 @@ html, body {
 }
 
 /* ── Key Dates ── */
-.kd {
-    width: 100%; border-collapse: collapse;
-    margin: 10px 0; border-radius: 12px; overflow: hidden;
-    background: linear-gradient(170deg, #F0F0F0 0%, #D8D8D8 50%, #C8C8C8 100%);
+.kd-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin: 14px 0;
+}
+.kd-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: linear-gradient(170deg, #F8F8F8 0%, #E8E8E8 20%, #F4F4F4 40%, #D0D0D0 60%, #E0E0E0 80%, #C0C0C0 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.5),
-        0 4px 0 -1px #A0A0A0,
-        0 8px 20px rgba(0,0,0,0.15);
+        inset 0 2px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.1),
+        0 6px 0 -2px #A0A0A0,
+        0 10px 0 -4px #B8B8B8,
+        0 12px 24px rgba(0,0,0,0.22);
+    transform: translateY(0);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.kd td {
-    padding: 5px 12px; font-size: 7.5pt;
-    border-bottom: 1px solid rgba(0,0,0,0.04);
+.kd-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.1),
+        0 8px 0 -2px #A0A0A0,
+        0 12px 0 -4px #B8B8B8,
+        0 18px 32px rgba(0,0,0,0.3);
 }
-.kd tr:last-child td { border-bottom: none; }
-.kd .kd-day { font-weight: 800; width: 70px; text-transform: uppercase; }
-.kd .kd-date { width: 60px; font-variant-numeric: tabular-nums; }
-.kd .kd-desc { font-weight: 700; }
+.kd-date-block {
+    text-align: center; min-width: 60px; flex-shrink: 0;
+    padding: 4px 0;
+    border-right: 1px solid rgba(0,0,0,0.08);
+}
+.kd-card .kd-day {
+    font-weight: 900; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px;
+    background: linear-gradient(180deg, #5A5A5A 0%, #333 40%, #1A1A1A 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.9));
+}
+.kd-card .kd-date {
+    font-size: 7pt; font-variant-numeric: tabular-nums; font-weight: 700; color: #555;
+}
+.kd-card .kd-desc {
+    font-weight: 800; font-size: 7.5pt; line-height: 1.3;
+    background: linear-gradient(180deg, #4A4A4A 0%, #222 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.8));
+}
 
 /* ── Division Lists ── */
 .div-lists {
@@ -693,6 +717,7 @@ html, body {
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 6px rgba(239,68,68,0.15);
     text-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
+.footer-note-extra { margin-top: 4px; }
 .footer-contacts { color: #64748B; letter-spacing: 0.3px; }
 
 /* ── Print ── */

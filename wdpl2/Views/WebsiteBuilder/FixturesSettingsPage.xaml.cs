@@ -33,7 +33,10 @@ public partial class FixturesSettingsPage : ContentPage
         ShowDivisionCheck.IsChecked = settings.FixturesShowDivision;
         ShowCountdownCheck.IsChecked = settings.FixturesShowCountdown;
         ShowCalendarDownloadCheck.IsChecked = settings.FixturesShowCalendarDownload;
-        
+        ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
+        SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
+        SheetTitleEntry.Text = settings.FixturesSheetTitle;
+
         GroupByDateCheck.IsChecked = settings.FixturesGroupByDate;
         GroupByWeekCheck.IsChecked = settings.FixturesGroupByWeek;
         
@@ -65,7 +68,11 @@ public partial class FixturesSettingsPage : ContentPage
             settings.FixturesShowDivision = ShowDivisionCheck.IsChecked;
             settings.FixturesShowCountdown = ShowCountdownCheck.IsChecked;
             settings.FixturesShowCalendarDownload = ShowCalendarDownloadCheck.IsChecked;
-            
+            settings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
+            settings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
+            settings.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text)
+                ? "Printable Fixtures Sheet" : SheetTitleEntry.Text;
+
             settings.FixturesGroupByDate = GroupByDateCheck.IsChecked;
             settings.FixturesGroupByWeek = GroupByWeekCheck.IsChecked;
             

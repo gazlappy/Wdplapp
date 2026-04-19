@@ -1535,6 +1535,24 @@ footer a {{
     color: #E2E8F0;
 }}
 
+.footer-notes {{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 16px 0;
+}}
+
+.footer-note {{
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--border-radius);
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    color: #CBD5E1;
+    margin: 0;
+}}
+
 .copyright, .powered-by, .last-updated {{
     font-size: 0.85rem;
     color: #94A3B8;
