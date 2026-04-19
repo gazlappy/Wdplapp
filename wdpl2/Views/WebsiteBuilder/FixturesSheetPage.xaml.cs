@@ -14,6 +14,7 @@ public partial class FixturesSheetPage : ContentPage
     private readonly ObservableCollection<DivisionItem> _divisions = new();
     private readonly ObservableCollection<EventItem> _events = new();
     private string? _generatedHtml;
+    private string? _logoBase64;
 
     public FixturesSheetPage()
     {
@@ -55,6 +56,8 @@ public partial class FixturesSheetPage : ContentPage
         ContactPhoneEntry.Text = fs.FooterContactPhone;
         ReportNameEntry.Text = fs.FooterReportName;
         ReportPhoneEntry.Text = fs.FooterReportPhone;
+        _logoBase64 = fs.LogoBase64;
+        LogoStatusLabel.Text = string.IsNullOrWhiteSpace(_logoBase64) ? "No logo" : "Logo set ✓";
 
         // Load special events
         _events.Clear();
@@ -92,6 +95,7 @@ public partial class FixturesSheetPage : ContentPage
             FooterContactPhone = ContactPhoneEntry.Text,
             FooterReportName = ReportNameEntry.Text,
             FooterReportPhone = ReportPhoneEntry.Text,
+            LogoBase64 = _logoBase64,
             SpecialEvents = _events.Select(e => new SpecialEvent
             {
                 Date = e.Date,
@@ -202,6 +206,35 @@ public partial class FixturesSheetPage : ContentPage
     {
         if (sender is Button btn && btn.BindingContext is EventItem item)
             _events.Remove(item);
+    }
+
+    private async void OnUploadLogoClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select a logo image",
+                FileTypes = FilePickerFileType.Images,
+            });
+            if (result == null) return;
+
+            using var stream = await result.OpenReadAsync();
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            _logoBase64 = Convert.ToBase64String(ms.ToArray());
+            LogoStatusLabel.Text = "Logo set ✓";
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", ex.Message, "OK");
+        }
+    }
+
+    private void OnClearLogoClicked(object? sender, EventArgs e)
+    {
+        _logoBase64 = null;
+        LogoStatusLabel.Text = "No logo";
     }
 
     private void SetStatus(string text, bool success)

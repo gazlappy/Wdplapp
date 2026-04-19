@@ -188,7 +188,16 @@ public class FixturesSheetGenerator
         sb.AppendLine("<div class=\"fixtures-sheet\">");
 
         // Title
-        sb.AppendLine($"<h1 class=\"sheet-title\">{Esc(_settings.LeagueName)} {Esc(season.Name)} League</h1>");
+        var logoData = _settings.GetEffectiveLogoData();
+        if (!string.IsNullOrWhiteSpace(logoData))
+        {
+            var src = logoData.StartsWith("data:") ? logoData : $"data:image/png;base64,{logoData}";
+            sb.AppendLine($"<div class=\"sheet-title\"><img class=\"sheet-logo\" src=\"{src}\" alt=\"Logo\" /><span>{Esc(_settings.LeagueName)} {Esc(season.Name)} League</span></div>");
+        }
+        else
+        {
+            sb.AppendLine($"<h1 class=\"sheet-title\">{Esc(_settings.LeagueName)} {Esc(season.Name)} League</h1>");
+        }
 
         // Subtitle
         var divNames = string.Join(" &amp; ", divisions.Select(d => d.Name.ToUpperInvariant()));
@@ -196,7 +205,7 @@ public class FixturesSheetGenerator
             sb.AppendLine($"<div class=\"sheet-subtitle\">{divNames} FIXTURES</div>");
 
         // Fixture grid
-        GenerateFixtureGrid(sb, divisions, teams, fixtures);
+        GenerateFixtureGrid(sb, divisions, teams, fixtures, season);
 
         // Special events / key dates
         if (_settings.ShowSpecialEvents && _settings.SpecialEvents.Count > 0)
@@ -220,109 +229,128 @@ public class FixturesSheetGenerator
 
     // ── Fixture Grid ─────────────────────────────────────────
 
-    private void GenerateFixtureGrid(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Fixture> fixtures)
+    private void GenerateFixtureGrid(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Fixture> fixtures, Season season)
     {
         if (fixtures.Count == 0) { sb.AppendLine("<p>No fixtures scheduled.</p>"); return; }
 
-        // Build team number lookup
+        // Use fixtures from the first division only — since all divisions share
+        // the same round-robin structure with per-division numbering (1..N),
+        // one grid serves all divisions. The division team lists act as the key.
+        var firstDiv = divisions.FirstOrDefault();
+        var gridFixtures = firstDiv != null
+            ? fixtures.Where(f => f.DivisionId == firstDiv.Id).ToList()
+            : fixtures;
+
+        // Build team number lookup for the first division
         var teamNumbers = new Dictionary<Guid, int>();
-        int num = 1;
-        foreach (var div in divisions)
+        if (firstDiv != null)
         {
-            var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name).ToList();
-            foreach (var t in divTeams)
+            int num = 1;
+            foreach (var t in teams.Where(t => t.DivisionId == firstDiv.Id).OrderBy(t => t.Name))
                 teamNumbers[t.Id] = num++;
         }
 
+        GenerateFixtureGridRows(sb, gridFixtures, teams, teamNumbers, season);
+    }
+
+    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, Season season)
+    {
         // Group fixtures by week date
         var weeks = fixtures
             .GroupBy(f => f.Date.Date)
             .OrderBy(g => g.Key)
-            .ToList();
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        int maxFixturesPerWeek = weeks.Max(g => g.Count());
+        // Build event lookup from manual special events
+        var eventsByDate = _settings.SpecialEvents
+            .GroupBy(e => e.Date.Date)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        // Group weeks by month
-        var monthGroups = weeks
-            .GroupBy(g => (g.Key.Year, g.Key.Month))
-            .ToList();
-
-        // Split into two half-season rows
-        int splitAt = (monthGroups.Count + 1) / 2;
-        var rows = new[] { monthGroups.Take(splitAt).ToList(), monthGroups.Skip(splitAt).ToList() }
-            .Where(r => r.Count > 0).ToList();
-
-        // Build event lookup
-        var eventsByDate = _settings.SpecialEvents.ToDictionary(e => e.Date.Date, e => e.Description);
-
-        foreach (var row in rows)
+        // Merge season blackout/exclusion dates as event cards
+        foreach (var blackout in season.BlackoutDates)
         {
-            var rowWeeks = row.SelectMany(m => m).ToList();
+            var d = blackout.Date;
+            var title = season.BlackoutDateTitles.TryGetValue(d.ToString("yyyy-MM-dd"), out var t) && !string.IsNullOrWhiteSpace(t)
+                ? t
+                : "No Fixtures";
 
-            sb.AppendLine("<table class=\"cg\">");
-
-            // Month header row
-            sb.AppendLine("<tr class=\"cg-mh\">");
-            sb.AppendLine("<th class=\"cg-ev\"></th>");
-            foreach (var month in row)
+            var evt = new SpecialEvent
             {
-                var monthDate = new DateTime(month.Key.Year, month.Key.Month, 1);
-                var name = monthDate.ToString("MMMM", CultureInfo.InvariantCulture).ToUpperInvariant();
-                var color = GetMonthColor(month.Key.Month);
-                sb.AppendLine($"<th colspan=\"{month.Count()}\" style=\"background:{color};\">{name}</th>");
-            }
-            sb.AppendLine("</tr>");
+                Date = d,
+                DayOfWeek = d.DayOfWeek.ToString(),
+                Description = title,
+                Color = "#FECACA"
+            };
 
-            // Date header row
-            sb.AppendLine("<tr class=\"cg-dh\">");
-            sb.AppendLine("<th class=\"cg-ev\"></th>");
-            foreach (var week in rowWeeks)
-            {
-                var d = week.Key.Day;
-                sb.AppendLine($"<th>{d}{GetDaySuffix(d)}</th>");
-            }
-            sb.AppendLine("</tr>");
-
-            // Fixture rows
-            for (int r = 0; r < maxFixturesPerWeek; r++)
-            {
-                sb.AppendLine("<tr class=\"cg-fr\">");
-
-                // Event annotation column (first row only, spans all fixture rows)
-                if (r == 0)
-                {
-                    var evts = rowWeeks
-                        .Where(w => eventsByDate.ContainsKey(w.Key))
-                        .Select(w => eventsByDate[w.Key])
-                        .ToList();
-                    var evtText = evts.Count > 0 ? string.Join("<br>", evts.Select(Esc)) : "";
-                    sb.AppendLine($"<td class=\"cg-ev\" rowspan=\"{maxFixturesPerWeek}\">{evtText}</td>");
-                }
-
-                foreach (var week in rowWeeks)
-                {
-                    var weekFixtures = week.ToList();
-                    if (r < weekFixtures.Count)
-                    {
-                        var f = weekFixtures[r];
-                        int h = teamNumbers.GetValueOrDefault(f.HomeTeamId);
-                        int a = teamNumbers.GetValueOrDefault(f.AwayTeamId);
-                        if (_settings.ShowTeamNumbers && h > 0 && a > 0)
-                            sb.AppendLine($"<td><strong>{h}</strong> v {a}</td>");
-                        else
-                        {
-                            var hn = Esc(teams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "?");
-                            var an = Esc(teams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "?");
-                            sb.AppendLine($"<td><strong>{hn}</strong> v {an}</td>");
-                        }
-                    }
-                    else
-                        sb.AppendLine("<td></td>");
-                }
-                sb.AppendLine("</tr>");
-            }
-            sb.AppendLine("</table>");
+            if (eventsByDate.TryGetValue(d, out var existing))
+                existing.Add(evt);
+            else
+                eventsByDate[d] = [evt];
         }
+
+        // Merge all dates (fixture weeks + standalone events) into one timeline
+        var allDates = weeks.Keys.Union(eventsByDate.Keys).OrderBy(d => d).ToList();
+
+        sb.AppendLine("<div class=\"wk-grid\">");
+
+        foreach (var date in allDates)
+        {
+            var monthName = date.ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant();
+            var day = date.Day;
+            var color = GetMonthColor(date.Month);
+            var hasFixtures = weeks.TryGetValue(date, out var weekFixtures);
+            var hasEvents = eventsByDate.TryGetValue(date, out var events);
+
+            if (hasFixtures)
+            {
+                // Fixture week card (may also have an event annotation)
+                sb.AppendLine("<div class=\"wk-card\">");
+                sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{color};\">");
+                sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
+                sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
+                sb.AppendLine("</div>");
+
+                if (hasEvents)
+                {
+                    foreach (var evt in events!)
+                        sb.AppendLine($"<div class=\"wk-event\">{Esc(evt.Description)}</div>");
+                }
+
+                sb.AppendLine("<div class=\"wk-fixtures\">");
+                foreach (var f in weekFixtures!)
+                {
+                    int h = teamNumbers.GetValueOrDefault(f.HomeTeamId);
+                    int a = teamNumbers.GetValueOrDefault(f.AwayTeamId);
+                    if (_settings.ShowTeamNumbers && h > 0 && a > 0)
+                        sb.AppendLine($"<div class=\"wk-match\"><span class=\"wk-home\">{h}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{a}</span></div>");
+                    else
+                    {
+                        var hn = Esc(teams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "?");
+                        var an = Esc(teams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "?");
+                        sb.AppendLine($"<div class=\"wk-match\"><span class=\"wk-home\">{hn}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{an}</span></div>");
+                    }
+                }
+                sb.AppendLine("</div>");
+                sb.AppendLine("</div>");
+            }
+            else if (hasEvents)
+            {
+                // Standalone event card (no fixtures on this date)
+                foreach (var evt in events!)
+                {
+                    var evtColor = !string.IsNullOrWhiteSpace(evt.Color) ? evt.Color : "#FDE68A";
+                    sb.AppendLine("<div class=\"wk-card wk-card-event\">");
+                    sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{evtColor};\">");
+                    sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
+                    sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
+                    sb.AppendLine("</div>");
+                    sb.AppendLine($"<div class=\"wk-event-body\">{Esc(evt.Description)}</div>");
+                    sb.AppendLine("</div>");
+                }
+            }
+        }
+
+        sb.AppendLine("</div>");
     }
 
     // ── Key Dates ────────────────────────────────────────────
@@ -346,12 +374,13 @@ public class FixturesSheetGenerator
     private void GenerateDivisionLists(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Venue> venues)
     {
         sb.AppendLine("<div class=\"div-lists\">");
-        int num = 1;
         foreach (var div in divisions)
         {
+            int num = 1;
             var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name).ToList();
             sb.AppendLine("<div class=\"div-card\">");
-            sb.AppendLine($"<div class=\"div-hdr\">{Esc(div.Name)}</div>");
+            var divColor = GetDivisionColor(div.Name);
+            sb.AppendLine($"<div class=\"div-hdr\" style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 35%,{divColor}dd 50%,{divColor} 65%,{divColor}88 100%);\">{Esc(div.Name)}</div>");
             sb.AppendLine("<table class=\"div-tbl\">");
             foreach (var t in divTeams)
             {
@@ -361,7 +390,7 @@ public class FixturesSheetGenerator
                     ? venue.Tables.FirstOrDefault(vt => vt.Id == t.TableId.Value)
                     : null;
                 var tableInfo = table != null ? $" ({Esc(table.Label)})" : "";
-                sb.AppendLine($"<tr><td class=\"div-num\">{num}</td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
+                sb.AppendLine($"<tr><td class=\"div-num\"><span style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 40%,{divColor}dd 55%,{divColor}88 100%);\" class=\"div-badge\">{num}</span></td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
                 num++;
             }
             sb.AppendLine("</table></div>");
@@ -417,111 +446,276 @@ public class FixturesSheetGenerator
         return $$"""
 @page { size: A4 {{orientation}}; margin: 8mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a1a; background: white; }
-
+html, body {
+    font-family: 'Segoe UI', Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 9pt; color: #1E293B; background: #0F172A;
+}
 .fixtures-sheet { max-width: 100%; padding: 4mm; }
 
 /* ── Title ── */
 .sheet-title {
-    text-align: center; font-size: 16pt; font-weight: 700;
-    margin-bottom: 4px; font-style: italic;
+    text-align: center; font-size: 24pt; font-weight: 900;
+    margin: 0 0 0; letter-spacing: 2px;
+    color: white; text-transform: uppercase;
+    background: linear-gradient(180deg, {{accent}}cc 0%, {{accent}} 35%, {{accent}}dd 50%, {{accent}} 65%, {{accent}}88 100%);
+    padding: 14px 0 12px;
+    border-radius: 14px 14px 0 0;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.25), 0 2px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.4);
+    border-bottom: 3px solid rgba(0,0,0,0.2);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2);
 }
+.sheet-logo {
+    height: 48px; width: auto; vertical-align: middle;
+    margin-right: 14px; border-radius: 6px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.sheet-title span { vertical-align: middle; }
 .sheet-subtitle {
-    text-align: center; font-size: 12pt; font-weight: 700;
-    background: {{accent}}; color: white;
-    padding: 4px 0; margin-bottom: 8px;
-    letter-spacing: 2px; text-transform: uppercase;
+    text-align: center; font-size: 9pt; font-weight: 700;
+    background: linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 40%, #222 50%, #181818 100%);
+    color: #A0A0A0; padding: 7px 0; margin-bottom: 16px;
+    letter-spacing: 5px; text-transform: uppercase;
+    border-radius: 0 0 14px 14px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.3);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
-/* ── Classic Grid ── */
-.cg {
-    width: 100%; border-collapse: collapse; table-layout: fixed;
-    margin-bottom: 6px; border: 2px solid #222;
+/* ── Weekly Fixture Cards ── */
+.wk-grid {
+    display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 18px;
+    justify-content: center;
+    perspective: 1200px;
 }
-.cg th, .cg td {
-    border: 1px solid #888; text-align: center;
-    vertical-align: middle; padding: 2px 3px;
-    font-size: 8pt; line-height: 1.3;
+.wk-card {
+    border-radius: 12px; overflow: hidden;
+    min-width: 88px; width: 88px; flex: 0 0 auto;
+    background: linear-gradient(170deg, #F8F8F8 0%, #E8E8E8 20%, #F4F4F4 40%, #D0D0D0 60%, #E0E0E0 80%, #C0C0C0 100%);
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.1),
+        0 6px 0 -2px #A0A0A0,
+        0 10px 0 -4px #B8B8B8,
+        0 12px 24px rgba(0,0,0,0.22);
+    transform: translateY(0);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.cg .cg-mh th {
-    font-weight: 700; font-size: 9pt; text-transform: uppercase;
-    letter-spacing: 1.5px; padding: 3px 6px;
-    border: 2px solid #222; color: #1a1a1a;
+.wk-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.1),
+        0 8px 0 -2px #A0A0A0,
+        0 12px 0 -4px #B8B8B8,
+        0 18px 32px rgba(0,0,0,0.3);
 }
-.cg .cg-dh th {
-    font-weight: 600; font-size: 7.5pt; padding: 2px;
-    background: #f0f0f0; border-bottom: 2px solid #555;
-    white-space: nowrap;
+.wk-hdr {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 0 4px; position: relative;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
 }
-.cg .cg-ev {
-    width: 75px; min-width: 60px; max-width: 90px;
-    font-size: 6.5pt; font-weight: 600; text-align: left;
-    padding: 2px 4px; line-height: 1.2; vertical-align: top;
-    color: #334155; background: #fafafa;
-    border-right: 2px solid #555;
+.wk-day {
+    font-size: 24pt; font-weight: 900; color: #2D2D2D;
+    line-height: 1; letter-spacing: -1px;
+    background: linear-gradient(180deg, #5A5A5A 0%, #333 40%, #1A1A1A 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.9));
 }
-.cg .cg-fr td { font-weight: 400; color: #334155; white-space: nowrap; }
-.cg .cg-fr td strong { font-weight: 800; }
+.wk-month {
+    font-size: 6pt; text-transform: uppercase; letter-spacing: 2.5px;
+    color: #555; font-weight: 800;
+}
+.wk-event {
+    font-size: 5pt; font-weight: 800; text-align: center;
+    padding: 2px 4px; color: white;
+    background: linear-gradient(180deg, #F59E0B, #D97706);
+    text-transform: uppercase; letter-spacing: 0.3px;
+    line-height: 1.2;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+.wk-fixtures { padding: 4px 7px 6px; }
+.wk-match {
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; font-size: 8pt; padding: 2px 0;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.wk-match + .wk-match { border-top: 1px solid #C8C8C8; }
+.wk-home {
+    font-weight: 900; color: {{accent}};
+    min-width: 10px; text-align: right;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.wk-v { font-size: 6pt; color: #94A3B8; font-weight: 600; }
+.wk-away {
+    font-weight: 600; color: #475569;
+    min-width: 10px; text-align: left;
+}
+
+/* Event-only cards */
+.wk-card-event {
+    background: linear-gradient(170deg, #FFF0D0 0%, #F0D890 20%, #FFECB0 40%, #E0C878 60%, #F0D890 80%, #D4B868 100%);
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.7),
+        inset 0 -1px 0 rgba(0,0,0,0.06),
+        0 6px 0 -2px #B8A060,
+        0 10px 0 -4px #C8B070,
+        0 12px 24px rgba(120,90,20,0.18);
+}
+.wk-card-event .wk-day {
+    color: #5C3D10;
+    background: linear-gradient(180deg, #6B4A18, #3C2508);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.5));
+}
+.wk-card-event .wk-month { color: #78350F; }
+.wk-event-body {
+    font-size: 6.5pt; font-weight: 800; text-align: center;
+    padding: 5px 6px; color: #78350F; line-height: 1.3;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
 
 /* ── Key Dates ── */
 .kd {
     width: 100%; border-collapse: collapse;
-    margin: 8px 0; border: 2px solid #222;
+    margin: 10px 0; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(170deg, #F0F0F0 0%, #D8D8D8 50%, #C8C8C8 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.5),
+        0 4px 0 -1px #A0A0A0,
+        0 8px 20px rgba(0,0,0,0.15);
 }
-.kd td { border: 1px solid #888; padding: 3px 8px; font-size: 8pt; }
-.kd .kd-day { font-weight: 700; width: 70px; }
-.kd .kd-date { width: 60px; }
-.kd .kd-desc { font-weight: 600; }
+.kd td {
+    padding: 5px 12px; font-size: 7.5pt;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.kd tr:last-child td { border-bottom: none; }
+.kd .kd-day { font-weight: 800; width: 70px; text-transform: uppercase; }
+.kd .kd-date { width: 60px; font-variant-numeric: tabular-nums; }
+.kd .kd-desc { font-weight: 700; }
 
 /* ── Division Lists ── */
 .div-lists {
-    display: flex; gap: 10px; margin: 8px 0; flex-wrap: wrap;
+    display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap;
 }
-.div-card { flex: 1; min-width: 250px; }
+.div-card {
+    flex: 1; min-width: 280px;
+    border-radius: 10px; overflow: hidden;
+    background: linear-gradient(180deg, #F0F0F0 0%, #E0E0E0 50%, #D0D0D0 100%);
+    border: 2px solid #999;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.5),
+        0 6px 0 -2px #A0A0A0,
+        0 10px 0 -4px #B8B8B8,
+        0 14px 28px rgba(0,0,0,0.2);
+}
 .div-hdr {
-    background: {{accent}}; color: white;
-    font-weight: 700; font-size: 9pt; text-align: center;
-    padding: 4px; text-transform: uppercase; letter-spacing: 1px;
+    color: white; font-weight: 900; font-size: 11pt; text-align: center;
+    padding: 10px 12px; text-transform: uppercase; letter-spacing: 6px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.25), 0 2px 4px rgba(0,0,0,0.5);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.25);
+    border-bottom: 2px solid rgba(0,0,0,0.3);
 }
-.div-tbl { width: 100%; border-collapse: collapse; border: 2px solid #222; }
-.div-tbl td { border: 1px solid #888; padding: 2px 6px; font-size: 8pt; }
-.div-tbl .div-num { width: 24px; text-align: center; font-weight: 700; }
-.div-tbl .div-name { font-weight: 600; text-transform: uppercase; }
-.div-tbl .div-venue { color: #555; }
+.div-tbl { width: 100%; border-collapse: collapse; }
+.div-tbl td {
+    padding: 6px 10px; font-size: 8pt;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.div-tbl tr:last-child td { border-bottom: none; }
+.div-tbl tr:nth-child(odd) { background: #FFFFFF; }
+.div-tbl tr:nth-child(even) { background: #D8D8D8; }
+.div-tbl tr { transition: background 0.15s; }
+.div-tbl tr:hover { background: #C8D0E0; }
+.div-tbl .div-num { width: 44px; text-align: center; vertical-align: middle; padding-left: 8px; }
+.div-badge {
+    font-weight: 900; color: white; font-size: 7.5pt;
+    border-radius: 12px; width: 28px; height: 20px;
+    line-height: 20px; display: inline-block; text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.15);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.2), 0 -1px 2px rgba(0,0,0,0.4);
+}
+.div-tbl .div-name {
+    font-weight: 800; text-transform: uppercase; color: #1A1A1A;
+    letter-spacing: 0.3px; font-size: 8.5pt;
+}
+.div-tbl .div-venue {
+    color: #777; font-size: 7pt; font-style: italic;
+    text-align: right; padding-right: 12px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
 
 /* ── Venue Info ── */
-.venue-section { margin: 8px 0; border: 2px solid #222; }
+.venue-section {
+    margin: 14px 0; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(170deg, #F0F0F0 0%, #D8D8D8 25%, #E8E8E8 50%, #C8C8C8 75%, #B8B8B8 100%);
+    border: 1px solid rgba(255,255,255,0.4);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.5),
+        inset 0 -1px 0 rgba(0,0,0,0.06),
+        0 6px 0 -2px #A0A0A0,
+        0 10px 0 -4px #B8B8B8,
+        0 14px 28px rgba(0,0,0,0.2);
+}
 .venue-hdr {
-    background: #f0f0f0; font-weight: 700; font-size: 8pt;
-    text-align: center; padding: 4px; letter-spacing: 1px;
-    border-bottom: 1px solid #888;
+    background: linear-gradient(180deg, #3A3A3A 0%, #2A2A2A 40%, #333 50%, #222 100%);
+    font-weight: 800; font-size: 7.5pt;
+    text-align: center; padding: 8px; letter-spacing: 4px;
+    color: #A0A0A0; text-transform: uppercase;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -2px 0 rgba(0,0,0,0.25);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 -1px 2px rgba(0,0,0,0.5);
 }
 .venue-grid {
     display: grid; grid-template-columns: 1fr 1fr;
-    font-size: 8pt; padding: 4px 8px; gap: 2px 16px;
+    font-size: 7.5pt; padding: 8px 14px; gap: 4px 20px;
 }
-.venue-name { font-weight: 600; text-transform: uppercase; }
+.venue-name {
+    font-weight: 700; text-transform: uppercase;
+    color: {{accent}}; letter-spacing: 0.3px;
+}
 
 /* ── Footer ── */
 .sheet-footer {
-    margin-top: 8px; text-align: center;
-    font-size: 7.5pt; line-height: 1.5;
-    border-top: 1px solid #ccc; padding-top: 4px;
+    margin-top: 16px; text-align: center;
+    font-size: 7pt; line-height: 1.8;
+    padding-top: 10px; color: #94A3B8;
+    border-top: 2px solid {{accent}}33;
 }
-.footer-notes { font-weight: 700; color: #B91C1C; margin-bottom: 4px; }
-.footer-contacts { color: #334155; }
+.footer-notes {
+    font-weight: 800; color: #EF4444; margin-bottom: 5px;
+    text-transform: uppercase; letter-spacing: 1.5px; font-size: 7pt;
+    background: linear-gradient(170deg, #F5E0E0 0%, #E8CCCC 50%, #D8B8B8 100%);
+    padding: 5px 14px; border-radius: 6px;
+    display: inline-block;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 6px rgba(239,68,68,0.15);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.footer-contacts { color: #64748B; letter-spacing: 0.3px; }
 
 /* ── Print ── */
 @media print {
-    html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    .fixtures-sheet { padding: 0; }
+    html, body {
+        margin: 0; padding: 0; background: white;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .fixtures-sheet { padding: 0; background: white; }
+    .wk-card { break-inside: avoid; }
+    .wk-card:hover { transform: none; }
 }
 @media screen {
-    body { background: #e2e8f0; padding: 16px; }
+    body { background: #0F172A; padding: 20px; }
     .fixtures-sheet {
         max-width: 1100px; margin: 0 auto;
-        background: white; padding: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        background: #F8FAFC; padding: 26px;
+        border-radius: 18px;
+        box-shadow:
+            0 0 0 1px rgba(255,255,255,0.05),
+            0 20px 60px rgba(0,0,0,0.5),
+            0 0 120px rgba(0,0,0,0.2);
     }
 }
 """;
@@ -553,6 +747,30 @@ html, body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #
         12 => "#67E8F9",  // teal
         _  => "#E2E8F0",
     };
+
+    private static string GetDivisionColor(string name)
+    {
+        var n = name.Trim().ToUpperInvariant();
+        if (n.Contains("RED")) return "#DC2626";
+        if (n.Contains("BLUE")) return "#2563EB";
+        if (n.Contains("GREEN")) return "#16A34A";
+        if (n.Contains("YELLOW")) return "#B8860B";
+        if (n.Contains("ORANGE")) return "#EA580C";
+        if (n.Contains("PURPLE") || n.Contains("VIOLET")) return "#7C3AED";
+        if (n.Contains("BLACK")) return "#1C1C1C";
+        if (n.Contains("WHITE")) return "#6B7280";
+        if (n.Contains("GOLD")) return "#B8860B";
+        if (n.Contains("SILVER")) return "#71717A";
+        if (n.Contains("PINK")) return "#EC4899";
+        if (n.Contains("CYAN") || n.Contains("TEAL")) return "#0891B2";
+        if (n.Contains("MAROON")) return "#991B1B";
+        if (n.Contains("NAVY")) return "#1E3A8A";
+        // Fallback: generate a stable hue from the name
+        var hash = 0;
+        foreach (var c in n) hash = hash * 31 + c;
+        var hue = Math.Abs(hash) % 360;
+        return $"hsl({hue}, 60%, 35%)";
+    }
 
     private static string GetDaySuffix(int day) => (day % 100) switch
     {
