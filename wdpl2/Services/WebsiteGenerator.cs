@@ -931,76 +931,13 @@ namespace Wdpl2.Services
             html.AppendLine($"                <p class=\"hero-dates\">Upcoming Matches</p>");
             html.AppendLine("            </div>");
 
-            // Team calendar downloads at the top of the page
+            // Fixtures sheet (always shown on fixtures page, not collapsible)
+            AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures, collapsible: false);
+
+            // Team calendar downloads
             if (_settings.FixturesShowCalendarDownload)
             {
                 AppendTeamCalendarSection(html, season, teams, fixtures, venues);
-            }
-
-            // Printable fixtures sheet at the top of the page
-            if (_settings.FixturesShowPrintableSheet)
-            {
-                AppendFixturesSheetSection(html, season, divisions, venues, teams, fixtures);
-            }
-
-            var upcomingFixtures = fixtures
-                .Where(f => f.Date >= DateTime.Now && !f.Frames.Any(fr => fr.Winner != FrameWinner.None))
-                .OrderBy(f => f.Date)
-                .Take(_settings.FixturesPerPage);
-            
-            var groupedFixtures = _settings.FixturesGroupByWeek
-                ? upcomingFixtures.GroupBy(f => GetWeekStart(f.Date)).ToList()
-                : (_settings.FixturesGroupByDate
-                    ? upcomingFixtures.GroupBy(f => f.Date.Date).ToList()
-                    : new List<IGrouping<DateTime, Fixture>> { new SingleGrouping<DateTime, Fixture>(DateTime.Today, upcomingFixtures.ToList()) });
-            
-            if (groupedFixtures.Any(g => g.Any()))
-            {
-                foreach (var dateGroup in groupedFixtures)
-                {
-                    if (!dateGroup.Any()) continue;
-                    
-                    html.AppendLine("            <div class=\"section\">");
-                    
-                    if (_settings.FixturesGroupByWeek)
-                        html.AppendLine($"                <h3>Week of {dateGroup.Key:dd MMMM yyyy}</h3>");
-                    else if (_settings.FixturesGroupByDate)
-                        html.AppendLine($"                <h3>{dateGroup.Key:dddd, dd MMMM yyyy}</h3>");
-                    
-                    html.AppendLine("                <div class=\"fixtures-list\">");
-                    
-                    foreach (var fixture in dateGroup.OrderBy(f => f.Date))
-                    {
-                        var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
-                        var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
-                        var venue = fixture.VenueId.HasValue ? venues.FirstOrDefault(v => v.Id == fixture.VenueId.Value) : null;
-                        
-                        html.AppendLine("                    <div class=\"fixture-item\">");
-                        if (_settings.FixturesShowDate)
-                        {
-                            var dateStr = _settings.FixturesShowTime 
-                                ? fixture.Date.ToString($"{_settings.FixturesDateFormat} HH:mm")
-                                : fixture.Date.ToString(_settings.FixturesDateFormat);
-                            html.AppendLine($"                        <span class=\"date\">{dateStr}</span>");
-                        }
-                        html.AppendLine($"                        <span class=\"team\">{homeTeam?.Name ?? "Home"}</span>");
-                        html.AppendLine("                        <span class=\"vs\">vs</span>");
-                        html.AppendLine($"                        <span class=\"team\">{awayTeam?.Name ?? "Away"}</span>");
-                        if (_settings.FixturesShowVenue && venue != null)
-                            html.AppendLine($"                        <span class=\"venue\">{venue.Name}</span>");
-                        html.AppendLine("                    </div>");
-                    }
-                    
-                    html.AppendLine("                </div>");
-                    html.AppendLine("                <p class=\"view-all\"><a href=\"fixtures.html\">View All Fixtures &#8594;</a></p>");
-                    html.AppendLine("            </div>");
-                }
-            }
-            else
-            {
-                html.AppendLine("            <div class=\"section\">");
-                html.AppendLine("                <p class=\"empty-message\">No upcoming fixtures scheduled.</p>");
-                html.AppendLine("            </div>");
             }
 
             html.AppendLine("        </div>");
@@ -1017,7 +954,7 @@ namespace Wdpl2.Services
             return html.ToString();
         }
         
-        private void AppendFixturesSheetSection(StringBuilder html, Season season, List<Division> divisions, List<Venue> venues, List<Team> teams, List<Fixture> fixtures)
+        private void AppendFixturesSheetSection(StringBuilder html, Season season, List<Division> divisions, List<Venue> venues, List<Team> teams, List<Fixture> fixtures, bool collapsible = true)
         {
             // Create a fixtures sheet generator with settings from the league
             var fixturesSheetSettings = _league.FixturesSheetSettings ?? new FixturesSheetSettings
@@ -1063,15 +1000,26 @@ namespace Wdpl2.Services
             html.AppendLine("            @media (max-width: 768px) { .fixtures-sheet-actions { flex-direction: column; } .fixtures-sheet-actions button { width: 100%; justify-content: center; } }");
             // Include scoped sheet CSS so inline preview matches the designed sheet
             html.AppendLine(scopedCss);
+            // Override the dark background from the standalone sheet — use transparent on website
+            html.AppendLine("            .fixtures-sheet-wrapper { background: transparent !important; }");
             html.AppendLine("            </style>");
-            html.AppendLine($"            <div class=\"section fixtures-sheet-section{expandedClass}\">");
-            html.AppendLine("                <div class=\"fixtures-sheet-header\" onclick=\"toggleFixturesSheet()\">");
-            html.AppendLine($"                    <h3>&#128197; {sheetTitle}</h3>");
-            html.AppendLine("                    <div class=\"fixtures-sheet-controls\">");
-            html.AppendLine("                        <span class=\"toggle-icon\">&#9660;</span>");
-            html.AppendLine("                    </div>");
-            html.AppendLine("                </div>");
-            html.AppendLine("                <div class=\"fixtures-sheet-content\">");
+
+            if (collapsible)
+            {
+                html.AppendLine($"            <div class=\"section fixtures-sheet-section{expandedClass}\">");
+                html.AppendLine("                <div class=\"fixtures-sheet-header\" onclick=\"toggleFixturesSheet()\">");
+                html.AppendLine($"                    <h3>&#128197; {sheetTitle}</h3>");
+                html.AppendLine("                    <div class=\"fixtures-sheet-controls\">");
+                html.AppendLine("                        <span class=\"toggle-icon\">&#9660;</span>");
+                html.AppendLine("                    </div>");
+                html.AppendLine("                </div>");
+                html.AppendLine("                <div class=\"fixtures-sheet-content\">");
+            }
+            else
+            {
+                html.AppendLine("            <div class=\"section fixtures-sheet-section expanded\">");
+            }
+
             html.AppendLine("                    <div class=\"fixtures-sheet-actions\">");
             html.AppendLine("                        <button class=\"btn-download\" onclick=\"downloadFixturesSheet()\">&#128229; Download HTML</button>");
             html.AppendLine("                        <button class=\"btn-print\" onclick=\"printFixturesSheet()\">&#128424; Print</button>");
@@ -1079,7 +1027,11 @@ namespace Wdpl2.Services
             html.AppendLine("                    <div class=\"fixtures-sheet-wrapper\" id=\"fixtures-sheet-container\">");
             html.AppendLine(sheetContent);
             html.AppendLine("                    </div>");
-            html.AppendLine("                </div>");
+
+            if (collapsible)
+            {
+                html.AppendLine("                </div>");
+            }
             html.AppendLine("            </div>");
             
             // Add JavaScript for toggle, print and download functionality
