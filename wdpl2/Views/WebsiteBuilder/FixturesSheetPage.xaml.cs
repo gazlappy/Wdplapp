@@ -27,6 +27,22 @@ public partial class FixturesSheetPage : ContentPage
         DivisionsCollection.ItemsSource = _divisions;
         EventsCollection.ItemsSource = _events;
 
+        TiltSlider.ValueChanged += (s, e) =>
+        {
+            var v = (int)Math.Round(e.NewValue);
+            TiltValueLabel.Text = $"{v}°";
+        };
+        LogoSizeSlider.ValueChanged += (s, e) =>
+        {
+            var v = (int)Math.Round(e.NewValue);
+            LogoSizeValueLabel.Text = $"{v}px";
+        };
+        LogoTiltSlider.ValueChanged += (s, e) =>
+        {
+            var v = (int)Math.Round(e.NewValue);
+            LogoTiltValueLabel.Text = $"{v}°";
+        };
+
         LoadData();
     }
 
@@ -52,6 +68,8 @@ public partial class FixturesSheetPage : ContentPage
         ShowFooterCheck.IsChecked = fs.ShowFooterNotes;
         LandscapeRadio.IsChecked = fs.IsLandscape;
         PortraitRadio.IsChecked = !fs.IsLandscape;
+        TiltSlider.Value = fs.CardTiltIntensity;
+        TiltValueLabel.Text = $"{fs.CardTiltIntensity}°";
         FooterNotesEntry.Text = fs.FooterNotes;
         ExtraFooterNotesContainer.Children.Clear();
         foreach (var note in fs.ExtraFooterNotes)
@@ -64,6 +82,10 @@ public partial class FixturesSheetPage : ContentPage
         ReportPhoneEntry.Text = fs.FooterReportPhone;
         _logoBase64 = fs.LogoBase64;
         LogoStatusLabel.Text = string.IsNullOrWhiteSpace(_logoBase64) ? "No logo" : "Logo set ✓";
+        LogoSizeSlider.Value = fs.LogoMaxHeight;
+        LogoSizeValueLabel.Text = $"{fs.LogoMaxHeight}px";
+        LogoTiltSlider.Value = fs.LogoTiltIntensity;
+        LogoTiltValueLabel.Text = $"{fs.LogoTiltIntensity}°";
 
         // Load special events
         _events.Clear();
@@ -97,6 +119,7 @@ public partial class FixturesSheetPage : ContentPage
             ShowSpecialEvents = ShowSpecialEventsCheck.IsChecked,
             ShowFooterNotes = ShowFooterCheck.IsChecked,
             IsLandscape = LandscapeRadio.IsChecked,
+            CardTiltIntensity = (int)Math.Round(TiltSlider.Value),
             FooterNotes = FooterNotesEntry.Text,
             ExtraFooterNotes = ExtraFooterNotesContainer.Children
                 .OfType<Grid>()
@@ -110,6 +133,8 @@ public partial class FixturesSheetPage : ContentPage
             FooterReportName = ReportNameEntry.Text,
             FooterReportPhone = ReportPhoneEntry.Text,
             LogoBase64 = _logoBase64,
+            LogoMaxHeight = (int)Math.Round(LogoSizeSlider.Value),
+            LogoTiltIntensity = (int)Math.Round(LogoTiltSlider.Value),
             SpecialEvents = _events.Select(e => new SpecialEvent
             {
                 Date = e.Date,

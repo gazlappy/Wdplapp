@@ -165,7 +165,19 @@
                     </Frame>
                 </VerticalStackLayout>
             </Frame>
-            
+
+            <!-- Logo 3D Tilt -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Logo 3D Tilt Effect" FontSize="14" FontAttributes="Bold"/>
+                    <Label Text="Hover tilt intensity for all logos on the website" FontSize="11" TextColor="#9CA3AF"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Slider x:Name="LogoTiltSlider" Minimum="0" Maximum="20" Value="0" ValueChanged="OnLogoTiltChanged"/>
+                        <Label Grid.Column="1" x:Name="LogoTiltLabel" Text="0° (Off)" FontSize="12" WidthRequest="70" VerticalOptions="Center"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- Logo Catalog -->
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">

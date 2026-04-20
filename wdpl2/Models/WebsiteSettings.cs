@@ -444,6 +444,7 @@ namespace Wdpl2.Models
         public string? RightLogoSelectedCatalogId { get; set; }
         public int RightLogoMaxWidth { get; set; } = 300;
         public int RightLogoMaxHeight { get; set; } = 150;
+        public int LogoTiltIntensity { get; set; } = 0;
         public string? SelectedCatalogLogoId { get; set; }
         
         // Logo Catalog - stored logos that can be reused across website and fixtures sheets

@@ -36,6 +36,9 @@ public class FixturesSheetSettings
     public string? FooterReportName { get; set; }
     public string? FooterReportPhone { get; set; }
     public string? LogoBase64 { get; set; }
+    public int LogoMaxHeight { get; set; } = 48;
+    public int LogoTiltIntensity { get; set; } = 0;
+    public int CardTiltIntensity { get; set; } = 8;
     public List<SpecialEvent> SpecialEvents { get; set; } = [];
 
     /// <summary>Absorbs unknown properties from older JSON schemas so deserialization doesn't fail.</summary>
@@ -128,6 +131,8 @@ public class FixturesSheetGenerator
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
         sb.AppendLine(GenerateContent(divisions, venues, teams, fixtures, season));
+        if (_settings.CardTiltIntensity > 0 || _settings.LogoTiltIntensity > 0)
+            sb.AppendLine(GenerateCardTiltScript());
         sb.AppendLine("</body></html>");
         return sb.ToString();
     }
@@ -144,6 +149,14 @@ public class FixturesSheetGenerator
 
     /// <summary>Get full CSS for standalone use.</summary>
     public string GetEmbeddableCSS() => GenerateCSS();
+
+    /// <summary>Get the card/logo tilt script for embedding (empty if no tilt configured).</summary>
+    public string GetEmbeddableTiltScript()
+    {
+        if (_settings.CardTiltIntensity <= 0 && _settings.LogoTiltIntensity <= 0)
+            return "";
+        return GenerateCardTiltScript();
+    }
 
     /// <summary>Get CSS scoped for inline embedding (strips @page/@media print).</summary>
     public string GetScopedCSS()
@@ -457,9 +470,11 @@ html, body {
     box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2);
 }
 .sheet-logo {
-    height: 48px; width: auto; vertical-align: middle;
+    height: {{_settings.LogoMaxHeight}}px; width: auto; vertical-align: middle;
     margin-right: 14px; border-radius: 6px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    transition: transform 0.3s ease-out;
+    transform-style: preserve-3d;
 }
 .sheet-title span { vertical-align: middle; }
 .sheet-subtitle {
@@ -490,7 +505,9 @@ html, body {
         0 10px 0 -4px #B8B8B8,
         0 12px 24px rgba(0,0,0,0.22);
     transform: translateY(0);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.3s ease-out, box-shadow 0.2s;
+    transform-style: preserve-3d;
+    will-change: transform;
 }
 .wk-card:hover {
     transform: translateY(-3px);
@@ -802,6 +819,45 @@ html, body {
         11 or 12 or 13 => "th",
         _ => (day % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" }
     };
+
+    private string GenerateCardTiltScript()
+    {
+        var max = _settings.CardTiltIntensity;
+        var logoMax = _settings.LogoTiltIntensity;
+        return $@"<script>
+(function(){{
+  var max={max};
+  var logoMax={logoMax};
+  var logo=document.querySelector('.sheet-logo');
+  if(logo && logoMax>0){{
+    logo.addEventListener('mousemove',function(e){{
+      var r=logo.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width;
+      var y=(e.clientY-r.top)/r.height;
+      var ry=(x-0.5)*logoMax;
+      var rx=(0.5-y)*logoMax;
+      logo.style.transform='perspective(400px) rotateX('+rx+'deg) rotateY('+ry+'deg) scale(1.05)';
+    }});
+    logo.addEventListener('mouseleave',function(){{
+      logo.style.transform='';
+    }});
+  }}
+  document.querySelectorAll('.wk-card').forEach(function(card){{
+    card.addEventListener('mousemove',function(e){{
+      var r=card.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width;
+      var y=(e.clientY-r.top)/r.height;
+      var ry=(x-0.5)*max;
+      var rx=(0.5-y)*max;
+      card.style.transform='perspective(600px) rotateX('+rx+'deg) rotateY('+ry+'deg) translateY(-3px)';
+    }});
+    card.addEventListener('mouseleave',function(){{
+      card.style.transform='';
+    }});
+  }});
+}})()
+</script>";
+    }
 
     private static string Esc(string s) => System.Net.WebUtility.HtmlEncode(s);
 }

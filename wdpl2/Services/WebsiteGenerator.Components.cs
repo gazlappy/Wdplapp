@@ -63,6 +63,10 @@ namespace Wdpl2.Services
 
             html.AppendLine($"    <link rel=\"stylesheet\" href=\"style.css?v={_cacheBuster}\">");
 
+            // Logo 3D tilt script
+            if (_settings.LogoTiltIntensity > 0)
+                AppendLogoTiltScript(html, _settings.LogoTiltIntensity);
+
             // Custom head HTML
             if (!string.IsNullOrWhiteSpace(_settings.CustomHeadHtml))
                 html.AppendLine(_settings.CustomHeadHtml);
@@ -446,6 +450,30 @@ namespace Wdpl2.Services
             if (_settings.Sponsors.Count(s => s.IsActive) > 6)
                 html.AppendLine("                <p class=\"view-all\"><a href=\"sponsors.html\">View All Sponsors ?</a></p>");
             html.AppendLine("            </section>");
+        }
+
+        private static void AppendLogoTiltScript(StringBuilder html, int intensity)
+        {
+            html.AppendLine($@"    <script>
+document.addEventListener('DOMContentLoaded',function(){{
+  var max={intensity};
+  document.querySelectorAll('.logo,.logo-right,.sponsor-item img').forEach(function(el){{
+    el.style.transition='transform 0.18s ease-out';
+    el.style.transformStyle='preserve-3d';
+    el.addEventListener('mousemove',function(e){{
+      var r=el.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width;
+      var y=(e.clientY-r.top)/r.height;
+      var ry=(x-0.5)*max;
+      var rx=(0.5-y)*max;
+      el.style.transform='perspective(400px) rotateX('+rx+'deg) rotateY('+ry+'deg) scale(1.05)';
+    }});
+    el.addEventListener('mouseleave',function(){{
+      el.style.transform='';
+    }});
+  }});
+}});
+</script>");
         }
     }
 }

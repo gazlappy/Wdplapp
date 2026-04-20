@@ -456,16 +456,22 @@ namespace Wdpl2.Services
             html.AppendLine("                <h3>&#127942; League Leaders</h3>");
             html.AppendLine("                <div class=\"leaders-list\">");
             var rank = 1;
-            foreach (var player in topPlayers)
+            for (var i = 0; i < topPlayers.Count; i++)
             {
-                var medal = rank switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => $"#{rank}" };
+                var player = topPlayers[i];
+                if (i > 0 && topPlayers[i - 1].Rating == player.Rating)
+                    rank = rank; // joint — keep same rank
+                else
+                    rank = i + 1;
+                var isJoint = (i > 0 && topPlayers[i - 1].Rating == player.Rating)
+                           || (i < topPlayers.Count - 1 && topPlayers[i + 1].Rating == player.Rating);
+                var posDisplay = isJoint ? $"{rank}=" : rank.ToString();
                 html.AppendLine("                    <div class=\"leader-item\">");
-                html.AppendLine($"                        <span class=\"rank\">{medal}</span>");
+                html.AppendLine($"                        <span class=\"rank\">{posDisplay}</span>");
                 html.AppendLine($"                        <span class=\"player-name\">{player.PlayerName}</span>");
                 html.AppendLine($"                        <span class=\"player-team\">{player.TeamName}</span>");
                 html.AppendLine($"                        <span class=\"player-stat\">{player.Rating}</span>");
                 html.AppendLine("                    </div>");
-                rank++;
             }
             html.AppendLine("                </div>");
             if (_settings.ShowPlayerStats)
@@ -751,14 +757,19 @@ namespace Wdpl2.Services
             html.AppendLine("                    </tr></thead>");
             html.AppendLine("                    <tbody>");
 
+            var topSorted = sorted.Take(8).ToList();
             var pos = 1;
-            foreach (var s in sorted.Take(8))
+            for (var i = 0; i < topSorted.Count; i++)
             {
-                var posDisplay = pos <= 3 && _settings.StandingsShowMedals
-                    ? (pos switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => pos.ToString() })
-                    : pos.ToString();
+                var s = topSorted[i];
+                if (i > 0 && topSorted[i - 1].Points == s.Points)
+                    pos = pos; // joint
+                else
+                    pos = i + 1;
+                var isJoint = (i > 0 && topSorted[i - 1].Points == s.Points)
+                           || (i < topSorted.Count - 1 && topSorted[i + 1].Points == s.Points);
+                var posDisplay = isJoint ? $"{pos}=" : pos.ToString();
                 html.AppendLine($"                        <tr><td>{posDisplay}</td><td><strong>{s.TeamName}</strong></td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Lost}</td><td><strong>{s.Points}</strong></td></tr>");
-                pos++;
             }
 
             html.AppendLine("                    </tbody>");
@@ -842,23 +853,27 @@ namespace Wdpl2.Services
                 var position = 1;
                 var totalTeams = sortedStandings.Count;
 
-                foreach (var standing in sortedStandings)
+                for (var idx = 0; idx < sortedStandings.Count; idx++)
                 {
+                    var standing = sortedStandings[idx];
+                    if (idx > 0 && sortedStandings[idx - 1].Points == standing.Points)
+                        position = position; // joint
+                    else
+                        position = idx + 1;
+
                     var rowClass = "";
                     if (_settings.StandingsHighlightTop && position <= _settings.StandingsHighlightTopCount)
                         rowClass = "highlight-top";
                     else if (_settings.StandingsHighlightBottom && position > totalTeams - _settings.StandingsHighlightBottomCount)
                         rowClass = "highlight-bottom";
-                    
+
                     html.AppendLine($"                        <tr{(string.IsNullOrEmpty(rowClass) ? "" : $" class=\"{rowClass}\"")} >");
-                    
+
                     if (_settings.StandingsShowPosition)
                     {
-                        var posDisplay = position.ToString();
-                        if (_settings.StandingsShowMedals && position <= 3)
-                        {
-                            posDisplay = position switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => posDisplay };
-                        }
+                        var isJoint = (idx > 0 && sortedStandings[idx - 1].Points == standing.Points)
+                                   || (idx < sortedStandings.Count - 1 && sortedStandings[idx + 1].Points == standing.Points);
+                        var posDisplay = isJoint ? $"{position}=" : position.ToString();
                         html.AppendLine($"                            <td>{posDisplay}</td>");
                     }
                     
@@ -873,9 +888,8 @@ namespace Wdpl2.Services
                     if (_settings.StandingsShowDeducted) html.AppendLine($"                            <td{(standing.Deducted > 0 ? " class=\"text-negative\"" : "")}>{standing.Deducted}</td>");
                     if (_settings.StandingsShowPoints) html.AppendLine($"                            <td><strong>{standing.Points}</strong></td>");
                     html.AppendLine("                        </tr>");
-                    position++;
                 }
-                
+
                 html.AppendLine("                    </tbody>");
                 html.AppendLine("                </table>");
                 html.AppendLine("                </div>");
@@ -1018,10 +1032,11 @@ namespace Wdpl2.Services
             
             var fixturesSheetGenerator = new FixturesSheetGenerator(_league, fixturesSheetSettings);
             
-            // Get embeddable content and CSS
+            // Get embeddable content, CSS, and tilt script
             var sheetContent = fixturesSheetGenerator.GenerateEmbeddableContent(season.Id);
             var sheetCss = fixturesSheetGenerator.GetEmbeddableCSS();
             var scopedCss = fixturesSheetGenerator.GetScopedCSS();
+            var sheetTiltScript = fixturesSheetGenerator.GetEmbeddableTiltScript();
 
             var expandedClass = _settings.FixturesSheetDefaultExpanded ? " expanded" : "";
             var sheetTitle = string.IsNullOrWhiteSpace(_settings.FixturesSheetTitle) 
@@ -1103,6 +1118,10 @@ namespace Wdpl2.Services
             html.AppendLine("                URL.revokeObjectURL(url);");
             html.AppendLine("            }");
             html.AppendLine("            </script>");
+
+            // Include card/logo tilt script from fixtures sheet
+            if (!string.IsNullOrEmpty(sheetTiltScript))
+                html.AppendLine(sheetTiltScript);
         }
 
         private void AppendTeamCalendarSection(StringBuilder html, Season season, List<Team> teams, List<Fixture> fixtures, List<Venue> venues)
@@ -1481,14 +1500,20 @@ namespace Wdpl2.Services
                     html.AppendLine("                    <tbody>");
 
                     var position = 1;
-                    foreach (var stat in filteredStats)
+                    for (var idx = 0; idx < filteredStats.Count; idx++)
                     {
+                        var stat = filteredStats[idx];
+                        if (idx > 0 && filteredStats[idx - 1].Rating == stat.Rating)
+                            position = position; // joint
+                        else
+                            position = idx + 1;
+
                         html.AppendLine("                        <tr>");
                         if (_settings.PlayersShowPosition)
                         {
-                            var posDisplay = position <= 3 
-                                ? (position == 1 ? "&#129351;" : position == 2 ? "&#129352;" : "&#129353;")
-                                : position.ToString();
+                            var isJoint = (idx > 0 && filteredStats[idx - 1].Rating == stat.Rating)
+                                       || (idx < filteredStats.Count - 1 && filteredStats[idx + 1].Rating == stat.Rating);
+                            var posDisplay = isJoint ? $"{position}=" : position.ToString();
                             html.AppendLine($"                            <td>{posDisplay}</td>");
                         }
                         html.AppendLine($"                            <td><strong><a href=\"player.html?id={stat.PlayerId:N}\" class=\"player-link\">{stat.PlayerName}</a></strong></td>");
@@ -1503,7 +1528,6 @@ namespace Wdpl2.Services
                         var formHtml = string.Concat(form.Select(c => c == 'W' ? "<span style='color:#10B981;'>&#9679;</span>" : "<span style='color:#EF4444;'>&#9679;</span>"));
                         html.AppendLine($"                            <td>{formHtml}</td>");
                         html.AppendLine("                        </tr>");
-                        position++;
                     }
 
                     html.AppendLine("                    </tbody>");

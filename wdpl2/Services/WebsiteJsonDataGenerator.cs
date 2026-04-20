@@ -117,21 +117,33 @@ public sealed class WebsiteJsonDataGenerator
             var division = team.DivisionId.HasValue ? divisionById.GetValueOrDefault(team.DivisionId.Value) : null;
             var venue = team.VenueId.HasValue ? venueById.GetValueOrDefault(team.VenueId.Value) : null;
 
-            // Get team roster
+            // Get team roster with stats
+            var teamPlayerStats = CalculatePlayerStats(
+                players.Where(p => p.TeamId == team.Id).ToList(),
+                teams, fixtures);
             var roster = players
                 .Where(p => p.TeamId == team.Id)
                 .OrderBy(p => p.LastName)
                 .ThenBy(p => p.FirstName)
-                .Select(p => new
+                .Select(p =>
                 {
-                    id = p.Id.ToString("N"),
-                    name = p.FullName ?? $"{p.FirstName} {p.LastName}".Trim()
+                    var stat = teamPlayerStats.FirstOrDefault(s => s.PlayerId == p.Id);
+                    return new
+                    {
+                        id = p.Id.ToString("N"),
+                        name = p.FullName ?? $"{p.FirstName} {p.LastName}".Trim(),
+                        played = stat?.Played ?? 0,
+                        won = stat?.Won ?? 0,
+                        lost = stat?.Lost ?? 0,
+                        winPct = stat != null && stat.Played > 0 ? Math.Round((double)stat.Won / stat.Played * 100, 1) : 0,
+                        rating = stat?.Rating ?? 0
+                    };
                 })
                 .ToList();
 
             // Build match history
             var teamFixtures = fixtures
-                .Where(f => f.Frames.Count != 0 && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
+                .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None) && (f.HomeTeamId == team.Id || f.AwayTeamId == team.Id))
                 .OrderByDescending(f => f.Date)
                 .ToList();
 
