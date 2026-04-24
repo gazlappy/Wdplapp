@@ -223,16 +223,28 @@ public class FixturesSheetGenerator
         if (!string.IsNullOrEmpty(divNames))
             sb.AppendLine($"<div class=\"sheet-subtitle\">{divNames} FIXTURES</div>");
 
-        // Fixture grid
-        GenerateFixtureGrid(sb, divisions, teams, fixtures, season);
+        // Fixture grid + per-division team lists.
+        // When the user wants to show division team lists, render them side-by-side with
+        // each division's own fixtures (team list left, week-card grid right) so it's
+        // immediately obvious which numbers belong to which division.
+        if (_settings.ShowDivisionLists && divisions.Count > 0
+            && fixtures.Any(f => divisions.Any(d => d.Id == f.DivisionId)))
+        {
+            GenerateDivisionBlocks(sb, divisions, teams, fixtures, venues, season);
+        }
+        else
+        {
+            // Fixture grid
+            GenerateFixtureGrid(sb, divisions, teams, fixtures, season);
+
+            // Division team lists (full-width, stacked under the grid)
+            if (_settings.ShowDivisionLists)
+                GenerateDivisionLists(sb, divisions, teams, venues);
+        }
 
         // Special events / key dates
         if (_settings.ShowSpecialEvents && _settings.SpecialEvents.Count > 0)
             GenerateKeyDates(sb);
-
-        // Division team lists
-        if (_settings.ShowDivisionLists)
-            GenerateDivisionLists(sb, divisions, teams, venues);
 
         // Venue telephone numbers
         if (_settings.ShowVenueInfo)
@@ -340,7 +352,7 @@ public class FixturesSheetGenerator
         public string Signature { get; set; } = "";
     }
 
-    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, Season season)
+    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, Season season, bool includeStandaloneEvents = true)
     {
         // Group fixtures by week date
         var weeks = fixtures
@@ -398,7 +410,7 @@ public class FixturesSheetGenerator
                 sb.AppendLine("</div>");
                 sb.AppendLine("</div>");
             }
-            else if (hasEvents)
+            else if (hasEvents && includeStandaloneEvents)
             {
                 // Standalone event card (no fixtures on this date)
                 foreach (var evt in events!)
@@ -438,29 +450,103 @@ public class FixturesSheetGenerator
 
     // ── Division Lists ───────────────────────────────────────
 
+    /// <summary>
+    /// Render each division as a side-by-side block: team list on the left,
+    /// that division's fixture week-card grid on the right.
+    /// </summary>
+    private void GenerateDivisionBlocks(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Fixture> fixtures, List<Venue> venues, Season season)
+    {
+        var divsWithFixtures = divisions
+            .Where(d => fixtures.Any(f => f.DivisionId == d.Id))
+            .ToList();
+
+        // Any orphan fixtures (no matching division) – render them at the top in the classic full-width grid.
+        var orphanFixtures = fixtures.Where(f => !divsWithFixtures.Any(d => d.Id == f.DivisionId)).ToList();
+        if (orphanFixtures.Count > 0)
+            GenerateFixtureGrid(sb, new List<Division>(), teams, orphanFixtures, season);
+
+        foreach (var div in divsWithFixtures)
+        {
+            var divFixtures = fixtures.Where(f => f.DivisionId == div.Id).ToList();
+            var numbers = new Dictionary<Guid, int>();
+            int n = 1;
+            foreach (var t in teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name))
+                numbers[t.Id] = n++;
+
+            sb.AppendLine("<div class=\"div-block\">");
+            sb.AppendLine("<div class=\"div-block-list\">");
+            GenerateSingleDivisionList(sb, div, teams, venues);
+            sb.AppendLine("</div>");
+            sb.AppendLine("<div class=\"div-block-grid\">");
+            GenerateFixtureGridRows(sb, divFixtures, teams, numbers, season, includeStandaloneEvents: false);
+            sb.AppendLine("</div>");
+            sb.AppendLine("</div>");
+        }
+
+        // Standalone non-league event dates (blackout weeks etc.) – render once below all division blocks.
+        GenerateStandaloneEvents(sb, fixtures);
+    }
+
+    /// <summary>
+    /// Render any special-event dates that have no fixtures, in a single row
+    /// along the bottom of the main fixtures section.
+    /// </summary>
+    private void GenerateStandaloneEvents(StringBuilder sb, List<Fixture> fixtures)
+    {
+        if (_settings.SpecialEvents.Count == 0) return;
+
+        var fixtureDates = new HashSet<DateTime>(fixtures.Select(f => f.Date.Date));
+        var standalone = _settings.SpecialEvents
+            .Where(e => !fixtureDates.Contains(e.Date.Date))
+            .OrderBy(e => e.Date)
+            .ToList();
+        if (standalone.Count == 0) return;
+
+        sb.AppendLine("<div class=\"wk-grid wk-grid-events\">");
+        foreach (var evt in standalone)
+        {
+            var monthName = evt.Date.ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant();
+            var day = evt.Date.Day;
+            var evtColor = !string.IsNullOrWhiteSpace(evt.Color) ? evt.Color : "#FDE68A";
+            sb.AppendLine("<div class=\"wk-card wk-card-event\">");
+            sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{evtColor};\">");
+            sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
+            sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
+            sb.AppendLine("</div>");
+            sb.AppendLine($"<div class=\"wk-event-body\">{Esc(evt.Description)}</div>");
+            sb.AppendLine("</div>");
+        }
+        sb.AppendLine("</div>");
+    }
+
+    private void GenerateSingleDivisionList(StringBuilder sb, Division div, List<Team> teams, List<Venue> venues)
+    {
+        int num = 1;
+        var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name).ToList();
+        var divColor = GetDivisionColor(div.Name);
+        sb.AppendLine("<div class=\"div-card\">");
+        sb.AppendLine($"<div class=\"div-hdr\" style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 35%,{divColor}dd 50%,{divColor} 65%,{divColor}88 100%);\">{Esc(div.Name)}</div>");
+        sb.AppendLine("<table class=\"div-tbl\">");
+        foreach (var t in divTeams)
+        {
+            var venue = venues.FirstOrDefault(v => v.Id == t.VenueId);
+            var venueName = venue?.Name ?? "";
+            var table = t.TableId.HasValue && venue != null
+                ? venue.Tables.FirstOrDefault(vt => vt.Id == t.TableId.Value)
+                : null;
+            var tableInfo = table != null ? $" ({Esc(table.Label)})" : "";
+            sb.AppendLine($"<tr><td class=\"div-num\"><span style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 40%,{divColor}dd 55%,{divColor}88 100%);\" class=\"div-badge\">{num}</span></td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
+            num++;
+        }
+        sb.AppendLine("</table></div>");
+    }
+
     private void GenerateDivisionLists(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Venue> venues)
     {
         sb.AppendLine("<div class=\"div-lists\">");
         foreach (var div in divisions)
         {
-            int num = 1;
-            var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name).ToList();
-            sb.AppendLine("<div class=\"div-card\">");
-            var divColor = GetDivisionColor(div.Name);
-            sb.AppendLine($"<div class=\"div-hdr\" style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 35%,{divColor}dd 50%,{divColor} 65%,{divColor}88 100%);\">{Esc(div.Name)}</div>");
-            sb.AppendLine("<table class=\"div-tbl\">");
-            foreach (var t in divTeams)
-            {
-                var venue = venues.FirstOrDefault(v => v.Id == t.VenueId);
-                var venueName = venue?.Name ?? "";
-                var table = t.TableId.HasValue && venue != null
-                    ? venue.Tables.FirstOrDefault(vt => vt.Id == t.TableId.Value)
-                    : null;
-                var tableInfo = table != null ? $" ({Esc(table.Label)})" : "";
-                sb.AppendLine($"<tr><td class=\"div-num\"><span style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 40%,{divColor}dd 55%,{divColor}88 100%);\" class=\"div-badge\">{num}</span></td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
-                num++;
-            }
-            sb.AppendLine("</table></div>");
+            GenerateSingleDivisionList(sb, div, teams, venues);
         }
         sb.AppendLine("</div>");
     }
@@ -707,9 +793,38 @@ html, body {
     filter: drop-shadow(0 1px 0 rgba(255,255,255,0.8));
 }
 
+/* Standalone non-league event dates rendered along the bottom of the main fixtures */
+.wk-grid-events {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 2px dashed #CBD5E1;
+    justify-content: flex-start;
+}
+
 /* ── Division Lists ── */
 .div-lists {
     display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap;
+}
+/* Side-by-side division block: team list left, fixtures grid right */
+.div-block {
+    display: grid;
+    grid-template-columns: minmax(260px, 32%) 1fr;
+    gap: 18px;
+    margin: 18px 0;
+    align-items: stretch;
+}
+.div-block-list { min-width: 0; display: flex; }
+.div-block-list .div-card { width: 100%; min-width: 0; align-self: stretch; }
+.div-block-grid { min-width: 0; display: flex; align-items: flex-start; padding-top: 2px; }
+.div-block-grid .wk-grid { margin: 0; justify-content: flex-start; align-items: flex-start; width: 100%; }
+/* Separator between consecutive division blocks */
+.div-block + .div-block {
+    border-top: 1px dashed #CBD5E1;
+    padding-top: 18px;
+    margin-top: 6px;
+}
+@media (max-width: 720px) {
+    .div-block { grid-template-columns: 1fr; }
 }
 .div-card {
     flex: 1; min-width: 280px;
@@ -815,6 +930,7 @@ html, body {
     .fixtures-sheet { padding: 0; background: white; }
     .wk-card { break-inside: avoid; }
     .wk-card:hover { transform: none; }
+    .div-block { break-inside: avoid; page-break-inside: avoid; }
 }
 @media screen {
     body { background: #0F172A; padding: 20px; }

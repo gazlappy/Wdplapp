@@ -608,18 +608,36 @@ public partial class SocialCardPage : ContentPage
     display: flex; flex-direction: column;
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
   }}
-  .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 48px; }}
+  .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:24px 48px; box-sizing:border-box; overflow:hidden; min-height:0; }}
+  .card-content-fit {{ width:100%; transform-origin:center center; }}
+  .match-row {{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:16px; padding:14px 20px; margin:6px 0; border-radius:10px; }}
+  .match-row .name {{ font-size:28px; min-width:0; word-break:break-word; overflow-wrap:anywhere; line-height:1.15; }}
+  .match-row .name.left  {{ text-align:right; padding-right:8px; }}
+  .match-row .name.right {{ text-align:left;  padding-left:8px;  }}
+  .match-row .score {{ min-width:140px; text-align:center; font-weight:800; }}
 </style>
 </head>
 <body>
 <div class='card-wrapper' id='cardWrap'>
   <div class='card'>
     {headerSection}
-    <div class='card-content'>{content}</div>
+    <div class='card-content'><div class='card-content-fit' id='cardFit'>{content}</div></div>
     {footerSection}
   </div>
 </div>
 <script>
+  function fitContent() {{
+    var fit = document.getElementById('cardFit');
+    if (!fit) return;
+    fit.style.transform = 'none';
+    var parent = fit.parentElement;
+    var availH = parent.clientHeight;
+    var availW = parent.clientWidth;
+    var contentH = fit.scrollHeight;
+    var contentW = fit.scrollWidth;
+    var s = Math.min(availH / contentH, availW / contentW, 1);
+    if (s < 1) fit.style.transform = 'scale(' + s + ')';
+  }}
   function scaleCard() {{
     var wrap = document.getElementById('cardWrap');
     var pad = 8;
@@ -630,7 +648,9 @@ public partial class SocialCardPage : ContentPage
     wrap.style.transform = 'scale(' + s + ')';
     document.body.style.height = Math.max(ch * s + pad, vh + pad) + 'px';
   }}
+  fitContent();
   scaleCard();
+  window.addEventListener('load', function() {{ fitContent(); scaleCard(); }});
   window.addEventListener('resize', scaleCard);
   window._captureData = '';
   function startCapture() {{
@@ -642,6 +662,7 @@ public partial class SocialCardPage : ContentPage
     var wrap = document.getElementById('cardWrap');
     var saved = wrap.style.transform;
     wrap.style.transform = 'none';
+    fitContent();
     html2canvas(document.querySelector('.card'), {{ scale: 1, useCORS: true, logging: false }})
       .then(function(c) {{ wrap.style.transform = saved; window._captureData = c.toDataURL('image/png'); }})
       .catch(function(e) {{ wrap.style.transform = saved; window._captureData = 'ERROR:' + e.message; }});
@@ -674,21 +695,17 @@ public partial class SocialCardPage : ContentPage
         return $@"
         {(showDiv ? $"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(division)}</div>" : "")}
         {(showDate ? $"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:24px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
-        <div style='display:flex;align-items:center;justify-content:center;gap:30px;padding:24px 0;'>
-            <div style='flex:1;text-align:center;'>
-                <div style='font-size:40px;font-weight:700;color:{style.TextColor};{(homeWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(home)}</div>
-            </div>
+        <div class='match-row' style='gap:24px;padding:24px 0;'>
+            <div class='name left' style='font-size:40px;font-weight:700;color:{style.TextColor};{(homeWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(home)}</div>
             <div style='text-align:center;'>
-                <div style='font-size:96px;font-weight:900;color:{style.TextColor};letter-spacing:4px;'>
+                <div style='font-size:96px;font-weight:900;color:{style.TextColor};letter-spacing:4px;line-height:1;'>
                     <span style='{(homeWin ? "color:" + style.Accent + ";" : "")}'>{f.HomeScore}</span>
                     <span style='color:{style.SubTextColor};margin:0 6px;'>-</span>
                     <span style='{(awayWin ? "color:" + style.Accent + ";" : "")}'>{f.AwayScore}</span>
                 </div>
                 <div style='font-size:22px;color:{style.SubTextColor};text-transform:uppercase;letter-spacing:2px;margin-top:8px;'>Final Score</div>
             </div>
-            <div style='flex:1;text-align:center;'>
-                <div style='font-size:40px;font-weight:700;color:{style.TextColor};{(awayWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(away)}</div>
-            </div>
+            <div class='name right' style='font-size:40px;font-weight:700;color:{style.TextColor};{(awayWin ? "text-shadow:0 0 8px " + style.Accent + "40;" : "")}'>{Escape(away)}</div>
         </div>
         {(showVenue ? $"<div style='text-align:center;font-size:24px;color:{style.SubTextColor};margin-top:24px;'>&#128205; {Escape(venue)}</div>" : "")}";
     }
@@ -713,17 +730,13 @@ public partial class SocialCardPage : ContentPage
         return $@"
         {(showDiv ? $"<div style='text-align:center;font-size:26px;color:{style.Accent};font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;'>{Escape(division)}</div>" : "")}
         {(showDate ? $"<div style='text-align:center;font-size:26px;color:{style.SubTextColor};margin-bottom:30px;'>{f.Date:dddd dd MMMM yyyy}</div>" : "")}
-        <div style='display:flex;align-items:center;justify-content:center;gap:30px;padding:30px 0;'>
-            <div style='flex:1;text-align:center;'>
-                <div style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(home)}</div>
-            </div>
-            <div style='text-align:center;'>
-                <div style='font-size:56px;font-weight:800;color:{style.Accent};'>VS</div>
+        <div class='match-row' style='gap:24px;padding:30px 0;'>
+            <div class='name left' style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(home)}</div>
+            <div style='text-align:center;min-width:160px;'>
+                <div style='font-size:56px;font-weight:800;color:{style.Accent};line-height:1;'>VS</div>
                 <div style='font-size:28px;font-weight:600;color:{style.TextColor};margin-top:8px;'>{f.Date:h:mm tt}</div>
             </div>
-            <div style='flex:1;text-align:center;'>
-                <div style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(away)}</div>
-            </div>
+            <div class='name right' style='font-size:44px;font-weight:700;color:{style.TextColor};'>{Escape(away)}</div>
         </div>
         {(showVenue ? $"<div style='text-align:center;font-size:24px;color:{style.SubTextColor};margin-top:24px;'>&#128205; {Escape(venue)}</div>" : "")}";
     }
@@ -918,10 +931,10 @@ public partial class SocialCardPage : ContentPage
             var homeWin = f.HomeScore > f.AwayScore;
             var awayWin = f.AwayScore > f.HomeScore;
 
-            sb.Append($@"<div style='display:flex;align-items:center;padding:14px 20px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
-                <div style='flex:1;text-align:right;font-size:28px;font-weight:{(homeWin ? "700" : "400")};color:{style.TextColor};padding-right:16px;'>{Escape(home)}</div>
-                <div style='font-size:34px;font-weight:800;color:{style.Accent};min-width:100px;text-align:center;'>{f.HomeScore} - {f.AwayScore}</div>
-                <div style='flex:1;text-align:left;font-size:28px;font-weight:{(awayWin ? "700" : "400")};color:{style.TextColor};padding-left:16px;'>{Escape(away)}</div>
+            sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;'>
+                <div class='name left' style='font-weight:{(homeWin ? "700" : "400")};color:{style.TextColor};'>{Escape(home)}</div>
+                <div class='score' style='font-size:34px;color:{style.Accent};'>{f.HomeScore} - {f.AwayScore}</div>
+                <div class='name right' style='font-weight:{(awayWin ? "700" : "400")};color:{style.TextColor};'>{Escape(away)}</div>
             </div>");
         }
 
@@ -958,13 +971,13 @@ public partial class SocialCardPage : ContentPage
             var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away";
             var venue = showVenue ? _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId)?.Name : null;
 
-            sb.Append($@"<div style='display:flex;align-items:center;padding:14px 20px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
-                <div style='flex:1;text-align:right;font-size:28px;font-weight:600;color:{style.TextColor};padding-right:16px;'>{Escape(home)}</div>
-                <div style='text-align:center;min-width:90px;'>
-                    <div style='font-size:28px;font-weight:700;color:{style.Accent};'>VS</div>
-                    <div style='font-size:20px;color:{style.SubTextColor};'>{f.Date:h:mm tt}</div>
+            sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;'>
+                <div class='name left' style='font-weight:600;color:{style.TextColor};'>{Escape(home)}</div>
+                <div class='score' style='min-width:140px;'>
+                    <div style='font-size:28px;font-weight:700;color:{style.Accent};line-height:1.1;'>VS</div>
+                    <div style='font-size:20px;color:{style.SubTextColor};margin-top:4px;'>{f.Date:h:mm tt}</div>
                 </div>
-                <div style='flex:1;text-align:left;font-size:28px;font-weight:600;color:{style.TextColor};padding-left:16px;'>{Escape(away)}</div>
+                <div class='name right' style='font-weight:600;color:{style.TextColor};'>{Escape(away)}</div>
             </div>");
 
             if (!string.IsNullOrEmpty(venue))
@@ -1050,10 +1063,10 @@ public partial class SocialCardPage : ContentPage
                     var p1Win = m.WinnerId == m.Participant1Id;
                     var p2Win = m.WinnerId == m.Participant2Id;
 
-                    sb.Append($@"<div style='display:flex;align-items:center;padding:12px 16px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
-                        <div style='flex:1;text-align:right;font-size:24px;font-weight:{(p1Win ? "700" : "400")};color:{style.TextColor};padding-right:12px;{(p1Win ? "color:" + style.Accent + ";" : "")}'>{Escape(p1)}</div>
-                        <div style='font-size:28px;font-weight:800;color:{style.Accent};min-width:80px;text-align:center;'>{m.Participant1Score} - {m.Participant2Score}</div>
-                        <div style='flex:1;text-align:left;font-size:24px;font-weight:{(p2Win ? "700" : "400")};color:{style.TextColor};padding-left:12px;{(p2Win ? "color:" + style.Accent + ";" : "")}'>{Escape(p2)}</div>
+                    sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;padding:12px 16px;'>
+                        <div class='name left' style='font-size:24px;font-weight:{(p1Win ? "700" : "400")};color:{(p1Win ? style.Accent : style.TextColor)};'>{Escape(p1)}</div>
+                        <div class='score' style='font-size:28px;color:{style.Accent};min-width:120px;'>{m.Participant1Score} - {m.Participant2Score}</div>
+                        <div class='name right' style='font-size:24px;font-weight:{(p2Win ? "700" : "400")};color:{(p2Win ? style.Accent : style.TextColor)};'>{Escape(p2)}</div>
                     </div>");
                 }
 
@@ -1134,10 +1147,10 @@ public partial class SocialCardPage : ContentPage
                     : "";
 
                 sb.Append($@"<div style='padding:12px 16px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
-                    <div style='display:flex;align-items:center;'>
-                        <div style='flex:1;text-align:right;font-size:24px;font-weight:600;color:{style.TextColor};padding-right:12px;'>{Escape(p1)}</div>
-                        <div style='font-size:28px;font-weight:700;color:{style.Accent};min-width:60px;text-align:center;'>VS</div>
-                        <div style='flex:1;text-align:left;font-size:24px;font-weight:600;color:{style.TextColor};padding-left:12px;'>{Escape(p2)}</div>
+                    <div class='match-row' style='padding:0;margin:0;background:transparent;'>
+                        <div class='name left' style='font-size:24px;font-weight:600;color:{style.TextColor};'>{Escape(p1)}</div>
+                        <div class='score' style='font-size:28px;color:{style.Accent};min-width:120px;'>VS</div>
+                        <div class='name right' style='font-size:24px;font-weight:600;color:{style.TextColor};'>{Escape(p2)}</div>
                     </div>
                     {venueHtml}
                 </div>");
