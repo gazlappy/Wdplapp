@@ -5265,14 +5265,14 @@
       "AwayTeamId": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234691",
-      "ModifiedDate": "2026-04-22T23:19:22.5688386Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688386"
     },
     {
       "Id": "00669ec6-a9de-4a29-b50e-17f3662f1f83",
@@ -7486,14 +7486,14 @@
       "AwayTeamId": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235743",
-      "ModifiedDate": "2026-04-22T23:19:22.56884Z"
+      "ModifiedDate": "2026-04-22T23:19:22.56884"
     },
     {
       "Id": "087dc27f-68cc-4b23-9244-3a385b26544c",
@@ -7503,14 +7503,14 @@
       "AwayTeamId": "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
       "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
       "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236171",
-      "ModifiedDate": "2026-04-22T23:19:22.5687125Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5687125"
     },
     {
       "Id": "0941e021-4df4-4f38-ad61-920047a1c6ca",
@@ -8006,14 +8006,14 @@
       "AwayTeamId": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235899",
-      "ModifiedDate": "2026-04-22T23:19:22.5688387Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688387"
     },
     {
       "Id": "0c84fdb4-47be-4851-89e2-5e2fa05c4155",
@@ -8023,14 +8023,14 @@
       "AwayTeamId": "ba6952e8-6390-44e4-8002-7e618d519c06",
       "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
       "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234949",
-      "ModifiedDate": "2026-04-22T23:19:22.5688344Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688344"
     },
     {
       "Id": "0cf906c3-3320-4ed1-a5ef-2da41da57bca",
@@ -8040,14 +8040,14 @@
       "AwayTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "35adb249-ec02-4e65-851f-0ccfac7486fb",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235781",
-      "ModifiedDate": "2026-04-22T23:19:22.568835Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568835"
     },
     {
       "Id": "0dda28e8-bc4f-4987-85b1-af14046144f2",
@@ -8057,14 +8057,14 @@
       "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235637",
-      "ModifiedDate": "2026-04-22T23:19:22.5688345Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688345"
     },
     {
       "Id": "0eeec21c-ac56-45b7-9da6-836c7c696cbc",
@@ -8334,14 +8334,240 @@
       "AwayTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
-      "Date": "2026-06-25T20:00:00+01:00",
-      "Frames": [],
+      "Date": "2026-06-25T20:00:00",
+      "Frames": [
+        {
+          "Number": 1,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 2,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 3,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 4,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 5,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 6,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 7,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 8,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 9,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 10,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 11,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 12,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 13,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 14,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 15,
+          "HomePlayerId": null,
+          "AwayPlayerId": null,
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 0,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        }
+      ],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234659",
-      "ModifiedDate": "2026-04-22T23:19:22.5688334Z"
+      "ModifiedDate": "2026-04-24T15:35:19.7802304"
     },
     {
       "Id": "114db5d1-43ba-43e3-976a-f7d40336f16d",
@@ -9323,14 +9549,14 @@
       "AwayTeamId": "88af25cd-b69a-4d83-ab61-223e9b6884f6",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
-      "Date": "2026-04-30T20:00:00+01:00",
+      "Date": "2026-04-30T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234905",
-      "ModifiedDate": "2026-04-22T23:19:22.5688351Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688351"
     },
     {
       "Id": "18e4f8c0-2724-43b5-8cd5-6b94a106fbd7",
@@ -15014,14 +15240,14 @@
       "AwayTeamId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235467",
-      "ModifiedDate": "2026-04-22T23:19:22.568836Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568836"
     },
     {
       "Id": "37568f55-9df7-4673-ac08-5260aad7868d",
@@ -15274,14 +15500,14 @@
       "AwayTeamId": "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-06-25T20:00:00+01:00",
+      "Date": "2026-06-25T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235707",
-      "ModifiedDate": "2026-04-22T23:19:22.5688373Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688373"
     },
     {
       "Id": "395d1a08-eb58-4a36-a2d7-a6cd81978ef8",
@@ -15291,14 +15517,14 @@
       "AwayTeamId": "88af25cd-b69a-4d83-ab61-223e9b6884f6",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.623586",
-      "ModifiedDate": "2026-04-22T23:19:22.5688388Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688388"
     },
     {
       "Id": "39f1d1d7-d4cd-4bee-8386-6e66144ff704",
@@ -15794,14 +16020,14 @@
       "AwayTeamId": "039a3321-d08c-436d-8fb5-518b30b25e9c",
       "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
       "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
-      "Date": "2026-06-25T20:00:00+01:00",
+      "Date": "2026-06-25T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234465",
-      "ModifiedDate": "2026-04-22T23:19:22.5688401Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688401"
     },
     {
       "Id": "3b6b5f99-841e-4ec2-87ba-8df78d4c62cb",
@@ -15811,14 +16037,14 @@
       "AwayTeamId": "e34d7d61-1255-42e4-b393-39741e45428b",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236471",
-      "ModifiedDate": "2026-04-22T23:19:22.5688392Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688392"
     },
     {
       "Id": "3cc4e27a-f7c9-4d85-9307-76b05a48f574",
@@ -17043,14 +17269,14 @@
       "AwayTeamId": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "3273d481-c432-4091-bd1f-dec69316e189",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236642",
-      "ModifiedDate": "2026-04-22T23:19:22.5688394Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688394"
     },
     {
       "Id": "43afca02-1ad9-4861-b4a0-040ac18e5a0e",
@@ -17060,14 +17286,14 @@
       "AwayTeamId": "039a3321-d08c-436d-8fb5-518b30b25e9c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-04-30T20:00:00+01:00",
+      "Date": "2026-04-30T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234773",
-      "ModifiedDate": "2026-04-22T23:19:22.5688395Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688395"
     },
     {
       "Id": "45d05dd5-8958-44a6-886b-2daa0b55a0a7",
@@ -19072,14 +19298,14 @@
       "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-06-25T20:00:00+01:00",
+      "Date": "2026-06-25T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236533",
-      "ModifiedDate": "2026-04-22T23:19:22.5688402Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688402"
     },
     {
       "Id": "569f6d79-75eb-4ae9-a1ec-74e609b20199",
@@ -19089,14 +19315,14 @@
       "AwayTeamId": "ba6952e8-6390-44e4-8002-7e618d519c06",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "35adb249-ec02-4e65-851f-0ccfac7486fb",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236578",
-      "ModifiedDate": "2026-04-22T23:19:22.5688347Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688347"
     },
     {
       "Id": "5854752d-72bb-4eba-859a-9cf49647fe2a",
@@ -19349,14 +19575,14 @@
       "AwayTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.623628",
-      "ModifiedDate": "2026-04-22T23:19:22.5688353Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688353"
     },
     {
       "Id": "58e39a40-b964-4c6b-b1d3-9e3f7c2958e2",
@@ -19366,14 +19592,14 @@
       "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234868",
-      "ModifiedDate": "2026-04-22T23:19:22.5688403Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688403"
     },
     {
       "Id": "58f73d86-f9f8-4560-9ee8-957429d961b6",
@@ -20858,14 +21084,14 @@
       "AwayTeamId": "039a3321-d08c-436d-8fb5-518b30b25e9c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "3273d481-c432-4091-bd1f-dec69316e189",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235536",
-      "ModifiedDate": "2026-04-22T23:19:22.5688361Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688361"
     },
     {
       "Id": "5e5e39e1-bb50-42e7-9e33-264e3243ab20",
@@ -20875,14 +21101,14 @@
       "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
       "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
       "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235301",
-      "ModifiedDate": "2026-04-22T23:19:22.5688354Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688354"
     },
     {
       "Id": "62a870da-a3dc-4193-8b8e-77b0d4d592dd",
@@ -21638,14 +21864,14 @@
       "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "3273d481-c432-4091-bd1f-dec69316e189",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236426",
-      "ModifiedDate": "2026-04-22T23:19:22.5688404Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688404"
     },
     {
       "Id": "666ee749-6fe8-418b-8625-5b078b50fa0c",
@@ -22644,14 +22870,14 @@
       "AwayTeamId": "88af25cd-b69a-4d83-ab61-223e9b6884f6",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235602",
-      "ModifiedDate": "2026-04-22T23:19:22.5688389Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688389"
     },
     {
       "Id": "6ac08b7f-e41e-457f-8bc3-f1724e88542c",
@@ -24119,14 +24345,14 @@
       "AwayTeamId": "039a3321-d08c-436d-8fb5-518b30b25e9c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235269",
-      "ModifiedDate": "2026-04-22T23:19:22.5688396Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688396"
     },
     {
       "Id": "72160d78-c944-465a-a6d6-cd221e1be5d8",
@@ -24136,14 +24362,14 @@
       "AwayTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "3273d481-c432-4091-bd1f-dec69316e189",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234726",
-      "ModifiedDate": "2026-04-22T23:19:22.568839Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568839"
     },
     {
       "Id": "72412d9b-0ab2-4ae2-b6d3-1325e8e388d7",
@@ -24153,14 +24379,14 @@
       "AwayTeamId": "039a3321-d08c-436d-8fb5-518b30b25e9c",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236393",
-      "ModifiedDate": "2026-04-22T23:19:22.5688405Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688405"
     },
     {
       "Id": "728a997e-8b18-4623-9447-2efc26408b69",
@@ -24413,14 +24639,14 @@
       "AwayTeamId": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6224642",
-      "ModifiedDate": "2026-04-22T23:19:22.5688397Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688397"
     },
     {
       "Id": "74a2575c-54c3-4b74-a654-e88586971cfe",
@@ -25159,14 +25385,14 @@
       "AwayTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-04-30T20:00:00+01:00",
+      "Date": "2026-04-30T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234071",
-      "ModifiedDate": "2026-04-22T23:19:22.5688406Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688406"
     },
     {
       "Id": "785b2fbb-9016-4d42-aad6-d3677c3543ed",
@@ -25419,14 +25645,14 @@
       "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "35adb249-ec02-4e65-851f-0ccfac7486fb",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236202",
-      "ModifiedDate": "2026-04-22T23:19:22.5688338Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688338"
     },
     {
       "Id": "7ab12fef-803c-4af2-a37e-629563c4e364",
@@ -25973,14 +26199,14 @@
       "AwayTeamId": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "35adb249-ec02-4e65-851f-0ccfac7486fb",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234984",
-      "ModifiedDate": "2026-04-22T23:19:22.5688363Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688363"
     },
     {
       "Id": "7fb9b335-df5e-4303-86ea-6b6f3ff89f00",
@@ -26476,14 +26702,14 @@
       "AwayTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.623636",
-      "ModifiedDate": "2026-04-22T23:19:22.5688398Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688398"
     },
     {
       "Id": "84726420-621f-422f-adc9-fcf4f112fd29",
@@ -27465,14 +27691,14 @@
       "AwayTeamId": "ba6952e8-6390-44e4-8002-7e618d519c06",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235504",
-      "ModifiedDate": "2026-04-22T23:19:22.5688365Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688365"
     },
     {
       "Id": "89ff61e6-edb5-4266-ad13-10424fbafce2",
@@ -28228,14 +28454,14 @@
       "AwayTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235425",
-      "ModifiedDate": "2026-04-22T23:19:22.5688366Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688366"
     },
     {
       "Id": "8e80255d-ce1d-4c8e-ae17-9e8bdb739f4e",
@@ -28505,14 +28731,14 @@
       "AwayTeamId": "e34d7d61-1255-42e4-b393-39741e45428b",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.623583",
-      "ModifiedDate": "2026-04-22T23:19:22.568834Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568834"
     },
     {
       "Id": "95c324e7-22c9-4851-9c09-083b3e6433ad",
@@ -29025,14 +29251,14 @@
       "AwayTeamId": "e34d7d61-1255-42e4-b393-39741e45428b",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234836",
-      "ModifiedDate": "2026-04-22T23:19:22.5688355Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688355"
     },
     {
       "Id": "99fb42e1-da6b-45b2-b369-9e9f1321334d",
@@ -29528,14 +29754,14 @@
       "AwayTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236612",
-      "ModifiedDate": "2026-04-22T23:19:22.5688399Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688399"
     },
     {
       "Id": "9c52c0b5-f727-4f53-bbca-0b8491e28701",
@@ -29788,14 +30014,14 @@
       "AwayTeamId": "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
       "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
       "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235019",
-      "ModifiedDate": "2026-04-22T23:19:22.5688367Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688367"
     },
     {
       "Id": "9e7b4831-ca42-4d3b-a685-682056e3f328",
@@ -30291,14 +30517,14 @@
       "AwayTeamId": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-05-14T20:00:00+01:00",
+      "Date": "2026-05-14T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235125",
-      "ModifiedDate": "2026-04-22T23:19:22.5688407Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688407"
     },
     {
       "Id": "a3de5d14-dbf3-4a0b-8661-3de100ca0cdb",
@@ -33241,14 +33467,14 @@
       "AwayTeamId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235675",
-      "ModifiedDate": "2026-04-22T23:19:22.5688356Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688356"
     },
     {
       "Id": "b188ea7a-8e4a-476b-af0e-ac7037a320e2",
@@ -35931,14 +36157,14 @@
       "AwayTeamId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-06-25T20:00:00+01:00",
+      "Date": "2026-06-25T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236241",
-      "ModifiedDate": "2026-04-22T23:19:22.5688409Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688409"
     },
     {
       "Id": "b988981e-2d00-41b7-ae78-0fd4200f239d",
@@ -36451,14 +36677,14 @@
       "AwayTeamId": "e34d7d61-1255-42e4-b393-39741e45428b",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235394",
-      "ModifiedDate": "2026-04-22T23:19:22.5688368Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688368"
     },
     {
       "Id": "bd898c7c-3833-42ad-ac5a-5a07d5336de5",
@@ -38186,14 +38412,14 @@
       "AwayTeamId": "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235355",
-      "ModifiedDate": "2026-04-22T23:19:22.5688357Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688357"
     },
     {
       "Id": "cc650071-5caf-4d3b-b9fd-a7c6996d4c24",
@@ -38932,14 +39158,14 @@
       "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-04-30T20:00:00+01:00",
+      "Date": "2026-04-30T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.623457",
-      "ModifiedDate": "2026-04-22T23:19:22.5688391Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688391"
     },
     {
       "Id": "d095a304-5af1-42b9-8718-4e6397516861",
@@ -39192,14 +39418,14 @@
       "AwayTeamId": "88af25cd-b69a-4d83-ab61-223e9b6884f6",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-08-06T20:00:00+01:00",
+      "Date": "2026-08-06T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235238",
-      "ModifiedDate": "2026-04-22T23:19:22.5688359Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688359"
     },
     {
       "Id": "d19a07b1-2829-4485-a928-fd360b983ab0",
@@ -40684,14 +40910,14 @@
       "AwayTeamId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234612",
-      "ModifiedDate": "2026-04-22T23:19:22.5688342Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688342"
     },
     {
       "Id": "d827a943-be93-4a9d-b797-78f5329db2d0",
@@ -40701,14 +40927,14 @@
       "AwayTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-04-30T20:00:00+01:00",
+      "Date": "2026-04-30T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235566",
-      "ModifiedDate": "2026-04-22T23:19:22.5688369Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688369"
     },
     {
       "Id": "dac8ecc4-275b-45de-81ff-1685c399a353",
@@ -40961,14 +41187,14 @@
       "AwayTeamId": "e34d7d61-1255-42e4-b393-39741e45428b",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-07-23T20:00:00+01:00",
+      "Date": "2026-07-23T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6224603",
-      "ModifiedDate": "2026-04-22T23:19:22.568837Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568837"
     },
     {
       "Id": "dd5bcf51-57c5-4de1-88dd-9f971048923c",
@@ -43442,14 +43668,14 @@
       "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-06-25T20:00:00+01:00",
+      "Date": "2026-06-25T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6234418",
-      "ModifiedDate": "2026-04-22T23:19:22.5688348Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688348"
     },
     {
       "Id": "f2b06495-ead3-41e6-8fe1-2ba215c632c3",
@@ -43945,14 +44171,14 @@
       "AwayTeamId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
-      "Date": "2026-05-28T20:00:00+01:00",
+      "Date": "2026-05-28T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236502",
-      "ModifiedDate": "2026-04-22T23:19:22.5688372Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688372"
     },
     {
       "Id": "f3682cee-debe-4ea4-aa3d-f18351adf074",
@@ -45194,14 +45420,14 @@
       "AwayTeamId": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
-      "Date": "2026-07-09T20:00:00+01:00",
+      "Date": "2026-07-09T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236315",
-      "ModifiedDate": "2026-04-22T23:19:22.568841Z"
+      "ModifiedDate": "2026-04-22T23:19:22.568841"
     },
     {
       "Id": "f97db91f-b44f-4a5e-bcb6-0b9343e1fc14",
@@ -46183,14 +46409,14 @@
       "AwayTeamId": "ba6952e8-6390-44e4-8002-7e618d519c06",
       "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
       "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-08-20T20:00:00+01:00",
+      "Date": "2026-08-20T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6236128",
-      "ModifiedDate": "2026-04-22T23:19:22.5688343Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688343"
     },
     {
       "Id": "ff523da0-bf59-464a-a400-7a4a58ef32e7",
@@ -46200,14 +46426,14 @@
       "AwayTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
       "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
       "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
-      "Date": "2026-06-11T20:00:00+01:00",
+      "Date": "2026-06-11T20:00:00",
       "Frames": [],
       "HomeLatePenalty": 0,
       "AwayLatePenalty": 0,
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235056",
-      "ModifiedDate": "2026-04-22T23:19:22.5688349Z"
+      "ModifiedDate": "2026-04-22T23:19:22.5688349"
     }
   ],
   "Seasons": [
@@ -46266,7 +46492,7 @@
         "2026-06-04": "Team Knockout \u2014 Quarter-Finals",
         "2026-06-18": "Doubles KO",
         "2026-07-02": "Singles KO",
-        "2026-07-16": "Team Knockout \u2014 Semi-Finals",
+        "2026-07-16": "Team Knockout - Chairmans Cup \u2014 Semi-Finals",
         "2026-07-30": "Doubles KO",
         "2026-08-13": "Singles KO"
       }
@@ -46326,11 +46552,11 @@
               "Id": "a6ca6e66-c9d2-47f8-8955-4472f6f0bbbc",
               "Participant1Id": "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
               "Participant2Id": "e34d7d61-1255-42e4-b393-39741e45428b",
-              "WinnerId": null,
-              "Participant1Score": 0,
-              "Participant2Score": 0,
+              "WinnerId": "e34d7d61-1255-42e4-b393-39741e45428b",
+              "Participant1Score": 5,
+              "Participant2Score": 8,
               "ScheduledDate": null,
-              "IsComplete": false,
+              "IsComplete": true,
               "Notes": null,
               "IsLosersBracket": false,
               "GroupId": null,
@@ -46362,11 +46588,11 @@
               "Id": "f7549537-84c4-46ec-98ed-2e5b638acd32",
               "Participant1Id": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
               "Participant2Id": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
-              "WinnerId": null,
-              "Participant1Score": 0,
-              "Participant2Score": 0,
+              "WinnerId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
+              "Participant1Score": 8,
+              "Participant2Score": 5,
               "ScheduledDate": null,
-              "IsComplete": false,
+              "IsComplete": true,
               "Notes": null,
               "IsLosersBracket": false,
               "GroupId": null,
@@ -46398,11 +46624,11 @@
               "Id": "3daf19f8-d5ec-499a-abc6-5c4f1f7166b6",
               "Participant1Id": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
               "Participant2Id": "88af25cd-b69a-4d83-ab61-223e9b6884f6",
-              "WinnerId": null,
-              "Participant1Score": 0,
-              "Participant2Score": 0,
+              "WinnerId": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
+              "Participant1Score": 8,
+              "Participant2Score": 7,
               "ScheduledDate": null,
-              "IsComplete": false,
+              "IsComplete": true,
               "Notes": null,
               "IsLosersBracket": false,
               "GroupId": null,
@@ -46434,11 +46660,11 @@
               "Id": "4c87aa51-0cb7-43c5-98b4-53d78c2ba510",
               "Participant1Id": "ba6952e8-6390-44e4-8002-7e618d519c06",
               "Participant2Id": "3402642d-8eee-487a-8038-eba2cf19a3c3",
-              "WinnerId": null,
-              "Participant1Score": 0,
-              "Participant2Score": 0,
+              "WinnerId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
+              "Participant1Score": 3,
+              "Participant2Score": 8,
               "ScheduledDate": null,
-              "IsComplete": false,
+              "IsComplete": true,
               "Notes": null,
               "IsLosersBracket": false,
               "GroupId": null,
@@ -46513,7 +46739,7 @@
             {
               "Id": "9efda6aa-1370-4824-bb35-94aa5c8e0fe8",
               "Participant1Id": "039a3321-d08c-436d-8fb5-518b30b25e9c",
-              "Participant2Id": null,
+              "Participant2Id": "e34d7d61-1255-42e4-b393-39741e45428b",
               "WinnerId": null,
               "Participant1Score": 0,
               "Participant2Score": 0,
@@ -46531,7 +46757,7 @@
             {
               "Id": "1339f278-9aed-4ca4-8533-9738cd048d29",
               "Participant1Id": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
-              "Participant2Id": null,
+              "Participant2Id": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
               "WinnerId": null,
               "Participant1Score": 0,
               "Participant2Score": 0,
@@ -46549,7 +46775,7 @@
             {
               "Id": "f6446400-10ae-42fe-8336-1f756856d368",
               "Participant1Id": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
-              "Participant2Id": null,
+              "Participant2Id": "9c7028f8-2bab-4f26-9824-0d894ab6ab8a",
               "WinnerId": null,
               "Participant1Score": 0,
               "Participant2Score": 0,
@@ -46567,7 +46793,7 @@
             {
               "Id": "882942a5-1914-46b5-9411-beccf7b21291",
               "Participant1Id": "47abdffd-ee14-4c8d-911c-b64625d2d735",
-              "Participant2Id": null,
+              "Participant2Id": "3402642d-8eee-487a-8038-eba2cf19a3c3",
               "WinnerId": null,
               "Participant1Score": 0,
               "Participant2Score": 0,
@@ -46586,8 +46812,47 @@
           "IsGroupStage": false,
           "GroupId": null,
           "Date": "2026-06-04T00:00:00",
-          "SelectedVenues": [],
-          "TotalTables": 0
+          "SelectedVenues": [
+            {
+              "VenueId": "7d354a05-0aca-445c-a3aa-3ae7bacc35ef",
+              "VenueName": "R.G.W.M.C",
+              "SelectedTables": [
+                {
+                  "TableId": "35adb249-ec02-4e65-851f-0ccfac7486fb",
+                  "Label": "TABLE 1"
+                },
+                {
+                  "TableId": "3273d481-c432-4091-bd1f-dec69316e189",
+                  "Label": "TABLE 2"
+                },
+                {
+                  "TableId": "1d9b2afb-227a-4ff0-90ab-0a7653cd8383",
+                  "Label": "BAR"
+                }
+              ],
+              "TableCount": 3
+            },
+            {
+              "VenueId": "0ff84718-7256-49ea-962d-aa6cffd4b2e1",
+              "VenueName": "VIC",
+              "SelectedTables": [
+                {
+                  "TableId": "48a13363-264e-43af-b2de-f42a849875f0",
+                  "Label": "TABLE 1"
+                },
+                {
+                  "TableId": "c74f92bf-f4c0-4b91-b4de-be4dcd4214b7",
+                  "Label": "TABLE 2"
+                },
+                {
+                  "TableId": "3ffc10e2-7831-4bc2-8f67-fbe8b350acf7",
+                  "Label": "BAR"
+                }
+              ],
+              "TableCount": 3
+            }
+          ],
+          "TotalTables": 6
         },
         {
           "Id": "0687f90a-1eed-4278-a2e4-3117c720a9b9",
@@ -46674,8 +46939,114 @@
       "BestOf": 15,
       "FramesToWin": 8,
       "RandomDraw": true,
-      "PlateCompetitionId": null,
+      "PlateCompetitionId": "d30b10d7-bb3e-4ee5-b9f6-e030cd950dc8",
       "ParentCompetitionId": null,
+      "NoShowIds": []
+    },
+    {
+      "Id": "d30b10d7-bb3e-4ee5-b9f6-e030cd950dc8",
+      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
+      "Name": "Team Knockout - Chairmans Cup",
+      "Format": 2,
+      "Status": 1,
+      "CreatedDate": "2026-04-24T17:10:27.5998745",
+      "StartDate": "2026-04-23T00:00:00",
+      "Notes": "Losers Cup for Team Knockout",
+      "ParticipantIds": [
+        "fac4f9e0-e6d3-4f89-b002-cda87f3acd67",
+        "1c3c7356-53b1-4a97-8b98-99196c2eb602",
+        "88af25cd-b69a-4d83-ab61-223e9b6884f6",
+        "ba6952e8-6390-44e4-8002-7e618d519c06"
+      ],
+      "DoublesTeams": [],
+      "Rounds": [
+        {
+          "Id": "8316d004-2a49-43c4-a1db-bc263dceaf44",
+          "Name": "Semi-Finals",
+          "RoundNumber": 1,
+          "Matches": [
+            {
+              "Id": "103efda1-c891-4cec-a4bc-db99cdb3eceb",
+              "Participant1Id": null,
+              "Participant2Id": null,
+              "WinnerId": null,
+              "Participant1Score": 0,
+              "Participant2Score": 0,
+              "ScheduledDate": null,
+              "IsComplete": false,
+              "Notes": null,
+              "IsLosersBracket": false,
+              "GroupId": null,
+              "VenueId": null,
+              "VenueName": null,
+              "TableId": null,
+              "TableLabel": null,
+              "VenueDisplay": ""
+            },
+            {
+              "Id": "1044d43f-bade-43a2-bb5a-0756d6f92b6c",
+              "Participant1Id": null,
+              "Participant2Id": null,
+              "WinnerId": null,
+              "Participant1Score": 0,
+              "Participant2Score": 0,
+              "ScheduledDate": null,
+              "IsComplete": false,
+              "Notes": null,
+              "IsLosersBracket": false,
+              "GroupId": null,
+              "VenueId": null,
+              "VenueName": null,
+              "TableId": null,
+              "TableLabel": null,
+              "VenueDisplay": ""
+            }
+          ],
+          "IsGroupStage": false,
+          "GroupId": null,
+          "Date": "2026-07-16T00:00:00",
+          "SelectedVenues": [],
+          "TotalTables": 0
+        },
+        {
+          "Id": "85a6a76a-298a-47be-8542-46c683337206",
+          "Name": "Final",
+          "RoundNumber": 2,
+          "Matches": [
+            {
+              "Id": "affe7063-d73b-4834-b772-23834d1e1925",
+              "Participant1Id": null,
+              "Participant2Id": null,
+              "WinnerId": null,
+              "Participant1Score": 0,
+              "Participant2Score": 0,
+              "ScheduledDate": null,
+              "IsComplete": false,
+              "Notes": null,
+              "IsLosersBracket": false,
+              "GroupId": null,
+              "VenueId": null,
+              "VenueName": null,
+              "TableId": null,
+              "TableLabel": null,
+              "VenueDisplay": ""
+            }
+          ],
+          "IsGroupStage": false,
+          "GroupId": null,
+          "Date": null,
+          "SelectedVenues": [],
+          "TotalTables": 0
+        }
+      ],
+      "GroupSettings": null,
+      "Groups": [],
+      "PreviousGroups": [],
+      "BestOf": 15,
+      "FramesToWin": 8,
+      "RandomDraw": true,
+      "PlateCompetitionId": null,
+      "ParentCompetitionId": "2e8623f8-84be-42af-96fc-4796af911a58",
       "NoShowIds": []
     }
   ],
@@ -46810,6 +47181,16 @@
       "CompetitionId": "2e8623f8-84be-42af-96fc-4796af911a58",
       "RoundId": "5b8e5920-9bc0-4aff-a892-18ef74dc9a2a",
       "CreatedDate": "2026-04-17T22:22:23.5557411Z"
+    },
+    {
+      "Id": "03d772cf-f324-45be-9da9-a7f6c4b625b8",
+      "Date": "2026-07-16T00:00:00",
+      "Title": "Team Knockout - Chairmans Cup \u2014 Semi-Finals",
+      "Notes": null,
+      "Category": 5,
+      "CompetitionId": "d30b10d7-bb3e-4ee5-b9f6-e030cd950dc8",
+      "RoundId": "8316d004-2a49-43c4-a1db-bc263dceaf44",
+      "CreatedDate": "2026-04-24T16:12:29.9293226Z"
     }
   ],
   "CalendarSettings": {
@@ -47177,6 +47558,10 @@
         "ZIndex": 1
       }
     ],
+    "CompetitionDisplayOrder": [
+      "2e8623f8-84be-42af-96fc-4796af911a58",
+      "d30b10d7-bb3e-4ee5-b9f6-e030cd950dc8"
+    ],
     "HeaderStyle": "gradient",
     "HeaderLayout": "animated-gradient",
     "HeaderBackgroundImage": "",
@@ -47385,11 +47770,11 @@
     "GitHubUsername": "",
     "GitHubRepoName": "",
     "EnableCloudSync": false,
-    "LastCloudSyncUtc": "2026-04-20T01:22:34.3452346Z",
+    "LastCloudSyncUtc": "2026-04-22T23:28:42.0937974Z",
     "SelectedSeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
     "SelectedTemplate": "modern",
-    "LastGenerated": "2026-04-23T00:23:43.4017347+01:00",
-    "LastUploaded": "2026-04-23T00:26:55.5550358+01:00",
+    "LastGenerated": "2026-04-25T00:14:46.5133946+01:00",
+    "LastUploaded": "2026-04-25T00:15:41.5405231+01:00",
     "UseCustomLogo": true,
     "LogoMaxWidth": 300,
     "LogoMaxHeight": 150,
@@ -50919,21 +51304,25 @@
     "HasSocialLinks": false,
     "HasContactInfo": false,
     "UploadedFileHashes": {
-      "home.html": "2a038166856cee844819622322b71f9dab9d2b94edea8212429692e1d806d35d",
-      "style.css": "96df7dc8aec1f7f7415a1d7b0e7417f0b6bc3a64284db5ae936aaf8a9e5c1097",
-      "standings.html": "8a417a3c5152f1dbdb508209aca22acd5304200a8f722ae0a18308b37bc69cb6",
-      "fixtures.html": "da1bdb37440b4c65119237002f096ea190e4f7c086a591731aeb088dccef94b3",
-      "results.html": "98fa973a1c0a021431f8847ce88a1ce9f8be8849c35412cfd3b21bca1e6a91a6",
-      "players.html": "7d3c514e5beefa698ec65b24a5fcb32e9d98ad478e6fd96dd8ed1e7703d984e6",
-      "players-data.json": "e85d59bb40a3af30ea5c3df73513b5af0ea4e49d15b80da25a1c753dcf5624f6",
-      "player.html": "ae7932b3c24cb90d9c930a61ba4ceffe8103d15a113e80a9189c0459744f1582",
-      "divisions.html": "11f8d9a0f881f28eb6a6a1032cc670dba4fc275fa5e6062e89a828c4f207d4ab",
-      "teams-data.json": "36e2e795acbcaebc3d7f62aa7184896fdc731e321e70900ab418821d7781dcde",
-      "team.html": "7f3eb5e598c1e5acb02673dd6d0cb94256c9f075d3d3b61bb77205ece737a52e",
-      "competitions.html": "8e859c156600c70996ef37f398ccb9dadc46100032704ffacb157dc9515ec0c8",
-      "rules.html": "2bb3453d767b11260c1e196f66c4d1580281c385a4a258c9b58601d63a871ad4",
-      "entry-forms.html": "7187bfeff5ffecd6395aefbde9c1621e13072e153f6474e87e9e39b773b16f3b",
-      "_submissions.html": "84a2da8ab142acd8867e1f1499be53484f3e160bba6bac9583746de0ea16c579"
+      "home.html": "34c81e344da4728700a32e8f49817025fcc173a4e2690efeab2cbf6d3d3e0372",
+      "style.css": "17da8e9256e887b0a8a1cfce60c0e16809d3be84b377c160e32e95b95dd5d72f",
+      "standings.html": "5fdd4acf0d8c6f39de83e3b86fd5970badbe8a7fc9e305235ee1237ec18f95ff",
+      "standings-red.html": "303d965b355c4efe05b1af85e00443b894af7224b630ad1bdd4ec9b8289f35be",
+      "standings-yellow.html": "39d266346e9295d6614eda5e790c046027176dcbcefac0e576d1bddc146e8a83",
+      "fixtures.html": "5a14b6f1a8c82098278bd580f558f3408aeb4f907b1e39bf92b59f61d3ca3c9f",
+      "results.html": "8ad515a51e44e0f05ce042ab7ea153619a3ff02ce602336c2f5fe35ad7ed0ba3",
+      "players.html": "fac4c69c5fc6dc7bc38e0bc5e754ed73efdff0e2d2608f5a221328e2d93881cd",
+      "players-red.html": "83e7db3448ed1164fa67e74eb6b3ee2a59c733cfafb357bb2d4b5b1cba0e15b6",
+      "players-yellow.html": "743af3ab8a9abe2cf61ea3d747a8b412b45d38641eff27186f2f3bf8e4f0cef6",
+      "players-data.json": "4ce02c103c2f3b165d045c83e986fa8504a8acef92bc2b547bbda102d7ca06fb",
+      "player.html": "5824422e011f41331bc89f92be9682a62b360fae0c0806a4e60ffd2bb03f7480",
+      "divisions.html": "bb3832c8c5978e49f47a9f7aad6dd84b4b0ec0f6cf449be75ec097a2ef2849e7",
+      "teams-data.json": "96d5c428fdfe372d941e7d775166fad5edf13f5512cab5c6c796047d4f92b4dc",
+      "team.html": "0d21aa7039c6cbc40e463961297aa1ac794a9e04ae67ed01079321e47ed176d3",
+      "competitions.html": "43fd6ff1f516798f72e1977511af998e906c473e2d1a0e9aee9fb817055092ab",
+      "rules.html": "19d6258415c5838f426d4de2b2fc7630c599c40b69dedf746e38bd4441da8e63",
+      "entry-forms.html": "fb399e4b894a7df147b9838d1e90870511f1ae7fa7c93e956199e6d672586d34",
+      "_submissions.html": "c70ed2c98cc468bab139bae8c755edeb314508d19ba9fec21099883e03c6d613"
     }
   },
   "FixturesSheetSettings": {
