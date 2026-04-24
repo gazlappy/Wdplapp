@@ -77,18 +77,24 @@
                     </HorizontalStackLayout>
                     
                     <Label x:Name="GitHubUrlPreview" Text="Your site: https://username.github.io/repo/" FontSize="12" TextColor="#3B82F6"/>
-                    
+
                     <Frame x:Name="GitHubStatusFrame" BackgroundColor="#FEF3C7" BorderColor="#F59E0B" Padding="8" CornerRadius="6" IsVisible="False">
                         <Label x:Name="GitHubStatusLabel" Text="Checking..." FontSize="12" TextColor="#92400E"/>
                     </Frame>
-                    
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                         <Button Grid.Column="0" 
                                 x:Name="DeployToGitHubBtn" 
                                 Text="Deploy to GitHub" 
                                 Clicked="OnDeployToGitHubClicked" 
                                 BackgroundColor="#238636"/>
                         <Button Grid.Column="1" 
+                                x:Name="SaveGitHubCredsBtn" 
+                                Text="Save" 
+                                Clicked="OnSaveGitHubCredsClicked" 
+                                BackgroundColor="#3B82F6" 
+                                WidthRequest="80"/>
+                        <Button Grid.Column="2" 
                                 x:Name="CheckGitHubStatusBtn" 
                                 Text="Status" 
                                 Clicked="OnCheckGitHubStatusClicked" 
@@ -117,7 +123,7 @@
                     <Label Text="Remote Path" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="FtpPathEntry" Placeholder="/public_html/"/>
                     
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
                         <Button Grid.Column="0" 
                                 x:Name="TestConnectionBtn" 
                                 Text="Test Connection" 
@@ -128,6 +134,12 @@
                                 Text="Upload" 
                                 Clicked="OnUploadFtpClicked" 
                                 BackgroundColor="#10B981"/>
+                        <Button Grid.Column="2" 
+                                x:Name="SaveFtpCredsBtn" 
+                                Text="Save" 
+                                Clicked="OnSaveFtpCredsClicked" 
+                                BackgroundColor="#3B82F6" 
+                                WidthRequest="80"/>
                     </Grid>
                 </VerticalStackLayout>
             </Frame>

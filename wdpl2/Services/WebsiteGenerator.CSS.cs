@@ -1158,6 +1158,52 @@ nav a:hover, nav a.active {{
     margin-top: 20px;
 }}
 
+/* Rules page search */
+.rules-search {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+}}
+.rules-search-input {{
+    flex: 1;
+    max-width: 420px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}}
+.rules-search-input:focus {{
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}}
+.rules-search-summary {{
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}}
+.rules-mark {{
+    background: #FEF08A;
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 3px;
+}}
+.rules-search-hidden {{ display: none !important; }}
+.rules-tab-btn.rules-search-has-hits::after {{
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    margin-left: 6px;
+    vertical-align: middle;
+}}
+
 .rules-tab-buttons {{
     display: flex;
     gap: 0;

@@ -45,14 +45,14 @@ public partial class DeploymentSettingsPage : ContentPage
     private void SaveSettings()
     {
         var settings = League.WebsiteSettings;
-        
+
         settings.FtpHost = FtpHostEntry.Text?.Trim() ?? "";
         if (int.TryParse(FtpPortEntry.Text, out int port))
             settings.FtpPort = port;
         settings.FtpUsername = FtpUsernameEntry.Text?.Trim() ?? "";
         settings.FtpPassword = FtpPasswordEntry.Text?.Trim() ?? "";
         settings.RemotePath = FtpPathEntry.Text?.Trim() ?? "/public_html/";
-        
+
         settings.GitHubToken = GitHubTokenEntry.Text?.Trim() ?? "";
         settings.GitHubUsername = GitHubUsernameEntry.Text?.Trim() ?? "";
         settings.GitHubRepoName = GitHubRepoEntry.Text?.Trim() ?? "";
@@ -60,6 +60,43 @@ public partial class DeploymentSettingsPage : ContentPage
         settings.EnableCloudSync = CloudSyncSwitch.IsToggled;
 
         DataStore.Save();
+    }
+
+    protected override void OnDisappearing()
+    {
+        // Persist any in-flight credential edits when the user leaves the page.
+        try { SaveSettings(); } catch { /* non-fatal */ }
+        base.OnDisappearing();
+    }
+
+    private async void OnSaveGitHubCredsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            SaveSettings();
+            StatusLabel.Text = "\u2713 GitHub credentials saved";
+            StatusLabel.TextColor = Color.FromArgb("#10B981");
+            StatusLabel.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Save Failed", ex.Message, "OK");
+        }
+    }
+
+    private async void OnSaveFtpCredsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            SaveSettings();
+            StatusLabel.Text = "\u2713 FTP credentials saved";
+            StatusLabel.TextColor = Color.FromArgb("#10B981");
+            StatusLabel.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Save Failed", ex.Message, "OK");
+        }
     }
 
     private void OnDeploymentMethodChanged(object sender, EventArgs e)
