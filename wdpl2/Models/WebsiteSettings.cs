@@ -183,6 +183,10 @@ namespace Wdpl2.Models
         
         // Drag-and-drop layout blocks for home page
         public List<LayoutBlock> HomeLayoutBlocks { get; set; } = new();
+
+        // Display order for competitions on the Competitions page (by Competition.Id).
+        // Competitions not listed here fall back to the default Status/CreatedDate sort.
+        public List<Guid> CompetitionDisplayOrder { get; set; } = new();
         
         /// <summary>
         /// Available max content widths

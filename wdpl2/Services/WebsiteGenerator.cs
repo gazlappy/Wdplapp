@@ -2152,10 +2152,16 @@ namespace Wdpl2.Services
             html.AppendLine($"                <p class=\"hero-dates\">{_settings.LeagueName}</p>");
             html.AppendLine("            </div>");
 
-            // Show ALL competitions across all seasons (tournaments are standalone events)
+            // Show ALL competitions across all seasons (tournaments are standalone events).
+            // Honour user-defined display order first, then fall back to Status/CreatedDate.
+            var orderMap = new Dictionary<Guid, int>();
+            for (int oi = 0; oi < _settings.CompetitionDisplayOrder.Count; oi++)
+                orderMap[_settings.CompetitionDisplayOrder[oi]] = oi;
+
             var competitions = _league.Competitions
                 .Where(c => c.Status != CompetitionStatus.Draft)
-                .OrderByDescending(c => c.Status == CompetitionStatus.InProgress)
+                .OrderBy(c => orderMap.TryGetValue(c.Id, out var idx) ? idx : int.MaxValue)
+                .ThenByDescending(c => c.Status == CompetitionStatus.InProgress)
                 .ThenByDescending(c => c.CreatedDate)
                 .ToList();
 

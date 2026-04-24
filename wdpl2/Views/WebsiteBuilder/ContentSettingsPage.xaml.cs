@@ -90,6 +90,9 @@ public partial class ContentSettingsPage : ContentPage
     private async void OnDivisionsSettingsClicked(object sender, EventArgs e)
         => await Navigation.PushAsync(new DivisionsSettingsPage());
 
+    private async void OnCompetitionsSettingsClicked(object sender, EventArgs e)
+        => await Navigation.PushAsync(new CompetitionsSettingsPage());
+
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         try
