@@ -259,12 +259,37 @@ public partial class CompetitionsPage
 
         if (!string.IsNullOrEmpty(group.VenueDisplay))
         {
-            headerStack.Children.Add(new Label
+            var venueLine = new Label
             {
                 Text = $"📍 {group.VenueDisplay}",
                 TextColor = Color.FromArgb("#BFDBFE"),
                 FontSize = 12
-            });
+            };
+            if (editable && _selectedCompetition != null)
+            {
+                var comp = _selectedCompetition;
+                var grp = group;
+                var tap = new TapGestureRecognizer();
+                tap.Tapped += async (_, _) => await AssignGroupVenueAsync(grp, comp);
+                venueLine.GestureRecognizers.Add(tap);
+            }
+            headerStack.Children.Add(venueLine);
+        }
+        else if (editable && _selectedCompetition != null)
+        {
+            var comp = _selectedCompetition;
+            var grp = group;
+            var venueLine = new Label
+            {
+                Text = "📍 Tap to assign venue / table",
+                TextColor = Color.FromArgb("#BFDBFE"),
+                FontSize = 12,
+                FontAttributes = FontAttributes.Italic
+            };
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) => await AssignGroupVenueAsync(grp, comp);
+            venueLine.GestureRecognizers.Add(tap);
+            headerStack.Children.Add(venueLine);
         }
 
         headerBorder.Content = headerStack;

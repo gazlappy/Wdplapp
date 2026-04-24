@@ -796,6 +796,72 @@ public partial class CompetitionEditorViewModel : ObservableObject
         return Participants.Where(p => !assignedIds.Contains(p.Id)).ToList();
     }
 
+    /// <summary>
+    /// Get all participants in the competition (for manual reassignment dialogs
+    /// where the user may pick any participant, not just unassigned ones).
+    /// </summary>
+    public List<ParticipantItem> GetAllParticipants() => Participants.ToList();
+
+    /// <summary>
+    /// Clear a participant slot in a match.
+    /// </summary>
+    public async Task ClearMatchSlotAsync(Guid matchId, bool isSlot1)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match != null)
+                {
+                    if (isSlot1) match.Participant1Id = null;
+                    else match.Participant2Id = null;
+                    await _competitionStore.UpdateCompetitionAsync(_competition);
+                    await _competitionStore.SaveAsync();
+                    StatusMessage = "Slot cleared";
+                    return;
+                }
+            }
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error clearing slot: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Swap home/away participants in a match.
+    /// </summary>
+    public async Task SwapMatchParticipantsAsync(Guid matchId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match != null)
+                {
+                    (match.Participant1Id, match.Participant2Id) = (match.Participant2Id, match.Participant1Id);
+                    (match.Participant1Score, match.Participant2Score) = (match.Participant2Score, match.Participant1Score);
+                    await _competitionStore.UpdateCompetitionAsync(_competition);
+                    await _competitionStore.SaveAsync();
+                    StatusMessage = "Swapped home/away";
+                    return;
+                }
+            }
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error swapping: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     private async Task GenerateGroupsAsync()
     {

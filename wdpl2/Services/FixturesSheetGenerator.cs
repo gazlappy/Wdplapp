@@ -252,24 +252,92 @@ public class FixturesSheetGenerator
     {
         if (fixtures.Count == 0) { sb.AppendLine("<p>No fixtures scheduled.</p>"); return; }
 
-        // Use fixtures from the first division only — since all divisions share
-        // the same round-robin structure with per-division numbering (1..N),
-        // one grid serves all divisions. The division team lists act as the key.
-        var firstDiv = divisions.FirstOrDefault();
-        var gridFixtures = firstDiv != null
-            ? fixtures.Where(f => f.DivisionId == firstDiv.Id).ToList()
-            : fixtures;
+        // Build a per-division view of (date -> ordered list of fixtures) and (teamId -> 1..N number).
+        // Historically the sheet rendered ONLY the first division's grid because the original
+        // generator created an identical round-robin pattern in every division — so a single grid
+        // doubled as the key for all of them. After manual edits, plan imports, or per-division
+        // re-sorts, divisions can drift apart and the printed sheet then disagrees with the live
+        // fixtures. Detect that and either (a) keep printing the shared grid when every division
+        // truly does match, or (b) emit one grid per division so what you print is what's scheduled.
 
-        // Build team number lookup for the first division
-        var teamNumbers = new Dictionary<Guid, int>();
-        if (firstDiv != null)
+        var divViews = new List<DivisionGridView>();
+        foreach (var d in divisions)
         {
-            int num = 1;
-            foreach (var t in teams.Where(t => t.DivisionId == firstDiv.Id).OrderBy(t => t.Name))
-                teamNumbers[t.Id] = num++;
+            var divFixtures = fixtures.Where(f => f.DivisionId == d.Id).ToList();
+            if (divFixtures.Count == 0) continue;
+
+            var numbers = new Dictionary<Guid, int>();
+            int n = 1;
+            foreach (var t in teams.Where(t => t.DivisionId == d.Id).OrderBy(t => t.Name))
+                numbers[t.Id] = n++;
+
+            divViews.Add(new DivisionGridView
+            {
+                Division     = d,
+                Fixtures     = divFixtures,
+                TeamNumbers  = numbers,
+                Signature    = BuildPairingSignature(divFixtures, numbers),
+            });
         }
 
-        GenerateFixtureGridRows(sb, gridFixtures, teams, teamNumbers, season);
+        if (divViews.Count == 0)
+        {
+            // Fallback: divisions list was empty (or no fixtures had DivisionId set) – render
+            // every fixture in one grid using whatever team numbers we can derive.
+            var numbers = new Dictionary<Guid, int>();
+            int n = 1;
+            foreach (var t in teams.OrderBy(t => t.Name))
+                numbers[t.Id] = n++;
+            GenerateFixtureGridRows(sb, fixtures, teams, numbers, season);
+            return;
+        }
+
+        // If every division has the same per-week pairing pattern, the shared grid is accurate –
+        // keep the classic compact output.
+        bool divisionsAligned = divViews.Skip(1).All(v => v.Signature == divViews[0].Signature);
+
+        if (divisionsAligned || divViews.Count == 1)
+        {
+            // Use the first division's fixtures + numbers (its key/numbering applies to all aligned divisions).
+            var primary = divViews[0];
+            GenerateFixtureGridRows(sb, primary.Fixtures, teams, primary.TeamNumbers, season);
+            return;
+        }
+
+        // Divisions diverge – render one grid per division so the sheet matches the actual fixtures.
+        foreach (var view in divViews)
+        {
+            sb.AppendLine($"<h3 class=\"sheet-subtitle\" style=\"margin-top:12px;\">{Esc((view.Division.Name ?? "Division").ToUpperInvariant())} FIXTURES</h3>");
+            GenerateFixtureGridRows(sb, view.Fixtures, teams, view.TeamNumbers, season);
+        }
+    }
+
+    /// <summary>
+    /// Builds a stable string describing all pairings (by team number) per match night so we can
+    /// quickly tell whether two divisions share an identical round-robin layout.
+    /// </summary>
+    private static string BuildPairingSignature(List<Fixture> fixtures, Dictionary<Guid, int> numbers)
+    {
+        var sb = new StringBuilder();
+        foreach (var grp in fixtures.GroupBy(f => f.Date.Date).OrderBy(g => g.Key))
+        {
+            sb.Append(grp.Key.ToString("yyyy-MM-dd")).Append(':');
+            var pairs = grp
+                .Select(f => (h: numbers.GetValueOrDefault(f.HomeTeamId), a: numbers.GetValueOrDefault(f.AwayTeamId)))
+                .OrderBy(p => p.h).ThenBy(p => p.a)
+                .Select(p => $"{p.h}v{p.a}");
+            sb.Append(string.Join(",", pairs));
+            sb.Append(';');
+        }
+        return sb.ToString();
+    }
+
+    private sealed class DivisionGridView
+    {
+        public Division Division { get; set; } = null!;
+        public List<Fixture> Fixtures { get; set; } = new();
+        public Dictionary<Guid, int> TeamNumbers { get; set; } = new();
+        public string Signature { get; set; } = "";
     }
 
     private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, Season season)

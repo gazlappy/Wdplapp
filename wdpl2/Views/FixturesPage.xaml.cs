@@ -145,7 +145,7 @@ public partial class FixturesPage : ContentPage
             FromDate.DateSelected += (_, __) => RefreshList();
         
         ActiveSeasonOnly.Toggled += (_, __) => RefreshList();
-        DivisionPicker.SelectedIndexChanged += (_, __) => RefreshList();
+        DivisionPicker.SelectedIndexChanged += (_, __) => { if (!_suppressDivisionPickerEvent) RefreshList(); };
 
         SaveBtn.Clicked += async (_, __) => await SaveFromUIAsync();
         ClearBtn.Clicked += (_, __) => OnClearFrames();
@@ -170,6 +170,7 @@ public partial class FixturesPage : ContentPage
 
         // Add Reschedule + Undo + Print Scorecard + Bulk Score buttons (defined in XAML flyout)
         RescheduleBtn.Clicked += async (_, __) => await OnRescheduleFixtureAsync();
+        EditTeamsBtn.Clicked  += async (_, __) => await OnEditFixtureTeamsAsync();
         UndoSaveBtn.Clicked += async (_, __) =>
         {
             var confirm = await DisplayAlert("Undo", "Revert to the state before last save?", "Undo", "Cancel");
@@ -1303,6 +1304,8 @@ public partial class FixturesPage : ContentPage
 
     // ========== LEFT LIST DATA ==========
 
+    private bool _suppressDivisionPickerEvent;
+
     private void RefreshList()
     {
         _items.Clear();
@@ -1310,14 +1313,36 @@ public partial class FixturesPage : ContentPage
         var data = DataStore.Data;
         if (data == null) return;
         
-        // Load divisions into picker if empty or season changed
+        // Load divisions into picker if empty or season changed.
+        // Prepend an "All Divisions" sentinel so the user can clear a division filter
+        // after one has been selected (the Picker's Title only shows while SelectedItem is null).
         var divisions = data.Divisions
             .Where(d => !ActiveSeasonOnly.IsToggled || d.SeasonId == data.ActiveSeasonId)
             .OrderBy(d => d.Name)
             .ToList();
-        
-        DivisionPicker.ItemsSource = divisions;
-        
+
+        var pickerItems = new List<Division>(divisions.Count + 1)
+        {
+            new Division { Id = Guid.Empty, Name = "All Divisions" }
+        };
+        pickerItems.AddRange(divisions);
+
+        // Preserve the current selection by Id where possible; otherwise default to "All Divisions".
+        var previousSelectedId = (DivisionPicker.SelectedItem as Division)?.Id;
+        _suppressDivisionPickerEvent = true;
+        try
+        {
+            DivisionPicker.ItemsSource = pickerItems;
+            var toSelect = previousSelectedId.HasValue
+                ? pickerItems.FirstOrDefault(d => d.Id == previousSelectedId.Value)
+                : null;
+            DivisionPicker.SelectedItem = toSelect ?? pickerItems[0];
+        }
+        finally
+        {
+            _suppressDivisionPickerEvent = false;
+        }
+
         var teamById = data.Teams.ToDictionary(t => t.Id, t => t);
         var venueById = data.Venues.ToDictionary(v => v.Id, v => v);
 
@@ -1331,9 +1356,9 @@ public partial class FixturesPage : ContentPage
         {
             return;
         }
-        
+
         var selectedDivision = DivisionPicker.SelectedItem as Division;
-        if (selectedDivision != null)
+        if (selectedDivision != null && selectedDivision.Id != Guid.Empty)
         {
             src = src.Where(f => f.DivisionId == selectedDivision.Id);
         }
@@ -2573,6 +2598,17 @@ public partial class FixturesPage : ContentPage
         if (_selectedFixture == null) return;
         if (await CheckSeasonLockedAsync("clear frames")) return;
 
+        // Wipe any persisted frame data on the selected fixture so the rest of the app
+        // (Edit Teams, schedule snapshots, played/unplayed filters, etc.) treats it as
+        // unplayed again. Without this the in-memory Frames list keeps placeholder rows.
+        _selectedFixture.Frames.Clear();
+        _selectedFixture.HomeLatePenalty = 0;
+        _selectedFixture.AwayLatePenalty = 0;
+        _selectedFixture.CancelledByTeam = FrameWinner.None;
+        _selectedFixture.CancellationPenalty = 0;
+        _selectedFixture.ModifiedDate = DateTime.UtcNow;
+        DataStore.Save();
+
         foreach (var row in _frameRows)
         {
             row.HomePlayerId = null;
@@ -2986,6 +3022,176 @@ public partial class FixturesPage : ContentPage
 
         await DisplayAlert($"{Emojis.Success} Rescheduled",
             $"Fixture moved to {newDate:ddd dd MMM yyyy}", "OK");
+    }
+
+    /// <summary>
+    /// Allow the user to manually change the teams playing in the selected fixture
+    /// (swap home/away, change just the home team, change just the away team, or both).
+    /// Updates venue/table to the new home team's registered home table and refuses
+    /// to edit a fixture that already has frames recorded.
+    /// </summary>
+    private async System.Threading.Tasks.Task OnEditFixtureTeamsAsync()
+    {
+        if (_selectedFixture == null)
+        {
+            await DisplayAlert("No Fixture", "Select a fixture first.", "OK");
+            return;
+        }
+        if (await CheckSeasonLockedAsync("edit teams")) return;
+
+        // A fixture is only really "played" when at least one frame has a recorded
+        // outcome (winner, players, or 8-ball flag) or the match was cancelled.
+        // Empty placeholder frame rows do NOT count, otherwise Edit Teams would
+        // refuse on every freshly-generated fixture.
+        bool hasRealResults =
+            _selectedFixture.CancelledByTeam != FrameWinner.None ||
+            _selectedFixture.Frames.Any(f =>
+                f.Winner != FrameWinner.None ||
+                f.HomePlayerId.HasValue || f.AwayPlayerId.HasValue ||
+                f.HomePlayer2Id.HasValue || f.AwayPlayer2Id.HasValue ||
+                f.EightBall);
+
+        if (hasRealResults)
+        {
+            await DisplayAlert($"{Emojis.Warning} Fixture has results",
+                "This fixture already has frame results recorded. Clear the results first if you really need to change the teams.",
+                "OK");
+            return;
+        }
+
+        var data = DataStore.Data;
+        var seasonTeams = data.Teams
+            .Where(t => t.SeasonId == _selectedFixture.SeasonId)
+            .OrderBy(t => t.Name)
+            .ToList();
+        if (seasonTeams.Count < 2)
+        {
+            await DisplayAlert("Not enough teams", "There are fewer than two teams in this season.", "OK");
+            return;
+        }
+
+        var teamById  = seasonTeams.ToDictionary(t => t.Id);
+        var venueById = data.Venues.ToDictionary(v => v.Id, v => v);
+
+        string Name(Guid id) => teamById.TryGetValue(id, out var t) ? (t.Name ?? "?") : "?";
+
+        var action = await DisplayActionSheet(
+            $"Edit teams — {Name(_selectedFixture.HomeTeamId)} (H) vs {Name(_selectedFixture.AwayTeamId)} (A)",
+            "Cancel", null,
+            "Swap Home / Away",
+            "Change Home team",
+            "Change Away team",
+            "Change Both");
+
+        if (string.IsNullOrEmpty(action) || action == "Cancel") return;
+
+        Guid newHomeId = _selectedFixture.HomeTeamId;
+        Guid newAwayId = _selectedFixture.AwayTeamId;
+
+        async System.Threading.Tasks.Task<Guid?> PickTeamAsync(string title, Guid excludeId)
+        {
+            var choices = seasonTeams.Where(t => t.Id != excludeId).Select(t => t.Name ?? "?").ToArray();
+            var pick = await DisplayActionSheet(title, "Cancel", null, choices);
+            if (string.IsNullOrEmpty(pick) || pick == "Cancel") return null;
+            var picked = seasonTeams.FirstOrDefault(t => (t.Name ?? "?") == pick && t.Id != excludeId);
+            return picked?.Id;
+        }
+
+        switch (action)
+        {
+            case "Swap Home / Away":
+                (newHomeId, newAwayId) = (newAwayId, newHomeId);
+                break;
+
+            case "Change Home team":
+            {
+                var pick = await PickTeamAsync("Select new HOME team", newAwayId);
+                if (pick == null) return;
+                newHomeId = pick.Value;
+                break;
+            }
+
+            case "Change Away team":
+            {
+                var pick = await PickTeamAsync("Select new AWAY team", newHomeId);
+                if (pick == null) return;
+                newAwayId = pick.Value;
+                break;
+            }
+
+            case "Change Both":
+            {
+                var h = await PickTeamAsync("Select new HOME team", Guid.Empty);
+                if (h == null) return;
+                newHomeId = h.Value;
+                var a = await PickTeamAsync("Select new AWAY team", newHomeId);
+                if (a == null) return;
+                newAwayId = a.Value;
+                break;
+            }
+        }
+
+        if (newHomeId == newAwayId)
+        {
+            await DisplayAlert($"{Emojis.Error} Invalid",
+                "Home and Away cannot be the same team.", "OK");
+            return;
+        }
+
+        // Resolve the new home team's registered home venue/table
+        var newHome = teamById.TryGetValue(newHomeId, out var ht) ? ht : null;
+        var newVenueId = newHome?.VenueId ?? _selectedFixture.VenueId;
+        var newTableId = newHome?.VenueId.HasValue == true ? newHome.TableId : _selectedFixture.TableId;
+        var newDivisionId = newHome?.DivisionId ?? _selectedFixture.DivisionId;
+
+        // Validate against other fixtures (clash detection)
+        var probe = new Fixture
+        {
+            Id          = _selectedFixture.Id,
+            SeasonId    = _selectedFixture.SeasonId,
+            DivisionId  = newDivisionId,
+            HomeTeamId  = newHomeId,
+            AwayTeamId  = newAwayId,
+            VenueId     = newVenueId,
+            TableId     = newTableId,
+            Date        = _selectedFixture.Date,
+        };
+
+        var conflicts = FixtureValidator.DetectScheduleConflicts(
+            probe, data.Fixtures, data.Teams, data.Venues);
+
+        if (conflicts.Warnings.Count > 0)
+        {
+            var msg = string.Join("\n", conflicts.Warnings);
+            var proceed = await DisplayAlert($"{Emojis.Warning} Schedule Conflicts",
+                msg + "\n\nApply changes anyway?", "Yes", "Cancel");
+            if (!proceed) return;
+        }
+
+        // Confirm summary
+        var venueName = newVenueId.HasValue && venueById.TryGetValue(newVenueId.Value, out var nv)
+            ? nv.Name : "(no venue)";
+        var confirm = await DisplayAlert("Confirm",
+            $"{_selectedFixture.Date:ddd dd MMM yyyy}\n\n" +
+            $"Home: {Name(newHomeId)}\n" +
+            $"Away: {Name(newAwayId)}\n" +
+            $"Venue: {venueName}",
+            "Save", "Cancel");
+        if (!confirm) return;
+
+        _selectedFixture.HomeTeamId   = newHomeId;
+        _selectedFixture.AwayTeamId   = newAwayId;
+        _selectedFixture.VenueId      = newVenueId;
+        _selectedFixture.TableId      = newTableId;
+        _selectedFixture.DivisionId   = newDivisionId;
+        _selectedFixture.ModifiedDate = DateTime.UtcNow;
+        DataStore.Save();
+
+        UpdateHeader();
+        RefreshList();
+
+        await DisplayAlert($"{Emojis.Success} Updated",
+            $"{Name(newHomeId)} (H) vs {Name(newAwayId)} (A)", "OK");
     }
 
     private async System.Threading.Tasks.Task OnPrintScorecardAsync()

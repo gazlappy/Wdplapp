@@ -156,6 +156,7 @@
                     <Button x:Name="ManageNotificationsBtn" Text="🔔 Reminders" BackgroundColor="{StaticResource InfoColor}" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Manage reminders" />
                     <Button x:Name="PrintScorecardBtn" Text="🖨️ Print Scorecard" BackgroundColor="#059669" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Print blank scorecard" />
                     <Button x:Name="RescheduleBtn" Text="📅 Reschedule" BackgroundColor="#6366F1" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Reschedule fixture" />
+                    <Button x:Name="EditTeamsBtn" Text="🔁 Edit Teams (Home/Away)" BackgroundColor="#4F46E5" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Change which teams play in the selected fixture or swap home and away" />
                     <Button x:Name="BulkScoreBtn" Text="⚡ Bulk Score Entry" BackgroundColor="#7C3AED" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Bulk score entry mode" />
                     <Button x:Name="UndoSaveBtn" Text="↩️ Undo Last Save" BackgroundColor="#D97706" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Undo last save" />
                     <Button x:Name="DiagnosticsBtn" Text="🔍 Diagnostics" BackgroundColor="{StaticResource Gray600}" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="View diagnostics" />
