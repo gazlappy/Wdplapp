@@ -21,6 +21,7 @@ namespace Wdpl2.Services
     {
         private readonly LeagueData _league;
         private readonly WebsiteSettings _settings;
+        private List<Division> _navDivisions = new();
 
         /// <summary>Effective league settings resolved for the website's selected season.</summary>
         private AppSettings _leagueSettings = null!;
@@ -51,17 +52,28 @@ namespace Wdpl2.Services
             }
 
             _leagueSettings = _league.GetSettingsForSeason(season.Id);
-            
+
+            // Cache divisions for the active season so shared components (e.g. nav) can read them
+            var (_navDivs, _, _, _, _) = _league.GetSeasonData(season.Id);
+            _navDivisions = _navDivs.OrderBy(d => d.Name).ToList();
+
             // Generate files based on template
             var template = WebsiteTemplate.GetTemplateById(_settings.SelectedTemplate) ?? WebsiteTemplate.Modern;
-            
+
             // Core files
             files["home.html"] = GenerateIndexPage(season, template);
             files["style.css"] = GenerateStylesheet(template);
-            
+
             // Optional pages
             if (_settings.ShowStandings)
+            {
                 files["standings.html"] = GenerateStandingsPage(season, template);
+                foreach (var d in _navDivisions)
+                {
+                    var slug = StandingsDivisionSlug(d);
+                    files[$"standings-{slug}.html"] = GenerateStandingsPage(season, template, d);
+                }
+            }
             
             if (_settings.ShowFixtures)
                 files["fixtures.html"] = GenerateFixturesPage(season, template);
@@ -72,7 +84,13 @@ namespace Wdpl2.Services
             if (_settings.ShowPlayerStats)
             {
                 files["players.html"] = GeneratePlayersPage(season, template);
-                
+
+                foreach (var d in _navDivisions)
+                {
+                    var slug = StandingsDivisionSlug(d);
+                    files[$"players-{slug}.html"] = GeneratePlayersPage(season, template, d);
+                }
+
                 // Generate JSON data file and single template page (instead of individual HTML files per player)
                 var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
                 var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
@@ -793,28 +811,39 @@ namespace Wdpl2.Services
             html.AppendLine("            </section>");
         }
 
-        private string GenerateStandingsPage(Season season, WebsiteTemplate template)
+        private string GenerateStandingsPage(Season season, WebsiteTemplate template, Division? singleDivision = null)
         {
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-            
-            AppendDocumentHead(html, $"{_settings.StandingsPageTitle} - {_settings.LeagueName}", season);
+
+            var pageTitle = _settings.StandingsPageTitle;
+            var docTitle = singleDivision != null
+                ? $"{singleDivision.Name} - {pageTitle} - {_settings.LeagueName}"
+                : $"{pageTitle} - {_settings.LeagueName}";
+            AppendDocumentHead(html, docTitle, season);
             html.AppendLine("<body>");
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
                 html.AppendLine(_settings.CustomBodyStartHtml);
-            
+
             AppendHeader(html, season);
             AppendNavigation(html, "Standings");
-            
+
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine($"                <h2>{Esc(_settings.StandingsPageTitle)}</h2>");
-            html.AppendLine($"                <p class=\"hero-dates\">{season.Name}</p>");
+            html.AppendLine($"                <h2>{Esc(pageTitle)}</h2>");
+            var heroSub = singleDivision != null
+                ? $"{Esc(singleDivision.Name)} &middot; {Esc(season.Name)}"
+                : Esc(season.Name);
+            html.AppendLine($"                <p class=\"hero-dates\">{heroSub}</p>");
             html.AppendLine("            </div>");
-            
-            foreach (var division in divisions.OrderBy(d => d.Name))
+
+            var divisionsToRender = singleDivision != null
+                ? new[] { singleDivision }.AsEnumerable()
+                : divisions.OrderBy(d => d.Name);
+
+            foreach (var division in divisionsToRender)
             {
                 var divisionTeams = teams.Where(t => t.DivisionId == division.Id).ToList();
                 if (divisionTeams.Count == 0) continue;
@@ -1236,7 +1265,20 @@ namespace Wdpl2.Services
             html.AppendLine("            }");
             html.AppendLine("            </script>");
         }
-        
+
+        private static string StandingsDivisionSlug(Division d)
+        {
+            var s = (d.Name ?? "division").ToLowerInvariant();
+            var sb = new StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+                else if (ch == ' ' || ch == '-' || ch == '_') sb.Append('-');
+            }
+            var slug = sb.ToString().Trim('-');
+            return string.IsNullOrEmpty(slug) ? d.Id.ToString("N") : slug;
+        }
+
         private static string EscapeJsString(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
@@ -1363,13 +1405,17 @@ namespace Wdpl2.Services
             return html.ToString();
         }
         
-        private string GeneratePlayersPage(Season season, WebsiteTemplate template)
+        private string GeneratePlayersPage(Season season, WebsiteTemplate template, Division? singleDivision = null)
         {
             var html = new StringBuilder();
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
             var appSettings = _leagueSettings;
 
-            AppendDocumentHead(html, $"{_settings.PlayersPageTitle} - {_settings.LeagueName}", season);
+            var pageTitle = _settings.PlayersPageTitle;
+            var docTitle = singleDivision != null
+                ? $"{singleDivision.Name} - {pageTitle} - {_settings.LeagueName}"
+                : $"{pageTitle} - {_settings.LeagueName}";
+            AppendDocumentHead(html, docTitle, season);
             html.AppendLine("<body>");
 
             if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
@@ -1381,15 +1427,20 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine($"                <h2>&#127942; {Esc(_settings.PlayersPageTitle)}</h2>");
-            html.AppendLine($"                <p class=\"hero-dates\">{players.Count} Players</p>");
-            html.AppendLine("            </div>");
-
+            html.AppendLine($"                <h2>&#127942; {Esc(pageTitle)}</h2>");
             // Calculate all player stats (across all divisions, ratings need cross-division data)
             var allPlayerStats = CalculatePlayerStats(players, teams, fixtures);
 
+            var heroSub = singleDivision != null
+                ? $"{Esc(singleDivision.Name)} &middot; {allPlayerStats.Count(p => p.DivisionId == singleDivision.Id)} Players"
+                : $"{players.Count} Players";
+            html.AppendLine($"                <p class=\"hero-dates\">{heroSub}</p>");
+            html.AppendLine("            </div>");
+
             // Generate one table per division — mirrors the app's LeagueTablesPage exactly
-            var orderedDivisions = divisions.OrderBy(d => d.Name).ToList();
+            var orderedDivisions = singleDivision != null
+                ? new List<Division> { singleDivision }
+                : divisions.OrderBy(d => d.Name).ToList();
 
             if (orderedDivisions.Count == 0)
             {

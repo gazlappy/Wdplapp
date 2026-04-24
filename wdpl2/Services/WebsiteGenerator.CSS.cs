@@ -519,6 +519,7 @@ nav {{
 nav .nav-container {{
     display: flex;
     justify-content: {_settings.NavPosition};
+    align-items: center;
     flex-wrap: wrap;
     gap: 8px;
     padding: 15px 20px;
@@ -532,6 +533,9 @@ nav a {{
     padding: 8px 16px;
     border-radius: {(_settings.NavStyle == "pills" ? "20px" : _settings.NavStyle == "buttons" ? "8px" : "0")};
     transition: all 0.2s;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
     {(_settings.NavStyle == "underline" ? "border-bottom: 2px solid transparent;" : "")}
 }}
 
@@ -540,6 +544,48 @@ nav a:hover, nav a.active {{
     color: white;
     {(_settings.NavStyle == "underline" ? "background: transparent; color: var(--primary-color); border-bottom-color: var(--primary-color);" : "")}
 }}
+
+.nav-dropdown {{
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}}
+.nav-dropdown > a {{ display: inline-flex; align-items: center; }}
+.nav-dropdown-menu {{
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    background: var(--card-bg);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 200;
+    padding: 6px 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+    pointer-events: none;
+}}
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:focus-within .nav-dropdown-menu {{
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0s;
+}}
+.nav-dropdown-menu a {{
+    display: block;
+    padding: 8px 14px;
+    border-radius: 0;
+    color: var(--text-color);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+}}
+.nav-dropdown-menu a:hover {{ background: var(--primary-color); color: white; }}
 
 .content-area {{
     padding: var(--spacing) 0;

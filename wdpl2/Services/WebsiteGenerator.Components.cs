@@ -299,7 +299,27 @@ namespace Wdpl2.Services
             NavLink("home.html", _settings.HomeNavLabel, "Home");
 
             if (_settings.ShowStandings)
-                NavLink("standings.html", _settings.StandingsNavLabel, "Standings");
+            {
+                if (_navDivisions.Count > 1)
+                {
+                    var isActive = activePage.Equals("Standings", StringComparison.OrdinalIgnoreCase);
+                    html.AppendLine($"            <div class=\"nav-dropdown\">");
+                    html.AppendLine($"                <a href=\"standings.html\"{(isActive ? " class=\"active\"" : "")}>{_settings.StandingsNavLabel}</a>");
+                    html.AppendLine($"                <div class=\"nav-dropdown-menu\">");
+                    html.AppendLine($"                    <a href=\"standings.html\">All Divisions</a>");
+                    foreach (var d in _navDivisions)
+                    {
+                        var slug = StandingsDivisionSlug(d);
+                        html.AppendLine($"                    <a href=\"standings-{slug}.html\">{Esc(d.Name)}</a>");
+                    }
+                    html.AppendLine($"                </div>");
+                    html.AppendLine($"            </div>");
+                }
+                else
+                {
+                    NavLink("standings.html", _settings.StandingsNavLabel, "Standings");
+                }
+            }
 
             if (_settings.ShowFixtures)
                 NavLink("fixtures.html", _settings.FixturesNavLabel, "Fixtures");
@@ -308,7 +328,27 @@ namespace Wdpl2.Services
                 NavLink("results.html", _settings.ResultsNavLabel, "Results");
 
             if (_settings.ShowPlayerStats)
-                NavLink("players.html", _settings.PlayersNavLabel, "Players");
+            {
+                if (_navDivisions.Count > 1)
+                {
+                    var isActive = activePage.Equals("Players", StringComparison.OrdinalIgnoreCase);
+                    html.AppendLine($"            <div class=\"nav-dropdown\">");
+                    html.AppendLine($"                <a href=\"players.html\"{(isActive ? " class=\"active\"" : "")}>{_settings.PlayersNavLabel}</a>");
+                    html.AppendLine($"                <div class=\"nav-dropdown-menu\">");
+                    html.AppendLine($"                    <a href=\"players.html\">All Divisions</a>");
+                    foreach (var d in _navDivisions)
+                    {
+                        var slug = StandingsDivisionSlug(d);
+                        html.AppendLine($"                    <a href=\"players-{slug}.html\">{Esc(d.Name)}</a>");
+                    }
+                    html.AppendLine($"                </div>");
+                    html.AppendLine($"            </div>");
+                }
+                else
+                {
+                    NavLink("players.html", _settings.PlayersNavLabel, "Players");
+                }
+            }
 
             if (_settings.ShowDivisions)
                 NavLink("divisions.html", _settings.DivisionsNavLabel, "Divisions");
