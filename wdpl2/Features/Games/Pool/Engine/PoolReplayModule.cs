@@ -284,13 +284,26 @@ const PoolReplay = {
     },
 
     export() {
-        const json = JSON.stringify(this.shots, null, 2);
+        // Wrap shots in a self-identifying envelope so a paste is always recognisable
+        // as a replay export -- not a settings export. The _replayExport=true marker
+        // means we (or you) can never confuse the two.
+        const envelope = {
+            _replayExport: true,
+            _generated: new Date().toISOString(),
+            _build: (typeof PoolDevSettings !== 'undefined' && PoolDevSettings.buildTag) ? PoolDevSettings.buildTag : 'unknown',
+            shotCount: this.shots.length,
+            shots: this.shots,
+        };
+        const json = JSON.stringify(envelope, null, 2);
         const sizeKb = (json.length / 1024).toFixed(1);
+        const msg = this.shots.length === 0
+            ? 'EMPTY replay export copied (' + sizeKb + ' KB) -- enable REC and play a shot first'
+            : 'Exported ' + this.shots.length + ' shot' + (this.shots.length === 1 ? '' : 's') + ' (' + sizeKb + ' KB) to clipboard';
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(json).then(
                 () => {
-                    console.log('[Replay] Exported ' + this.shots.length + ' shots to clipboard (' + sizeKb + ' KB).');
-                    this._showToast('Exported ' + this.shots.length + ' shot' + (this.shots.length === 1 ? '' : 's') + ' (' + sizeKb + ' KB) to clipboard', 'success');
+                    console.log('[Replay] ' + msg);
+                    this._showToast(msg, this.shots.length === 0 ? 'warn' : 'success');
                 },
                 (err) => {
                     console.warn('[Replay] Clipboard failed:', err);

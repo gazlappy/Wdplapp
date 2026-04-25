@@ -23,21 +23,28 @@ public static class PoolDevSettingsModule
         if (!IsDebug)
             return "// Dev settings disabled in release builds";
 
+        // Build marker so we can verify in the WebView console which JS is loaded.
+        // Bump this string whenever you make a change you want to be able to verify is live.
+        var buildTag = $"build {System.DateTime.Now:yyyy-MM-dd HH:mm:ss} (export-replays + v2 settings)";
+
         return @"
 // ============================================
 // POOL DEVELOPER SETTINGS MODULE
 // Real-time game parameter adjustment
+// Build: " + buildTag + @"
 // ============================================
+console.log('%c[PoolGame]%c " + buildTag + @"', 'color:#10b981;font-weight:bold;', 'color:#888;');
 
 const PoolDevSettings = {
     isVisible: false,
     game: null,
-    
+    buildTag: '" + buildTag + @"',
+
     init(game) {
         this.game = game;
         this.createSettingsPanel();
         this.attachEventListeners();
-        
+
         // Toggle with F2 key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'F2') {
@@ -45,7 +52,7 @@ const PoolDevSettings = {
                 this.toggle();
             }
         });
-        
+
         console.log('PoolDevSettings initialized - Press F2 to open');
     },
     
@@ -1335,10 +1342,8 @@ const PoolDevSettings = {
                     alert('Replay module not loaded.');
                     return;
                 }
-                if (!PoolReplay.shots || PoolReplay.shots.length === 0) {
-                    alert('No shots have been recorded yet.\n\nMake sure REC is ON in the toolbar, then play a few shots.');
-                    return;
-                }
+                // Always call export() -- it now wraps in an envelope and writes
+                // to clipboard even when empty, so paste always reflects the action.
                 PoolReplay.export();
             });
             // Refresh button label periodically so it shows the live shot count
