@@ -337,6 +337,10 @@ public partial class PoolGamePage : ContentPage
     </script>
 
     <script>
+    {Services.PoolQualityModule.GenerateJavaScript()}
+    </script>
+
+    <script>
     {Services.PoolAiModule.GenerateJavaScript()}
     </script>
 

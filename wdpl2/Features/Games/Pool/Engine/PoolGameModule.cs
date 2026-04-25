@@ -1064,12 +1064,18 @@ class PoolGame {
         // Show initial turn display
         this.updateTurnDisplay();
 
+        // Initialize quality settings (LOW/MEDIUM/HIGH/ULTRA) -- restores last saved preset
+        if (typeof PoolQuality !== 'undefined') {
+            try { PoolQuality.init(this); } catch (e) { console.error('Failed to init PoolQuality:', e); }
+        }
+
         // Initialize AI opponent (off by default; toggle button appears top-left)
         if (typeof PoolAI !== 'undefined') {
             try { PoolAI.init(this); } catch (e) { console.error('Failed to init PoolAI:', e); }
         }
 
         // Start animation
+        this._frameCounter = 0;
         this.animate();
     }
     
@@ -1149,8 +1155,10 @@ class PoolGame {
     
     repositionPockets() {
         const cm = this.cushionMargin;
-        const cHalf = this.cornerPocketOpening / 2;
-        const sHalf = this.sidePocketOpening / 2;
+        const cMult = this.cornerPocketOpeningMult || 1.0;
+        const sMult = this.sidePocketOpeningMult || 1.0;
+        const cHalf = (this.cornerPocketOpening * cMult) / 2;
+        const sHalf = (this.sidePocketOpening * sMult) / 2;
         this.pockets = [
             // Corner pockets -- center at the cushion corner
             {x: cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
@@ -1365,8 +1373,9 @@ class PoolGame {
             if (ball.potted) return;
             activeBalls++;
 
-            // Store position history for trail effect (if ball has spin)
-            if ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05)) {
+            // Store position history for trail effect (if ball has spin AND quality allows)
+            const trailsOn = (typeof PoolQuality === 'undefined') || PoolQuality.isTrailsEnabled();
+            if (trailsOn && ((ball.spinX && Math.abs(ball.spinX) > 0.05) || (ball.spinY && Math.abs(ball.spinY) > 0.05))) {
                 if (!ball.trail) ball.trail = [];
                 ball.trail.push({ x: ball.x, y: ball.y });
                 if (ball.trail.length > 20) ball.trail.shift();
@@ -1440,22 +1449,25 @@ class PoolGame {
             }
         });
         
-        // Draw trails first (under balls)
-        this.balls.forEach(ball => {
-            if (!ball.potted && ball.trail && ball.trail.length > 1) {
-                this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(ball.trail[0].x, ball.trail[0].y);
-                for (let i = 1; i < ball.trail.length; i++) {
-                    const alpha = (i / ball.trail.length) * 0.3;
-                    this.ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
-                    this.ctx.lineTo(ball.trail[i].x, ball.trail[i].y);
+        // Draw trails first (under balls) -- skipped at LOW quality
+        const trailsDraw = (typeof PoolQuality === 'undefined') || PoolQuality.isTrailsEnabled();
+        if (trailsDraw) {
+            this.balls.forEach(ball => {
+                if (!ball.potted && ball.trail && ball.trail.length > 1) {
+                    this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(ball.trail[0].x, ball.trail[0].y);
+                    for (let i = 1; i < ball.trail.length; i++) {
+                        const alpha = (i / ball.trail.length) * 0.3;
+                        this.ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
+                        this.ctx.lineTo(ball.trail[i].x, ball.trail[i].y);
+                    }
+                    this.ctx.stroke();
                 }
-                this.ctx.stroke();
-            }
-        });
-        
+            });
+        }
+
         // Draw balls
         this.balls.forEach(ball => {
             if (!ball.potted) {
@@ -1463,8 +1475,9 @@ class PoolGame {
             }
         });
 
-        // Draw visual effects overlay (particles, flashes, compressions)
-        if (typeof PoolVFX !== 'undefined') {
+        // Draw visual effects overlay (particles, flashes, compressions) -- skipped at LOW quality
+        const vfxOn = (typeof PoolQuality === 'undefined') || PoolQuality.isVfxEnabled();
+        if (vfxOn && typeof PoolVFX !== 'undefined') {
             PoolVFX.update(this.ctx, this);
         }
         

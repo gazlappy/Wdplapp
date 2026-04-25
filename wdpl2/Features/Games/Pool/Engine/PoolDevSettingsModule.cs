@@ -102,13 +102,13 @@ const PoolDevSettings = {
                         <div class='dev-subsection-title'>Pocket Openings (Rail Gaps)</div>
                         <div class='dev-control'>
                             <label>Corner Opening:</label>
-                            <input type='range' id='cornerPocketOpeningMult' min='1.0' max='2.5' value='1.6' step='0.1'>
-                            <span id='cornerPocketOpeningMultValue'>1.6x</span>
+                            <input type='range' id='cornerPocketOpeningMult' min='0.6' max='2.5' value='1.0' step='0.1'>
+                            <span id='cornerPocketOpeningMultValue'>1.0x</span>
                         </div>
                         <div class='dev-control'>
                             <label>Side Opening:</label>
-                            <input type='range' id='sidePocketOpeningMult' min='1.0' max='2.0' value='1.3' step='0.1'>
-                            <span id='sidePocketOpeningMultValue'>1.3x</span>
+                            <input type='range' id='sidePocketOpeningMult' min='0.6' max='2.0' value='1.0' step='0.1'>
+                            <span id='sidePocketOpeningMultValue'>1.0x</span>
                         </div>
                         <div class='dev-hint'>Controls how wide the gap is in the rails where balls enter</div>
                     </div>
@@ -116,13 +116,13 @@ const PoolDevSettings = {
                         <div class='dev-subsection-title'>Capture Zones (Ball Potting)</div>
                         <div class='dev-control'>
                             <label>Corner Capture:</label>
-                            <input type='range' id='cornerPocketRadius' min='15' max='45' value='28' step='1'>
-                            <span id='cornerPocketRadiusValue'>28</span>
+                            <input type='range' id='cornerPocketRadius' min='15' max='45' value='22' step='1'>
+                            <span id='cornerPocketRadiusValue'>22</span>
                         </div>
                         <div class='dev-control'>
                             <label>Side Capture:</label>
-                            <input type='range' id='middlePocketRadius' min='15' max='45' value='30' step='1'>
-                            <span id='middlePocketRadiusValue'>30</span>
+                            <input type='range' id='middlePocketRadius' min='15' max='45' value='24' step='1'>
+                            <span id='middlePocketRadiusValue'>24</span>
                         </div>
                         <div class='dev-control'>
                             <label>Capture Threshold:</label>
@@ -187,28 +187,29 @@ const PoolDevSettings = {
                 <div class='dev-section'>
                     <h4>Physics - Friction</h4>
                     <div class='dev-control'>
-                        <label>Table Friction:</label>
-                        <input type='range' id='friction' min='0.90' max='0.999' value='0.987' step='0.001'>
-                        <span id='frictionValue'>0.987</span>
+                        <label>Viscous Drag:</label>
+                        <input type='range' id='friction' min='0.95' max='1.0' value='0.992' step='0.001'>
+                        <span id='frictionValue'>0.992</span>
                     </div>
                     <div class='dev-control'>
-                        <label>Rolling Resistance:</label>
-                        <input type='range' id='rollingResistance' min='0.95' max='0.999' value='0.99' step='0.001'>
-                        <span id='rollingResistanceValue'>0.99</span>
+                        <label>Rolling Decel (px/fr):</label>
+                        <input type='range' id='rollingResistance' min='0.020' max='0.150' value='0.055' step='0.005'>
+                        <span id='rollingResistanceValue'>0.055</span>
                     </div>
                     <div class='dev-control'>
-                        <label>Spin Decay:</label>
-                        <input type='range' id='spinDecay' min='0.90' max='0.999' value='0.98' step='0.001'>
-                        <span id='spinDecayValue'>0.98</span>
+                        <label>Sliding Decel (px/fr):</label>
+                        <input type='range' id='spinDecay' min='0.040' max='0.250' value='0.110' step='0.005'>
+                        <span id='spinDecayValue'>0.110</span>
                     </div>
+                    <div class='dev-hint'>Real px/frame deceleration values. Larger = balls stop sooner.</div>
                 </div>
                 
                 <div class='dev-section'>
                     <h4>Physics - Collisions</h4>
                     <div class='dev-control'>
                         <label>Cushion Bounce:</label>
-                        <input type='range' id='cushionRestitution' min='0.5' max='0.95' value='0.78' step='0.01'>
-                        <span id='cushionRestitutionValue'>0.78</span>
+                        <input type='range' id='cushionRestitution' min='0.5' max='0.99' value='0.95' step='0.01'>
+                        <span id='cushionRestitutionValue'>0.95</span>
                     </div>
                     <div class='dev-control'>
                         <label>Ball Restitution:</label>
@@ -217,8 +218,8 @@ const PoolDevSettings = {
                     </div>
                     <div class='dev-control'>
                         <label>Collision Damping:</label>
-                        <input type='range' id='collisionDamping' min='0.85' max='1.0' value='0.98' step='0.01'>
-                        <span id='collisionDampingValue'>0.98</span>
+                        <input type='range' id='collisionDamping' min='0.85' max='1.0' value='0.96' step='0.01'>
+                        <span id='collisionDampingValue'>0.96</span>
                     </div>
                 </div>
                 
@@ -274,7 +275,7 @@ const PoolDevSettings = {
                             <input type='range' id='microAdjustStep' min='0.001' max='0.01' value='0.002' step='0.001'>
                             <span id='microAdjustStepValue'>0.002</span>
                         </div>
-                        <div class='dev-hint'>Hold period (.) for fine aim, use ? ? for micro-adjustments</div>
+                        <div class='dev-hint'>Hold period (.) for fine aim, use &#8592; &#8594; for micro-adjustments</div>
                     </div>
                 </div>
                 
@@ -906,11 +907,13 @@ const PoolDevSettings = {
         // Pocket Sizes - Opening Multipliers (controls visual gap in rails)
         this.addRangeListener('cornerPocketOpeningMult', (val) => {
             self.game.cornerPocketOpeningMult = parseFloat(val);
+            self.game.repositionPockets();
             console.log('Corner pocket opening:', val + 'x');
         }, (val) => val + 'x');
-        
+
         this.addRangeListener('sidePocketOpeningMult', (val) => {
             self.game.sidePocketOpeningMult = parseFloat(val);
+            self.game.repositionPockets();
             console.log('Side pocket opening:', val + 'x');
         }, (val) => val + 'x');
         
@@ -937,63 +940,79 @@ const PoolDevSettings = {
             self.game.showCaptureZones = checked;
         });
         
-        // WPA 2026 Standards
+        // WPA 2026 Standards (live values on PoolPhysics)
         this.addRangeListener('ballToBallFriction', (val) => {
             self.game.ballToBallFriction = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.BALL_TO_BALL_FRICTION = parseFloat(val);
         });
-        
+
         this.addRangeListener('ballToClothSliding', (val) => {
             self.game.ballToClothSliding = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.BALL_TO_CLOTH_SLIDING = parseFloat(val);
         });
-        
+
         this.addRangeListener('rollingResistanceCoeff', (val) => {
+            // Coefficient (0.005-0.015) is informational only -- our model uses
+            // px/frame deceleration directly via the 'Rolling Decel' slider above.
             self.game.rollingResistanceCoeff = parseFloat(val);
         });
-        
+
         this.addRangeListener('spinDecayRateCoeff', (val) => {
             self.game.spinDecayRateCoeff = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.SPIN_DECAY_RATE = parseFloat(val);
         });
-        
+
         this.addRangeListener('miscueLimit', (val) => {
             self.game.miscueLimit = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.MISCUE_LIMIT = parseFloat(val);
         });
-        
+
         this.addRangeListener('maxSpinRpm', (val) => {
             self.game.maxSpinRpm = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.MAX_SPIN_RPM = parseFloat(val);
         });
-        
+
         this.addRangeListener('cueBallMassVariance', (val) => {
             self.game.cueBallMassVariance = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.CUE_BALL_MASS_VARIANCE = parseFloat(val);
         });
         
         this.addCheckboxListener('showWpaInfo', (checked) => {
             self.game.showWpaInfo = checked;
         });
         
-        // Physics - Friction
+        // Physics - Friction (live values on PoolPhysics)
+        // Slider 'friction' drives VISCOUS_DRAG, 'rollingResistance' drives ROLLING_DECEL,
+        // and 'spinDecay' was repurposed to drive SLIDING_DECEL (px/frame).
         this.addRangeListener('friction', (val) => {
             self.game.friction = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.VISCOUS_DRAG = parseFloat(val);
         });
-        
+
         this.addRangeListener('rollingResistance', (val) => {
             self.game.rollingResistance = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.ROLLING_DECEL = parseFloat(val);
         });
-        
+
         this.addRangeListener('spinDecay', (val) => {
             self.game.spinDecay = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.SLIDING_DECEL = parseFloat(val);
         });
-        
-        // Physics - Collisions
+
+        // Physics - Collisions (live values on PoolPhysics)
         this.addRangeListener('cushionRestitution', (val) => {
             self.game.cushionRestitution = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.CUSHION_RESTITUTION = parseFloat(val);
         });
-        
+
         this.addRangeListener('ballRestitution', (val) => {
+            // No live target in current physics model -- kept for export/legacy presets.
             self.game.ballRestitution = parseFloat(val);
         });
-        
+
         this.addRangeListener('collisionDamping', (val) => {
             self.game.collisionDamping = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.COLLISION_DAMPING = parseFloat(val);
         });
         
         // Shot Controls
@@ -1273,6 +1292,7 @@ const PoolDevSettings = {
         
         this.addRangeListener('minSpeed', (val) => {
             self.game.minSpeed = parseFloat(val);
+            if (typeof PoolPhysics !== 'undefined') PoolPhysics.MIN_VELOCITY = parseFloat(val);
         });
         
         this.addRangeListener('gravityEffect', (val) => {
@@ -1347,7 +1367,83 @@ const PoolDevSettings = {
         const panel = document.getElementById('devSettingsPanel');
         if (panel) {
             panel.classList.toggle('visible', this.isVisible);
+            // When opening, snap every slider to the actual current runtime value
+            // (otherwise stale HTML defaults would overwrite real values on first nudge).
+            if (this.isVisible) this.syncFromGameState();
         }
+    },
+
+    /**
+     * Read live values from the game + PoolPhysics + PoolVFX and set every
+     * input/checkbox/span to match -- WITHOUT firing 'input'/'change' events.
+     * Prevents the 'touch slider, everything snaps to wrong default' bug.
+     */
+    syncFromGameState() {
+        if (!this.game) return;
+        const set = (id, value, fmt) => {
+            const inp = document.getElementById(id);
+            if (!inp || value === undefined || value === null) return;
+            if (inp.type === 'checkbox') {
+                inp.checked = !!value;
+            } else {
+                inp.value = value;
+                const span = document.getElementById(id + 'Value');
+                if (span) span.textContent = fmt ? fmt(value) : value;
+            }
+        };
+        const g = this.game;
+        const PP = (typeof PoolPhysics !== 'undefined') ? PoolPhysics : null;
+
+        // Table
+        set('tableWidth', g.width);
+        set('tableHeight', g.height);
+        set('cushionMargin', g.cushionMargin);
+        // Balls
+        set('ballRadius', g.standardBallRadius);
+        set('cueBallRadius', g.cueBallRadius);
+        // Pockets
+        set('cornerPocketRadius', g.cornerPocketRadius);
+        set('middlePocketRadius', g.middlePocketRadius);
+        set('cornerPocketOpeningMult', g.cornerPocketOpeningMult || 1.0, v => v + 'x');
+        set('sidePocketOpeningMult', g.sidePocketOpeningMult || 1.0, v => v + 'x');
+        set('captureThreshold', Math.round((g.captureThresholdPercent || 0.3) * 100), v => v + '%');
+        set('showPocketZones', g.showPocketZones);
+        // Physics (live)
+        if (PP) {
+            set('friction', PP.VISCOUS_DRAG);
+            set('rollingResistance', PP.ROLLING_DECEL);
+            set('spinDecay', PP.SLIDING_DECEL);
+            set('cushionRestitution', PP.CUSHION_RESTITUTION);
+            set('collisionDamping', PP.COLLISION_DAMPING);
+            set('minSpeed', PP.MIN_VELOCITY);
+            set('ballToBallFriction', PP.BALL_TO_BALL_FRICTION);
+            set('ballToClothSliding', PP.BALL_TO_CLOTH_SLIDING);
+            set('spinDecayRateCoeff', PP.SPIN_DECAY_RATE);
+            set('miscueLimit', PP.MISCUE_LIMIT);
+            set('maxSpinRpm', PP.MAX_SPIN_RPM);
+        }
+        // Shot
+        set('maxPower', g.maxPower);
+        set('powerMultiplier', g.powerMultiplier);
+        set('aimSensitivity', g.aimSensitivity);
+        set('maxPullDistance', g.maxPullDistance);
+        set('autoAimAssist', g.autoAimAssist);
+        set('showShotPreview', g.showShotPreview);
+        // Spin
+        set('maxSpin', g.maxSpin);
+        set('spinEffect', g.spinEffect);
+        set('englishTransfer', g.englishTransfer);
+        set('spinDecayRate', g.spinDecayRate);
+        set('showSpinArrows', g.showSpinArrows);
+        // Visuals
+        set('showTrajectory', g.showTrajectoryPrediction);
+        set('trajectoryLength', g.trajectoryLength);
+        set('showCollisionPoints', g.showCollisionPoints);
+        // Game rules
+        set('ballInHandTouchFoul', g.ballInHandTouchFoul);
+        // Shot control mode
+        const modeSel = document.getElementById('shotControlMode');
+        if (modeSel && g.shotControlMode) modeSel.value = g.shotControlMode;
     },
     
     applyPreset(name) {
@@ -1413,11 +1509,11 @@ const PoolDevSettings = {
     testPockets() {
         this.game.stopBalls();
         this.game.balls = this.game.balls.filter(b => b.num === 0);
-        
+
         this.game.pockets.forEach((pocket, index) => {
             const angle = (index * Math.PI * 2) / this.game.pockets.length;
             const dist = 40;
-            this.game.balls.push({
+            const ball = {
                 x: pocket.x + Math.cos(angle) * dist,
                 y: pocket.y + Math.sin(angle) * dist,
                 vx: 0, vy: 0,
@@ -1427,21 +1523,29 @@ const PoolDevSettings = {
                 rotation: 0,
                 rotationAxisX: 0,
                 rotationAxisY: 1
-            });
+            };
+            // Initialise rotation properties (rotQ, numPos*, polePos*, eqPos*) so it renders correctly.
+            if (typeof PoolBallRotation !== 'undefined' && typeof PoolBallRotation.initBall === 'function') {
+                PoolBallRotation.initBall(ball);
+            }
+            this.game.balls.push(ball);
         });
-        
+
         console.log('Test balls placed near pockets');
     },
     
     randomShot() {
         if (!this.game.cueBall || this.game.cueBall.potted) return;
-        
+
         const angle = Math.random() * Math.PI * 2;
         const power = Math.random() * this.game.maxPower;
-        
+
+        // Properly register the shot with the rules engine
+        if (typeof this.game.startShot === 'function') this.game.startShot();
+        this.game.aimAngle = angle;
         this.game.cueBall.vx = Math.cos(angle) * power;
         this.game.cueBall.vy = Math.sin(angle) * power;
-        
+
         console.log('Random shot fired: angle=' + angle.toFixed(2) + ', power=' + power.toFixed(2));
     },
     

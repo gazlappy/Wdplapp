@@ -180,8 +180,10 @@ const PoolPhysics = {
 
 
             // ===== BALL ROTATION (delegated to PoolBallRotation module) =====
-            // Uses proper kinematic rolling and Rodrigues' rotation formula
-            if (typeof PoolBallRotation !== 'undefined') {
+            // Uses proper kinematic rolling and Rodrigues' rotation formula.
+            // Skipped on LOW quality preset for performance on weak devices.
+            const rotationOn = (typeof PoolQuality === 'undefined') || PoolQuality.isRotationEnabled();
+            if (rotationOn && typeof PoolBallRotation !== 'undefined') {
                 PoolBallRotation.updateRotation(ball);
             }
 
@@ -293,8 +295,9 @@ const PoolPhysics = {
                 console.warn('[Physics] PoolAudio not available for cushion bounce');
             }
 
-            // CUSHION COMPRESSION EFFECT (#7)
-            if (typeof PoolVFX !== 'undefined' && impactSpeed > 1) {
+            // CUSHION COMPRESSION EFFECT (#7) -- gated by quality
+            const vfxOn = (typeof PoolQuality === 'undefined') || PoolQuality.isVfxEnabled();
+            if (vfxOn && typeof PoolVFX !== 'undefined' && impactSpeed > 1) {
                 let side = '';
                 if (ball.x <= minX + 2) side = 'left';
                 else if (ball.x >= maxX - 2) side = 'right';
@@ -471,8 +474,9 @@ const PoolPhysics = {
                     console.warn('[Physics] PoolAudio not available for collision');
                 }
 
-                // COLLISION FLASH EFFECT (#6)
-                if (typeof PoolVFX !== 'undefined' && collisionVelocity > 0.15) {
+                // COLLISION FLASH EFFECT (#6) -- gated by quality
+                const vfxFlash = (typeof PoolQuality === 'undefined') || PoolQuality.isVfxEnabled();
+                if (vfxFlash && typeof PoolVFX !== 'undefined' && collisionVelocity > 0.15) {
                     const flashX = (b1.x + b2.x) / 2;
                     const flashY = (b1.y + b2.y) / 2;
                     PoolVFX.spawnCollisionFlash(flashX, flashY, collisionVelocity);
@@ -745,7 +749,10 @@ const PoolPhysics = {
         // Calculate number of sub-steps needed based on speed
         // Each sub-step should move a ball no more than 40% of its radius
         const minBallRadius = balls.reduce((min, b) => b.potted ? min : Math.min(min, b.r), Infinity);
-        const subSteps = Math.max(1, Math.ceil(maxSpeed / (minBallRadius * 0.4)));
+        let subSteps = Math.max(1, Math.ceil(maxSpeed / (minBallRadius * 0.4)));
+        // Quality cap -- prevents very fast shots from spending huge CPU on a low-end device
+        const subStepCap = (typeof PoolQuality !== 'undefined' && PoolQuality.config && PoolQuality.config.maxSubSteps) || 20;
+        if (subSteps > subStepCap) subSteps = subStepCap;
         const dt = 1.0 / subSteps;
 
         // Sub-stepped integration: move + detect at each step
