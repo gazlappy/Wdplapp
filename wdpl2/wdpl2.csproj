@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'">
 		<!-- Include Windows App Runtime with the app when running unpackaged -->
@@ -77,190 +77,190 @@
 	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\AchievementsPage.xaml">
+	  <MauiXaml Update="Views\Achievements\AchievementsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\AnalyticsHubPage.xaml">
+	  <MauiXaml Update="Views\Analytics\AnalyticsHubPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\BatchImportPreviewPage.xaml">
+	  <MauiXaml Update="Views\Import\BatchImportPreviewPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\BreakoutGamePage.xaml">
+	  <MauiXaml Update="Features\Games\Breakout\BreakoutGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\CalendarOptionsPage.xaml">
+	  <MauiXaml Update="Views\Calendar\CalendarOptionsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\CalendarPage.xaml">
+	  <MauiXaml Update="Views\Calendar\CalendarPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\CareerStatsPage.xaml">
+	  <MauiXaml Update="Views\Players\CareerStatsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\CompetitionsPage.xaml">
+	  <MauiXaml Update="Views\Competitions\CompetitionsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\DashboardPage.xaml">
+	  <MauiXaml Update="Views\Dashboard\DashboardPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\FileDiscoveryPage.xaml">
+	  <MauiXaml Update="Views\Import\FileDiscoveryPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\FixturesPage.xaml">
+	  <MauiXaml Update="Views\Fixtures\FixturesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\FrameStatsPage.xaml">
+	  <MauiXaml Update="Views\Players\FrameStatsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\GamesLibraryPage.xaml">
+	  <MauiXaml Update="Features\Games\GamesLibraryPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\HistoricalCompetitionImportPage.xaml">
+	  <MauiXaml Update="Views\Import\HistoricalCompetitionImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\HistoricalImportPage.xaml">
+	  <MauiXaml Update="Views\Import\HistoricalImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\ImportHistoricalCompetitionsPage.xaml">
+	  <MauiXaml Update="Views\Import\ImportHistoricalCompetitionsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\ImportHistoricalDataPage.xaml">
+	  <MauiXaml Update="Views\Import\ImportHistoricalDataPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\ImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\ImportPreviewPage.xaml">
+	  <MauiXaml Update="Views\Import\ImportPreviewPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\LeagueTablesPage.xaml">
+	  <MauiXaml Update="Views\LeagueTables\LeagueTablesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\MatchDayDashboardPage.xaml">
+	  <MauiXaml Update="Views\Fixtures\MatchDayDashboardPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\MemoryGamePage.xaml">
+	  <MauiXaml Update="Features\Games\Memory\MemoryGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PlayerProfilePage.xaml">
+	  <MauiXaml Update="Views\Players\PlayerProfilePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PlayerResultsPage.xaml">
+	  <MauiXaml Update="Views\Players\PlayerResultsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PlayersPage.xaml">
+	  <MauiXaml Update="Views\Players\PlayersPage.xaml">
 	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PoolGamePage.xaml">
+	  <MauiXaml Update="Features\Games\Pool\Views\PoolGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\RetroFpsGamePage.xaml">
+	  <MauiXaml Update="Features\Games\RetroFps\RetroFpsGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SearchPage.xaml">
+	  <MauiXaml Update="Views\Search\SearchPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SeasonAwardsPage.xaml">
+	  <MauiXaml Update="Views\Achievements\SeasonAwardsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SeasonsPage.xaml">
+	  <MauiXaml Update="Views\Seasons\SeasonsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SettingsPage.xaml">
+	  <MauiXaml Update="Views\Settings\SettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SmartImportPage.xaml">
+	  <MauiXaml Update="Views\Import\SmartImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SnakeGamePage.xaml">
+	  <MauiXaml Update="Features\Games\Snake\SnakeGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\SqlImportPage.xaml">
+	  <MauiXaml Update="Views\Import\SqlImportPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\TeamAnalyticsPage.xaml">
+	  <MauiXaml Update="Views\Analytics\TeamAnalyticsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\TeamsPage.xaml">
+	  <MauiXaml Update="Views\Teams\TeamsPage.xaml">
 	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\VenuesPage.xaml">
+	  <MauiXaml Update="Views\Venues\VenuesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilderPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\WebsiteBuilderPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\BrandingSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\BrandingSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\ColorsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\ColorsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\CompetitionsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\CompetitionsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\ContactSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\ContactSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\ContentSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\ContentSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\DeploymentSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\DeploymentSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\DivisionsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\DivisionsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\DragDropLayoutPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\DragDropLayoutPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\EntryFormsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\EntryFormsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\FixturesSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\FixturesSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\FixturesSheetPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\FixturesSheetPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\GallerySettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\GallerySettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\HistorySettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\HistorySettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\HomeSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\HomeSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\LayoutSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\LayoutSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\PlayersSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\PlayersSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\ResultsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\ResultsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\RowsReportsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\RowsReportsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\RulesSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\RulesSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\SeoSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\SeoSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\SocialCardPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\SocialCardPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\StandingsSettingsPage.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\StandingsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WebsiteBuilder\WebsiteBuilderHub.xaml">
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\WebsiteBuilderHub.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\WhatIfSimulatorPage.xaml">
+	  <MauiXaml Update="Views\Analytics\WhatIfSimulatorPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	</ItemGroup>
