@@ -27,7 +27,8 @@ const PoolPhysics = {
     // the balls feel like they were gliding on glass forever.
     ROLLING_DECEL: 0.055,   // px/frame (~3.3 px/s^2 at 60fps) for a fully rolling ball
     SLIDING_DECEL: 0.110,   // px/frame -- faster decel while sliding (kinetic friction)
-    VISCOUS_DRAG: 0.992,    // small velocity-proportional component (air + cloth viscous drag)
+    VISCOUS_DRAG: 0.995,    // small velocity-proportional component (air + cloth viscous drag)
+                            // Lower = more energy retained at high speed (better break-shot feel)
     
     // WPA 2026 Physical Constants
     BALL_TO_BALL_FRICTION: 0.055,  // WPA 2026: 0.03-0.08 (determines throw)
@@ -816,14 +817,19 @@ const PoolPhysics = {
         const cm = game.cushionMargin || 21;
         const w = game.width || 1000;
         const h = game.height || 500;
-        const restitution = (game.cushionRestitution || 0.78) * 0.8;
+        // Jaw cushions are leather-wrapped sponge -- much softer than the playing cushions.
+        // Lowered from cushionRestitution * 0.8 to * 0.45 so balls that catch the jaw
+        // don't get spat back out of the pocket mouth.
+        const restitution = (game.cushionRestitution || 0.78) * 0.45;
 
         // Pocket opening half-widths
         const cornerHalf = (game.cornerPocketOpening || 45) / 2;
         const sideHalf = (game.sidePocketOpening || 49) / 2;
 
-        // Build jaw lines from cushion endpoints toward pocket centers
-        const jawDepth = cm * 0.6;
+        // Build jaw lines from cushion endpoints toward pocket centers.
+        // Reduced jaw depth from cm*0.6 to cm*0.4 so the jaws don't extend as far
+        // into the pocket basin (real pocket jaws are short angled cuts, not deep walls).
+        const jawDepth = cm * 0.4;
         const allJaws = [];
 
         // Corner pocket jaws — from the end of each cushion segment toward the pocket

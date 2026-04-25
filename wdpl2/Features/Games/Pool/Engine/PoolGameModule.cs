@@ -32,16 +32,16 @@ class PoolGame {
         this.cueBallRadius = (1.875 / 2) * this.pixelsPerInch;
         
         // Pocket sizes -- based on real UK 8-ball table (SuperLeague/Riley)
-        // Corner pocket opening: ~3.25 inches across the mouth
-        // Side pocket opening: ~3.5 inches across the mouth
+        // Corner pocket opening: ~3.75 inches across the mouth (was 3.25 inch -- too tight)
+        // Side pocket opening:   ~4.5 inches across the mouth  (real UK side pockets are noticeably wider than corners)
         // Capture radius = how far from pocket center the ball drops
-        this.cornerPocketRadius = 1.6 * this.pixelsPerInch;    // ~22px
-        this.middlePocketRadius = 1.7 * this.pixelsPerInch;    // ~24px
+        this.cornerPocketRadius = 1.95 * this.pixelsPerInch;   // ~27px (was 1.6 inch)
+        this.middlePocketRadius = 1.85 * this.pixelsPerInch;   // ~26px (was 1.7 inch)
 
         // Pocket opening gap in cushions (how wide the cushion gap is)
-        // Real UK table: corner ~3.25 inches, side ~3.5 inches across the opening
-        this.cornerPocketOpening = 3.25 * this.pixelsPerInch;  // ~45px
-        this.sidePocketOpening = 3.5 * this.pixelsPerInch;     // ~49px
+        // Real UK table: corner ~3.5 inch, side ~4.0-4.5 inch across the opening
+        this.cornerPocketOpening = 3.75 * this.pixelsPerInch;  // ~52px (was 3.25 inch)
+        this.sidePocketOpening = 4.5 * this.pixelsPerInch;     // ~63px (was 3.5 inch)
         
         // Cushion margin
         this.cushionMargin = 1.5 * this.pixelsPerInch;
@@ -55,7 +55,7 @@ class PoolGame {
         this.isShooting = false;
         this.isAiming = false;
         this.shotPower = 0;
-        this.maxPower = 40;
+        this.maxPower = 55;
         this.aimAngle = 0;
         this.pullBackDistance = 0;
         this.pushForwardDistance = 0;

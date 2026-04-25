@@ -116,13 +116,13 @@ const PoolDevSettings = {
                         <div class='dev-subsection-title'>Capture Zones (Ball Potting)</div>
                         <div class='dev-control'>
                             <label>Corner Capture:</label>
-                            <input type='range' id='cornerPocketRadius' min='15' max='45' value='22' step='1'>
-                            <span id='cornerPocketRadiusValue'>22</span>
+                            <input type='range' id='cornerPocketRadius' min='15' max='45' value='27' step='1'>
+                            <span id='cornerPocketRadiusValue'>27</span>
                         </div>
                         <div class='dev-control'>
                             <label>Side Capture:</label>
-                            <input type='range' id='middlePocketRadius' min='15' max='45' value='24' step='1'>
-                            <span id='middlePocketRadiusValue'>24</span>
+                            <input type='range' id='middlePocketRadius' min='15' max='45' value='26' step='1'>
+                            <span id='middlePocketRadiusValue'>26</span>
                         </div>
                         <div class='dev-control'>
                             <label>Capture Threshold:</label>
@@ -237,8 +237,8 @@ const PoolDevSettings = {
                     </div>
                     <div class='dev-control'>
                         <label>Max Power:</label>
-                        <input type='range' id='maxPower' min='20' max='150' value='40' step='5'>
-                        <span id='maxPowerValue'>40</span>
+                        <input type='range' id='maxPower' min='20' max='150' value='55' step='5'>
+                        <span id='maxPowerValue'>55</span>
                     </div>
                     <div class='dev-control'>
                         <label>Power Multiplier:</label>
