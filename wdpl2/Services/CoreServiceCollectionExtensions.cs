@@ -1,0 +1,18 @@
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Wdpl2.Services;
+
+/// <summary>
+/// DI registrations for cross-cutting application services
+/// (season management, theming, etc.).
+/// </summary>
+public static class CoreServiceCollectionExtensions
+{
+    public static IServiceCollection AddCoreAppServices(this IServiceCollection services)
+    {
+        services.AddSingleton<ISeasonService, SeasonService>();
+        services.AddSingleton<IThemeService, ThemeService>();
+
+        return services;
+    }
+}

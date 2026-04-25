@@ -7,7 +7,6 @@ using Wdpl2.Data;
 using Wdpl2.Services;
 using Wdpl2.ViewModels;
 using Wdpl2.Views;
-using WdplNotificationService = Wdpl2.Services.INotificationService;
 
 namespace Wdpl2;
 
@@ -28,52 +27,18 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Register Database Context (Transient to avoid captive-dependency with data store)
-        builder.Services.AddDbContext<LeagueContext>(ServiceLifetime.Transient);
+        // Register Database / Persistence
+        builder.Services.AddPersistence();
 
-        // Register Data Services
-        // Use SqliteDataStore for new implementation, DataStoreService for legacy
-        builder.Services.AddTransient<IDataStore, SqliteDataStore>();
-        builder.Services.AddTransient<DataMigrationService>();
-        
-        // Register Season Service
-        builder.Services.AddSingleton<ISeasonService, SeasonService>();
+        // Register cross-cutting application services (Season, Theme)
+        builder.Services.AddCoreAppServices();
 
-        // Register Theme Service
-        builder.Services.AddSingleton<IThemeService, ThemeService>();
+        // Register Notifications
+        builder.Services.AddNotifications();
 
-        // Register Backup Service
-        builder.Services.AddTransient<BackupService>();
-
-        // Register Notification Services (NEW) - Use alias to avoid conflicts
-        builder.Services.AddSingleton<WdplNotificationService, LocalNotificationService>();
-        builder.Services.AddSingleton<MatchReminderService>();
-        
-        // Register ViewModels
-        builder.Services.AddTransient<DashboardViewModel>();
-        builder.Services.AddTransient<CompetitionsViewModel>();
-        builder.Services.AddTransient<VenuesViewModel>();
-        builder.Services.AddTransient<DivisionsViewModel>();
-        builder.Services.AddTransient<PlayersViewModel>();
-        builder.Services.AddTransient<TeamsViewModel>();
-        builder.Services.AddTransient<SeasonsViewModel>();
-        builder.Services.AddTransient<FixturesViewModel>();
-        builder.Services.AddTransient<LeagueTablesViewModel>();
-        builder.Services.AddTransient<SettingsViewModel>();
-        
-        // Register Pages
-        builder.Services.AddTransient<DashboardPage>();
-        builder.Services.AddTransient<CompetitionsPage>();
-        builder.Services.AddTransient<VenuesPage>();
-        builder.Services.AddTransient<DivisionsPage>();
-        builder.Services.AddTransient<PlayersPage>();
-        builder.Services.AddTransient<TeamsPage>();
-        builder.Services.AddTransient<SeasonsPage>();
-        builder.Services.AddTransient<FixturesPage>();
-        builder.Services.AddTransient<LeagueTablesPage>();
-        builder.Services.AddTransient<SettingsPage>();
-        builder.Services.AddTransient<SearchPage>();
-        builder.Services.AddTransient<SqlImportPage>();  // Add SQL Import page
+        // Register ViewModels and Pages
+        builder.Services.AddViewModels();
+        builder.Services.AddPages();
 
         var app = builder.Build();
 

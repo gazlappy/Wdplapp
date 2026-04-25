@@ -1,359 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Runtime.CompilerServices;
-
 namespace Wdpl2.Models
 {
-    /// <summary>
-    /// Type of competition format
-    /// </summary>
-    public enum CompetitionFormat
-    {
-        SinglesKnockout,
-        DoublesKnockout,
-        TeamKnockout,
-        RoundRobin,
-        Swiss,
-        SinglesGroupStage,
-        DoublesGroupStage
-    }
-
-    /// <summary>
-    /// Status of a competition
-    /// </summary>
-    public enum CompetitionStatus
-    {
-        Draft,
-        InProgress,
-        Completed
-    }
-
-    /// <summary>
-    /// Represents a competition/tournament with INotifyPropertyChanged for UI updates
-    /// </summary>
-    public sealed class Competition : INotifyPropertyChanged
-    {
-        private string _name = "";
-        private CompetitionFormat _format = CompetitionFormat.SinglesKnockout;
-        private CompetitionStatus _status = CompetitionStatus.Draft;
-        private DateTime? _startDate;
-        private string? _notes;
-
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid? SeasonId { get; set; }
-        
-        public string Name
-        {
-            get => _name;
-            set
-            {
-                if (_name != value)
-                {
-                    _name = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public CompetitionFormat Format
-        {
-            get => _format;
-            set
-            {
-                if (_format != value)
-                {
-                    _format = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public CompetitionStatus Status
-        {
-            get => _status;
-            set
-            {
-                if (_status != value)
-                {
-                    _status = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public DateTime CreatedDate { get; set; } = DateTime.Now;
-        
-        public DateTime? StartDate
-        {
-            get => _startDate;
-            set
-            {
-                if (_startDate != value)
-                {
-                    _startDate = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public string? Notes
-        {
-            get => _notes;
-            set
-            {
-                if (_notes != value)
-                {
-                    _notes = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        /// <summary>List of participant IDs (Players for Singles, Teams for Team KO)</summary>
-        public List<Guid> ParticipantIds { get; set; } = new();
-
-        /// <summary>For doubles competitions - pairs of player IDs</summary>
-        public List<DoublesTeam> DoublesTeams { get; set; } = new();
-
-        /// <summary>Competition rounds/brackets</summary>
-        public List<CompetitionRound> Rounds { get; set; } = new();
-
-        /// <summary>Group stage configuration (for group stage formats)</summary>
-        public GroupStageSettings? GroupSettings { get; set; }
-
-        /// <summary>Groups for group stage competitions</summary>
-        public List<CompetitionGroup> Groups { get; set; } = new();
-
-        /// <summary>Archived groups from previous group rounds (round 1, round 2, etc.)</summary>
-        public List<CompetitionGroup> PreviousGroups { get; set; } = new();
-
-        /// <summary>Best-of frame count for matches (e.g. 15 means first to 8 wins). 0 = unlimited.</summary>
-        public int BestOf { get; set; }
-
-        /// <summary>The score needed to win a match. Calculated from BestOf: (BestOf + 1) / 2. Returns 0 if unlimited.</summary>
-        public int FramesToWin => BestOf > 0 ? (BestOf + 1) / 2 : 0;
-
-        /// <summary>Whether the draw should be randomised (true) or use the order participants were added (false).</summary>
-        public bool RandomDraw { get; set; } = true;
-
-        /// <summary>Linked plate competition ID (for group stage lower-ranked players)</summary>
-        public Guid? PlateCompetitionId { get; set; }
-
-        /// <summary>If this competition is a plate/losers cup, the ID of the parent competition that created it.</summary>
-        public Guid? ParentCompetitionId { get; set; }
-
-        /// <summary>Participant IDs marked as no-shows. These players are excluded from the plate competition.</summary>
-        public List<Guid> NoShowIds { get; set; } = new();
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        public override string ToString() => Name ?? "Unnamed Competition";
-    }
-
-    /// <summary>
-    /// Settings for group stage competitions
-    /// </summary>
-    public sealed class GroupStageSettings
-    {
-        /// <summary>Number of groups to create (e.g., 8 groups of 16 = 128 players)</summary>
-        public int NumberOfGroups { get; set; } = 4;
-
-        /// <summary>Number of top players from each group advancing to knockout</summary>
-        public int TopPlayersAdvance { get; set; } = 2;
-
-        /// <summary>Number of lower players from each group going to plate competition (ignored when AllLosersToPlate is true)</summary>
-        public int LowerPlayersToPlate { get; set; } = 2;
-
-        /// <summary>When true, all non-winners go into the plate instead of a fixed count per group.</summary>
-        public bool AllLosersToPlate { get; set; } = true;
-
-        /// <summary>Whether to create a plate competition automatically</summary>
-        public bool CreatePlateCompetition { get; set; } = true;
-
-        /// <summary>Name suffix for plate competition (e.g., "Plate")</summary>
-        public string PlateNameSuffix { get; set; } = "Plate";
-
-        /// <summary>Selected venues with specific tables for this competition night.</summary>
-        public List<CompetitionVenue> SelectedVenues { get; set; } = new();
-
-        /// <summary>Scheduled date for the current group round.</summary>
-        public DateTime? GroupDate { get; set; }
-    }
-
-    /// <summary>
-    /// A venue selected for a group stage competition, with the specific tables in use.
-    /// </summary>
-    public sealed class CompetitionVenue
-    {
-        public Guid VenueId { get; set; }
-        public string VenueName { get; set; } = "";
-
-        /// <summary>The specific tables selected at this venue.</summary>
-        public List<SelectedTable> SelectedTables { get; set; } = new();
-
-        /// <summary>Number of selected tables (replaces the old TableCount property).</summary>
-        public int TableCount => SelectedTables.Count;
-    }
-
-    /// <summary>
-    /// A specific table selected from a venue.
-    /// </summary>
-    public sealed class SelectedTable
-    {
-        public Guid TableId { get; set; }
-        public string Label { get; set; } = "";
-    }
-
-    /// <summary>
-    /// A group in a group stage competition
-    /// </summary>
-    public sealed class CompetitionGroup
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public string Name { get; set; } = "";
-        public int GroupNumber { get; set; }
-
-        /// <summary>Which round of groups this belongs to (1 = first round, 2 = second, etc.)</summary>
-        public int GroupRound { get; set; } = 1;
-
-        /// <summary>The venue this group is assigned to play at.</summary>
-        public Guid? VenueId { get; set; }
-
-        /// <summary>Display name of the assigned venue.</summary>
-        public string? VenueName { get; set; }
-
-        /// <summary>The specific table ID at the venue this group plays on.</summary>
-        public Guid? TableId { get; set; }
-
-        /// <summary>Display label of the assigned table (e.g. "Table 1").</summary>
-        public string? TableLabel { get; set; }
-
-        /// <summary>Which table number at the venue (1-based, legacy fallback).</summary>
-        public int TableNumber { get; set; }
-
-        /// <summary>Participants in this group</summary>
-        public List<Guid> ParticipantIds { get; set; } = new();
-
-        /// <summary>Group stage matches (round robin within group)</summary>
-        public List<CompetitionMatch> Matches { get; set; } = new();
-
-        /// <summary>Group standings (calculated from matches)</summary>
-        public List<GroupStanding> Standings { get; set; } = new();
-
-        /// <summary>Formatted venue and table assignment for display.</summary>
-        public string VenueDisplay => VenueId.HasValue && !string.IsNullOrEmpty(VenueName)
-            ? (!string.IsNullOrEmpty(TableLabel) ? $"{VenueName} — {TableLabel}" : $"{VenueName}")
-            : "";
-
-        public override string ToString() => Name;
-    }
-
-    /// <summary>
-    /// Standing of a participant within a group
-    /// </summary>
-    public sealed class GroupStanding
-    {
-        public Guid ParticipantId { get; set; }
-        public int Position { get; set; }
-        public int Played { get; set; }
-        public int Won { get; set; }
-        public int Drawn { get; set; }
-        public int Lost { get; set; }
-        public int FramesFor { get; set; }
-        public int FramesAgainst { get; set; }
-        public int FrameDifference => FramesFor - FramesAgainst;
-        public int Points { get; set; }
-    }
-
-    /// <summary>
-    /// A doubles team (pair of players)
-    /// </summary>
-    public sealed class DoublesTeam
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid Player1Id { get; set; }
-        public Guid Player2Id { get; set; }
-        public string TeamName { get; set; } = "";
-
-        public override string ToString() => TeamName;
-    }
-
-    /// <summary>
-    /// A round in a knockout competition (e.g., Quarter-Finals, Semi-Finals, Final)
-    /// </summary>
-    public sealed class CompetitionRound
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public string Name { get; set; } = "";
-        public int RoundNumber { get; set; }
-        public List<CompetitionMatch> Matches { get; set; } = new();
-
-        /// <summary>Whether this round is part of a group stage</summary>
-        public bool IsGroupStage { get; set; }
-
-        /// <summary>Group ID if this round belongs to a specific group</summary>
-        public Guid? GroupId { get; set; }
-
-        /// <summary>Scheduled date for this round.</summary>
-        public DateTime? Date { get; set; }
-
-        /// <summary>Venues/tables available for this round.</summary>
-        public List<CompetitionVenue> SelectedVenues { get; set; } = new();
-
-        /// <summary>Total number of selected tables across all venues for this round.</summary>
-        public int TotalTables => SelectedVenues.Sum(v => v.TableCount);
-
-        public override string ToString() => Name;
-    }
-
-    /// <summary>
-    /// A single match in a competition
-    /// </summary>
-    public sealed class CompetitionMatch
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid? Participant1Id { get; set; }
-        public Guid? Participant2Id { get; set; }
-        public Guid? WinnerId { get; set; }
-        public int Participant1Score { get; set; }
-        public int Participant2Score { get; set; }
-        public DateTime? ScheduledDate { get; set; }
-        public bool IsComplete { get; set; }
-        public string? Notes { get; set; }
-
-        /// <summary>For losers bracket in double elimination</summary>
-        public bool IsLosersBracket { get; set; }
-
-        /// <summary>Group ID if this match belongs to a group stage</summary>
-        public Guid? GroupId { get; set; }
-
-        /// <summary>The venue this match is assigned to play at.</summary>
-        public Guid? VenueId { get; set; }
-
-        /// <summary>Display name of the assigned venue.</summary>
-        public string? VenueName { get; set; }
-
-        /// <summary>The specific table ID at the venue this match plays on.</summary>
-        public Guid? TableId { get; set; }
-
-        /// <summary>Display label of the assigned table (e.g. "Table 1").</summary>
-        public string? TableLabel { get; set; }
-
-        /// <summary>Formatted venue and table assignment for display.</summary>
-        public string VenueDisplay => VenueId.HasValue && !string.IsNullOrEmpty(VenueName)
-            ? (!string.IsNullOrEmpty(TableLabel) ? $"{VenueName} — {TableLabel}" : $"{VenueName}")
-            : "";
-
-        public override string ToString() => $"Match {Id}";
-    }
-
     /// <summary>
     /// Helper class for competition generation
     /// </summary>
@@ -363,7 +9,7 @@ namespace Wdpl2.Models
         /// Generate a group stage competition with knockout progression
         /// </summary>
         public static (List<CompetitionGroup> groups, Competition? plateCompetition) GenerateGroupStage(
-            List<Guid> participants, 
+            List<Guid> participants,
             GroupStageSettings settings,
             CompetitionFormat format,
             Guid? seasonId,
@@ -388,7 +34,7 @@ namespace Wdpl2.Models
             for (int i = 0; i < settings.NumberOfGroups; i++)
             {
                 int groupSize = playersPerGroup + (i < remainder ? 1 : 0);
-                
+
                 var group = new CompetitionGroup
                 {
                     Name = $"Group {(char)('A' + i)}",
@@ -692,7 +338,7 @@ namespace Wdpl2.Models
                 {
                     int startIndex = topPlayersAdvance;
                     int endIndex = Math.Min(startIndex + lowerPlayersToPlate, standings.Count);
-                    
+
                     for (int i = startIndex; i < endIndex; i++)
                     {
                         plateParticipants.Add(standings[i].ParticipantId);
@@ -722,7 +368,7 @@ namespace Wdpl2.Models
                 bracketSize *= 2;
 
             // Randomize participants if requested
-            var seeded = randomize 
+            var seeded = randomize
                 ? participants.OrderBy(_ => Random.Shared.Next()).ToList()
                 : new List<Guid>(participants);
 
@@ -844,10 +490,10 @@ namespace Wdpl2.Models
                 return new List<CompetitionRound>();
 
             var rounds = new List<CompetitionRound>();
-            
+
             // Generate winners bracket (same as single elimination)
             var winnersRounds = GenerateSingleKnockout(participants, randomize);
-            
+
             // Add winners bracket rounds
             foreach (var round in winnersRounds)
             {
@@ -938,14 +584,14 @@ namespace Wdpl2.Models
                 return new List<CompetitionRound>();
 
             var rounds = new List<CompetitionRound>();
-            
+
             // Randomize order if requested
             var orderedParticipants = randomize
                 ? participants.OrderBy(_ => Random.Shared.Next()).ToList()
                 : new List<Guid>(participants);
-            
+
             var n = orderedParticipants.Count;
-            
+
             // If odd number, add a "bye"
             if (n % 2 != 0)
             {
