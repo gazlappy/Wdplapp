@@ -31,7 +31,7 @@ class PoolGame {
         this.standardBallRadius = (2.0 / 2) * this.pixelsPerInch;
         this.cueBallRadius = (1.875 / 2) * this.pixelsPerInch;
         
-        // Pocket sizes � based on real UK 8-ball table (SuperLeague/Riley)
+        // Pocket sizes -- based on real UK 8-ball table (SuperLeague/Riley)
         // Corner pocket opening: ~3.25 inches across the mouth
         // Side pocket opening: ~3.5 inches across the mouth
         // Capture radius = how far from pocket center the ball drops
@@ -183,13 +183,14 @@ class PoolGame {
         const previousPlayer = this.getCurrentPlayer().name;
         this.currentPlayerIndex = 1 - this.currentPlayerIndex;
         const newPlayer = this.getCurrentPlayer().name;
-        
+
         console.log('========================================');
         console.log('>>> TURN SWITCHED <<<');
         console.log('From:', previousPlayer, 'To:', newPlayer);
         console.log('========================================');
-        
+
         this.updateTurnDisplay();
+        if (typeof PoolAI !== 'undefined') PoolAI.onTurnChanged();
     }
     
     updateTurnDisplay() {
@@ -358,23 +359,12 @@ class PoolGame {
             return;
         }
         
-        // Black potted on break WITHOUT golden ball enabled = re-spot
+        // Black potted on break WITHOUT golden ball enabled = re-spot.
+        // Don't return early -- still need to verify the break was legal
+        // (>= 3 points) using the remaining non-black balls below.
         if (blackPotted) {
             this.respotBlack();
             this.showRespotMessage();
-            // Continue evaluating the break (black doesn't count as a pot)
-            // Remove black from potted balls for scoring
-            const nonBlackPotted = ballsPotted.filter(b => b.num !== 8);
-            
-            // If other balls were potted, use those for break evaluation
-            if (nonBlackPotted.length > 0) {
-                // Assign colors based on first non-black ball potted
-                this.assignColors(nonBlackPotted[0].color);
-                this.gamePhase = 'playing';
-                this.tableOpen = false;
-                this.updateTurnDisplay();
-                return;
-            }
         }
         
         // Calculate break points (EPA rules):
@@ -1073,7 +1063,12 @@ class PoolGame {
         
         // Show initial turn display
         this.updateTurnDisplay();
-        
+
+        // Initialize AI opponent (off by default; toggle button appears top-left)
+        if (typeof PoolAI !== 'undefined') {
+            try { PoolAI.init(this); } catch (e) { console.error('Failed to init PoolAI:', e); }
+        }
+
         // Start animation
         this.animate();
     }
@@ -1110,13 +1105,13 @@ class PoolGame {
                         console.log('   Context resumed from button click');
                     }
                     PoolAudio.userInteracted = true;
-                    
+
                     console.log('   Playing test sound...');
                     PoolAudio.play('cueHit', 0.8);
-                    
+
                     setTimeout(() => {
                         if (updateStatus()) {
-                            console.log('? Audio fully working!');
+                            console.log('[OK] Audio fully working!');
                             setTimeout(() => {
                                 audioBtn.style.opacity = '0';
                                 setTimeout(() => audioBtn.remove(), 300);
@@ -1124,8 +1119,8 @@ class PoolGame {
                         }
                     }, 100);
                 } catch (e) {
-                    console.error('? Audio test failed:', e);
-                    audioBtn.innerHTML = '? <span>Audio Error</span>';
+                    console.error('[ERR] Audio test failed:', e);
+                    audioBtn.innerHTML = '[ERR] <span>Audio Error</span>';
                 }
             }
         });
@@ -1157,12 +1152,12 @@ class PoolGame {
         const cHalf = this.cornerPocketOpening / 2;
         const sHalf = this.sidePocketOpening / 2;
         this.pockets = [
-            // Corner pockets � center at the cushion corner
+            // Corner pockets -- center at the cushion corner
             {x: cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: this.width - cm, y: cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
             {x: this.width - cm, y: this.height - cm, r: this.cornerPocketRadius, type: 'corner', gapHalf: cHalf},
-            // Side pockets � center halfway into the rail
+            // Side pockets -- center halfway into the rail
             {x: this.width / 2, y: cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf},
             {x: this.width / 2, y: this.height - cm * 0.4, r: this.middlePocketRadius, type: 'middle', gapHalf: sHalf}
         ];
@@ -1170,14 +1165,16 @@ class PoolGame {
     
     resetRack() {
         this.balls = [];
-        
+
         // Clear ball return tray
         this.clearBallReturnTray();
-        
-        const breakLineX = this.width * 0.25;
-        
+
+        // Spawn cue ball inside the baulk D so the ball-in-hand placement is valid.
+        // (baulkLineX = width * 0.2; using half of that puts it inside the legal area.)
+        const cueSpawnX = this.baulkLineX / 2;
+
         this.cueBall = {
-            x: breakLineX, 
+            x: cueSpawnX, 
             y: this.height / 2,
             vx: 0, vy: 0,
             r: this.cueBallRadius,
@@ -1255,6 +1252,7 @@ class PoolGame {
         
         this.statusEl.textContent = 'Place cue ball behind baulk line to break';
         this.statusEl.style.background = 'rgba(16, 185, 129, 0.9)';
+        if (typeof PoolAI !== 'undefined') PoolAI.onTurnChanged();
     }
     
     stopBalls() {
@@ -1659,8 +1657,9 @@ class PoolGame {
         }
         
         
-        // Continue animation
-        requestAnimationFrame(() => this.animate());
+        // Continue animation (cache bound function once to avoid per-frame closure allocation)
+        if (!this._animateBound) this._animateBound = this.animate.bind(this);
+        requestAnimationFrame(this._animateBound);
     }
 }
 

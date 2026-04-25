@@ -62,8 +62,8 @@
 
 	<ItemGroup>
 		<!-- Include 3D model files as embedded resources -->
-		<EmbeddedResource Include="Models\scene.gltf" />
-		<EmbeddedResource Include="Models\scene.bin" />
+		<EmbeddedResource Include="Resources\Models\scene.gltf" />
+		<EmbeddedResource Include="Resources\Models\scene.bin" />
 	</ItemGroup>
 	<ItemGroup>
 	  <MauiImage Remove="Resources\Raw\pool-game.html" />

@@ -16,10 +16,18 @@ public static class PoolPhysicsModule
 
 const PoolPhysics = {
     // Constants - WPA 2026 OFFICIAL STANDARDS
-    FRICTION: 0.987,  // Slightly less friction for smoother roll
+    FRICTION: 0.987,  // (legacy) retained for any external reference
     CUSHION_RESTITUTION: 0.95,  // WPA 2026: 0.92-0.98 (using mid-high)
-    MIN_VELOCITY: 0.012,
+    MIN_VELOCITY: 0.05,  // Slightly higher so the ball snaps cleanly to rest at the end of its roll
     COLLISION_DAMPING: 0.96,  // WPA 2026: 0.92-0.98 coefficient of restitution
+
+    // Realistic deceleration model (replaces pure multiplicative FRICTION).
+    // A rolling ball loses speed at an approximately CONSTANT rate per frame
+    // (rolling resistance), not exponentially -- exponential decay is what made
+    // the balls feel like they were gliding on glass forever.
+    ROLLING_DECEL: 0.055,   // px/frame (~3.3 px/s^2 at 60fps) for a fully rolling ball
+    SLIDING_DECEL: 0.110,   // px/frame -- faster decel while sliding (kinetic friction)
+    VISCOUS_DRAG: 0.992,    // small velocity-proportional component (air + cloth viscous drag)
     
     // WPA 2026 Physical Constants
     BALL_TO_BALL_FRICTION: 0.055,  // WPA 2026: 0.03-0.08 (determines throw)
@@ -48,10 +56,18 @@ const PoolPhysics = {
         if (speed > this.MIN_VELOCITY) {
             // Store initial direction
             const initialAngle = Math.atan2(ball.vy, ball.vx);
-            
-            // Apply base friction
-            ball.vx *= this.FRICTION;
-            ball.vy *= this.FRICTION;
+
+            // ===== REALISTIC DECELERATION =====
+            // Real pool balls decelerate at a near-constant rate from rolling resistance,
+            // with a small extra component from viscous drag. Pure multiplicative friction
+            // (v *= 0.987) feels 'glassy' because it never actually reaches zero.
+            // Sliding balls (mismatched spin/translation) decelerate faster.
+            const isSliding = !ball.slidingComplete;
+            const constDecel = isSliding ? this.SLIDING_DECEL : this.ROLLING_DECEL;
+            const newSpeed = Math.max(0, speed * this.VISCOUS_DRAG - constDecel);
+            const ratio = newSpeed / speed;
+            ball.vx *= ratio;
+            ball.vy *= ratio;
             
             // WPA 2026: Calculate angular velocity (omega = v/r)
             if (!ball.omega) ball.omega = 0; // Angular velocity in rad/sec
@@ -408,13 +424,14 @@ const PoolPhysics = {
             const ny = dy / dist;
 
             // ===== ALWAYS SEPARATE OVERLAPPING BALLS =====
-            // Do this first, before velocity resolution, to prevent interpenetration
+            // Do this first, before velocity resolution, to prevent interpenetration.
+            // Always fully separate (no cap) -- if we leave balls overlapping the next
+            // sub-step will re-detect the same collision, which causes jittery paths
+            // and 'sliding along each other' artifacts.
             const overlap = minDist - dist;
             if (overlap > 0) {
-                // Cap separation to prevent wild jumps in packed clusters
-                const maxSep = Math.min(overlap, b1.r * 0.5);
-                const separationX = nx * maxSep * 0.5;
-                const separationY = ny * maxSep * 0.5;
+                const separationX = nx * overlap * 0.5;
+                const separationY = ny * overlap * 0.5;
 
                 b1.x -= separationX;
                 b1.y -= separationY;
@@ -504,35 +521,45 @@ const PoolPhysics = {
                     // ===== 30-DEGREE RULE IMPLEMENTATION =====
                     // For a ROLLING ball (natural roll), deflection is approximately 30 degrees from original path
                     // For a STUN shot (no spin), it's 90 degrees (pure tangent)
-                    if (isRolling && normalizedCutAngle > 0.1) { // Not a straight-on hit
-                        // Calculate 30-degree deflection from original path
-                        // The cue ball deflects at 30 deg rather than purely tangent (90 deg)
-                        
-                        // Tangent direction would be 90 deg, but rolling friction causes approximately 30 deg deflection
+                    if (isRolling && normalizedCutAngle > 0.02) { // Not a perfectly straight hit
+                        // Calculate which side of the original path the cue ball deflects to.
                         const tangentAngle = Math.atan2(ty, tx);
                         const originalAngle = b1Angle;
-                        
-                        // Calculate the natural angle - 30 degrees from original path toward tangent
-                        // Determine which direction to deflect (left or right of original)
                         let angleDiff = tangentAngle - originalAngle;
-                        // Normalize to -PI to PI
                         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                        
-                        // 30-degree deflection in the direction of the tangent
-                        const deflectionAngle = originalAngle + (Math.sign(angleDiff) * Math.PI / 6); // 30 degrees
-                        
-                        // Apply the 30-degree rule velocity
+                        const sign = Math.sign(angleDiff) || 1;
+
+                        // Smooth deflection magnitude that varies with cut angle.
+                        //   - thick (cut < 30 deg): deflection grows ~ linearly from 0 -> 30 deg
+                        //   - half-ball (30-60 deg): plateau around 30 deg (the classic rule)
+                        //   - thin (cut > 60 deg): bend back toward stun (~90 deg) because
+                        //     so little energy transfers that the cue barely deflects past tangent
+                        const cutDeg = normalizedCutAngle * 180 / Math.PI;
+                        let deflectionDeg;
+                        if (cutDeg < 30) {
+                            deflectionDeg = cutDeg;                       // 0 .. 30
+                        } else if (cutDeg < 60) {
+                            deflectionDeg = 30;                            // plateau
+                        } else {
+                            deflectionDeg = 30 + (cutDeg - 60) * 1.5;     // climb toward 75-90
+                        }
+                        deflectionDeg = Math.min(85, deflectionDeg);
+                        const deflectionAngle = originalAngle + sign * deflectionDeg * Math.PI / 180;
+
+                        // Cue ball keeps the stun speed (|tangent component| with damping).
+                        // This is energy-correct: object ball got the normal component,
+                        // cue retains the tangent component but rolling friction redirects it.
                         const cueSpeed = Math.abs(tangentSpeed);
                         b1.vx = Math.cos(deflectionAngle) * cueSpeed;
                         b1.vy = Math.sin(deflectionAngle) * cueSpeed;
-                        
-                        console.log('30-DEG RULE! Cut:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, Deflection:', (deflectionAngle * 180 / Math.PI).toFixed(1), 'deg');
+
+                        console.log('30-DEG RULE! Cut:', cutDeg.toFixed(1), 'deg, Deflection:', deflectionDeg.toFixed(1), 'deg');
                     } else {
                         // Stun shot or straight-on: Pure tangent (90-degree rule only)
                         b1.vx = tx * tangentSpeed;
                         b1.vy = ty * tangentSpeed;
-                        
+
                         if (isRolling) {
                             console.log('90-DEG RULE! Straight-on hit, cue tangent:', (Math.atan2(b1.vy, b1.vx) * 180 / Math.PI).toFixed(1), 'deg');
                         } else {
@@ -587,21 +614,21 @@ const PoolPhysics = {
                         
                         console.log('[Physics] THICK DRAW! Straight back, cut angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg');
                     } else {
-                        // For medium cuts, draw back at an angle using tangent
-                        // But don't overdo it - reduce the effect
+                        // For medium cuts, draw ADDS a backward/tangential pull on top of the
+                        // collision result. (Overwriting would wipe out the 30-degree-rule deflection.)
                         const tangentMagnitude = Math.abs(b1vt) * 0.3;
                         let drawDirection;
-                        
+
                         if (b1vt > 0) {
                             drawDirection = Math.atan2(ty, tx);
                         } else {
                             drawDirection = Math.atan2(-ty, -tx);
                         }
-                        
+
                         const drawSpeed = b1Speed * drawStrength * 0.5;
-                        b1.vx = Math.cos(drawDirection) * drawSpeed;
-                        b1.vy = Math.sin(drawDirection) * drawSpeed;
-                        
+                        b1.vx += Math.cos(drawDirection) * drawSpeed * 0.5;
+                        b1.vy += Math.sin(drawDirection) * drawSpeed * 0.5;
+
                         console.log('[Physics] CUT DRAW! Angle:', (normalizedCutAngle * 180 / Math.PI).toFixed(1), 'deg, effectiveness:', (spinEffectiveness * 100).toFixed(0) + '%');
                     }
                 } else if (b1.spinY !== undefined && b1.spinY < -0.3) {

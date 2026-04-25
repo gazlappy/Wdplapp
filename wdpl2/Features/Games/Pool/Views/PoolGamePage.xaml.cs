@@ -269,7 +269,7 @@ public partial class PoolGamePage : ContentPage
     <!-- Ball Return Window -->
     <div class='ball-return-window'>
         <div class='ball-return-header'>
-            ?? BALL RETURN TRAY
+            BALL RETURN TRAY
         </div>
         <div class='ball-return-tray' id='ballReturnTray'>
             <div class='ball-return-empty'>No balls potted yet</div>
@@ -335,7 +335,11 @@ public partial class PoolGamePage : ContentPage
     <script>
     {Services.PoolGameSettingsModule.GenerateJavaScript()}
     </script>
-    
+
+    <script>
+    {Services.PoolAiModule.GenerateJavaScript()}
+    </script>
+
     <script>
     {Services.PoolGameModule.GenerateJavaScript()}
     </script>

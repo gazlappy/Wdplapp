@@ -8,11 +8,13 @@
     <Grid RowDefinitions="Auto,*">
         
         <!-- Header -->
-        <Frame Grid.Row="0" 
-               BackgroundColor="#2a5298" 
-               Padding="15" 
-               CornerRadius="0"
-               HasShadow="True">
+        <Border Grid.Row="0"
+                BackgroundColor="#2a5298"
+                Padding="15"
+                StrokeThickness="0">
+            <Border.Shadow>
+                <Shadow Brush="Black" Opacity="0.4" Radius="8" Offset="0,2"/>
+            </Border.Shadow>
             <Grid ColumnDefinitions="*,Auto">
                 <Label Text="UK 8-Ball Pool Game" 
                        FontSize="24" 
@@ -27,7 +29,7 @@
                         CornerRadius="8"
                         Padding="20,10"/>
             </Grid>
-        </Frame>
+        </Border>
 
         <!-- WebView for Game -->
         <WebView Grid.Row="1" 
