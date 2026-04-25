@@ -95,6 +95,10 @@ public partial class LayoutSettingsPage : ContentPage
         ShowPoweredByCheck.IsChecked = settings.ShowPoweredBy;
         CustomFooterTextEntry.Text = settings.CustomFooterText;
         CopyrightTextEntry.Text = settings.CopyrightText;
+
+        FooterNotesContainer.Children.Clear();
+        foreach (var note in settings.FooterNotes)
+            AddFooterNoteRow(note);
         
         // Tables & Cards
         TableStripedCheck.IsChecked = settings.TableStriped;
@@ -194,6 +198,17 @@ public partial class LayoutSettingsPage : ContentPage
             settings.ShowPoweredBy = ShowPoweredByCheck.IsChecked;
             settings.CustomFooterText = CustomFooterTextEntry.Text?.Trim() ?? "";
             settings.CopyrightText = CopyrightTextEntry.Text?.Trim() ?? "";
+
+            settings.FooterNotes.Clear();
+            foreach (var child in FooterNotesContainer.Children)
+            {
+                if (child is Grid g && g.Children.OfType<Entry>().FirstOrDefault() is Entry entry)
+                {
+                    var text = entry.Text?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(text))
+                        settings.FooterNotes.Add(text);
+                }
+            }
             
             // Tables & Cards
             settings.TableStriped = TableStripedCheck.IsChecked;
@@ -214,5 +229,34 @@ public partial class LayoutSettingsPage : ContentPage
         {
             await DisplayAlert("Error", $"Failed to save: {ex.Message}", "OK");
         }
+    }
+
+    private void OnAddFooterNoteClicked(object? sender, EventArgs e)
+    {
+        AddFooterNoteRow("");
+    }
+
+    private void AddFooterNoteRow(string text)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(new GridLength(36))],
+            ColumnSpacing = 6
+        };
+        var entry = new Entry { Placeholder = "Footer note text...", Text = text };
+        var removeBtn = new Button
+        {
+            Text = "✕",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#EF4444"),
+            FontSize = 14,
+            HeightRequest = 36,
+            WidthRequest = 36,
+            Padding = 0
+        };
+        removeBtn.Clicked += (_, _) => FooterNotesContainer.Children.Remove(grid);
+        grid.Add(entry, 0);
+        grid.Add(removeBtn, 1);
+        FooterNotesContainer.Children.Add(grid);
     }
 }

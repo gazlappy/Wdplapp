@@ -88,6 +88,13 @@ public class CompetitionSetupDialog : ContentPage
                     FontSize = 16, 
                     FontAttributes = FontAttributes.Bold,
                     Margin = new Thickness(0, 10, 0, 5)
+                },
+                new Label
+                {
+                    Text = "ℹ️ Number of groups will be configured after adding players, with recommended group sizes.",
+                    FontSize = 12,
+                    TextColor = Color.FromArgb("#6366F1"),
+                    Margin = new Thickness(0, 0, 0, 5)
                 }
             }
         };
@@ -95,8 +102,9 @@ public class CompetitionSetupDialog : ContentPage
         _numberOfGroupsEntry = new Entry
         {
             Placeholder = "Number of groups",
-            Text = "4",
-            Keyboard = Keyboard.Numeric
+            Text = "0",
+            Keyboard = Keyboard.Numeric,
+            IsVisible = false
         };
 
         _topAdvanceEntry = new Entry
@@ -124,7 +132,6 @@ public class CompetitionSetupDialog : ContentPage
             Text = "Plate"
         };
 
-        _groupStagePanel.Children.Add(CreateFieldRow("Number of Groups:", _numberOfGroupsEntry));
         _groupStagePanel.Children.Add(CreateFieldRow("Top Players Advance:", _topAdvanceEntry));
         _groupStagePanel.Children.Add(CreateFieldRow("Lower to Plate:", _lowerPlateEntry));
         _groupStagePanel.Children.Add(CreateFieldRow("Create Plate Competition:", _createPlateSwitch));
@@ -285,12 +292,6 @@ public class CompetitionSetupDialog : ContentPage
         // Validate group stage settings
         if (format == CompetitionFormat.SinglesGroupStage || format == CompetitionFormat.DoublesGroupStage)
         {
-            if (!int.TryParse(_numberOfGroupsEntry.Text, out int numGroups) || numGroups < 2)
-            {
-                await DisplayAlert("Validation Error", "Please enter a valid number of groups (minimum 2)", "OK");
-                return;
-            }
-
             if (!int.TryParse(_topAdvanceEntry.Text, out int topAdvance) || topAdvance < 1)
             {
                 await DisplayAlert("Validation Error", "Please enter a valid number of top players advancing (minimum 1)", "OK");
@@ -321,7 +322,7 @@ public class CompetitionSetupDialog : ContentPage
         {
             competition.GroupSettings = new GroupStageSettings
             {
-                NumberOfGroups = int.Parse(_numberOfGroupsEntry.Text),
+                NumberOfGroups = 0,
                 TopPlayersAdvance = int.Parse(_topAdvanceEntry.Text),
                 LowerPlayersToPlate = int.Parse(_lowerPlateEntry.Text),
                 CreatePlateCompetition = _createPlateSwitch.IsToggled,

@@ -131,8 +131,150 @@ public partial class CompetitionEditorViewModel : ObservableObject
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
 
+        // Auto-create / update / remove a calendar event for this round
+        if (date.HasValue)
+            SyncRoundCalendarEvent(round);
+
         var datePart = round.Date.HasValue ? round.Date.Value.ToString("dd MMM yyyy") : "no date";
         StatusMessage = $"{round.Name}: {datePart}, {round.TotalTables} table(s)";
+    }
+
+    /// <summary>
+    /// Create or update a <see cref="CalendarEvent"/> linked to the given competition round.
+    /// Also syncs a blackout / exclusion date on the season so league fixtures are not
+    /// scheduled on the same date as a competition round.
+    /// If the round has no date the existing event (if any) is removed.
+    /// </summary>
+    private void SyncRoundCalendarEvent(CompetitionRound round)
+    {
+        var events = DataStore.Data.CalendarEvents;
+        var existing = events.FirstOrDefault(e =>
+            e.CompetitionId == _competition.Id && e.RoundId == round.Id);
+
+        var title = $"{_competition.Name} — {round.Name}";
+        var previousDate = existing?.Date;
+
+        if (!round.Date.HasValue)
+        {
+            if (existing != null)
+                events.Remove(existing);
+            SyncRoundBlackoutDate(round, previousDate, title);
+            DataStore.SaveJsonOnly();
+            return;
+        }
+
+        if (existing != null)
+        {
+            existing.Date = round.Date.Value.Date;
+            existing.Title = title;
+        }
+        else
+        {
+            events.Add(new CalendarEvent
+            {
+                Date = round.Date.Value.Date,
+                Title = title,
+                Category = CalendarEventCategory.Competition,
+                CompetitionId = _competition.Id,
+                RoundId = round.Id
+            });
+        }
+
+        SyncRoundBlackoutDate(round, previousDate, title);
+
+        // Use SaveJsonOnly to avoid SyncEntitiesToDatabase overwriting
+        // competition data that was just saved via the SQLite store.
+        DataStore.SaveJsonOnly();
+    }
+
+    /// <summary>
+    /// Add or update a blackout / exclusion date on the season for a competition round.
+    /// Only removes the old blackout if its title matches (so user-created blackouts are preserved).
+    /// </summary>
+    private void SyncRoundBlackoutDate(CompetitionRound round, DateTime? previousDate, string title)
+    {
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        if (!seasonId.HasValue) return;
+
+        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonId.Value);
+        if (season == null) return;
+
+        // Remove previous blackout for this round (only if the title matches ours)
+        if (previousDate.HasValue)
+        {
+            var prevKey = previousDate.Value.Date.ToString("yyyy-MM-dd");
+            if (season.BlackoutDateTitles.TryGetValue(prevKey, out var prevTitle) && prevTitle == title)
+            {
+                season.BlackoutDates.RemoveAll(d => d.Date == previousDate.Value.Date);
+                season.BlackoutDateTitles.Remove(prevKey);
+            }
+        }
+
+        // Add new blackout date for the round
+        if (round.Date.HasValue)
+        {
+            var newDate = round.Date.Value.Date;
+            var newKey = newDate.ToString("yyyy-MM-dd");
+            if (!season.BlackoutDates.Any(d => d.Date == newDate))
+                season.BlackoutDates.Add(newDate);
+            season.BlackoutDateTitles[newKey] = title;
+        }
+    }
+
+    /// <summary>
+    /// Randomly reassign matches to tables within a round (shuffle).
+    /// </summary>
+    public async Task RandomiseVenueAssignmentsAsync(Guid roundId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        var round = _competition.Rounds.FirstOrDefault(r => r.Id == roundId);
+        if (round == null)
+        {
+            StatusMessage = "Round not found";
+            return;
+        }
+
+        if (round.SelectedVenues.Count == 0 || round.TotalTables == 0)
+        {
+            StatusMessage = "No tables selected to randomise";
+            return;
+        }
+
+        CompetitionGenerator.ShuffleMatchVenueTables(round.Matches, round.SelectedVenues);
+
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+
+        StatusMessage = $"🎲 {round.Name}: venues randomised";
+    }
+
+    /// <summary>
+    /// Apply pre-selected venues/tables (stored in GroupSettings before the draw)
+    /// to the first knockout round after bracket generation.
+    /// Also copies the pre-draw date to round 1.
+    /// </summary>
+    private void ApplyPreDrawVenuesToFirstRound()
+    {
+        if (_competition.GroupSettings == null) return;
+        if (_competition.Rounds.Count == 0) return;
+
+        // Only apply for knockout formats (group stage handles this differently)
+        if (_competition.Format is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage)
+            return;
+
+        var firstRound = _competition.Rounds.OrderBy(r => r.RoundNumber).First();
+        var preDrawVenues = _competition.GroupSettings.SelectedVenues;
+        var preDrawDate = _competition.GroupSettings.GroupDate;
+
+        if (preDrawDate.HasValue)
+            firstRound.Date = preDrawDate;
+
+        if (preDrawVenues.Count > 0)
+        {
+            firstRound.SelectedVenues = preDrawVenues;
+            CompetitionGenerator.AssignMatchVenueTables(firstRound.Matches, preDrawVenues);
+        }
     }
 
     /// <summary>
@@ -148,19 +290,50 @@ public partial class CompetitionEditorViewModel : ObservableObject
         var parentComp = allComps.FirstOrDefault(c => c.Id == _competition.ParentCompetitionId.Value);
         if (parentComp == null) return new();
 
+        return CollectTablesOnDate(parentComp, date);
+    }
+
+    /// <summary>
+    /// Get tables that are in use by ANY other competition in the same season on a given date.
+    /// Returns a dictionary mapping table ID → the name of the competition using it.
+    /// </summary>
+    public async Task<Dictionary<Guid, string>> GetTablesInUseByOtherCompsOnDateAsync(DateTime date)
+    {
+        var seasonId = _competition.SeasonId ?? CurrentSeasonId;
+        var allComps = await _competitionStore.GetCompetitionsAsync(seasonId);
+
+        var result = new Dictionary<Guid, string>();
+        foreach (var comp in allComps)
+        {
+            if (comp.Id == _competition.Id) continue; // skip self
+
+            var tableIds = CollectTablesOnDate(comp, date);
+            foreach (var tableId in tableIds)
+            {
+                result.TryAdd(tableId, comp.Name);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Collect all table IDs used by a competition on a specific date.
+    /// </summary>
+    private static List<Guid> CollectTablesOnDate(Competition comp, DateTime date)
+    {
         var usedTableIds = new List<Guid>();
 
         // Check group stage tables (if groups match the date)
-        if (parentComp.GroupSettings?.GroupDate?.Date == date.Date)
+        if (comp.GroupSettings?.GroupDate?.Date == date.Date)
         {
             usedTableIds.AddRange(
-                parentComp.GroupSettings.SelectedVenues
+                comp.GroupSettings.SelectedVenues
                     .SelectMany(v => v.SelectedTables)
                     .Select(t => t.TableId));
         }
 
         // Check KO round tables
-        foreach (var round in parentComp.Rounds.Where(r => r.Date?.Date == date.Date))
+        foreach (var round in comp.Rounds.Where(r => r.Date?.Date == date.Date))
         {
             usedTableIds.AddRange(
                 round.SelectedVenues
@@ -461,9 +634,11 @@ public partial class CompetitionEditorViewModel : ObservableObject
             _competition.Rounds = rounds;
             _competition.Status = CompetitionStatus.InProgress;
 
+            ApplyPreDrawVenuesToFirstRound();
+
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
-            
+
             HasRounds = _competition.Rounds.Count > 0;
             StatusMessage = $"Generated {rounds.Count} rounds with {rounds.Sum(r => r.Matches.Count)} matches {(randomize ? "(RANDOM)" : "(ordered)")}";
         }
@@ -520,6 +695,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             _competition.Rounds = rounds;
             _competition.Status = CompetitionStatus.InProgress;
 
+            ApplyPreDrawVenuesToFirstRound();
+
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
 
@@ -553,6 +730,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             _competition.Rounds = rounds;
             _competition.Status = CompetitionStatus.InProgress;
+
+            ApplyPreDrawVenuesToFirstRound();
 
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
@@ -615,6 +794,72 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
 
         return Participants.Where(p => !assignedIds.Contains(p.Id)).ToList();
+    }
+
+    /// <summary>
+    /// Get all participants in the competition (for manual reassignment dialogs
+    /// where the user may pick any participant, not just unassigned ones).
+    /// </summary>
+    public List<ParticipantItem> GetAllParticipants() => Participants.ToList();
+
+    /// <summary>
+    /// Clear a participant slot in a match.
+    /// </summary>
+    public async Task ClearMatchSlotAsync(Guid matchId, bool isSlot1)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match != null)
+                {
+                    if (isSlot1) match.Participant1Id = null;
+                    else match.Participant2Id = null;
+                    await _competitionStore.UpdateCompetitionAsync(_competition);
+                    await _competitionStore.SaveAsync();
+                    StatusMessage = "Slot cleared";
+                    return;
+                }
+            }
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error clearing slot: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Swap home/away participants in a match.
+    /// </summary>
+    public async Task SwapMatchParticipantsAsync(Guid matchId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match != null)
+                {
+                    (match.Participant1Id, match.Participant2Id) = (match.Participant2Id, match.Participant1Id);
+                    (match.Participant1Score, match.Participant2Score) = (match.Participant2Score, match.Participant1Score);
+                    await _competitionStore.UpdateCompetitionAsync(_competition);
+                    await _competitionStore.SaveAsync();
+                    StatusMessage = "Swapped home/away";
+                    return;
+                }
+            }
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error swapping: {ex.Message}";
+        }
     }
 
     [RelayCommand]
@@ -1076,35 +1321,46 @@ public partial class CompetitionEditorViewModel : ObservableObject
         {
             foreach (var match in round.Matches)
             {
-                if (!match.IsComplete && match.Participant1Id.HasValue && match.Participant2Id.HasValue)
+                if (!match.Participant1Id.HasValue || !match.Participant2Id.HasValue)
+                    continue;
+
+                Guid? winnerId = null;
+
+                if (ftw > 0)
                 {
-                    Guid? winnerId = null;
+                    // Best-of mode: only complete when a player reaches the winning score
+                    if (match.Participant1Score >= ftw)
+                        winnerId = match.Participant1Id;
+                    else if (match.Participant2Score >= ftw)
+                        winnerId = match.Participant2Id;
+                }
+                else
+                {
+                    // Unlimited mode: whoever is ahead wins (scores must differ)
+                    if (match.Participant1Score > match.Participant2Score)
+                        winnerId = match.Participant1Id;
+                    else if (match.Participant2Score > match.Participant1Score)
+                        winnerId = match.Participant2Id;
+                }
 
-                    if (ftw > 0)
-                    {
-                        // Best-of mode: only complete when a player reaches the winning score
-                        if (match.Participant1Score >= ftw)
-                            winnerId = match.Participant1Id;
-                        else if (match.Participant2Score >= ftw)
-                            winnerId = match.Participant2Id;
-                        else
-                            continue; // Neither player has reached the winning score yet
-                    }
-                    else
-                    {
-                        // Unlimited mode: whoever is ahead wins (scores must differ)
-                        if (match.Participant1Score > match.Participant2Score)
-                            winnerId = match.Participant1Id;
-                        else if (match.Participant2Score > match.Participant1Score)
-                            winnerId = match.Participant2Id;
-                        else
-                            continue; // Tied — can't determine a winner
-                    }
-
+                if (winnerId.HasValue)
+                {
+                    bool changed = !match.IsComplete || match.WinnerId != winnerId;
                     match.WinnerId = winnerId;
                     match.IsComplete = true;
+                    if (changed)
+                    {
+                        anyUpdates = true;
+                        AdvanceWinner(round, match);
+                    }
+                }
+                else if (match.IsComplete)
+                {
+                    // Score was edited so there's no longer a clear winner — revert to incomplete
+                    match.WinnerId = null;
+                    match.IsComplete = false;
                     anyUpdates = true;
-                    AdvanceWinner(round, match);
+                    ClearAdvancement(round, match);
                 }
             }
         }
@@ -1137,6 +1393,24 @@ public partial class CompetitionEditorViewModel : ObservableObject
             nextMatch.Participant1Id = match.WinnerId;
         else
             nextMatch.Participant2Id = match.WinnerId;
+    }
+
+    private void ClearAdvancement(CompetitionRound round, CompetitionMatch match)
+    {
+        var nextRound = _competition.Rounds.FirstOrDefault(r => r.RoundNumber == round.RoundNumber + 1);
+        if (nextRound == null) return;
+
+        int matchIndex = round.Matches.IndexOf(match);
+        if (matchIndex < 0) return;
+
+        int nextMatchIndex = matchIndex / 2;
+        if (nextMatchIndex >= nextRound.Matches.Count) return;
+
+        var nextMatch = nextRound.Matches[nextMatchIndex];
+        if (matchIndex % 2 == 0)
+            nextMatch.Participant1Id = null;
+        else
+            nextMatch.Participant2Id = null;
     }
 
     /// <summary>

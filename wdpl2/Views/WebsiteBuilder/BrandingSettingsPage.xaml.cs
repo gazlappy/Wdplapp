@@ -51,6 +51,8 @@ public partial class BrandingSettingsPage : ContentPage
         MaintainAspectRatioCheck.IsChecked = settings.LogoMaintainAspectRatio;
         DuplicateLogoCheck.IsChecked = settings.DuplicateLogoBothSides;
         RightLogoFrame.IsVisible = settings.DuplicateLogoBothSides;
+        LogoTiltSlider.Value = settings.LogoTiltIntensity;
+        LogoTiltLabel.Text = settings.LogoTiltIntensity > 0 ? $"{settings.LogoTiltIntensity}°" : "0° (Off)";
 
         // Load right logo size
         RightLogoWidthEntry.Text = settings.RightLogoMaxWidth.ToString();
@@ -342,6 +344,12 @@ public partial class BrandingSettingsPage : ContentPage
         RightLogoStatusLabel.Text = "";
     }
 
+    private void OnLogoTiltChanged(object sender, ValueChangedEventArgs e)
+    {
+        var val = (int)e.NewValue;
+        LogoTiltLabel.Text = val > 0 ? $"{val}°" : "0° (Off)";
+    }
+
     private void UpdateRightLogoPreview()
     {
         if (_rightLogoData != null && _rightLogoData.Length > 0)
@@ -385,6 +393,7 @@ public partial class BrandingSettingsPage : ContentPage
             
             settings.LogoMaintainAspectRatio = MaintainAspectRatioCheck.IsChecked;
             settings.DuplicateLogoBothSides = DuplicateLogoCheck.IsChecked;
+            settings.LogoTiltIntensity = (int)LogoTiltSlider.Value;
 
             // Save logo data
             if (_uploadedLogoData != null && _uploadedLogoData.Length > 0)

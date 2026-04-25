@@ -24,6 +24,7 @@ public sealed class WebsiteTemplatePageGenerator
     /// </summary>
     public string GeneratePlayerTemplatePage(
         Season season,
+        string cacheBuster,
         Action<StringBuilder, string, Season> appendDocumentHead,
         Action<StringBuilder, Season> appendHeader,
         Action<StringBuilder, string> appendNavigation,
@@ -53,18 +54,18 @@ public sealed class WebsiteTemplatePageGenerator
         html.AppendLine("            <div id=\"error\" class=\"section\" style=\"display: none; text-align: center;\">");
         html.AppendLine("                <h2>Player Not Found</h2>");
         html.AppendLine("                <p>The requested player could not be found.</p>");
-        html.AppendLine("                <a href=\"players.html\" class=\"back-link\">? Back to All Players</a>");
+        html.AppendLine("                <a href=\"players.html\" class=\"back-link\">&#8592; Back to All Players</a>");
         html.AppendLine("            </div>");
 
-        // Player content (populated by JS)
+        // Player content
         html.AppendLine("            <div id=\"player-content\" style=\"display: none;\">");
-        html.AppendLine("                <div class=\"hero\">");
-        html.AppendLine("                    <h2>?? <span id=\"player-name\"></span></h2>");
+        html.AppendLine("                <div class=\"section\">");
+        html.AppendLine("                    <h2>&#128100; <span id=\"player-name\"></span></h2>");
         html.AppendLine("                    <p class=\"hero-dates\" id=\"player-team\"></p>");
         html.AppendLine("                </div>");
         html.AppendLine("                <div class=\"stats-grid\" id=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));\"></div>");
         html.AppendLine("                <div class=\"section\">");
-        html.AppendLine("                    <h3>?? Full Record</h3>");
+        html.AppendLine("                    <h3>&#128203; Full Record</h3>");
         html.AppendLine("                    <div class=\"table-responsive\">");
         html.AppendLine($"                    <table class=\"{tableClasses}\">");
         html.AppendLine("                        <thead><tr><th>Date</th><th>Opponent</th><th>Team</th><th>Result</th></tr></thead>");
@@ -73,7 +74,7 @@ public sealed class WebsiteTemplatePageGenerator
         html.AppendLine("                    </div>");
         html.AppendLine("                </div>");
         html.AppendLine("                <div class=\"section\" style=\"text-align: center;\">");
-        html.AppendLine("                    <a href=\"players.html\" class=\"back-link\">? Back to All Players</a>");
+        html.AppendLine("                    <a href=\"players.html\" class=\"back-link\">&#8592; Back to All Players</a>");
         html.AppendLine("                </div>");
         html.AppendLine("            </div>");
         html.AppendLine("        </div>");
@@ -85,10 +86,11 @@ public sealed class WebsiteTemplatePageGenerator
         var leagueName = _settings.LeagueName.Replace("'", "\\'");
         html.AppendLine(@"    <script>
 (function() {
+    var cacheBuster = '" + cacheBuster + @"';
     var urlParams = new URLSearchParams(window.location.search);
     var playerId = urlParams.get('id');
     if (!playerId) { showError(); return; }
-    fetch('players-data.json')
+    fetch('players-data.json?v=' + cacheBuster)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var player = data.players.find(function(p) { return p.id === playerId; });
@@ -144,6 +146,7 @@ public sealed class WebsiteTemplatePageGenerator
     /// </summary>
     public string GenerateTeamTemplatePage(
         Season season,
+        string cacheBuster,
         Action<StringBuilder, string, Season> appendDocumentHead,
         Action<StringBuilder, Season> appendHeader,
         Action<StringBuilder, string> appendNavigation,
@@ -173,13 +176,13 @@ public sealed class WebsiteTemplatePageGenerator
         html.AppendLine("            <div id=\"error\" class=\"section\" style=\"display: none; text-align: center;\">");
         html.AppendLine("                <h2>Team Not Found</h2>");
         html.AppendLine("                <p>The requested team could not be found.</p>");
-        html.AppendLine("                <a href=\"divisions.html\" class=\"back-link\">? Back to Divisions</a>");
+        html.AppendLine("                <a href=\"divisions.html\" class=\"back-link\">&#8592; Back to Divisions</a>");
         html.AppendLine("            </div>");
 
         // Team content (populated by JS)
         html.AppendLine("            <div id=\"team-content\" style=\"display: none;\">");
         html.AppendLine("                <div class=\"hero\">");
-        html.AppendLine("                    <h2>?? <span id=\"team-name\"></span></h2>");
+        html.AppendLine("                    <h2>&#127942; <span id=\"team-name\"></span></h2>");
         html.AppendLine("                    <p class=\"hero-dates\" id=\"team-division\"></p>");
         html.AppendLine("                </div>");
         html.AppendLine("                <div class=\"stats-grid\" id=\"stats-grid\" style=\"grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));\"></div>");
@@ -187,15 +190,20 @@ public sealed class WebsiteTemplatePageGenerator
         // Team info section
         html.AppendLine("                <div class=\"section\" id=\"team-info\"></div>");
 
-        // Roster section
+        // Roster section - table with player stats
         html.AppendLine("                <div class=\"section\">");
-        html.AppendLine("                    <h3>?? Team Roster</h3>");
-        html.AppendLine("                    <ul class=\"team-list\" id=\"roster-list\"></ul>");
+        html.AppendLine("                    <h3>&#128101; Team Roster</h3>");
+        html.AppendLine("                    <div class=\"table-responsive\">");
+        html.AppendLine($"                    <table class=\"{tableClasses}\">");
+        html.AppendLine("                        <thead><tr><th>Pos</th><th>Player</th><th>P</th><th>W</th><th>L</th><th>Win %</th><th>Rating</th></tr></thead>");
+        html.AppendLine("                        <tbody id=\"roster-list\"></tbody>");
+        html.AppendLine("                    </table>");
+        html.AppendLine("                    </div>");
         html.AppendLine("                </div>");
 
         // Match history
         html.AppendLine("                <div class=\"section\">");
-        html.AppendLine("                    <h3>?? Recent Matches</h3>");
+        html.AppendLine("                    <h3>&#128197; Recent Matches</h3>");
         html.AppendLine("                    <div class=\"table-responsive\">");
         html.AppendLine($"                    <table class=\"{tableClasses}\">");
         html.AppendLine("                        <thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Result</th><th>Score</th></tr></thead>");
@@ -206,7 +214,7 @@ public sealed class WebsiteTemplatePageGenerator
 
         // Back link
         html.AppendLine("                <div class=\"section\" style=\"text-align: center;\">");
-        html.AppendLine("                    <a href=\"divisions.html\" class=\"back-link\">? Back to Divisions</a>");
+        html.AppendLine("                    <a href=\"divisions.html\" class=\"back-link\">&#8592; Back to Divisions</a>");
         html.AppendLine("                </div>");
         html.AppendLine("            </div>");
         html.AppendLine("        </div>");
@@ -218,10 +226,11 @@ public sealed class WebsiteTemplatePageGenerator
         var leagueName = _settings.LeagueName.Replace("'", "\\'");
         html.AppendLine(@"    <script>
 (function() {
+    var cacheBuster = '" + cacheBuster + @"';
     var urlParams = new URLSearchParams(window.location.search);
     var teamId = urlParams.get('id');
     if (!teamId) { showError(); return; }
-    fetch('teams-data.json')
+    fetch('teams-data.json?v=' + cacheBuster)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var team = data.teams.find(function(t) { return t.id === teamId; });
@@ -249,30 +258,35 @@ public sealed class WebsiteTemplatePageGenerator
         document.getElementById('stats-grid').innerHTML = statsHtml;
         
         // Team info
-        var infoHtml = '<h3>?? Team Info</h3>';
+        var infoHtml = '<h3>&#128712; Team Info</h3>';
         if (t.venue) infoHtml += '<p><strong>Venue:</strong> ' + t.venue + '</p>';
-        if (t.providesFood) infoHtml += '<p><strong>?? Food Available</strong></p>';
+        if (t.providesFood) infoHtml += '<p><strong>&#127860; Food Available</strong></p>';
         if (t.form && t.form.length > 0) {
             infoHtml += '<p><strong>Form:</strong> ';
             for (var i = 0; i < t.form.length; i++) {
                 var f = t.form[i];
-                if (f === 'W') infoHtml += '<span style=""color:#10B981"">?</span> ';
-                else if (f === 'L') infoHtml += '<span style=""color:#EF4444"">?</span> ';
-                else infoHtml += '<span style=""color:#F59E0B"">?</span> ';
+                if (f === 'W') infoHtml += '<span style=""color:#10B981"">&#9679;</span> ';
+                else if (f === 'L') infoHtml += '<span style=""color:#EF4444"">&#9679;</span> ';
+                else infoHtml += '<span style=""color:#F59E0B"">&#9679;</span> ';
             }
             infoHtml += '</p>';
         }
         document.getElementById('team-info').innerHTML = infoHtml;
         
-        // Roster
+        // Roster table
         var rosterHtml = '';
         if (t.roster && t.roster.length > 0) {
-            for (var i = 0; i < t.roster.length; i++) {
-                var p = t.roster[i];
-                rosterHtml += '<li><a href=""player.html?id=' + p.id + '"" class=""player-link"">' + p.name + '</a></li>';
+            var sorted = t.roster.slice().sort(function(a,b){ return b.rating - a.rating; });
+            var pos = 1;
+            for (var i = 0; i < sorted.length; i++) {
+                var p = sorted[i];
+                if (i > 0 && sorted[i-1].rating === p.rating) pos = pos; else pos = i + 1;
+                var isJoint = (i > 0 && sorted[i-1].rating === p.rating) || (i < sorted.length-1 && sorted[i+1].rating === p.rating);
+                var posDisplay = isJoint ? pos + '=' : '' + pos;
+                rosterHtml += '<tr><td>' + posDisplay + '</td><td><strong><a href=""player.html?id=' + p.id + '"" class=""player-link"">' + p.name + '</a></strong></td><td>' + p.played + '</td><td>' + p.won + '</td><td>' + p.lost + '</td><td>' + p.winPct.toFixed(1) + '%</td><td>' + p.rating + '</td></tr>';
             }
         } else {
-            rosterHtml = '<li>No players assigned</li>';
+            rosterHtml = '<tr><td colspan=""7"">No players assigned</td></tr>';
         }
         document.getElementById('roster-list').innerHTML = rosterHtml;
         

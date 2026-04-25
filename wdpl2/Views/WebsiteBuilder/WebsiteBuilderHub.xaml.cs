@@ -156,6 +156,7 @@ public partial class WebsiteBuilderHub : ContentPage
         UpdateRowsReportsCount();
         UpdateRulesSummary();
         UpdateEntryFormsCount();
+        UpdateHistorySummary();
         UpdateSummaryLabels();
         UpdateLastActivityLabel();
     }
@@ -220,6 +221,14 @@ public partial class WebsiteBuilderHub : ContentPage
         EntryFormsSummaryLabel.Text = count == 0
             ? "No forms created yet"
             : $"{count} form{(count == 1 ? "" : "s")} ({published} active) \u2022 {totalEntries} entr{(totalEntries == 1 ? "y" : "ies")} logged";
+    }
+
+    private void UpdateHistorySummary()
+    {
+        var honours = League.WebsiteSettings.HistoricHonours;
+        HistorySummaryLabel.Text = honours.Count == 0
+            ? "Import historic winners and runners-up"
+            : $"{honours.Count} honours across {honours.Select(h => h.Season).Distinct().Count()} seasons";
     }
 
     private void UpdateSummaryLabels()
@@ -417,6 +426,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private async void OnEntryFormsTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new EntryFormsSettingsPage());
 
+    private async void OnHistoryTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new HistorySettingsPage());
+
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
 
@@ -447,6 +459,7 @@ public partial class WebsiteBuilderHub : ContentPage
             (RowsReportsTile, ["rows reports", "match reports", "weekly", "reports"]),
             (RulesTile, ["rules", "league rules", "constitution", "match rules"]),
             (EntryFormsTile, ["entry forms", "forms", "entries", "submissions", "entry"]),
+            (HistoryTile, ["history", "honours", "roll of honour", "historic", "winners"]),
             (FixturesSheetTile, ["fixtures sheet", "print", "printable", "fixtures"]),
             (SocialCardTile, ["social media", "share", "result cards", "post"]),
             (SeoTile, ["seo", "advanced", "meta tags", "custom css", "html", "sitemap", "meta"]),
@@ -460,7 +473,7 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             (BrandingSectionLabel, [BrandingTile, ContactTile]),
             (DesignSectionLabel, [DragDropTile, ColorsTile, LayoutTile]),
-            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile]),
+            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile, HistoryTile]),
             (PrintExportSectionLabel, [FixturesSheetTile]),
             (SocialSectionLabel, [SocialCardTile]),
             (AdvancedSectionLabel, [SeoTile, DeploymentTile]),
@@ -665,9 +678,12 @@ public partial class WebsiteBuilderHub : ContentPage
             return;
         }
 
-        // Inline CSS
+        // Inline CSS (handle optional cache-buster query string)
         if (_generatedFiles.TryGetValue("style.css", out var css))
-            html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", $"<style>{css}</style>");
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
+                _ => $"<style>{css}</style>");
 
         // Inline JSON data so fetch() works in the WebView
         html = InlineJsonData(html);
@@ -695,35 +711,33 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchPattern(html, "fetch('players-data.json')",
-                ".then(function(r) { return r.json(); })", escaped);
+            html = ReplaceFetchWithInline(html, "players-data.json", escaped);
         }
 
         if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
         {
             var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchPattern(html, "fetch('teams-data.json')",
-                ".then(function(r) { return r.json(); })", escaped);
+            html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
         }
 
         return html;
     }
 
-    private static string ReplaceFetchPattern(string html, string fetchPart, string thenPart, string escapedJson)
+    /// <summary>
+    /// Replaces fetch('file.json') or fetch('file.json?v=' + cacheBuster) plus
+    /// the following .then(function(r) { return r.json(); }) with an inline
+    /// Promise.resolve(JSON.parse('...')) so the preview works without HTTP.
+    /// </summary>
+    private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
     {
-        var idx = html.IndexOf(fetchPart, StringComparison.Ordinal);
-        if (idx < 0) return html;
-
-        var afterFetch = idx + fetchPart.Length;
-        var thenIdx = html.IndexOf(thenPart, afterFetch, StringComparison.Ordinal);
-        if (thenIdx < 0) return html;
-
-        var endIdx = thenIdx + thenPart.Length;
-        return string.Concat(
-            html.AsSpan(0, idx),
-            $"Promise.resolve(JSON.parse('{escapedJson}'))",
-            html.AsSpan(endIdx));
+        // Match both plain fetch('file.json') and cache-busted fetch('file.json?v=' + cacheBuster)
+        var pattern = @"fetch\('" + System.Text.RegularExpressions.Regex.Escape(fileName)
+            + @"(?:\?v='\s*\+\s*cacheBuster)?'\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            pattern,
+            _ => $"Promise.resolve(JSON.parse('{escapedJson}'))");
     }
 
     private void OnPreviewNavigating(object? sender, WebNavigatingEventArgs e)

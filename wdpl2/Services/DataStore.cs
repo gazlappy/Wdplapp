@@ -96,6 +96,26 @@ public static partial class DataStore
     }
 
     /// <summary>
+    /// Save only the JSON file without syncing entities to the database.
+    /// Use when only non-entity data (e.g. CalendarEvents, CalendarSettings) has changed
+    /// and entity tables (competitions, fixtures, etc.) should not be overwritten.
+    /// </summary>
+    public static void SaveJsonOnly()
+    {
+        EnsureDataDirectory();
+
+        try
+        {
+            if (File.Exists(DataPath))
+                File.Copy(DataPath, BackupPath, overwrite: true);
+        }
+        catch { /* non-critical */ }
+
+        var json = JsonSerializer.Serialize(Data, JsonOpts);
+        File.WriteAllText(DataPath, json);
+    }
+
+    /// <summary>
     /// Push the current data to the cloud (GitHub repo) if cloud sync is enabled.
     /// Runs as fire-and-forget so Save() remains synchronous.
     /// </summary>
@@ -353,7 +373,23 @@ public static partial class DataStore
             using var scope = _services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
 
+            // Preserve JSON-only Season properties that EF Core ignores
+            var titlesBySeasonId = Data.Seasons.ToDictionary(s => s.Id, s => s.BlackoutDateTitles);
+            var settingsBySeasonId = Data.Seasons
+                .Where(s => s.Settings != null)
+                .ToDictionary(s => s.Id, s => s.Settings);
+
             Data.Seasons = context.Seasons.AsNoTracking().ToList();
+
+            // Restore JSON-only properties lost during EF Core load
+            foreach (var season in Data.Seasons)
+            {
+                if (titlesBySeasonId.TryGetValue(season.Id, out var titles))
+                    season.BlackoutDateTitles = titles;
+                if (settingsBySeasonId.TryGetValue(season.Id, out var settings))
+                    season.Settings = settings;
+            }
+
             Data.Divisions = context.Divisions.AsNoTracking().ToList();
             Data.Teams = context.Teams.AsNoTracking().ToList();
             Data.Players = context.Players.AsNoTracking().ToList();

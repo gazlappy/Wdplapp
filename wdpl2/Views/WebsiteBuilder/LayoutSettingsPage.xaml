@@ -312,9 +312,14 @@
                     
                     <Label Text="Custom Footer Text" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="CustomFooterTextEntry" Placeholder="Additional footer text..."/>
-                    
+
                     <Label Text="Copyright Text" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="CopyrightTextEntry" Placeholder="2024 Your League"/>
+
+                    <Label Text="Footer Notes" FontSize="12" TextColor="#6B7280" Margin="0,8,0,0"/>
+                    <Label Text="Add extra note boxes displayed in the footer" FontSize="11" TextColor="#9CA3AF"/>
+                    <VerticalStackLayout x:Name="FooterNotesContainer" Spacing="6"/>
+                    <Button Text="+ Add Footer Note" FontSize="12" BackgroundColor="#3B82F6" TextColor="White" CornerRadius="6" HeightRequest="36" Clicked="OnAddFooterNoteClicked"/>
                 </VerticalStackLayout>
             </Frame>
             

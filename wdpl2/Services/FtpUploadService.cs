@@ -432,5 +432,43 @@ namespace Wdpl2.Services
 
             return remotePath;
         }
+
+        /// <summary>
+        /// Compute SHA256 hash of file content for change detection.
+        /// </summary>
+        public static string ComputeHash(string content)
+        {
+            var bytes = Encoding.UTF8.GetBytes(content);
+            var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            return Convert.ToHexStringLower(hash);
+        }
+
+        /// <summary>
+        /// Returns only the files whose content has changed since the last upload.
+        /// </summary>
+        public static Dictionary<string, string> GetChangedFiles(
+            Dictionary<string, string> allFiles,
+            Dictionary<string, string> previousHashes)
+        {
+            var changed = new Dictionary<string, string>();
+            foreach (var kvp in allFiles)
+            {
+                var hash = ComputeHash(kvp.Value);
+                if (!previousHashes.TryGetValue(kvp.Key, out var prev) || prev != hash)
+                    changed[kvp.Key] = kvp.Value;
+            }
+            return changed;
+        }
+
+        /// <summary>
+        /// Builds a hash dictionary for all files (call after successful upload to store).
+        /// </summary>
+        public static Dictionary<string, string> BuildHashDictionary(Dictionary<string, string> files)
+        {
+            var hashes = new Dictionary<string, string>(files.Count);
+            foreach (var kvp in files)
+                hashes[kvp.Key] = ComputeHash(kvp.Value);
+            return hashes;
+        }
     }
 }

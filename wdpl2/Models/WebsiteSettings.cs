@@ -183,6 +183,10 @@ namespace Wdpl2.Models
         
         // Drag-and-drop layout blocks for home page
         public List<LayoutBlock> HomeLayoutBlocks { get; set; } = new();
+
+        // Display order for competitions on the Competitions page (by Competition.Id).
+        // Competitions not listed here fall back to the default Status/CreatedDate sort.
+        public List<Guid> CompetitionDisplayOrder { get; set; } = new();
         
         /// <summary>
         /// Available max content widths
@@ -224,6 +228,7 @@ namespace Wdpl2.Models
         public bool ShowPoweredBy { get; set; } = true;
         public string CustomFooterText { get; set; } = "";
         public string CopyrightText { get; set; } = "";
+        public List<string> FooterNotes { get; set; } = [];
         
         // Content Options - Main Toggles
         public bool ShowStandings { get; set; } = true;
@@ -240,6 +245,39 @@ namespace Wdpl2.Models
         public bool ShowRules { get; set; } = false;
         public bool ShowContactPage { get; set; } = false;
         public bool ShowPoolGame { get; set; } = true;
+
+        // Page Titles (displayed as the heading on each page)
+        public string HomeWelcomeTitle { get; set; } = "Welcome to {season}";
+        public string StandingsPageTitle { get; set; } = "League Standings";
+        public string FixturesPageTitle { get; set; } = "Fixtures";
+        public string ResultsPageTitle { get; set; } = "Match Results";
+        public string PlayersPageTitle { get; set; } = "Player Statistics";
+        public string DivisionsPageTitle { get; set; } = "Divisions";
+        public string CompetitionsPageTitle { get; set; } = "Competitions";
+        public string GalleryPageTitle { get; set; } = "Photo Gallery";
+        public string NewsPageTitle { get; set; } = "Latest News";
+        public string RowsReportsPageTitle { get; set; } = "Rows Reports";
+        public string SponsorsPageTitle { get; set; } = "Our Sponsors";
+        public string RulesPageTitle { get; set; } = "League Rules";
+        public string ContactPageTitle { get; set; } = "Contact Us";
+        public string EntryFormsPageTitle { get; set; } = "Entry Forms";
+
+        // Navigation Labels (displayed in the nav bar across the top)
+        public string HomeNavLabel { get; set; } = "Home";
+        public string StandingsNavLabel { get; set; } = "Standings";
+        public string FixturesNavLabel { get; set; } = "Fixtures";
+        public string ResultsNavLabel { get; set; } = "Results";
+        public string PlayersNavLabel { get; set; } = "Players";
+        public string DivisionsNavLabel { get; set; } = "Divisions";
+        public string CompetitionsNavLabel { get; set; } = "Competitions";
+        public string PoolGameNavLabel { get; set; } = "\U0001F3B1 Play Pool";
+        public string GalleryNavLabel { get; set; } = "Gallery";
+        public string NewsNavLabel { get; set; } = "News";
+        public string RowsReportsNavLabel { get; set; } = "Rows Reports";
+        public string SponsorsNavLabel { get; set; } = "Sponsors";
+        public string RulesNavLabel { get; set; } = "Rules";
+        public string EntryFormsNavLabel { get; set; } = "Entry Forms";
+        public string ContactNavLabel { get; set; } = "Contact";
 
         // Home Page Options
         public bool HomeShowWelcomeSection { get; set; } = true;
@@ -410,6 +448,7 @@ namespace Wdpl2.Models
         public string? RightLogoSelectedCatalogId { get; set; }
         public int RightLogoMaxWidth { get; set; } = 300;
         public int RightLogoMaxHeight { get; set; } = 150;
+        public int LogoTiltIntensity { get; set; } = 0;
         public string? SelectedCatalogLogoId { get; set; }
         
         // Logo Catalog - stored logos that can be reused across website and fixtures sheets
@@ -639,6 +678,12 @@ namespace Wdpl2.Models
 
         // Custom Pages
         public List<CustomPage> CustomPages { get; set; } = new();
+
+        // Historic Honours (Roll of Honour)
+        public bool ShowHistory { get; set; } = false;
+        public List<HistoricHonour> HistoricHonours { get; set; } = new();
+        public string HistoryPageTitle { get; set; } = "Roll of Honour";
+        public string HistoryNavLabel { get; set; } = "History";
         
         /// <summary>
         /// Available font families
@@ -780,6 +825,7 @@ namespace Wdpl2.Models
             ShowPoweredBy = true;
             CustomFooterText = "";
             CopyrightText = "";
+            FooterNotes.Clear();
             
             // Content toggles
             ShowStandings = true;
@@ -794,7 +840,24 @@ namespace Wdpl2.Models
             ShowSponsors = false;
             ShowRules = false;
             ShowContactPage = false;
-            
+
+            // Navigation labels
+            HomeNavLabel = "Home";
+            StandingsNavLabel = "Standings";
+            FixturesNavLabel = "Fixtures";
+            ResultsNavLabel = "Results";
+            PlayersNavLabel = "Players";
+            DivisionsNavLabel = "Divisions";
+            CompetitionsNavLabel = "Competitions";
+            PoolGameNavLabel = "\U0001F3B1 Play Pool";
+            GalleryNavLabel = "Gallery";
+            NewsNavLabel = "News";
+            RowsReportsNavLabel = "Rows Reports";
+            SponsorsNavLabel = "Sponsors";
+            RulesNavLabel = "Rules";
+            EntryFormsNavLabel = "Entry Forms";
+            ContactNavLabel = "Contact";
+
             // Home page
             HomeShowWelcomeSection = true;
             HomeShowQuickStats = true;
@@ -992,6 +1055,12 @@ namespace Wdpl2.Models
             !string.IsNullOrWhiteSpace(ContactEmail) || 
             !string.IsNullOrWhiteSpace(ContactPhone) ||
             !string.IsNullOrWhiteSpace(ContactAddress);
+
+        /// <summary>
+        /// Content hashes of files from the last successful upload.
+        /// Used to detect which files have changed and need re-uploading.
+        /// </summary>
+        public Dictionary<string, string> UploadedFileHashes { get; set; } = new();
     }
     
     /// <summary>
@@ -1207,6 +1276,19 @@ namespace Wdpl2.Models
         public bool IsRequired { get; set; } = true;
         public string Placeholder { get; set; } = "";
         public string Options { get; set; } = ""; // for select: comma-separated options
+        public int SortOrder { get; set; }
+    }
+
+    /// <summary>
+    /// A historic honour/achievement (e.g. Singles Cup winner 1994)
+    /// </summary>
+    public sealed class HistoricHonour
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Season { get; set; } = ""; // e.g. "1994", "1988 - 1991"
+        public string Title { get; set; } = ""; // e.g. "Singles", "Premier Division"
+        public string Winner { get; set; } = "";
+        public string RunnerUp { get; set; } = "";
         public int SortOrder { get; set; }
     }
 

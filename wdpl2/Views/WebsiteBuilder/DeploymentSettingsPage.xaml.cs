@@ -45,14 +45,14 @@ public partial class DeploymentSettingsPage : ContentPage
     private void SaveSettings()
     {
         var settings = League.WebsiteSettings;
-        
+
         settings.FtpHost = FtpHostEntry.Text?.Trim() ?? "";
         if (int.TryParse(FtpPortEntry.Text, out int port))
             settings.FtpPort = port;
         settings.FtpUsername = FtpUsernameEntry.Text?.Trim() ?? "";
         settings.FtpPassword = FtpPasswordEntry.Text?.Trim() ?? "";
         settings.RemotePath = FtpPathEntry.Text?.Trim() ?? "/public_html/";
-        
+
         settings.GitHubToken = GitHubTokenEntry.Text?.Trim() ?? "";
         settings.GitHubUsername = GitHubUsernameEntry.Text?.Trim() ?? "";
         settings.GitHubRepoName = GitHubRepoEntry.Text?.Trim() ?? "";
@@ -60,6 +60,43 @@ public partial class DeploymentSettingsPage : ContentPage
         settings.EnableCloudSync = CloudSyncSwitch.IsToggled;
 
         DataStore.Save();
+    }
+
+    protected override void OnDisappearing()
+    {
+        // Persist any in-flight credential edits when the user leaves the page.
+        try { SaveSettings(); } catch { /* non-fatal */ }
+        base.OnDisappearing();
+    }
+
+    private async void OnSaveGitHubCredsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            SaveSettings();
+            StatusLabel.Text = "\u2713 GitHub credentials saved";
+            StatusLabel.TextColor = Color.FromArgb("#10B981");
+            StatusLabel.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Save Failed", ex.Message, "OK");
+        }
+    }
+
+    private async void OnSaveFtpCredsClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            SaveSettings();
+            StatusLabel.Text = "\u2713 FTP credentials saved";
+            StatusLabel.TextColor = Color.FromArgb("#10B981");
+            StatusLabel.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Save Failed", ex.Message, "OK");
+        }
     }
 
     private void OnDeploymentMethodChanged(object sender, EventArgs e)
@@ -419,34 +456,64 @@ public partial class DeploymentSettingsPage : ContentPage
         try
         {
             SaveSettings();
-            
+
             if (string.IsNullOrWhiteSpace(League.WebsiteSettings.FtpHost))
             {
                 await DisplayAlert("Not Configured", "Please configure FTP settings.", "OK");
                 return;
             }
-            
+
             var remotePath = League.WebsiteSettings.RemotePath ?? "/";
             if (!remotePath.StartsWith("/")) remotePath = "/" + remotePath;
             if (!remotePath.EndsWith("/")) remotePath += "/";
-            
-            var confirm = await DisplayAlert("Upload", $"Upload to {League.WebsiteSettings.FtpHost}{remotePath}?", "Upload", "Cancel");
-            if (!confirm) return;
-            
+
             StatusLabel.Text = "Generating website...";
             StatusLabel.TextColor = Color.FromArgb("#3B82F6");
             StatusLabel.IsVisible = true;
-            ProgressBar.IsVisible = true;
             UploadFtpBtn.IsEnabled = false;
-            
-            var files = GenerateWebsite();
-            if (files == null || files.Count == 0)
+
+            var allFiles = GenerateWebsite();
+            if (allFiles == null || allFiles.Count == 0)
             {
                 await DisplayAlert("Error", "Failed to generate website files.", "OK");
                 return;
             }
-            
-            StatusLabel.Text = "Uploading...";
+
+            // Determine which files changed
+            var previousHashes = League.WebsiteSettings.UploadedFileHashes;
+            var changedFiles = FtpUploadService.GetChangedFiles(allFiles, previousHashes);
+
+            Dictionary<string, string> filesToUpload;
+            if (changedFiles.Count == 0)
+            {
+                var forceAll = await DisplayAlert("No Changes",
+                    "All files are identical to the last upload. Upload everything anyway?",
+                    "Upload All", "Cancel");
+                if (!forceAll) return;
+                filesToUpload = allFiles;
+            }
+            else if (changedFiles.Count < allFiles.Count && previousHashes.Count > 0)
+            {
+                var choice = await DisplayActionSheet(
+                    $"{changedFiles.Count} of {allFiles.Count} files changed",
+                    "Cancel", null,
+                    $"Upload Changed Only ({changedFiles.Count} files)",
+                    $"Upload All ({allFiles.Count} files)");
+                if (string.IsNullOrEmpty(choice) || choice == "Cancel") return;
+                filesToUpload = choice.Contains("Changed Only") ? changedFiles : allFiles;
+            }
+            else
+            {
+                // First upload or all files changed
+                var confirm = await DisplayAlert("Upload",
+                    $"Upload {allFiles.Count} files to {League.WebsiteSettings.FtpHost}{remotePath}?",
+                    "Upload", "Cancel");
+                if (!confirm) return;
+                filesToUpload = allFiles;
+            }
+
+            StatusLabel.Text = $"Uploading {filesToUpload.Count} file(s)...";
+            ProgressBar.IsVisible = true;
             
             var ftpService = new FtpUploadService(League.WebsiteSettings);
             var progress = new Progress<UploadProgress>(p =>
@@ -457,17 +524,24 @@ public partial class DeploymentSettingsPage : ContentPage
                     StatusLabel.Text = p.Status;
                 });
             });
-            
-            var (success, message) = await ftpService.UploadWebsiteAsync(files, progress);
-            
+
+            var (success, message) = await ftpService.UploadWebsiteAsync(filesToUpload, progress);
+
             StatusLabel.Text = success ? "Upload complete!" : message;
             StatusLabel.TextColor = success ? Color.FromArgb("#10B981") : Color.FromArgb("#EF4444");
-            
+
             if (success)
             {
+                // Store hashes of ALL generated files (not just uploaded subset)
+                // so next time we correctly detect what changed
+                League.WebsiteSettings.UploadedFileHashes = FtpUploadService.BuildHashDictionary(allFiles);
                 League.WebsiteSettings.LastUploaded = DateTime.Now;
                 DataStore.Save();
-                await DisplayAlert("Uploaded", $"Files: {files.Count}", "OK");
+                var skipped = allFiles.Count - filesToUpload.Count;
+                var msg = skipped > 0
+                    ? $"Uploaded {filesToUpload.Count} changed file(s), {skipped} unchanged file(s) skipped."
+                    : $"Uploaded {filesToUpload.Count} file(s).";
+                await DisplayAlert("Uploaded", msg, "OK");
             }
             else
             {

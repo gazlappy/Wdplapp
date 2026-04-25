@@ -61,7 +61,11 @@ namespace Wdpl2.Services
                 html.AppendLine($"    <link href=\"https://fonts.googleapis.com/css2?family={families}&display=swap\" rel=\"stylesheet\">");
             }
 
-            html.AppendLine("    <link rel=\"stylesheet\" href=\"style.css\">");
+            html.AppendLine($"    <link rel=\"stylesheet\" href=\"style.css?v={_cacheBuster}\">");
+
+            // Logo 3D tilt script
+            if (_settings.LogoTiltIntensity > 0)
+                AppendLogoTiltScript(html, _settings.LogoTiltIntensity);
 
             // Custom head HTML
             if (!string.IsNullOrWhiteSpace(_settings.CustomHeadHtml))
@@ -292,51 +296,94 @@ namespace Wdpl2.Services
                 html.AppendLine($"            <a href=\"{href}\"{activeClass}>{text}</a>");
             }
             
-            NavLink("home.html", "Home", "Home");
-            
+            NavLink("home.html", _settings.HomeNavLabel, "Home");
+
             if (_settings.ShowStandings)
-                NavLink("standings.html", "Standings", "Standings");
-            
+            {
+                if (_navDivisions.Count > 1)
+                {
+                    var isActive = activePage.Equals("Standings", StringComparison.OrdinalIgnoreCase);
+                    html.AppendLine($"            <div class=\"nav-dropdown\">");
+                    html.AppendLine($"                <a href=\"standings.html\"{(isActive ? " class=\"active\"" : "")}>{_settings.StandingsNavLabel}</a>");
+                    html.AppendLine($"                <div class=\"nav-dropdown-menu\">");
+                    html.AppendLine($"                    <a href=\"standings.html\">All Divisions</a>");
+                    foreach (var d in _navDivisions)
+                    {
+                        var slug = StandingsDivisionSlug(d);
+                        html.AppendLine($"                    <a href=\"standings-{slug}.html\">{Esc(d.Name)}</a>");
+                    }
+                    html.AppendLine($"                </div>");
+                    html.AppendLine($"            </div>");
+                }
+                else
+                {
+                    NavLink("standings.html", _settings.StandingsNavLabel, "Standings");
+                }
+            }
+
             if (_settings.ShowFixtures)
-                NavLink("fixtures.html", "Fixtures", "Fixtures");
-            
+                NavLink("fixtures.html", _settings.FixturesNavLabel, "Fixtures");
+
             if (_settings.ShowResults)
-                NavLink("results.html", "Results", "Results");
-            
+                NavLink("results.html", _settings.ResultsNavLabel, "Results");
+
             if (_settings.ShowPlayerStats)
-                NavLink("players.html", "Players", "Players");
-            
+            {
+                if (_navDivisions.Count > 1)
+                {
+                    var isActive = activePage.Equals("Players", StringComparison.OrdinalIgnoreCase);
+                    html.AppendLine($"            <div class=\"nav-dropdown\">");
+                    html.AppendLine($"                <a href=\"players.html\"{(isActive ? " class=\"active\"" : "")}>{_settings.PlayersNavLabel}</a>");
+                    html.AppendLine($"                <div class=\"nav-dropdown-menu\">");
+                    html.AppendLine($"                    <a href=\"players.html\">All Divisions</a>");
+                    foreach (var d in _navDivisions)
+                    {
+                        var slug = StandingsDivisionSlug(d);
+                        html.AppendLine($"                    <a href=\"players-{slug}.html\">{Esc(d.Name)}</a>");
+                    }
+                    html.AppendLine($"                </div>");
+                    html.AppendLine($"            </div>");
+                }
+                else
+                {
+                    NavLink("players.html", _settings.PlayersNavLabel, "Players");
+                }
+            }
+
             if (_settings.ShowDivisions)
-                NavLink("divisions.html", "Divisions", "Divisions");
-            
+                NavLink("divisions.html", _settings.DivisionsNavLabel, "Divisions");
+
             if (_settings.ShowCompetitions)
-                NavLink("competitions.html", "Competitions", "Competitions");
-            
+                NavLink("competitions.html", _settings.CompetitionsNavLabel, "Competitions");
+
             // UK 8-Ball Pool Game
             if (_settings.ShowPoolGame)
-                NavLink("pool-game.html", "\U0001F3B1 Play Pool", "Pool Game");
-            
+                NavLink("pool-game.html", _settings.PoolGameNavLabel, "Pool Game");
+
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
-                NavLink("gallery.html", "Gallery", "Gallery");
-            
+                NavLink("gallery.html", _settings.GalleryNavLabel, "Gallery");
+
             if (_settings.ShowNews && _settings.NewsItems.Count > 0)
-                NavLink("news.html", "News", "News");
+                NavLink("news.html", _settings.NewsNavLabel, "News");
 
             if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
-                NavLink("rows-reports.html", "Rows Reports", "Rows Reports");
+                NavLink("rows-reports.html", _settings.RowsReportsNavLabel, "Rows Reports");
 
             if (_settings.ShowSponsors && _settings.Sponsors.Count > 0)
-                NavLink("sponsors.html", "Sponsors", "Sponsors");
-            
+                NavLink("sponsors.html", _settings.SponsorsNavLabel, "Sponsors");
+
             if (_settings.ShowRules && _settings.HasAnyRulesContent)
-                NavLink("rules.html", "Rules", "Rules");
+                NavLink("rules.html", _settings.RulesNavLabel, "Rules");
 
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
-                NavLink("entry-forms.html", "Entry Forms", "Entry Forms");
+                NavLink("entry-forms.html", _settings.EntryFormsNavLabel, "Entry Forms");
+
+            if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
+                NavLink("history.html", _settings.HistoryNavLabel, "History");
 
             if (_settings.ShowContactPage && _settings.HasContactInfo)
-                NavLink("contact.html", "Contact", "Contact");
-            
+                NavLink("contact.html", _settings.ContactNavLabel, "Contact");
+
             // Custom pages in nav
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished && p.ShowInNav).OrderBy(p => p.NavOrder))
             {
@@ -382,7 +429,18 @@ namespace Wdpl2.Services
             
             if (!string.IsNullOrWhiteSpace(_settings.CustomFooterText))
                 html.AppendLine($"            <p class=\"footer-custom\">{_settings.CustomFooterText}</p>");
-            
+
+            if (_settings.FooterNotes.Count > 0)
+            {
+                html.AppendLine("            <div class=\"footer-notes\">");
+                foreach (var note in _settings.FooterNotes)
+                {
+                    if (!string.IsNullOrWhiteSpace(note))
+                        html.AppendLine($"                <p class=\"footer-note\">{note}</p>");
+                }
+                html.AppendLine("            </div>");
+            }
+
             var copyrightText = !string.IsNullOrWhiteSpace(_settings.CopyrightText)
                 ? _settings.CopyrightText
                 : $"© {DateTime.Now.Year} {_settings.LeagueName}";
@@ -432,6 +490,30 @@ namespace Wdpl2.Services
             if (_settings.Sponsors.Count(s => s.IsActive) > 6)
                 html.AppendLine("                <p class=\"view-all\"><a href=\"sponsors.html\">View All Sponsors ?</a></p>");
             html.AppendLine("            </section>");
+        }
+
+        private static void AppendLogoTiltScript(StringBuilder html, int intensity)
+        {
+            html.AppendLine($@"    <script>
+document.addEventListener('DOMContentLoaded',function(){{
+  var max={intensity};
+  document.querySelectorAll('.logo,.logo-right,.sponsor-item img').forEach(function(el){{
+    el.style.transition='transform 0.18s ease-out';
+    el.style.transformStyle='preserve-3d';
+    el.addEventListener('mousemove',function(e){{
+      var r=el.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width;
+      var y=(e.clientY-r.top)/r.height;
+      var ry=(x-0.5)*max;
+      var rx=(0.5-y)*max;
+      el.style.transform='perspective(400px) rotateX('+rx+'deg) rotateY('+ry+'deg) scale(1.05)';
+    }});
+    el.addEventListener('mouseleave',function(){{
+      el.style.transform='';
+    }});
+  }});
+}});
+</script>");
         }
     }
 }

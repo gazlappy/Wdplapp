@@ -2,66 +2,35 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebsiteBuilder.FixturesSheetPage"
-             Title="Fixtures Sheet Generator">
-
-    <Grid ColumnDefinitions="380,*" ColumnSpacing="0">
-
-        <!-- ═══ LEFT PANEL: Settings ═══ -->
+             Title="Fixtures Sheet">
+    <Grid ColumnDefinitions="340,*" ColumnSpacing="0">
         <ScrollView Grid.Column="0" BackgroundColor="#F8FAFC">
             <VerticalStackLayout Padding="20,16" Spacing="12">
-
                 <Label Text="Fixtures Sheet" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
-                <Label Text="Create printable fixtures sheets for distribution" FontSize="12" TextColor="#64748B"/>
-
-                <!-- Action Buttons -->
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                    <Button Grid.Column="0" Text="&#128065; Preview" Clicked="OnPreviewClicked" 
-                            BackgroundColor="#3B82F6" FontSize="12" Padding="8,10" CornerRadius="8"/>
-                    <Button Grid.Column="1" Text="&#128190; Export" Clicked="OnExportClicked" 
-                            BackgroundColor="#10B981" FontSize="12" Padding="8,10" CornerRadius="8"/>
-                    <Button Grid.Column="2" Text="&#128424; Print" Clicked="OnPrintClicked" 
-                            BackgroundColor="#64748B" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                <Label Text="Classic paper-style printable fixture sheet" FontSize="12" TextColor="#64748B"/>
+                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Text="&#x1F4BE; Save" Clicked="OnSaveClicked" BackgroundColor="#8B5CF6" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="1" Text="Preview" Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="2" Text="Export" Clicked="OnExportClicked" BackgroundColor="#10B981" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                    <Button Grid.Column="3" Text="Print" Clicked="OnPrintClicked" BackgroundColor="#64748B" FontSize="12" Padding="8,10" CornerRadius="8"/>
                 </Grid>
-
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
-
-                <!-- Embed on Fixtures Page -->
-                <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#F0F9FF">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="📄 Embed on Fixtures Page" FontAttributes="Bold" FontSize="13" TextColor="#0369A1"/>
-                        <Label Text="Add a collapsible printable fixtures sheet to the fixtures page" FontSize="11" TextColor="#64748B" LineBreakMode="WordWrap"/>
-
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="ShowPrintableSheetCheck" IsChecked="False" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Show Printable Fixtures Sheet" VerticalOptions="Center" FontSize="13"/>
-                            </Grid>
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="SheetDefaultExpandedCheck" IsChecked="False" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Expanded by Default" VerticalOptions="Center" FontSize="13"/>
-                            </Grid>
-                        </VerticalStackLayout>
-
-                        <Label Text="Section Title" FontSize="11" TextColor="#64748B" Margin="0,4,0,0"/>
-                        <Entry x:Name="SheetTitleEntry" Text="Printable Fixtures Sheet" Placeholder="Enter section title" FontSize="13"/>
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Title" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Entry x:Name="TitleEntry" Placeholder="e.g. WDPL 2025 League (auto-generated if blank)" FontSize="12"/>
                     </VerticalStackLayout>
                 </Frame>
-
-                <!-- Season and Division Selection -->
-                <Frame BorderColor="#3B82F6" Padding="14" CornerRadius="10" BackgroundColor="#EFF6FF">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="&#127942; Season and Divisions" FontAttributes="Bold" FontSize="13" TextColor="#1E40AF"/>
-
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Season" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Picker x:Name="SeasonPicker" Title="Select Season"/>
-
-                        <Label Text="Divisions to include:" FontSize="12" TextColor="#64748B"/>
-                        <CollectionView x:Name="DivisionsCollection" 
-                                        SelectionMode="Multiple"
-                                        HeightRequest="100">
+                        <Label Text="Divisions:" FontSize="12" TextColor="#64748B"/>
+                        <CollectionView x:Name="DivisionsCollection" SelectionMode="None" HeightRequest="100">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Padding="4" ColumnDefinitions="32,*" ColumnSpacing="4">
-                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" CheckedChanged="OnDivisionCheckedChanged" VerticalOptions="Center"/>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" VerticalOptions="Center"/>
                                         <Label Grid.Column="1" Text="{Binding Name}" VerticalOptions="Center" FontSize="13"/>
                                     </Grid>
                                 </DataTemplate>
@@ -69,666 +38,108 @@
                         </CollectionView>
                     </VerticalStackLayout>
                 </Frame>
-
-                <!-- Header Settings -->
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Header Information" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-
-                        <Label Text="League Name" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="LeagueNameEntry" Placeholder="Wellington District Pool League" FontSize="13"/>
-
-                        <Label Text="Season Title" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="SeasonTitleEntry" Placeholder="Winter 2023-2024" FontSize="13"/>
-
-                        <Label Text="Subtitle (optional)" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="SubtitleEntry" Placeholder="Premier Division Fixtures" FontSize="13"/>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Logo Settings -->
-                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Logo" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Content" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowLogoCheck" IsChecked="False" CheckedChanged="OnShowLogoChanged" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Show league logo" VerticalOptions="Center" FontSize="13"/>
+                            <CheckBox x:Name="ShowTeamNumbersCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show team numbers" VerticalOptions="Center" FontSize="13"/>
                         </Grid>
-
-                        <VerticalStackLayout x:Name="LogoOptionsStack" IsVisible="False" Spacing="8">
-
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button x:Name="UploadLogoBtn" Text="Upload Logo" Clicked="OnUploadLogoClicked" 
-                                        BackgroundColor="#3B82F6" FontSize="11" Padding="8,8" CornerRadius="6"/>
-                                <Button Grid.Column="1" x:Name="SelectCatalogBtn" Text="From Catalog" Clicked="OnSelectFromCatalogClicked" 
-                                        BackgroundColor="#64748B" FontSize="11" Padding="8,8" CornerRadius="6"/>
-                            </Grid>
-
-                            <Frame x:Name="LogoPreviewFrame" BorderColor="#E2E8F0" Padding="10" CornerRadius="8" IsVisible="False" BackgroundColor="#F8FAFC">
-                                <VerticalStackLayout Spacing="5">
-                                    <Label Text="Current Logo:" FontSize="11" TextColor="#64748B"/>
-                                    <Image x:Name="LogoPreviewImage" HeightRequest="50" Aspect="AspectFit" HorizontalOptions="Start"/>
-                                    <Label x:Name="LogoSourceLabel" FontSize="10" TextColor="#94A3B8"/>
-                                    <Button Text="Remove" Clicked="OnRemoveLogoClicked" BackgroundColor="#EF4444" 
-                                            FontSize="11" HeightRequest="30" HorizontalOptions="Start" CornerRadius="6" Padding="12,4"/>
-                                </VerticalStackLayout>
-                            </Frame>
-
-                            <Label Text="Position" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="LogoPositionPicker" Title="Select Position">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Above Title</x:String>
-                                        <x:String>Below Title</x:String>
-                                        <x:String>Left of Title</x:String>
-                                        <x:String>Right of Title</x:String>
-                                        <x:String>Top Left Corner</x:String>
-                                        <x:String>Top Right Corner</x:String>
-                                        <x:String>Bottom Left Corner</x:String>
-                                        <x:String>Bottom Right Corner</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Grid ColumnDefinitions="Auto,80,20,Auto,80" ColumnSpacing="6">
-                                <Label Text="W:" VerticalOptions="Center" FontSize="12"/>
-                                <Entry Grid.Column="1" x:Name="LogoWidthEntry" Text="100" Keyboard="Numeric" FontSize="12"/>
-                                <Label Grid.Column="2"/>
-                                <Label Grid.Column="3" Text="H:" VerticalOptions="Center" FontSize="12"/>
-                                <Entry Grid.Column="4" x:Name="LogoHeightEntry" Text="60" Keyboard="Numeric" FontSize="12"/>
-                            </Grid>
-
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="MaintainAspectRatioCheck" IsChecked="True" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Maintain aspect ratio" VerticalOptions="Center" FontSize="12"/>
-                            </Grid>
-
-                            <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,4"/>
-
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Logo Catalog" FontAttributes="Bold" FontSize="12"/>
-                                <Button Grid.Column="1" Text="+ Save to Catalog" Clicked="OnSaveToCatalogClicked" 
-                                        BackgroundColor="#10B981" FontSize="10" Padding="8,4" x:Name="SaveToCatalogBtn" 
-                                        IsEnabled="False" CornerRadius="6"/>
-                            </Grid>
-
-                            <CollectionView x:Name="LogoCatalogCollection" HeightRequest="80">
-                                <CollectionView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Frame Padding="6" Margin="0,2" BorderColor="#E2E8F0" CornerRadius="6" BackgroundColor="White">
-                                            <Grid ColumnDefinitions="40,*,Auto,Auto" ColumnSpacing="8">
-                                                <Image Source="{Binding ImageSource}" HeightRequest="32" Aspect="AspectFit"/>
-                                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                                    <Label Text="{Binding Name}" FontSize="11" FontAttributes="Bold"/>
-                                                    <Label Text="{Binding Category}" FontSize="9" TextColor="#94A3B8"/>
-                                                </VerticalStackLayout>
-                                                <Button Grid.Column="2" Text="Use" Clicked="OnUseCatalogLogoClicked" 
-                                                        CommandParameter="{Binding .}"
-                                                        BackgroundColor="#3B82F6" TextColor="White" 
-                                                        FontSize="10" Padding="8,4" HeightRequest="26" CornerRadius="4"/>
-                                                <Button Grid.Column="3" Text="✕" Clicked="OnDeleteCatalogLogoClicked" 
-                                                        CommandParameter="{Binding .}"
-                                                        BackgroundColor="#EF4444" TextColor="White" 
-                                                        FontSize="10" WidthRequest="26" HeightRequest="26" CornerRadius="4"/>
-                                            </Grid>
-                                        </Frame>
-                                    </DataTemplate>
-                                </CollectionView.ItemTemplate>
-                                <CollectionView.EmptyView>
-                                    <Label Text="No logos saved in catalog" FontSize="11" TextColor="#94A3B8" HorizontalOptions="Center" Margin="0,8"/>
-                                </CollectionView.EmptyView>
-                            </CollectionView>
-                        </VerticalStackLayout>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowDivisionListsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show division team lists" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowVenueInfoCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show venue info" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowSpecialEventsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show key dates / events" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowFooterCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show footer notes" VerticalOptions="Center" FontSize="13"/>
+                        </Grid>
                     </VerticalStackLayout>
                 </Frame>
-
-                <!-- Display Options -->
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Display Options" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-
-                        <Label Text="Page Orientation" FontSize="11" TextColor="#64748B"/>
-                        <HorizontalStackLayout Spacing="20">
-                            <HorizontalStackLayout Spacing="4">
-                                <RadioButton x:Name="PortraitRadio" Content="Portrait" IsChecked="True" GroupName="Orientation"/>
-                            </HorizontalStackLayout>
-                            <HorizontalStackLayout Spacing="4">
-                                <RadioButton x:Name="LandscapeRadio" Content="Landscape" GroupName="Orientation"/>
-                            </HorizontalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Page" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <HorizontalStackLayout Spacing="16">
+                            <RadioButton x:Name="LandscapeRadio" Content="Landscape" IsChecked="True" GroupName="orient"/>
+                            <RadioButton x:Name="PortraitRadio" Content="Portrait" GroupName="orient"/>
                         </HorizontalStackLayout>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,2"/>
-
-                        <VerticalStackLayout Spacing="4">
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="ShowTeamNumbersCheck" IsChecked="True" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Use team numbers (1 v 2)" VerticalOptions="Center" FontSize="12"/>
-                            </Grid>
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="ShowVenueInfoCheck" IsChecked="True" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Show venue phone numbers" VerticalOptions="Center" FontSize="12"/>
-                            </Grid>
-                            <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                                <CheckBox x:Name="ShowDivisionListsCheck" IsChecked="True" VerticalOptions="Center"/>
-                                <Label Grid.Column="1" Text="Show division team lists" VerticalOptions="Center" FontSize="12"/>
-                            </Grid>
-                        </VerticalStackLayout>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Special Events -->
-                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="&#127912; Design &amp; Styling" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-                        <Label Text="These settings apply to the printable fixtures sheet only and do not affect the website design." FontSize="11" TextColor="#6B7280" FontAttributes="Italic" LineBreakMode="WordWrap"/>
-
-                        <!-- Layout Preset -->
-                        <Label Text="&#128208; Layout Preset" FontSize="11" TextColor="#64748B" FontAttributes="Bold"/>
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <Picker x:Name="LayoutPresetPicker" Title="Choose a layout..." SelectedIndex="-1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Month Cards — Standard Portrait</x:String>
-                                        <x:String>Month Cards — Compact Portrait</x:String>
-                                        <x:String>Month Cards — Spacious Portrait</x:String>
-                                        <x:String>Month Cards — Landscape</x:String>
-                                        <x:String>Month Cards — Landscape Dense</x:String>
-                                        <x:String>Month Cards — Minimal</x:String>
-                                        <x:String>Weekly List — Standard Portrait</x:String>
-                                        <x:String>Weekly List — Spacious Portrait</x:String>
-                                        <x:String>Weekly List — Compact Portrait</x:String>
-                                        <x:String>Weekly List — Landscape</x:String>
-                                        <x:String>Compact Grid — Portrait</x:String>
-                                        <x:String>Compact Grid — Portrait Dense</x:String>
-                                        <x:String>Compact Grid — Landscape</x:String>
-                                        <x:String>Compact Grid — Landscape Dense</x:String>
-                                        <x:String>Season Matrix — Landscape</x:String>
-                                        <x:String>Season Matrix — Portrait</x:String>
-                                        <x:String>Season Matrix — Landscape Spacious</x:String>
-                                        <x:String>Month Cards — Notice Board</x:String>
-                                        <x:String>Weekly List — Full Detail</x:String>
-                                        <x:String>Compact Grid — Pub Handout</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-                            <Button Grid.Column="1" Text="Apply" Clicked="OnApplyLayoutPresetClicked"
-                                    BackgroundColor="#6366F1" FontSize="11" Padding="10,8" CornerRadius="6"/>
+                        <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,4"/>
+                        <Label Text="3D Card Tilt" FontAttributes="Bold" FontSize="12" TextColor="#64748B"/>
+                        <Grid ColumnDefinitions="*,36" ColumnSpacing="6">
+                            <Slider x:Name="TiltSlider" Minimum="0" Maximum="20" Value="8" VerticalOptions="Center"/>
+                            <Label x:Name="TiltValueLabel" Grid.Column="1" Text="8°" FontSize="11" TextColor="#64748B" VerticalOptions="Center"/>
                         </Grid>
-
-                        <!-- Style Preset -->
-                        <Label Text="&#127912; Style Preset" FontSize="11" TextColor="#64748B" FontAttributes="Bold"/>
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <Picker x:Name="StylePresetPicker" Title="Choose a style..." SelectedIndex="-1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Classic Pool League</x:String>
-                                        <x:String>Modern Sports</x:String>
-                                        <x:String>Pub League</x:String>
-                                        <x:String>Professional Tournament</x:String>
-                                        <x:String>Community / Sunday League</x:String>
-                                        <x:String>Retro</x:String>
-                                        <x:String>Snooker Club</x:String>
-                                        <x:String>Midnight</x:String>
-                                        <x:String>Ocean Breeze</x:String>
-                                        <x:String>Woodland</x:String>
-                                        <x:String>Championship Gold</x:String>
-                                        <x:String>Minimalist</x:String>
-                                        <x:String>Newspaper</x:String>
-                                        <x:String>Neon Nights</x:String>
-                                        <x:String>Elegant</x:String>
-                                        <x:String>Tropical</x:String>
-                                        <x:String>Corporate</x:String>
-                                        <x:String>Vintage</x:String>
-                                        <x:String>Frostbite</x:String>
-                                        <x:String>Warm Glow</x:String>
-                                        <x:String>Print Ready</x:String>
-                                        <x:String>Friday Night</x:String>
-                                        <x:String>Seaside</x:String>
-                                        <x:String>Dark Mode</x:String>
-                                        <x:String>Pastel Dream</x:String>
-                                        <x:String>Matrix Master</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-                            <Button Grid.Column="1" Text="Apply" Clicked="OnApplyStylePresetClicked"
-                                    BackgroundColor="#8B5CF6" FontSize="11" Padding="10,8" CornerRadius="6"/>
+                        <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,4"/>
+                        <Label Text="Logo" FontAttributes="Bold" FontSize="12" TextColor="#64748B"/>
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                            <Label x:Name="LogoStatusLabel" Grid.Column="0" Text="No logo" FontSize="11" TextColor="#94A3B8" VerticalOptions="Center"/>
+                            <Button Grid.Column="1" Text="Upload" Clicked="OnUploadLogoClicked" BackgroundColor="#3B82F6" FontSize="11" Padding="10,6" CornerRadius="6"/>
+                            <Button Grid.Column="2" Text="Clear" Clicked="OnClearLogoClicked" BackgroundColor="#EF4444" FontSize="11" Padding="10,6" CornerRadius="6"/>
                         </Grid>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,2"/>
-
-                        <!-- Font Options (kept prominent) -->
-                        <Label Text="&#128292; Font Options" FontSize="11" TextColor="#64748B" FontAttributes="Bold"/>
-
-                        <Label Text="Font Family" FontSize="11" TextColor="#64748B"/>
-                        <Picker x:Name="FontFamilyPicker" Title="Font Family" SelectedIndex="0">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Modern (Segoe UI / Calibri)</x:String>
-                                    <x:String>Classic (Georgia / Times)</x:String>
-                                    <x:String>Monospace (Consolas / Courier)</x:String>
-                                    <x:String>Sport (Impact / Arial Black)</x:String>
-                                    <x:String>Elegant (Palatino / Book Antiqua)</x:String>
-                                    <x:String>Handwritten (Comic Sans / Script)</x:String>
-                                    <x:String>Condensed (Arial Narrow)</x:String>
-                                    <x:String>Rounded (Verdana / Trebuchet)</x:String>
-                                    <x:String>Newspaper (Cambria / Baskerville)</x:String>
-                                    <x:String>Technical (Lucida Console)</x:String>
-                                    <x:String>Display (Copperplate / Rockwell)</x:String>
-                                    <x:String>Casual (Tahoma / Geneva)</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <Label Text="Font Size" FontSize="11" TextColor="#64748B"/>
-                        <Picker x:Name="FontScalePicker" Title="Size" SelectedIndex="2">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Extra Small</x:String>
-                                    <x:String>Small</x:String>
-                                    <x:String>Default</x:String>
-                                    <x:String>Medium</x:String>
-                                    <x:String>Large</x:String>
-                                    <x:String>Extra Large</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <Label Text="Font Weight" FontSize="11" TextColor="#64748B"/>
-                        <Picker x:Name="FontWeightPicker" Title="Weight" SelectedIndex="1">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Light</x:String>
-                                    <x:String>Normal</x:String>
-                                    <x:String>Semi-Bold</x:String>
-                                    <x:String>Bold</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <Label Text="Title Size" FontSize="11" TextColor="#64748B"/>
-                        <Picker x:Name="TitleFontSizePicker" Title="Title Size" SelectedIndex="1">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Small</x:String>
-                                    <x:String>Medium (default)</x:String>
-                                    <x:String>Large</x:String>
-                                    <x:String>Extra Large</x:String>
-                                    <x:String>Huge</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,4"/>
-
-                        <!-- Advanced Design Options (collapsed by default) -->
-                        <Grid ColumnDefinitions="*,Auto" Padding="0,4">
-                            <Grid.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnToggleAdvancedClicked"/>
-                            </Grid.GestureRecognizers>
-                            <Label Text="&#9881; Advanced Design Options (printable sheet)" FontSize="11" TextColor="#64748B" FontAttributes="Bold" VerticalOptions="Center"/>
-                            <Label x:Name="AdvancedToggleIcon" Grid.Column="1" Text="&#9654;" FontSize="10" TextColor="#94A3B8" VerticalOptions="Center"/>
+                        <Label Text="Logo Size" FontSize="11" TextColor="#6B7280" Margin="0,4,0,0"/>
+                        <Grid ColumnDefinitions="*,40" ColumnSpacing="6">
+                            <Slider x:Name="LogoSizeSlider" Minimum="24" Maximum="120" Value="48" VerticalOptions="Center"/>
+                            <Label x:Name="LogoSizeValueLabel" Grid.Column="1" Text="48px" FontSize="11" TextColor="#64748B" VerticalOptions="Center"/>
                         </Grid>
-
-                        <VerticalStackLayout x:Name="AdvancedOptionsStack" IsVisible="False" Spacing="8">
-
-                            <Label Text="Sheet Layout" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="LayoutPicker" Title="Layout Format" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Month Cards (default)</x:String>
-                                        <x:String>Weekly List</x:String>
-                                        <x:String>Compact Grid</x:String>
-                                        <x:String>Season Matrix (home/away)</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Accent Colour" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="AccentColorPicker" Title="Accent" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Black</x:String>
-                                        <x:String>Navy</x:String>
-                                        <x:String>Forest</x:String>
-                                        <x:String>Burgundy</x:String>
-                                        <x:String>Slate</x:String>
-                                        <x:String>Royal Blue</x:String>
-                                        <x:String>Emerald</x:String>
-                                        <x:String>Crimson</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Title Style" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="TitleStylePicker" Title="Title" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Double Rule</x:String>
-                                        <x:String>Single Rule</x:String>
-                                        <x:String>Box Border</x:String>
-                                        <x:String>No Border</x:String>
-                                        <x:String>Gradient</x:String>
-                                        <x:String>Shadow</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Grid Lines" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="GridBorderPicker" Title="Borders" SelectedIndex="1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Fine</x:String>
-                                        <x:String>Medium</x:String>
-                                        <x:String>Bold</x:String>
-                                        <x:String>Double</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Home Badge" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="HomeBadgePicker" Title="Badge" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Pill</x:String>
-                                        <x:String>Bold Only</x:String>
-                                        <x:String>Underline</x:String>
-                                        <x:String>Highlight</x:String>
-                                        <x:String>None</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Subtitle" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="SubtitleStylePicker" Title="Subtitle" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Filled Bar</x:String>
-                                        <x:String>Outline</x:String>
-                                        <x:String>Text Only</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Month Palette" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="MonthPalettePicker" Title="Palette" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Muted</x:String>
-                                        <x:String>Vibrant</x:String>
-                                        <x:String>Monochrome</x:String>
-                                        <x:String>Earth</x:String>
-                                        <x:String>Ocean</x:String>
-                                        <x:String>Pastel</x:String>
-                                        <x:String>Neon</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Column Banding" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="ColumnBandingPicker" Title="Banding" SelectedIndex="1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>None</x:String>
-                                        <x:String>Subtle</x:String>
-                                        <x:String>Strong</x:String>
-                                        <x:String>Alternating</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Division Layout" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="DivisionLayoutPicker" Title="Layout" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Side by Side</x:String>
-                                        <x:String>Stacked</x:String>
-                                        <x:String>Compact (3 col)</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Card Style" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="CardStylePicker" Title="Cards" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Solid</x:String>
-                                        <x:String>Frosted Glass</x:String>
-                                        <x:String>Translucent</x:String>
-                                        <x:String>Outlined</x:String>
-                                        <x:String>Minimal</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Corners" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="CornerStylePicker" Title="Corners" SelectedIndex="1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Sharp</x:String>
-                                        <x:String>Rounded</x:String>
-                                        <x:String>Extra Round</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Header Pattern" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="HeaderPatternPicker" Title="Pattern" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Crosshatch</x:String>
-                                        <x:String>Dots</x:String>
-                                        <x:String>Diagonal</x:String>
-                                        <x:String>Circles</x:String>
-                                        <x:String>None</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Row Striping" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="RowStripingPicker" Title="Striping" SelectedIndex="1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>None</x:String>
-                                        <x:String>Subtle</x:String>
-                                        <x:String>Medium</x:String>
-                                        <x:String>Accent</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="VS Separator" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="VsSeparatorPicker" Title="VS" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>v</x:String>
-                                        <x:String>vs</x:String>
-                                        <x:String>– dash</x:String>
-                                        <x:String>● dot</x:String>
-                                        <x:String>None</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <Label Text="Footer Style" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="FooterStylePicker" Title="Footer" SelectedIndex="0">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Accent Top</x:String>
-                                        <x:String>Full Accent</x:String>
-                                        <x:String>Simple</x:String>
-                                        <x:String>Minimal</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                            <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,2"/>
-
-                            <VerticalStackLayout Spacing="4">
-                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
-                                    <CheckBox x:Name="ShowMatchNightCheck" IsChecked="True" VerticalOptions="Center"/>
-                                    <Label Grid.Column="1" Text="Match night banner" VerticalOptions="Center" FontSize="11"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
-                                    <CheckBox x:Name="TitleUppercaseCheck" IsChecked="True" VerticalOptions="Center"/>
-                                    <Label Grid.Column="1" Text="Uppercase title" VerticalOptions="Center" FontSize="11"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
-                                    <CheckBox x:Name="MonthUppercaseCheck" IsChecked="True" VerticalOptions="Center"/>
-                                    <Label Grid.Column="1" Text="Uppercase months" VerticalOptions="Center" FontSize="11"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="24,*" ColumnSpacing="4">
-                                    <CheckBox x:Name="ShowGridLegendCheck" IsChecked="True" VerticalOptions="Center"/>
-                                    <Label Grid.Column="1" Text="Grid legend" VerticalOptions="Center" FontSize="11"/>
-                                </Grid>
-                            </VerticalStackLayout>
-
-                            <Label Text="Text Density" FontSize="11" TextColor="#64748B"/>
-                            <Picker x:Name="TextDensityPicker" Title="Text Density" SelectedIndex="1">
-                                <Picker.ItemsSource>
-                                    <x:Array Type="{x:Type x:String}">
-                                        <x:String>Compact</x:String>
-                                        <x:String>Normal</x:String>
-                                        <x:String>Spacious</x:String>
-                                    </x:Array>
-                                </Picker.ItemsSource>
-                            </Picker>
-
-                        </VerticalStackLayout>
-
-                        <BoxView HeightRequest="1" BackgroundColor="#E2E8F0" Margin="0,4"/>
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                            <Button Text="&#128190; Save Design" Clicked="OnSaveDesignClicked"
-                                    BackgroundColor="#10B981" FontSize="11" Padding="8,8" CornerRadius="6"/>
-                            <Button Grid.Column="1" Text="&#128260; Load Saved" Clicked="OnLoadDesignClicked"
-                                    BackgroundColor="#64748B" FontSize="11" Padding="8,8" CornerRadius="6"/>
+                        <Label Text="Logo 3D Tilt" FontSize="11" TextColor="#6B7280"/>
+                        <Grid ColumnDefinitions="*,36" ColumnSpacing="6">
+                            <Slider x:Name="LogoTiltSlider" Minimum="0" Maximum="20" Value="0" VerticalOptions="Center"/>
+                            <Label x:Name="LogoTiltValueLabel" Grid.Column="1" Text="0°" FontSize="11" TextColor="#64748B" VerticalOptions="Center"/>
                         </Grid>
                     </VerticalStackLayout>
                 </Frame>
-
-                <!-- Special Events -->
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Text="Special Events" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-                            <Button Grid.Column="1" Text="+ Add" Clicked="OnAddEventClicked" 
-                                    BackgroundColor="#3B82F6" FontSize="11" Padding="10,5" CornerRadius="6"/>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Footer" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Entry x:Name="FooterNotesEntry" Placeholder="Footer notes (shown in red)" FontSize="12"/>
+                        <Label Text="Extra Footer Notes" FontSize="11" TextColor="#6B7280"/>
+                        <VerticalStackLayout x:Name="ExtraFooterNotesContainer" Spacing="4"/>
+                        <Button Text="+ Add Footer Note" FontSize="11" BackgroundColor="#3B82F6" TextColor="White" CornerRadius="6" HeightRequest="34" Clicked="OnAddExtraFooterNoteClicked"/>
+                        <Entry x:Name="WebsiteUrlEntry" Placeholder="Website URL" FontSize="12"/>
+                        <Entry x:Name="EmailEntry" Placeholder="Email address" FontSize="12"/>
+                        <Entry x:Name="ContactNameEntry" Placeholder="Match contact name" FontSize="12"/>
+                        <Entry x:Name="ContactPhoneEntry" Placeholder="Match contact phone" FontSize="12"/>
+                        <Entry x:Name="ReportNameEntry" Placeholder="Competition contact name" FontSize="12"/>
+                        <Entry x:Name="ReportPhoneEntry" Placeholder="Competition contact phone" FontSize="12"/>
+                    </VerticalStackLayout>
+                </Frame>
+                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <Label Text="Key Dates / Events" FontAttributes="Bold" FontSize="13" TextColor="#1E293B" VerticalOptions="Center"/>
+                            <Button Grid.Column="1" Text="&#x1F504; Sync Exclusion Dates" Clicked="OnSyncExclusionDatesClicked" BackgroundColor="#F59E0B" TextColor="White" FontSize="11" Padding="8,4" CornerRadius="6"/>
                         </Grid>
-
+                        <Grid ColumnDefinitions="*,80,Auto" ColumnSpacing="6">
+                            <Entry x:Name="EventDescEntry" Grid.Column="0" Placeholder="Description" FontSize="12"/>
+                            <DatePicker x:Name="EventDatePicker" Grid.Column="1" FontSize="11"/>
+                            <Button Grid.Column="2" Text="+" Clicked="OnAddEventClicked" BackgroundColor="#3B82F6" FontSize="14" Padding="8,4" CornerRadius="6" WidthRequest="36"/>
+                        </Grid>
                         <CollectionView x:Name="EventsCollection" HeightRequest="120">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
-                                    <Frame Padding="6" Margin="0,2" BorderColor="#E2E8F0" CornerRadius="6" BackgroundColor="White">
-                                        <Grid ColumnDefinitions="70,*,Auto">
-                                            <Label Text="{Binding DateDisplay}" FontSize="11" TextColor="#64748B"/>
-                                            <Label Grid.Column="1" Text="{Binding Description}" FontSize="11" Margin="8,0"/>
-                                            <Button Grid.Column="2" Text="✕" Clicked="OnRemoveEventClicked" 
-                                                    CommandParameter="{Binding .}"
-                                                    BackgroundColor="#EF4444" TextColor="White" 
-                                                    FontSize="10" WidthRequest="26" HeightRequest="24" CornerRadius="4"/>
-                                        </Grid>
-                                    </Frame>
+                                    <Grid Padding="4" ColumnDefinitions="80,*,Auto,30" ColumnSpacing="4">
+                                        <Label Grid.Column="0" Text="{Binding DateDisplay}" FontSize="11" VerticalOptions="Center"/>
+                                        <Label Grid.Column="1" Text="{Binding Description}" FontSize="11" VerticalOptions="Center"/>
+                                        <Label Grid.Column="2" Text="{Binding SourceBadge}" FontSize="9" TextColor="#94A3B8" VerticalOptions="Center"/>
+                                        <Button Grid.Column="3" Text="X" Clicked="OnRemoveEventClicked" BackgroundColor="Transparent" TextColor="#EF4444" FontSize="12" Padding="0"/>
+                                    </Grid>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>
-                            <CollectionView.EmptyView>
-                                <Label Text="No special events added" FontSize="11" TextColor="#94A3B8" HorizontalOptions="Center" Margin="0,8"/>
-                            </CollectionView.EmptyView>
                         </CollectionView>
                     </VerticalStackLayout>
                 </Frame>
-
-                <!-- Venue Phone Numbers -->
-                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Text="Venue Phone Numbers" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-                            <Button Grid.Column="1" Text="+ Add" Clicked="OnAddVenuePhoneClicked" 
-                                    BackgroundColor="#3B82F6" FontSize="11" Padding="10,5" CornerRadius="6"/>
-                        </Grid>
-
-                        <CollectionView x:Name="VenuePhonesCollection" HeightRequest="100">
-                            <CollectionView.ItemTemplate>
-                                <DataTemplate>
-                                    <Frame Padding="6" Margin="0,2" BorderColor="#E2E8F0" CornerRadius="6" BackgroundColor="White">
-                                        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                                            <Label Text="{Binding VenueName}" FontSize="11" FontAttributes="Bold"/>
-                                            <Label Grid.Column="1" Text="{Binding PhoneNumber}" FontSize="11" TextColor="#64748B"/>
-                                            <Button Grid.Column="2" Text="✕" Clicked="OnRemoveVenuePhoneClicked" 
-                                                    CommandParameter="{Binding .}"
-                                                    BackgroundColor="#EF4444" TextColor="White" 
-                                                    FontSize="10" WidthRequest="26" HeightRequest="24" CornerRadius="4"/>
-                                        </Grid>
-                                    </Frame>
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>
-                            <CollectionView.EmptyView>
-                                <Label Text="No venue numbers added" FontSize="11" TextColor="#94A3B8" HorizontalOptions="Center" Margin="0,8"/>
-                            </CollectionView.EmptyView>
-                        </CollectionView>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Footer Information -->
-                <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Footer Information" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-
-                        <Label Text="Website URL" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="WebsiteUrlEntry" Placeholder="http://www.example.co.uk" FontSize="12"/>
-
-                        <Label Text="Email Address" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="EmailEntry" Placeholder="info@example.co.uk" FontSize="12"/>
-
-                        <Label Text="Cancelled Match Contact" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="CancelledMatchContactEntry" Placeholder="Name and phone number" FontSize="12"/>
-
-                        <Label Text="Cancelled Competition Contact" FontSize="11" TextColor="#64748B"/>
-                        <Entry x:Name="CancelledCompContactEntry" Placeholder="Name and phone number" FontSize="12"/>
-
-                        <Label Text="Additional Notes (one per line)" FontSize="11" TextColor="#64748B"/>
-                        <Editor x:Name="FooterNotesEditor" HeightRequest="70" 
-                                Placeholder="e.g. Result cards to be posted on Facebook..." FontSize="12"/>
-                    </VerticalStackLayout>
-                </Frame>
-
             </VerticalStackLayout>
         </ScrollView>
-
-        <!-- Divider -->
-        <BoxView Grid.Column="0" WidthRequest="1" BackgroundColor="#E2E8F0" HorizontalOptions="End"/>
-
-        <!-- ═══ RIGHT PANEL: Live Preview ═══ -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="0">
-
-            <!-- Preview toolbar -->
-            <Grid BackgroundColor="#1E293B" Padding="14,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                <Label Grid.Column="0" Text="Sheet Preview" FontAttributes="Bold" FontSize="14"
-                       TextColor="White" VerticalOptions="Center"/>
-                <Button Grid.Column="2" x:Name="RefreshPreviewBtn" Text="&#128260; Refresh"
-                        Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" TextColor="White"
-                        FontSize="12" Padding="12,8" CornerRadius="6"/>
-            </Grid>
-
-            <!-- Preview area -->
-            <Grid Grid.Row="1" BackgroundColor="#E2E8F0">
-                <!-- Placeholder -->
-                <VerticalStackLayout x:Name="PreviewPlaceholder"
-                                     VerticalOptions="Center" HorizontalOptions="Center" Spacing="16">
-                    <Label Text="&#128438;" FontSize="56" HorizontalOptions="Center"/>
-                    <Label Text="Click Preview to generate your fixtures sheet" FontSize="18"
-                           FontAttributes="Bold" TextColor="#475569" HorizontalOptions="Center"/>
-                    <Label Text="Configure settings on the left, then hit Preview" FontSize="13"
-                           TextColor="#94A3B8" HorizontalOptions="Center"/>
-                    <Button Text="&#128065; Generate Preview" Clicked="OnPreviewClicked" 
-                            BackgroundColor="#3B82F6" TextColor="White" FontSize="13"
-                            Padding="24,12" CornerRadius="8" HorizontalOptions="Center" Margin="0,8,0,0"/>
-                </VerticalStackLayout>
-
-                <!-- WebView (hidden initially) -->
-                <WebView x:Name="PreviewWebView" IsVisible="False"/>
-            </Grid>
+        <Grid Grid.Column="1" BackgroundColor="#E2E8F0" RowDefinitions="Auto,*">
+            <Label Text="Preview" FontSize="12" TextColor="#64748B" Padding="16,8" FontAttributes="Bold"/>
+            <WebView x:Name="PreviewWebView" Grid.Row="1" Margin="8,0,8,8"/>
         </Grid>
-
     </Grid>
-
 </ContentPage>

@@ -208,9 +208,6 @@ public partial class CompetitionsPage
                 ? "Final"
                 : r == totalRounds - 2 ? "Semi-Finals" : round.Name ?? $"Round {r + 1}";
 
-            var completed = round.Matches.Count(m => m.IsComplete);
-            var total = round.Matches.Count;
-
             var hdrStack = new VerticalStackLayout
             {
                 Spacing = 2,
@@ -226,23 +223,13 @@ public partial class CompetitionsPage
             });
             hdrStack.Children.Add(new Label
             {
-                Text = $"{completed}/{total}",
+                Text = round.Date.HasValue
+                    ? round.Date.Value.ToString("dd MMM yyyy")
+                    : "Date TBC",
                 FontSize = 11,
-                TextColor = completed == total && total > 0 ? _accentGreen : _subtleText,
+                TextColor = _subtleText,
                 HorizontalTextAlignment = TextAlignment.Center
             });
-
-            // Date
-            if (round.Date.HasValue)
-            {
-                hdrStack.Children.Add(new Label
-                {
-                    Text = $"\U0001F4C5 {round.Date.Value:dd MMM yyyy}",
-                    FontSize = 10,
-                    TextColor = _subtleText,
-                    HorizontalTextAlignment = TextAlignment.Center
-                });
-            }
 
             // Venues & tables
             if (round.SelectedVenues.Count > 0)
@@ -617,7 +604,7 @@ public partial class CompetitionsPage
 
         bool hasP1 = match.Participant1Id.HasValue;
         bool hasP2 = match.Participant2Id.HasValue;
-        bool canScore = hasP1 && hasP2 && !match.IsComplete;
+        bool canScore = hasP1 && hasP2;
 
         bool p1Won = match.IsComplete && match.WinnerId == match.Participant1Id;
         bool p2Won = match.IsComplete && match.WinnerId == match.Participant2Id;
@@ -636,19 +623,49 @@ public partial class CompetitionsPage
 
         var card = new VerticalStackLayout { Spacing = 0 };
 
-        // Venue/table label
-        if (!string.IsNullOrEmpty(match.VenueDisplay))
+        // Venue/table label — tap to assign manually. "Edit Teams" sits on the right.
+        bool hasVenue = !string.IsNullOrEmpty(match.VenueDisplay);
+        var headerGrid = new Grid
         {
-            card.Children.Add(new Label
+            ColumnDefinitions =
             {
-                Text = $"\U0001F4CD {match.VenueDisplay}",
-                FontSize = 10,
-                TextColor = _subtleText,
-                Padding = new Thickness(10, 4, 10, 2),
-                BackgroundColor = _headerBg
-            });
-            card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
-        }
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            BackgroundColor = _headerBg,
+            Padding = new Thickness(10, 4, 6, 2),
+            ColumnSpacing = 6
+        };
+        var venueLabel = new Label
+        {
+            Text = hasVenue
+                ? $"\U0001F4CD {match.VenueDisplay}"
+                : "\U0001F4CD Tap to assign venue / table",
+            FontSize = 10,
+            TextColor = hasVenue ? _subtleText : _accentBlue,
+            FontAttributes = hasVenue ? FontAttributes.None : FontAttributes.Italic,
+            VerticalTextAlignment = TextAlignment.Center
+        };
+        var venueTap = new TapGestureRecognizer();
+        venueTap.Tapped += async (_, _) => await AssignMatchVenueAsync(match, competition);
+        venueLabel.GestureRecognizers.Add(venueTap);
+        headerGrid.Add(venueLabel, 0, 0);
+
+        var editTeamsLabel = new Label
+        {
+            Text = "✏️ Teams",
+            FontSize = 10,
+            TextColor = _accentBlue,
+            FontAttributes = FontAttributes.Bold,
+            VerticalTextAlignment = TextAlignment.Center
+        };
+        var editTap = new TapGestureRecognizer();
+        editTap.Tapped += async (_, _) => await EditMatchTeamsAsync(match, competition);
+        editTeamsLabel.GestureRecognizers.Add(editTap);
+        headerGrid.Add(editTeamsLabel, 1, 0);
+
+        card.Children.Add(headerGrid);
+        card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
 
         // Player 1 row
         var p1Row = CreatePlayerRow(

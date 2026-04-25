@@ -519,6 +519,7 @@ nav {{
 nav .nav-container {{
     display: flex;
     justify-content: {_settings.NavPosition};
+    align-items: center;
     flex-wrap: wrap;
     gap: 8px;
     padding: 15px 20px;
@@ -532,6 +533,9 @@ nav a {{
     padding: 8px 16px;
     border-radius: {(_settings.NavStyle == "pills" ? "20px" : _settings.NavStyle == "buttons" ? "8px" : "0")};
     transition: all 0.2s;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
     {(_settings.NavStyle == "underline" ? "border-bottom: 2px solid transparent;" : "")}
 }}
 
@@ -540,6 +544,48 @@ nav a:hover, nav a.active {{
     color: white;
     {(_settings.NavStyle == "underline" ? "background: transparent; color: var(--primary-color); border-bottom-color: var(--primary-color);" : "")}
 }}
+
+.nav-dropdown {{
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}}
+.nav-dropdown > a {{ display: inline-flex; align-items: center; }}
+.nav-dropdown-menu {{
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    background: var(--card-bg);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 200;
+    padding: 6px 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+    pointer-events: none;
+}}
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:focus-within .nav-dropdown-menu {{
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0s;
+}}
+.nav-dropdown-menu a {{
+    display: block;
+    padding: 8px 14px;
+    border-radius: 0;
+    color: var(--text-color);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+}}
+.nav-dropdown-menu a:hover {{ background: var(--primary-color); color: white; }}
 
 .content-area {{
     padding: var(--spacing) 0;
@@ -589,6 +635,7 @@ nav a:hover, nav a.active {{
     border-radius: var(--border-radius);
     padding: var(--spacing);
     margin-bottom: var(--spacing);
+    overflow: hidden;
     {(_settings.EnableShadows ? "box-shadow: 0 4px 6px rgba(0,0,0,0.07);" : "")}
 }}
 
@@ -695,27 +742,27 @@ nav a:hover, nav a.active {{
 
 .result-item, .fixture-item {{
     display: grid;
-    grid-template-columns: minmax(80px, 100px) 1fr auto 1fr minmax(100px, 150px);
+    grid-template-columns: minmax(60px, 100px) minmax(0, 1fr) auto minmax(0, 1fr) minmax(60px, 140px);
     align-items: center;
-    padding: clamp(14px, 3vw, 16px);
+    padding: clamp(10px, 2vw, 16px);
     background: rgba(0,0,0,0.02);
     border-radius: calc(var(--border-radius) / 2);
-    gap: clamp(8px, 2vw, 12px);
+    gap: clamp(6px, 1.5vw, 12px);
 }}
 
 /* When no venue - 4 columns */
 .result-item:not(:has(.venue)), .fixture-item:not(:has(.venue)) {{
-    grid-template-columns: minmax(80px, 100px) 1fr auto 1fr;
+    grid-template-columns: minmax(60px, 100px) minmax(0, 1fr) auto minmax(0, 1fr);
 }}
 
 /* When no date - adjust first column */
 .result-item:not(:has(.date)), .fixture-item:not(:has(.date)) {{
-    grid-template-columns: 1fr auto 1fr minmax(100px, 150px);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(60px, 140px);
 }}
 
 /* When no date and no venue */
 .result-item:not(:has(.date)):not(:has(.venue)), .fixture-item:not(:has(.date)):not(:has(.venue)) {{
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 }}
 
 .result-item .date, .fixture-item .date {{
@@ -727,6 +774,9 @@ nav a:hover, nav a.active {{
 .result-item .team, .fixture-item .team {{
     font-weight: 600;
     text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }}
 
 .result-item .team.winner {{
@@ -737,28 +787,30 @@ nav a:hover, nav a.active {{
     font-weight: bold;
     font-size: 1.2rem;
     text-align: center;
-    padding: 0 15px;
+    padding: 0 8px;
     white-space: nowrap;
-    min-width: 70px;
 }}
 
 .fixture-item .vs {{
     color: var(--text-secondary);
     text-align: center;
-    padding: 0 10px;
-    min-width: 40px;
+    padding: 0 6px;
+    white-space: nowrap;
 }}
 
 .fixture-item .venue, .result-item .venue {{
     color: var(--text-secondary);
     font-size: 0.9rem;
     text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }}
 
 .date {{
     color: var(--text-secondary);
     font-size: 0.85rem;
-    min-width: 80px;
+    white-space: nowrap;
 }}
 
 .view-all {{
@@ -1104,6 +1156,52 @@ nav a:hover, nav a.active {{
 /* Rules page tabs */
 .rules-tabs {{
     margin-top: 20px;
+}}
+
+/* Rules page search */
+.rules-search {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+}}
+.rules-search-input {{
+    flex: 1;
+    max-width: 420px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}}
+.rules-search-input:focus {{
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}}
+.rules-search-summary {{
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}}
+.rules-mark {{
+    background: #FEF08A;
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 3px;
+}}
+.rules-search-hidden {{ display: none !important; }}
+.rules-tab-btn.rules-search-has-hits::after {{
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    margin-left: 6px;
+    vertical-align: middle;
 }}
 
 .rules-tab-buttons {{
@@ -1529,6 +1627,24 @@ footer a {{
     color: #E2E8F0;
 }}
 
+.footer-notes {{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 16px 0;
+}}
+
+.footer-note {{
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--border-radius);
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    color: #CBD5E1;
+    margin: 0;
+}}
+
 .copyright, .powered-by, .last-updated {{
     font-size: 0.85rem;
     color: #94A3B8;
@@ -1885,6 +2001,7 @@ nav a:hover, nav a.active {
 .match-player:first-child { text-align: right; }
 .match-player.winner { font-weight: 700; }
 .match-score { font-weight: 700; text-align: center; min-width: 50px; }
+.match-venue { font-size: 0.8rem; color: #6B7280; text-align: center; margin: -2px 0 6px; padding-left: 12px; }
 tr.qualifying td { background: #EFF6FF; }
 .comp-standings { margin-bottom: 1.5rem; }
 .round-date { font-size: 0.82rem; color: var(--text-secondary); font-weight: 400; margin-left: 6px; }
@@ -1907,7 +2024,7 @@ tr.qualifying td { background: #EFF6FF; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ═══════════════════════════════════════════════════════════
-   KNOCKOUT BRACKET — columns + connector lines
+   KNOCKOUT BRACKET — CSS Grid layout + connector lines
    ═══════════════════════════════════════════════════════════ */
 
 .bk-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 12px; }
@@ -1915,14 +2032,15 @@ tr.qualifying td { background: #EFF6FF; }
 .bk-scroll::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 3px; }
 .bk-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
 
-.bk-grid { display: flex; flex-wrap: nowrap; align-items: stretch; min-width: max-content; padding: 8px 0; }
+.bk-grid { display: grid; grid-template-rows: auto 1fr; min-width: max-content; padding: 8px 0; }
 
-/* Round column */
-.bk-round { min-width: 220px; flex-shrink: 0; display: flex; flex-direction: column; }
-.bk-hdr { text-align: center; padding: 0 4px 6px; }
+/* Round header (row 1) */
+.bk-hdr { text-align: center; padding: 0 4px 6px; align-self: end; }
 .bk-rn { font-size: .8rem; font-weight: 700; color: #6B7280; }
-.bk-rp { font-size: .7rem; }
-.bk-body { display: flex; flex-direction: column; justify-content: space-around; flex: 1; padding: 0 4px; }
+.bk-rv { font-size: .7rem; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+
+/* Round body (row 2) — match cards stacked vertically */
+.bk-body { display: flex; flex-direction: column; justify-content: space-around; padding: 0 4px; }
 
 /* Match card */
 .bk-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
@@ -1930,14 +2048,16 @@ tr.qualifying td { background: #EFF6FF; }
 .bk-player { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; font-size: .88rem; min-height: 34px; }
 .bk-player.bk-w { background: #ECFDF5; font-weight: 700; color: #065F46; }
 .bk-player.bk-tbd .bk-name { color: #9CA3AF; font-style: italic; }
+.bk-player.bk-bye .bk-name { color: #D1D5DB; font-style: italic; font-size: .8rem; }
 .bk-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
 .bk-sc { font-weight: 700; min-width: 20px; text-align: center; }
 .bk-sc.bk-sw { color: #065F46; }
 .bk-dv { height: 1px; background: #E5E7EB; }
 .bk-card.bk-done .bk-dv { background: #D1FAE5; }
+.bk-venue { font-size: .75rem; color: #6B7280; text-align: center; padding: 3px 8px; background: #F8FAFC; border-top: 1px solid #E5E7EB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── Connector column between rounds ── */
-.bk-conn { display: flex; flex-direction: column; width: 28px; flex-shrink: 0; }
+/* ── Connector column between rounds (row 2 only — aligned with match bodies) ── */
+.bk-conn { display: flex; flex-direction: column; }
 .bk-cg { position: relative; flex: 1; }
 .bk-cg span { position: absolute; display: block; }
 
@@ -1955,8 +2075,8 @@ tr.qualifying td { background: #EFF6FF; }
     .match-player:first-child { text-align: center; }
     .comp-tabs { flex-direction: column; }
     .comp-info-bar { flex-direction: column; gap: 6px; }
-    .bk-round { min-width: 180px; }
-    .bk-conn { width: 20px; }
+    .bk-hdr { max-width: 180px; }
+    .bk-rv { max-width: 180px; }
 }
 ";
         }

@@ -15,17 +15,19 @@ public partial class DragDropLayoutPage : ContentPage
     private bool _editMode = true;
     private bool _snapEnabled = true;
     private bool _syncingPicker;
-    private string _currentPage = "index.html";
+    private string _currentPage = "home.html";
     private string? _currentQueryString;
+    private bool _webViewReady;
 
     private static readonly (string FileName, string Label)[] Pages =
     [
-        ("index.html", "Home"),
+        ("home.html", "Home"),
         ("standings.html", "Standings"),
         ("fixtures.html", "Fixtures"),
         ("results.html", "Results"),
         ("players.html", "Players"),
         ("divisions.html", "Divisions"),
+        ("history.html", "History"),
     ];
 
     public DragDropLayoutPage()
@@ -45,6 +47,7 @@ public partial class DragDropLayoutPage : ContentPage
         if (settings.ShowResults) items.Add("Results");
         if (settings.ShowPlayerStats) items.Add("Players");
         if (settings.ShowDivisions) items.Add("Divisions");
+        if (settings.ShowHistory && settings.HistoricHonours.Count > 0) items.Add("History");
         PagePicker.ItemsSource = items;
         PagePicker.SelectedIndex = 0;
     }
@@ -71,7 +74,10 @@ public partial class DragDropLayoutPage : ContentPage
         if (!_generatedFiles.TryGetValue(_currentPage, out var html)) return;
 
         if (_generatedFiles.TryGetValue("style.css", out var css))
-            html = html.Replace("<link rel=\"stylesheet\" href=\"style.css\">", $"<style>{css}</style>");
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
+                _ => $"<style>{css}</style>");
 
         // For template pages (player.html, team.html), inline the JSON data
         // so fetch() isn't needed, and inject the query string so URLSearchParams works
@@ -90,7 +96,7 @@ public partial class DragDropLayoutPage : ContentPage
         }
 
         // Inject freeform editor JS on all pages
-        if (_currentPage == "index.html")
+        if (_currentPage == "home.html")
         {
             html = html.Replace("</body>", GetEditorScript() + "\n</body>");
         }
@@ -119,20 +125,14 @@ public partial class DragDropLayoutPage : ContentPage
         {
             var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            // Match the exact pattern from WebsiteTemplatePageGenerator
-            const string fetchPlayers = "fetch('players-data.json')";
-            const string thenParse = ".then(function(r) { return r.json(); })";
-            html = ReplaceFetchPattern(html, fetchPlayers, thenParse, escaped);
+            html = ReplaceFetchWithInline(html, "players-data.json", escaped);
         }
 
-        // Replace fetch('teams-data.json').then(parse) with inline data
         if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
         {
             var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
-            const string fetchTeams = "fetch('teams-data.json')";
-            const string thenParse = ".then(function(r) { return r.json(); })";
-            html = ReplaceFetchPattern(html, fetchTeams, thenParse, escaped);
+            html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
         }
 
         return html;
@@ -142,21 +142,14 @@ public partial class DragDropLayoutPage : ContentPage
     /// Replaces a fetch('...').then(parse) pattern with Promise.resolve(inline data),
     /// tolerant of any whitespace/newlines between the two parts.
     /// </summary>
-    private static string ReplaceFetchPattern(string html, string fetchPart, string thenPart, string escapedJson)
+    private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
     {
-        var idx = html.IndexOf(fetchPart, StringComparison.Ordinal);
-        if (idx < 0) return html;
-
-        var afterFetch = idx + fetchPart.Length;
-        // Skip any whitespace/newlines between fetch(...) and .then(...)
-        var thenIdx = html.IndexOf(thenPart, afterFetch, StringComparison.Ordinal);
-        if (thenIdx < 0) return html;
-
-        var endIdx = thenIdx + thenPart.Length;
-        return string.Concat(
-            html.AsSpan(0, idx),
-            $"Promise.resolve(JSON.parse('{escapedJson}'))",
-            html.AsSpan(endIdx));
+        var pattern = @"fetch\('" + System.Text.RegularExpressions.Regex.Escape(fileName)
+            + @"(?:\?v='\s*\+\s*cacheBuster)?'\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            pattern,
+            _ => $"Promise.resolve(JSON.parse('{escapedJson}'))");
     }
 
     private async void OnPageChanged(object? sender, EventArgs e)
@@ -170,7 +163,7 @@ public partial class DragDropLayoutPage : ContentPage
         
         var label = PagePicker.SelectedItem?.ToString() ?? "Home";
         var page = Pages.FirstOrDefault(p => p.Label == label);
-        _currentPage = page.FileName ?? "index.html";
+        _currentPage = page.FileName ?? "home.html";
         _currentQueryString = null;
         
         // Regenerate so the page we're switching to (and back) uses current positions
@@ -185,7 +178,7 @@ public partial class DragDropLayoutPage : ContentPage
         _editMode = !_editMode;
         EditToggleBtn.Text = _editMode ? "\u270E Edit" : "\u270E Preview";
         EditToggleBtn.BackgroundColor = _editMode ? Color.FromArgb("#F59E0B") : Color.FromArgb("#6B7280");
-        if (_currentPage == "index.html")
+        if (_webViewReady && _currentPage == "home.html")
             await EditorWebView.EvaluateJavaScriptAsync($"window.toggleEditor && window.toggleEditor({(_editMode ? "true" : "false")})");
     }
 
@@ -194,7 +187,8 @@ public partial class DragDropLayoutPage : ContentPage
         _snapEnabled = !_snapEnabled;
         SnapBtn.Text = _snapEnabled ? "Snap: ON" : "Snap: OFF";
         SnapBtn.BackgroundColor = _snapEnabled ? Color.FromArgb("#6366F1") : Color.FromArgb("#475569");
-        await EditorWebView.EvaluateJavaScriptAsync($"window.setSnap && window.setSnap({(_snapEnabled ? "true" : "false")})");
+        if (_webViewReady)
+            await EditorWebView.EvaluateJavaScriptAsync($"window.setSnap && window.setSnap({(_snapEnabled ? "true" : "false")})");
     }
 
     private async void OnGridClicked(object? sender, EventArgs e)
@@ -218,7 +212,7 @@ public partial class DragDropLayoutPage : ContentPage
             "Columns (3-col guides)" => "window.setGrid && window.setGrid(0, 'cols3')",
             _ => ""
         };
-        if (!string.IsNullOrEmpty(jsCall))
+        if (!string.IsNullOrEmpty(jsCall) && _webViewReady)
         {
             await EditorWebView.EvaluateJavaScriptAsync(jsCall);
             GridBtn.Text = choice == "Hide Grid" ? "Grid" : "Grid \u2713";
@@ -278,18 +272,20 @@ public partial class DragDropLayoutPage : ContentPage
             _ when choice.Contains("Auto-Position All")    => "window.alignBlock && window.alignBlock('autoAllStructural')",
             _ => ""
         };
-        if (!string.IsNullOrEmpty(jsCall))
+        if (!string.IsNullOrEmpty(jsCall) && _webViewReady)
             await EditorWebView.EvaluateJavaScriptAsync(jsCall);
     }
 
     private async void OnBringForwardClicked(object? sender, EventArgs e)
     {
-        await EditorWebView.EvaluateJavaScriptAsync("window.bringForward && window.bringForward()");
+        if (_webViewReady)
+            await EditorWebView.EvaluateJavaScriptAsync("window.bringForward && window.bringForward()");
     }
 
     private async void OnSendBackClicked(object? sender, EventArgs e)
     {
-        await EditorWebView.EvaluateJavaScriptAsync("window.sendBack && window.sendBack()");
+        if (_webViewReady)
+            await EditorWebView.EvaluateJavaScriptAsync("window.sendBack && window.sendBack()");
     }
 
     private async void OnWebViewNavigating(object? sender, WebNavigatingEventArgs e)
@@ -413,7 +409,7 @@ public partial class DragDropLayoutPage : ContentPage
     /// </summary>
     private async Task CollectPositionsFromEditor()
     {
-        if (_currentPage != "index.html") return;
+        if (_currentPage != "home.html" || !_webViewReady) return;
 
         try
         {
@@ -1729,6 +1725,7 @@ public partial class DragDropLayoutPage : ContentPage
 
     private void OnWebViewNavigated(object? sender, WebNavigatedEventArgs e)
     {
+        _webViewReady = true;
         // Poll for hash-based status updates via a timer
         StartStatusPolling();
     }
@@ -1753,6 +1750,7 @@ public partial class DragDropLayoutPage : ContentPage
 
     private async Task PollStatusAsync()
     {
+        if (!_webViewReady) return;
         try
         {
             var hash = await EditorWebView.EvaluateJavaScriptAsync("window.location.hash");

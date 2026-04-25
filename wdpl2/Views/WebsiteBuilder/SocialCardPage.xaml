@@ -35,6 +35,8 @@
                                 <x:String>Player Highlight</x:String>
                                 <x:String>Weekly Results</x:String>
                                 <x:String>Upcoming Fixtures</x:String>
+                                <x:String>Competition Results</x:String>
+                                <x:String>Competition Fixtures</x:String>
                             </Picker.Items>
                         </Picker>
 
@@ -60,6 +62,14 @@
                     <VerticalStackLayout Spacing="8">
                         <Label Text="&#11088; Select Player" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Picker x:Name="PlayerPicker" Title="Select player"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Competition Selection (shown for competition results) -->
+                <Frame x:Name="CompetitionSelectionFrame" BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White" IsVisible="False">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#127942; Select Competition" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Picker x:Name="CompetitionPicker" Title="Select competition"/>
                     </VerticalStackLayout>
                 </Frame>
 
@@ -134,26 +144,41 @@
                 <!-- Post To Social Media -->
                 <Frame BorderColor="#8B5CF6" Padding="14" CornerRadius="10" BackgroundColor="#F5F3FF">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="&#128228; Post To" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"/>
-                        <Label Text="Save or share your card directly" FontSize="11" TextColor="#7C3AED"/>
+                        <Label Text="&#128228; Post To" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"
+                               HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+                        <Label Text="Save or share your card directly" FontSize="11" TextColor="#7C3AED"
+                               HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
 
                         <Button Text="&#128190; Save as Image" Clicked="OnSaveImageClicked"
-                                BackgroundColor="#6D28D9" TextColor="White" FontSize="12" Padding="8,10" CornerRadius="8"/>
+                                BackgroundColor="#6D28D9" TextColor="White" FontSize="12" FontAttributes="Bold"
+                                HeightRequest="40" Padding="0" CornerRadius="8"
+                                HorizontalOptions="Fill"/>
 
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"
+                              RowDefinitions="40,40" RowSpacing="8">
                             <Button Grid.Column="0" Grid.Row="0" Text="&#127760; Facebook" Clicked="OnPostFacebookClicked"
-                                    BackgroundColor="#1877F2" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                                    BackgroundColor="#1877F2" TextColor="White" FontSize="11" FontAttributes="Bold"
+                                    Padding="0" CornerRadius="8"
+                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
                             <Button Grid.Column="1" Grid.Row="0" Text="&#120143; X / Twitter" Clicked="OnPostTwitterClicked"
-                                    BackgroundColor="#0F1419" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                                    BackgroundColor="#0F1419" TextColor="White" FontSize="11" FontAttributes="Bold"
+                                    Padding="0" CornerRadius="8"
+                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
                             <Button Grid.Column="0" Grid.Row="1" Text="&#128247; Instagram" Clicked="OnPostInstagramClicked"
-                                    BackgroundColor="#E1306C" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                                    BackgroundColor="#E1306C" TextColor="White" FontSize="11" FontAttributes="Bold"
+                                    Padding="0" CornerRadius="8"
+                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
                             <Button Grid.Column="1" Grid.Row="1" Text="&#128172; WhatsApp" Clicked="OnPostWhatsAppClicked"
-                                    BackgroundColor="#25D366" TextColor="White" FontSize="11" Padding="6,9" CornerRadius="8"/>
+                                    BackgroundColor="#25D366" TextColor="White" FontSize="11" FontAttributes="Bold"
+                                    Padding="0" CornerRadius="8"
+                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
                         </Grid>
 
                         <Button Text="&#128203; Copy to Clipboard" Clicked="OnCopyClipboardClicked"
-                                BackgroundColor="Transparent" TextColor="#6D28D9" FontSize="12" Padding="6,9"
-                                CornerRadius="8" BorderColor="#C4B5FD" BorderWidth="1"/>
+                                BackgroundColor="Transparent" TextColor="#6D28D9" FontSize="12" FontAttributes="Bold"
+                                HeightRequest="40" Padding="0" CornerRadius="8"
+                                BorderColor="#C4B5FD" BorderWidth="1"
+                                HorizontalOptions="Fill"/>
                     </VerticalStackLayout>
                 </Frame>
 

@@ -180,11 +180,20 @@
                                             BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 6">
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{StaticResource StandardSpacing}">
                                                 <Label Text="{Binding}" 
                                                        VerticalOptions="Center"
                                                        FontSize="12" />
                                                 <Button Grid.Column="1" 
+                                                       Text="Edit" 
+                                                       FontSize="11"
+                                                       Padding="6,3"
+                                                       Clicked="OnEditExclusionClicked"
+                                                       CommandParameter="{Binding}"
+                                                       Style="{StaticResource PrimaryButtonStyle}"
+                                                       CornerRadius="4"
+                                                       SemanticProperties.Description="Edit exclusion date" />
+                                                <Button Grid.Column="2" 
                                                        Text="Remove" 
                                                        FontSize="11"
                                                        Padding="6,3"

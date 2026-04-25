@@ -821,6 +821,42 @@ public partial class CalendarOptionsPage : ContentPage
 
         grid.Add(infoRow, 0, 1);
 
+        // Competition link picker
+        var compRow = new HorizontalStackLayout { Spacing = 8 };
+        var compLabel = new Label
+        {
+            Text = "🏆",
+            FontSize = 14,
+            VerticalOptions = LayoutOptions.Center
+        };
+        compRow.Children.Add(compLabel);
+
+        var compPicker = new Picker { FontSize = 13, WidthRequest = 200 };
+        var comps = League.Competitions
+            .Where(c => c.Status != CompetitionStatus.Draft)
+            .OrderByDescending(c => c.StartDate)
+            .ToList();
+        compPicker.Items.Add("(None)");
+        foreach (var comp in comps)
+            compPicker.Items.Add(comp.Name);
+        compPicker.SelectedItem = evt.CompetitionId.HasValue
+            ? comps.FirstOrDefault(c => c.Id == evt.CompetitionId.Value)?.Name ?? "(None)"
+            : "(None)";
+        compPicker.SelectedIndexChanged += (_, _) =>
+        {
+            var selected = compPicker.SelectedItem?.ToString();
+            if (selected is null or "(None)")
+                evt.CompetitionId = null;
+            else
+            {
+                var comp = comps.FirstOrDefault(c => c.Name == selected);
+                evt.CompetitionId = comp?.Id;
+            }
+            DataStore.Save();
+        };
+        compRow.Children.Add(compPicker);
+        grid.Add(compRow, 0, 2);
+
         var notesEntry = new Entry
         {
             Text = evt.Notes ?? "",
@@ -834,7 +870,7 @@ public partial class CalendarOptionsPage : ContentPage
             evt.Notes = string.IsNullOrWhiteSpace(notesEntry.Text) ? null : notesEntry.Text.Trim();
             DataStore.Save();
         };
-        grid.Add(notesEntry, 0, 2);
+        grid.Add(notesEntry, 0, 3);
 
         var deleteBtn = new Button
         {
@@ -859,7 +895,7 @@ public partial class CalendarOptionsPage : ContentPage
             ShowCategory("Events");
         };
         grid.Add(deleteBtn, 1, 0);
-        Grid.SetRowSpan(deleteBtn, 3);
+        Grid.SetRowSpan(deleteBtn, 4);
 
         card.Content = grid;
         return card;
