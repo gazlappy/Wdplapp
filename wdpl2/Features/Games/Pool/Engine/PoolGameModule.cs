@@ -223,7 +223,7 @@ class PoolGame {
         console.log('>>> SHOT STARTED <<<');
         console.log('Player:', this.getCurrentPlayer().name);
         console.log('========================================');
-        
+
         this.shotInProgress = true;
         this.firstBallHit = null;
         this.ballsPottedThisShot = [];
@@ -232,29 +232,46 @@ class PoolGame {
         this.anyBallHitCushion = false;
         this.foulCommitted = false;
         this.foulReason = '';
-        
+
         // Reset break tracking
         this.ballsCrossedCenter = new Set();
+
+        // Begin recording for trace replay (captures initial state).
+        // Power gets re-captured one frame later via captureFrame, since the caller
+        // sets cueBall.vx/vy AFTER startShot() returns.
+        if (typeof PoolReplay !== 'undefined') {
+            PoolReplay.beginRecord();
+            // Schedule a microtask to refresh power once velocities are set
+            setTimeout(() => {
+                if (PoolReplay._current && this.cueBall) {
+                    PoolReplay._current.initial.power = Math.hypot(this.cueBall.vx || 0, this.cueBall.vy || 0);
+                    PoolReplay._current.initial.spinX = this.cueBall.spinX || 0;
+                    PoolReplay._current.initial.spinY = this.cueBall.spinY || 0;
+                }
+            }, 0);
+        }
     }
     
     recordFirstBallHit(ball) {
         if (!this.firstBallHit && ball.num !== 0) {
             this.firstBallHit = ball;
             console.log('First ball hit:', ball.color, ball.num);
+            if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('firstHit', { ballNum: ball.num });
         }
     }
-    
-    
+
+
     recordCushionHit() {
         if (this.firstBallHit) {
             this.cushionHitAfterContact = true;
         }
         this.anyBallHitCushion = true;
     }
-    
+
     recordBallPotted(ball) {
         this.ballsPottedThisShot.push(ball);
-        
+        if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('pot', { ballNum: ball.num });
+
         if (ball.num === 0) {
             this.cueBallPotted = true;
             console.log('[Pool] Cue ball potted (scratch)!');
@@ -859,17 +876,19 @@ class PoolGame {
         this.ballInHandTouchFoulTriggered = false; // Reset for new ball in hand
 
         console.log('FOUL:', reason);
+        if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('foul', { reason: reason });
 
         // Switch turn FIRST so the foul message shows the correct recipient
         this.switchTurn();
         this.showFoulMessage(reason, false);
     }
-    
+
     commitScratchFoul(reason, restrictToBaulk = false) {
         this.foulCommitted = true;
         this.foulReason = reason;
 
         console.log('SCRATCH FOUL:', reason, restrictToBaulk ? '(baulk restricted)' : '(anywhere)');
+        if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('foul', { reason: reason, scratch: true });
 
         // Handle cue ball respawn - only restrict to baulk on break
         this.handleCueBallPotted(restrictToBaulk);
@@ -1067,6 +1086,11 @@ class PoolGame {
         // Initialize quality settings (LOW/MEDIUM/HIGH/ULTRA) -- restores last saved preset
         if (typeof PoolQuality !== 'undefined') {
             try { PoolQuality.init(this); } catch (e) { console.error('Failed to init PoolQuality:', e); }
+        }
+
+        // Initialize shot recorder / trace overlay (always on by default; toggle via top buttons)
+        if (typeof PoolReplay !== 'undefined') {
+            try { PoolReplay.init(this); } catch (e) { console.error('Failed to init PoolReplay:', e); }
         }
 
         // Initialize AI opponent (off by default; toggle button appears top-left)
@@ -1411,6 +1435,7 @@ class PoolGame {
             const cushionHit = PoolPhysics.handleCushionBounce(ball, this.width, this.height, this.cushionMargin, this.pockets);
             if (cushionHit && this.shotInProgress) {
                 this.recordCushionHit();
+                if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('cushion', { ballNum: ball.num });
             }
 
             // Pocket jaw collisions
@@ -1448,7 +1473,12 @@ class PoolGame {
                 }
             }
         });
-        
+
+        // === REPLAY: capture this frame's positions for trace recording ===
+        if (typeof PoolReplay !== 'undefined' && this.shotInProgress) {
+            PoolReplay.captureFrame();
+        }
+
         // Draw trails first (under balls) -- skipped at LOW quality
         const trailsDraw = (typeof PoolQuality === 'undefined') || PoolQuality.isTrailsEnabled();
         if (trailsDraw) {
@@ -1474,6 +1504,11 @@ class PoolGame {
                 PoolRendering.drawBall(this.ctx, ball);
             }
         });
+
+        // Draw replay traces overlay (after balls so the lines are visible on top)
+        if (typeof PoolReplay !== 'undefined') {
+            PoolReplay.drawTraces(this.ctx);
+        }
 
         // Draw visual effects overlay (particles, flashes, compressions) -- skipped at LOW quality
         const vfxOn = (typeof PoolQuality === 'undefined') || PoolQuality.isVfxEnabled();
@@ -1656,6 +1691,12 @@ class PoolGame {
         if (!moving && this.shotInProgress && !this.gameOver) {
             this.shotInProgress = false;
             this.evaluateShot();
+            // Finalize the trace recording (captures result: potted, foul, etc.)
+            if (typeof PoolReplay !== 'undefined') PoolReplay.endRecord();
+            // Prompt the AI after every shot resolution -- whether the turn switched
+            // or the player continues (potted own ball). PoolAI.onTurnChanged() guards
+            // internally so it does nothing when it isn't the AI's turn.
+            if (typeof PoolAI !== 'undefined') PoolAI.onTurnChanged();
         }
         
         // Update status based on game state

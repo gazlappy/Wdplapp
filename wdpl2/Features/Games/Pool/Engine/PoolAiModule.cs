@@ -20,13 +20,25 @@ public static class PoolAiModule
 const PoolAI = {
     game: null,
     config: {
-        enabled: false,
-        playerIndex: 1,           // 0 = Player 1, 1 = Player 2
-        difficulty: 'medium',     // 'easy' | 'medium' | 'hard'
+        // Per-seat: true = that player is controlled by the AI.
+        // [false, false]=off, [false,true]=AI is P2 (default human-vs-AI),
+        // [true,false]=AI is P1, [true,true]=AI vs AI demo mode.
+        aiPlayers: [false, false],
+        difficulty: 'medium',     // 'easy' | 'medium' | 'hard' (used for both seats)
         thinkTimeMs: 900,         // visible 'thinking' delay before shot
     },
     _scheduled: false,
     _busy: false,
+
+    // Cycle order for the toggle button
+    _modeOrder: ['off', 'p2', 'p1', 'both'],
+    _modeLabels: { off: 'AI: OFF', p2: 'AI: P2', p1: 'AI: P1', both: 'AI vs AI' },
+    _modeColors: {
+        off:  'rgba(75,85,99,0.95)',
+        p2:   'linear-gradient(135deg,#10b981,#059669)',
+        p1:   'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+        both: 'linear-gradient(135deg,#a855f7,#7e22ce)',
+    },
 
     // Difficulty profiles
     profiles: {
@@ -43,20 +55,30 @@ const PoolAI = {
         console.log('[AI] PoolAI initialized');
     },
 
-    enable(difficulty) {
-        this.config.enabled = true;
+    /**
+     * Set which seats are AI-controlled.
+     *   mode: 'off' | 'p1' | 'p2' | 'both'
+     *   difficulty (optional): 'easy' | 'medium' | 'hard'
+     */
+    setMode(mode, difficulty) {
+        switch (mode) {
+            case 'off':  this.config.aiPlayers = [false, false]; break;
+            case 'p1':   this.config.aiPlayers = [true, false]; break;
+            case 'p2':   this.config.aiPlayers = [false, true]; break;
+            case 'both': this.config.aiPlayers = [true, true]; break;
+            default:
+                console.warn('[AI] Unknown mode:', mode);
+                return;
+        }
         if (difficulty && this.profiles[difficulty]) this.config.difficulty = difficulty;
         this.updateToggleButton();
-        console.log('[AI] Enabled (' + this.config.difficulty + ')');
+        console.log('[AI] Mode set to', mode, '(' + this.config.difficulty + ')');
         this.onTurnChanged();
     },
 
-    disable() {
-        this.config.enabled = false;
-        this._scheduled = false;
-        this.updateToggleButton();
-        console.log('[AI] Disabled');
-    },
+    // Convenience wrappers (kept for backward compat with earlier console API)
+    enable(difficulty)  { this.setMode('p2', difficulty); },
+    disable()           { this.setMode('off'); },
 
     setDifficulty(difficulty) {
         if (this.profiles[difficulty]) {
@@ -66,10 +88,25 @@ const PoolAI = {
         }
     },
 
+    _currentMode() {
+        const a = this.config.aiPlayers;
+        if (!a[0] && !a[1]) return 'off';
+        if (a[0] && a[1])   return 'both';
+        return a[1] ? 'p2' : 'p1';
+    },
+
+    cycleMode() {
+        const cur = this._currentMode();
+        const idx = this._modeOrder.indexOf(cur);
+        const next = this._modeOrder[(idx + 1) % this._modeOrder.length];
+        this.setMode(next);
+    },
+
     isAiTurn() {
-        if (!this.config.enabled || !this.game) return false;
+        if (!this.game) return false;
         if (this.game.gameOver || this.game.gamePhase === 'finished') return false;
-        return this.game.currentPlayerIndex === this.config.playerIndex;
+        const idx = this.game.currentPlayerIndex;
+        return !!(this.config.aiPlayers && this.config.aiPlayers[idx]);
     },
 
     // Called whenever the turn might have changed
@@ -375,11 +412,8 @@ const PoolAI = {
         const btn = document.createElement('button');
         btn.id = 'aiToggleBtn';
         btn.style.cssText = 'position:fixed;top:10px;left:140px;padding:10px 16px;background:rgba(75,85,99,0.95);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
-        btn.title = 'Click: toggle AI on/off. Right-click: cycle difficulty.';
-        btn.addEventListener('click', () => {
-            if (this.config.enabled) this.disable();
-            else this.enable(this.config.difficulty);
-        });
+        btn.title = 'Click: cycle AI mode (OFF / P2 / P1 / AI-vs-AI). Right-click: cycle difficulty.';
+        btn.addEventListener('click', () => this.cycleMode());
         btn.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             const order = ['easy', 'medium', 'hard'];
@@ -393,13 +427,10 @@ const PoolAI = {
     updateToggleButton() {
         const btn = document.getElementById('aiToggleBtn');
         if (!btn) return;
-        if (this.config.enabled) {
-            btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-            btn.textContent = 'AI: ' + this.config.difficulty.toUpperCase();
-        } else {
-            btn.style.background = 'rgba(75,85,99,0.95)';
-            btn.textContent = 'AI: OFF';
-        }
+        const mode = this._currentMode();
+        btn.style.background = this._modeColors[mode];
+        const label = this._modeLabels[mode];
+        btn.textContent = (mode === 'off') ? label : (label + ' [' + this.config.difficulty.toUpperCase() + ']');
     },
 
     showThinking(show) {

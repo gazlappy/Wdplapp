@@ -795,6 +795,11 @@ const PoolPhysics = {
                                 firstBallHit = balls[i];
                             }
                         }
+
+                        // Log the collision for trace replay
+                        if (typeof PoolReplay !== 'undefined') {
+                            PoolReplay.logEvent('collision', { balls: [balls[i].num, balls[j].num] });
+                        }
                     }
                 }
             }

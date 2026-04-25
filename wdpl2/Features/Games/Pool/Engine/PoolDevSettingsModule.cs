@@ -572,8 +572,11 @@ const PoolDevSettings = {
                         <button id='stopAllBalls' class='dev-btn'>Stop Balls</button>
                         <button id='testPockets' class='dev-btn'>Test Pockets</button>
                         <button id='randomShot' class='dev-btn'>Random Shot</button>
-                        <button id='exportSettings' class='dev-btn'>Export</button>
+                        <button id='exportSettings' class='dev-btn'>Export Settings</button>
                         <button id='resetDefaults' class='dev-btn'>Reset All</button>
+                    </div>
+                    <div class='dev-buttons' style='margin-top:8px;'>
+                        <button id='exportReplays' class='dev-btn' style='background:linear-gradient(135deg,#0d9488,#0f766e);grid-column:span 3;'>Export Replays (recorded shots)</button>
                     </div>
                     <div class='dev-buttons' style='margin-top:8px;'>
                         <button id='ballInspectorBtn' class='dev-btn' style='background:linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);grid-column:span 3;'>&#127913; Ball Inspector (F4)</button>
@@ -1323,6 +1326,28 @@ const PoolDevSettings = {
         document.getElementById('randomShot').addEventListener('click', () => self.randomShot());
         document.getElementById('exportSettings').addEventListener('click', () => self.exportSettings());
         document.getElementById('resetDefaults').addEventListener('click', () => self.resetDefaults());
+
+        // Export recorded ball-trace replay data (different from settings export above).
+        const exportReplaysBtn = document.getElementById('exportReplays');
+        if (exportReplaysBtn) {
+            exportReplaysBtn.addEventListener('click', () => {
+                if (typeof PoolReplay === 'undefined') {
+                    alert('Replay module not loaded.');
+                    return;
+                }
+                if (!PoolReplay.shots || PoolReplay.shots.length === 0) {
+                    alert('No shots have been recorded yet.\n\nMake sure REC is ON in the toolbar, then play a few shots.');
+                    return;
+                }
+                PoolReplay.export();
+            });
+            // Refresh button label periodically so it shows the live shot count
+            setInterval(() => {
+                if (typeof PoolReplay !== 'undefined' && PoolReplay.shots) {
+                    exportReplaysBtn.textContent = 'Export Replays (' + PoolReplay.shots.length + ' shot' + (PoolReplay.shots.length === 1 ? '' : 's') + ')';
+                }
+            }, 1000);
+        }
         
         // Save/Clear defaults buttons
         document.getElementById('saveDefaults').addEventListener('click', () => self.saveAsDefaults());
@@ -1550,7 +1575,14 @@ const PoolDevSettings = {
     },
     
     exportSettings() {
+        // Pull live physics values from PoolPhysics (the active model).
+        // Falls back to this.game.* for legacy fields that have no live target.
+        const PP = (typeof PoolPhysics !== 'undefined') ? PoolPhysics : null;
+        const pick = (live, fallback) => (live !== undefined && live !== null) ? live : fallback;
+
         const settings = {
+            _version: 2,
+            _generated: new Date().toISOString(),
             table: {
                 width: this.game.width,
                 height: this.game.height,
@@ -1562,43 +1594,57 @@ const PoolDevSettings = {
                 spacing: this.game.ballSpacing || 0.5
             },
             pockets: {
+                // Capture radii (how close ball center must be to pocket center to drop)
                 cornerRadius: this.game.cornerPocketRadius,
-                cornerOpeningMult: this.game.cornerPocketOpeningMult || 1.6,
                 middleRadius: this.game.middlePocketRadius,
-                sideOpeningMult: this.game.sidePocketOpeningMult || 1.3,
+                // Rail-gap multipliers (1.0 = use the table base opening; the base values
+                // for a real UK 8-ball table are 3.75 inch corner / 4.5 inch side)
+                cornerOpeningMult: this.game.cornerPocketOpeningMult || 1.0,
+                sideOpeningMult: this.game.sidePocketOpeningMult || 1.0,
+                cornerOpeningPx: this.game.cornerPocketOpening,
+                sideOpeningPx: this.game.sidePocketOpening,
                 captureThreshold: this.game.captureThresholdPercent
             },
             physics: {
-                friction: this.game.friction,
-                rollingResistance: this.game.rollingResistance || 0.99,
-                spinDecay: this.game.spinDecay || 0.98,
-                cushionRestitution: this.game.cushionRestitution,
+                // px/frame deceleration model (replaced multiplicative friction)
+                viscousDrag:   pick(PP && PP.VISCOUS_DRAG,        this.game.friction),
+                rollingDecel:  pick(PP && PP.ROLLING_DECEL,       this.game.rollingResistance),
+                slidingDecel:  pick(PP && PP.SLIDING_DECEL,       this.game.spinDecay),
+                minVelocity:   pick(PP && PP.MIN_VELOCITY,        this.game.minSpeed),
+                cushionRestitution: pick(PP && PP.CUSHION_RESTITUTION, this.game.cushionRestitution),
+                collisionDamping:   pick(PP && PP.COLLISION_DAMPING,   this.game.collisionDamping),
+                ballToBallFriction: pick(PP && PP.BALL_TO_BALL_FRICTION, this.game.ballToBallFriction),
+                ballToClothSliding: pick(PP && PP.BALL_TO_CLOTH_SLIDING, this.game.ballToClothSliding),
+                spinDecayRate:      pick(PP && PP.SPIN_DECAY_RATE,       this.game.spinDecayRateCoeff),
+                miscueLimit:        pick(PP && PP.MISCUE_LIMIT,          this.game.miscueLimit),
+                maxSpinRpm:         pick(PP && PP.MAX_SPIN_RPM,          this.game.maxSpinRpm),
+                // Legacy fields with no active target -- kept for completeness
                 ballRestitution: this.game.ballRestitution || 0.95,
-                collisionDamping: this.game.collisionDamping,
-                airResistance: this.game.airResistance || 0.999,
-                angularDamping: this.game.angularDamping || 0.98,
-                minSpeed: this.game.minSpeed || 0.05,
-                gravityEffect: this.game.gravityEffect || 1
+                airResistance:   this.game.airResistance || 0.999,
+                angularDamping:  this.game.angularDamping || 0.98,
+                gravityEffect:   this.game.gravityEffect !== undefined ? this.game.gravityEffect : 1
             },
             controls: {
                 maxPower: this.game.maxPower,
                 powerMultiplier: this.game.powerMultiplier || 1.0,
                 aimSensitivity: this.game.aimSensitivity || 1.0,
-                maxPullDistance: this.game.maxPullDistance || 150
+                maxPullDistance: this.game.maxPullDistance || 150,
+                shotControlMode: this.game.shotControlMode || 'drag'
             },
             spin: {
                 maxSpin: this.game.maxSpin || 1.5,
-                spinEffect: this.game.spinEffect || 0.5,
-                englishTransfer: this.game.englishTransfer || 0.3
+                spinEffect: this.game.spinEffect || 2.0,
+                englishTransfer: this.game.englishTransfer || 0.5
             },
             visual: {
                 showPocketZones: this.game.showPocketZones,
                 showAimLine: this.game.showAimLine !== false,
-                showGhostBall: this.game.showGhostBall !== false,
-                showTrajectory: this.game.showTrajectory || false,
-                showVelocities: this.game.showVelocities || false,
+                showGhostBall: this.game.showGhostBalls !== false,
+                showTrajectory: !!this.game.showTrajectoryPrediction,
+                trajectoryLength: this.game.trajectoryLength,
+                showVelocities: !!this.game.showVelocities,
                 showBallNumbers: this.game.showBallNumbers !== false,
-                showFps: this.game.showFps || false,
+                showFps: !!this.game.showFps,
                 ballShadows: this.game.ballShadows !== false,
                 tableTexture: this.game.tableTexture !== false
             },
@@ -1621,9 +1667,16 @@ const PoolDevSettings = {
                 cushionShadowAlpha: PoolVFX.cushionShadowAlpha,
                 cushionShadowDepth: PoolVFX.cushionShadowDepth,
                 lightTemperature: PoolVFX.lightTemperature
+            } : {},
+            quality: typeof PoolQuality !== 'undefined' ? {
+                preset: PoolQuality.config.preset
+            } : {},
+            ai: typeof PoolAI !== 'undefined' ? {
+                aiPlayers: PoolAI.config.aiPlayers,
+                difficulty: PoolAI.config.difficulty
             } : {}
         };
-        
+
         const json = JSON.stringify(settings, null, 2);
         
         if (navigator.clipboard) {
@@ -1659,16 +1712,18 @@ const PoolDevSettings = {
     
     resetDefaults() {
         if (!confirm('Reset all settings to defaults?')) return;
-        
+
         const defaults = {
             tableWidth: 1000, tableHeight: 500, cushionMargin: 21,
             ballRadius: 14, cueBallRadius: 13, ballSpacing: 0.5,
-            cornerPocketOpeningMult: 1.6, sidePocketOpeningMult: 1.3,
-            cornerPocketRadius: 28, middlePocketRadius: 30, 
+            // Pocket geometry tuned to real UK 8-ball table
+            cornerPocketOpeningMult: 1.0, sidePocketOpeningMult: 1.0,
+            cornerPocketRadius: 27, middlePocketRadius: 26,
             captureThreshold: 30,
-            friction: 0.987, rollingResistance: 0.99, spinDecay: 0.98,
-            cushionRestitution: 0.78, ballRestitution: 0.95, collisionDamping: 0.98,
-            maxPower: 40, powerMultiplier: 1.0, aimSensitivity: 1.0, maxPullDistance: 150,
+            // Physics for the new px/frame deceleration model
+            friction: 0.992, rollingResistance: 0.055, spinDecay: 0.110,
+            cushionRestitution: 0.95, ballRestitution: 0.95, collisionDamping: 0.96,
+            maxPower: 55, powerMultiplier: 1.0, aimSensitivity: 1.0, maxPullDistance: 150,
             maxSpin: 1.5, spinEffect: 2.0, englishTransfer: 0.5, spinDecayRate: 0.98,
             airResistance: 0.999, angularDamping: 0.98, minSpeed: 0.05, gravityEffect: 1,
             volume: 50
@@ -1739,6 +1794,10 @@ const PoolDevSettings = {
     
     saveAsDefaults() {
         const settings = {
+            // Schema version. Bump this whenever a slider's range/semantic changes
+            // so loadSavedDefaults() can skip stale fields.
+            _version: 2,
+
             // Table
             tableWidth: this.game.width,
             tableHeight: this.game.height,
@@ -1821,27 +1880,58 @@ const PoolDevSettings = {
     
     loadSavedDefaults() {
         let settings = null;
-        
+
         // Check for MAUI-injected settings first (from Preferences)
         if (window.MAUI_SAVED_SETTINGS) {
             settings = window.MAUI_SAVED_SETTINGS;
             console.log('Loaded settings from MAUI Preferences (injected)');
         }
-        
+
         // Fallback: Check window object
         if (!settings && window.poolGameSavedDefaults) {
             settings = window.poolGameSavedDefaults;
             console.log('Loaded settings from window object');
         }
-        
+
         if (!settings) {
             console.log('No saved defaults found');
             return;
         }
-        
+
+        // ---------- MIGRATION ----------
+        // These fields had their range or semantic changed in v2 and would be
+        // applied incorrectly (silently clamped) if loaded from a v1 save.
+        const STALE_V1_FIELDS = new Set([
+            // Physics: friction was multiplicative -> now PoolPhysics.VISCOUS_DRAG
+            'friction',
+            // rollingResistance: was 0.95-0.999 multiplier -> now px/frame 0.020-0.150
+            'rollingResistance',
+            // spinDecay: was 0.90-0.999 multiplier -> now px/frame 0.040-0.250 (sliding decel)
+            'spinDecay',
+            // Cushion / collision tuned for the new model
+            'cushionRestitution',
+            'collisionDamping',
+            // Pocket geometry retuned to real UK 8-ball table dimensions
+            'cornerPocketRadius',
+            'middlePocketRadius',
+            'cornerPocketOpeningMult',
+            'sidePocketOpeningMult',
+            // maxPower default changed from 40 -> 55 with the new physics
+            'maxPower',
+        ]);
+
+        const savedVersion = settings._version || 1;
+        const skipStale = savedVersion < 2;
+        const skippedKeys = [];
+
         // Apply all settings by updating inputs and triggering events
         try {
             Object.keys(settings).forEach(inputId => {
+                if (inputId.startsWith('_')) return; // metadata key, skip
+                if (skipStale && STALE_V1_FIELDS.has(inputId)) {
+                    skippedKeys.push(inputId + '=' + settings[inputId]);
+                    return;
+                }
                 const input = document.getElementById(inputId);
                 if (input) {
                     if (input.type === 'checkbox') {
@@ -1856,7 +1946,13 @@ const PoolDevSettings = {
                     }
                 }
             });
-            console.log('Applied saved defaults successfully');
+
+            if (skippedKeys.length > 0) {
+                console.warn('[Dev] Migrated v1 saved settings - skipped stale fields:\n  ' + skippedKeys.join('\n  '));
+                console.warn('[Dev] Tip: open F2 -> Actions -> Save as Defaults to re-save with the new model.');
+            } else {
+                console.log('Applied saved defaults successfully (v' + savedVersion + ')');
+            }
         } catch (err) {
             console.error('Failed to apply settings:', err);
         }
