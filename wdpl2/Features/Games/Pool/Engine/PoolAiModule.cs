@@ -166,7 +166,9 @@ const PoolAI = {
                     const powerSampleB = ((Math.random() + Math.random()) - 1);
                     const powerB = Math.max(4, Math.min(this.game.maxPower,
                                        breakShot.power * (1 + powerSampleB * profile.powerNoise * 0.5)));
-                    this.fireShot(aimB, powerB);
+                    // Slight top spin on the break drives the cue forward through the rack
+                    // for better dispersion and helps it stay near the centre after impact.
+                    this.fireShot(aimB, powerB, { x: 0, y: 0.4 });
                     return;
                 }
             }
@@ -192,9 +194,12 @@ const PoolAI = {
                     const aimLR = Math.atan2(near.y - this.game.cueBall.y, near.x - this.game.cueBall.x);
                     this.fireShot(aimLR, this.game.maxPower * 0.55);
                 } else {
-                    // No legal targets at all (shouldn't really happen): tap toward table centre.
-                    const aimLR = Math.atan2(this.game.height / 2 - this.game.cueBall.y, this.game.width / 2 - this.game.cueBall.x);
-                    this.fireShot(aimLR, this.game.maxPower * 0.35);
+                    // No legal targets at all -- this should only happen if game state is broken
+                    // (e.g. 8-ball was incorrectly removed without ending the game). Stop the AI
+                    // rather than fire pointless tap shots forever.
+                    console.error('[AI] No legal targets and game still active. Disabling AI to prevent foul loop. Balls on table:',
+                                  this.game.balls.filter(b => !b.potted).map(b => b.num + b.color));
+                    this.disable();
                 }
                 return;
             }
@@ -212,7 +217,10 @@ const PoolAI = {
             const powerScale = 1 + powerSample * powerNoise;
             const power = Math.max(4, Math.min(this.game.maxPower, finalShot.power * powerScale));
 
-            this.fireShot(aim, power);
+            // Spin selection - choose top/back/english to support the shot intent.
+            const spin = this.chooseSpin(finalShot, profile);
+
+            this.fireShot(aim, power, spin);
         } catch (e) {
             console.error('[AI] takeShot error:', e);
         } finally {
@@ -221,9 +229,99 @@ const PoolAI = {
         }
     },
 
-    fireShot(aim, power) {
+    /**
+     * Choose a spin vector (x = english/side, y = top/back) appropriate for the shot.
+     * Returns { x, y } in [-1, 1].
+     *
+     * Strategy:
+     *  - Safety: medium back spin so the cue dies after impact, with side english biased
+     *    toward leaving the cue in the safe zone.
+     *  - Bank safety: top spin so the cue carries through the cushion route.
+     *  - Hangers (very close to pocket, small cut): mild back spin to avoid scratch.
+     *  - Position play (hard, target hit, next ball known via cueEndX/Y): top spin if the
+     *    next ball is further along the shot line (follow), back spin if it's behind (draw).
+     *  - Big cuts: stun (no spin) so energy goes into the object ball.
+     *  - Default: light top spin for natural roll.
+     *
+     * Easy/medium AI uses a fraction of the chosen spin so it doesn't look superhuman;
+     * hard uses the full amount.
+     */
+    chooseSpin(shot, profile) {
+        if (!shot) return { x: 0, y: 0 };
+        const g = this.game;
+        const cue = g.cueBall;
+
+        // Difficulty-scaled cap on spin magnitude
+        const cap = (this.config.difficulty === 'hard') ? 0.85
+                  : (this.config.difficulty === 'medium') ? 0.55
+                  : 0.30;
+
+        let sx = 0, sy = 0;
+
+        if (shot.safety) {
+            if (shot.bank) {
+                // Bank safety: a bit of top spin keeps the cue rolling along the rail.
+                sy = 0.35;
+            } else {
+                // Direct safety: back spin to park the cue after contact. Keep side
+                // english to a minimum -- the squirt physics deflect the cue several
+                // degrees on heavy english, which makes the AI miss the intended ball
+                // entirely and frequently hit an opponent ball first.
+                sy = -0.55;
+                // No side english on safeties (was the cause of multiple opponent-first fouls).
+                sx = 0;
+            }
+        } else if (shot.breakShot) {
+            sy = 0.40;
+        } else {
+            const cut = shot.cutAngle || 0;
+            const dist = shot.distance || 0;
+            const distFrac = Math.min(1, dist / 900);
+
+            if (cut > this.MAX_CUT * 0.7) {
+                // Thin cut: stun. Avoid heavy english -- squirt deflection causes more
+                // misses than the throw compensation gains. A tiny outside touch only.
+                sy = -0.10;
+                const dx = shot.obj.x - cue.x, dy = shot.obj.y - cue.y;
+                const ax = Math.cos(shot.aim), ay = Math.sin(shot.aim);
+                const cross = ax * dy - ay * dx;
+                sx = Math.sign(cross) * 0.10;
+            } else if (cut < this.MAX_CUT * 0.15 && dist < 200) {
+                // Near-straight close-range pot (potential scratch): use back spin.
+                sy = -0.45;
+            } else if (profile.positionPlay && shot.cueEndX !== undefined) {
+                // Position play - decide follow vs draw based on cue post-contact direction
+                // versus where the next ball would be more useful. For simplicity, prefer
+                // top spin on long shots (cue carries forward into the table) and back
+                // spin on short shots (parks cue near current spot for next play).
+                sy = (distFrac > 0.5) ? 0.45 : -0.30;
+            } else {
+                // Generic medium pot: mild top spin for natural roll. No side english
+                // by default -- the squirt cost outweighs throw compensation at this skill.
+                sy = 0.25;
+                sx = 0;
+            }
+        }
+
+        // Apply difficulty cap and slight noise so spin doesn't look robotic
+        const noiseX = (Math.random() - 0.5) * 0.08;
+        const noiseY = (Math.random() - 0.5) * 0.08;
+        sx = Math.max(-1, Math.min(1, sx * cap + noiseX));
+        sy = Math.max(-1, Math.min(1, sy * cap + noiseY));
+        return { x: sx, y: sy };
+    },
+
+    fireShot(aim, power, spin) {
         const g = this.game;
         g.aimAngle = aim;
+        // Pre-set spin on the shared controller BEFORE startShot/applySpinToBall pipeline runs.
+        // spin is { x, y } in [-1, 1]; defaults to no spin if omitted.
+        const sx = (spin && typeof spin.x === 'number') ? Math.max(-1, Math.min(1, spin.x)) : 0;
+        const sy = (spin && typeof spin.y === 'number') ? Math.max(-1, Math.min(1, spin.y)) : 0;
+        if (typeof PoolSpinControl !== 'undefined') {
+            PoolSpinControl.spinX = sx;
+            PoolSpinControl.spinY = sy;
+        }
         if (typeof g.startShot === 'function') g.startShot();
         // Match the player's shot pipeline: actual cue velocity = power * powerMultiplier.
         // The AI was previously omitting the multiplier, which made every shot (especially the
@@ -233,12 +331,11 @@ const PoolAI = {
         g.cueBall.vx = Math.cos(aim) * v;
         g.cueBall.vy = Math.sin(aim) * v;
         if (typeof PoolSpinControl !== 'undefined' && typeof PoolSpinControl.applySpinToBall === 'function') {
-            // No spin from AI (keeps it simple and predictable)
             try { PoolSpinControl.applySpinToBall(g.cueBall, aim); } catch (e) { /* ignore */ }
         }
         g.isAiming = false;
         g.isShooting = false;
-        console.log('[AI] Shot fired - aim:', aim.toFixed(3), 'power:', power.toFixed(2), 'velocity:', v.toFixed(2));
+        console.log('[AI] Shot fired - aim:', aim.toFixed(3), 'power:', power.toFixed(2), 'velocity:', v.toFixed(2), 'spin:', sx.toFixed(2), sy.toFixed(2));
     },
 
     // ---------- TARGET SELECTION ----------
@@ -488,13 +585,12 @@ const PoolAI = {
         // Direction cue -> apex.
         const baseAim = Math.atan2(apex.y - cue.y, apex.x - cue.x);
 
-        // Real breaks score best by striking the apex as squarely as possible so kinetic energy
-        // distributes through the whole rack and at least 3 object balls reach a cushion (the
-        // legality requirement). The previous offsets (~1-3 degrees) were dampening the spread.
-        // Hard now hits dead-on; easier difficulties wobble a touch for a more human feel.
-        const offsetMagnitude = (this.config.difficulty === 'hard') ? 0.0     // dead on
-                                : (this.config.difficulty === 'medium') ? 0.010 // ~0.6 deg
-                                : 0.025;                                       // ~1.4 deg
+        // A perfectly square apex hit was producing only 1 ball that crossed the centre line
+        // (need 3 'break points' = potted + crossed). A small offset (~1-1.5 deg) drives much
+        // more lateral motion through the rack so balls return past the centre line.
+        const offsetMagnitude = (this.config.difficulty === 'hard') ? 0.022   // ~1.3 deg
+                                : (this.config.difficulty === 'medium') ? 0.030 // ~1.7 deg
+                                : 0.040;                                       // ~2.3 deg
         const side = (Math.random() < 0.5) ? -1 : 1;
         const aim = baseAim + side * offsetMagnitude;
 
@@ -628,13 +724,40 @@ const PoolAI = {
         }
 
         if (!chosen) {
-            // Absolute last resort: gently tap toward the closest legal ball even if blocked.
+            // Absolute last resort: every direct line is blocked and no bank works. Instead of
+            // firing at the nearest ball (which often has an OPPONENT ball in front of it -
+            // a guaranteed wrong-ball-first foul), score each legal target by how SAFE the
+            // contact is. The cheapest path is one where the only blocker is the target itself
+            // or one of our own colour. Distance is a tiebreaker.
+            const player = g.players[g.currentPlayerIndex];
+            const myColor = player ? player.color : null;
+            const scoreTap = (t) => {
+                const dx = t.x - cue.x, dy = t.y - cue.y;
+                const len = Math.hypot(dx, dy) || 1;
+                const nx = dx / len, ny = dy / len;
+                let badBlockers = 0;
+                for (const b of g.balls) {
+                    if (b.potted || b === t || b.num === 0) continue;
+                    const px = b.x - cue.x, py = b.y - cue.y;
+                    const tt = px * nx + py * ny;
+                    if (tt <= 0 || tt >= len) continue;
+                    const cx = cue.x + nx * tt, cy = cue.y + ny * tt;
+                    if (Math.hypot(b.x - cx, b.y - cy) < b.r + cue.r) {
+                        // Penalise opponent balls heavily; own colour and the 8-ball lightly.
+                        const isMine = myColor && b.color === myColor;
+                        const isBlack = b.num === 8;
+                        badBlockers += isMine ? 1 : (isBlack ? 5 : 20);
+                    }
+                }
+                return badBlockers * 1000 + len;
+            };
             let nearest = targets[0];
-            let nd = Math.hypot(nearest.x - cue.x, nearest.y - cue.y);
+            let bestScore = scoreTap(nearest);
             for (let i = 1; i < targets.length; i++) {
-                const d = Math.hypot(targets[i].x - cue.x, targets[i].y - cue.y);
-                if (d < nd) { nd = d; nearest = targets[i]; }
+                const sc = scoreTap(targets[i]);
+                if (sc < bestScore) { bestScore = sc; nearest = targets[i]; }
             }
+            const nd = Math.hypot(nearest.x - cue.x, nearest.y - cue.y);
             chosen = { target: nearest, dist: nd, bank: null };
         }
 

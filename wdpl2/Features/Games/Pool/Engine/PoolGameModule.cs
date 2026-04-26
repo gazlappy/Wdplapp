@@ -311,8 +311,20 @@ class PoolGame {
         console.log('Cushion hit after contact:', this.cushionHitAfterContact);
         console.log('========================================');
         
-        // Check for cue ball potted (scratch) - ball in hand anywhere after the break
+        // Check for cue ball potted (scratch) - ball in hand anywhere after the break.
+        // EXCEPTION: if the 8-ball was ALSO potted on this shot, the 8-ball pot rules
+        // (handleBlackPotted) take precedence -- a scratch + 8 = instant loss, not just
+        // a foul. Without this guard the game would silently remove the 8 from the table
+        // and continue, leaving both players with no legal target ball.
         if (this.cueBallPotted) {
+            const blackPottedToo = this.ballsPottedThisShot.find(b => b.num === 8);
+            if (blackPottedToo) {
+                this.foulCommitted = true;
+                this.foulReason = 'Cue ball potted (scratch) + 8-ball';
+                if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('foul', { reason: this.foulReason });
+                this.handleBlackPotted(player);
+                return;
+            }
             this.commitScratchFoul('Cue ball potted (scratch)', false);
             return;
         }
