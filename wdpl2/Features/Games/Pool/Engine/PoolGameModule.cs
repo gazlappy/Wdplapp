@@ -224,6 +224,23 @@ class PoolGame {
         console.log('Player:', this.getCurrentPlayer().name);
         console.log('========================================');
 
+        // Rescue: if any non-cue ball is somehow sitting outside the playable area
+        // (escaped through a corner-pocket gap on a previous shot), pot it now so the
+        // game state is sane. Without this, the AI would keep firing at the trapped ball.
+        const w = this.width, h = this.height;
+        for (const b of this.balls) {
+            if (b.potted || b.num === 0) continue;
+            if (b.x < 0 || b.x > w || b.y < 0 || b.y > h) {
+                console.warn('[Pool] Rescuing off-table ball', b.num, 'at', b.x.toFixed(1), b.y.toFixed(1));
+                b.potted = true;
+                b.vx = 0; b.vy = 0;
+                this.updateBallReturnTray && this.updateBallReturnTray(b);
+            }
+        }
+        // After rescue, recompute onBlack so a player whose colour is exhausted is correctly
+        // promoted instead of being stuck with no legal targets.
+        if (typeof this.checkIfOnBlack === 'function') this.checkIfOnBlack();
+
         this.shotInProgress = true;
         this.firstBallHit = null;
         this.ballsPottedThisShot = [];
@@ -1107,7 +1124,7 @@ class PoolGame {
         const audioBtn = document.createElement('button');
         audioBtn.id = 'audioTestBtn';
         audioBtn.innerHTML = '[Pool] <span>Click to Enable Sound</span>';
-        audioBtn.style.cssText = 'position:fixed;top:10px;right:10px;padding:12px 20px;background:rgba(239,68,68,0.9);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:10000;font-size:14px;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+        audioBtn.style.cssText = 'position:fixed;top:320px;left:10px;width:150px;padding:10px 14px;background:rgba(239,68,68,0.9);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:10000;font-size:13px;text-align:center;transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
         
         const updateStatus = () => {
             if (typeof PoolAudio !== 'undefined') {

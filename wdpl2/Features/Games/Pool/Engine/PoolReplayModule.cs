@@ -296,24 +296,57 @@ const PoolReplay = {
         };
         const json = JSON.stringify(envelope, null, 2);
         const sizeKb = (json.length / 1024).toFixed(1);
-        const msg = this.shots.length === 0
-            ? 'EMPTY replay export copied (' + sizeKb + ' KB) -- enable REC and play a shot first'
-            : 'Exported ' + this.shots.length + ' shot' + (this.shots.length === 1 ? '' : 's') + ' (' + sizeKb + ' KB) to clipboard';
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(json).then(
-                () => {
-                    console.log('[Replay] ' + msg);
-                    this._showToast(msg, this.shots.length === 0 ? 'warn' : 'success');
-                },
-                (err) => {
-                    console.warn('[Replay] Clipboard failed:', err);
-                    console.log(json);
-                    this._showToast('Clipboard blocked - JSON dumped to console', 'warn');
-                }
-            );
+
+        if (this.shots.length === 0) {
+            this._showToast('Nothing to export -- enable REC and play a shot first', 'warn');
+            return json;
+        }
+
+        // 1) Always trigger a file download. This is the reliable path inside a MAUI WebView
+        //    where navigator.clipboard is often blocked by the secure-context requirement.
+        let downloadOk = false;
+        try {
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = 'pool-replay-' + stamp + '.json';
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            // Defer revoke so the WebView has a chance to consume it
+            setTimeout(() => {
+                try { document.body.removeChild(a); } catch (e) { /* ignore */ }
+                try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+            }, 1000);
+            downloadOk = true;
+            console.log('[Replay] Download triggered:', filename, '(' + sizeKb + ' KB,', this.shots.length, 'shots)');
+        } catch (e) {
+            console.warn('[Replay] Download failed:', e);
+        }
+
+        // 2) Best-effort clipboard copy as a bonus. Don't rely on it.
+        let clipboardOk = false;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(json).then(
+                    () => { clipboardOk = true; console.log('[Replay] Also copied to clipboard'); },
+                    (err) => { console.log('[Replay] Clipboard copy declined:', err && err.message); }
+                );
+            }
+        } catch (e) { /* ignore */ }
+
+        // 3) Always log to console as a final safety net so the JSON is recoverable.
+        console.log('[Replay] Export envelope:\n' + json);
+
+        const shots = this.shots.length;
+        const noun = shots === 1 ? 'shot' : 'shots';
+        if (downloadOk) {
+            this._showToast('Saved ' + shots + ' ' + noun + ' (' + sizeKb + ' KB) to Downloads', 'success');
         } else {
-            console.log('[Replay] JSON dump (' + sizeKb + ' KB):\n' + json);
-            this._showToast('JSON dumped to console (' + sizeKb + ' KB)', 'warn');
+            this._showToast('Export failed -- JSON dumped to console (' + sizeKb + ' KB)', 'warn');
         }
         return json;
     },
@@ -353,14 +386,14 @@ const PoolReplay = {
 
         const recBtn = document.createElement('button');
         recBtn.id = 'replayRecBtn';
-        recBtn.style.cssText = 'position:fixed;top:10px;left:380px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
+        recBtn.style.cssText = 'position:fixed;top:160px;left:10px;width:150px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
         recBtn.title = 'Toggle shot recording on/off.';
         recBtn.addEventListener('click', () => this.setRecording(!this.config.recording));
         document.body.appendChild(recBtn);
 
         const traceBtn = document.createElement('button');
         traceBtn.id = 'replayTraceBtn';
-        traceBtn.style.cssText = 'position:fixed;top:10px;left:475px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
+        traceBtn.style.cssText = 'position:fixed;top:210px;left:10px;width:150px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
         traceBtn.title = 'Cycle trace overlay: HIDDEN / LATEST / ALL\nRight-click: console.table the summary';
         traceBtn.addEventListener('click', () => this.cycleTraceMode());
         traceBtn.addEventListener('contextmenu', (e) => {
@@ -373,7 +406,7 @@ const PoolReplay = {
         // EXPORT: click to copy JSON to clipboard. Right-click to clear all shots.
         const exportBtn = document.createElement('button');
         exportBtn.id = 'replayExportBtn';
-        exportBtn.style.cssText = 'position:fixed;top:10px;left:585px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;background:linear-gradient(135deg,#0d9488,#0f766e);';
+        exportBtn.style.cssText = 'position:fixed;top:260px;left:10px;width:150px;padding:10px 14px;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;background:linear-gradient(135deg,#0d9488,#0f766e);';
         exportBtn.title = 'Click: copy recorded SHOT TRACES (ball paths) as JSON to clipboard.\nRight-click: clear shot history.\n\nNote: this is for replay traces only. For dev SETTINGS export, open F2 -> Actions -> Export.';
         exportBtn.addEventListener('click', () => {
             if (this.shots.length === 0) {

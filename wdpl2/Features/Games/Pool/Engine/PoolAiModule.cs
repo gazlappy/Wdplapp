@@ -41,11 +41,23 @@ const PoolAI = {
     },
 
     // Difficulty profiles
+    // - aimNoise:        baseline std-dev of aim error (radians), scaled up on harder cuts at shot time.
+    // - powerNoise:      +/- multiplier on chosen power.
+    // - maxPowerFrac:    cap on chosen power as a fraction of game.maxPower.
+    // - ignoreBlockers:  skip line-of-sight checks (easy only).
+    // - safetyChance:    probability of opting for a safety when no great shot exists.
+    // - maxConsidered:   how many top-ranked shots to sample from.
+    // - positionPlay:    enable post-collision cue prediction & next-shot bonus.
+    // - scratchAvoidance: penalty multiplier when predicted cue path enters a pocket.
+    // - selectionBias:   how strongly to bias toward the best of the top-N (1=uniform, higher=greedier).
     profiles: {
-        easy:   { aimNoise: 0.085, powerNoise: 0.30, maxPowerFrac: 0.85, ignoreBlockers: true,  safetyChance: 0.05, maxConsidered: 3 },
-        medium: { aimNoise: 0.035, powerNoise: 0.18, maxPowerFrac: 0.90, ignoreBlockers: false, safetyChance: 0.10, maxConsidered: 5 },
-        hard:   { aimNoise: 0.012, powerNoise: 0.08, maxPowerFrac: 0.95, ignoreBlockers: false, safetyChance: 0.20, maxConsidered: 8 },
+        easy:   { aimNoise: 0.075, powerNoise: 0.28, maxPowerFrac: 0.85, ignoreBlockers: true,  safetyChance: 0.05, maxConsidered: 3,  positionPlay: false, scratchAvoidance: 0.8, selectionBias: 1.5 },
+        medium: { aimNoise: 0.028, powerNoise: 0.15, maxPowerFrac: 0.90, ignoreBlockers: false, safetyChance: 0.10, maxConsidered: 6,  positionPlay: false, scratchAvoidance: 1.3, selectionBias: 3.0 },
+        hard:   { aimNoise: 0.008, powerNoise: 0.05, maxPowerFrac: 0.95, ignoreBlockers: false, safetyChance: 0.18, maxConsidered: 10, positionPlay: true,  scratchAvoidance: 1.8, selectionBias: 8.0 },
     },
+
+    // Maximum makeable cut angle (radians). ~75 degrees - thinner cuts are rejected.
+    MAX_CUT: Math.PI * 0.42,
 
     init(game) {
         this.game = game;
@@ -143,6 +155,22 @@ const PoolAI = {
             }
 
             const profile = this.profiles[this.config.difficulty] || this.profiles.medium;
+
+            // Special case: opening break shot. Don't try to ghost-ball pot from a rack.
+            if (this.game.gamePhase === 'break') {
+                const breakShot = this.chooseBreakShot(profile);
+                if (breakShot) {
+                    // Use straight power on the break (no cut-scaled aim noise).
+                    const aimSampleB = ((Math.random() + Math.random()) - 1);
+                    const aimB = breakShot.aim + aimSampleB * profile.aimNoise * 1.2;
+                    const powerSampleB = ((Math.random() + Math.random()) - 1);
+                    const powerB = Math.max(4, Math.min(this.game.maxPower,
+                                       breakShot.power * (1 + powerSampleB * profile.powerNoise * 0.5)));
+                    this.fireShot(aimB, powerB);
+                    return;
+                }
+            }
+
             const shot = this.chooseBestShot(profile);
 
             // Decide between best-pot and safety
@@ -150,14 +178,38 @@ const PoolAI = {
             const finalShot = useSafety ? this.chooseSafetyShot() : shot;
 
             if (!finalShot) {
-                // Last resort: random small tap toward the rack
-                this.fireShot(0, 8);
+                // Last resort: tap toward the nearest legal ball with enough power to reach
+                // a cushion after contact. Aiming at angle 0 with power 8 (the previous fallback)
+                // would frequently fire into empty space and foul with 'Failed to hit any ball'.
+                const targetsLR = this.getLegalTargetBalls();
+                if (targetsLR.length > 0) {
+                    let near = targetsLR[0];
+                    let nd = Math.hypot(near.x - this.game.cueBall.x, near.y - this.game.cueBall.y);
+                    for (let i = 1; i < targetsLR.length; i++) {
+                        const d = Math.hypot(targetsLR[i].x - this.game.cueBall.x, targetsLR[i].y - this.game.cueBall.y);
+                        if (d < nd) { nd = d; near = targetsLR[i]; }
+                    }
+                    const aimLR = Math.atan2(near.y - this.game.cueBall.y, near.x - this.game.cueBall.x);
+                    this.fireShot(aimLR, this.game.maxPower * 0.55);
+                } else {
+                    // No legal targets at all (shouldn't really happen): tap toward table centre.
+                    const aimLR = Math.atan2(this.game.height / 2 - this.game.cueBall.y, this.game.width / 2 - this.game.cueBall.x);
+                    this.fireShot(aimLR, this.game.maxPower * 0.35);
+                }
                 return;
             }
 
-            // Apply aim noise (radians) and power noise (multiplier)
-            const aim = finalShot.aim + (Math.random() - 0.5) * 2 * profile.aimNoise;
-            const powerScale = 1 + (Math.random() - 0.5) * 2 * profile.powerNoise;
+            // Aim noise scales with cut difficulty: thin cuts are missed more often than hangers.
+            // Use a sum-of-two-uniforms (~triangular) for a softer, more human-feeling distribution.
+            const cut = finalShot.cutAngle || 0;
+            const cutFactor = 1 + (cut / this.MAX_CUT) * 1.4; // 1.0 .. ~2.4
+            const aimSample = ((Math.random() + Math.random()) - 1); // ~triangular in [-1, 1]
+            const aim = finalShot.aim + aimSample * profile.aimNoise * cutFactor;
+
+            // Power noise also softened, and reduced for safeties (don't want to over-hit a safety).
+            const powerSample = ((Math.random() + Math.random()) - 1);
+            const powerNoise = profile.powerNoise * (finalShot.safety ? 0.5 : 1);
+            const powerScale = 1 + powerSample * powerNoise;
             const power = Math.max(4, Math.min(this.game.maxPower, finalShot.power * powerScale));
 
             this.fireShot(aim, power);
@@ -173,22 +225,35 @@ const PoolAI = {
         const g = this.game;
         g.aimAngle = aim;
         if (typeof g.startShot === 'function') g.startShot();
-        g.cueBall.vx = Math.cos(aim) * power;
-        g.cueBall.vy = Math.sin(aim) * power;
+        // Match the player's shot pipeline: actual cue velocity = power * powerMultiplier.
+        // The AI was previously omitting the multiplier, which made every shot (especially the
+        // break) noticeably weaker than a human shot at the same nominal power.
+        const mult = (typeof g.powerMultiplier === 'number' && g.powerMultiplier > 0) ? g.powerMultiplier : 1.0;
+        const v = power * mult;
+        g.cueBall.vx = Math.cos(aim) * v;
+        g.cueBall.vy = Math.sin(aim) * v;
         if (typeof PoolSpinControl !== 'undefined' && typeof PoolSpinControl.applySpinToBall === 'function') {
             // No spin from AI (keeps it simple and predictable)
             try { PoolSpinControl.applySpinToBall(g.cueBall, aim); } catch (e) { /* ignore */ }
         }
         g.isAiming = false;
         g.isShooting = false;
-        console.log('[AI] Shot fired - aim:', aim.toFixed(3), 'power:', power.toFixed(2));
+        console.log('[AI] Shot fired - aim:', aim.toFixed(3), 'power:', power.toFixed(2), 'velocity:', v.toFixed(2));
     },
 
     // ---------- TARGET SELECTION ----------
+    // Returns true if a ball position lies inside the playable area. Used to filter
+    // out 'escaped' or stuck-outside-table balls so the AI doesn't keep firing at one.
+    _onTable(b) {
+        const g = this.game;
+        if (!g) return true;
+        return b.x > 0 && b.x < g.width && b.y > 0 && b.y < g.height;
+    },
+
     getLegalTargetBalls() {
         const g = this.game;
         const player = g.players[g.currentPlayerIndex];
-        const live = g.balls.filter(b => !b.potted && b.num !== 0);
+        const live = g.balls.filter(b => !b.potted && b.num !== 0 && this._onTable(b));
 
         // On the black -> only black is legal
         if (player && player.onBlack) return live.filter(b => b.num === 8);
@@ -220,12 +285,23 @@ const PoolAI = {
 
         candidates.sort((a, b) => b.score - a.score);
         const top = candidates.slice(0, profile.maxConsidered);
-        // Easy / medium: pick somewhat randomly from top to feel more human
-        const pickIndex = (this.config.difficulty === 'hard') ? 0 : Math.floor(Math.random() * top.length);
-        return top[pickIndex];
+
+        // Weighted pick: better shots much more likely than worse ones.
+        // weight_i = (1 / (i+1)) ^ selectionBias  -> bias=1 uniform-ish, higher = greedier.
+        const bias = profile.selectionBias || 1;
+        const weights = top.map((_, i) => Math.pow(1 / (i + 1), bias));
+        const total = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        for (let i = 0; i < top.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return top[i];
+        }
+        return top[0];
     },
 
     evaluateShot(cue, obj, pocket, profile) {
+        const g = this.game;
+
         // Ghost-ball position: where the cue ball must arrive to send the object toward the pocket.
         const objToPocket = { x: pocket.x - obj.x, y: pocket.y - obj.y };
         const dOP = Math.hypot(objToPocket.x, objToPocket.y);
@@ -238,10 +314,16 @@ const PoolAI = {
         };
 
         // Bounds check: ghost must be inside the playable area (with margin).
-        const m = this.game.cushionMargin + cue.r;
-        if (ghost.x < m || ghost.x > this.game.width - m ||
-            ghost.y < m || ghost.y > this.game.height - m) {
+        const m = g.cushionMargin + cue.r;
+        if (ghost.x < m || ghost.x > g.width - m ||
+            ghost.y < m || ghost.y > g.height - m) {
             return null;
+        }
+
+        // Reject if any other ball would already be sitting on the ghost-ball spot.
+        for (const b of g.balls) {
+            if (b === obj || b === cue || b.potted) continue;
+            if (Math.hypot(ghost.x - b.x, ghost.y - b.y) < cue.r + b.r) return null;
         }
 
         // Aim direction (cue -> ghost)
@@ -254,7 +336,7 @@ const PoolAI = {
         // Cut angle: 0 = straight, PI/2 = impossibly thin
         const dot = (nOP.x * (dx / dCG)) + (nOP.y * (dy / dCG));
         const cutAngle = Math.acos(Math.max(-1, Math.min(1, dot))); // 0..PI
-        if (cutAngle > Math.PI * 0.48) return null; // too thin to make
+        if (cutAngle > this.MAX_CUT) return null; // too thin to make
 
         // Line-of-sight: cue->ghost and obj->pocket
         if (!profile.ignoreBlockers) {
@@ -262,31 +344,99 @@ const PoolAI = {
             if (this.pathBlocked(obj, pocket, obj.r, [cue])) return null;
         }
 
-        // Power: enough to roll the object the rest of the way + cushion damping
+        // Pocket approach quality: dot of (obj->pocket travel dir) with (centre->pocket OUTWARD dir).
+        // The object ball needs to be moving outward (toward the rail/pocket); a high dot means it
+        // enters the pocket along its 'mouth', a strongly negative dot means the line crosses the
+        // pocket from the wrong side (which only happens for unrealistic geometry).
+        const pcx = pocket.x - (g.width  / 2);
+        const pcy = pocket.y - (g.height / 2);
+        const pcLen = Math.hypot(pcx, pcy) || 1;
+        const approachDot = nOP.x * (pcx / pcLen) + nOP.y * (pcy / pcLen);
+        if (approachDot < -0.35) return null; // wrong-side approach
+
+        // Power: enough to roll the object the rest of the way, scaled up by 1/cos(cut)
+        // because energy transfer to the object falls off with the cut angle.
         const total = dCG + dOP;
-        // Map total distance (px) to power (units of game.maxPower).
-        // Calibrated so a half-table shot = ~55% power, full table = ~80%.
         const distFrac = Math.min(1, total / 1400);
-        let power = (0.45 + distFrac * 0.45) * this.game.maxPower * profile.maxPowerFrac;
+        const cutCos = Math.max(0.25, Math.cos(cutAngle));
+        let power = (0.42 + distFrac * 0.45) * g.maxPower * profile.maxPowerFrac / cutCos;
+        power = Math.min(power, g.maxPower * profile.maxPowerFrac);
 
-        // Score: prefer straight shots, short distance, near-pocket objects
-        const cutPenalty = (cutAngle / (Math.PI * 0.48)) * 60;     // 0..60
-        const distPenalty = Math.min(40, total / 35);              // 0..40
-        const baseScore = 100 - cutPenalty - distPenalty;
+        // -------- SCORE --------
+        const cutPenalty   = (cutAngle / this.MAX_CUT) * 60;         // 0..60
+        const distPenalty  = Math.min(40, total / 35);               // 0..40
+        const approachBonus = Math.max(0, approachDot) * 18;         // 0..~18 for clean line-in
+        let score = 100 - cutPenalty - distPenalty + approachBonus;
 
-        // Bonus if pocketing the ball that puts player on the black
-        let bonus = 0;
-        const player = this.game.players[this.game.currentPlayerIndex];
-        if (player && player.color) {
-            const remaining = this.game.balls.filter(b => !b.potted && b.color === player.color).length;
-            if (remaining === 1) bonus += 10; // last colour ball
+        // -------- POST-COLLISION CUE PREDICTION (stun-shot approximation) --------
+        // Cue continues perpendicular to the line of centers at impact, with magnitude ~= power*sin(cut).
+        const perpSign = Math.sign(dx * (-nOP.y) + dy * nOP.x) || 1;
+        const perpX = -nOP.y * perpSign;
+        const perpY =  nOP.x * perpSign;
+        const cuePostSpeed = power * Math.sin(cutAngle);
+        const cueRollDist  = Math.min(420, cuePostSpeed * 9); // px before friction stops it
+        const cueEndX = ghost.x + perpX * cueRollDist;
+        const cueEndY = ghost.y + perpY * cueRollDist;
+
+        // Scratch check: does the predicted cue path pass through any pocket?
+        const pocketR = (g.pockets[0] && g.pockets[0].r) || 22;
+        let scratchRisk = 0;
+        for (const p of g.pockets) {
+            // Distance from segment ghost->cueEnd to pocket center
+            const sx = cueEndX - ghost.x, sy = cueEndY - ghost.y;
+            const segLen = Math.hypot(sx, sy);
+            if (segLen < 1) break;
+            const ux = sx / segLen, uy = sy / segLen;
+            const t = (p.x - ghost.x) * ux + (p.y - ghost.y) * uy;
+            const tt = Math.max(0, Math.min(segLen, t));
+            const cx = ghost.x + ux * tt, cy = ghost.y + uy * tt;
+            const d = Math.hypot(p.x - cx, p.y - cy);
+            if (d < pocketR + cue.r) {
+                // Closer to pocket center => higher risk
+                scratchRisk = Math.max(scratchRisk, 1 - (d / (pocketR + cue.r)));
+            }
         }
-        if (obj.num === 8 && player && player.onBlack) bonus += 25; // game-winning shot
+        score -= scratchRisk * 80 * profile.scratchAvoidance;
+
+        // -------- POSITION PLAY (Hard only) --------
+        // Reward shots that leave the cue near a future legal target with line-of-sight.
+        if (profile.positionPlay) {
+            const player = g.players[g.currentPlayerIndex];
+            const futureTargets = g.balls.filter(b => {
+                if (b.potted || b === obj || b.num === 0) return false;
+                if (player && player.onBlack) return b.num === 8;
+                if (g.tableOpen) return b.num !== 8;
+                if (player && player.color) return b.color === player.color;
+                return b.num !== 8;
+            });
+
+            let bestNext = Infinity;
+            for (const ft of futureTargets) {
+                const d = Math.hypot(ft.x - cueEndX, ft.y - cueEndY);
+                // Penalty if the next ball is hidden from the predicted cue spot
+                const blocked = this.pathBlocked({ x: cueEndX, y: cueEndY }, ft, cue.r, [obj]);
+                const eff = blocked ? d * 1.6 + 200 : d;
+                if (eff < bestNext) bestNext = eff;
+            }
+            if (bestNext !== Infinity) {
+                // 0..20 bonus: best when next ball is within ~150px and visible
+                score += Math.max(0, 20 - bestNext / 30);
+            }
+        }
+
+        // -------- TACTICAL BONUSES --------
+        const player = g.players[g.currentPlayerIndex];
+        if (player && player.color) {
+            const remaining = g.balls.filter(b => !b.potted && b.color === player.color).length;
+            if (remaining === 1) score += 10; // last colour ball -> opens up the black
+        }
+        if (obj.num === 8 && player && player.onBlack) score += 30; // game-winning shot
 
         return {
             obj, pocket, aim, power,
             cutAngle, distance: total,
-            score: baseScore + bonus,
+            cueEndX, cueEndY,
+            score,
         };
     },
 
@@ -310,30 +460,216 @@ const PoolAI = {
             const closestX = from.x + nx * t;
             const closestY = from.y + ny * t;
             const dist = Math.hypot(b.x - closestX, b.y - closestY);
-            if (dist < b.r + radius - 1) return true;
+            // Small positive margin so the AI doesn't try to thread impossibly tight gaps.
+            if (dist < b.r + radius + 1.5) return true;
         }
         return false;
     },
 
+    // ---------- BREAK SHOT ----------
+    // Smash the head ball of the rack at near-max power with a small angular offset
+    // so the cue strikes it slightly off-centre for a better spread (~1-3 degrees).
+    chooseBreakShot(profile) {
+        const g = this.game;
+        const cue = g.cueBall;
+        if (!cue) return null;
+
+        const rack = g.balls.filter(b => !b.potted && b.num !== 0);
+        if (rack.length === 0) return null;
+
+        // Apex of the rack = the ball closest to the cue ball (at break, that's the head ball).
+        let apex = rack[0];
+        let bestDist = Math.hypot(apex.x - cue.x, apex.y - cue.y);
+        for (let i = 1; i < rack.length; i++) {
+            const d = Math.hypot(rack[i].x - cue.x, rack[i].y - cue.y);
+            if (d < bestDist) { bestDist = d; apex = rack[i]; }
+        }
+
+        // Direction cue -> apex.
+        const baseAim = Math.atan2(apex.y - cue.y, apex.x - cue.x);
+
+        // Real breaks score best by striking the apex as squarely as possible so kinetic energy
+        // distributes through the whole rack and at least 3 object balls reach a cushion (the
+        // legality requirement). The previous offsets (~1-3 degrees) were dampening the spread.
+        // Hard now hits dead-on; easier difficulties wobble a touch for a more human feel.
+        const offsetMagnitude = (this.config.difficulty === 'hard') ? 0.0     // dead on
+                                : (this.config.difficulty === 'medium') ? 0.010 // ~0.6 deg
+                                : 0.025;                                       // ~1.4 deg
+        const side = (Math.random() < 0.5) ? -1 : 1;
+        const aim = baseAim + side * offsetMagnitude;
+
+        // Power: the break should be an absolute commit. Use full maxPower so that the player's
+        // powerMultiplier (applied in fireShot) gives the same impact as a human pulling the slider
+        // all the way back. Easier difficulties hold back slightly to feel more human.
+        const powerFrac = (this.config.difficulty === 'hard') ? 1.00
+                          : (this.config.difficulty === 'medium') ? 0.95
+                          : 0.85;
+        const power = g.maxPower * powerFrac;
+
+        return { obj: apex, pocket: null, aim, power, cutAngle: 0, distance: bestDist, score: 200, breakShot: true };
+    },
+
+    // ---------- BANK / LEGAL-CONTACT HELPERS ----------
+    // Reflect a point across one of the four cushion rails. Returns null if rail name unknown.
+    _reflectAcrossRail(p, rail) {
+        const g = this.game;
+        const m = g.cushionMargin;
+        switch (rail) {
+            case 'top':    return { x: p.x,                    y: 2 * m - p.y };
+            case 'bottom': return { x: p.x,                    y: 2 * (g.height - m) - p.y };
+            case 'left':   return { x: 2 * m - p.x,            y: p.y };
+            case 'right':  return { x: 2 * (g.width  - m) - p.x, y: p.y };
+        }
+        return null;
+    },
+
+    // Try to find a one-cushion bank from cue to target. Returns {aim, contact, distance} or null.
+    tryBankContact(cue, target) {
+        const g = this.game;
+        const m = g.cushionMargin;
+        const rails = ['top', 'bottom', 'left', 'right'];
+        let best = null;
+        for (const rail of rails) {
+            const virtTarget = this._reflectAcrossRail(target, rail);
+            if (!virtTarget) continue;
+
+            // Find where the cue->virtTarget line crosses the rail (the contact point).
+            const dx = virtTarget.x - cue.x;
+            const dy = virtTarget.y - cue.y;
+            let t = -1;
+            if (rail === 'top')    t = (m - cue.y) / dy;
+            if (rail === 'bottom') t = ((g.height - m) - cue.y) / dy;
+            if (rail === 'left')   t = (m - cue.x) / dx;
+            if (rail === 'right')  t = ((g.width  - m) - cue.x) / dx;
+            if (!isFinite(t) || t <= 0.02 || t >= 1) continue;
+
+            const contact = { x: cue.x + dx * t, y: cue.y + dy * t };
+            // Contact point must lie on the playable extent of the rail (allow for cue radius so
+            // we don't aim into a corner pocket and foul-scratch).
+            const railMargin = m + cue.r;
+            if (contact.x < railMargin || contact.x > g.width  - railMargin) continue;
+            if (contact.y < railMargin || contact.y > g.height - railMargin) continue;
+
+            // Both legs of the path must be clear of other balls.
+            if (this.pathBlocked(cue, contact, cue.r, [target])) continue;
+            if (this.pathBlocked(contact, target, cue.r, [cue])) continue;
+
+            const aim = Math.atan2(contact.y - cue.y, contact.x - cue.x);
+            const dist = Math.hypot(contact.x - cue.x, contact.y - cue.y) +
+                         Math.hypot(target.x - contact.x, target.y - contact.y);
+            if (!best || dist < best.distance) best = { aim, contact, distance: dist, rail };
+        }
+        return best;
+    },
+
+    // Distance from a point to the nearest opponent ball - bigger = better safety.
+    _minDistToBalls(p, balls) {
+        let best = Infinity;
+        for (const b of balls) {
+            const d = Math.hypot(p.x - b.x, p.y - b.y);
+            if (d < best) best = d;
+        }
+        return best;
+    },
+
     // ---------- SAFETY SHOT ----------
+    // Goal: make a legal contact with one of our own legal balls and leave the cue ball
+    // far from the OPPONENT's legal balls. Prefer direct LOS; if everything is blocked,
+    // try a one-cushion bank rather than firing blind into other balls (which would foul).
     chooseSafetyShot() {
         const g = this.game;
         const cue = g.cueBall;
         const targets = this.getLegalTargetBalls();
         if (targets.length === 0) return null;
 
-        // Pick the closest legal target and tap it gently toward the far end
-        let best = null;
-        let bestDist = Infinity;
-        for (const t of targets) {
-            const d = Math.hypot(t.x - cue.x, t.y - cue.y);
-            if (d < bestDist) { bestDist = d; best = t; }
-        }
-        if (!best) return null;
+        // Identify opponent balls so we can score 'safe-zone' candidate end positions.
+        const opponentIdx = (g.currentPlayerIndex + 1) % g.players.length;
+        const opp = g.players[opponentIdx];
+        const oppBalls = g.balls.filter(b => {
+            if (b.potted || b.num === 0 || b.num === 8) return false;
+            if (opp && opp.color) return b.color === opp.color;
+            return true;
+        });
 
-        const aim = Math.atan2(best.y - cue.y, best.x - cue.x);
-        const power = g.maxPower * 0.35;
-        return { obj: best, pocket: null, aim, power, cutAngle: 0, distance: bestDist, score: 0, safety: true };
+        let safeX = g.width / 2, safeY = g.height / 2;
+        if (oppBalls.length > 0) {
+            let cx = 0, cy = 0;
+            for (const b of oppBalls) { cx += b.x; cy += b.y; }
+            cx /= oppBalls.length; cy /= oppBalls.length;
+            safeX = (cx < g.width / 2) ? g.width  - g.cushionMargin * 2 : g.cushionMargin * 2;
+            safeY = (cy < g.height / 2) ? g.height - g.cushionMargin * 2 : g.cushionMargin * 2;
+        }
+
+        // Build candidates with clear direct line of sight first.
+        const direct = [];
+        for (const t of targets) {
+            if (!this.pathBlocked(cue, t, cue.r, [t])) {
+                direct.push({ target: t, dist: Math.hypot(t.x - cue.x, t.y - cue.y), bank: null });
+            }
+        }
+
+        let chosen = null;
+        if (direct.length > 0) {
+            // Pick the closest legal ball with a clear line.
+            direct.sort((a, b) => a.dist - b.dist);
+            chosen = direct[0];
+        } else {
+            // No direct contact possible without fouling - try a one-cushion bank.
+            let bestBank = null;
+            for (const t of targets) {
+                const bank = this.tryBankContact(cue, t);
+                if (bank && (!bestBank || bank.distance < bestBank.distance)) {
+                    bestBank = { target: t, bank };
+                }
+            }
+            if (bestBank) {
+                chosen = { target: bestBank.target, dist: bestBank.bank.distance, bank: bestBank.bank };
+            }
+        }
+
+        if (!chosen) {
+            // Absolute last resort: gently tap toward the closest legal ball even if blocked.
+            let nearest = targets[0];
+            let nd = Math.hypot(nearest.x - cue.x, nearest.y - cue.y);
+            for (let i = 1; i < targets.length; i++) {
+                const d = Math.hypot(targets[i].x - cue.x, targets[i].y - cue.y);
+                if (d < nd) { nd = d; nearest = targets[i]; }
+            }
+            chosen = { target: nearest, dist: nd, bank: null };
+        }
+
+        // Compute aim + power.
+        let aim;
+        let powerScale;
+        if (chosen.bank) {
+            // Bank shot: aim at the contact point on the rail. Needs more power because
+            // cushions absorb energy.
+            aim = chosen.bank.aim;
+            powerScale = Math.min(0.85, Math.max(0.55, chosen.bank.distance / 700));
+        } else {
+            // Direct safety: aim slightly off the contact ball so the cue deflects toward the safe zone.
+            // The angular offset MUST stay smaller than the angle subtended by the target ball at the cue
+            // (asin((R+r)/dist)), otherwise the cue misses entirely and we foul on 'no ball hit'.
+            const toContact = Math.atan2(chosen.target.y - cue.y, chosen.target.x - cue.x);
+            const toSafe    = Math.atan2(safeY - chosen.target.y, safeX - chosen.target.x);
+            let bias = toSafe - toContact;
+            while (bias >  Math.PI) bias -= Math.PI * 2;
+            while (bias < -Math.PI) bias += Math.PI * 2;
+            const distC = Math.max(1, Math.hypot(chosen.target.x - cue.x, chosen.target.y - cue.y));
+            const sumR = chosen.target.r + cue.r;
+            const maxOffset = Math.asin(Math.min(0.99, sumR / distC)) * 0.6; // 60% of the contact-cone half-angle
+            aim = toContact + Math.sign(bias || 1) * Math.min(maxOffset, Math.abs(bias) * 0.5);
+            // Power floor lifted: the cue needs enough velocity that, after losing ~half on impact,
+            // it can still reach at least one cushion (cushion-after-contact is a foul rule).
+            powerScale = Math.min(0.70, Math.max(0.45, chosen.dist / 900));
+        }
+
+        const power = g.maxPower * powerScale;
+        return {
+            obj: chosen.target, pocket: null, aim, power,
+            cutAngle: 0, distance: chosen.dist,
+            score: 0, safety: true, bank: !!chosen.bank,
+        };
     },
 
     // ---------- BALL IN HAND ----------
@@ -411,7 +747,7 @@ const PoolAI = {
         if (document.getElementById('aiToggleBtn')) return;
         const btn = document.createElement('button');
         btn.id = 'aiToggleBtn';
-        btn.style.cssText = 'position:fixed;top:10px;left:140px;padding:10px 16px;background:rgba(75,85,99,0.95);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
+        btn.style.cssText = 'position:fixed;top:60px;left:10px;width:150px;padding:10px 14px;background:rgba(75,85,99,0.95);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:13px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
         btn.title = 'Click: cycle AI mode (OFF / P2 / P1 / AI-vs-AI). Right-click: cycle difficulty.';
         btn.addEventListener('click', () => this.cycleMode());
         btn.addEventListener('contextmenu', (e) => {
@@ -439,7 +775,7 @@ const PoolAI = {
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'aiThinkingIndicator';
-                el.style.cssText = 'position:fixed;top:55px;left:140px;padding:6px 12px;background:rgba(16,185,129,0.9);color:white;border-radius:6px;font-size:12px;font-weight:bold;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+                el.style.cssText = 'position:fixed;top:60px;left:170px;padding:6px 12px;background:rgba(16,185,129,0.9);color:white;border-radius:6px;font-size:12px;font-weight:bold;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
                 document.body.appendChild(el);
             }
             el.textContent = 'AI thinking...';

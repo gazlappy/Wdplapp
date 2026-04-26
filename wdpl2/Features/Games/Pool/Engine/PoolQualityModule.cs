@@ -162,7 +162,7 @@ const PoolQuality = {
         if (document.getElementById('qualityToggleBtn')) return;
         const btn = document.createElement('button');
         btn.id = 'qualityToggleBtn';
-        btn.style.cssText = 'position:fixed;top:10px;left:255px;padding:10px 16px;background:rgba(75,85,99,0.95);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
+        btn.style.cssText = 'position:fixed;top:110px;left:10px;width:150px;padding:10px 14px;background:rgba(75,85,99,0.95);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:9998;font-size:13px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all .2s;';
         btn.title = 'Click to cycle quality: LOW / MEDIUM / HIGH / ULTRA. Lower it if the game feels slow.';
         btn.addEventListener('click', () => this.cycle());
         document.body.appendChild(btn);

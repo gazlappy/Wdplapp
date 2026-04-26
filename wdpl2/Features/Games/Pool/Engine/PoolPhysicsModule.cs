@@ -277,12 +277,36 @@ const PoolPhysics = {
             bounceAxis = 'horizontal';
         }
 
-        // Safety: keep ball on canvas
+        // Safety: keep ball on canvas. If a ball ever escapes through a pocket gap (it can be
+        // travelling fast enough that the cushion check skipped it because it was in the gap,
+        // but it then sailed past the pocket centre), snap it back to the playable area AND
+        // mark it for the pocket-drop pass so the game logic treats it as potted instead of
+        // freezing it outside the table forever.
         const edge = ball.r * 0.5;
-        if (ball.x < -edge) { ball.x = -edge; ball.vx = 0; }
-        if (ball.x > w + edge) { ball.x = w + edge; ball.vx = 0; }
-        if (ball.y < -edge) { ball.y = -edge; ball.vy = 0; }
-        if (ball.y > h + edge) { ball.y = h + edge; ball.vy = 0; }
+        const escaped = (ball.x < -edge) || (ball.x > w + edge) ||
+                        (ball.y < -edge) || (ball.y > h + edge);
+        if (escaped && pockets && pockets.length > 0) {
+            // Find nearest pocket; pull the ball into its centre so the pocket-detection
+            // pass in the game loop will pot it on the next tick.
+            let nearest = pockets[0];
+            let bestD = Math.hypot(ball.x - nearest.x, ball.y - nearest.y);
+            for (let i = 1; i < pockets.length; i++) {
+                const d = Math.hypot(ball.x - pockets[i].x, ball.y - pockets[i].y);
+                if (d < bestD) { bestD = d; nearest = pockets[i]; }
+            }
+            console.warn('[Physics] Ball', ball.num, 'escaped at', ball.x.toFixed(1), ball.y.toFixed(1),
+                         '-> recovering into pocket at', nearest.x.toFixed(0), nearest.y.toFixed(0));
+            ball.x = nearest.x;
+            ball.y = nearest.y;
+            ball.vx = 0;
+            ball.vy = 0;
+        } else {
+            // Standard clamp for tiny edge overshoots that didn't reach a gap.
+            if (ball.x < -edge) { ball.x = -edge; ball.vx = 0; }
+            if (ball.x > w + edge) { ball.x = w + edge; ball.vx = 0; }
+            if (ball.y < -edge) { ball.y = -edge; ball.vy = 0; }
+            if (ball.y > h + edge) { ball.y = h + edge; ball.vy = 0; }
+        }
         
         // Apply spin effects on cushion bounce - REALISTIC PHYSICS
         if (bounced) {

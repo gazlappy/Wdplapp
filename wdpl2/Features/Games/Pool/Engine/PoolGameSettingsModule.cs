@@ -79,7 +79,8 @@ const PoolGameSettings = {
             position: fixed;
             top: 10px;
             left: 10px;
-            padding: 10px 18px;
+            width: 150px;
+            padding: 10px 14px;
             background: linear-gradient(135deg, #3B82F6, #2563EB);
             color: white;
             border: none;
@@ -87,7 +88,8 @@ const PoolGameSettings = {
             font-weight: bold;
             cursor: pointer;
             z-index: 9998;
-            font-size: 14px;
+            font-size: 13px;
+            text-align: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             transition: all 0.2s;
         `;
