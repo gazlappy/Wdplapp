@@ -15,7 +15,9 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
@@ -31,7 +33,7 @@
   </ItemGroup>
 
   <!-- Disable resizetizer entirely — test project has no images -->
-  <Target Name="DisableResizetizer" BeforeTargets="ResizetizeImages;_CollectMauiImageItems" >
+  <Target Name="DisableResizetizer" BeforeTargets="ResizetizeImages;_CollectMauiImageItems">
     <ItemGroup>
       <MauiIcon Remove="@(MauiIcon)" />
       <MauiSplashScreen Remove="@(MauiSplashScreen)" />

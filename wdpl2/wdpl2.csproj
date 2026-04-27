@@ -292,5 +292,9 @@
 			<PRIResource Remove="@(PRIResource)" Condition="$([System.String]::Copy('%(Identity)').Contains('TabbedPageStyle'))" />
 		</ItemGroup>
 	</Target>
+	
+	<ItemGroup>
+	  <InternalsVisibleTo Include="wdpl2.Tests" />
+	</ItemGroup>
 
 </Project>
