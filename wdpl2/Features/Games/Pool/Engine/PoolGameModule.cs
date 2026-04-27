@@ -274,6 +274,13 @@ class PoolGame {
             this.firstBallHit = ball;
             console.log('First ball hit:', ball.color, ball.num);
             if (typeof PoolReplay !== 'undefined') PoolReplay.logEvent('firstHit', { ballNum: ball.num });
+
+            // Dev cheat: auto-pot the first ball hit (no matter where it is on the table)
+            if (this._devAutoPot && ball.num !== 8) {
+                ball.potted = true; ball.vx = 0; ball.vy = 0;
+                this.recordBallPotted(ball);
+                console.log('[Dev] Auto-pot fired on ball', ball.num);
+            }
         }
     }
 
@@ -513,7 +520,7 @@ class PoolGame {
             <div style=""font-size:16px;margin-top:10px;"">Black potted on break - returned to spot</div>
             <div style=""font-size:14px;margin-top:10px;color:#94a3b8;"">Enable Golden Ball in settings for instant win</div>
         `;
-        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(251,191,36,0.5);';
+        msg.style.cssText = 'position:fixed;top:50%;left:20px;transform:translateY(-50%);background:rgba(0,0,0,0.95);color:white;padding:20px 24px;border-radius:12px;z-index:10000;text-align:left;max-width:280px;box-shadow:0 0 30px rgba(251,191,36,0.5);border-left:4px solid #fbbf24;animation:poolMsgSlideIn 0.25s ease-out;';
         document.body.appendChild(msg);
         
         setTimeout(() => {
@@ -679,7 +686,7 @@ class PoolGame {
             <div style=""font-size:16px;margin-top:10px;"">${reason}</div>
             <div style=""font-size:14px;margin-top:10px;color:#94a3b8;"">Not a foul - no ball in hand</div>
         `;
-        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(245,158,11,0.5);';
+        msg.style.cssText = 'position:fixed;top:50%;left:20px;transform:translateY(-50%);background:rgba(0,0,0,0.95);color:white;padding:20px 24px;border-radius:12px;z-index:10000;text-align:left;max-width:280px;box-shadow:0 0 30px rgba(245,158,11,0.5);border-left:4px solid #F59E0B;animation:poolMsgSlideIn 0.25s ease-out;';
         document.body.appendChild(msg);
         
         setTimeout(() => {
@@ -722,7 +729,7 @@ class PoolGame {
                 </div>
             </div>
         `;
-        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;box-shadow:0 0 30px rgba(0,0,0,0.8);';
+        msg.style.cssText = 'position:fixed;top:50%;left:20px;transform:translateY(-50%);background:rgba(0,0,0,0.95);color:white;padding:20px 24px;border-radius:12px;z-index:10000;max-width:280px;box-shadow:0 0 30px rgba(0,0,0,0.8);border-left:4px solid #3B82F6;animation:poolMsgSlideIn 0.25s ease-out;';
         document.body.appendChild(msg);
         
         setTimeout(() => {
@@ -898,6 +905,11 @@ class PoolGame {
     }
     
     commitFoul(reason) {
+        // Dev cheat: skip foul handling entirely (still log so it's visible)
+        if (this._devDisableFouls && reason && reason.indexOf('Forced foul (dev)') === -1) {
+            console.log('[Dev] Foul suppressed:', reason);
+            return;
+        }
         this.foulCommitted = true;
         this.foulReason = reason;
         this.ballInHand = true;
@@ -941,7 +953,13 @@ class PoolGame {
             <div style=""font-size:18px;margin-top:10px;"">Touched ${touchedBall.color} ball while placing cue ball</div>
             <div style=""font-size:16px;margin-top:15px;color:#10B981;"">${this.getOpponent().name} gets ball in hand anywhere</div>
         `;
-        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(239,68,68,0.5);';
+        msg.style.cssText = 'position:fixed;top:50%;left:20px;transform:translateY(-50%);background:rgba(0,0,0,0.95);color:white;padding:20px 24px;border-radius:12px;z-index:10000;text-align:left;max-width:280px;box-shadow:0 0 30px rgba(239,68,68,0.5);border-left:4px solid #EF4444;animation:poolMsgSlideIn 0.25s ease-out;';
+        if (!document.getElementById('poolMsgKeyframes')) {
+            const kf = document.createElement('style');
+            kf.id = 'poolMsgKeyframes';
+            kf.textContent = '@keyframes poolMsgSlideIn{from{opacity:0;transform:translate(-20px,-50%);}to{opacity:1;transform:translateY(-50%);}}';
+            document.head.appendChild(kf);
+        }
         document.body.appendChild(msg);
         
         setTimeout(() => {
@@ -972,7 +990,13 @@ class PoolGame {
             <div style=""font-size:18px;margin-top:10px;"">${reason}</div>
             <div style=""font-size:16px;margin-top:15px;color:#10B981;"">${this.getCurrentPlayer().name} gets ${placementText}</div>
         `;
-        msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:white;padding:30px;border-radius:15px;z-index:10000;text-align:center;box-shadow:0 0 30px rgba(239,68,68,0.5);';
+        msg.style.cssText = 'position:fixed;top:50%;left:20px;transform:translateY(-50%);background:rgba(0,0,0,0.95);color:white;padding:20px 24px;border-radius:12px;z-index:10000;text-align:left;max-width:280px;box-shadow:0 0 30px rgba(239,68,68,0.5);border-left:4px solid #EF4444;animation:poolMsgSlideIn 0.25s ease-out;';
+        if (!document.getElementById('poolMsgKeyframes')) {
+            const kf = document.createElement('style');
+            kf.id = 'poolMsgKeyframes';
+            kf.textContent = '@keyframes poolMsgSlideIn{from{opacity:0;transform:translate(-20px,-50%);}to{opacity:1;transform:translateY(-50%);}}';
+            document.head.appendChild(kf);
+        }
         document.body.appendChild(msg);
         
         setTimeout(() => {
@@ -1071,7 +1095,16 @@ class PoolGame {
     init() {
         this.repositionPockets();
         this.resetRack();
-        
+
+        // Inject keyframe used by the side-of-table game-event overlays
+        // (FOUL / LOSS OF TURN / BLACK RE-SPOTTED / COLORS ASSIGNED).
+        if (!document.getElementById('poolMsgKeyframes')) {
+            const kf = document.createElement('style');
+            kf.id = 'poolMsgKeyframes';
+            kf.textContent = '@keyframes poolMsgSlideIn{from{opacity:0;transform:translate(-20px,-50%);}to{opacity:1;transform:translateY(-50%);}}';
+            document.head.appendChild(kf);
+        }
+
         // Initialize audio system with visual feedback
         if (typeof PoolAudio !== 'undefined') {
             PoolAudio.init();
@@ -1416,6 +1449,23 @@ class PoolGame {
         PoolRendering.drawTable(this.ctx, this.width, this.height, this.cushionMargin, this);
         PoolRendering.drawPockets(this.ctx, this.pockets, this);
 
+        // ===== DEV TOOLS: pause / step / slow-mo / FPS =====
+        // _devPausePhysics freezes ball updates but still re-renders so the
+        // dev-tools overlay stays interactive. _devStepOnce lets a single
+        // physics tick through (cleared after consumption). _devTimeScale
+        // multiplies friction-relevant velocity per frame to slow time.
+        const _devPaused = !!(this._devPausePhysics && !this._devStepOnce);
+        if (this._devStepOnce) this._devStepOnce = false;
+        const _ts = (typeof this._devTimeScale === 'number' && this._devTimeScale > 0) ? this._devTimeScale : 1.0;
+        // Track frame timing for FPS / frame-time overlays
+        const _now = performance.now();
+        if (this._devLastFrame) {
+            const dt = _now - this._devLastFrame;
+            this._devFrameTime = (this._devFrameTime || dt) * 0.9 + dt * 0.1;
+            this._devFps = 1000 / Math.max(0.1, this._devFrameTime);
+        }
+        this._devLastFrame = _now;
+
         // ===== PHYSICS STEP =====
         let moving = false;
         let activeBalls = 0;
@@ -1437,19 +1487,37 @@ class PoolGame {
             }
 
             // Apply friction (updates velocity and spin, does NOT move ball)
-            if (PoolPhysics.applyFriction(ball)) {
-                moving = true;
+            // Slow-motion: scale velocity by _ts before friction so the ball moves
+            // proportionally less per frame. We restore afterwards so friction math
+            // sees the natural speed (otherwise drag becomes time-dependent).
+            if (!_devPaused) {
+                if (_ts !== 1.0) {
+                    ball._origVx = ball.vx; ball._origVy = ball.vy;
+                    ball.vx *= _ts; ball.vy *= _ts;
+                }
+                if (PoolPhysics.applyFriction(ball)) {
+                    moving = true;
+                }
+                if (_ts !== 1.0 && ball._origVx !== undefined) {
+                    // Friction has reduced speed; preserve the same fractional decay.
+                    const decayX = ball.vx / Math.max(0.0001, ball._origVx * _ts);
+                    const decayY = ball.vy / Math.max(0.0001, ball._origVy * _ts);
+                    ball.vx = ball._origVx * (isFinite(decayX) ? decayX : 1);
+                    ball.vy = ball._origVy * (isFinite(decayY) ? decayY : 1);
+                    ball.vx *= _ts; ball.vy *= _ts;
+                    delete ball._origVx; delete ball._origVy;
+                }
             }
         });
 
         // 2. Move balls with sub-stepped collision detection (prevents tunneling)
-        const collision = PoolPhysics.processCollisions(this.balls, this);
+        const collision = _devPaused ? null : PoolPhysics.processCollisions(this.balls, this);
         if (collision && collision.firstBallHit && this.shotInProgress && !this.firstBallHit) {
             this.recordFirstBallHit(collision.firstBallHit);
         }
 
         // 3. Post-movement checks (cushions, pockets, jaws) on final positions
-        this.balls.forEach(ball => {
+        if (!_devPaused) this.balls.forEach(ball => {
             if (ball.potted) return;
 
             // Track balls crossing center line during break
@@ -1740,6 +1808,41 @@ class PoolGame {
         }
         
         
+        // ===== DEV OVERLAYS (FPS, frame time, ball count, spin vector) =====
+        if (this._devShowFps || this._devShowFrameTime || this._devShowBallCount || this._devShowSpinVector) {
+            this.ctx.save();
+            this.ctx.font = '11px monospace';
+            this.ctx.fillStyle = 'rgba(15,23,42,0.85)';
+            const lines = [];
+            if (this._devShowFps && this._devFps) lines.push('FPS: ' + this._devFps.toFixed(0));
+            if (this._devShowFrameTime && this._devFrameTime) lines.push('Frame: ' + this._devFrameTime.toFixed(1) + 'ms');
+            if (this._devShowBallCount) lines.push('Live balls: ' + this.balls.filter(b => !b.potted).length);
+            if (lines.length > 0) {
+                const w = 130, h = lines.length * 14 + 8;
+                this.ctx.fillRect(this.width - w - 10, 10, w, h);
+                this.ctx.fillStyle = '#4ade80';
+                lines.forEach((l, i) => this.ctx.fillText(l, this.width - w - 4, 22 + i * 14));
+            }
+            // Spin vector overlay on the cue ball (shows applied english/top-spin)
+            if (this._devShowSpinVector && this.cueBall && !this.cueBall.potted) {
+                const cx = this.cueBall.x, cy = this.cueBall.y, r = this.cueBall.r;
+                const sx = this.cueBall.spinX || 0, sy = this.cueBall.spinY || 0;
+                if (Math.abs(sx) > 0.02 || Math.abs(sy) > 0.02) {
+                    this.ctx.strokeStyle = '#fbbf24';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(cx, cy);
+                    this.ctx.lineTo(cx + sx * r * 1.4, cy - sy * r * 1.4);
+                    this.ctx.stroke();
+                    this.ctx.fillStyle = '#fbbf24';
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx + sx * r * 1.4, cy - sy * r * 1.4, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+            this.ctx.restore();
+        }
+
         // Continue animation (cache bound function once to avoid per-frame closure allocation)
         if (!this._animateBound) this._animateBound = this.animate.bind(this);
         requestAnimationFrame(this._animateBound);

@@ -61,9 +61,13 @@ const PoolDevSettings = {
         panel.id = 'devSettingsPanel';
         panel.innerHTML = `
             <div class='dev-header'>
-                <h3>Developer Settings<span class='dev-drag-hint'>(drag to move)</span></h3>
-                <button id='devSettingsClose' class='dev-close-btn'>×</button>
+                <div class='dev-title'>
+                    <span class='dev-title-icon'>&#9881;</span>
+                    <span class='dev-title-text'>Dev Settings</span>
+                </div>
+                <button id='devSettingsClose' class='dev-close-btn' title='Close (F2)'>&#10005;</button>
             </div>
+            <div id='devTabBar' class='dev-tabbar'></div>
             <div class='dev-content'>
                 <div class='dev-section'>
                     <h4>Table Dimensions</h4>
@@ -561,6 +565,265 @@ const PoolDevSettings = {
                 </div>
                 
                 <div class='dev-section'>
+                    <h4>AI Opponent</h4>
+                    <div class='dev-control'>
+                        <label>AI Mode:</label>
+                        <select id='devAiMode' style='flex:1;'>
+                            <option value='off'>Off</option>
+                            <option value='p2'>AI is Player 2</option>
+                            <option value='p1'>AI is Player 1</option>
+                            <option value='both'>AI vs AI</option>
+                        </select>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Difficulty:</label>
+                        <select id='devAiDifficulty' style='flex:1;'>
+                            <option value='easy'>Easy</option>
+                            <option value='medium' selected>Medium</option>
+                            <option value='hard'>Hard</option>
+                        </select>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Think Time (ms):</label>
+                        <input type='range' id='devAiThinkTime' min='200' max='4000' value='1600' step='100'>
+                        <span id='devAiThinkTimeValue'>1600</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Think Jitter (ms):</label>
+                        <input type='range' id='devAiThinkJitter' min='0' max='2000' value='700' step='50'>
+                        <span id='devAiThinkJitterValue'>700</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Post-Shot Pause (ms):</label>
+                        <input type='range' id='devAiPostShotPause' min='0' max='2000' value='600' step='50'>
+                        <span id='devAiPostShotPauseValue'>600</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Aim Noise:</label>
+                        <input type='range' id='devAiAimNoise' min='0' max='0.15' value='0.028' step='0.002'>
+                        <span id='devAiAimNoiseValue'>0.028</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Power Noise:</label>
+                        <input type='range' id='devAiPowerNoise' min='0' max='0.5' value='0.15' step='0.01'>
+                        <span id='devAiPowerNoiseValue'>0.15</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Safety Chance:</label>
+                        <input type='range' id='devAiSafetyChance' min='0' max='0.5' value='0.10' step='0.01'>
+                        <span id='devAiSafetyChanceValue'>0.10</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Selection Bias:</label>
+                        <input type='range' id='devAiSelectionBias' min='1' max='15' value='3.0' step='0.5'>
+                        <span id='devAiSelectionBiasValue'>3.0</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Auto-Restart Frame:</label>
+                        <input type='checkbox' id='devAiAutoRestart'>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devAiTakeShotNow' class='dev-btn'>Take Shot Now</button>
+                        <button id='devAiSkipTurn' class='dev-btn'>Skip Turn</button>
+                        <button id='devAiThinkAloud' class='dev-btn'>Think Aloud</button>
+                    </div>
+                    <div class='dev-hint'>Live AI tuning. Changes apply on next shot.</div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Replay Recording</h4>
+                    <div class='dev-control'>
+                        <label>Recording:</label>
+                        <input type='checkbox' id='devReplayRecording' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Sample Every N:</label>
+                        <input type='range' id='devReplaySampleEvery' min='1' max='10' value='1' step='1'>
+                        <span id='devReplaySampleEveryValue'>1</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Max Shots Stored:</label>
+                        <input type='range' id='devReplayMaxShots' min='10' max='500' value='100' step='10'>
+                        <span id='devReplayMaxShotsValue'>100</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Event Markers:</label>
+                        <input type='checkbox' id='devReplayShowEvents' checked>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Trace Mode:</label>
+                        <select id='devReplayTraceMode' style='flex:1;'>
+                            <option value='hidden'>Hidden</option>
+                            <option value='latest' selected>Latest Shot Only</option>
+                            <option value='all'>All Recorded</option>
+                        </select>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devReplayClear' class='dev-btn'>Clear Buffer</button>
+                        <button id='devReplaySummary' class='dev-btn'>Log Summary</button>
+                        <button id='devReplayExport' class='dev-btn'>Export JSON</button>
+                    </div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Cheats &amp; Test Tools</h4>
+                    <div class='dev-control'>
+                        <label>Pause Physics:</label>
+                        <input type='checkbox' id='devPausePhysics'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Slow Motion:</label>
+                        <input type='checkbox' id='devSlowMotion'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Time Scale:</label>
+                        <input type='range' id='devTimeScale' min='0.05' max='2.0' value='1.0' step='0.05'>
+                        <span id='devTimeScaleValue'>1.00x</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Auto-Pot Cheat:</label>
+                        <input type='checkbox' id='devAutoPot'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Disable Foul Detect:</label>
+                        <input type='checkbox' id='devDisableFouls'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Set Ball-in-Hand:</label>
+                        <input type='checkbox' id='devBallInHand'>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devStepFrame' class='dev-btn'>Step 1 Frame</button>
+                        <button id='devForceFoul' class='dev-btn'>Force Foul</button>
+                        <button id='devClearTable' class='dev-btn'>Clear Table</button>
+                    </div>
+                    <div class='dev-buttons' style='margin-top:6px;'>
+                        <button id='devWinFrameP1' class='dev-btn'>Win Frame (P1)</button>
+                        <button id='devWinFrameP2' class='dev-btn'>Win Frame (P2)</button>
+                        <button id='devSkipToBlack' class='dev-btn'>Skip to Black</button>
+                    </div>
+                    <div class='dev-hint'>Cheats persist until toggled off. Use for testing edge cases.</div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Camera &amp; View</h4>
+                    <div class='dev-control'>
+                        <label>Canvas Zoom:</label>
+                        <input type='range' id='devCanvasZoom' min='0.5' max='2.0' value='1.0' step='0.05'>
+                        <span id='devCanvasZoomValue'>1.00x</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Canvas Rotation:</label>
+                        <input type='range' id='devCanvasRotation' min='0' max='270' value='0' step='90'>
+                        <span id='devCanvasRotationValue'>0&deg;</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Trail Length:</label>
+                        <input type='range' id='devTrailLength' min='0' max='40' value='10' step='1'>
+                        <span id='devTrailLengthValue'>10</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Spin Vector:</label>
+                        <input type='checkbox' id='devShowSpinVector'>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devResetCamera' class='dev-btn'>Reset Camera</button>
+                        <button id='devFitToWindow' class='dev-btn'>Fit Window</button>
+                        <button id='devScreenshot' class='dev-btn'>Screenshot</button>
+                    </div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Performance &amp; Debug</h4>
+                    <div class='dev-control'>
+                        <label>Show FPS:</label>
+                        <input type='checkbox' id='devShowFps'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Frame Time:</label>
+                        <input type='checkbox' id='devShowFrameTime'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Ball Count:</label>
+                        <input type='checkbox' id='devShowBallCount'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Show Event Log:</label>
+                        <input type='checkbox' id='devShowEventLog'>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Verbose Console:</label>
+                        <input type='checkbox' id='devVerboseConsole'>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devLogState' class='dev-btn'>Log Game State</button>
+                        <button id='devLogBalls' class='dev-btn'>Log Ball Pos</button>
+                        <button id='devClearConsole' class='dev-btn'>Clear Console</button>
+                    </div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Scenarios &amp; State</h4>
+                    <div class='dev-control'>
+                        <label>Quick Rack:</label>
+                        <select id='devQuickRack' style='flex:1;'>
+                            <option value=''>(select)</option>
+                            <option value='standard'>Standard 8-Ball Rack</option>
+                            <option value='break-spread'>Post-Break Spread</option>
+                            <option value='endgame'>Endgame (1 colour + 8)</option>
+                            <option value='black-only'>Black Ball Only</option>
+                            <option value='scratch-pos'>Scratch Risk Position</option>
+                            <option value='cluster'>Tight Cluster</option>
+                            <option value='snooker'>Snookered (cue blocked)</option>
+                        </select>
+                    </div>
+                    <div class='dev-buttons'>
+                        <button id='devSaveSlot1' class='dev-btn'>Save 1</button>
+                        <button id='devSaveSlot2' class='dev-btn'>Save 2</button>
+                        <button id='devSaveSlot3' class='dev-btn'>Save 3</button>
+                    </div>
+                    <div class='dev-buttons' style='margin-top:6px;'>
+                        <button id='devLoadSlot1' class='dev-btn'>Load 1</button>
+                        <button id='devLoadSlot2' class='dev-btn'>Load 2</button>
+                        <button id='devLoadSlot3' class='dev-btn'>Load 3</button>
+                    </div>
+                    <div class='dev-hint'>Slots persist in localStorage between sessions.</div>
+                </div>
+
+                <div class='dev-section'>
+                    <h4>Sound Channels</h4>
+                    <div class='dev-control'>
+                        <label>Master Volume:</label>
+                        <input type='range' id='devVolMaster' min='0' max='100' value='50' step='5'>
+                        <span id='devVolMasterValue'>50%</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Cue Strike:</label>
+                        <input type='range' id='devVolCueStrike' min='0' max='100' value='100' step='5'>
+                        <span id='devVolCueStrikeValue'>100%</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Ball-Ball:</label>
+                        <input type='range' id='devVolBallBall' min='0' max='100' value='100' step='5'>
+                        <span id='devVolBallBallValue'>100%</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Cushion:</label>
+                        <input type='range' id='devVolCushion' min='0' max='100' value='100' step='5'>
+                        <span id='devVolCushionValue'>100%</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Pocket:</label>
+                        <input type='range' id='devVolPocket' min='0' max='100' value='100' step='5'>
+                        <span id='devVolPocketValue'>100%</span>
+                    </div>
+                    <div class='dev-control'>
+                        <label>Mute on AI Shot:</label>
+                        <input type='checkbox' id='devMuteOnAi'>
+                    </div>
+                </div>
+
+                <div class='dev-section'>
                     <h4>Presets</h4>
                     <div class='dev-buttons'>
                         <button id='presetSupreme' class='dev-btn'>Supreme</button>
@@ -598,210 +861,382 @@ const PoolDevSettings = {
         
         const style = document.createElement('style');
         style.textContent = `
+            /* ====== Dev Settings Panel - compact tabbed redesign ====== */
             #devSettingsPanel {
                 position: fixed;
                 top: 50px;
                 left: 50px;
-                width: 500px;
-                max-height: 85vh;
-                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-                border: 3px solid #3B82F6;
-                border-radius: 12px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+                width: 620px;
+                max-height: 82vh;
+                background: linear-gradient(165deg, #0f172a 0%, #1e293b 100%);
+                border: 1px solid #334155;
+                border-radius: 14px;
+                box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05) inset;
                 z-index: 10000;
                 display: none;
                 overflow: hidden;
-                font-family: Arial, sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
                 resize: both;
-                min-width: 400px;
-                min-height: 300px;
+                min-width: 480px;
+                min-height: 320px;
+                color: #e2e8f0;
+                --accent: #38bdf8;
+                --accent-hot: #0ea5e9;
+                --good: #4ade80;
+                --warn: #fbbf24;
+                --danger: #f87171;
+                --text: #e2e8f0;
+                --text-dim: #94a3b8;
+                --surface: rgba(15,23,42,0.55);
+                --surface-2: rgba(30,41,59,0.65);
+                --border: rgba(148,163,184,0.18);
             }
-            #devSettingsPanel.visible { display: block; animation: slideIn 0.3s ease-out; }
-            @keyframes slideIn {
-                from { opacity: 0; transform: translateY(-20px); }
-                to { opacity: 1; transform: translateY(0); }
+            #devSettingsPanel.visible { display: flex; flex-direction: column; animation: devFadeIn 0.18s ease-out; }
+            @keyframes devFadeIn {
+                from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+                to   { opacity: 1; transform: translateY(0) scale(1); }
             }
+
             .dev-header {
-                background: rgba(0,0,0,0.3);
-                padding: 12px 20px;
+                background: linear-gradient(180deg, rgba(56,189,248,0.10), rgba(56,189,248,0));
+                padding: 10px 14px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                border-bottom: 2px solid #3B82F6;
+                border-bottom: 1px solid var(--border);
                 cursor: move;
                 user-select: none;
+                flex: 0 0 auto;
             }
-            .dev-header h3 { 
-                margin: 0; 
-                color: white; 
-                font-size: 16px;
-                font-weight: bold;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .dev-header h3::before {
-                content: '\uD83D\uDD27';
-            }
-            .dev-drag-hint {
-                font-size: 10px;
-                color: rgba(255,255,255,0.5);
-                margin-left: 10px;
-                font-weight: normal;
-            }
+            .dev-title { display:flex; align-items:center; gap:10px; min-width:0; }
+            .dev-title-icon { color: var(--accent); font-size: 18px; line-height: 1; }
+            .dev-title-text { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: 0.2px; }
             .dev-close-btn {
-                background: #ef4444;
-                border: none;
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                width: 28px;
-                height: 28px;
-                border-radius: 50%;
+                background: transparent;
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                font-size: 13px;
+                width: 26px; height: 26px;
+                border-radius: 6px;
                 cursor: pointer;
-                transition: all 0.2s;
-                line-height: 28px;
+                display: inline-flex; align-items: center; justify-content: center;
+                transition: all 0.15s;
             }
-            .dev-close-btn:hover {
-                background: #dc2626;
-                transform: rotate(90deg);
+            .dev-close-btn:hover { background: var(--danger); color: #fff; border-color: transparent; }
+
+            /* ===== Tab strip ===== */
+            .dev-tabbar {
+                display: flex;
+                gap: 2px;
+                padding: 6px 8px 0 8px;
+                border-bottom: 1px solid var(--border);
+                background: rgba(0,0,0,0.15);
+                overflow-x: auto;
+                scrollbar-width: none;
+                flex: 0 0 auto;
             }
+            .dev-tabbar::-webkit-scrollbar { display: none; }
+            .dev-tab {
+                padding: 7px 12px;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--text-dim);
+                background: transparent;
+                border: none;
+                border-bottom: 2px solid transparent;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: all 0.15s;
+                letter-spacing: 0.3px;
+                text-transform: uppercase;
+            }
+            .dev-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+            .dev-tab.active {
+                color: var(--accent);
+                border-bottom-color: var(--accent);
+                background: rgba(56,189,248,0.08);
+            }
+            .dev-tab .dev-tab-count {
+                display: inline-block;
+                margin-left: 6px;
+                padding: 1px 6px;
+                font-size: 9px;
+                font-weight: 700;
+                border-radius: 8px;
+                background: rgba(148,163,184,0.18);
+                color: var(--text-dim);
+            }
+            .dev-tab.active .dev-tab-count { background: rgba(56,189,248,0.20); color: var(--accent); }
+
             .dev-content {
-                padding: 15px;
-                max-height: calc(85vh - 50px);
+                padding: 12px;
                 overflow-y: auto;
-                color: white;
+                color: var(--text);
+                flex: 1 1 auto;
+                min-height: 0;
             }
             .dev-content::-webkit-scrollbar { width: 8px; }
-            .dev-content::-webkit-scrollbar-track { 
-                background: rgba(0,0,0,0.2); 
-                border-radius: 4px; 
-            }
-            .dev-content::-webkit-scrollbar-thumb { 
-                background: #3B82F6; 
-                border-radius: 4px; 
-            }
-            .dev-content::-webkit-scrollbar-thumb:hover { background: #2563EB; }
+            .dev-content::-webkit-scrollbar-track { background: transparent; }
+            .dev-content::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.25); border-radius: 4px; }
+            .dev-content::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.45); }
+
+            /* sections become cards inside their tab */
             .dev-section {
-                background: rgba(255,255,255,0.1);
-                border-radius: 8px;
-                padding: 12px;
+                background: var(--surface);
+                border-radius: 10px;
+                padding: 10px 12px;
                 margin-bottom: 10px;
-                border: 1px solid rgba(255,255,255,0.1);
+                border: 1px solid var(--border);
             }
+            .dev-section[hidden] { display: none !important; }
             .dev-section h4 {
-                margin: 0 0 10px 0;
-                color: #4ade80;
-                font-size: 13px;
-                font-weight: bold;
+                margin: 0 0 8px 0;
+                color: var(--accent);
+                font-size: 11px;
+                font-weight: 700;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
-                border-bottom: 1px solid rgba(74,222,128,0.3);
-                padding-bottom: 5px;
-            }
-            .dev-control {
+                letter-spacing: 0.6px;
                 display: flex;
                 align-items: center;
-                margin-bottom: 6px;
+                gap: 6px;
+            }
+            .dev-section h4::before {
+                content: '';
+                width: 3px;
+                height: 11px;
+                background: var(--accent);
+                border-radius: 2px;
+            }
+
+            /* two-column control grid for compactness */
+            .dev-section-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 4px 14px;
+            }
+            .dev-section-grid > .dev-subsection,
+            .dev-section-grid > .dev-hint,
+            .dev-section-grid > .dev-buttons,
+            .dev-section-grid > .dev-control.full { grid-column: 1 / -1; }
+
+            .dev-control {
+                display: grid;
+                grid-template-columns: 110px 1fr 44px;
+                align-items: center;
                 gap: 8px;
+                padding: 3px 0;
+                min-height: 24px;
             }
             .dev-control label {
-                flex: 0 0 140px;
                 font-size: 11px;
                 font-weight: 500;
+                color: var(--text-dim);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .dev-control input[type='range'] {
-                flex: 1;
-                height: 5px;
-                border-radius: 3px;
-                background: rgba(255,255,255,0.2);
+                width: 100%;
+                height: 4px;
+                border-radius: 2px;
+                background: rgba(148,163,184,0.18);
                 outline: none;
                 cursor: pointer;
+                -webkit-appearance: none;
+                appearance: none;
             }
             .dev-control input[type='range']::-webkit-slider-thumb {
                 -webkit-appearance: none;
-                width: 14px;
-                height: 14px;
+                width: 14px; height: 14px;
                 border-radius: 50%;
-                background: #4ade80;
+                background: var(--accent);
                 cursor: pointer;
-                border: 2px solid white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                border: 2px solid #0f172a;
+                box-shadow: 0 0 0 1px var(--accent);
             }
             .dev-control input[type='range']::-moz-range-thumb {
-                width: 14px;
-                height: 14px;
+                width: 14px; height: 14px;
                 border-radius: 50%;
-                background: #4ade80;
+                background: var(--accent);
                 cursor: pointer;
-                border: 2px solid white;
+                border: 2px solid #0f172a;
+                box-shadow: 0 0 0 1px var(--accent);
             }
             .dev-control input[type='checkbox'] {
-                width: 18px;
-                height: 18px;
+                width: 16px; height: 16px;
                 cursor: pointer;
-                accent-color: #4ade80;
+                accent-color: var(--accent);
+                grid-column: 2 / -1;
+                justify-self: start;
+            }
+            /* Selects: inline styles in the original markup leave option text
+               white-on-white when the dropdown opens. Force a dark background
+               and light text for both the closed select and its options. */
+            #devSettingsPanel select {
+                background: #1e293b !important;
+                color: var(--text) !important;
+                border: 1px solid var(--border) !important;
+                border-radius: 6px !important;
+                padding: 5px 8px !important;
+                font-size: 11px;
+                font-family: inherit;
+                outline: none;
+                cursor: pointer;
+                appearance: none;
+                -webkit-appearance: none;
+                background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+                                  linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+                background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+                background-size: 5px 5px, 5px 5px;
+                background-repeat: no-repeat;
+                padding-right: 24px !important;
+            }
+            #devSettingsPanel select:focus {
+                border-color: var(--accent) !important;
+                box-shadow: 0 0 0 2px rgba(56,189,248,0.25);
+            }
+            #devSettingsPanel select option {
+                background: #1e293b;
+                color: var(--text);
             }
             .dev-control span {
-                flex: 0 0 50px;
                 text-align: right;
-                font-weight: bold;
-                color: #fbbf24;
+                font-weight: 600;
+                color: var(--warn);
                 font-size: 11px;
+                font-variant-numeric: tabular-nums;
             }
+
             .dev-subsection {
-                background: rgba(0,0,0,0.15);
-                border-radius: 6px;
+                background: rgba(0,0,0,0.20);
+                border-radius: 8px;
                 padding: 8px 10px;
-                margin-bottom: 8px;
-                border-left: 3px solid #3B82F6;
+                margin: 4px 0;
+                border-left: 2px solid var(--accent);
             }
             .dev-subsection-title {
-                font-size: 11px;
+                font-size: 10px;
                 color: #93c5fd;
-                font-weight: bold;
-                margin-bottom: 6px;
+                font-weight: 700;
+                margin-bottom: 4px;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
+                letter-spacing: 0.6px;
             }
-            .dev-subsection .dev-control {
-                padding: 3px 0;
+            .dev-hint {
+                font-size: 10px;
+                color: var(--text-dim);
+                font-style: italic;
+                padding: 2px 0;
+                grid-column: 1 / -1;
             }
-            .dev-subsection .dev-control label {
-                font-size: 11px;
-            }
+
             .dev-buttons {
                 display: grid;
                 grid-template-columns: repeat(3, 1fr);
                 gap: 6px;
             }
             .dev-btn {
-                padding: 8px 4px;
-                border: none;
-                border-radius: 6px;
+                padding: 7px 6px;
+                border: 1px solid var(--border);
+                border-radius: 7px;
                 cursor: pointer;
-                font-weight: bold;
+                font-weight: 600;
                 font-size: 11px;
-                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                color: white;
-                transition: all 0.2s;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                background: linear-gradient(180deg, rgba(56,189,248,0.18), rgba(56,189,248,0.08));
+                color: var(--text);
+                transition: all 0.15s;
             }
-            .dev-btn:hover { 
-                opacity: 0.9; 
+            .dev-btn:hover {
+                background: linear-gradient(180deg, rgba(56,189,248,0.30), rgba(56,189,248,0.15));
+                border-color: var(--accent);
+                color: #fff;
                 transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             }
-            .dev-btn:active { 
-                transform: translateY(0);
-            }
+            .dev-btn:active { transform: translateY(0); }
         `;
-        
+
         document.head.appendChild(style);
         document.body.appendChild(panel);
-        
+
+        // Tabify: group existing dev-section blocks into named tabs without
+        // touching the original innerHTML structure (so all input IDs and
+        // event-listener wiring continue to work unchanged).
+        this.tabifyPanel(panel);
+
         // Make the panel draggable
         this.makeDraggable(panel);
+    },
+
+    /**
+     * Walk every .dev-section already inside the panel, decide which tab it
+     * belongs to (from its <h4> text), apply data-tab attributes and build the
+     * tab strip + click handlers. Sections retain their DOM positions; we just
+     * toggle [hidden] on the ones that aren't in the active tab.
+     */
+    tabifyPanel(panel) {
+        // Tab definition: title -> [matchers...] (lowercased substrings of h4)
+        const tabDefs = [
+            { id: 'table',     label: 'Table',     match: ['table dimensions', 'ball sizes', 'pocket sizes'] },
+            { id: 'physics',   label: 'Physics',   match: ['wpa 2026', 'physics - friction', 'physics - collisions', 'advanced physics'] },
+            { id: 'play',      label: 'Play',      match: ['shot controls', 'spin controls', 'game rules'] },
+            { id: 'ai',        label: 'AI',        match: ['ai opponent'] },
+            { id: 'cheats',    label: 'Cheats',    match: ['cheats', 'test tools'] },
+            { id: 'replay',    label: 'Replay',    match: ['replay recording'] },
+            { id: 'visual',    label: 'Visuals',   match: ['visual effects', 'vfx module', 'camera', 'view'] },
+            { id: 'perf',      label: 'Debug',     match: ['performance', 'debug'] },
+            { id: 'audio',     label: 'Audio',     match: ['audio settings', 'sound channels'] },
+            { id: 'scenarios', label: 'Scenarios', match: ['scenarios', 'state'] },
+            { id: 'tools',     label: 'Tools',     match: ['presets', 'actions'] },
+        ];
+
+        // Apply data-tab and turn each section's body into a 2-column grid.
+        const sections = Array.from(panel.querySelectorAll('.dev-section'));
+        const counts = {};
+        for (const sec of sections) {
+            const h4 = sec.querySelector('h4');
+            const name = (h4 ? h4.textContent : '').toLowerCase().trim();
+            let tabId = 'tools';
+            for (const def of tabDefs) {
+                if (def.match.some(m => name.indexOf(m) !== -1)) { tabId = def.id; break; }
+            }
+            sec.setAttribute('data-tab', tabId);
+            counts[tabId] = (counts[tabId] || 0) + 1;
+
+            // Wrap everything except the <h4> in a grid container for compact 2-col layout.
+            const grid = document.createElement('div');
+            grid.className = 'dev-section-grid';
+            const moveables = Array.from(sec.children).filter(c => c.tagName !== 'H4');
+            for (const m of moveables) grid.appendChild(m);
+            sec.appendChild(grid);
+        }
+
+        // Build tab buttons
+        const bar = panel.querySelector('#devTabBar');
+        if (!bar) return;
+        bar.innerHTML = '';
+        for (const def of tabDefs) {
+            const c = counts[def.id] || 0;
+            if (c === 0) continue;
+            const b = document.createElement('button');
+            b.className = 'dev-tab';
+            b.setAttribute('data-tab', def.id);
+            b.innerHTML = def.label + '<span class=\'dev-tab-count\'>' + c + '</span>';
+            b.addEventListener('click', () => this.activateTab(panel, def.id));
+            bar.appendChild(b);
+        }
+        this.activateTab(panel, tabDefs[0].id);
+    },
+
+    activateTab(panel, tabId) {
+        for (const tab of panel.querySelectorAll('.dev-tab')) {
+            tab.classList.toggle('active', tab.getAttribute('data-tab') === tabId);
+        }
+        for (const sec of panel.querySelectorAll('.dev-section')) {
+            sec.hidden = sec.getAttribute('data-tab') !== tabId;
+        }
+        // Reset scroll on tab switch so each tab starts at the top.
+        const content = panel.querySelector('.dev-content');
+        if (content) content.scrollTop = 0;
     },
     
     makeDraggable(panel) {
@@ -1367,6 +1802,234 @@ const PoolDevSettings = {
             }
         });
 
+        // ============================================================
+        // ===== NEW DEV TOOLS WIRING (AI / Replay / Cheats / etc) =====
+        // ============================================================
+        const $ = (id) => document.getElementById(id);
+        const onChange = (id, fn) => { const e = $(id); if (e) e.addEventListener('change', (ev) => fn(ev.target.value, ev.target.checked)); };
+        const onClick  = (id, fn) => { const e = $(id); if (e) e.addEventListener('click',  fn); };
+
+        // ---------- AI tab ----------
+        onChange('devAiMode', (v) => { if (typeof PoolAI !== 'undefined') PoolAI.setMode(v); });
+        onChange('devAiDifficulty', (v) => { if (typeof PoolAI !== 'undefined') PoolAI.setDifficulty(v); });
+        this.addRangeListener('devAiThinkTime', (val) => { if (typeof PoolAI !== 'undefined') PoolAI.config.thinkTimeMs = parseInt(val, 10); });
+        this.addRangeListener('devAiThinkJitter', (val) => { if (typeof PoolAI !== 'undefined') PoolAI.config.thinkTimeJitterMs = parseInt(val, 10); });
+        this.addRangeListener('devAiPostShotPause', (val) => { if (typeof PoolAI !== 'undefined') PoolAI.config.postShotPauseMs = parseInt(val, 10); });
+        this.addRangeListener('devAiAimNoise', (val) => {
+            if (typeof PoolAI === 'undefined') return;
+            const d = PoolAI.config.difficulty;
+            if (PoolAI.profiles[d]) PoolAI.profiles[d].aimNoise = parseFloat(val);
+        });
+        this.addRangeListener('devAiPowerNoise', (val) => {
+            if (typeof PoolAI === 'undefined') return;
+            const d = PoolAI.config.difficulty;
+            if (PoolAI.profiles[d]) PoolAI.profiles[d].powerNoise = parseFloat(val);
+        });
+        this.addRangeListener('devAiSafetyChance', (val) => {
+            if (typeof PoolAI === 'undefined') return;
+            const d = PoolAI.config.difficulty;
+            if (PoolAI.profiles[d]) PoolAI.profiles[d].safetyChance = parseFloat(val);
+        });
+        this.addRangeListener('devAiSelectionBias', (val) => {
+            if (typeof PoolAI === 'undefined') return;
+            const d = PoolAI.config.difficulty;
+            if (PoolAI.profiles[d]) PoolAI.profiles[d].selectionBias = parseFloat(val);
+        });
+        onChange('devAiAutoRestart', (_v, checked) => { self._aiAutoRestart = checked; });
+        onClick('devAiTakeShotNow', () => {
+            if (typeof PoolAI !== 'undefined' && PoolAI.isAiTurn && PoolAI.isAiTurn()) {
+                PoolAI._scheduled = false; PoolAI._busy = false;
+                PoolAI.showThinking(false);
+                PoolAI.takeShot();
+            } else {
+                console.log('[Dev] Not AI turn');
+            }
+        });
+        onClick('devAiSkipTurn', () => {
+            if (self.game && typeof self.game.switchTurn === 'function') {
+                self.game.switchTurn();
+                console.log('[Dev] Turn skipped');
+            }
+        });
+        onClick('devAiThinkAloud', () => {
+            if (typeof PoolAI === 'undefined') return;
+            const profile = PoolAI.profiles[PoolAI.config.difficulty];
+            const shot = PoolAI.chooseBestShot(profile);
+            const safety = PoolAI.chooseSafetyShot();
+            console.log('%c[AI Think Aloud]', 'color:#38bdf8;font-weight:bold;');
+            console.log('  Best pot:', shot ? { obj: shot.obj.num, pocket: shot.pocket && (shot.pocket.x|0)+','+(shot.pocket.y|0), score: shot.score|0, cut: ((shot.cutAngle||0)*180/Math.PI).toFixed(1)+'deg', power: shot.power.toFixed(1) } : 'none');
+            console.log('  Safety:', safety ? { obj: safety.obj.num, bank: safety.bank, power: safety.power.toFixed(1) } : 'none');
+            if (shot) console.log('  Spin would be:', PoolAI.chooseSpin(shot, profile));
+        });
+
+        // ---------- Replay tab ----------
+        onChange('devReplayRecording', (_v, checked) => { if (typeof PoolReplay !== 'undefined') PoolReplay.config.recording = checked; });
+        this.addRangeListener('devReplaySampleEvery', (val) => { if (typeof PoolReplay !== 'undefined') PoolReplay.config.sampleEvery = parseInt(val, 10); });
+        this.addRangeListener('devReplayMaxShots', (val) => { if (typeof PoolReplay !== 'undefined') PoolReplay.config.maxShots = parseInt(val, 10); });
+        onChange('devReplayShowEvents', (_v, checked) => { if (typeof PoolReplay !== 'undefined') PoolReplay.config.showEvents = checked; });
+        onChange('devReplayTraceMode', (v) => { if (typeof PoolReplay !== 'undefined') PoolReplay.config.traceMode = v; });
+        onClick('devReplayClear', () => { if (typeof PoolReplay !== 'undefined') { PoolReplay.shots = []; PoolReplay._current = null; console.log('[Dev] Replay buffer cleared'); } });
+        onClick('devReplaySummary', () => { if (typeof PoolReplay !== 'undefined' && typeof PoolReplay.summary === 'function') PoolReplay.summary(); });
+        onClick('devReplayExport', () => { if (typeof PoolReplay !== 'undefined' && typeof PoolReplay.export === 'function') PoolReplay.export(); });
+
+        // ---------- Cheats tab ----------
+        onChange('devPausePhysics', (_v, checked) => { self.game._devPausePhysics = checked; console.log('[Dev] Physics', checked ? 'PAUSED' : 'resumed'); });
+        onChange('devSlowMotion', (_v, checked) => {
+            self.game._devTimeScale = checked ? 0.25 : 1.0;
+            const slider = $('devTimeScale'); const span = $('devTimeScaleValue');
+            if (slider && span) { slider.value = self.game._devTimeScale; span.textContent = self.game._devTimeScale.toFixed(2) + 'x'; }
+        });
+        this.addRangeListener('devTimeScale', (val) => { self.game._devTimeScale = parseFloat(val); }, (v) => parseFloat(v).toFixed(2) + 'x');
+        onChange('devAutoPot', (_v, checked) => { self.game._devAutoPot = checked; });
+        onChange('devDisableFouls', (_v, checked) => { self.game._devDisableFouls = checked; });
+        onChange('devBallInHand', (_v, checked) => { self.game.ballInHand = checked; if (self.game.updateTurnDisplay) self.game.updateTurnDisplay(); });
+        onClick('devStepFrame', () => {
+            const wasPaused = !!self.game._devPausePhysics;
+            self.game._devPausePhysics = false;
+            self.game._devStepOnce = true;
+            setTimeout(() => { self.game._devPausePhysics = wasPaused; }, 50);
+        });
+        onClick('devForceFoul', () => {
+            if (self.game && typeof self.game.commitFoul === 'function') {
+                self.game.commitFoul('Forced foul (dev)');
+            }
+        });
+        onClick('devClearTable', () => {
+            if (!self.game) return;
+            self.game.balls.forEach(b => { if (b.num !== 0) { b.potted = true; b.vx = 0; b.vy = 0; } });
+            console.log('[Dev] Table cleared (cue ball preserved)');
+        });
+        onClick('devWinFrameP1', () => { if (self.game && typeof self.game.handleBlackPotted === 'function') { self.game.players[0].onBlack = true; self.game.handleBlackPotted(self.game.players[0]); } });
+        onClick('devWinFrameP2', () => { if (self.game && typeof self.game.handleBlackPotted === 'function') { self.game.players[1].onBlack = true; self.game.handleBlackPotted(self.game.players[1]); } });
+        onClick('devSkipToBlack', () => {
+            if (!self.game) return;
+            // Pot all colour balls; leave 8 + cue + 1 of opponent's colour for testing.
+            const player = self.game.getCurrentPlayer ? self.game.getCurrentPlayer() : self.game.players[0];
+            self.game.balls.forEach(b => {
+                if (b.num === 0 || b.num === 8) return;
+                if (player.color && b.color === player.color) { b.potted = true; b.vx = 0; b.vy = 0; }
+            });
+            if (self.game.checkIfOnBlack) self.game.checkIfOnBlack();
+            console.log('[Dev] Skipped to black-ball stage for', player.name);
+        });
+
+        // ---------- Camera tab ----------
+        this.addRangeListener('devCanvasZoom', (val) => {
+            const z = parseFloat(val);
+            const cv = self.game && self.game.canvas;
+            if (cv) cv.style.transform = (self.game._devRotation ? 'rotate(' + self.game._devRotation + 'deg) ' : '') + 'scale(' + z + ')';
+            self.game._devZoom = z;
+        }, (v) => parseFloat(v).toFixed(2) + 'x');
+        this.addRangeListener('devCanvasRotation', (val) => {
+            const r = parseInt(val, 10);
+            self.game._devRotation = r;
+            const cv = self.game && self.game.canvas;
+            const z = self.game._devZoom || 1;
+            if (cv) cv.style.transform = 'rotate(' + r + 'deg) scale(' + z + ')';
+        }, (v) => v + '\u00B0');
+        this.addRangeListener('devTrailLength', (val) => {
+            self.game._devTrailLength = parseInt(val, 10);
+            // The render loop reads ball.trail.length cap from this if set.
+        });
+        onChange('devShowSpinVector', (_v, checked) => { self.game._devShowSpinVector = checked; });
+        onClick('devResetCamera', () => {
+            const cv = self.game && self.game.canvas;
+            if (cv) cv.style.transform = '';
+            self.game._devZoom = 1; self.game._devRotation = 0;
+            const z = $('devCanvasZoom'); if (z) { z.value = 1; $('devCanvasZoomValue').textContent = '1.00x'; }
+            const r = $('devCanvasRotation'); if (r) { r.value = 0; $('devCanvasRotationValue').textContent = '0\u00B0'; }
+        });
+        onClick('devFitToWindow', () => {
+            const cv = self.game && self.game.canvas;
+            if (!cv) return;
+            const sx = (window.innerWidth - 40) / cv.width;
+            const sy = (window.innerHeight - 40) / cv.height;
+            const z = Math.min(sx, sy, 2);
+            cv.style.transform = 'scale(' + z + ')';
+            self.game._devZoom = z;
+            const slider = $('devCanvasZoom'); if (slider) { slider.value = z; $('devCanvasZoomValue').textContent = z.toFixed(2) + 'x'; }
+        });
+        onClick('devScreenshot', () => {
+            const cv = self.game && self.game.canvas;
+            if (!cv) return;
+            const url = cv.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pool-screenshot-' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
+            a.click();
+            console.log('[Dev] Screenshot saved');
+        });
+
+        // ---------- Performance / Debug tab ----------
+        onChange('devShowFps', (_v, checked) => { self.game._devShowFps = checked; });
+        onChange('devShowFrameTime', (_v, checked) => { self.game._devShowFrameTime = checked; });
+        onChange('devShowBallCount', (_v, checked) => { self.game._devShowBallCount = checked; });
+        onChange('devShowEventLog', (_v, checked) => { self.game._devShowEventLog = checked; });
+        onChange('devVerboseConsole', (_v, checked) => { self.game._devVerbose = checked; });
+        onClick('devLogState', () => {
+            console.log('%c[Dev] Game State', 'color:#38bdf8;font-weight:bold;', {
+                phase: self.game.gamePhase,
+                currentPlayer: self.game.currentPlayerIndex,
+                tableOpen: self.game.tableOpen,
+                ballInHand: self.game.ballInHand,
+                shotInProgress: self.game.shotInProgress,
+                ballsLive: self.game.balls.filter(b => !b.potted).length,
+                cueBall: self.game.cueBall ? { x: self.game.cueBall.x|0, y: self.game.cueBall.y|0 } : null,
+                players: self.game.players.map(p => ({ name: p.name, color: p.color, onBlack: p.onBlack })),
+            });
+        });
+        onClick('devLogBalls', () => {
+            console.log('%c[Dev] Ball Positions', 'color:#38bdf8;font-weight:bold;');
+            self.game.balls.filter(b => !b.potted).forEach(b => console.log('  #' + b.num, b.color, '(' + (b.x|0) + ',' + (b.y|0) + ')'));
+        });
+        onClick('devClearConsole', () => { console.clear(); });
+
+        // ---------- Scenarios tab ----------
+        onChange('devQuickRack', (v) => { if (v) self.applyQuickRack(v); });
+        onClick('devSaveSlot1', () => self.saveStateSlot(1));
+        onClick('devSaveSlot2', () => self.saveStateSlot(2));
+        onClick('devSaveSlot3', () => self.saveStateSlot(3));
+        onClick('devLoadSlot1', () => self.loadStateSlot(1));
+        onClick('devLoadSlot2', () => self.loadStateSlot(2));
+        onClick('devLoadSlot3', () => self.loadStateSlot(3));
+
+        // ---------- Sound channels ----------
+        const setChannelVol = (channel, v) => {
+            const pct = parseInt(v, 10) / 100;
+            if (typeof PoolAudio !== 'undefined') {
+                PoolAudio._channelVol = PoolAudio._channelVol || {};
+                PoolAudio._channelVol[channel] = pct;
+            }
+        };
+        this.addRangeListener('devVolMaster', (v) => {
+            const pct = parseInt(v, 10) / 100;
+            if (typeof PoolAudio !== 'undefined' && typeof PoolAudio.setVolume === 'function') PoolAudio.setVolume(pct);
+        }, (v) => v + '%');
+        this.addRangeListener('devVolCueStrike', (v) => setChannelVol('cueStrike', v), (v) => v + '%');
+        this.addRangeListener('devVolBallBall', (v) => setChannelVol('ballHit', v), (v) => v + '%');
+        this.addRangeListener('devVolCushion', (v) => setChannelVol('cushionBounce', v), (v) => v + '%');
+        this.addRangeListener('devVolPocket', (v) => setChannelVol('pocket', v), (v) => v + '%');
+        onChange('devMuteOnAi', (_v, checked) => { self._muteOnAi = checked; });
+
+        // AI auto-restart: hook into game over to start next frame automatically when in AI-vs-AI mode.
+        if (!self._aiAutoRestartHooked) {
+            self._aiAutoRestartHooked = true;
+            const origShowGameOver = self.game.showGameOver ? self.game.showGameOver.bind(self.game) : null;
+            if (origShowGameOver) {
+                self.game.showGameOver = function (title, subtitle) {
+                    origShowGameOver(title, subtitle);
+                    if (self._aiAutoRestart && typeof PoolAI !== 'undefined' && PoolAI.config.aiPlayers && PoolAI.config.aiPlayers[0] && PoolAI.config.aiPlayers[1]) {
+                        setTimeout(() => {
+                            const overlay = document.getElementById('gameOverOverlay');
+                            if (overlay) overlay.remove();
+                            if (typeof self.game.nextFrame === 'function') self.game.nextFrame();
+                            else if (typeof self.game.resetGame === 'function') self.game.resetGame();
+                        }, 2000);
+                    }
+                };
+            }
+        }
+
         // Load saved defaults on init
         this.loadSavedDefaults();
     },
@@ -1374,10 +2037,153 @@ const PoolDevSettings = {
     addCheckboxListener(id, callback) {
         const checkbox = document.getElementById(id);
         if (!checkbox) return;
-        
+
         checkbox.addEventListener('change', (e) => {
             callback(e.target.checked);
         });
+    },
+
+    // ===== Dev tools support methods =====
+
+    /** Save the current ball positions / phase / players to a localStorage slot. */
+    saveStateSlot(n) {
+        if (!this.game) return;
+        const snap = {
+            timestamp: Date.now(),
+            phase: this.game.gamePhase,
+            currentPlayerIndex: this.game.currentPlayerIndex,
+            tableOpen: this.game.tableOpen,
+            ballInHand: this.game.ballInHand,
+            players: this.game.players.map(p => ({ name: p.name, color: p.color, onBlack: p.onBlack, ballsPotted: p.ballsPotted })),
+            balls: this.game.balls.map(b => ({ num: b.num, color: b.color, x: b.x, y: b.y, potted: !!b.potted })),
+        };
+        try {
+            localStorage.setItem('poolDevSlot_' + n, JSON.stringify(snap));
+            console.log('[Dev] Saved table state to slot', n);
+            this._showToast('Saved to slot ' + n);
+        } catch (e) { console.error('[Dev] Save failed', e); }
+    },
+
+    /** Load a previously saved slot back into the live game state. */
+    loadStateSlot(n) {
+        if (!this.game) return;
+        let raw;
+        try { raw = localStorage.getItem('poolDevSlot_' + n); } catch (e) { return; }
+        if (!raw) { console.warn('[Dev] Slot', n, 'is empty'); this._showToast('Slot ' + n + ' empty'); return; }
+        let snap;
+        try { snap = JSON.parse(raw); } catch (e) { console.error('[Dev] Parse failed', e); return; }
+
+        this.game.gamePhase = snap.phase;
+        this.game.currentPlayerIndex = snap.currentPlayerIndex;
+        this.game.tableOpen = snap.tableOpen;
+        this.game.ballInHand = snap.ballInHand;
+        if (snap.players) {
+            snap.players.forEach((p, i) => {
+                if (this.game.players[i]) Object.assign(this.game.players[i], p);
+            });
+        }
+        // Restore ball positions by number
+        const byNum = {};
+        for (const b of snap.balls) byNum[b.num] = b;
+        for (const b of this.game.balls) {
+            const s = byNum[b.num];
+            if (s) { b.x = s.x; b.y = s.y; b.vx = 0; b.vy = 0; b.potted = !!s.potted; }
+        }
+        if (this.game.updateTurnDisplay) this.game.updateTurnDisplay();
+        console.log('[Dev] Loaded slot', n, '(saved', new Date(snap.timestamp).toLocaleString() + ')');
+        this._showToast('Loaded slot ' + n);
+    },
+
+    /** Build well-known table arrangements for testing. */
+    applyQuickRack(kind) {
+        const g = this.game;
+        if (!g) return;
+        const w = g.width, h = g.height;
+        // Helper: hide all object balls then place a chosen subset.
+        const hideAll = () => g.balls.forEach(b => { if (b.num !== 0) { b.potted = true; b.vx = 0; b.vy = 0; } });
+        const place = (num, x, y) => {
+            const b = g.balls.find(bb => bb.num === num);
+            if (!b) return;
+            b.potted = false; b.x = x; b.y = y; b.vx = 0; b.vy = 0;
+        };
+        const cue = g.cueBall;
+
+        switch (kind) {
+            case 'standard':
+                if (typeof g.setupBalls === 'function') g.setupBalls();
+                else if (typeof g.resetGame === 'function') g.resetGame();
+                break;
+            case 'break-spread':
+                hideAll();
+                // Scatter 8 balls roughly across the right half
+                const scatter = [1,2,3,4,5,9,10,11];
+                scatter.forEach((n, i) => {
+                    const angle = i * (Math.PI * 2 / scatter.length);
+                    place(n, w * 0.55 + Math.cos(angle) * 130, h * 0.5 + Math.sin(angle) * 90);
+                });
+                place(8, w * 0.65, h * 0.5);
+                if (cue) { cue.x = w * 0.25; cue.y = h * 0.5; cue.vx = 0; cue.vy = 0; }
+                break;
+            case 'endgame':
+                hideAll();
+                // One yellow + 8 + cue
+                place(9, w * 0.35, h * 0.40);
+                place(10, w * 0.55, h * 0.65);
+                place(8, w * 0.75, h * 0.50);
+                if (cue) { cue.x = w * 0.20; cue.y = h * 0.50; cue.vx = 0; cue.vy = 0; }
+                g.players[0].color = 'yellow'; g.players[1].color = 'red';
+                g.tableOpen = false; g.gamePhase = 'playing';
+                break;
+            case 'black-only':
+                hideAll();
+                place(8, w * 0.75, h * 0.50);
+                if (cue) { cue.x = w * 0.25; cue.y = h * 0.50; cue.vx = 0; cue.vy = 0; }
+                g.players.forEach(p => p.onBlack = true);
+                g.tableOpen = false; g.gamePhase = 'playing';
+                break;
+            case 'scratch-pos':
+                hideAll();
+                // Cue ball one inch from corner pocket aimed at a hanger
+                place(1, w - 50, h - 50);
+                if (cue) { cue.x = w - 120; cue.y = h - 120; cue.vx = 0; cue.vy = 0; }
+                g.tableOpen = true; g.gamePhase = 'playing';
+                break;
+            case 'cluster':
+                hideAll();
+                const cx = w * 0.6, cy = h * 0.5;
+                [1,2,3,9,10,11].forEach((n, i) => {
+                    const a = i * Math.PI / 3;
+                    place(n, cx + Math.cos(a) * 18, cy + Math.sin(a) * 18);
+                });
+                place(8, cx + 50, cy);
+                if (cue) { cue.x = w * 0.20; cue.y = cy; cue.vx = 0; cue.vy = 0; }
+                break;
+            case 'snooker':
+                hideAll();
+                // Object ball with two opponent balls between it and the cue
+                place(9, w * 0.85, h * 0.50);
+                place(2, w * 0.55, h * 0.50); // blocker
+                place(3, w * 0.45, h * 0.50); // blocker
+                place(8, w * 0.50, h * 0.20);
+                if (cue) { cue.x = w * 0.20; cue.y = h * 0.50; cue.vx = 0; cue.vy = 0; }
+                g.players[0].color = 'yellow'; g.players[1].color = 'red';
+                g.tableOpen = false; g.gamePhase = 'playing';
+                break;
+        }
+        if (g.updateTurnDisplay) g.updateTurnDisplay();
+        console.log('[Dev] Applied quick rack:', kind);
+        this._showToast('Loaded: ' + kind);
+        const sel = document.getElementById('devQuickRack');
+        if (sel) sel.value = '';
+    },
+
+    _showToast(msg) {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);color:#e2e8f0;padding:10px 18px;border-radius:8px;border:1px solid #38bdf8;font-size:13px;font-weight:600;z-index:10001;box-shadow:0 8px 20px rgba(0,0,0,0.4);';
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; }, 1500);
+        setTimeout(() => t.remove(), 2000);
     },
     
     addRangeListener(id, callback, formatValue) {
@@ -1801,7 +2607,7 @@ const PoolDevSettings = {
         const settings = {
             // Schema version. Bump this whenever a slider's range/semantic changes
             // so loadSavedDefaults() can skip stale fields.
-            _version: 2,
+            _version: 3,
 
             // Table
             tableWidth: this.game.width,
@@ -1869,39 +2675,111 @@ const PoolDevSettings = {
             vfxFeltNoiseAlpha: typeof PoolVFX !== 'undefined' ? PoolVFX.feltNoiseAlpha : 0.12,
             vfxCushionShadowDepth: typeof PoolVFX !== 'undefined' ? PoolVFX.cushionShadowDepth : 18,
             vfxCushionShadowAlpha: typeof PoolVFX !== 'undefined' ? PoolVFX.cushionShadowAlpha : 0.22,
-            vfxLightTemperature: typeof PoolVFX !== 'undefined' ? PoolVFX.lightTemperature : 'warm'
+            vfxLightTemperature: typeof PoolVFX !== 'undefined' ? PoolVFX.lightTemperature : 'warm',
+
+            // ---- AI tab ----
+            aiMode: (typeof PoolAI !== 'undefined' && PoolAI.config && PoolAI.config.aiPlayers) ?
+                ((PoolAI.config.aiPlayers[0] && PoolAI.config.aiPlayers[1]) ? 'both'
+                    : (PoolAI.config.aiPlayers[0] ? 'p1'
+                    : (PoolAI.config.aiPlayers[1] ? 'p2' : 'off'))) : 'off',
+            aiDifficulty: (typeof PoolAI !== 'undefined' && PoolAI.config) ? PoolAI.config.difficulty : 'medium',
+            aiThinkTimeMs: (typeof PoolAI !== 'undefined' && PoolAI.config) ? PoolAI.config.thinkTimeMs : 1600,
+            aiThinkJitterMs: (typeof PoolAI !== 'undefined' && PoolAI.config) ? PoolAI.config.thinkTimeJitterMs : 700,
+            aiPostShotPauseMs: (typeof PoolAI !== 'undefined' && PoolAI.config) ? PoolAI.config.postShotPauseMs : 600,
+            aiAutoRestart: !!this._aiAutoRestart,
+
+            // ---- Replay tab ----
+            replayRecording: (typeof PoolReplay !== 'undefined') ? !!PoolReplay.config.recording : true,
+            replaySampleEvery: (typeof PoolReplay !== 'undefined') ? PoolReplay.config.sampleEvery : 1,
+            replayMaxShots: (typeof PoolReplay !== 'undefined') ? PoolReplay.config.maxShots : 100,
+            replayShowEvents: (typeof PoolReplay !== 'undefined') ? !!PoolReplay.config.showEvents : true,
+            replayTraceMode: (typeof PoolReplay !== 'undefined') ? PoolReplay.config.traceMode : 'latest',
+
+            // ---- Camera / Debug overlays ----
+            devShowFps: !!this.game._devShowFps,
+            devShowFrameTime: !!this.game._devShowFrameTime,
+            devShowBallCount: !!this.game._devShowBallCount,
+            devShowSpinVector: !!this.game._devShowSpinVector,
+            devCanvasZoom: this.game._devZoom || 1,
+            devCanvasRotation: this.game._devRotation || 0,
+            devTrailLength: this.game._devTrailLength || 10,
+
+            // ---- Sound channels ----
+            volMaster: (typeof PoolAudio !== 'undefined' && typeof PoolAudio._volume === 'number')
+                ? Math.round(PoolAudio._volume * 100) : 50,
+            volCueStrike: (typeof PoolAudio !== 'undefined' && PoolAudio._channelVol && typeof PoolAudio._channelVol.cueStrike === 'number')
+                ? Math.round(PoolAudio._channelVol.cueStrike * 100) : 100,
+            volBallBall: (typeof PoolAudio !== 'undefined' && PoolAudio._channelVol && typeof PoolAudio._channelVol.ballHit === 'number')
+                ? Math.round(PoolAudio._channelVol.ballHit * 100) : 100,
+            volCushion: (typeof PoolAudio !== 'undefined' && PoolAudio._channelVol && typeof PoolAudio._channelVol.cushionBounce === 'number')
+                ? Math.round(PoolAudio._channelVol.cushionBounce * 100) : 100,
+            volPocket: (typeof PoolAudio !== 'undefined' && PoolAudio._channelVol && typeof PoolAudio._channelVol.pocket === 'number')
+                ? Math.round(PoolAudio._channelVol.pocket * 100) : 100,
+            muteOnAi: !!this._muteOnAi,
         };
-        
+
         const jsonStr = JSON.stringify(settings);
-        console.log('Saving settings via MAUI bridge...');
-        
-        // Use MAUI bridge (custom URL scheme)
-        // This triggers OnWebViewNavigating in C# which saves to Preferences
-        window.location.href = 'poolsettings://save?' + encodeURIComponent(jsonStr);
-        
-        // Also store in window for immediate session use
+        console.log('[Dev] Saving settings (' + Object.keys(settings).length + ' fields)...');
+
+        // 1) Always write to localStorage as a guaranteed fallback. The MAUI
+        //    custom-scheme bridge (poolsettings://) can be flaky on some
+        //    WebView2 builds -- localStorage round-trips reliably and is read
+        //    by loadSavedDefaults() before the MAUI-injected blob.
+        try {
+            localStorage.setItem('poolGameDefaults', jsonStr);
+            console.log('[Dev] Saved to localStorage');
+        } catch (e) {
+            console.warn('[Dev] localStorage save failed:', e);
+        }
+
+        // 2) Also notify the native side so settings persist across full
+        //    WebView reloads (where localStorage may be cleared).
+        try {
+            window.location.href = 'poolsettings://save?' + encodeURIComponent(jsonStr);
+        } catch (e) {
+            console.warn('[Dev] MAUI bridge call failed:', e);
+        }
+
+        // 3) Cache for current session use
         window.poolGameSavedDefaults = settings;
+
+        // 4) Visible confirmation (independent of MAUI bridge round-trip)
+        if (typeof this._showToast === 'function') this._showToast('Settings saved');
+        else if (typeof this.showNotification === 'function') this.showNotification('Settings saved!', 'success');
     },
     
     loadSavedDefaults() {
         let settings = null;
+        let source = '';
 
-        // Check for MAUI-injected settings first (from Preferences)
+        // 1) Prefer the MAUI-injected blob (survives full WebView reloads via Preferences).
         if (window.MAUI_SAVED_SETTINGS) {
             settings = window.MAUI_SAVED_SETTINGS;
-            console.log('Loaded settings from MAUI Preferences (injected)');
+            source = 'MAUI Preferences';
         }
 
-        // Fallback: Check window object
+        // 2) Fall back to localStorage (set by saveAsDefaults; survives JS-level resets).
+        if (!settings) {
+            try {
+                const raw = localStorage.getItem('poolGameDefaults');
+                if (raw) {
+                    settings = JSON.parse(raw);
+                    source = 'localStorage';
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // 3) In-window cache (current session)
         if (!settings && window.poolGameSavedDefaults) {
             settings = window.poolGameSavedDefaults;
-            console.log('Loaded settings from window object');
+            source = 'window cache';
         }
 
         if (!settings) {
-            console.log('No saved defaults found');
+            console.log('[Dev] No saved defaults found');
             return;
         }
+        console.log('[Dev] Loading saved defaults from', source);
 
         // ---------- MIGRATION ----------
         // These fields had their range or semantic changed in v2 and would be
@@ -1958,24 +2836,73 @@ const PoolDevSettings = {
             } else {
                 console.log('Applied saved defaults successfully (v' + savedVersion + ')');
             }
+
+            // ---- Apply settings whose saved key doesn't match an input ID ----
+            // (AI / Replay / Camera / Sound were added later; their save keys
+            //  use friendly names that need explicit remapping to UI controls.)
+            const remap = {
+                aiMode: 'devAiMode',
+                aiDifficulty: 'devAiDifficulty',
+                aiThinkTimeMs: 'devAiThinkTime',
+                aiThinkJitterMs: 'devAiThinkJitter',
+                aiPostShotPauseMs: 'devAiPostShotPause',
+                aiAutoRestart: 'devAiAutoRestart',
+                replayRecording: 'devReplayRecording',
+                replaySampleEvery: 'devReplaySampleEvery',
+                replayMaxShots: 'devReplayMaxShots',
+                replayShowEvents: 'devReplayShowEvents',
+                replayTraceMode: 'devReplayTraceMode',
+                devShowFps: 'devShowFps',
+                devShowFrameTime: 'devShowFrameTime',
+                devShowBallCount: 'devShowBallCount',
+                devShowSpinVector: 'devShowSpinVector',
+                devCanvasZoom: 'devCanvasZoom',
+                devCanvasRotation: 'devCanvasRotation',
+                devTrailLength: 'devTrailLength',
+                volMaster: 'devVolMaster',
+                volCueStrike: 'devVolCueStrike',
+                volBallBall: 'devVolBallBall',
+                volCushion: 'devVolCushion',
+                volPocket: 'devVolPocket',
+                muteOnAi: 'devMuteOnAi',
+            };
+            Object.keys(remap).forEach(key => {
+                if (settings[key] === undefined) return;
+                const el = document.getElementById(remap[key]);
+                if (!el) return;
+                if (el.type === 'checkbox') {
+                    el.checked = !!settings[key];
+                    el.dispatchEvent(new Event('change'));
+                } else if (el.tagName === 'SELECT') {
+                    el.value = settings[key];
+                    el.dispatchEvent(new Event('change'));
+                } else {
+                    el.value = settings[key];
+                    el.dispatchEvent(new Event('input'));
+                }
+            });
         } catch (err) {
             console.error('Failed to apply settings:', err);
         }
     },
-    
+
     clearSavedDefaults() {
         if (!confirm('Clear saved default settings?')) return;
 
         // Use MAUI bridge to clear settings
-        window.location.href = 'poolsettings://clear';
+        try { window.location.href = 'poolsettings://clear'; } catch (e) { /* ignore */ }
 
-        // Also clear window object
+        // Clear localStorage too
+        try { localStorage.removeItem('poolGameDefaults'); } catch (e) { /* ignore */ }
+
+        // Also clear window objects
         if (window.poolGameSavedDefaults) {
             delete window.poolGameSavedDefaults;
         }
         if (window.MAUI_SAVED_SETTINGS) {
             window.MAUI_SAVED_SETTINGS = null;
         }
+        if (typeof this._showToast === 'function') this._showToast('Saved defaults cleared');
     },
 
     // ===== BALL INSPECTOR =====

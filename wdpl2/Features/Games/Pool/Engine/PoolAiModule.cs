@@ -25,7 +25,14 @@ const PoolAI = {
         // [true,false]=AI is P1, [true,true]=AI vs AI demo mode.
         aiPlayers: [false, false],
         difficulty: 'medium',     // 'easy' | 'medium' | 'hard' (used for both seats)
-        thinkTimeMs: 900,         // visible 'thinking' delay before shot
+        // Timing (milliseconds). Real players take time between shots: chalking the
+        // cue, walking around the table, lining up. These values keep AI-vs-AI from
+        // feeling like fast-forward while not being painfully slow.
+        thinkTimeMs: 1600,        // base 'thinking' delay before the shot is taken
+        thinkTimeJitterMs: 700,   // +/- random extra so each shot feels different
+        postShotPauseMs: 600,     // pause AFTER balls stop, BEFORE thinking starts
+        breakExtraMs: 800,        // extra time on a break shot (more deliberate)
+        safetyExtraMs: 500,       // extra time on safety shots (more thought)
     },
     _scheduled: false,
     _busy: false,
@@ -127,7 +134,7 @@ const PoolAI = {
         if (this._scheduled || this._busy) return;
         this._scheduled = true;
 
-        // Wait until balls stop moving, then think, then shoot
+        // Wait until balls stop moving, then settle, then think, then shoot.
         const waitForStop = () => {
             const moving = this.game.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01));
             if (moving || this.game.shotInProgress) {
@@ -136,8 +143,30 @@ const PoolAI = {
             }
             // Re-check turn (might have flipped while waiting)
             if (!this.isAiTurn()) { this._scheduled = false; return; }
-            this.showThinking(true);
-            setTimeout(() => this.takeShot(), this.config.thinkTimeMs);
+
+            // Post-shot settle: small pause so the previous shot's outcome is visible
+            // before the thinking indicator pops up. Makes AI-vs-AI watchable.
+            setTimeout(() => {
+                if (!this.isAiTurn()) { this._scheduled = false; return; }
+                this.showThinking(true);
+
+                // Compute a context-aware think time. Breaks and safeties feel more
+                // realistic with extra deliberation; routine pots are quicker.
+                let think = this.config.thinkTimeMs +
+                            (Math.random() * 2 - 1) * this.config.thinkTimeJitterMs;
+                if (this.game.gamePhase === 'break') think += this.config.breakExtraMs;
+                // Cheap shot-type heuristic without re-running full evaluation:
+                // crowded table near the cue ball usually means a tactical decision.
+                const cue = this.game.cueBall;
+                if (cue) {
+                    const nearCount = this.game.balls.filter(b => !b.potted && b !== cue &&
+                        Math.hypot(b.x - cue.x, b.y - cue.y) < 220).length;
+                    if (nearCount >= 3) think += this.config.safetyExtraMs * 0.6;
+                }
+                think = Math.max(400, think);
+
+                setTimeout(() => this.takeShot(), think);
+            }, this.config.postShotPauseMs);
         };
         setTimeout(waitForStop, 60);
     },

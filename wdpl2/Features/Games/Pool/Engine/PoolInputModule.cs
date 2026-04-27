@@ -514,12 +514,55 @@ setupMouseControls(canvas, game, statusEl) {
         });
         
         canvas.addEventListener('mouseleave', () => {
-            // Cancel ball dragging if mouse leaves canvas
+            // Cancel ball-in-hand dragging only -- NOT in-progress shots.
+            // The play-area is small; the user often slides past the edge while
+            // pulling the cue back. Shot tracking continues via window-level
+            // mousemove/mouseup handlers below.
             if (this.isDraggingCueBall) {
                 this.isDraggingCueBall = false;
             }
-            game.isAiming = false;
+            // Only clear the visual aim hint when there's no shot in progress.
+            if (!game.isShooting) {
+                game.isAiming = false;
+            }
         });
+
+        // Window-level pointer handlers so a drag-and-push shot keeps tracking
+        // when the cursor leaves the (small) canvas. Without these, the user
+        // would lose their pull-back / push-forward gesture the moment the
+        // mouse crossed the cushion edge.
+        const winMouseMove = (e) => {
+            if (!game.isShooting && !this.isDraggingCueBall) return;
+            if (game.shotControlMode && game.shotControlMode !== 'drag') return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            // Map (clamped) -- DON'T clamp X/Y so the gesture distance is
+            // honoured exactly: the cue follow-through can be much longer
+            // than the visible table without losing power.
+            game.mouseX = (e.clientX - rect.left) * scaleX;
+            game.mouseY = (e.clientY - rect.top) * scaleY;
+            // Re-dispatch a synthetic mousemove on the canvas so the existing
+            // canvas-level handler runs its full pull/push/contact logic.
+            const synthetic = new MouseEvent('mousemove', {
+                clientX: e.clientX, clientY: e.clientY,
+                bubbles: false, cancelable: true,
+            });
+            // Avoid infinite loop: mark and skip in the canvas handler.
+            synthetic._fromWindow = true;
+            canvas.dispatchEvent(synthetic);
+        };
+        const winMouseUp = (e) => {
+            if (!game.isShooting && !this.isDraggingCueBall) return;
+            const synthetic = new MouseEvent('mouseup', {
+                clientX: e.clientX, clientY: e.clientY,
+                bubbles: false, cancelable: true,
+            });
+            synthetic._fromWindow = true;
+            canvas.dispatchEvent(synthetic);
+        };
+        window.addEventListener('mousemove', winMouseMove);
+        window.addEventListener('mouseup', winMouseUp);
     },
     
     /**
