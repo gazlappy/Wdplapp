@@ -827,20 +827,26 @@ drawTable(ctx, width, height, cushionMargin, game) {
         const lightOffsetY = -ball.r * 0.4;
 
         // ===== ANTI-ALIAS SEAM FILLER =====
-        // Paint a tiny base disc 0.6px larger than the ball, in the ball's
-        // dominant colour. The full ball is then rendered on top at ball.r and
-        // covers this everywhere except the outermost ~half pixel of antialiased
-        // edge. Without this, two touching rack balls show a faint green seam
-        // where the felt bleeds through both balls' alpha-feathered edges.
+        // Two balls touching exactly at centre distance = 2r each have a ~1px
+        // alpha-feathered edge from canvas anti-aliasing. Where the edges
+        // overlap, combined coverage is only ~75%, leaving ~25% green felt
+        // visible as a gap. Paint a 1px-larger base disc in the SAME dark
+        // silhouette colour the ball already uses at its edge under low
+        // diffuse light, so isolated balls look identical (the dark rim is
+        // visually indistinguishable from the natural shaded edge) while
+        // touching balls now meet without felt bleed-through.
+        //
+        // UK reds are cream-bodied with a maroon centre band, so the rim
+        // colour is the same shaded cream as the cue ball -- NOT maroon.
         let seamColor;
-        if (ball.color === 'red') seamColor = '#7a1818';
-        else if (ball.color === 'yellow') seamColor = '#d4b500';
-        else if (ball.color === 'black' || ball.num === 8) seamColor = '#0a0a0a';
-        else if (ball.color === 'white') seamColor = '#f5f1e6';
-        else seamColor = '#888888';
+        if (ball.color === 'red') seamColor = '#b8b0a0';
+        else if (ball.color === 'yellow') seamColor = '#8a6e00';
+        else if (ball.color === 'black' || ball.num === 8) seamColor = '#0a0a10';
+        else if (ball.color === 'white') seamColor = '#b8b0a0';
+        else seamColor = '#444444';
         ctx.fillStyle = seamColor;
         ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r + 0.6, 0, Math.PI * 2);
+        ctx.arc(ball.x, ball.y, ball.r + 1, 0, Math.PI * 2);
         ctx.fill();
 
         // ===== UK-STYLE BALL RENDERING =====
