@@ -974,6 +974,20 @@ const PoolDevSettings = {
                 color: var(--text);
                 flex: 1 1 auto;
                 min-height: 0;
+                /* Slide animation between tabs (forward = enter from right,
+                   backward = enter from left). The transition is applied to
+                   the inner sections wrapper via the .dev-tab-anim-* classes. */
+                position: relative;
+            }
+            .dev-content.dev-tab-enter-right > .dev-section { animation: devTabSlideInRight 0.18s ease-out both; }
+            .dev-content.dev-tab-enter-left  > .dev-section { animation: devTabSlideInLeft  0.18s ease-out both; }
+            @keyframes devTabSlideInRight {
+                from { opacity: 0; transform: translateX(20px); }
+                to   { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes devTabSlideInLeft {
+                from { opacity: 0; transform: translateX(-20px); }
+                to   { opacity: 1; transform: translateX(0); }
             }
             .dev-content::-webkit-scrollbar { width: 8px; }
             .dev-content::-webkit-scrollbar-track { background: transparent; }
@@ -1228,15 +1242,31 @@ const PoolDevSettings = {
     },
 
     activateTab(panel, tabId) {
-        for (const tab of panel.querySelectorAll('.dev-tab')) {
+        const tabs = Array.from(panel.querySelectorAll('.dev-tab'));
+        const ids = tabs.map(t => t.getAttribute('data-tab'));
+        const newIdx = ids.indexOf(tabId);
+        const oldIdx = ids.indexOf(this._activeTabId);
+        const direction = (oldIdx === -1 || newIdx > oldIdx) ? 'right' : 'left';
+        this._activeTabId = tabId;
+
+        for (const tab of tabs) {
             tab.classList.toggle('active', tab.getAttribute('data-tab') === tabId);
         }
         for (const sec of panel.querySelectorAll('.dev-section')) {
             sec.hidden = sec.getAttribute('data-tab') !== tabId;
         }
-        // Reset scroll on tab switch so each tab starts at the top.
+
+        // Apply the slide animation to the now-visible sections. Restart by
+        // toggling the class off then on in the next frame so the keyframe
+        // animation re-runs even when re-clicking the same tab.
         const content = panel.querySelector('.dev-content');
-        if (content) content.scrollTop = 0;
+        if (content) {
+            content.scrollTop = 0;
+            content.classList.remove('dev-tab-enter-right', 'dev-tab-enter-left');
+            // Force reflow so the next class addition re-triggers the animation.
+            void content.offsetWidth;
+            content.classList.add(direction === 'right' ? 'dev-tab-enter-right' : 'dev-tab-enter-left');
+        }
     },
     
     makeDraggable(panel) {

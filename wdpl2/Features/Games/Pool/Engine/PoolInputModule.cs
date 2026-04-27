@@ -344,6 +344,13 @@ setupMouseControls(canvas, game, statusEl) {
             
             // Skip shooting controls if not using drag mode
             if (game.shotControlMode && game.shotControlMode !== 'drag') {
+                // While the player is holding to charge power (click / tap-hold),
+                // freeze the aim. Otherwise small mouse drift would change the
+                // shot direction during the power buildup.
+                if (game.aimLocked) {
+                    game.isAiming = true;
+                    return;
+                }
                 // Update aim angle with fine-tune support
                 const dx = game.mouseX - game.cueBall.x;
                 const dy = game.mouseY - game.cueBall.y;

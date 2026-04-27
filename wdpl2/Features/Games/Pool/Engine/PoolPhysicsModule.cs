@@ -25,9 +25,11 @@ const PoolPhysics = {
     // A rolling ball loses speed at an approximately CONSTANT rate per frame
     // (rolling resistance), not exponentially -- exponential decay is what made
     // the balls feel like they were gliding on glass forever.
-    ROLLING_DECEL: 0.055,   // px/frame (~3.3 px/s^2 at 60fps) for a fully rolling ball
-    SLIDING_DECEL: 0.110,   // px/frame -- faster decel while sliding (kinetic friction)
-    VISCOUS_DRAG: 0.995,    // small velocity-proportional component (air + cloth viscous drag)
+    // Tuned for a fast tournament-cloth feel: balls travel further on the break
+    // and reliably reach cushions with moderate power.
+    ROLLING_DECEL: 0.030,   // px/frame for a fully rolling ball (was 0.055)
+    SLIDING_DECEL: 0.070,   // px/frame -- faster decel while sliding (was 0.110)
+    VISCOUS_DRAG: 0.997,    // small velocity-proportional component (was 0.995)
                             // Lower = more energy retained at high speed (better break-shot feel)
     
     // WPA 2026 Physical Constants

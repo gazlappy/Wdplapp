@@ -154,7 +154,7 @@ class PoolGame {
         
         // Break shot tracking - balls that have crossed center line
         this.ballsCrossedCenter = new Set();
-        
+
         // Foul tracking
         this.foulCommitted = false;
         this.foulReason = '';
@@ -439,11 +439,16 @@ class PoolGame {
         console.log('Break points from balls that crossed center:', ballsCrossedCount);
         console.log('Balls that crossed:', Array.from(this.ballsCrossedCenter));
         console.log('Total break points:', breakPoints);
-        
-        // Need at least 3 points for a legal break
+
+        // Legal break rules (any one of these qualifies):
+        //   1. 3+ break points (potted + crossed-centre)
+        //   2. Any ball potted (other than scratching the cue ball)
         const REQUIRED_BREAK_POINTS = 3;
-        
-        if (breakPoints >= REQUIRED_BREAK_POINTS) {
+        const isLegalBreak =
+            breakPoints >= REQUIRED_BREAK_POINTS ||
+            scoringBalls.length > 0;
+
+        if (isLegalBreak) {
             this.legalBreak = true;
             console.log('Legal break -', breakPoints, 'points achieved');
             
@@ -1286,11 +1291,14 @@ class PoolGame {
         const r = this.standardBallRadius;
         
         // For touching balls in a triangle rack:
-        // - Horizontal spacing between rows: 2 * r * cos(30�) = r * sqrt(3)
+        // - Horizontal spacing between rows: 2 * r * cos(30) = r * sqrt(3)
         // - Vertical spacing between balls in same row: 2 * r (diameter)
-        // Adding tiny offset (0.1) to prevent physics engine from detecting immediate collision
-        const rowGap = r * Math.sqrt(3) + 0.1;  // Horizontal distance between rows
-        const ballGap = r * 2 + 0.1;            // Vertical distance between ball centers
+        // Place rack balls EXACTLY touching. The collision check uses a strict
+        // `<` (distSq < minDist*minDist), so dist == minDist does not trigger
+        // a collision. Any positive offset here shows up as a visible gap
+        // between balls in the rack at typical zoom levels.
+        const rowGap = r * Math.sqrt(3);  // Horizontal distance between rows
+        const ballGap = r * 2;            // Vertical distance between ball centers
         
         // 15-ball rack pattern (UK 8-ball blackball rules)
         // Row 0: 1 ball, Row 1: 2 balls, Row 2: 3 balls (8 in middle), etc.
@@ -1321,11 +1329,11 @@ class PoolGame {
             // Calculate position based on row and position within row
             const x = rackX + ball.row * rowGap;
             const y = rackY + ball.pos * ballGap;
-            
+
             // Random initial orientation for the number (looks more natural)
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.random() * Math.PI * 0.8 - Math.PI * 0.4;
-            
+
             this.balls.push({
                 x: x,
                 y: y,

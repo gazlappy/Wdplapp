@@ -825,7 +825,24 @@ drawTable(ctx, width, height, cushionMargin, game) {
         // Light position for gradients
         const lightOffsetX = -ball.r * 0.4;
         const lightOffsetY = -ball.r * 0.4;
-        
+
+        // ===== ANTI-ALIAS SEAM FILLER =====
+        // Paint a tiny base disc 0.6px larger than the ball, in the ball's
+        // dominant colour. The full ball is then rendered on top at ball.r and
+        // covers this everywhere except the outermost ~half pixel of antialiased
+        // edge. Without this, two touching rack balls show a faint green seam
+        // where the felt bleeds through both balls' alpha-feathered edges.
+        let seamColor;
+        if (ball.color === 'red') seamColor = '#7a1818';
+        else if (ball.color === 'yellow') seamColor = '#d4b500';
+        else if (ball.color === 'black' || ball.num === 8) seamColor = '#0a0a0a';
+        else if (ball.color === 'white') seamColor = '#f5f1e6';
+        else seamColor = '#888888';
+        ctx.fillStyle = seamColor;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r + 0.6, 0, Math.PI * 2);
+        ctx.fill();
+
         // ===== UK-STYLE BALL RENDERING =====
         if (ball.color === 'red') {
             // UK RED BALLS: Maroon with cream stripe band around middle
@@ -965,10 +982,13 @@ drawTable(ctx, width, height, cushionMargin, game) {
                 const cg = Math.round(colorBase.g + diffuse * colorRange.g);
                 const cb = Math.round(colorBase.b + diffuse * colorRange.b);
 
-                // Fade quads near the silhouette edge
-                const alpha = Math.min(1, Math.max(0.15, (avgZ + 0.1) / 0.35));
-
-                ctx.fillStyle = `rgba(${cr},${cg},${cb},${alpha})`;
+                // Draw silhouette quads at full opacity. Previously we faded
+                // edge quads to as low as 0.15 alpha which let the green felt
+                // show through, producing a visible gap between touching balls
+                // in the rack. The clip() in the caller already constrains the
+                // body to ball.r, and the seam-filler base disc covers any
+                // remaining anti-alias edge.
+                ctx.fillStyle = `rgba(${cr},${cg},${cb},1)`;
                 ctx.beginPath();
                 ctx.moveTo(ball.x + p00.x * r, ball.y + p00.y * r);
                 ctx.lineTo(ball.x + p10.x * r, ball.y + p10.y * r);

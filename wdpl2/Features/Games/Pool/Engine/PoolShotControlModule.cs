@@ -59,7 +59,9 @@ const PoolShotControl = {
             this.game.clickPowerCharging = true;
             this.game.clickPowerStartTime = Date.now();
             this.game.shotPower = 0;
-            
+            // Lock aim so cursor wobble while holding doesn't change the shot direction.
+            this.game.aimLocked = true;
+
             // Animate power increase
             powerInterval = setInterval(() => {
                 if (!this.game.clickPowerCharging) {
@@ -79,7 +81,8 @@ const PoolShotControl = {
             
             this.game.clickPowerCharging = false;
             clearInterval(powerInterval);
-            
+            this.game.aimLocked = false;
+
             // Fire the shot
             if (this.game.shotPower > 0 && this.game.cueBall && !this.game.cueBall.potted) {
                 // Start shot tracking for rules
@@ -221,7 +224,9 @@ const PoolShotControl = {
             holdStartTime = Date.now();
             this.game.shotPower = 0;
             this.game.isAiming = true;
-            
+            // Lock aim so cursor wobble while holding doesn't change the shot direction.
+            this.game.aimLocked = true;
+
             // Build power over time
             holdInterval = setInterval(() => {
                 const elapsed = Date.now() - holdStartTime;
@@ -235,7 +240,8 @@ const PoolShotControl = {
             if (this.game.shotControlMode !== 'tap') return;
             
             clearInterval(holdInterval);
-            
+            this.game.aimLocked = false;
+
             if (this.game.shotPower > 0 && this.game.cueBall && !this.game.cueBall.potted) {
                 // Start shot tracking for rules
                 if (typeof this.game.startShot === 'function') {
