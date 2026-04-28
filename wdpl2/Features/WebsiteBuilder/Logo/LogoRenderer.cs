@@ -35,7 +35,7 @@ public static class LogoRenderer
 
         // ---- Background shape -----------------------------------------
         using var shapePath = !string.Equals(recipe.BgShape, "none", System.StringComparison.OrdinalIgnoreCase)
-            ? BuildShapePath(recipe.BgShape, rect)
+            ? ShapeCatalog.Build(recipe.BgShape, rect)
             : null;
 
         if (shapePath != null)
@@ -82,11 +82,14 @@ public static class LogoRenderer
 
                 if (string.Equals(recipe.BorderStyle, "double", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    using var inner = BuildShapePath(recipe.BgShape, Inset(rect, recipe.BorderWidth * scale * 1.8f));
+                    using var inner = ShapeCatalog.Build(recipe.BgShape, Inset(rect, recipe.BorderWidth * scale * 1.8f));
                     canvas.DrawPath(inner, borderPaint);
                 }
             }
         }
+
+        // ---- Stacked decorative layers (below text) -------------------
+        DrawLayers(canvas, size, recipe, aboveText: false);
 
         // ---- Icon and text --------------------------------------------
         var hasIcon = !string.IsNullOrWhiteSpace(recipe.Icon);
@@ -175,6 +178,72 @@ public static class LogoRenderer
             DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
                 ParseColor(recipe.IconColor, SKColors.White), ix, centerY + iconSize * 0.35f, recipe.IconRotation);
         }
+
+        // ---- Stacked decorative layers (above text) -------------------
+        DrawLayers(canvas, size, recipe, aboveText: true);
+    }
+
+    private static void DrawLayers(SKCanvas canvas, SKSize size, LogoDesignRecipe recipe, bool aboveText)
+    {
+        if (recipe.Layers == null || recipe.Layers.Count == 0) return;
+        var w = size.Width; var h = size.Height;
+        foreach (var layer in recipe.Layers)
+        {
+            if (layer == null) continue;
+            if (layer.AboveText != aboveText) continue;
+            if (string.IsNullOrEmpty(layer.Shape) || string.Equals(layer.Shape, "none", System.StringComparison.OrdinalIgnoreCase)) continue;
+
+            var lw = System.Math.Max(2f, layer.Width * w);
+            var lh = System.Math.Max(2f, layer.Height * h);
+            var cx = layer.CenterX * w;
+            var cy = layer.CenterY * h;
+            var rect = new SKRect(cx - lw / 2f, cy - lh / 2f, cx + lw / 2f, cy + lh / 2f);
+
+            using var path = ShapeCatalog.Build(layer.Shape, rect);
+            var alpha = (byte)System.Math.Clamp(layer.Opacity * 255f, 0, 255);
+
+            canvas.Save();
+            if (System.Math.Abs(layer.Rotation) > 0.01f)
+                canvas.RotateDegrees(layer.Rotation, cx, cy);
+
+            using (var fill = BuildLayerFill(layer, rect, alpha))
+                canvas.DrawPath(path, fill);
+
+            if (layer.Stroke && layer.StrokeWidth > 0)
+            {
+                using var stroke = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = layer.StrokeWidth * (w / 512f),
+                    Color = ParseColor(layer.StrokeColor, SKColors.Black).WithAlpha(alpha),
+                    IsAntialias = true,
+                    StrokeJoin = SKStrokeJoin.Round
+                };
+                canvas.DrawPath(path, stroke);
+            }
+            canvas.Restore();
+        }
+    }
+
+    private static SKPaint BuildLayerFill(LogoShapeLayer layer, SKRect rect, byte alpha)
+    {
+        var c1 = ParseColor(layer.FillColor, SKColors.White).WithAlpha(alpha);
+        var paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        if (!layer.UseGradient)
+        {
+            paint.Color = c1;
+            return paint;
+        }
+        var c2 = ParseColor(layer.FillColor2, SKColors.Black).WithAlpha(alpha);
+        SKColor[] colors = [c1, c2];
+        paint.Shader = (layer.GradientDirection ?? "diagonal").ToLowerInvariant() switch
+        {
+            "vertical"   => SKShader.CreateLinearGradient(new SKPoint(rect.MidX, rect.Top), new SKPoint(rect.MidX, rect.Bottom), colors, null, SKShaderTileMode.Clamp),
+            "horizontal" => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.MidY), new SKPoint(rect.Right, rect.MidY), colors, null, SKShaderTileMode.Clamp),
+            "radial"     => SKShader.CreateRadialGradient(new SKPoint(rect.MidX, rect.MidY), System.Math.Max(rect.Width, rect.Height) / 2f, colors, null, SKShaderTileMode.Clamp),
+            _            => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.Top), new SKPoint(rect.Right, rect.Bottom), colors, null, SKShaderTileMode.Clamp),
+        };
+        return paint;
     }
 
     // --- helpers ------------------------------------------------------

@@ -331,6 +331,19 @@
                     </VerticalStackLayout>
                 </Frame>
 
+                <!-- Shape layers (shapes on shapes) -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8" BackgroundColor="#FAFAF9">
+                    <VerticalStackLayout Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <Label Text="Shape Layers" FontAttributes="Bold" FontSize="13" VerticalOptions="Center"/>
+                            <Button Grid.Column="1" Text="+ Add layer" FontSize="11" Padding="10,4" Clicked="OnAddLayerClicked" BackgroundColor="#10B981" TextColor="White"/>
+                        </Grid>
+                        <Label Text="Stack shapes on top of the background — perfect for badges, ribbons, swooshes, monograms behind text and more."
+                               FontSize="11" TextColor="#6B7280"/>
+                        <VerticalStackLayout x:Name="LayersStack" Spacing="6"/>
+                    </VerticalStackLayout>
+                </Frame>
+
                 <!-- Quick presets -->
                 <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
                     <VerticalStackLayout Spacing="6">

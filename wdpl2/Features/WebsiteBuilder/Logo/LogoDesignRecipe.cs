@@ -75,6 +75,9 @@ public sealed class LogoDesignRecipe
     public float BorderWidth { get; set; } = 6;
     public string BorderStyle { get; set; } = "solid";  // solid, dashed, dotted, double
 
+    // --- Stacked decorative shape layers --------------------------------
+    public System.Collections.Generic.List<LogoShapeLayer> Layers { get; set; } = new();
+
     private static readonly JsonSerializerOptions s_json = new() { WriteIndented = false };
 
     public string ToJson() => JsonSerializer.Serialize(this, s_json);

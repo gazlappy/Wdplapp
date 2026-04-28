@@ -173,6 +173,8 @@ public partial class LogoDesignerPage : ContentPage
         ShapeShadowBlurLabel.Text = ((int)_recipe.ShapeShadowBlur).ToString();
         ShapeShadowOffsetYSlider.Value = _recipe.ShapeShadowOffsetY;
         ShapeShadowOffsetYLabel.Text = ((int)_recipe.ShapeShadowOffsetY).ToString();
+
+        RebuildLayersUI();
     }
 
     private void ApplyControlsToRecipe()
@@ -397,6 +399,194 @@ public partial class LogoDesignerPage : ContentPage
                 GradientCheck.IsChecked = true;
             }
         }
+    }
+
+    // ===== Shape layers UI =================================================
+
+    private void RebuildLayersUI()
+    {
+        LayersStack.Children.Clear();
+        for (int i = 0; i < _recipe.Layers.Count; i++)
+        {
+            LayersStack.Children.Add(BuildLayerEditor(_recipe.Layers[i], i));
+        }
+    }
+
+    private Frame BuildLayerEditor(LogoShapeLayer layer, int index)
+    {
+        var shapeKeys = Wdpl2.Features.WebsiteBuilder.Logo.ShapeCatalog.All.Select(s => s.Key).ToArray();
+        var shapeLabels = Wdpl2.Features.WebsiteBuilder.Logo.ShapeCatalog.All.Select(s => $"{s.Emoji} {s.DisplayName}").ToArray();
+
+        var shapePicker = new Picker { Title = "Shape", FontSize = 12, ItemsSource = shapeLabels };
+        var idx = System.Array.IndexOf(shapeKeys, layer.Shape);
+        shapePicker.SelectedIndex = idx >= 0 ? idx : 0;
+        shapePicker.SelectedIndexChanged += (_, __) =>
+        {
+            if (shapePicker.SelectedIndex >= 0 && shapePicker.SelectedIndex < shapeKeys.Length)
+            {
+                layer.Shape = shapeKeys[shapePicker.SelectedIndex];
+                PreviewCanvas.InvalidateSurface();
+            }
+        };
+
+        var fillPicker = new Wdpl2.Features.WebsiteBuilder.Views.Controls.ColorPickerView { HexColor = layer.FillColor };
+        fillPicker.ColorChanged += (_, __) => { layer.FillColor = fillPicker.HexColor; PreviewCanvas.InvalidateSurface(); };
+
+        var gradCheck = new CheckBox { IsChecked = layer.UseGradient };
+        gradCheck.CheckedChanged += (_, __) => { layer.UseGradient = gradCheck.IsChecked; PreviewCanvas.InvalidateSurface(); };
+
+        var fill2Picker = new Wdpl2.Features.WebsiteBuilder.Views.Controls.ColorPickerView { HexColor = layer.FillColor2 };
+        fill2Picker.ColorChanged += (_, __) => { layer.FillColor2 = fill2Picker.HexColor; PreviewCanvas.InvalidateSurface(); };
+
+        var strokeCheck = new CheckBox { IsChecked = layer.Stroke };
+        strokeCheck.CheckedChanged += (_, __) => { layer.Stroke = strokeCheck.IsChecked; PreviewCanvas.InvalidateSurface(); };
+        var strokePicker = new Wdpl2.Features.WebsiteBuilder.Views.Controls.ColorPickerView { HexColor = layer.StrokeColor };
+        strokePicker.ColorChanged += (_, __) => { layer.StrokeColor = strokePicker.HexColor; PreviewCanvas.InvalidateSurface(); };
+        var strokeWidth = MakeSlider(1, 30, layer.StrokeWidth, v => { layer.StrokeWidth = (float)v; PreviewCanvas.InvalidateSurface(); });
+
+        var x = MakeSlider(0, 1, layer.CenterX, v => { layer.CenterX = (float)v; PreviewCanvas.InvalidateSurface(); });
+        var y = MakeSlider(0, 1, layer.CenterY, v => { layer.CenterY = (float)v; PreviewCanvas.InvalidateSurface(); });
+        var w = MakeSlider(0.05, 1.5, layer.Width,  v => { layer.Width  = (float)v; PreviewCanvas.InvalidateSurface(); });
+        var hSl = MakeSlider(0.05, 1.5, layer.Height, v => { layer.Height = (float)v; PreviewCanvas.InvalidateSurface(); });
+        var rot = MakeSlider(-180, 180, layer.Rotation, v => { layer.Rotation = (float)v; PreviewCanvas.InvalidateSurface(); });
+        var op  = MakeSlider(0, 1, layer.Opacity, v => { layer.Opacity = (float)v; PreviewCanvas.InvalidateSurface(); });
+
+        var aboveCheck = new CheckBox { IsChecked = layer.AboveText };
+        aboveCheck.CheckedChanged += (_, __) => { layer.AboveText = aboveCheck.IsChecked; PreviewCanvas.InvalidateSurface(); };
+
+        var upBtn   = new Button { Text = "↑",  FontSize = 12, Padding = new Thickness(8, 2), BackgroundColor = Color.FromArgb("#E5E7EB"), TextColor = Colors.Black };
+        var downBtn = new Button { Text = "↓",  FontSize = 12, Padding = new Thickness(8, 2), BackgroundColor = Color.FromArgb("#E5E7EB"), TextColor = Colors.Black };
+        var dupBtn  = new Button { Text = "⧉",  FontSize = 12, Padding = new Thickness(8, 2), BackgroundColor = Color.FromArgb("#DBEAFE"), TextColor = Color.FromArgb("#1E3A8A") };
+        var delBtn  = new Button { Text = "✕",  FontSize = 12, Padding = new Thickness(8, 2), BackgroundColor = Color.FromArgb("#FEE2E2"), TextColor = Color.FromArgb("#B91C1C") };
+        upBtn.Clicked   += (_, __) => MoveLayer(index, -1);
+        downBtn.Clicked += (_, __) => MoveLayer(index, +1);
+        dupBtn.Clicked  += (_, __) => DuplicateLayer(index);
+        delBtn.Clicked  += (_, __) => RemoveLayer(index);
+
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitionCollection(
+            new ColumnDefinition { Width = GridLength.Star },
+            new ColumnDefinition { Width = GridLength.Auto },
+            new ColumnDefinition { Width = GridLength.Auto },
+            new ColumnDefinition { Width = GridLength.Auto },
+            new ColumnDefinition { Width = GridLength.Auto }), ColumnSpacing = 4 };
+        var title = new Label { Text = $"Layer {index + 1}", FontAttributes = FontAttributes.Bold, FontSize = 12, VerticalOptions = LayoutOptions.Center };
+        header.Children.Add(title);   Microsoft.Maui.Controls.Grid.SetColumn(title,   0);
+        header.Children.Add(upBtn);   Microsoft.Maui.Controls.Grid.SetColumn(upBtn,   1);
+        header.Children.Add(downBtn); Microsoft.Maui.Controls.Grid.SetColumn(downBtn, 2);
+        header.Children.Add(dupBtn);  Microsoft.Maui.Controls.Grid.SetColumn(dupBtn,  3);
+        header.Children.Add(delBtn);  Microsoft.Maui.Controls.Grid.SetColumn(delBtn,  4);
+
+        var body = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                header,
+                new Label { Text = "Shape", FontSize = 11, TextColor = Color.FromArgb("#6B7280") },
+                shapePicker,
+                LabelledRow("X", x),
+                LabelledRow("Y", y),
+                LabelledRow("W", w),
+                LabelledRow("H", hSl),
+                LabelledRow("Rot", rot),
+                LabelledRow("Opacity", op),
+                new Label { Text = "Fill", FontSize = 11, TextColor = Color.FromArgb("#6B7280") },
+                fillPicker,
+                CheckRow(gradCheck, "Use gradient → second color:"),
+                fill2Picker,
+                CheckRow(strokeCheck, "Outline"),
+                strokePicker,
+                LabelledRow("Stroke W", strokeWidth),
+                CheckRow(aboveCheck, "Draw above text (in front)")
+            }
+        };
+
+        return new Frame
+        {
+            Padding = 8,
+            CornerRadius = 6,
+            BorderColor = Color.FromArgb("#E5E7EB"),
+            BackgroundColor = Colors.White,
+            HasShadow = false,
+            Content = body
+        };
+    }
+
+    private static Slider MakeSlider(double min, double max, double value, System.Action<double> onChanged)
+    {
+        var s = new Slider { Minimum = min, Maximum = max, Value = System.Math.Clamp(value, min, max) };
+        s.ValueChanged += (_, e) => onChanged(e.NewValue);
+        return s;
+    }
+
+    private static Grid LabelledRow(string label, View control)
+    {
+        var g = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection(
+                new ColumnDefinition { Width = new GridLength(60) },
+                new ColumnDefinition { Width = GridLength.Star }),
+            ColumnSpacing = 6
+        };
+        var l = new Label { Text = label, FontSize = 11, VerticalOptions = LayoutOptions.Center };
+        g.Children.Add(l);       Microsoft.Maui.Controls.Grid.SetColumn(l,       0);
+        g.Children.Add(control); Microsoft.Maui.Controls.Grid.SetColumn(control, 1);
+        return g;
+    }
+
+    private static HorizontalStackLayout CheckRow(CheckBox check, string text) =>
+        new()
+        {
+            Spacing = 4,
+            Children = { check, new Label { Text = text, FontSize = 11, VerticalOptions = LayoutOptions.Center } }
+        };
+
+    private async void OnAddLayerClicked(object? sender, System.EventArgs e)
+    {
+        var labels = Wdpl2.Features.WebsiteBuilder.Logo.ShapeCatalog.All
+            .Select(s => $"{s.Emoji} {s.DisplayName}").ToArray();
+        var choice = await DisplayActionSheet("Pick a shape to add", "Cancel", null, labels);
+        if (string.IsNullOrEmpty(choice) || choice == "Cancel") return;
+
+        var idx = System.Array.IndexOf(labels, choice);
+        if (idx < 0) return;
+        var info = Wdpl2.Features.WebsiteBuilder.Logo.ShapeCatalog.All[idx];
+
+        _recipe.Layers.Add(new LogoShapeLayer
+        {
+            Shape = info.Key,
+            CenterX = 0.5f, CenterY = 0.5f,
+            Width = 0.35f, Height = 0.35f,
+            FillColor = "#FBBF24",
+            Opacity = 0.9f
+        });
+        RebuildLayersUI();
+        PreviewCanvas.InvalidateSurface();
+    }
+
+    private void MoveLayer(int index, int delta)
+    {
+        var to = index + delta;
+        if (index < 0 || index >= _recipe.Layers.Count || to < 0 || to >= _recipe.Layers.Count) return;
+        (_recipe.Layers[index], _recipe.Layers[to]) = (_recipe.Layers[to], _recipe.Layers[index]);
+        RebuildLayersUI();
+        PreviewCanvas.InvalidateSurface();
+    }
+
+    private void DuplicateLayer(int index)
+    {
+        if (index < 0 || index >= _recipe.Layers.Count) return;
+        _recipe.Layers.Insert(index + 1, _recipe.Layers[index].Clone());
+        RebuildLayersUI();
+        PreviewCanvas.InvalidateSurface();
+    }
+
+    private void RemoveLayer(int index)
+    {
+        if (index < 0 || index >= _recipe.Layers.Count) return;
+        _recipe.Layers.RemoveAt(index);
+        RebuildLayersUI();
+        PreviewCanvas.InvalidateSurface();
     }
 
     private void OnPaintPreview(object? sender, SKPaintSurfaceEventArgs e)
