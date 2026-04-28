@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls"
+             x:Class="Wdpl2.Features.WebsiteBuilder.Views.LogoDesignerPage"
+             Title="Logo Designer">
+
+    <Grid ColumnDefinitions="*,360" RowDefinitions="*,Auto">
+
+        <!-- Live preview -->
+        <Frame Grid.Column="0" Grid.Row="0" Margin="20" Padding="20" BorderColor="#E5E7EB"
+               BackgroundColor="#F1F5F9" CornerRadius="12">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+                <Label Text="Preview" FontSize="14" FontAttributes="Bold" TextColor="#475569"/>
+                <skia:SKCanvasView Grid.Row="1" x:Name="PreviewCanvas"
+                                   PaintSurface="OnPaintPreview"
+                                   HorizontalOptions="Center" VerticalOptions="Center"
+                                   WidthRequest="420" HeightRequest="420"/>
+                <Label Grid.Row="2" Text="The exported PNG is 512×512 with transparent background outside the shape."
+                       FontSize="11" TextColor="#94A3B8" HorizontalOptions="Center"/>
+            </Grid>
+        </Frame>
+
+        <!-- Controls -->
+        <ScrollView Grid.Column="1" Grid.Row="0" Padding="16,20,20,10">
+            <VerticalStackLayout Spacing="16">
+
+                <Label Text="Design Your Logo" FontSize="20" FontAttributes="Bold" TextColor="#3B82F6"/>
+                <Label x:Name="ModeLabel" Text="Creating new logo" FontSize="12" TextColor="#6B7280"/>
+
+                <!-- Text -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Text / Monogram" FontAttributes="Bold" FontSize="13"/>
+                        <Entry x:Name="TextEntry" Placeholder="WDPL" TextChanged="OnAnyChanged"/>
+                        <HorizontalStackLayout Spacing="6">
+                            <CheckBox x:Name="UppercaseCheck" IsChecked="True" CheckedChanged="OnAnyChanged"/>
+                            <Label Text="UPPERCASE" VerticalOptions="Center" FontSize="12"/>
+                        </HorizontalStackLayout>
+
+                        <Label Text="Font family" FontSize="12"/>
+                        <Picker x:Name="FontFamilyPicker" SelectedIndexChanged="OnAnyChanged"/>
+
+                        <Label Text="Font weight" FontSize="12"/>
+                        <Picker x:Name="FontWeightPicker" SelectedIndexChanged="OnAnyChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Regular</x:String>
+                                    <x:String>Bold</x:String>
+                                    <x:String>Black</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Label Text="Size" VerticalOptions="Center" FontSize="12"/>
+                            <Slider Grid.Column="1" x:Name="FontSizeSlider" Minimum="40" Maximum="280" Value="180" ValueChanged="OnAnyChanged"/>
+                            <Label Grid.Column="2" x:Name="FontSizeLabel" Text="180" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
+                        </Grid>
+
+                        <Label Text="Text color" FontSize="12"/>
+                        <Entry x:Name="TextColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged" Placeholder="#FFFFFF"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Icon -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Icon (optional)" FontAttributes="Bold" FontSize="13"/>
+                        <Label Text="Paste an emoji or short symbol — e.g. 🎱  🏆  ⭐" FontSize="11" TextColor="#6B7280"/>
+                        <Entry x:Name="IconEntry" Placeholder="🎱" TextChanged="OnAnyChanged"/>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Label Text="Size" VerticalOptions="Center" FontSize="12"/>
+                            <Slider Grid.Column="1" x:Name="IconSizeSlider" Minimum="40" Maximum="240" Value="120" ValueChanged="OnAnyChanged"/>
+                            <Label Grid.Column="2" x:Name="IconSizeLabel" Text="120" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
+                        </Grid>
+                        <HorizontalStackLayout Spacing="4">
+                            <Button Text="🎱" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
+                            <Button Text="🏆" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
+                            <Button Text="⭐" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
+                            <Button Text="🎯" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
+                            <Button Text="🔥" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
+                            <Button Text="✖" FontSize="14" Padding="8,4" Clicked="OnIconClear" ToolTipProperties.Text="Clear icon"/>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Background shape -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Background Shape" FontAttributes="Bold" FontSize="13"/>
+                        <Picker x:Name="ShapePicker" SelectedIndexChanged="OnAnyChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Circle</x:String>
+                                    <x:String>Rounded square</x:String>
+                                    <x:String>Square</x:String>
+                                    <x:String>Shield</x:String>
+                                    <x:String>Hexagon</x:String>
+                                    <x:String>None (transparent)</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+
+                        <Label Text="Background color 1" FontSize="12"/>
+                        <Entry x:Name="BgColor1Entry" Text="#3B82F6" TextChanged="OnAnyChanged"/>
+
+                        <HorizontalStackLayout Spacing="6">
+                            <CheckBox x:Name="GradientCheck" IsChecked="True" CheckedChanged="OnAnyChanged"/>
+                            <Label Text="Use gradient" VerticalOptions="Center" FontSize="12"/>
+                        </HorizontalStackLayout>
+
+                        <Label Text="Background color 2 (gradient)" FontSize="12"/>
+                        <Entry x:Name="BgColor2Entry" Text="#1E40AF" TextChanged="OnAnyChanged"/>
+
+                        <Label Text="Gradient direction" FontSize="12"/>
+                        <Picker x:Name="GradientDirPicker" SelectedIndexChanged="OnAnyChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Diagonal</x:String>
+                                    <x:String>Vertical</x:String>
+                                    <x:String>Horizontal</x:String>
+                                    <x:String>Radial</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Label Text="Padding" VerticalOptions="Center" FontSize="12"/>
+                            <Slider Grid.Column="1" x:Name="PaddingSlider" Minimum="0" Maximum="80" Value="24" ValueChanged="OnAnyChanged"/>
+                            <Label Grid.Column="2" x:Name="PaddingLabel" Text="24" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Border -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="6">
+                            <CheckBox x:Name="BorderCheck" IsChecked="False" CheckedChanged="OnAnyChanged"/>
+                            <Label Text="Show border" VerticalOptions="Center" FontSize="12" FontAttributes="Bold"/>
+                        </HorizontalStackLayout>
+                        <Label Text="Border color" FontSize="12"/>
+                        <Entry x:Name="BorderColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged"/>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Label Text="Width" VerticalOptions="Center" FontSize="12"/>
+                            <Slider Grid.Column="1" x:Name="BorderWidthSlider" Minimum="1" Maximum="40" Value="6" ValueChanged="OnAnyChanged"/>
+                            <Label Grid.Column="2" x:Name="BorderWidthLabel" Text="6" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Quick presets -->
+                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Color presets" FontAttributes="Bold" FontSize="13"/>
+                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
+                            <Button Text="Blue" BackgroundColor="#3B82F6" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#3B82F6|#1E40AF"/>
+                            <Button Text="Emerald" BackgroundColor="#10B981" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#10B981|#047857"/>
+                            <Button Text="Sunset" BackgroundColor="#F97316" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#F97316|#DC2626"/>
+                            <Button Text="Purple" BackgroundColor="#8B5CF6" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#8B5CF6|#6D28D9"/>
+                            <Button Text="Slate" BackgroundColor="#475569" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#475569|#0F172A"/>
+                            <Button Text="Rose" BackgroundColor="#F43F5E" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#F43F5E|#BE123C"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Bottom action bar -->
+        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1"
+                Stroke="#E5E7EB" StrokeThickness="1"
+                BackgroundColor="#FFFFFF" Padding="16,10">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <Entry Grid.Column="0" x:Name="LogoNameEntry" Placeholder="Logo name (e.g. WDPL Mark)"/>
+                <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked" BackgroundColor="#9CA3AF"/>
+                <Button Grid.Column="2" x:Name="SaveBtn" Text="Save to Catalog" Clicked="OnSaveClicked" BackgroundColor="#10B981"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Maui;
 using Plugin.LocalNotification;
 using Plugin.Maui.OCR;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 using Wdpl2.Data;
 using Wdpl2.Services;
 using Wdpl2.ViewModels;
@@ -21,6 +22,7 @@ public static class MauiProgram
             .UseMauiCommunityToolkit()  // Add Community Toolkit
             .UseLocalNotification()     // Add Local Notifications
             .UseOcr()                   // Add OCR support for score card scanning
+            .UseSkiaSharp()             // Add SkiaSharp for the Logo Designer canvas
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

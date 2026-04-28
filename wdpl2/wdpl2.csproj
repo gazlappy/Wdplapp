@@ -74,6 +74,9 @@
 	  </MauiImage>
 	</ItemGroup>
 	<ItemGroup>
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
@@ -192,7 +195,10 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\BrandingSettingsPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\ColorsSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
@@ -275,6 +281,7 @@
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
 	  <PackageReference Include="Plugin.LocalNotification" Version="12.0.0" />
 	  <PackageReference Include="Plugin.Maui.OCR" Version="1.0.12" />
+	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
 	  <PackageReference Include="System.Data.OleDb" Version="10.0.0" />
 	</ItemGroup>
 

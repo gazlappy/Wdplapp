@@ -192,22 +192,35 @@
                                 IsEnabled="False"/>
                     </Grid>
                     <Label Text="Save logos to reuse across your website" FontSize="12" TextColor="#6B7280"/>
-                    
-                    <CollectionView x:Name="LogoCatalogCollection" HeightRequest="120">
+
+                    <Button Text="🎨 Design a new logo"
+                            Clicked="OnDesignNewLogoClicked"
+                            BackgroundColor="#8B5CF6"
+                            TextColor="White"
+                            FontSize="13"
+                            HorizontalOptions="Start"
+                            Padding="14,6"/>
+
+                    <CollectionView x:Name="LogoCatalogCollection" HeightRequest="160">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Frame Padding="8" Margin="0,2" BorderColor="#E5E7EB" CornerRadius="4">
-                                    <Grid ColumnDefinitions="50,*,Auto,Auto" ColumnSpacing="10">
+                                    <Grid ColumnDefinitions="50,*,Auto,Auto,Auto" ColumnSpacing="8">
                                         <Image Source="{Binding ImageSource}" HeightRequest="40" Aspect="AspectFit"/>
                                         <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                             <Label Text="{Binding Name}" FontSize="12" FontAttributes="Bold"/>
                                             <Label Text="{Binding Category}" FontSize="10" TextColor="#6B7280"/>
                                         </VerticalStackLayout>
-                                        <Button Grid.Column="2" Text="Use" Clicked="OnUseCatalogLogoClicked" 
+                                        <Button Grid.Column="2" Text="Edit" Clicked="OnEditCatalogLogoClicked"
+                                                CommandParameter="{Binding .}"
+                                                IsVisible="{Binding IsDesigned}"
+                                                BackgroundColor="#8B5CF6" TextColor="White"
+                                                FontSize="10" Padding="8,4" HeightRequest="28"/>
+                                        <Button Grid.Column="3" Text="Use" Clicked="OnUseCatalogLogoClicked" 
                                                 CommandParameter="{Binding .}"
                                                 BackgroundColor="#3B82F6" TextColor="White" 
                                                 FontSize="10" Padding="8,4" HeightRequest="28"/>
-                                        <Button Grid.Column="3" Text="X" Clicked="OnDeleteCatalogLogoClicked" 
+                                        <Button Grid.Column="4" Text="X" Clicked="OnDeleteCatalogLogoClicked" 
                                                 CommandParameter="{Binding .}"
                                                 BackgroundColor="#EF4444" TextColor="White" 
                                                 FontSize="10" WidthRequest="28" HeightRequest="28"/>

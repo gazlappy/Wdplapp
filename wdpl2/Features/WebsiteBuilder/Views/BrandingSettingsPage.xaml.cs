@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
+using Wdpl2.Features.WebsiteBuilder.Logo;
+using Wdpl2.Features.WebsiteBuilder.Views;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -225,6 +227,25 @@ public partial class BrandingSettingsPage : ContentPage
             _usingCatalogLogo = true;
             _currentCatalogLogoId = item.Id;
             UpdateLogoPreview();
+        }
+    }
+
+    private async void OnDesignNewLogoClicked(object sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new LogoDesignerPage(null, null));
+    }
+
+    private async void OnEditCatalogLogoClicked(object sender, EventArgs e)
+    {
+        if (sender is Button btn && btn.CommandParameter is LogoCatalogDisplayItem item)
+        {
+            var recipe = LogoDesignRecipe.FromJson(item.DesignJson);
+            if (recipe == null)
+            {
+                await DisplayAlert("Cannot edit", "This logo wasn't created in the designer, so it has no editable recipe.", "OK");
+                return;
+            }
+            await Navigation.PushAsync(new LogoDesignerPage(item.Id, recipe));
         }
     }
 
