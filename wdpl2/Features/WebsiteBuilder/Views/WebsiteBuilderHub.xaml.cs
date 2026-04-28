@@ -57,6 +57,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (_generatedFiles.ContainsKey("news.html")) pages.Add("News");
         if (_generatedFiles.ContainsKey("rows-reports.html")) pages.Add("Rows Reports");
         if (_generatedFiles.ContainsKey("entry-forms.html")) pages.Add("Entry Forms");
+        if (_generatedFiles.ContainsKey("captains.html")) pages.Add("Captains");
 
         // Custom pages
         foreach (var key in _generatedFiles.Keys.Where(k => k.EndsWith(".html") && !IsKnownPage(k)))
@@ -77,8 +78,9 @@ public partial class WebsiteBuilderHub : ContentPage
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
             or "rows-reports.html" or "entry-forms.html"
+            or "captains.html" or "captain-dashboard.html"
             or "player.html" or "team.html" or "pool-game.html" or "style.css"
-            or "sitemap.xml" or "players-data.json" or "teams-data.json";
+            or "sitemap.xml" or "players-data.json" or "teams-data.json" or "captains-data.json";
     
     protected override void OnAppearing()
     {
@@ -429,6 +431,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private async void OnHistoryTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new HistorySettingsPage());
 
+    private async void OnCaptainsTapped(object sender, EventArgs e)
+        => await Navigation.PushAsync(new CaptainsAccessSettingsPage());
+
     private async void OnFixturesSheetTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSheetPage());
 
@@ -460,6 +465,7 @@ public partial class WebsiteBuilderHub : ContentPage
             (RulesTile, ["rules", "league rules", "constitution", "match rules"]),
             (EntryFormsTile, ["entry forms", "forms", "entries", "submissions", "entry"]),
             (HistoryTile, ["history", "honours", "roll of honour", "historic", "winners"]),
+            (CaptainsTile, ["captains", "captain", "login", "pin", "team login", "access", "private", "contact list"]),
             (FixturesSheetTile, ["fixtures sheet", "print", "printable", "fixtures"]),
             (SocialCardTile, ["social media", "share", "result cards", "post"]),
             (SeoTile, ["seo", "advanced", "meta tags", "custom css", "html", "sitemap", "meta"]),
@@ -473,7 +479,7 @@ public partial class WebsiteBuilderHub : ContentPage
         {
             (BrandingSectionLabel, [BrandingTile, ContactTile]),
             (DesignSectionLabel, [DragDropTile, ColorsTile, LayoutTile]),
-            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile, HistoryTile]),
+            (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile, HistoryTile, CaptainsTile]),
             (PrintExportSectionLabel, [FixturesSheetTile]),
             (SocialSectionLabel, [SocialCardTile]),
             (AdvancedSectionLabel, [SeoTile, DeploymentTile]),
@@ -642,6 +648,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "sponsors" => "sponsors.html",
             "news" => "news.html",
             "rows reports" => "rows-reports.html",
+            "captains" => "captains.html",
             _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "home.html"
         };
     }
@@ -663,6 +670,8 @@ public partial class WebsiteBuilderHub : ContentPage
             "sponsors.html" => "Sponsors",
             "news.html" => "News",
             "rows-reports.html" => "Rows Reports",
+            "captains.html" => "Captains",
+            "captain-dashboard.html" => "Captain Dashboard",
             _ => Path.GetFileNameWithoutExtension(fileName)
         };
     }
@@ -721,6 +730,13 @@ public partial class WebsiteBuilderHub : ContentPage
             html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
         }
 
+        if (_generatedFiles.TryGetValue("captains-data.json", out var captainsJson))
+        {
+            var escaped = captainsJson.Replace("\\", "\\\\").Replace("'", "\\'")
+                .Replace("\r", "").Replace("\n", "");
+            html = ReplaceFetchWithInline(html, "captains-data.json", escaped);
+        }
+
         return html;
     }
 
@@ -732,8 +748,9 @@ public partial class WebsiteBuilderHub : ContentPage
     private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
     {
         // Match both plain fetch('file.json') and cache-busted fetch('file.json?v=' + cacheBuster)
-        var pattern = @"fetch\('" + System.Text.RegularExpressions.Regex.Escape(fileName)
-            + @"(?:\?v='\s*\+\s*cacheBuster)?'\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
+        var escapedFile = System.Text.RegularExpressions.Regex.Escape(fileName);
+        var pattern = @"fetch\((?:'" + escapedFile + @"'|'" + escapedFile
+            + @"\?v='\s*\+\s*cacheBuster)\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
         return System.Text.RegularExpressions.Regex.Replace(
             html,
             pattern,

@@ -206,6 +206,133 @@ public sealed class WebsiteJsonDataGenerator
         return JsonSerializer.Serialize(new { teams = teamsData, generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") }, options);
     }
 
+    /// <summary>
+    /// Generate captains-data.json containing PIN hashes, captain contacts and per-team
+    /// fixtures/results to drive the static-site Captains Area login + dashboard.
+    /// PINs are SHA-256 hashed (lowercase hex) so the raw value is not published.
+    /// </summary>
+    public string GenerateCaptainsJson(
+        List<Team> teams,
+        List<Division> divisions,
+        List<Venue> venues,
+        List<Player> players,
+        List<Fixture> fixtures)
+    {
+        var divisionById = divisions.ToDictionary(d => d.Id, d => d);
+        var venueById = venues.ToDictionary(v => v.Id, v => v);
+        var teamById = teams.ToDictionary(t => t.Id, t => t);
+        var playerById = players.ToDictionary(p => p.Id, p => p);
+
+        string CaptainName(Team t)
+        {
+            if (t.CaptainPlayerId.HasValue && playerById.TryGetValue(t.CaptainPlayerId.Value, out var p))
+                return p.FullName;
+            return t.Captain ?? "";
+        }
+
+        // Public contact list (visible to any logged-in captain)
+        var contacts = teams
+            .OrderBy(t => t.Name)
+            .Select(t => new
+            {
+                teamId = t.Id.ToString("N"),
+                teamName = t.Name ?? "",
+                division = t.DivisionId.HasValue && divisionById.TryGetValue(t.DivisionId.Value, out var d) ? d.Name : "",
+                venue = t.VenueId.HasValue && venueById.TryGetValue(t.VenueId.Value, out var v) ? v.Name : "",
+                captain = CaptainName(t),
+                email = t.CaptainEmail ?? "",
+                phone = t.CaptainPhone ?? ""
+            })
+            .ToList();
+
+        var captainTeams = new List<object>();
+
+        foreach (var team in teams.Where(t => !string.IsNullOrWhiteSpace(t.CaptainPin)).OrderBy(t => t.Name))
+        {
+            var pinHash = HashPin(team.CaptainPin!);
+
+            var teamFixtures = fixtures
+                .Where(f => f.HomeTeamId == team.Id || f.AwayTeamId == team.Id)
+                .OrderBy(f => f.Date)
+                .Select(f =>
+                {
+                    bool isHome = f.HomeTeamId == team.Id;
+                    var oppId = isHome ? f.AwayTeamId : f.HomeTeamId;
+                    var opp = teamById.GetValueOrDefault(oppId);
+                    string venue = "";
+                    if (f.VenueId.HasValue && venueById.TryGetValue(f.VenueId.Value, out var fv))
+                        venue = fv.Name ?? "";
+                    else if (teamById.TryGetValue(f.HomeTeamId, out var homeT) && homeT.VenueId.HasValue && venueById.TryGetValue(homeT.VenueId.Value, out var hv))
+                        venue = hv.Name ?? "";
+                    bool played = f.Frames.Any(fr => fr.Winner != FrameWinner.None);
+                    int teamScore = isHome ? f.HomeScore : f.AwayScore;
+                    int oppScore = isHome ? f.AwayScore : f.HomeScore;
+                    return new
+                    {
+                        date = f.Date.ToString("yyyy-MM-dd"),
+                        dateDisplay = f.Date.ToString("ddd dd MMM yyyy"),
+                        time = f.Date.ToString("HH:mm"),
+                        opponent = opp?.Name ?? "TBD",
+                        isHome,
+                        venue,
+                        played,
+                        teamScore,
+                        oppScore,
+                        result = !played ? "" : (teamScore > oppScore ? "W" : (teamScore < oppScore ? "L" : "D"))
+                    };
+                })
+                .ToList();
+
+            var roster = players
+                .Where(p => p.TeamId == team.Id)
+                .OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                .Select(p => new
+                {
+                    id = p.Id.ToString("N"),
+                    name = p.FullName,
+                    isActive = p.IsActive
+                })
+                .ToList();
+
+            captainTeams.Add(new
+            {
+                id = team.Id.ToString("N"),
+                name = team.Name ?? "",
+                division = team.DivisionId.HasValue && divisionById.TryGetValue(team.DivisionId.Value, out var d2) ? d2.Name : "",
+                venue = team.VenueId.HasValue && venueById.TryGetValue(team.VenueId.Value, out var v2) ? v2.Name : "",
+                captain = CaptainName(team),
+                email = team.CaptainEmail ?? "",
+                phone = team.CaptainPhone ?? "",
+                pinHash,
+                fixtures = teamFixtures,
+                roster
+            });
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        return JsonSerializer.Serialize(new
+        {
+            teams = captainTeams,
+            contacts,
+            generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
+        }, options);
+    }
+
+    /// <summary>SHA-256 hex (lowercase) of the UTF-8 PIN bytes — matches browser <c>crypto.subtle.digest('SHA-256', ...)</c>.</summary>
+    internal static string HashPin(string pin)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(pin?.Trim() ?? "");
+        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+        var sb = new System.Text.StringBuilder(hash.Length * 2);
+        foreach (var b in hash) sb.Append(b.ToString("x2"));
+        return sb.ToString();
+    }
+
     #region Private Helpers
 
     private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)

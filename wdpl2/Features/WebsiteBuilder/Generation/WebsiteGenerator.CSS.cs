@@ -402,8 +402,84 @@ header .logo {{
                 "minimal" => GenerateModernCSS(),
                 _ => GenerateModernCSS()
             };
-            return templateCSS + GetCompetitionCSS();
+            return templateCSS + GetCompetitionCSS() + GetCaptainsAreaCSS();
         }
+
+        private string GetCaptainsAreaCSS() => @"
+/* ── Captains Area ── */
+.captain-login-card { max-width: 480px; margin: 40px auto; }
+.captain-login-card form { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.captain-login-card label { font-size: 0.9rem; color: var(--text-color); }
+.captain-login-card select,
+.captain-login-card input[type=password] {
+    padding: 12px 14px; font-size: 1rem; border: 1px solid #CBD5E1; border-radius: 8px;
+    background: var(--card-bg); color: var(--text-color); width: 100%; box-sizing: border-box;
+}
+.captain-login-card select:focus,
+.captain-login-card input:focus { outline: 2px solid var(--primary-color); outline-offset: 0; border-color: var(--primary-color); }
+.captain-btn {
+    margin-top: 14px; padding: 12px 18px; font-size: 1rem; font-weight: 600;
+    background: var(--primary-color); color: #fff; border: 0; border-radius: 8px; cursor: pointer;
+    transition: filter 0.15s;
+}
+.captain-btn:hover { filter: brightness(1.08); }
+.captain-btn-secondary { background: #64748B; }
+.captain-error { color: #B91C1C; background: #FEE2E2; padding: 10px 12px; border-radius: 6px; margin-top: 12px; font-size: 0.9rem; }
+.captain-welcome { color: var(--text-secondary, #475569); margin-bottom: 8px; }
+.captain-hint { color: #64748B; font-size: 0.85rem; margin-top: 12px; }
+
+.captain-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.captain-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.captain-action-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.captain-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 14px; border-radius: 8px; background: var(--primary-color); color: #fff;
+    text-decoration: none; font-weight: 600; font-size: 0.9rem;
+}
+.captain-action:hover { filter: brightness(1.1); color: #fff; }
+@media (min-width: 900px) {
+    .captain-grid { grid-template-columns: 1fr 1fr; }
+    .captain-actions { grid-column: 1 / -1; }
+}
+
+/* Sub-tabs inside captain dashboard */
+.captain-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 16px;
+    border-bottom: 2px solid #E2E8F0; padding-bottom: 0;
+}
+.captain-tab-btn {
+    background: transparent; border: 0; padding: 10px 16px; cursor: pointer;
+    font-size: 0.95rem; font-weight: 600; color: #64748B;
+    border-bottom: 3px solid transparent; margin-bottom: -2px;
+    border-radius: 6px 6px 0 0; transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.captain-tab-btn:hover { color: var(--primary-color); background: rgba(59,130,246,0.06); }
+.captain-tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: rgba(59,130,246,0.08);
+}
+.captain-tab-panels { display: block; }
+.captain-tab-panel { display: none; }
+.captain-tab-panel.active { display: block; }
+
+.captain-update-form { display: grid; gap: 10px; margin-top: 8px; }
+.captain-update-form label { display: block; font-size: 0.85rem; color: var(--text-color); font-weight: 600; }
+.captain-update-form input,
+.captain-update-form textarea {
+    width: 100%; padding: 10px 12px; font-size: 0.95rem; box-sizing: border-box;
+    border: 1px solid #CBD5E1; border-radius: 8px; background: var(--card-bg); color: var(--text-color);
+    margin-top: 4px; font-family: inherit;
+}
+.captain-update-form input:focus,
+.captain-update-form textarea:focus { outline: 2px solid var(--primary-color); outline-offset: 0; border-color: var(--primary-color); }
+.captain-update-form textarea { resize: vertical; min-height: 60px; }
+.captain-update-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.captain-btn-primary { background: var(--primary-color); }
+.captain-update-status { font-size: 0.85rem; color: #64748B; }
+.captain-update-status.ok { color: #047857; }
+.captain-update-status.err { color: #B91C1C; }
+";
         
         private string GetTableClasses()
         {

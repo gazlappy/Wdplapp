@@ -384,6 +384,9 @@ namespace Wdpl2.Services
             if (_settings.ShowContactPage && _settings.HasContactInfo)
                 NavLink("contact.html", _settings.ContactNavLabel, "Contact");
 
+            if (_settings.EnableCaptainsArea)
+                NavLink("captains.html", _settings.CaptainsAreaNavLabel, "Captains");
+
             // Custom pages in nav
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished && p.ShowInNav).OrderBy(p => p.NavOrder))
             {

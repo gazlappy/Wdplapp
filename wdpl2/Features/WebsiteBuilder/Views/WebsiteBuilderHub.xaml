@@ -253,6 +253,21 @@
                     </Grid>
                 </Frame>
 
+                <Frame x:Name="CaptainsTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
+                    <Grid Padding="14" ColumnDefinitions="36,*,Auto">
+                        <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnCaptainsTapped"/></Grid.GestureRecognizers>
+                        <Frame Grid.Column="0" BackgroundColor="#FEE2E2" Padding="0" CornerRadius="8"
+                               HeightRequest="36" WidthRequest="36" HasShadow="False" BorderColor="Transparent">
+                            <Label Text="&#128274;" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Frame>
+                        <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" VerticalOptions="Center">
+                            <Label Text="Captains Access" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                            <Label x:Name="CaptainsSummaryLabel" Text="PIN-protected area for team captains" FontSize="11" TextColor="#64748B"/>
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="›" FontSize="22" TextColor="#CBD5E1" VerticalOptions="Center"/>
+                    </Grid>
+                </Frame>
+
                 <!-- ── Print/Export ── -->
                 <Label x:Name="PrintExportSectionLabel" Text="PRINT &amp; EXPORT" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>

@@ -1416,4 +1416,87 @@ public class WebsiteGeneratorTests
     }
 
     #endregion
+
+    #region Captains Area Tests
+
+    [Fact]
+    public void GenerateWebsite_EnableCaptainsArea_GeneratesLoginDashboardAndJson()
+    {
+        // Arrange
+        var league = CreateTestLeagueData();
+        var settings = CreateTestSettings();
+        settings.EnableCaptainsArea = true;
+        var generator = new WebsiteGenerator(league, settings);
+
+        // Act
+        var files = generator.GenerateWebsite();
+
+        // Assert
+        Assert.Contains("captains.html", files.Keys);
+        Assert.Contains("captain-dashboard.html", files.Keys);
+        Assert.Contains("captains-data.json", files.Keys);
+    }
+
+    [Fact]
+    public void GenerateWebsite_CaptainsAreaDisabled_DoesNotGenerateCaptainPages()
+    {
+        // Arrange
+        var league = CreateTestLeagueData();
+        var settings = CreateTestSettings();
+        settings.EnableCaptainsArea = false;
+        var generator = new WebsiteGenerator(league, settings);
+
+        // Act
+        var files = generator.GenerateWebsite();
+
+        // Assert
+        Assert.DoesNotContain("captains.html", files.Keys);
+        Assert.DoesNotContain("captain-dashboard.html", files.Keys);
+        Assert.DoesNotContain("captains-data.json", files.Keys);
+    }
+
+    [Fact]
+    public void GenerateCaptainsJson_TeamWithPin_HashesPinAndOmitsRaw()
+    {
+        // Arrange
+        var seasonId = Guid.NewGuid();
+        var league = CreateTestLeagueData(seasonId: seasonId);
+        var divisionId = Guid.NewGuid();
+        league.Divisions.Add(new Division { Id = divisionId, SeasonId = seasonId, Name = "Premier" });
+        league.Teams.Add(new Team
+        {
+            SeasonId = seasonId,
+            DivisionId = divisionId,
+            Name = "Sharks",
+            CaptainEmail = "cap@example.com",
+            CaptainPhone = "0123",
+            CaptainPin = "1234"
+        });
+
+        var settings = CreateTestSettings();
+        settings.SelectedSeasonId = seasonId;
+        var leagueSettings = league.GetSettingsForSeason(seasonId);
+        var jsonGen = new WebsiteJsonDataGenerator(league, settings, leagueSettings);
+
+        // Act
+        var json = jsonGen.GenerateCaptainsJson(league.Teams, league.Divisions, league.Venues, league.Players, league.Fixtures);
+
+        // Assert: contains hashed PIN, not raw
+        var expectedHash = WebsiteJsonDataGenerator.HashPin("1234");
+        Assert.Contains(expectedHash, json);
+        Assert.DoesNotContain("\"1234\"", json);
+        Assert.Contains("cap@example.com", json);
+        Assert.Contains("Sharks", json);
+    }
+
+    [Fact]
+    public void HashPin_KnownInput_MatchesExpectedSha256Hex()
+    {
+        // SHA-256("1234") = 03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4
+        Assert.Equal(
+            "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+            WebsiteJsonDataGenerator.HashPin("1234"));
+    }
+
+    #endregion
 }

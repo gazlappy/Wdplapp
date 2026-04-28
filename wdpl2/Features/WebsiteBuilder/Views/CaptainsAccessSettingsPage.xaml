@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.CaptainsAccessSettingsPage"
+             Title="Captains Access">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label Text="Captains Area" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="A PIN-protected section of the website where team captains can access fixtures, contacts and submission tools."
+                   FontSize="13" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+            <Label Text="⚠ Static-site gating only. PINs are SHA-256 hashed in the published JSON, but anyone could read it. Do not put truly private data here."
+                   FontSize="11" TextColor="#B45309" LineBreakMode="WordWrap"/>
+
+            <!-- Master toggle -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout>
+                            <Label Text="Enable Captains Area" FontSize="14" FontAttributes="Bold"/>
+                            <Label Text="Adds a 'Captains' nav link, captains.html login page, and captain dashboard."
+                                   FontSize="11" TextColor="#6B7280"/>
+                        </VerticalStackLayout>
+                        <Switch x:Name="EnableSwitch" Grid.Column="1" VerticalOptions="Center"/>
+                    </Grid>
+
+                    <Label Text="Nav label" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="NavLabelEntry" Placeholder="🔐 Captains"/>
+
+                    <Label Text="Page title" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="PageTitleEntry" Placeholder="Captains Area"/>
+
+                    <Label Text="Welcome message" FontSize="12" TextColor="#6B7280"/>
+                    <Editor x:Name="WelcomeEditor" HeightRequest="70" AutoSize="TextChanges"
+                            Placeholder="Welcome captains. Sign in with your team PIN..."/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Sections -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Dashboard sections" FontSize="14" FontAttributes="Bold"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show upcoming fixtures" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowFixturesSwitch" Grid.Column="1"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show recent results" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowResultsSwitch" Grid.Column="1"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show captain contact list" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowContactsSwitch" Grid.Column="1"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show 'Submit Score Card' action" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowScoreSwitch" Grid.Column="1"/>
+                    </Grid>
+                    <Label Text="Score submission URL (Google Form, etc.). Leave blank to use a mailto: link to your league email."
+                           FontSize="11" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    <Entry x:Name="ScoreUrlEntry" Placeholder="https://forms.gle/..."/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show 'Player Availability' action" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowAvailSwitch" Grid.Column="1"/>
+                    </Grid>
+                    <Entry x:Name="AvailUrlEntry" Placeholder="https://..."/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show 'Printable Fixtures Sheet' link" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowSheetSwitch" Grid.Column="1"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Show team roster (player list)" VerticalOptions="Center"/>
+                        <Switch x:Name="ShowRosterSwitch" Grid.Column="1"/>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout>
+                            <Label Text="Allow captains to update their own details" FontAttributes="Bold"/>
+                            <Label Text="Adds a 'My Details' section so captains can submit updates to their captain name, email, phone or PIN. Submissions go to your form service (or a mailto: fallback)."
+                                   FontSize="11" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                        <Switch x:Name="AllowSelfUpdateSwitch" Grid.Column="1" VerticalOptions="Center"/>
+                    </Grid>
+                    <Label Text="Notify email for updates (defaults to league contact email if blank)" FontSize="11" TextColor="#6B7280"/>
+                    <Entry x:Name="UpdateNotifyEmailEntry" Placeholder="admin@league.com" Keyboard="Email"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Per-team PIN management -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Team PINs &amp; contact" FontSize="14" FontAttributes="Bold"/>
+                        <Label x:Name="PinsFilledLabel" Grid.Column="1" FontSize="11" TextColor="#9CA3AF"/>
+                    </Grid>
+                    <Label Text="Set a PIN per team to enable captain login. Email and phone show in the contact list."
+                           FontSize="11" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+                    <CollectionView x:Name="TeamsList" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Margin="0,4" Padding="10" BorderColor="#E5E7EB" CornerRadius="6">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding TeamName}" FontAttributes="Bold" FontSize="13"/>
+                                        <Label Text="{Binding DivisionName}" FontSize="11" TextColor="#6B7280"/>
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                            <Entry Placeholder="Captain email" Text="{Binding CaptainEmail, Mode=TwoWay}" Keyboard="Email"/>
+                                            <Entry Grid.Column="1" Placeholder="Phone" Text="{Binding CaptainPhone, Mode=TwoWay}" Keyboard="Telephone"/>
+                                        </Grid>
+                                        <Entry Placeholder="PIN (4-12 digits)" Text="{Binding CaptainPin, Mode=TwoWay}" MaxLength="32"/>
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Button Text="Save Changes" Clicked="OnSaveClicked" BackgroundColor="#10B981" Margin="0,10,0,0"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

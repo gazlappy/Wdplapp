@@ -161,6 +161,23 @@ namespace Wdpl2.Services
             if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
                 files["history.html"] = GenerateHistoryPage(season, template);
 
+            // Captains Area (PIN-gated, client-side)
+            if (_settings.EnableCaptainsArea)
+            {
+                var (capDivs, capVenues, capTeams, capPlayers, capFixtures) = _league.GetSeasonData(season.Id);
+                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
+                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
+
+                files["captains-data.json"] = jsonGenerator.GenerateCaptainsJson(capTeams, capDivs, capVenues, capPlayers, capFixtures);
+                files["captains.html"] = templateGenerator.GenerateCaptainsLoginPage(
+                    season, _cacheBuster,
+                    AppendDocumentHead, AppendHeader, AppendNavigation, AppendFooter);
+                files["captain-dashboard.html"] = templateGenerator.GenerateCaptainDashboardPage(
+                    season, _cacheBuster,
+                    AppendDocumentHead, AppendHeader, AppendNavigation, AppendFooter,
+                    GetTableClasses());
+            }
+
             // Custom pages
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished))
             {

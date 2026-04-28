@@ -246,6 +246,27 @@ namespace Wdpl2.Models
         public bool ShowContactPage { get; set; } = false;
         public bool ShowPoolGame { get; set; } = true;
 
+        // Captains Area (private, PIN-gated section for team captains)
+        public bool EnableCaptainsArea { get; set; } = false;
+        public string CaptainsAreaNavLabel { get; set; } = "\U0001F510 Captains";
+        public string CaptainsAreaPageTitle { get; set; } = "Captains Area";
+        public string CaptainsWelcomeMessage { get; set; } = "Welcome captains. Sign in with your team PIN to access fixtures, contacts and submission tools.";
+        public bool CaptainsShowContactList { get; set; } = true;
+        public bool CaptainsShowFixtures { get; set; } = true;
+        public bool CaptainsShowResults { get; set; } = true;
+        public bool CaptainsShowScoreSubmission { get; set; } = true;
+        public string CaptainsScoreSubmissionUrl { get; set; } = ""; // external Google Form, etc. Leave blank to use mailto.
+        public bool CaptainsShowAvailability { get; set; } = true;
+        public string CaptainsAvailabilityUrl { get; set; } = "";
+        public bool CaptainsShowFixturesSheetDownload { get; set; } = true;
+        public bool CaptainsShowTeamRoster { get; set; } = true;
+
+        // Captain self-service: lets a logged-in captain submit updates to their own contact details / PIN.
+        // Submissions are POSTed to the configured FormServiceUrl (Getform / jsonbin / etc.) so the admin
+        // can review and apply them. Falls back to a mailto: to CaptainsUpdateNotifyEmail (or ContactEmail).
+        public bool CaptainsAllowSelfUpdate { get; set; } = true;
+        public string CaptainsUpdateNotifyEmail { get; set; } = "";
+
         // Page Titles (displayed as the heading on each page)
         public string HomeWelcomeTitle { get; set; } = "Welcome to {season}";
         public string StandingsPageTitle { get; set; } = "League Standings";

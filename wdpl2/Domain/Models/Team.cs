@@ -34,6 +34,22 @@ namespace Wdpl2.Models
         /// <summary>Some UIs track if the captain played.</summary>
         public bool CaptainPlayed { get; set; }
 
+        /// <summary>Captain contact email (used for the website Captains Area contact list).</summary>
+        [MaxLength(120)]
+        public string? CaptainEmail { get; set; }
+
+        /// <summary>Captain contact phone (used for the website Captains Area contact list).</summary>
+        [MaxLength(40)]
+        public string? CaptainPhone { get; set; }
+
+        /// <summary>
+        /// Captain login PIN (4-12 chars) for the generated website's Captains Area.
+        /// Stored in plain text inside the app database; only a SHA-256 hash is published
+        /// to the static site. Empty/null disables login for this team.
+        /// </summary>
+        [MaxLength(32)]
+        public string? CaptainPin { get; set; }
+
         public string? Notes { get; set; }
 
         /// <summary>When this record was created.</summary>
