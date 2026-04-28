@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls"
+             xmlns:ctl="clr-namespace:Wdpl2.Features.WebsiteBuilder.Views.Controls"
              x:Class="Wdpl2.Features.WebsiteBuilder.Views.LogoDesignerPage"
              Title="Logo Designer">
 
@@ -90,7 +91,7 @@
                         </Grid>
 
                         <Label Text="Text color" FontSize="12"/>
-                        <Entry x:Name="TextColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged" Placeholder="#FFFFFF"/>
+                        <ctl:ColorPickerView x:Name="TextColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
                     </VerticalStackLayout>
                 </Frame>
 
@@ -102,7 +103,7 @@
                             <CheckBox x:Name="TextStrokeCheck" CheckedChanged="OnAnyChanged"/>
                             <Label Text="Outline" VerticalOptions="Center" FontSize="12"/>
                         </HorizontalStackLayout>
-                        <Entry x:Name="TextStrokeColorEntry" Text="#0F172A" TextChanged="OnAnyChanged" Placeholder="Outline color"/>
+                        <ctl:ColorPickerView x:Name="TextStrokeColorPicker" HexColor="#0F172A" ColorChanged="OnAnyChanged"/>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Label Text="Width" VerticalOptions="Center" FontSize="12"/>
                             <Slider Grid.Column="1" x:Name="TextStrokeWidthSlider" Minimum="1" Maximum="20" Value="4" ValueChanged="OnAnyChanged"/>
@@ -113,7 +114,7 @@
                             <CheckBox x:Name="TextShadowCheck" CheckedChanged="OnAnyChanged"/>
                             <Label Text="Drop shadow / glow" VerticalOptions="Center" FontSize="12"/>
                         </HorizontalStackLayout>
-                        <Entry x:Name="TextShadowColorEntry" Text="#000000" TextChanged="OnAnyChanged" Placeholder="Shadow color"/>
+                        <ctl:ColorPickerView x:Name="TextShadowColorPicker" HexColor="#000000" ColorChanged="OnAnyChanged"/>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Label Text="Blur" VerticalOptions="Center" FontSize="12"/>
                             <Slider Grid.Column="1" x:Name="TextShadowBlurSlider" Minimum="0" Maximum="40" Value="6" ValueChanged="OnAnyChanged"/>
@@ -142,7 +143,7 @@
                             <Slider Grid.Column="1" x:Name="SubtitleSpacingSlider" Minimum="0" Maximum="30" Value="6" ValueChanged="OnAnyChanged"/>
                             <Label Grid.Column="2" x:Name="SubtitleSpacingLabel" Text="6" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
                         </Grid>
-                        <Entry x:Name="SubtitleColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged" Placeholder="Subtitle color"/>
+                        <ctl:ColorPickerView x:Name="SubtitleColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
                     </VerticalStackLayout>
                 </Frame>
 
@@ -209,7 +210,7 @@
                         </Picker>
 
                         <Label Text="Background color 1" FontSize="12"/>
-                        <Entry x:Name="BgColor1Entry" Text="#3B82F6" TextChanged="OnAnyChanged"/>
+                        <ctl:ColorPickerView x:Name="BgColor1Picker" HexColor="#3B82F6" ColorChanged="OnAnyChanged"/>
 
                         <HorizontalStackLayout Spacing="6">
                             <CheckBox x:Name="GradientCheck" IsChecked="True" CheckedChanged="OnAnyChanged"/>
@@ -217,13 +218,13 @@
                         </HorizontalStackLayout>
 
                         <Label Text="Background color 2 (gradient)" FontSize="12"/>
-                        <Entry x:Name="BgColor2Entry" Text="#1E40AF" TextChanged="OnAnyChanged"/>
+                        <ctl:ColorPickerView x:Name="BgColor2Picker" HexColor="#1E40AF" ColorChanged="OnAnyChanged"/>
 
                         <HorizontalStackLayout Spacing="6">
                             <CheckBox x:Name="ThreeColorCheck" CheckedChanged="OnAnyChanged"/>
                             <Label Text="Add third color stop" VerticalOptions="Center" FontSize="12"/>
                         </HorizontalStackLayout>
-                        <Entry x:Name="BgColor3Entry" Text="#9333EA" TextChanged="OnAnyChanged" Placeholder="#9333EA"/>
+                        <ctl:ColorPickerView x:Name="BgColor3Picker" HexColor="#9333EA" ColorChanged="OnAnyChanged"/>
 
                         <Label Text="Gradient direction" FontSize="12"/>
                         <Picker x:Name="GradientDirPicker" SelectedIndexChanged="OnAnyChanged">
@@ -267,7 +268,7 @@
                                 </x:Array>
                             </Picker.ItemsSource>
                         </Picker>
-                        <Entry x:Name="PatternColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged" Placeholder="Pattern color"/>
+                        <ctl:ColorPickerView x:Name="PatternColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Label Text="Opacity" VerticalOptions="Center" FontSize="12"/>
                             <Slider Grid.Column="1" x:Name="PatternOpacitySlider" Minimum="0" Maximum="1" Value="0.12" ValueChanged="OnAnyChanged"/>
@@ -289,7 +290,7 @@
                             <Label Text="Show border" VerticalOptions="Center" FontSize="12" FontAttributes="Bold"/>
                         </HorizontalStackLayout>
                         <Label Text="Border color" FontSize="12"/>
-                        <Entry x:Name="BorderColorEntry" Text="#FFFFFF" TextChanged="OnAnyChanged"/>
+                        <ctl:ColorPickerView x:Name="BorderColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Label Text="Width" VerticalOptions="Center" FontSize="12"/>
                             <Slider Grid.Column="1" x:Name="BorderWidthSlider" Minimum="1" Maximum="40" Value="6" ValueChanged="OnAnyChanged"/>
@@ -316,7 +317,7 @@
                             <CheckBox x:Name="ShapeShadowCheck" CheckedChanged="OnAnyChanged"/>
                             <Label Text="Shape drop shadow" VerticalOptions="Center" FontSize="12" FontAttributes="Bold"/>
                         </HorizontalStackLayout>
-                        <Entry x:Name="ShapeShadowColorEntry" Text="#000000" TextChanged="OnAnyChanged" Placeholder="Shadow color"/>
+                        <ctl:ColorPickerView x:Name="ShapeShadowColorPicker" HexColor="#000000" ColorChanged="OnAnyChanged"/>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Label Text="Blur" VerticalOptions="Center" FontSize="12"/>
                             <Slider Grid.Column="1" x:Name="ShapeShadowBlurSlider" Minimum="0" Maximum="60" Value="16" ValueChanged="OnAnyChanged"/>

@@ -381,8 +381,68 @@ public static class LogoRenderer
             canvas.Save();
             canvas.RotateDegrees(rotation, cx, baselineY - size * 0.35f);
         }
-        DrawCenteredText(canvas, text, typeface, size, color, cx, baselineY);
+
+        // Emojis are not in standard typefaces — use SKTextBlob.CreateFromText with a typeface
+        // resolved per-character so we get the system emoji font (Segoe UI Emoji, Apple Color Emoji, etc.)
+        DrawEmojiCapableText(canvas, text, size, color, cx, baselineY);
+
         if (System.Math.Abs(rotation) > 0.01f) canvas.Restore();
+    }
+
+    private static SKTypeface ResolveTypefaceForCharacter(int codepoint)
+    {
+        return SKFontManager.Default.MatchCharacter(codepoint) ?? SKTypeface.Default;
+    }
+
+    private static void DrawEmojiCapableText(SKCanvas canvas, string text, float size, SKColor color, float cx, float baselineY)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        // Group consecutive runes that share the same matched typeface, then draw each run.
+        using var paint = new SKPaint { Color = color, IsAntialias = true };
+
+        // First pass — measure total width
+        float total = 0f;
+        var runs = new System.Collections.Generic.List<(string Text, SKTypeface Typeface, float Width)>();
+        var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+        SKTypeface? currentTf = null;
+        var sb = new System.Text.StringBuilder();
+        while (enumerator.MoveNext())
+        {
+            var element = (string)enumerator.Current!;
+            int cp = char.ConvertToUtf32(element, 0);
+            var tf = ResolveTypefaceForCharacter(cp) ?? SKTypeface.Default;
+            if (currentTf == null || ReferenceEquals(tf, currentTf) || tf.FamilyName == currentTf.FamilyName)
+            {
+                currentTf ??= tf;
+                sb.Append(element);
+            }
+            else
+            {
+                var run = sb.ToString();
+                using var f0 = new SKFont(currentTf!, size);
+                runs.Add((run, currentTf!, f0.MeasureText(run)));
+                total += runs[^1].Width;
+                sb.Clear();
+                sb.Append(element);
+                currentTf = tf;
+            }
+        }
+        if (sb.Length > 0 && currentTf != null)
+        {
+            var run = sb.ToString();
+            using var f0 = new SKFont(currentTf, size);
+            runs.Add((run, currentTf, f0.MeasureText(run)));
+            total += runs[^1].Width;
+        }
+
+        float x = cx - total / 2f;
+        foreach (var run in runs)
+        {
+            using var font = new SKFont(run.Typeface, size);
+            canvas.DrawText(run.Text, x, baselineY, SKTextAlign.Left, font, paint);
+            x += run.Width;
+        }
     }
 
     private static void DrawTextWithEffects(SKCanvas canvas, string text, SKTypeface typeface, float size,

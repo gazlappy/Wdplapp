@@ -71,15 +71,15 @@ public partial class LogoDesignerPage : ContentPage
         TextRotationLabel.Text = ((int)_recipe.TextRotation) + "°";
         TextOffsetYSlider.Value = _recipe.TextOffsetY;
         TextOffsetYLabel.Text = ((int)_recipe.TextOffsetY).ToString();
-        TextColorEntry.Text = _recipe.TextColor;
+        TextColorPicker.HexColor = _recipe.TextColor;
 
         TextStrokeCheck.IsChecked = _recipe.TextStroke;
-        TextStrokeColorEntry.Text = _recipe.TextStrokeColor;
+        TextStrokeColorPicker.HexColor = _recipe.TextStrokeColor;
         TextStrokeWidthSlider.Value = _recipe.TextStrokeWidth;
         TextStrokeWidthLabel.Text = ((int)_recipe.TextStrokeWidth).ToString();
 
         TextShadowCheck.IsChecked = _recipe.TextShadow;
-        TextShadowColorEntry.Text = _recipe.TextShadowColor;
+        TextShadowColorPicker.HexColor = _recipe.TextShadowColor;
         TextShadowBlurSlider.Value = _recipe.TextShadowBlur;
         TextShadowBlurLabel.Text = ((int)_recipe.TextShadowBlur).ToString();
         TextShadowOffsetYSlider.Value = _recipe.TextShadowOffsetY;
@@ -90,7 +90,7 @@ public partial class LogoDesignerPage : ContentPage
         SubtitleSizeLabel.Text = ((int)_recipe.SubtitleSize).ToString();
         SubtitleSpacingSlider.Value = _recipe.SubtitleLetterSpacing;
         SubtitleSpacingLabel.Text = ((int)_recipe.SubtitleLetterSpacing).ToString();
-        SubtitleColorEntry.Text = _recipe.SubtitleColor;
+        SubtitleColorPicker.HexColor = _recipe.SubtitleColor;
 
         IconEntry.Text = _recipe.Icon;
         IconSizeSlider.Value = _recipe.IconSize;
@@ -121,9 +121,9 @@ public partial class LogoDesignerPage : ContentPage
             _                => 0,
         };
 
-        BgColor1Entry.Text = _recipe.BgColor1;
-        BgColor2Entry.Text = _recipe.BgColor2;
-        BgColor3Entry.Text = _recipe.BgColor3;
+        BgColor1Picker.HexColor = _recipe.BgColor1;
+        BgColor2Picker.HexColor = _recipe.BgColor2;
+        BgColor3Picker.HexColor = _recipe.BgColor3;
         GradientCheck.IsChecked = _recipe.UseGradient;
         ThreeColorCheck.IsChecked = _recipe.UseThreeColorGradient;
         GradientDirPicker.SelectedIndex = _recipe.GradientDirection switch
@@ -149,14 +149,14 @@ public partial class LogoDesignerPage : ContentPage
             "chevron"        => 5,
             _                => 0,
         };
-        PatternColorEntry.Text = _recipe.PatternColor;
+        PatternColorPicker.HexColor = _recipe.PatternColor;
         PatternOpacitySlider.Value = _recipe.PatternOpacity;
         PatternOpacityLabel.Text = ((int)(_recipe.PatternOpacity * 100)) + "%";
         PatternScaleSlider.Value = _recipe.PatternScale;
         PatternScaleLabel.Text = ((int)_recipe.PatternScale).ToString();
 
         BorderCheck.IsChecked = _recipe.ShowBorder;
-        BorderColorEntry.Text = _recipe.BorderColor;
+        BorderColorPicker.HexColor = _recipe.BorderColor;
         BorderWidthSlider.Value = _recipe.BorderWidth;
         BorderWidthLabel.Text = ((int)_recipe.BorderWidth).ToString();
         BorderStylePicker.SelectedIndex = _recipe.BorderStyle switch
@@ -168,7 +168,7 @@ public partial class LogoDesignerPage : ContentPage
         };
 
         ShapeShadowCheck.IsChecked = _recipe.ShapeShadow;
-        ShapeShadowColorEntry.Text = _recipe.ShapeShadowColor;
+        ShapeShadowColorPicker.HexColor = _recipe.ShapeShadowColor;
         ShapeShadowBlurSlider.Value = _recipe.ShapeShadowBlur;
         ShapeShadowBlurLabel.Text = ((int)_recipe.ShapeShadowBlur).ToString();
         ShapeShadowOffsetYSlider.Value = _recipe.ShapeShadowOffsetY;
@@ -198,15 +198,15 @@ public partial class LogoDesignerPage : ContentPage
         TextRotationLabel.Text = ((int)_recipe.TextRotation) + "°";
         _recipe.TextOffsetY = (float)TextOffsetYSlider.Value;
         TextOffsetYLabel.Text = ((int)_recipe.TextOffsetY).ToString();
-        _recipe.TextColor = NormalizeHex(TextColorEntry.Text, _recipe.TextColor);
+        _recipe.TextColor = NormalizeHex(TextColorPicker.HexColor, _recipe.TextColor);
 
         _recipe.TextStroke = TextStrokeCheck.IsChecked;
-        _recipe.TextStrokeColor = NormalizeHex(TextStrokeColorEntry.Text, _recipe.TextStrokeColor);
+        _recipe.TextStrokeColor = NormalizeHex(TextStrokeColorPicker.HexColor, _recipe.TextStrokeColor);
         _recipe.TextStrokeWidth = (float)TextStrokeWidthSlider.Value;
         TextStrokeWidthLabel.Text = ((int)_recipe.TextStrokeWidth).ToString();
 
         _recipe.TextShadow = TextShadowCheck.IsChecked;
-        _recipe.TextShadowColor = NormalizeHex(TextShadowColorEntry.Text, _recipe.TextShadowColor);
+        _recipe.TextShadowColor = NormalizeHex(TextShadowColorPicker.HexColor, _recipe.TextShadowColor);
         _recipe.TextShadowBlur = (float)TextShadowBlurSlider.Value;
         TextShadowBlurLabel.Text = ((int)_recipe.TextShadowBlur).ToString();
         _recipe.TextShadowOffsetY = (float)TextShadowOffsetYSlider.Value;
@@ -217,7 +217,7 @@ public partial class LogoDesignerPage : ContentPage
         SubtitleSizeLabel.Text = ((int)_recipe.SubtitleSize).ToString();
         _recipe.SubtitleLetterSpacing = (float)SubtitleSpacingSlider.Value;
         SubtitleSpacingLabel.Text = ((int)_recipe.SubtitleLetterSpacing).ToString();
-        _recipe.SubtitleColor = NormalizeHex(SubtitleColorEntry.Text, _recipe.SubtitleColor);
+        _recipe.SubtitleColor = NormalizeHex(SubtitleColorPicker.HexColor, _recipe.SubtitleColor);
 
         _recipe.Icon = IconEntry.Text ?? "";
         _recipe.IconSize = (float)IconSizeSlider.Value;
@@ -247,9 +247,9 @@ public partial class LogoDesignerPage : ContentPage
             10 => "none",
             _ => "circle",
         };
-        _recipe.BgColor1 = NormalizeHex(BgColor1Entry.Text, _recipe.BgColor1);
-        _recipe.BgColor2 = NormalizeHex(BgColor2Entry.Text, _recipe.BgColor2);
-        _recipe.BgColor3 = NormalizeHex(BgColor3Entry.Text, _recipe.BgColor3);
+        _recipe.BgColor1 = NormalizeHex(BgColor1Picker.HexColor, _recipe.BgColor1);
+        _recipe.BgColor2 = NormalizeHex(BgColor2Picker.HexColor, _recipe.BgColor2);
+        _recipe.BgColor3 = NormalizeHex(BgColor3Picker.HexColor, _recipe.BgColor3);
         _recipe.UseGradient = GradientCheck.IsChecked;
         _recipe.UseThreeColorGradient = ThreeColorCheck.IsChecked;
         _recipe.GradientDirection = GradientDirPicker.SelectedIndex switch
@@ -275,14 +275,14 @@ public partial class LogoDesignerPage : ContentPage
             5 => "chevron",
             _ => "none",
         };
-        _recipe.PatternColor = NormalizeHex(PatternColorEntry.Text, _recipe.PatternColor);
+        _recipe.PatternColor = NormalizeHex(PatternColorPicker.HexColor, _recipe.PatternColor);
         _recipe.PatternOpacity = (float)PatternOpacitySlider.Value;
         PatternOpacityLabel.Text = ((int)(_recipe.PatternOpacity * 100)) + "%";
         _recipe.PatternScale = (float)PatternScaleSlider.Value;
         PatternScaleLabel.Text = ((int)_recipe.PatternScale).ToString();
 
         _recipe.ShowBorder = BorderCheck.IsChecked;
-        _recipe.BorderColor = NormalizeHex(BorderColorEntry.Text, _recipe.BorderColor);
+        _recipe.BorderColor = NormalizeHex(BorderColorPicker.HexColor, _recipe.BorderColor);
         _recipe.BorderWidth = (float)BorderWidthSlider.Value;
         BorderWidthLabel.Text = ((int)_recipe.BorderWidth).ToString();
         _recipe.BorderStyle = BorderStylePicker.SelectedIndex switch
@@ -294,7 +294,7 @@ public partial class LogoDesignerPage : ContentPage
         };
 
         _recipe.ShapeShadow = ShapeShadowCheck.IsChecked;
-        _recipe.ShapeShadowColor = NormalizeHex(ShapeShadowColorEntry.Text, _recipe.ShapeShadowColor);
+        _recipe.ShapeShadowColor = NormalizeHex(ShapeShadowColorPicker.HexColor, _recipe.ShapeShadowColor);
         _recipe.ShapeShadowBlur = (float)ShapeShadowBlurSlider.Value;
         ShapeShadowBlurLabel.Text = ((int)_recipe.ShapeShadowBlur).ToString();
         _recipe.ShapeShadowOffsetY = (float)ShapeShadowOffsetYSlider.Value;
@@ -392,8 +392,8 @@ public partial class LogoDesignerPage : ContentPage
             var parts = param.Split('|');
             if (parts.Length == 2)
             {
-                BgColor1Entry.Text = parts[0];
-                BgColor2Entry.Text = parts[1];
+                BgColor1Picker.HexColor = parts[0];
+                BgColor2Picker.HexColor = parts[1];
                 GradientCheck.IsChecked = true;
             }
         }
