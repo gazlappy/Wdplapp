@@ -34,10 +34,39 @@ public static class LogoRenderer
         var rect = new SKRect(pad, pad, w - pad, h - pad);
 
         // ---- Background shape -----------------------------------------
-        if (!string.Equals(recipe.BgShape, "none", System.StringComparison.OrdinalIgnoreCase))
+        using var shapePath = !string.Equals(recipe.BgShape, "none", System.StringComparison.OrdinalIgnoreCase)
+            ? BuildShapePath(recipe.BgShape, rect)
+            : null;
+
+        if (shapePath != null)
         {
+            // Drop shadow under the shape
+            if (recipe.ShapeShadow)
+            {
+                using var shadow = new SKPaint
+                {
+                    Color = ParseColor(recipe.ShapeShadowColor, SKColors.Black).WithAlpha(140),
+                    Style = SKPaintStyle.Fill,
+                    IsAntialias = true,
+                    ImageFilter = SKImageFilter.CreateBlur(recipe.ShapeShadowBlur * scale, recipe.ShapeShadowBlur * scale)
+                };
+                canvas.Save();
+                canvas.Translate(0, recipe.ShapeShadowOffsetY * scale);
+                canvas.DrawPath(shapePath, shadow);
+                canvas.Restore();
+            }
+
             using var bgPaint = BuildBackgroundPaint(recipe, rect);
-            DrawShape(canvas, recipe.BgShape, rect, bgPaint);
+            canvas.DrawPath(shapePath, bgPaint);
+
+            // Pattern overlay (clipped to shape)
+            if (!string.Equals(recipe.Pattern, "none", System.StringComparison.OrdinalIgnoreCase))
+            {
+                canvas.Save();
+                canvas.ClipPath(shapePath, antialias: true);
+                DrawPattern(canvas, rect, recipe, scale);
+                canvas.Restore();
+            }
 
             if (recipe.ShowBorder && recipe.BorderWidth > 0)
             {
@@ -48,13 +77,21 @@ public static class LogoRenderer
                     Color = ParseColor(recipe.BorderColor, SKColors.White),
                     IsAntialias = true
                 };
-                DrawShape(canvas, recipe.BgShape, rect, borderPaint);
+                ApplyBorderStyle(borderPaint, recipe.BorderStyle, recipe.BorderWidth * scale);
+                canvas.DrawPath(shapePath, borderPaint);
+
+                if (string.Equals(recipe.BorderStyle, "double", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    using var inner = BuildShapePath(recipe.BgShape, Inset(rect, recipe.BorderWidth * scale * 1.8f));
+                    canvas.DrawPath(inner, borderPaint);
+                }
             }
         }
 
-        // ---- Icon (emoji/text) above main text ------------------------
+        // ---- Icon and text --------------------------------------------
         var hasIcon = !string.IsNullOrWhiteSpace(recipe.Icon);
         var hasText = !string.IsNullOrWhiteSpace(recipe.Text);
+        var hasSub = !string.IsNullOrWhiteSpace(recipe.Subtitle);
 
         var centerX = w / 2f;
         var centerY = h / 2f + recipe.TextOffsetY * scale;
@@ -62,32 +99,81 @@ public static class LogoRenderer
         SKTypeface iconTypeface = SKTypeface.Default;
         SKTypeface textTypeface = ResolveTypeface(recipe.FontFamily, recipe.FontWeight);
 
-        if (hasIcon && hasText)
+        var iconPos = (recipe.IconPosition ?? "above").ToLowerInvariant();
+
+        // "behind" icon — draw faded large icon centered behind text
+        if (hasIcon && iconPos == "behind")
         {
-            // Stack: icon above, text below
-            var iconSize = recipe.IconSize * scale;
+            DrawIcon(canvas, recipe.Icon, iconTypeface,
+                recipe.IconSize * scale * 1.6f,
+                ParseColor(recipe.IconColor, SKColors.White).WithAlpha(60),
+                centerX, centerY + recipe.IconSize * scale * 0.6f, recipe.IconRotation);
+        }
+
+        if (hasText || hasSub)
+        {
             var textSize = recipe.FontSize * scale;
+            var subSize = recipe.SubtitleSize * scale;
+            var iconSize = hasIcon && (iconPos == "above" || iconPos == "below") ? recipe.IconSize * scale : 0;
             var stackGap = 12 * scale;
-            var totalH = iconSize + stackGap + textSize;
+            var subGap = 8 * scale;
+
+            float textHeight = hasText ? textSize : 0;
+            float subHeight = hasSub ? subSize : 0;
+            float totalH = (iconSize > 0 ? iconSize + stackGap : 0) + textHeight + (hasSub ? subGap + subHeight : 0);
             var top = centerY - totalH / 2f;
 
-            DrawCenteredText(canvas, recipe.Icon, iconTypeface, iconSize,
-                ParseColor(recipe.IconColor, SKColors.White), centerX, top + iconSize * 0.85f);
+            float y = top;
 
-            DrawCenteredText(canvas, ApplyCase(recipe.Text, recipe.TextUppercase), textTypeface, textSize,
-                ParseColor(recipe.TextColor, SKColors.White), centerX, top + iconSize + stackGap + textSize * 0.85f);
+            if (hasIcon && iconPos == "above")
+            {
+                DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
+                    ParseColor(recipe.IconColor, SKColors.White),
+                    centerX, y + iconSize * 0.85f, recipe.IconRotation);
+                y += iconSize + stackGap;
+            }
+
+            if (hasText)
+            {
+                DrawTextWithEffects(canvas, ApplyCase(recipe.Text, recipe.TextUppercase), textTypeface, textSize,
+                    centerX, y + textSize * 0.85f, recipe, scale, isSubtitle: false);
+                y += textHeight;
+            }
+
+            if (hasSub)
+            {
+                y += subGap;
+                DrawTextWithEffects(canvas, ApplyCase(recipe.Subtitle, recipe.TextUppercase), textTypeface, subSize,
+                    centerX, y + subSize * 0.85f, recipe, scale, isSubtitle: true);
+                y += subHeight;
+            }
+
+            if (hasIcon && iconPos == "below")
+            {
+                y += stackGap;
+                DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
+                    ParseColor(recipe.IconColor, SKColors.White),
+                    centerX, y + iconSize * 0.85f, recipe.IconRotation);
+            }
         }
-        else if (hasIcon)
+        else if (hasIcon && iconPos != "behind")
         {
             var iconSize = recipe.IconSize * scale;
-            DrawCenteredText(canvas, recipe.Icon, iconTypeface, iconSize,
-                ParseColor(recipe.IconColor, SKColors.White), centerX, centerY + iconSize * 0.35f);
+            DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
+                ParseColor(recipe.IconColor, SKColors.White), centerX, centerY + iconSize * 0.35f, recipe.IconRotation);
         }
-        else if (hasText)
+
+        // Side-positioned icons (left/right of text)
+        if (hasIcon && (iconPos == "left" || iconPos == "right") && hasText)
         {
             var textSize = recipe.FontSize * scale;
-            DrawCenteredText(canvas, ApplyCase(recipe.Text, recipe.TextUppercase), textTypeface, textSize,
-                ParseColor(recipe.TextColor, SKColors.White), centerX, centerY + textSize * 0.35f);
+            var iconSize = recipe.IconSize * scale;
+            using var font = new SKFont(textTypeface, textSize);
+            var tw = font.MeasureText(ApplyCase(recipe.Text, recipe.TextUppercase));
+            float gap = 16 * scale;
+            float ix = iconPos == "left" ? centerX - tw / 2f - iconSize / 2f - gap : centerX + tw / 2f + iconSize / 2f + gap;
+            DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
+                ParseColor(recipe.IconColor, SKColors.White), ix, centerY + iconSize * 0.35f, recipe.IconRotation);
         }
     }
 
@@ -95,10 +181,23 @@ public static class LogoRenderer
 
     private static string ApplyCase(string text, bool upper) => upper ? text.ToUpperInvariant() : text;
 
+    private static SKRect Inset(SKRect r, float by) => new(r.Left + by, r.Top + by, r.Right - by, r.Bottom - by);
+
+    private static void ApplyBorderStyle(SKPaint paint, string style, float w)
+    {
+        switch ((style ?? "solid").ToLowerInvariant())
+        {
+            case "dashed": paint.PathEffect = SKPathEffect.CreateDash([w * 2.5f, w * 1.8f], 0); break;
+            case "dotted": paint.PathEffect = SKPathEffect.CreateDash([w * 0.1f, w * 1.8f], 0); paint.StrokeCap = SKStrokeCap.Round; break;
+            default: break;
+        }
+    }
+
     private static SKPaint BuildBackgroundPaint(LogoDesignRecipe r, SKRect rect)
     {
         var c1 = ParseColor(r.BgColor1, SKColors.RoyalBlue);
         var c2 = ParseColor(r.BgColor2, SKColors.DarkBlue);
+        var c3 = ParseColor(r.BgColor3, SKColors.Purple);
 
         var paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
 
@@ -108,74 +207,255 @@ public static class LogoRenderer
             return paint;
         }
 
+        SKColor[] colors = r.UseThreeColorGradient ? [c1, c2, c3] : [c1, c2];
+
         SKShader shader = (r.GradientDirection?.ToLowerInvariant()) switch
         {
-            "vertical"   => SKShader.CreateLinearGradient(new SKPoint(rect.MidX, rect.Top), new SKPoint(rect.MidX, rect.Bottom), new[] { c1, c2 }, null, SKShaderTileMode.Clamp),
-            "horizontal" => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.MidY), new SKPoint(rect.Right, rect.MidY), new[] { c1, c2 }, null, SKShaderTileMode.Clamp),
-            "radial"     => SKShader.CreateRadialGradient(new SKPoint(rect.MidX, rect.MidY), System.Math.Max(rect.Width, rect.Height) / 2f, new[] { c1, c2 }, null, SKShaderTileMode.Clamp),
-            _            => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.Top), new SKPoint(rect.Right, rect.Bottom), new[] { c1, c2 }, null, SKShaderTileMode.Clamp),
+            "vertical"   => SKShader.CreateLinearGradient(new SKPoint(rect.MidX, rect.Top), new SKPoint(rect.MidX, rect.Bottom), colors, null, SKShaderTileMode.Clamp),
+            "horizontal" => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.MidY), new SKPoint(rect.Right, rect.MidY), colors, null, SKShaderTileMode.Clamp),
+            "radial"     => SKShader.CreateRadialGradient(new SKPoint(rect.MidX, rect.MidY), System.Math.Max(rect.Width, rect.Height) / 2f, colors, null, SKShaderTileMode.Clamp),
+            "angle"      => CreateAngleGradient(rect, r.GradientAngle, colors),
+            _            => SKShader.CreateLinearGradient(new SKPoint(rect.Left, rect.Top), new SKPoint(rect.Right, rect.Bottom), colors, null, SKShaderTileMode.Clamp),
         };
         paint.Shader = shader;
         return paint;
     }
 
-    private static void DrawShape(SKCanvas canvas, string shape, SKRect rect, SKPaint paint)
+    private static SKShader CreateAngleGradient(SKRect rect, float angleDeg, SKColor[] colors)
     {
+        var rad = angleDeg * System.Math.PI / 180.0;
+        var dx = (float)System.Math.Cos(rad);
+        var dy = (float)System.Math.Sin(rad);
+        var cx = rect.MidX; var cy = rect.MidY;
+        var len = (System.Math.Max(rect.Width, rect.Height)) / 2f;
+        var p1 = new SKPoint(cx - dx * len, cy - dy * len);
+        var p2 = new SKPoint(cx + dx * len, cy + dy * len);
+        return SKShader.CreateLinearGradient(p1, p2, colors, null, SKShaderTileMode.Clamp);
+    }
+
+    private static SKPath BuildShapePath(string shape, SKRect rect)
+    {
+        var path = new SKPath();
         switch ((shape ?? "circle").ToLowerInvariant())
         {
             case "square":
-                canvas.DrawRect(rect, paint);
-                break;
+                path.AddRect(rect); break;
             case "rounded-square":
                 var r = System.Math.Min(rect.Width, rect.Height) * 0.18f;
-                canvas.DrawRoundRect(rect, r, r, paint);
-                break;
+                path.AddRoundRect(rect, r, r); break;
             case "shield":
-                using (var path = BuildShieldPath(rect))
-                    canvas.DrawPath(path, paint);
-                break;
+                AppendShield(path, rect); break;
             case "hexagon":
-                using (var path = BuildHexagonPath(rect))
-                    canvas.DrawPath(path, paint);
-                break;
+                AppendPolygon(path, rect, 6, -90); break;
+            case "octagon":
+                AppendPolygon(path, rect, 8, -22.5f); break;
+            case "triangle":
+                AppendPolygon(path, rect, 3, -90); break;
+            case "diamond":
+                AppendPolygon(path, rect, 4, -90); break;
+            case "star":
+                AppendStar(path, rect, 5, 0.5f); break;
+            case "banner":
+                AppendBanner(path, rect); break;
             case "circle":
             default:
-                var cx = rect.MidX; var cy = rect.MidY;
                 var radius = System.Math.Min(rect.Width, rect.Height) / 2f;
-                canvas.DrawCircle(cx, cy, radius, paint);
-                break;
+                path.AddCircle(rect.MidX, rect.MidY, radius); break;
         }
+        return path;
     }
 
-    private static SKPath BuildShieldPath(SKRect rect)
+    private static void DrawShape(SKCanvas canvas, string shape, SKRect rect, SKPaint paint)
     {
-        var p = new SKPath();
-        var w = rect.Width; var h = rect.Height;
-        var top = new SKPoint(rect.MidX, rect.Top);
-        p.MoveTo(top);
+        using var path = BuildShapePath(shape, rect);
+        canvas.DrawPath(path, paint);
+    }
+
+    private static void AppendShield(SKPath p, SKRect rect)
+    {
+        var h = rect.Height;
+        p.MoveTo(rect.MidX, rect.Top);
         p.LineTo(rect.Right, rect.Top + h * 0.15f);
         p.LineTo(rect.Right, rect.Top + h * 0.55f);
         p.QuadTo(rect.Right, rect.Bottom, rect.MidX, rect.Bottom);
         p.QuadTo(rect.Left, rect.Bottom, rect.Left, rect.Top + h * 0.55f);
         p.LineTo(rect.Left, rect.Top + h * 0.15f);
         p.Close();
-        return p;
     }
 
-    private static SKPath BuildHexagonPath(SKRect rect)
+    private static void AppendPolygon(SKPath p, SKRect rect, int sides, float startAngleDeg)
     {
-        var p = new SKPath();
         var cx = rect.MidX; var cy = rect.MidY;
         var rad = System.Math.Min(rect.Width, rect.Height) / 2f;
-        for (int i = 0; i < 6; i++)
+        var startRad = startAngleDeg * System.Math.PI / 180.0;
+        for (int i = 0; i < sides; i++)
         {
-            var angle = System.Math.PI / 3 * i - System.Math.PI / 2;
+            var angle = startRad + 2 * System.Math.PI * i / sides;
             var x = cx + rad * (float)System.Math.Cos(angle);
             var y = cy + rad * (float)System.Math.Sin(angle);
             if (i == 0) p.MoveTo(x, y); else p.LineTo(x, y);
         }
         p.Close();
-        return p;
+    }
+
+    private static void AppendStar(SKPath p, SKRect rect, int points, float innerRatio)
+    {
+        var cx = rect.MidX; var cy = rect.MidY;
+        var outerR = System.Math.Min(rect.Width, rect.Height) / 2f;
+        var innerR = outerR * innerRatio;
+        var step = System.Math.PI / points;
+        var angle = -System.Math.PI / 2;
+        for (int i = 0; i < points * 2; i++)
+        {
+            var rad = (i % 2 == 0) ? outerR : innerR;
+            var x = cx + rad * (float)System.Math.Cos(angle);
+            var y = cy + rad * (float)System.Math.Sin(angle);
+            if (i == 0) p.MoveTo(x, y); else p.LineTo(x, y);
+            angle += step;
+        }
+        p.Close();
+    }
+
+    private static void AppendBanner(SKPath p, SKRect rect)
+    {
+        // Ribbon-style banner with notched ends
+        var notch = rect.Width * 0.10f;
+        var top = rect.Top + rect.Height * 0.28f;
+        var bot = rect.Bottom - rect.Height * 0.28f;
+        p.MoveTo(rect.Left, top);
+        p.LineTo(rect.Right, top);
+        p.LineTo(rect.Right - notch, (top + bot) / 2f);
+        p.LineTo(rect.Right, bot);
+        p.LineTo(rect.Left, bot);
+        p.LineTo(rect.Left + notch, (top + bot) / 2f);
+        p.Close();
+    }
+
+    private static void DrawPattern(SKCanvas canvas, SKRect rect, LogoDesignRecipe r, float scale)
+    {
+        var color = ParseColor(r.PatternColor, SKColors.White)
+            .WithAlpha((byte)System.Math.Clamp(r.PatternOpacity * 255f, 0, 255));
+        var step = System.Math.Max(4f, r.PatternScale * scale);
+        using var paint = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Fill };
+        using var stroke = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = System.Math.Max(1f, step / 12f) };
+
+        switch ((r.Pattern ?? "none").ToLowerInvariant())
+        {
+            case "stripes":
+                for (var y = rect.Top; y < rect.Bottom; y += step * 2)
+                    canvas.DrawRect(new SKRect(rect.Left, y, rect.Right, y + step), paint);
+                break;
+            case "dots":
+                var dotR = step / 4f;
+                for (var y = rect.Top + step / 2; y < rect.Bottom; y += step)
+                    for (var x = rect.Left + step / 2; x < rect.Right; x += step)
+                        canvas.DrawCircle(x, y, dotR, paint);
+                break;
+            case "grid":
+                for (var x = rect.Left; x < rect.Right; x += step) canvas.DrawLine(x, rect.Top, x, rect.Bottom, stroke);
+                for (var y = rect.Top; y < rect.Bottom; y += step) canvas.DrawLine(rect.Left, y, rect.Right, y, stroke);
+                break;
+            case "diagonal-lines":
+                for (var d = -rect.Height; d < rect.Width; d += step)
+                    canvas.DrawLine(rect.Left + d, rect.Top, rect.Left + d + rect.Height, rect.Bottom, stroke);
+                break;
+            case "chevron":
+                for (var y = rect.Top; y < rect.Bottom; y += step)
+                {
+                    var path = new SKPath();
+                    path.MoveTo(rect.Left, y);
+                    path.LineTo(rect.MidX, y + step / 2);
+                    path.LineTo(rect.Right, y);
+                    canvas.DrawPath(path, stroke);
+                    path.Dispose();
+                }
+                break;
+        }
+    }
+
+    private static void DrawIcon(SKCanvas canvas, string text, SKTypeface typeface, float size, SKColor color, float cx, float baselineY, float rotation)
+    {
+        if (string.IsNullOrEmpty(text) || size <= 0) return;
+        if (System.Math.Abs(rotation) > 0.01f)
+        {
+            canvas.Save();
+            canvas.RotateDegrees(rotation, cx, baselineY - size * 0.35f);
+        }
+        DrawCenteredText(canvas, text, typeface, size, color, cx, baselineY);
+        if (System.Math.Abs(rotation) > 0.01f) canvas.Restore();
+    }
+
+    private static void DrawTextWithEffects(SKCanvas canvas, string text, SKTypeface typeface, float size,
+        float cx, float baselineY, LogoDesignRecipe r, float scale, bool isSubtitle)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        using var font = new SKFont(typeface, size);
+
+        var color = ParseColor(isSubtitle ? r.SubtitleColor : r.TextColor, SKColors.White);
+        var spacing = (isSubtitle ? r.SubtitleLetterSpacing : r.LetterSpacing) * scale;
+        var rotation = isSubtitle ? 0 : r.TextRotation;
+
+        if (System.Math.Abs(rotation) > 0.01f)
+        {
+            canvas.Save();
+            canvas.RotateDegrees(rotation, cx, baselineY - size * 0.35f);
+        }
+
+        // Drop shadow (only for main text)
+        if (!isSubtitle && r.TextShadow)
+        {
+            using var shadow = new SKPaint
+            {
+                Color = ParseColor(r.TextShadowColor, SKColors.Black).WithAlpha(180),
+                IsAntialias = true,
+                ImageFilter = SKImageFilter.CreateBlur(System.Math.Max(0.5f, r.TextShadowBlur * scale), System.Math.Max(0.5f, r.TextShadowBlur * scale))
+            };
+            DrawSpacedText(canvas, text, font, shadow, cx + r.TextShadowOffsetX * scale, baselineY + r.TextShadowOffsetY * scale, spacing);
+        }
+
+        // Stroke
+        if (!isSubtitle && r.TextStroke && r.TextStrokeWidth > 0)
+        {
+            using var stroke = new SKPaint
+            {
+                Color = ParseColor(r.TextStrokeColor, SKColors.Black),
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = r.TextStrokeWidth * scale,
+                StrokeJoin = SKStrokeJoin.Round
+            };
+            DrawSpacedText(canvas, text, font, stroke, cx, baselineY, spacing);
+        }
+
+        using var fill = new SKPaint { Color = color, IsAntialias = true };
+        DrawSpacedText(canvas, text, font, fill, cx, baselineY, spacing);
+
+        if (System.Math.Abs(rotation) > 0.01f) canvas.Restore();
+    }
+
+    private static void DrawSpacedText(SKCanvas canvas, string text, SKFont font, SKPaint paint, float cx, float baselineY, float spacing)
+    {
+        if (System.Math.Abs(spacing) < 0.01f)
+        {
+            var w = font.MeasureText(text);
+            canvas.DrawText(text, cx - w / 2f, baselineY, SKTextAlign.Left, font, paint);
+            return;
+        }
+        // Manually lay out with spacing
+        float total = 0;
+        var widths = new float[text.Length];
+        for (int i = 0; i < text.Length; i++)
+        {
+            widths[i] = font.MeasureText(text[i].ToString());
+            total += widths[i];
+        }
+        total += spacing * (text.Length - 1);
+        float x = cx - total / 2f;
+        for (int i = 0; i < text.Length; i++)
+        {
+            canvas.DrawText(text[i].ToString(), x, baselineY, SKTextAlign.Left, font, paint);
+            x += widths[i] + spacing;
+        }
     }
 
     private static void DrawCenteredText(SKCanvas canvas, string text, SKTypeface typeface, float size, SKColor color, float cx, float baselineY)
@@ -183,8 +463,6 @@ public static class LogoRenderer
         if (string.IsNullOrEmpty(text)) return;
         using var font = new SKFont(typeface, size);
         using var paint = new SKPaint { Color = color, IsAntialias = true };
-
-        // Measure to center horizontally
         var width = font.MeasureText(text);
         canvas.DrawText(text, cx - width / 2f, baselineY, SKTextAlign.Left, font, paint);
     }
