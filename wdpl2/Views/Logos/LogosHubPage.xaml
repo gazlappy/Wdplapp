@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.Logos.LogosHubPage"
+             Title="Logos">
+    <ScrollView>
+        <VerticalStackLayout Spacing="16" Padding="16">
+
+            <!-- Header -->
+            <Border StrokeShape="RoundRectangle 12"
+                    BackgroundColor="{AppThemeBinding Light=#EEF2FF, Dark=#1E1B4B}"
+                    Padding="16">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="🎨 Logo Studio" FontSize="22" FontAttributes="Bold" />
+                    <Label x:Name="SubtitleLabel"
+                           Text="Design and manage logos for the league website and individual teams."
+                           FontSize="13"
+                           Opacity="0.85" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Action bar -->
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="🎨 Design New Logo"
+                        Clicked="OnDesignNewClicked"
+                        BackgroundColor="#6366F1"
+                        TextColor="White" />
+                <Button Text="📁 Upload Image"
+                        Clicked="OnUploadClicked"
+                        BackgroundColor="#10B981"
+                        TextColor="White" />
+            </HorizontalStackLayout>
+
+            <!-- Empty state -->
+            <Border x:Name="EmptyState"
+                    StrokeShape="RoundRectangle 12"
+                    Stroke="{AppThemeBinding Light=#CBD5E1, Dark=#334155}"
+                    StrokeThickness="1"
+                    StrokeDashArray="6,4"
+                    BackgroundColor="Transparent"
+                    Padding="24"
+                    IsVisible="False">
+                <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                    <Label Text="No logos yet" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                    <Label Text="Click 'Design New Logo' to build a custom logo, or 'Upload Image' to import one."
+                           FontSize="12" Opacity="0.75" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Logo grid -->
+            <CollectionView x:Name="LogosCollection"
+                            SelectionMode="None">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="12" VerticalItemSpacing="12" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border StrokeShape="RoundRectangle 12"
+                                Stroke="{AppThemeBinding Light=#E2E8F0, Dark=#334155}"
+                                StrokeThickness="1"
+                                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1E293B}"
+                                Padding="10">
+                            <VerticalStackLayout Spacing="6">
+                                <Border BackgroundColor="{AppThemeBinding Light=#F8FAFC, Dark=#0F172A}"
+                                        StrokeShape="RoundRectangle 8"
+                                        Stroke="Transparent"
+                                        Padding="8"
+                                        HeightRequest="120">
+                                    <Image Source="{Binding ImageSource}"
+                                           Aspect="AspectFit" />
+                                </Border>
+                                <Label Text="{Binding Name}"
+                                       FontSize="13"
+                                       FontAttributes="Bold"
+                                       LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding Category}"
+                                       FontSize="10"
+                                       Opacity="0.7" />
+                                <HorizontalStackLayout Spacing="4">
+                                    <Button Text="✏️"
+                                            ToolTipProperties.Text="Edit (designed logos only)"
+                                            FontSize="12"
+                                            Padding="6,2"
+                                            HeightRequest="30"
+                                            IsVisible="{Binding IsDesigned}"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnEditClicked" />
+                                    <Button Text="👥 Team"
+                                            FontSize="12"
+                                            Padding="6,2"
+                                            HeightRequest="30"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnAssignToTeamClicked" />
+                                    <Button Text="🗑️"
+                                            FontSize="12"
+                                            Padding="6,2"
+                                            HeightRequest="30"
+                                            BackgroundColor="#EF4444"
+                                            TextColor="White"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnDeleteClicked" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

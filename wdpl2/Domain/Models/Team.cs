@@ -52,6 +52,13 @@ namespace Wdpl2.Models
 
         public string? Notes { get; set; }
 
+        /// <summary>
+        /// Optional reference to a logo in <see cref="WebsiteSettings.LogoCatalog"/>.
+        /// Used for team crests on the generated website and printable sheets.
+        /// </summary>
+        [MaxLength(64)]
+        public string? LogoCatalogId { get; set; }
+
         /// <summary>When this record was created.</summary>
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 

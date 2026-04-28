@@ -56,6 +56,11 @@
             <ShellContent Title="Import Data" ContentTemplate="{DataTemplate views:HistoricalImportPage}" />
         </Tab>
 
+        <!-- LOGO STUDIO -->
+        <Tab Title="Logos" Icon="globe.png">
+            <ShellContent Title="Logo Studio" ContentTemplate="{DataTemplate logos:LogosHubPage}" />
+        </Tab>
+
         <!-- WEBSITE BUILDER -->
         <Tab Title="Website" Icon="globe.png">
             <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate views:WebsiteBuilderPage}" />

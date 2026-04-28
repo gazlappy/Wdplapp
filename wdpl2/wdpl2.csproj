@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'">
 		<!-- Include Windows App Runtime with the app when running unpackaged -->
@@ -75,10 +75,13 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\Logos\LogosHubPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
-	    <Generator>MSBuild:Compile</Generator>
+		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Achievements\AchievementsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
@@ -96,6 +99,9 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Calendar\CalendarPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\Logos\LogosHubPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Players\CareerStatsPage.xaml">
@@ -302,6 +308,12 @@
 	
 	<ItemGroup>
 	  <InternalsVisibleTo Include="wdpl2.Tests" />
+	</ItemGroup>
+	
+	<ItemGroup>
+	  <None Update="Features\WebsiteBuilder\Views\CaptainsAccessSettingsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
 	</ItemGroup>
 
 </Project>
