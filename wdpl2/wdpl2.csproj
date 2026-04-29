@@ -75,7 +75,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
-		<Generator>MSBuild:Compile</Generator>
+	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Logos\LogosHubPage.xaml">
 		<Generator>MSBuild:Compile</Generator>
@@ -201,9 +201,6 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\BrandingSettingsPage.xaml">
-		<Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
 		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\ColorsSettingsPage.xaml">

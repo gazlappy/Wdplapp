@@ -91,6 +91,10 @@ public static class LogoRenderer
         // ---- Stacked decorative layers (below text) -------------------
         DrawLayers(canvas, size, recipe, aboveText: false);
 
+        // ---- User image (behind/fill drawn beneath text/icon) ---------
+        DrawImage(canvas, size, recipe, "behind", shapePath);
+        DrawImage(canvas, size, recipe, "fill",   shapePath);
+
         // ---- Icon and text --------------------------------------------
         var hasIcon = !string.IsNullOrWhiteSpace(recipe.Icon);
         var hasText = !string.IsNullOrWhiteSpace(recipe.Text);
@@ -111,6 +115,17 @@ public static class LogoRenderer
                 recipe.IconSize * scale * 1.6f,
                 ParseColor(recipe.IconColor, SKColors.White).WithAlpha(60),
                 centerX, centerY + recipe.IconSize * scale * 0.6f, recipe.IconRotation);
+        }
+
+        // "custom" icon — placed freely via IconOffsetX/Y (relative to canvas centre)
+        if (hasIcon && iconPos == "custom")
+        {
+            var iconSize = recipe.IconSize * scale;
+            float ix = w / 2f + recipe.IconOffsetX * scale;
+            float iy = h / 2f + recipe.IconOffsetY * scale;
+            DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
+                ParseColor(recipe.IconColor, SKColors.White),
+                ix, iy + iconSize * 0.35f, recipe.IconRotation);
         }
 
         if (hasText || hasSub)
@@ -159,7 +174,7 @@ public static class LogoRenderer
                     centerX, y + iconSize * 0.85f, recipe.IconRotation);
             }
         }
-        else if (hasIcon && iconPos != "behind")
+        else if (hasIcon && iconPos != "behind" && iconPos != "custom")
         {
             var iconSize = recipe.IconSize * scale;
             DrawIcon(canvas, recipe.Icon, iconTypeface, iconSize,
@@ -181,6 +196,90 @@ public static class LogoRenderer
 
         // ---- Stacked decorative layers (above text) -------------------
         DrawLayers(canvas, size, recipe, aboveText: true);
+
+        // ---- User image (center/above/below drawn on top of text) -----
+        DrawImage(canvas, size, recipe, "center", shapePath);
+        DrawImage(canvas, size, recipe, "above",  shapePath);
+        DrawImage(canvas, size, recipe, "below",  shapePath);
+    }
+
+    private static SKBitmap? _cachedImage;
+    private static string? _cachedImageKey;
+
+    private static SKBitmap? GetImageBitmap(string base64)
+    {
+        if (string.IsNullOrWhiteSpace(base64)) return null;
+        if (_cachedImageKey == base64 && _cachedImage != null) return _cachedImage;
+        try
+        {
+            var bytes = System.Convert.FromBase64String(base64);
+            var bmp = SKBitmap.Decode(bytes);
+            if (bmp == null) return null;
+            _cachedImage?.Dispose();
+            _cachedImage = bmp;
+            _cachedImageKey = base64;
+            return bmp;
+        }
+        catch { return null; }
+    }
+
+    private static void DrawImage(SKCanvas canvas, SKSize size, LogoDesignRecipe r, string forPosition, SKPath? shapePath)
+    {
+        if (string.IsNullOrWhiteSpace(r.ImageData)) return;
+        var pos = (r.ImagePosition ?? "center").ToLowerInvariant();
+        if (pos != forPosition) return;
+
+        var bmp = GetImageBitmap(r.ImageData);
+        if (bmp == null) return;
+
+        var w = size.Width; var h = size.Height;
+        var scale = w / 512f;
+        var alpha = (byte)System.Math.Clamp(r.ImageOpacity * 255f, 0, 255);
+
+        using var paint = new SKPaint
+        {
+            IsAntialias = true,
+            FilterQuality = SKFilterQuality.High,
+            Color = SKColors.White.WithAlpha(alpha),
+        };
+
+        canvas.Save();
+        try
+        {
+            if ((pos == "behind" || pos == "fill") && shapePath != null)
+                canvas.ClipPath(shapePath, antialias: true);
+
+            SKRect dest;
+            if (pos == "fill")
+            {
+                // Cover-fill the canvas (or shape bounds if available)
+                var b = shapePath?.Bounds ?? new SKRect(0, 0, w, h);
+                var s = System.Math.Max(b.Width / bmp.Width, b.Height / bmp.Height);
+                var dw = bmp.Width * s; var dh = bmp.Height * s;
+                dest = new SKRect(b.MidX - dw / 2f, b.MidY - dh / 2f, b.MidX + dw / 2f, b.MidY + dh / 2f);
+            }
+            else
+            {
+                var imgPx = System.Math.Max(8f, r.ImageSize * scale);
+                var aspect = (float)bmp.Width / System.Math.Max(1, bmp.Height);
+                float dw, dh;
+                if (aspect >= 1) { dw = imgPx; dh = imgPx / aspect; }
+                else             { dh = imgPx; dw = imgPx * aspect; }
+
+                float cx = w / 2f + r.ImageOffsetX * scale;
+                float cy = h / 2f + r.ImageOffsetY * scale;
+                if (pos == "above") cy = h * 0.30f + r.ImageOffsetY * scale;
+                else if (pos == "below") cy = h * 0.72f + r.ImageOffsetY * scale;
+
+                dest = new SKRect(cx - dw / 2f, cy - dh / 2f, cx + dw / 2f, cy + dh / 2f);
+            }
+
+            if (System.Math.Abs(r.ImageRotation) > 0.01f)
+                canvas.RotateDegrees(r.ImageRotation, dest.MidX, dest.MidY);
+
+            canvas.DrawBitmap(bmp, dest, paint);
+        }
+        finally { canvas.Restore(); }
     }
 
     private static void DrawLayers(SKCanvas canvas, SKSize size, LogoDesignRecipe recipe, bool aboveText)

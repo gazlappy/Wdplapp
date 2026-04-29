@@ -4,374 +4,419 @@
              xmlns:skia="clr-namespace:SkiaSharp.Views.Maui.Controls;assembly=SkiaSharp.Views.Maui.Controls"
              xmlns:ctl="clr-namespace:Wdpl2.Features.WebsiteBuilder.Views.Controls"
              x:Class="Wdpl2.Features.WebsiteBuilder.Views.LogoDesignerPage"
-             Title="Logo Designer">
+             Title="Logo Designer"
+             BackgroundColor="#F1F5F9">
 
-    <Grid ColumnDefinitions="*,360" RowDefinitions="*,Auto">
+    <ContentPage.Resources>
+        <Style x:Key="TabBtn" TargetType="Button">
+            <Setter Property="BackgroundColor" Value="Transparent"/>
+            <Setter Property="TextColor" Value="#475569"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="BorderWidth" Value="0"/>
+        </Style>
+        <Style x:Key="TabBtnActive" TargetType="Button" BasedOn="{StaticResource TabBtn}">
+            <Setter Property="BackgroundColor" Value="#FFFFFF"/>
+            <Setter Property="TextColor" Value="#0F172A"/>
+            <Setter Property="FontAttributes" Value="Bold"/>
+        </Style>
+        <Style TargetType="Label" x:Key="FieldLabel">
+            <Setter Property="TextColor" Value="#475569"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+        <Style TargetType="Entry" x:Key="LightEntry">
+            <Setter Property="TextColor" Value="#0F172A"/>
+            <Setter Property="BackgroundColor" Value="#FFFFFF"/>
+        </Style>
+        <Style TargetType="Picker" x:Key="LightPicker">
+            <Setter Property="TextColor" Value="#0F172A"/>
+            <Setter Property="BackgroundColor" Value="#FFFFFF"/>
+            <Setter Property="TitleColor" Value="#94A3B8"/>
+        </Style>
+    </ContentPage.Resources>
 
-        <!-- Live preview -->
-        <Frame Grid.Column="0" Grid.Row="0" Margin="20" Padding="20" BorderColor="#E5E7EB"
-               BackgroundColor="#F1F5F9" CornerRadius="12">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-                <Label Text="Preview" FontSize="14" FontAttributes="Bold" TextColor="#475569"/>
-                <skia:SKCanvasView Grid.Row="1" x:Name="PreviewCanvas"
-                                   PaintSurface="OnPaintPreview"
-                                   HorizontalOptions="Center" VerticalOptions="Center"
-                                   WidthRequest="420" HeightRequest="420"/>
-                <Label Grid.Row="2" Text="The exported PNG is 512×512 with transparent background outside the shape."
-                       FontSize="11" TextColor="#94A3B8" HorizontalOptions="Center"/>
+    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="0">
+
+        <!-- ===== Tab strip ===== -->
+        <Border Grid.Row="0" StrokeThickness="0" BackgroundColor="#E2E8F0" Padding="0">
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="0" VerticalOptions="End">
+                    <Button x:Name="TabTemplatesBtn" Text="📂 Templates"  Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="templates"/>
+                    <Button x:Name="TabShapesBtn"    Text="🔷 Shapes"     Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="shapes"/>
+                    <Button x:Name="TabBgBtn"        Text="🎨 Background" Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="background"/>
+                    <Button x:Name="TabTextBtn"      Text="🔤 Text"       Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="text"/>
+                    <Button x:Name="TabSubBtn"       Text="abc Subtitle"  Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="subtitle"/>
+                    <Button x:Name="TabIconBtn"      Text="✨ Icon"       Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="icon"/>
+                    <Button x:Name="TabImageBtn"     Text="🖼 Image"      Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="image"/>
+                    <Button x:Name="TabLayerBtn"     Text="🧩 Layer"      Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="layer" IsVisible="False"/>
+                    <Button x:Name="TabQuickBtn"     Text="⚡ Quick"      Style="{StaticResource TabBtn}" Clicked="OnTabClicked" CommandParameter="quick"/>
+                </HorizontalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- ===== Active tab ribbon ===== -->
+        <Border Grid.Row="1" StrokeThickness="0" BackgroundColor="#FFFFFF" Padding="10,8">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
+                <Label Grid.Row="0" x:Name="SelectionLabel"
+                       Text="Tap an element on the canvas to edit it"
+                       TextColor="#64748B" FontSize="12" FontAttributes="Italic"/>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*">
+
+                    <!-- TEMPLATES -->
+                    <ScrollView x:Name="TemplatesPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <HorizontalStackLayout x:Name="TemplatesRow" Spacing="6" VerticalOptions="Center"/>
+                    </ScrollView>
+
+                    <!-- SHAPES -->
+                    <ScrollView x:Name="ShapesPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Click a shape to add it as a new layer" Style="{StaticResource FieldLabel}"/>
+                            <HorizontalStackLayout x:Name="ShapesRow" Spacing="6"/>
+                        </VerticalStackLayout>
+                    </ScrollView>
+
+                    <!-- QUICK -->
+                    <ScrollView x:Name="QuickPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalScrollBarVisibility="Never" HorizontalOptions="Fill">
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <Button Text="🎲 Random Design" Clicked="OnRandomClicked"
+                                    BackgroundColor="#0EA5E9" TextColor="White" FontSize="13" Padding="12,8" CornerRadius="6"/>
+                            <Button Text="↺ Reset to Default" Clicked="OnResetClicked"
+                                    BackgroundColor="#94A3B8" TextColor="White" FontSize="13" Padding="12,8" CornerRadius="6"/>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                    <!-- BACKGROUND -->
+                    <ScrollView x:Name="BgPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Shape" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="BgShapePicker" WidthRequest="160" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnBgShapeChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Color 1" Style="{StaticResource FieldLabel}"/>
+                                <ctl:ColorPickerView x:Name="BgColor1Picker" WidthRequest="200" ColorChanged="OnBgColor1Changed"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Color 2" Style="{StaticResource FieldLabel}"/>
+                                <ctl:ColorPickerView x:Name="BgColor2Picker" WidthRequest="200" ColorChanged="OnBgColor2Changed"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Gradient" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="GradDirPicker" WidthRequest="130" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnGradDirChanged">
+                                    <Picker.ItemsSource>
+                                        <x:Array Type="{x:Type x:String}">
+                                            <x:String>none</x:String>
+                                            <x:String>diagonal</x:String>
+                                            <x:String>vertical</x:String>
+                                            <x:String>horizontal</x:String>
+                                            <x:String>radial</x:String>
+                                        </x:Array>
+                                    </Picker.ItemsSource>
+                                </Picker>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Border" Style="{StaticResource FieldLabel}"/>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Switch x:Name="BorderSwitch" Toggled="OnBorderToggled"/>
+                                    <ctl:ColorPickerView x:Name="BorderColorPicker" WidthRequest="170" ColorChanged="OnBorderColorChanged"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Pattern" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="PatternPicker" WidthRequest="130" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnPatternChanged">
+                                    <Picker.ItemsSource>
+                                        <x:Array Type="{x:Type x:String}">
+                                            <x:String>none</x:String>
+                                            <x:String>stripes</x:String>
+                                            <x:String>dots</x:String>
+                                            <x:String>grid</x:String>
+                                            <x:String>diagonal-lines</x:String>
+                                            <x:String>chevron</x:String>
+                                        </x:Array>
+                                    </Picker.ItemsSource>
+                                </Picker>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Shadow" Style="{StaticResource FieldLabel}"/>
+                                <Switch x:Name="ShapeShadowSwitch" Toggled="OnShapeShadowToggled"/>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                    <!-- TEXT -->
+                    <ScrollView x:Name="TextPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Text" Style="{StaticResource FieldLabel}"/>
+                                <Entry x:Name="TextEntry" WidthRequest="160" Style="{StaticResource LightEntry}" TextChanged="OnTextChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Font" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="FontPicker" WidthRequest="140" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnFontChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Weight" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="WeightPicker" WidthRequest="100" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnWeightChanged">
+                                    <Picker.ItemsSource>
+                                        <x:Array Type="{x:Type x:String}">
+                                            <x:String>Regular</x:String>
+                                            <x:String>Bold</x:String>
+                                            <x:String>Black</x:String>
+                                        </x:Array>
+                                    </Picker.ItemsSource>
+                                </Picker>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="160">
+                                <Label x:Name="FontSizeLabel" Text="Size" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="FontSizeSlider" Minimum="40" Maximum="320" ValueChanged="OnFontSizeChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                <Label x:Name="LetterSpacingLabel" Text="Spacing" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="LetterSpacingSlider" Minimum="-10" Maximum="40" ValueChanged="OnLetterSpacingChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Color" Style="{StaticResource FieldLabel}"/>
+                                <ctl:ColorPickerView x:Name="TextColorPicker" WidthRequest="200" ColorChanged="OnTextColorChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Uppercase" Style="{StaticResource FieldLabel}"/>
+                                <Switch x:Name="UppercaseSwitch" Toggled="OnUppercaseToggled"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Outline" Style="{StaticResource FieldLabel}"/>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Switch x:Name="StrokeSwitch" Toggled="OnStrokeToggled"/>
+                                    <ctl:ColorPickerView x:Name="StrokeColorPicker" WidthRequest="170" ColorChanged="OnStrokeColorChanged"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Shadow" Style="{StaticResource FieldLabel}"/>
+                                <Switch x:Name="ShadowSwitch" Toggled="OnShadowToggled"/>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                    <!-- SUBTITLE -->
+                    <ScrollView x:Name="SubtitlePanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Subtitle" Style="{StaticResource FieldLabel}"/>
+                                <Entry x:Name="SubtitleEntry" WidthRequest="200" Style="{StaticResource LightEntry}" TextChanged="OnSubtitleChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="160">
+                                <Label x:Name="SubtitleSizeLabel" Text="Size" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="SubtitleSizeSlider" Minimum="14" Maximum="120" ValueChanged="OnSubtitleSizeChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Color" Style="{StaticResource FieldLabel}"/>
+                                <ctl:ColorPickerView x:Name="SubtitleColorPicker" WidthRequest="200" ColorChanged="OnSubtitleColorChanged"/>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                    <!-- ICON -->
+                    <Grid x:Name="IconPanel" IsVisible="False" RowDefinitions="Auto,Auto" ColumnDefinitions="*" RowSpacing="6">
+                        <ScrollView x:Name="IconControlsScroll" Grid.Row="0" Orientation="Horizontal" HorizontalOptions="Fill">
+                            <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Icon / emoji" Style="{StaticResource FieldLabel}"/>
+                                    <Entry x:Name="IconEntry" WidthRequest="100" Style="{StaticResource LightEntry}" TextChanged="OnIconChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Category" Style="{StaticResource FieldLabel}"/>
+                                    <Picker x:Name="IconCategoryPicker" WidthRequest="130" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnIconCategoryChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                    <Label x:Name="IconSizeLabel" Text="Size" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="IconSizeSlider" Minimum="40" Maximum="320" ValueChanged="OnIconSizeChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                    <Label x:Name="IconRotLabel" Text="Rotation" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="IconRotSlider" Minimum="-180" Maximum="180" ValueChanged="OnIconRotChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Color" Style="{StaticResource FieldLabel}"/>
+                                    <ctl:ColorPickerView x:Name="IconColorPicker" WidthRequest="200" ColorChanged="OnIconColorChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Position" Style="{StaticResource FieldLabel}"/>
+                                    <Picker x:Name="IconPosPicker" WidthRequest="110" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnIconPosChanged">
+                                        <Picker.ItemsSource>
+                                            <x:Array Type="{x:Type x:String}">
+                                                <x:String>above</x:String>
+                                                <x:String>below</x:String>
+                                                <x:String>left</x:String>
+                                                <x:String>right</x:String>
+                                                <x:String>behind</x:String>
+                                                <x:String>custom</x:String>
+                                            </x:Array>
+                                        </Picker.ItemsSource>
+                                    </Picker>
+                                </VerticalStackLayout>
+                                <Button Text="✕ Clear" Clicked="OnIconClearClicked"
+                                        BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,6" CornerRadius="6"/>
+                            </HorizontalStackLayout>
+                        </ScrollView>
+                        <ScrollView x:Name="IconGridScroll" Grid.Row="1" Orientation="Horizontal" HorizontalOptions="Fill">
+                            <HorizontalStackLayout x:Name="IconRow" Spacing="4"/>
+                        </ScrollView>
+                    </Grid>
+
+                    <!-- IMAGE -->
+                    <Grid x:Name="ImagePanel" IsVisible="False" RowDefinitions="Auto,Auto" ColumnDefinitions="*" RowSpacing="6">
+                        <ScrollView x:Name="ImageControlsScroll" Grid.Row="0" Orientation="Horizontal" HorizontalOptions="Fill">
+                            <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                                <Button Text="📁 Pick image…" Clicked="OnPickImageClicked"
+                                        BackgroundColor="#0EA5E9" TextColor="White" FontSize="12" Padding="10,6" CornerRadius="6"/>
+                                <Button Text="✕ Clear" Clicked="OnImageClearClicked"
+                                        BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,6" CornerRadius="6"/>
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Position" Style="{StaticResource FieldLabel}"/>
+                                    <Picker x:Name="ImagePosPicker" WidthRequest="120" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnImagePosChanged">
+                                        <Picker.ItemsSource>
+                                            <x:Array Type="{x:Type x:String}">
+                                                <x:String>center</x:String>
+                                                <x:String>above</x:String>
+                                                <x:String>below</x:String>
+                                                <x:String>behind</x:String>
+                                                <x:String>fill</x:String>
+                                            </x:Array>
+                                        </Picker.ItemsSource>
+                                    </Picker>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="160">
+                                    <Label x:Name="ImageSizeLabel" Text="Size" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="ImageSizeSlider" Minimum="40" Maximum="500" ValueChanged="OnImageSizeChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                    <Label x:Name="ImageOpacityLabel" Text="Opacity" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="ImageOpacitySlider" Minimum="0" Maximum="1" ValueChanged="OnImageOpacityChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                    <Label x:Name="ImageRotLabel" Text="Rotation" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="ImageRotSlider" Minimum="-180" Maximum="180" ValueChanged="OnImageRotChanged"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Spacing="2" WidthRequest="140">
+                                    <Label x:Name="ImageOffsetLabel" Text="Y offset" Style="{StaticResource FieldLabel}"/>
+                                    <Slider x:Name="ImageOffsetSlider" Minimum="-200" Maximum="200" ValueChanged="OnImageOffsetChanged"/>
+                                </VerticalStackLayout>
+                            </HorizontalStackLayout>
+                        </ScrollView>
+                        <ScrollView x:Name="ImageGalleryScroll" Grid.Row="1" Orientation="Horizontal" HorizontalOptions="Fill">
+                            <HorizontalStackLayout x:Name="ImageGalleryRow" Spacing="4"/>
+                        </ScrollView>
+                    </Grid>
+
+                    <!-- LAYER -->
+                    <ScrollView x:Name="LayerPanel" Orientation="Horizontal" IsVisible="False"
+                                HorizontalOptions="Fill">
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Shape" Style="{StaticResource FieldLabel}"/>
+                                <Picker x:Name="LayerShapePicker" WidthRequest="160" Style="{StaticResource LightPicker}" SelectedIndexChanged="OnLayerShapeChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="120">
+                                <Label x:Name="LayerWidthLabel" Text="Width" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="LayerWidthSlider" Minimum="0.05" Maximum="1.2" ValueChanged="OnLayerWidthChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="120">
+                                <Label x:Name="LayerHeightLabel" Text="Height" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="LayerHeightSlider" Minimum="0.05" Maximum="1.2" ValueChanged="OnLayerHeightChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="120">
+                                <Label x:Name="LayerRotLabel" Text="Rotation" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="LayerRotSlider" Minimum="-180" Maximum="180" ValueChanged="OnLayerRotChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2" WidthRequest="120">
+                                <Label x:Name="LayerOpacityLabel" Text="Opacity" Style="{StaticResource FieldLabel}"/>
+                                <Slider x:Name="LayerOpacitySlider" Minimum="0" Maximum="1" ValueChanged="OnLayerOpacityChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Fill" Style="{StaticResource FieldLabel}"/>
+                                <ctl:ColorPickerView x:Name="LayerFillPicker" WidthRequest="200" ColorChanged="OnLayerFillChanged"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Gradient" Style="{StaticResource FieldLabel}"/>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Switch x:Name="LayerGradSwitch" Toggled="OnLayerGradToggled"/>
+                                    <ctl:ColorPickerView x:Name="LayerFill2Picker" WidthRequest="170" ColorChanged="OnLayerFill2Changed"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Outline" Style="{StaticResource FieldLabel}"/>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Switch x:Name="LayerStrokeSwitch" Toggled="OnLayerStrokeToggled"/>
+                                    <ctl:ColorPickerView x:Name="LayerStrokePicker" WidthRequest="170" ColorChanged="OnLayerStrokeColorChanged"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Above text" Style="{StaticResource FieldLabel}"/>
+                                <Switch x:Name="LayerAboveSwitch" Toggled="OnLayerAboveToggled"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Order / Actions" Style="{StaticResource FieldLabel}"/>
+                                <HorizontalStackLayout Spacing="4">
+                                    <Button Text="⬆"  Clicked="OnLayerUpClicked"        BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="13" Padding="8,4"/>
+                                    <Button Text="⬇"  Clicked="OnLayerDownClicked"      BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="13" Padding="8,4"/>
+                                    <Button Text="⧉"  Clicked="OnLayerDuplicateClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="13" Padding="8,4"/>
+                                    <Button Text="🗑" Clicked="OnDeleteLayerClicked"    BackgroundColor="#FECACA" TextColor="#0F172A" FontSize="13" Padding="8,4"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                </Grid>
             </Grid>
-        </Frame>
+        </Border>
 
-        <!-- Controls -->
-        <ScrollView Grid.Column="1" Grid.Row="0" Padding="16,20,20,10">
-            <VerticalStackLayout Spacing="16">
+        <!-- ===== Canvas ===== -->
+        <Grid Grid.Row="2" BackgroundColor="#F1F5F9" Padding="16" RowDefinitions="Auto,*" RowSpacing="8">
 
-                <Label Text="Design Your Logo" FontSize="20" FontAttributes="Bold" TextColor="#3B82F6"/>
-                <Label x:Name="ModeLabel" Text="Creating new logo" FontSize="12" TextColor="#6B7280"/>
+            <!-- Floating action bar for the selected element -->
+            <Border Grid.Row="0" x:Name="SelectionActionBar" IsVisible="False"
+                    StrokeThickness="1" Stroke="#CBD5E1" BackgroundColor="#FFFFFF"
+                    Padding="6,4" HorizontalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8"/>
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                    <Label x:Name="ActionBarLabel" Text="" TextColor="#475569" FontSize="12"
+                           VerticalOptions="Center" Padding="6,0"/>
+                    <Button Text="⬆ Front"  Clicked="OnLayerUpClicked"        BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,4" CornerRadius="4"/>
+                    <Button Text="⬇ Back"   Clicked="OnLayerDownClicked"      BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,4" CornerRadius="4"/>
+                    <Button Text="⧉ Copy"   Clicked="OnLayerDuplicateClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,4" CornerRadius="4"/>
+                    <Button Text="⚙ More"   Clicked="OnSelectionMoreClicked"  BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="12" Padding="8,4" CornerRadius="4"/>
+                    <Button Text="🗑 Delete" Clicked="OnDeleteSelectionClicked" BackgroundColor="#FECACA" TextColor="#0F172A" FontSize="12" Padding="8,4" CornerRadius="4"/>
+                </HorizontalStackLayout>
+            </Border>
 
-                <!-- Quick actions: templates, random, reset -->
-                <Frame Padding="10" BorderColor="#E5E7EB" CornerRadius="8" BackgroundColor="#F8FAFC">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Quick Start" FontAttributes="Bold" FontSize="13"/>
-                        <HorizontalStackLayout Spacing="6">
-                            <Button Text="🎲 Random" FontSize="12" Padding="10,4" Clicked="OnRandomClicked" BackgroundColor="#8B5CF6" TextColor="White"/>
-                            <Button Text="↺ Reset" FontSize="12" Padding="10,4" Clicked="OnResetClicked" BackgroundColor="#94A3B8" TextColor="White"/>
-                        </HorizontalStackLayout>
-                        <Label Text="Templates" FontSize="12" TextColor="#475569"/>
-                        <FlexLayout x:Name="TemplatesFlex" Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center"/>
-                    </VerticalStackLayout>
-                </Frame>
+            <Border Grid.Row="1" StrokeThickness="1" Stroke="#CBD5E1" BackgroundColor="#FFFFFF"
+                    HorizontalOptions="Center" VerticalOptions="Center">
+                <skia:SKCanvasView x:Name="Preview"
+                                   WidthRequest="480" HeightRequest="480"
+                                   EnableTouchEvents="True"
+                                   PaintSurface="OnPaintPreview"
+                                   Touch="OnCanvasTouch"/>
+            </Border>
+        </Grid>
 
-                <!-- Text -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Text / Monogram" FontAttributes="Bold" FontSize="13"/>
-                        <Entry x:Name="TextEntry" Placeholder="WDPL" TextChanged="OnAnyChanged"/>
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="UppercaseCheck" IsChecked="True" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="UPPERCASE" VerticalOptions="Center" FontSize="12"/>
-                        </HorizontalStackLayout>
-
-                        <Label Text="Font family" FontSize="12"/>
-                        <Picker x:Name="FontFamilyPicker" SelectedIndexChanged="OnAnyChanged"/>
-
-                        <Label Text="Font weight" FontSize="12"/>
-                        <Picker x:Name="FontWeightPicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Regular</x:String>
-                                    <x:String>Bold</x:String>
-                                    <x:String>Black</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Size" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="FontSizeSlider" Minimum="40" Maximum="320" Value="180" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="FontSizeLabel" Text="180" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Letter spacing" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="LetterSpacingSlider" Minimum="-10" Maximum="40" Value="0" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="LetterSpacingLabel" Text="0" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Rotate" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="TextRotationSlider" Minimum="-45" Maximum="45" Value="0" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="TextRotationLabel" Text="0°" FontSize="11" WidthRequest="40" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Nudge Y" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="TextOffsetYSlider" Minimum="-100" Maximum="100" Value="0" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="TextOffsetYLabel" Text="0" FontSize="11" WidthRequest="40" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <Label Text="Text color" FontSize="12"/>
-                        <ctl:ColorPickerView x:Name="TextColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Text effects -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Text Effects" FontAttributes="Bold" FontSize="13"/>
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="TextStrokeCheck" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Outline" VerticalOptions="Center" FontSize="12"/>
-                        </HorizontalStackLayout>
-                        <ctl:ColorPickerView x:Name="TextStrokeColorPicker" HexColor="#0F172A" ColorChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Width" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="TextStrokeWidthSlider" Minimum="1" Maximum="20" Value="4" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="TextStrokeWidthLabel" Text="4" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="TextShadowCheck" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Drop shadow / glow" VerticalOptions="Center" FontSize="12"/>
-                        </HorizontalStackLayout>
-                        <ctl:ColorPickerView x:Name="TextShadowColorPicker" HexColor="#000000" ColorChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Blur" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="TextShadowBlurSlider" Minimum="0" Maximum="40" Value="6" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="TextShadowBlurLabel" Text="6" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Offset Y" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="TextShadowOffsetYSlider" Minimum="-20" Maximum="40" Value="4" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="TextShadowOffsetYLabel" Text="4" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Subtitle -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Subtitle (optional)" FontAttributes="Bold" FontSize="13"/>
-                        <Entry x:Name="SubtitleEntry" Placeholder="EST. 1985" TextChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Size" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="SubtitleSizeSlider" Minimum="14" Maximum="100" Value="36" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="SubtitleSizeLabel" Text="36" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Tracking" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="SubtitleSpacingSlider" Minimum="0" Maximum="30" Value="6" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="SubtitleSpacingLabel" Text="6" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <ctl:ColorPickerView x:Name="SubtitleColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Icon -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Icon (optional)" FontAttributes="Bold" FontSize="13"/>
-                        <Label Text="Paste an emoji or short symbol — e.g. 🎱  🏆  ⭐" FontSize="11" TextColor="#6B7280"/>
-                        <Entry x:Name="IconEntry" Placeholder="🎱" TextChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Size" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="IconSizeSlider" Minimum="40" Maximum="320" Value="120" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="IconSizeLabel" Text="120" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Rotate" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="IconRotationSlider" Minimum="-180" Maximum="180" Value="0" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="IconRotationLabel" Text="0°" FontSize="11" WidthRequest="40" VerticalOptions="Center"/>
-                        </Grid>
-                        <Label Text="Position" FontSize="12"/>
-                        <Picker x:Name="IconPositionPicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Above text</x:String>
-                                    <x:String>Below text</x:String>
-                                    <x:String>Left of text</x:String>
-                                    <x:String>Right of text</x:String>
-                                    <x:String>Behind text (faded)</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-                        <HorizontalStackLayout Spacing="4">
-                            <Button Text="🎱" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="🏆" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="⭐" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="🎯" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="🔥" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="⚽" FontSize="18" Padding="8,4" Clicked="OnIconQuickPick"/>
-                            <Button Text="✖" FontSize="14" Padding="8,4" Clicked="OnIconClear" ToolTipProperties.Text="Clear icon"/>
-                        </HorizontalStackLayout>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Background shape -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Background Shape" FontAttributes="Bold" FontSize="13"/>
-                        <Picker x:Name="ShapePicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Circle</x:String>
-                                    <x:String>Rounded square</x:String>
-                                    <x:String>Square</x:String>
-                                    <x:String>Shield</x:String>
-                                    <x:String>Hexagon</x:String>
-                                    <x:String>Octagon</x:String>
-                                    <x:String>Triangle</x:String>
-                                    <x:String>Diamond</x:String>
-                                    <x:String>Star</x:String>
-                                    <x:String>Banner ribbon</x:String>
-                                    <x:String>None (transparent)</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-
-                        <Label Text="Background color 1" FontSize="12"/>
-                        <ctl:ColorPickerView x:Name="BgColor1Picker" HexColor="#3B82F6" ColorChanged="OnAnyChanged"/>
-
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="GradientCheck" IsChecked="True" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Use gradient" VerticalOptions="Center" FontSize="12"/>
-                        </HorizontalStackLayout>
-
-                        <Label Text="Background color 2 (gradient)" FontSize="12"/>
-                        <ctl:ColorPickerView x:Name="BgColor2Picker" HexColor="#1E40AF" ColorChanged="OnAnyChanged"/>
-
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="ThreeColorCheck" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Add third color stop" VerticalOptions="Center" FontSize="12"/>
-                        </HorizontalStackLayout>
-                        <ctl:ColorPickerView x:Name="BgColor3Picker" HexColor="#9333EA" ColorChanged="OnAnyChanged"/>
-
-                        <Label Text="Gradient direction" FontSize="12"/>
-                        <Picker x:Name="GradientDirPicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Diagonal</x:String>
-                                    <x:String>Vertical</x:String>
-                                    <x:String>Horizontal</x:String>
-                                    <x:String>Radial</x:String>
-                                    <x:String>Custom angle</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Angle" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="GradientAngleSlider" Minimum="0" Maximum="360" Value="45" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="GradientAngleLabel" Text="45°" FontSize="11" WidthRequest="40" VerticalOptions="Center"/>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Padding" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="PaddingSlider" Minimum="0" Maximum="80" Value="24" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="PaddingLabel" Text="24" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Pattern overlay -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="Pattern Overlay" FontAttributes="Bold" FontSize="13"/>
-                        <Picker x:Name="PatternPicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>None</x:String>
-                                    <x:String>Stripes</x:String>
-                                    <x:String>Dots</x:String>
-                                    <x:String>Grid</x:String>
-                                    <x:String>Diagonal lines</x:String>
-                                    <x:String>Chevron</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-                        <ctl:ColorPickerView x:Name="PatternColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Opacity" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="PatternOpacitySlider" Minimum="0" Maximum="1" Value="0.12" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="PatternOpacityLabel" Text="12%" FontSize="11" WidthRequest="40" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Scale" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="PatternScaleSlider" Minimum="6" Maximum="80" Value="24" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="PatternScaleLabel" Text="24" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Border -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="BorderCheck" IsChecked="False" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Show border" VerticalOptions="Center" FontSize="12" FontAttributes="Bold"/>
-                        </HorizontalStackLayout>
-                        <Label Text="Border color" FontSize="12"/>
-                        <ctl:ColorPickerView x:Name="BorderColorPicker" HexColor="#FFFFFF" ColorChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Width" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="BorderWidthSlider" Minimum="1" Maximum="40" Value="6" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="BorderWidthLabel" Text="6" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <Label Text="Style" FontSize="12"/>
-                        <Picker x:Name="BorderStylePicker" SelectedIndexChanged="OnAnyChanged">
-                            <Picker.ItemsSource>
-                                <x:Array Type="{x:Type x:String}">
-                                    <x:String>Solid</x:String>
-                                    <x:String>Dashed</x:String>
-                                    <x:String>Dotted</x:String>
-                                    <x:String>Double</x:String>
-                                </x:Array>
-                            </Picker.ItemsSource>
-                        </Picker>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Shape shadow -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="8">
-                        <HorizontalStackLayout Spacing="6">
-                            <CheckBox x:Name="ShapeShadowCheck" CheckedChanged="OnAnyChanged"/>
-                            <Label Text="Shape drop shadow" VerticalOptions="Center" FontSize="12" FontAttributes="Bold"/>
-                        </HorizontalStackLayout>
-                        <ctl:ColorPickerView x:Name="ShapeShadowColorPicker" HexColor="#000000" ColorChanged="OnAnyChanged"/>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Blur" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="ShapeShadowBlurSlider" Minimum="0" Maximum="60" Value="16" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="ShapeShadowBlurLabel" Text="16" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Label Text="Offset Y" VerticalOptions="Center" FontSize="12"/>
-                            <Slider Grid.Column="1" x:Name="ShapeShadowOffsetYSlider" Minimum="0" Maximum="40" Value="8" ValueChanged="OnAnyChanged"/>
-                            <Label Grid.Column="2" x:Name="ShapeShadowOffsetYLabel" Text="8" FontSize="11" WidthRequest="32" VerticalOptions="Center"/>
-                        </Grid>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Shape layers (shapes on shapes) -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8" BackgroundColor="#FAFAF9">
-                    <VerticalStackLayout Spacing="8">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                            <Label Text="Shape Layers" FontAttributes="Bold" FontSize="13" VerticalOptions="Center"/>
-                            <Button Grid.Column="1" Text="+ Add layer" FontSize="11" Padding="10,4" Clicked="OnAddLayerClicked" BackgroundColor="#10B981" TextColor="White"/>
-                        </Grid>
-                        <Label Text="Stack shapes on top of the background — perfect for badges, ribbons, swooshes, monograms behind text and more."
-                               FontSize="11" TextColor="#6B7280"/>
-                        <VerticalStackLayout x:Name="LayersStack" Spacing="6"/>
-                    </VerticalStackLayout>
-                </Frame>
-
-                <!-- Quick presets -->
-                <Frame Padding="12" BorderColor="#E5E7EB" CornerRadius="8">
-                    <VerticalStackLayout Spacing="6">
-                        <Label Text="Color presets" FontAttributes="Bold" FontSize="13"/>
-                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
-                            <Button Text="Blue" BackgroundColor="#3B82F6" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#3B82F6|#1E40AF"/>
-                            <Button Text="Emerald" BackgroundColor="#10B981" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#10B981|#047857"/>
-                            <Button Text="Sunset" BackgroundColor="#F97316" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#F97316|#DC2626"/>
-                            <Button Text="Purple" BackgroundColor="#8B5CF6" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#8B5CF6|#6D28D9"/>
-                            <Button Text="Slate" BackgroundColor="#475569" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#475569|#0F172A"/>
-                            <Button Text="Rose" BackgroundColor="#F43F5E" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#F43F5E|#BE123C"/>
-                            <Button Text="Teal" BackgroundColor="#14B8A6" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#14B8A6|#0F766E"/>
-                            <Button Text="Gold" BackgroundColor="#F59E0B" TextColor="White" FontSize="11" Padding="10,4" Margin="0,0,4,4" Clicked="OnPreset" CommandParameter="#F59E0B|#B45309"/>
-                        </FlexLayout>
-                    </VerticalStackLayout>
-                </Frame>
-
-            </VerticalStackLayout>
-        </ScrollView>
-
-        <!-- Bottom action bar -->
-        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1"
-                Stroke="#E5E7EB" StrokeThickness="1"
-                BackgroundColor="#FFFFFF" Padding="16,10">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-                <Entry Grid.Column="0" x:Name="LogoNameEntry" Placeholder="Logo name (e.g. WDPL Mark)"/>
-                <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked" BackgroundColor="#9CA3AF"/>
-                <Button Grid.Column="2" x:Name="SaveBtn" Text="Save to Catalog" Clicked="OnSaveClicked" BackgroundColor="#10B981"/>
+        <!-- ===== Bottom save bar ===== -->
+        <Border Grid.Row="3" StrokeThickness="0" BackgroundColor="#FFFFFF" Padding="10,10">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" x:Name="NameEntry" Placeholder="Logo name (e.g. WDPL Crest)"
+                       Style="{StaticResource LightEntry}" PlaceholderColor="#94A3B8"/>
+                <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked"
+                        BackgroundColor="#E2E8F0" TextColor="#0F172A"/>
+                <Button Grid.Column="2" Text="💾 Save to Catalog" Clicked="OnSaveClicked"
+                        BackgroundColor="#10B981" TextColor="White"/>
             </Grid>
         </Border>
 
