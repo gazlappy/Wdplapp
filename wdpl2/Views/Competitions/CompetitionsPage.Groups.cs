@@ -198,6 +198,16 @@ public partial class CompetitionsPage
         // Build each group as a selection list
         var groupsLayout = new VerticalStackLayout { Spacing = 12 };
 
+        // Manual-draw "Unassigned" pool (shown when there are players not yet placed in any group)
+        if (editable && _editorViewModel != null && _selectedCompetition.Rounds.Count == 0)
+        {
+            var unassignedIds = _editorViewModel.GetUnassignedGroupParticipants();
+            if (unassignedIds.Count > 0)
+            {
+                groupsLayout.Children.Add(CreateUnassignedPoolView(unassignedIds, groups, _selectedCompetition.Format));
+            }
+        }
+
         foreach (var group in groups)
         {
             groupsLayout.Children.Add(CreateGroupSelectionView(group, _selectedCompetition.Format, effectiveTopAdvance, editable));
@@ -355,6 +365,50 @@ public partial class CompetitionsPage
             rowGrid.Add(nameLabel, 1, 0);
             rowGrid.Add(statusLabel, 2, 0);
 
+            // Move-to-group button (only when editable, before KO rounds, and 2+ groups in same round)
+            if (editable && _selectedCompetition != null && _selectedCompetition.Rounds.Count == 0)
+            {
+                var otherGroupsInRound = _selectedCompetition.Groups
+                    .Where(g => g.GroupRound == group.GroupRound && g.Id != group.Id)
+                    .ToList();
+                if (otherGroupsInRound.Count > 0)
+                {
+                    var pidMove = participantId;
+                    var srcGroup = group;
+                    var moveBtn = new Button
+                    {
+                        Text = "↔",
+                        FontSize = 11,
+                        Padding = new Thickness(6, 2),
+                        MinimumWidthRequest = 32,
+                        HeightRequest = 28,
+                        BackgroundColor = Color.FromArgb("#6366F1"),
+                        TextColor = Colors.White,
+                        CornerRadius = 4,
+                        Margin = new Thickness(4, 0, 0, 0)
+                    };
+                    moveBtn.Clicked += async (_, _) =>
+                    {
+                        if (_editorViewModel == null) return;
+                        var pname = GetParticipantName(pidMove, format) ?? "player";
+                        var options = otherGroupsInRound
+                            .OrderBy(g => g.GroupNumber)
+                            .Select(g => g.Name)
+                            .ToArray();
+                        var chosen = await DisplayActionSheet(
+                            $"Move {pname} to…", "Cancel", null, options);
+                        if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+                        var target = otherGroupsInRound.FirstOrDefault(g => g.Name == chosen);
+                        if (target == null) return;
+                        await _editorViewModel.MoveParticipantToGroupAsync(pidMove, target.Id);
+                        SetStatus(_editorViewModel.StatusMessage);
+                        ShowGroupsView();
+                    };
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    rowGrid.Add(moveBtn, rowGrid.ColumnDefinitions.Count - 1, 0);
+                }
+            }
+
             // No Show toggle button (only when editable)
             if (editable)
             {
@@ -438,6 +492,98 @@ public partial class CompetitionsPage
             {
                 Spacing = 0,
                 Children = { headerBorder, playersLayout }
+            }
+        };
+    }
+
+    /// <summary>
+    /// Build the "Unassigned" pool view for manual draw — lists every participant
+    /// not yet placed in any group, with a button to place them into a chosen group.
+    /// </summary>
+    private View CreateUnassignedPoolView(List<Guid> unassignedIds, List<CompetitionGroup> groups, CompetitionFormat format)
+    {
+        var headerBorder = new Border
+        {
+            Padding = 10,
+            BackgroundColor = Color.FromArgb("#0EA5E9"),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+            Content = new Label
+            {
+                Text = $"✋ Unassigned ({unassignedIds.Count}) — tap a player to place into a group",
+                TextColor = Colors.White,
+                FontSize = 14,
+                FontAttributes = FontAttributes.Bold
+            }
+        };
+
+        var listLayout = new VerticalStackLayout { Spacing = 0 };
+        foreach (var pid in unassignedIds)
+        {
+            var name = GetParticipantName(pid, format) ?? "Unknown";
+            var idCopy = pid;
+
+            var rowGrid = new Grid
+            {
+                Padding = new Thickness(12, 8),
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = GridLength.Star },
+                    new ColumnDefinition { Width = GridLength.Auto }
+                },
+                ColumnSpacing = 8
+            };
+
+            rowGrid.Add(new Label
+            {
+                Text = name,
+                FontSize = 14,
+                VerticalTextAlignment = TextAlignment.Center
+            }, 0, 0);
+
+            var placeBtn = new Button
+            {
+                Text = "Place →",
+                FontSize = 12,
+                Padding = new Thickness(8, 4),
+                BackgroundColor = Color.FromArgb("#0EA5E9"),
+                TextColor = Colors.White,
+                CornerRadius = 4
+            };
+            placeBtn.Clicked += async (_, _) =>
+            {
+                if (_editorViewModel == null) return;
+                var ordered = groups.OrderBy(g => g.GroupNumber).ToList();
+                var options = ordered
+                    .Select(g => $"{g.Name} ({g.ParticipantIds.Count})")
+                    .ToArray();
+                var chosen = await DisplayActionSheet($"Place {name} into…", "Cancel", null, options);
+                if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
+                var idx = Array.IndexOf(options, chosen);
+                if (idx < 0 || idx >= ordered.Count) return;
+                await _editorViewModel.AssignParticipantToGroupAsync(idCopy, ordered[idx].Id);
+                SetStatus(_editorViewModel.StatusMessage);
+                ShowGroupsView();
+            };
+            rowGrid.Add(placeBtn, 1, 0);
+
+            listLayout.Children.Add(new Border
+            {
+                Padding = 0,
+                Margin = new Thickness(0, 1),
+                BackgroundColor = Colors.White,
+                Content = rowGrid
+            });
+        }
+
+        return new Border
+        {
+            Padding = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Stroke = Color.FromArgb("#0EA5E9"),
+            Content = new VerticalStackLayout
+            {
+                Spacing = 0,
+                Children = { headerBorder, listLayout }
             }
         };
     }

@@ -2318,6 +2318,7 @@ namespace Wdpl2.Services
 
             var competitions = _league.Competitions
                 .Where(c => c.Status != CompetitionStatus.Draft)
+                .Where(c => c.ShowOnWebsite)
                 .OrderBy(c => orderMap.TryGetValue(c.Id, out var idx) ? idx : int.MaxValue)
                 .ThenByDescending(c => c.Status == CompetitionStatus.InProgress)
                 .ThenByDescending(c => c.CreatedDate)

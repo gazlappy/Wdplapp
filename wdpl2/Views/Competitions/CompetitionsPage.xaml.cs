@@ -27,6 +27,8 @@ public partial class CompetitionsPage : ContentPage
     internal Picker? _statusPicker;
     internal DatePicker? _startDatePicker;
     internal Entry? _notesEntry;
+    internal Switch? _lockSwitch;
+    internal Switch? _showOnWebsiteSwitch;
     internal CollectionView? _participantsView;
 
     // Default constructor for Shell navigation
@@ -195,6 +197,17 @@ public partial class CompetitionsPage : ContentPage
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot delete competitions — this season is locked.", "OK");
+            return;
+        }
+
+        // Check both the persisted lock and the live editor toggle (which may not be saved yet).
+        var lockedInEditor = _editorViewModel != null
+            && ReferenceEquals(_editorViewModel.Competition, competition)
+            && _editorViewModel.IsLocked;
+        if (competition.IsLocked || lockedInEditor)
+        {
+            await DisplayAlert($"{Helpers.Emojis.Lock} Competition Locked",
+                $"\"{competition.Name}\" is locked. Unlock it from the editor (and save) before deleting.", "OK");
             return;
         }
 

@@ -29,6 +29,8 @@ public partial class CompetitionsPage
         };
         _startDatePicker = new DatePicker { Date = competition.StartDate ?? DateTime.Today };
         _notesEntry = new Entry { Text = competition.Notes ?? "", Placeholder = "Notes..." };
+        _lockSwitch = new Switch { IsToggled = competition.IsLocked };
+        _showOnWebsiteSwitch = new Switch { IsToggled = competition.ShowOnWebsite };
 
         var formatLabel = new Label
         {
@@ -109,7 +111,9 @@ public partial class CompetitionsPage
                 CreateLabeledField("Format:", formatLabel),
                 CreateLabeledField("Status:", _statusPicker),
                 CreateLabeledField("Date:", _startDatePicker),
-                CreateLabeledField("Notes:", _notesEntry)
+                CreateLabeledField("Notes:", _notesEntry),
+                CreateLabeledField("\U0001F512 Lock:", _lockSwitch),
+                CreateLabeledField("\U0001F310 Show on website:", _showOnWebsiteSwitch)
             }
         };
         leftColumn.Add(detailsSection, 0, 0);
@@ -721,6 +725,31 @@ public partial class CompetitionsPage
                 OnGenerateGroups();
         };
         content.Children.Add(generateGroupsBtn);
+
+        // Manual draw — create empty groups, then user assigns each player by hand
+        var manualGroupsBtn = new Button
+        {
+            Text = "✋ Manual Draw (assign players by hand)",
+            BackgroundColor = Color.FromArgb("#0EA5E9"),
+            TextColor = Colors.White,
+            Padding = new Thickness(12, 6),
+            FontSize = 13,
+            Margin = new Thickness(0, 4, 0, 0),
+            IsEnabled = currentGroups >= 2 && participantCount >= 4
+        };
+        manualGroupsBtn.Clicked += async (s, e) =>
+        {
+            if (_editorViewModel == null) return;
+            await _editorViewModel.GenerateEmptyGroupsAsync();
+            await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+            SetStatus(_editorViewModel.StatusMessage);
+            if (_selectedCompetition != null)
+            {
+                ShowCompetitionEditor(_selectedCompetition);
+                ShowGroupsView();
+            }
+        };
+        content.Children.Add(manualGroupsBtn);
     }
 
     private void AddKnockoutActions(VerticalStackLayout content, Competition competition)
@@ -913,6 +942,8 @@ public partial class CompetitionsPage
             : _editorViewModel.Status;
         _editorViewModel.StartDate = _startDatePicker?.Date ?? _editorViewModel.StartDate;
         _editorViewModel.Notes = _notesEntry?.Text ?? _editorViewModel.Notes;
+        _editorViewModel.IsLocked = _lockSwitch?.IsToggled ?? _editorViewModel.IsLocked;
+        _editorViewModel.ShowOnWebsite = _showOnWebsiteSwitch?.IsToggled ?? _editorViewModel.ShowOnWebsite;
 
         await _editorViewModel.SaveCommand.ExecuteAsync(null);
         SetStatus(_editorViewModel.StatusMessage);

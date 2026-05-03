@@ -120,6 +120,43 @@ namespace Wdpl2.Models
         /// <summary>Participant IDs marked as no-shows. These players are excluded from the plate competition.</summary>
         public List<Guid> NoShowIds { get; set; } = new();
 
+        private bool _isLocked;
+        private bool _showOnWebsite = true;
+
+        /// <summary>
+        /// When true, this competition is read-only. The editor will block any edits
+        /// (participants, draws, scores, settings) until it's unlocked.
+        /// </summary>
+        public bool IsLocked
+        {
+            get => _isLocked;
+            set
+            {
+                if (_isLocked != value)
+                {
+                    _isLocked = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// When false, this competition is hidden from the generated public website
+        /// (Competitions page tabs and Home page summaries).
+        /// </summary>
+        public bool ShowOnWebsite
+        {
+            get => _showOnWebsite;
+            set
+            {
+                if (_showOnWebsite != value)
+                {
+                    _showOnWebsite = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -55,6 +55,12 @@ public partial class CompetitionEditorViewModel : ObservableObject
     [ObservableProperty]
     private Guid? _currentSeasonId;
 
+    [ObservableProperty]
+    private bool _isLocked;
+
+    [ObservableProperty]
+    private bool _showOnWebsite = true;
+
     public Competition Competition => _competition;
     public CompetitionFormat Format => _competition.Format;
     public GroupStageSettings? GroupSettings => _competition.GroupSettings;
@@ -437,13 +443,19 @@ public partial class CompetitionEditorViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Returns true and sets StatusMessage if the competition's season is locked.
+    /// Returns true and sets StatusMessage if the competition's season is locked
+    /// OR if the competition itself has been locked by the user.
     /// </summary>
     private bool CheckSeasonLocked()
     {
         if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
         {
             StatusMessage = "Cannot modify — season is locked";
+            return true;
+        }
+        if (_competition.IsLocked)
+        {
+            StatusMessage = "Cannot modify — competition is locked. Unlock it to make changes.";
             return true;
         }
         return false;
@@ -455,6 +467,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
         Status = _competition.Status;
         StartDate = _competition.StartDate ?? DateTime.Today;
         Notes = _competition.Notes ?? "";
+        IsLocked = _competition.IsLocked;
+        ShowOnWebsite = _competition.ShowOnWebsite;
         FormatDisplay = _competition.Format.ToString();
         
         IsGroupStageFormat = _competition.Format == CompetitionFormat.SinglesGroupStage ||
@@ -472,17 +486,32 @@ public partial class CompetitionEditorViewModel : ObservableObject
     {
         try
         {
-            if (CheckSeasonLocked()) return;
+            // Allow toggling the lock + website-visibility flags even when the
+            // competition is locked — these are the only two settings that can
+            // change a locked competition (otherwise you could never unlock it).
+            if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
+            {
+                StatusMessage = "Cannot modify — season is locked";
+                return;
+            }
 
-            _competition.Name = Name;
-            _competition.Status = Status;
-            _competition.StartDate = StartDate;
-            _competition.Notes = Notes;
+            // Apply lock + website toggles first (these always allowed).
+            _competition.IsLocked = IsLocked;
+            _competition.ShowOnWebsite = ShowOnWebsite;
+
+            // The remaining edits are only applied if the competition isn't locked.
+            if (!_competition.IsLocked)
+            {
+                _competition.Name = Name;
+                _competition.Status = Status;
+                _competition.StartDate = StartDate;
+                _competition.Notes = Notes;
+            }
 
             await _competitionStore.UpdateCompetitionAsync(_competition);
             await _competitionStore.SaveAsync();
 
-            StatusMessage = "Competition saved";
+            StatusMessage = _competition.IsLocked ? "Competition saved (locked)" : "Competition saved";
         }
         catch (Exception ex)
         {
@@ -963,6 +992,243 @@ public partial class CompetitionEditorViewModel : ObservableObject
         {
             StatusMessage = $"Error randomising groups: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Move a participant from their current group into a different group.
+    /// Regenerates the round-robin matches for both affected groups and clears
+    /// any previous standings/winner selections (since the makeup changed).
+    /// Only works in the current (latest) group round and before any KO rounds exist.
+    /// </summary>
+    public async Task MoveParticipantToGroupAsync(Guid participantId, Guid targetGroupId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.Groups.Count == 0)
+        {
+            StatusMessage = "No groups";
+            return;
+        }
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Can't move — knockout rounds already created";
+            return;
+        }
+
+        try
+        {
+            int latestRound = _competition.Groups.Max(g => g.GroupRound);
+            var sourceGroup = _competition.Groups
+                .FirstOrDefault(g => g.GroupRound == latestRound && g.ParticipantIds.Contains(participantId));
+            var targetGroup = _competition.Groups
+                .FirstOrDefault(g => g.GroupRound == latestRound && g.Id == targetGroupId);
+
+            if (sourceGroup == null || targetGroup == null)
+            {
+                StatusMessage = "Group not found";
+                return;
+            }
+            if (sourceGroup.Id == targetGroup.Id)
+            {
+                StatusMessage = "Already in that group";
+                return;
+            }
+
+            sourceGroup.ParticipantIds.Remove(participantId);
+            targetGroup.ParticipantIds.Add(participantId);
+
+            // Rebuild round-robin matches and clear standings for both groups
+            RebuildGroupMatches(sourceGroup);
+            RebuildGroupMatches(targetGroup);
+            sourceGroup.Standings.Clear();
+            targetGroup.Standings.Clear();
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+            StatusMessage = $"Moved to {targetGroup.Name}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error moving participant: {ex.Message}";
+        }
+    }
+
+    private static void RebuildGroupMatches(CompetitionGroup group)
+    {
+        var matches = new List<CompetitionMatch>();
+        var ids = group.ParticipantIds;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            for (int j = i + 1; j < ids.Count; j++)
+            {
+                matches.Add(new CompetitionMatch
+                {
+                    Participant1Id = ids[i],
+                    Participant2Id = ids[j],
+                    GroupId = group.Id
+                });
+            }
+        }
+        group.Matches = matches;
+    }
+
+    /// <summary>
+    /// Create empty groups for a manual draw. The user will then drag/assign
+    /// each participant into the group of their choice via the groups view.
+    /// </summary>
+    public async Task GenerateEmptyGroupsAsync()
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.GroupSettings == null)
+        {
+            StatusMessage = "No group settings configured";
+            return;
+        }
+        if (_competition.GroupSettings.NumberOfGroups < 1)
+        {
+            StatusMessage = "Choose the number of groups first";
+            return;
+        }
+
+        try
+        {
+            int n = _competition.GroupSettings.NumberOfGroups;
+            var groups = new List<CompetitionGroup>();
+            for (int i = 0; i < n; i++)
+            {
+                groups.Add(new CompetitionGroup
+                {
+                    Name = $"Group {(char)('A' + i)}",
+                    GroupNumber = i + 1
+                });
+            }
+
+            // Assign venue tables (groups are empty but venue mapping still applies)
+            CompetitionGenerator.AssignVenueTables(groups, _competition.GroupSettings.SelectedVenues);
+
+            _competition.Groups = groups;
+            _competition.Status = CompetitionStatus.InProgress;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            HasGroups = true;
+            StatusMessage = $"Created {n} empty groups — drag players in";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating empty groups: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Add a participant to a specific group (for manual draw). Rebuilds that
+    /// group's round-robin matches and clears its standings.
+    /// </summary>
+    public async Task AssignParticipantToGroupAsync(Guid participantId, Guid targetGroupId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Can't assign — knockout rounds already created";
+            return;
+        }
+
+        try
+        {
+            int latestRound = _competition.Groups.Count > 0
+                ? _competition.Groups.Max(g => g.GroupRound)
+                : 1;
+
+            // Remove from any other group in the latest round first
+            foreach (var g in _competition.Groups.Where(g => g.GroupRound == latestRound))
+            {
+                if (g.ParticipantIds.Remove(participantId))
+                    RebuildGroupMatches(g);
+            }
+
+            var target = _competition.Groups.FirstOrDefault(g => g.Id == targetGroupId);
+            if (target == null) { StatusMessage = "Group not found"; return; }
+
+            target.ParticipantIds.Add(participantId);
+            RebuildGroupMatches(target);
+            target.Standings.Clear();
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+            StatusMessage = $"Assigned to {target.Name}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error assigning: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Remove a participant from whichever group currently holds them (manual draw undo).
+    /// </summary>
+    public async Task RemoveParticipantFromGroupsAsync(Guid participantId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Can't unassign — knockout rounds already created";
+            return;
+        }
+
+        try
+        {
+            int latestRound = _competition.Groups.Count > 0
+                ? _competition.Groups.Max(g => g.GroupRound)
+                : 1;
+
+            bool changed = false;
+            foreach (var g in _competition.Groups.Where(g => g.GroupRound == latestRound))
+            {
+                if (g.ParticipantIds.Remove(participantId))
+                {
+                    RebuildGroupMatches(g);
+                    g.Standings.Clear();
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _competitionStore.UpdateCompetitionAsync(_competition);
+                await _competitionStore.SaveAsync();
+                StatusMessage = "Returned to unassigned pool";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error removing: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Get participant IDs that aren't yet placed in any group of the latest group round.
+    /// Used by the manual-draw UI to show an "Unassigned" pool.
+    /// </summary>
+    public List<Guid> GetUnassignedGroupParticipants()
+    {
+        var allParticipants = _competition.Format == CompetitionFormat.DoublesGroupStage
+            ? _competition.DoublesTeams.Select(t => t.Id).ToList()
+            : _competition.ParticipantIds.ToList();
+
+        if (_competition.Groups.Count == 0)
+            return allParticipants;
+
+        int latestRound = _competition.Groups.Max(g => g.GroupRound);
+        var assigned = new HashSet<Guid>(_competition.Groups
+            .Where(g => g.GroupRound == latestRound)
+            .SelectMany(g => g.ParticipantIds));
+
+        return allParticipants.Where(id => !assigned.Contains(id)).ToList();
     }
 
     /// <summary>

@@ -306,6 +306,8 @@ public class LeagueContext : DbContext
                 ("ParentCompetitionId", "ALTER TABLE Competitions ADD COLUMN ParentCompetitionId TEXT"),
                 ("PreviousGroups", "ALTER TABLE Competitions ADD COLUMN PreviousGroups TEXT DEFAULT '[]'"),
                 ("NoShowIds", "ALTER TABLE Competitions ADD COLUMN NoShowIds TEXT DEFAULT '[]'"),
+                ("IsLocked", "ALTER TABLE Competitions ADD COLUMN IsLocked INTEGER NOT NULL DEFAULT 0"),
+                ("ShowOnWebsite", "ALTER TABLE Competitions ADD COLUMN ShowOnWebsite INTEGER NOT NULL DEFAULT 1"),
             };
 
             foreach (var (name, sql) in columnsToAdd)

@@ -158,7 +158,13 @@ public partial class CompetitionsViewModel : BaseViewModel
             SetStatus("No competition selected");
             return;
         }
-        
+
+        if (competition.IsLocked)
+        {
+            SetStatus($"Cannot delete '{competition.Name}' — competition is locked. Unlock it first.");
+            return;
+        }
+
         try
         {
             await _dataStore.DeleteCompetitionAsync(competition);
