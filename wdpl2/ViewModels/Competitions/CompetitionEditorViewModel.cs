@@ -383,6 +383,120 @@ public partial class CompetitionEditorViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Change the number of groups and regenerate. Only safe before knockout rounds exist.
+    /// Clears existing groups (current round only — preserves PreviousGroups archive)
+    /// and regenerates with the new count using the existing participants.
+    /// </summary>
+    public async Task ChangeGroupCountAndRegenerateAsync(int newGroupCount)
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.GroupSettings == null)
+        {
+            StatusMessage = "No group settings configured";
+            return;
+        }
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Cannot change group count once knockout has been created";
+            return;
+        }
+
+        if (newGroupCount < 1)
+        {
+            StatusMessage = "Group count must be at least 1";
+            return;
+        }
+
+        try
+        {
+            // Preserve current group round number so PreviousGroups stays consistent
+            int currentRound = _competition.Groups.Count > 0
+                ? _competition.Groups.Max(g => g.GroupRound)
+                : 1;
+
+            // Manual-draw scenario: existing groups have no participants assigned.
+            // Just resize the empty group containers without randomizing anything.
+            bool isManualDraw = _competition.Groups.Count > 0
+                && _competition.Groups.All(g => g.ParticipantIds.Count == 0);
+
+            if (isManualDraw)
+            {
+                var resized = new List<CompetitionGroup>();
+                for (int i = 0; i < newGroupCount; i++)
+                {
+                    if (i < _competition.Groups.Count)
+                    {
+                        var existing = _competition.Groups[i];
+                        existing.GroupNumber = i + 1;
+                        existing.Name = $"Group {(char)('A' + i)}";
+                        existing.GroupRound = currentRound;
+                        resized.Add(existing);
+                    }
+                    else
+                    {
+                        resized.Add(new CompetitionGroup
+                        {
+                            Name = $"Group {(char)('A' + i)}",
+                            GroupNumber = i + 1,
+                            GroupRound = currentRound
+                        });
+                    }
+                }
+
+                CompetitionGenerator.AssignVenueTables(resized, _competition.GroupSettings.SelectedVenues);
+
+                _competition.Groups = resized;
+                _competition.GroupSettings.NumberOfGroups = newGroupCount;
+
+                await _competitionStore.UpdateCompetitionAsync(_competition);
+                await _competitionStore.SaveAsync();
+                StatusMessage = $"Resized to {newGroupCount} empty groups";
+                return;
+            }
+
+            // Use participants currently in the active groups (preserves any manual additions/removals)
+            var participants = _competition.Groups.Count > 0
+                ? _competition.Groups.SelectMany(g => g.ParticipantIds).Distinct().ToList()
+                : (_competition.Format == CompetitionFormat.DoublesGroupStage
+                    ? _competition.DoublesTeams.Select(t => t.Id).ToList()
+                    : _competition.ParticipantIds.ToList());
+
+            if (participants.Count < newGroupCount * 2)
+            {
+                StatusMessage = $"Need at least {newGroupCount * 2} participants for {newGroupCount} groups";
+                return;
+            }
+
+            _competition.GroupSettings.NumberOfGroups = newGroupCount;
+
+            var (groups, _) = CompetitionGenerator.GenerateGroupStage(
+                participants,
+                _competition.GroupSettings,
+                _competition.Format,
+                _competition.SeasonId,
+                _competition.Name,
+                randomize: true
+            );
+
+            // Preserve the round number on regenerated groups
+            foreach (var g in groups)
+                g.GroupRound = currentRound;
+
+            _competition.Groups = groups;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+            StatusMessage = $"Regenerated into {groups.Count} groups";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error regenerating groups: {ex.Message}";
+        }
+    }
+
+    /// <summary>
     /// Calculate the recommended number of groups based on participants, tables,
     /// and ensuring groups × topAdvance produces a power-of-2 for the KO bracket.
     /// </summary>
@@ -1007,6 +1121,48 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error randomising groups: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Clear all groups for the current group stage. Removes participant assignments,
+    /// matches and standings so the user can start over. Knockout rounds (if any)
+    /// must be removed first. Previous (archived) group rounds are preserved.
+    /// </summary>
+    public async Task ClearAllGroupsAsync()
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Can't clear groups — knockout rounds already created";
+            return;
+        }
+
+        if (_competition.Groups.Count == 0)
+        {
+            StatusMessage = "No groups to clear";
+            return;
+        }
+
+        try
+        {
+            int cleared = _competition.Groups.Count;
+            _competition.Groups.Clear();
+
+            // Reset status to Draft if nothing else is in progress
+            if (_competition.PreviousGroups.Count == 0)
+                _competition.Status = CompetitionStatus.Draft;
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+
+            HasGroups = false;
+            StatusMessage = $"Cleared {cleared} group(s)";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error clearing groups: {ex.Message}";
         }
     }
 

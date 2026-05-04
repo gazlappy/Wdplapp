@@ -372,6 +372,86 @@ public partial class CompetitionsPage
         return stack;
     }
 
+    /// <summary>
+    /// Chip row picker to change the number of groups after generation.
+    /// Tapping a chip regenerates the groups with the new count.
+    /// Only shown before knockout rounds exist (gated at call site).
+    /// </summary>
+    private View CreateChangeGroupCountPicker(Competition competition, int participantCount)
+    {
+        int currentGroups = competition.GroupSettings?.NumberOfGroups ?? 0;
+        int maxGroups = Math.Max(2, participantCount / 2);
+
+        var chipRow = new FlexLayout
+        {
+            Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+            Direction = Microsoft.Maui.Layouts.FlexDirection.Row
+        };
+
+        Border MakeChip(int value)
+        {
+            bool selected = currentGroups == value;
+            var lbl = new Label
+            {
+                Text = value.ToString(),
+                FontSize = 11,
+                FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None,
+                TextColor = selected ? Colors.White : Color.FromArgb("#0F172A"),
+                Padding = new Thickness(8, 4),
+                VerticalTextAlignment = TextAlignment.Center
+            };
+            var border = new Border
+            {
+                BackgroundColor = selected ? Color.FromArgb("#8B5CF6") : Color.FromArgb("#F1F5F9"),
+                Stroke = selected ? Color.FromArgb("#8B5CF6") : Color.FromArgb("#E2E8F0"),
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+                Padding = 0,
+                Margin = new Thickness(0, 0, 6, 6),
+                Content = lbl
+            };
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                if (_editorViewModel == null) return;
+                if (value == currentGroups) return;
+
+                // Manual-draw groups (no participants assigned yet) can be resized silently —
+                // there's no shuffle and nothing to lose.
+                bool isManualDraw = competition.Groups.Count > 0
+                    && competition.Groups.All(g => g.ParticipantIds.Count == 0);
+
+                if (!isManualDraw)
+                {
+                    bool confirm = await DisplayAlert(
+                        "Regenerate groups?",
+                        $"This will reshuffle all participants into {value} groups. Any group standings/match results will be cleared. Continue?",
+                        "Regenerate", "Cancel");
+                    if (!confirm) return;
+                }
+
+                await _editorViewModel.ChangeGroupCountAndRegenerateAsync(value);
+                SetStatus(_editorViewModel.StatusMessage);
+                if (_selectedCompetition != null)
+                    ShowCompetitionEditor(_selectedCompetition);
+            };
+            border.GestureRecognizers.Add(tap);
+            return border;
+        }
+
+        for (int i = 1; i <= maxGroups; i++)
+            chipRow.Children.Add(MakeChip(i));
+
+        var stack = new VerticalStackLayout { Spacing = 2, Margin = new Thickness(0, 8, 0, 8) };
+        stack.Children.Add(new Label
+        {
+            Text = "\U0001F522 Change number of groups:",
+            FontSize = 13,
+            FontAttributes = FontAttributes.Bold
+        });
+        stack.Children.Add(chipRow);
+        return stack;
+    }
+
     private void AddGroupStageActions(VerticalStackLayout content, Competition competition)
     {
         if (_editorViewModel == null) return;
@@ -467,6 +547,38 @@ public partial class CompetitionsPage
                 };
                 drawBtn.Clicked += (s, e) => OnRandomiseWithDraw();
                 groupActionBar.Children.Add(drawBtn);
+
+                var clearGroupsBtn = new Button
+                {
+                    Text = "🗑 Clear Groups",
+                    BackgroundColor = Color.FromArgb("#EF4444"),
+                    TextColor = Colors.White,
+                    FontSize = 13,
+                    Padding = new Thickness(14, 8),
+                    MinimumHeightRequest = 38
+                };
+                clearGroupsBtn.Clicked += async (s, e) =>
+                {
+                    if (_editorViewModel == null) return;
+
+                    // Skip the warning if it's an empty manual draw — nothing to lose
+                    bool isManualDraw = competition.Groups.All(g => g.ParticipantIds.Count == 0);
+                    if (!isManualDraw)
+                    {
+                        bool confirm = await DisplayAlert(
+                            "Clear all groups?",
+                            "All participant assignments, group matches and standings will be removed. Previous (archived) group rounds are kept. This cannot be undone.",
+                            "Clear", "Cancel");
+                        if (!confirm) return;
+                    }
+
+                    await _editorViewModel.ClearAllGroupsAsync();
+                    await _viewModel.LoadCompetitionsCommand.ExecuteAsync(null);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    if (_selectedCompetition != null)
+                        ShowCompetitionEditor(_selectedCompetition);
+                };
+                groupActionBar.Children.Add(clearGroupsBtn);
             }
 
             // Action buttons on the left, interactive date card on the right
@@ -484,9 +596,9 @@ public partial class CompetitionsPage
             groupActionBar.VerticalOptions = LayoutOptions.Center;
             actionRow.Add(groupActionBar, 0, 0);
 
-            if (settings.GroupDate.HasValue)
+            // Always show the date card so the round date can be set/changed (singles or doubles).
             {
-                var dateCard = CreateDateCard(settings.GroupDate.Value, async newDate =>
+                var dateCard = CreateDateCard(settings.GroupDate ?? DateTime.Today, async newDate =>
                 {
                     await _editorViewModel.SaveGroupDateAsync(newDate);
                     SetStatus(_editorViewModel.StatusMessage);
@@ -509,6 +621,9 @@ public partial class CompetitionsPage
             // Only show finalize options before KO rounds are created
             if (competition.Rounds.Count == 0)
             {
+                // ── Change number of groups (regenerate) ────────────────
+                content.Children.Add(CreateChangeGroupCountPicker(competition, participantCount));
+
                 int currentRound = competition.Groups.Max(g => g.GroupRound);
                 string roundLabel = currentRound > 1 ? $" (Round {currentRound})" : "";
 

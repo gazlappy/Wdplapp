@@ -2756,6 +2756,8 @@ namespace Wdpl2.Services
             var participantLabel = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage ? "pairs" : "players";
             html.AppendLine($"                    <div class=\"{sectionClass}\">");
             html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} {participantLabel})</span></h4>");
+            if (!string.IsNullOrWhiteSpace(group.VenueDisplay))
+                html.AppendLine($"                        <p class=\"group-venue\">&#128205; {Esc(group.VenueDisplay)}</p>");
             html.AppendLine($"                        <div class=\"group-players\">");
 
             foreach (var pid in group.ParticipantIds)
