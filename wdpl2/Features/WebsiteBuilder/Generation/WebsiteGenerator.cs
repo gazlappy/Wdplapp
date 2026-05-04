@@ -2357,119 +2357,82 @@ namespace Wdpl2.Services
                 html.AppendLine("            </div>");
 
                 // ── Competition panels ────────────────────────────────────
-                // Scoped polish for doubles competitions only — pilot design before rolling out elsewhere
+                // Uniform polished layout applied to ALL competition formats (originally piloted on doubles).
                 html.AppendLine("            <style>");
-                // Compact venue chips (applied to all competition formats — replaces the old dense comma-joined text)
-                // High specificity + reset to override any prior .bk-rv / .group-venue rules in the main stylesheet
-                html.AppendLine("            .comp-panel .bk-rv, .comp-panel .group-venue, .gs-wrap .group-venue { display: flex !important; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px 0 !important; padding: 0 !important; background: none !important; border: none !important; font-size: inherit !important; color: inherit !important; }");
+                // Compact venue chip styling (used on per-match cards on the draw)
                 html.AppendLine("            .comp-panel .venue-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--bg-alt, #F1F5F9); border: 1px solid var(--border-color, #E2E8F0); border-radius: 999px; font-size: 0.72rem; font-weight: 500; color: var(--text-secondary, #64748B); line-height: 1.4; white-space: nowrap; max-width: 100%; }");
                 html.AppendLine("            .comp-panel .venue-chip .vc-icon { opacity: 0.7; font-size: 0.7rem; }");
                 html.AppendLine("            .comp-panel .venue-chip .vc-name { overflow: hidden; text-overflow: ellipsis; }");
                 html.AppendLine("            .comp-panel .venue-chip .vc-tables { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #E2E8F0); border-radius: 999px; padding: 1px 7px; font-size: 0.65rem; color: var(--text-color, #0F172A); font-weight: 700; line-height: 1.3; }");
-                html.AppendLine("            .comp-panel .group-venue .venue-chip { font-size: 0.78rem; }");
-                html.AppendLine("            .comp-doubles .comp-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; padding: 4px 0 14px 0; border-bottom: 1px solid var(--border-color, #E2E8F0); margin-bottom: 18px; }");
-                html.AppendLine("            .comp-doubles .comp-header .ch-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-alt, #F1F5F9); border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--text-color, #0F172A); }");
-                html.AppendLine("            .comp-doubles .comp-header .ch-meta { color: var(--text-secondary, #64748B); font-size: 0.8rem; }");
-                html.AppendLine("            .comp-doubles .comp-header .ch-meta a { color: var(--primary-color, #3B82F6); text-decoration: none; }");
-                html.AppendLine("            .comp-doubles .comp-header .ch-meta a:hover { text-decoration: underline; }");
-                html.AppendLine("            .comp-doubles .comp-notes { font-size: 0.85rem; color: var(--text-secondary, #64748B); font-style: italic; margin: -8px 0 16px 0; padding-left: 10px; border-left: 3px solid var(--border-color, #E2E8F0); }");
-                // Slimmer bracket cards: hide per-card date/venue (round header already shows them)
-                html.AppendLine("            .comp-doubles .bk-card .bk-date, .comp-doubles .bk-card .bk-venue { display: none; }");
-                html.AppendLine("            .comp-doubles .bk-card { padding: 8px 10px; }");
-                html.AppendLine("            .comp-doubles .bk-card .bk-name { font-size: 0.85rem; line-height: 1.25; }");
-                // Group section: hide redundant participant list when standings table is rendered
-                html.AppendLine("            .comp-doubles .group-section.gs-has-standings .group-players { display: none; }");
-                // Hide repeated per-match date/venue inside groups (group header carries it)
-                html.AppendLine("            .comp-doubles .group-matches .match-date, .comp-doubles .group-matches .match-venue { display: none; }");
+                html.AppendLine("            .comp-panel .comp-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; padding: 4px 0 14px 0; border-bottom: 1px solid var(--border-color, #E2E8F0); margin-bottom: 18px; }");
+                html.AppendLine("            .comp-panel .comp-header .ch-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-alt, #F1F5F9); border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--text-color, #0F172A); }");
+                html.AppendLine("            .comp-panel .comp-header .ch-meta { color: var(--text-secondary, #64748B); font-size: 0.8rem; }");
+                html.AppendLine("            .comp-panel .comp-header .ch-meta a { color: var(--primary-color, #3B82F6); text-decoration: none; }");
+                html.AppendLine("            .comp-panel .comp-header .ch-meta a:hover { text-decoration: underline; }");
+                html.AppendLine("            .comp-panel .comp-notes { font-size: 0.85rem; color: var(--text-secondary, #64748B); font-style: italic; margin: -8px 0 16px 0; padding-left: 10px; border-left: 3px solid var(--border-color, #E2E8F0); }");
+                html.AppendLine("            .comp-panel .bk-card { padding: 8px 10px; }");
+                html.AppendLine("            .comp-panel .bk-card .bk-name { font-size: 0.85rem; line-height: 1.25; }");
+                html.AppendLine("            .comp-panel .bk-card .bk-venue { font-size: 0.7rem; color: var(--text-secondary, #64748B); margin-top: 4px; }");
+                html.AppendLine("            .comp-panel .group-matches .match-venue { font-size: 0.75rem; color: var(--text-secondary, #64748B); margin-top: 2px; }");
                 html.AppendLine("            </style>");
 
                 for (int i = 0; i < competitions.Count; i++)
                 {
                     var comp = competitions[i];
                     var display = i == 0 ? "block" : "none";
-                    var isDoubles = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage;
-                    var panelClass = isDoubles ? "comp-panel comp-doubles" : "comp-panel";
 
-                    html.AppendLine($"            <div class=\"{panelClass}\" id=\"comp-{i}\" style=\"display:{display}\">");
+                    html.AppendLine($"            <div class=\"comp-panel\" id=\"comp-{i}\" style=\"display:{display}\">");
 
                     var formatLabel = comp.Format.ToString().Replace("Knockout", " Knockout").Replace("GroupStage", " Group Stage").Replace("RoundRobin", "Round Robin");
                     var compSeasonName = _league.Seasons.FirstOrDefault(s => s.Id == comp.SeasonId)?.Name;
 
-                    if (isDoubles)
+                    // Format-aware participant label
+                    var participantWord = comp.Format switch
                     {
-                        // Tidy doubles header — primary chips + a single quiet meta line
-                        html.AppendLine("                <div class=\"comp-header\">");
-                        html.AppendLine($"                    <span class=\"ch-chip\">&#128101; {GetParticipantCount(comp)} pairs</span>");
-                        html.AppendLine($"                    <span class=\"ch-chip\">&#127919; {formatLabel}</span>");
-                        if (comp.BestOf > 0)
-                            html.AppendLine($"                    <span class=\"ch-chip\">&#127932; Best of {comp.BestOf}</span>");
+                        CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage => "pairs",
+                        CompetitionFormat.TeamKnockout => "teams",
+                        _ => "players"
+                    };
 
-                        var metaParts = new List<string>();
-                        if (comp.StartDate.HasValue) metaParts.Add($"&#128197; {comp.StartDate.Value:dd MMM yyyy}");
-                        if (!string.IsNullOrWhiteSpace(compSeasonName)) metaParts.Add(Esc(compSeasonName));
+                    // Uniform polished header — primary chips + a single quiet meta line (applies to all formats)
+                    html.AppendLine("                <div class=\"comp-header\">");
+                    html.AppendLine($"                    <span class=\"ch-chip\">&#128101; {GetParticipantCount(comp)} {participantWord}</span>");
+                    html.AppendLine($"                    <span class=\"ch-chip\">&#127919; {formatLabel}</span>");
+                    // Show competition-level Best Of as a default chip when all rounds use it (or none override).
+                    // If individual rounds override, the chip is hidden — round headers will show their own.
+                    var anyRoundOverrides = comp.Rounds.Any(r => r.BestOf.HasValue && r.BestOf != comp.BestOf);
+                    if (comp.BestOf > 0 && !anyRoundOverrides)
+                        html.AppendLine($"                    <span class=\"ch-chip\">&#127932; Best of {comp.BestOf}</span>");
 
-                        if (comp.PlateCompetitionId.HasValue)
-                        {
-                            var plate = _league.Competitions.FirstOrDefault(c => c.Id == comp.PlateCompetitionId.Value);
-                            var plateIdx = plate != null ? competitions.FindIndex(c => c.Id == plate.Id) : -1;
-                            if (plate != null && plateIdx >= 0)
-                                metaParts.Add($"Plate: <a href=\"#\" onclick=\"showComp({plateIdx});return false;\">{Esc(plate.Name)}</a>");
-                            else if (plate != null)
-                                metaParts.Add($"Plate: {Esc(plate.Name)}");
-                        }
-                        if (comp.ParentCompetitionId.HasValue)
-                        {
-                            var parent = _league.Competitions.FirstOrDefault(c => c.Id == comp.ParentCompetitionId.Value);
-                            var parentIdx = parent != null ? competitions.FindIndex(c => c.Id == parent.Id) : -1;
-                            if (parent != null && parentIdx >= 0)
-                                metaParts.Add($"Plate of: <a href=\"#\" onclick=\"showComp({parentIdx});return false;\">{Esc(parent.Name)}</a>");
-                            else if (parent != null)
-                                metaParts.Add($"Plate of: {Esc(parent.Name)}");
-                        }
+                    var metaParts = new List<string>();
+                    if (comp.StartDate.HasValue) metaParts.Add($"&#128197; {comp.StartDate.Value:dd MMM yyyy}");
+                    if (!string.IsNullOrWhiteSpace(compSeasonName)) metaParts.Add(Esc(compSeasonName));
 
-                        if (metaParts.Count > 0)
-                            html.AppendLine($"                    <span class=\"ch-meta\">{string.Join(" &middot; ", metaParts)}</span>");
-                        html.AppendLine("                </div>");
-
-                        if (!string.IsNullOrWhiteSpace(comp.Notes))
-                            html.AppendLine($"                <p class=\"comp-notes\">{Esc(comp.Notes)}</p>");
-                    }
-                    else
+                    if (comp.PlateCompetitionId.HasValue)
                     {
-                        // Original info bar for non-doubles formats
-                        html.AppendLine($"                <div class=\"comp-info-bar\">");
-                        html.AppendLine($"                    <span>&#127919; {formatLabel}</span>");
-                        html.AppendLine($"                    <span>&#128101; {GetParticipantCount(comp)} entries</span>");
-                        if (comp.BestOf > 0)
-                            html.AppendLine($"                    <span>&#127932; Best of {comp.BestOf} (first to {comp.FramesToWin})</span>");
-                        if (comp.StartDate.HasValue)
-                            html.AppendLine($"                    <span>&#128197; {comp.StartDate.Value:dd MMM yyyy}</span>");
-                        if (!string.IsNullOrWhiteSpace(compSeasonName))
-                            html.AppendLine($"                    <span>&#127921; {compSeasonName}</span>");
-
-                        if (comp.PlateCompetitionId.HasValue)
-                        {
-                            var plate = _league.Competitions.FirstOrDefault(c => c.Id == comp.PlateCompetitionId.Value);
-                            var plateIdx = plate != null ? competitions.FindIndex(c => c.Id == plate.Id) : -1;
-                            if (plate != null && plateIdx >= 0)
-                                html.AppendLine($"                    <span>&#127894; Plate: <a href=\"#\" onclick=\"showComp({plateIdx});return false;\">{Esc(plate.Name)}</a></span>");
-                            else if (plate != null)
-                                html.AppendLine($"                    <span>&#127894; Plate: {Esc(plate.Name)}</span>");
-                        }
-                        if (comp.ParentCompetitionId.HasValue)
-                        {
-                            var parent = _league.Competitions.FirstOrDefault(c => c.Id == comp.ParentCompetitionId.Value);
-                            var parentIdx = parent != null ? competitions.FindIndex(c => c.Id == parent.Id) : -1;
-                            if (parent != null && parentIdx >= 0)
-                                html.AppendLine($"                    <span>&#8617;&#65039; Plate of: <a href=\"#\" onclick=\"showComp({parentIdx});return false;\">{Esc(parent.Name)}</a></span>");
-                            else if (parent != null)
-                                html.AppendLine($"                    <span>&#8617;&#65039; Plate of: {Esc(parent.Name)}</span>");
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(comp.Notes))
-                            html.AppendLine($"                    <span>&#128221; {comp.Notes}</span>");
-                        html.AppendLine($"                </div>");
+                        var plate = _league.Competitions.FirstOrDefault(c => c.Id == comp.PlateCompetitionId.Value);
+                        var plateIdx = plate != null ? competitions.FindIndex(c => c.Id == plate.Id) : -1;
+                        if (plate != null && plateIdx >= 0)
+                            metaParts.Add($"Plate: <a href=\"#\" onclick=\"showComp({plateIdx});return false;\">{Esc(plate.Name)}</a>");
+                        else if (plate != null)
+                            metaParts.Add($"Plate: {Esc(plate.Name)}");
                     }
+                    if (comp.ParentCompetitionId.HasValue)
+                    {
+                        var parent = _league.Competitions.FirstOrDefault(c => c.Id == comp.ParentCompetitionId.Value);
+                        var parentIdx = parent != null ? competitions.FindIndex(c => c.Id == parent.Id) : -1;
+                        if (parent != null && parentIdx >= 0)
+                            metaParts.Add($"Plate of: <a href=\"#\" onclick=\"showComp({parentIdx});return false;\">{Esc(parent.Name)}</a>");
+                        else if (parent != null)
+                            metaParts.Add($"Plate of: {Esc(parent.Name)}");
+                    }
+
+                    if (metaParts.Count > 0)
+                        html.AppendLine($"                    <span class=\"ch-meta\">{string.Join(" &middot; ", metaParts)}</span>");
+                    html.AppendLine("                </div>");
+
+                    if (!string.IsNullOrWhiteSpace(comp.Notes))
+                        html.AppendLine($"                <p class=\"comp-notes\">{Esc(comp.Notes)}</p>");
 
                     // Round Robin → standings + results
                     if (comp.Format == CompetitionFormat.RoundRobin && comp.Rounds.Count > 0)
@@ -2561,8 +2524,12 @@ namespace Wdpl2.Services
                 var rrDateHtml = round.Date.HasValue
                     ? $" <span class=\"round-date\">{round.Date.Value:dd MMM yyyy}</span>"
                     : "";
+                var rrBestOf = round.GetEffectiveBestOf(comp);
+                var rrBoHtml = rrBestOf > 0
+                    ? $" <span class=\"round-bo\">&#127932; Best of {rrBestOf}</span>"
+                    : "";
                 html.AppendLine($"                    <div class=\"round-section\">");
-                html.AppendLine($"                        <h4>{round.Name}{rrDateHtml}</h4>");
+                html.AppendLine($"                        <h4>{round.Name}{rrDateHtml}{rrBoHtml}</h4>");
                 foreach (var match in round.Matches)
                     AppendMatchRow(html, match, comp, players, teams);
                 html.AppendLine($"                    </div>");
@@ -2599,29 +2566,13 @@ namespace Wdpl2.Services
                 var roundDateHtml = round.Date.HasValue
                     ? $"<div class=\"round-date\">{round.Date.Value:dd MMM yyyy}</div>"
                     : "<div class=\"round-date\">Date TBC</div>";
-
-                // Round-level venue info — compact chip per venue with table-count badge
-                var venueHtml = "";
-                if (round.SelectedVenues.Count > 0)
-                {
-                    var chips = new StringBuilder();
-                    foreach (var v in round.SelectedVenues)
-                    {
-                        var name = System.Net.WebUtility.HtmlEncode(v.VenueName ?? "");
-                        var tableLabels = string.Join(", ", v.SelectedTables.Select(t => t.Label));
-                        var titleAttr = string.IsNullOrEmpty(tableLabels)
-                            ? $"title=\"{name}\""
-                            : $"title=\"{name} — {System.Net.WebUtility.HtmlEncode(tableLabels)}\"";
-                        var badge = v.TableCount > 0
-                            ? $"<span class=\"vc-tables\">{v.TableCount}</span>"
-                            : "";
-                        chips.Append($"<span class=\"venue-chip\" {titleAttr}><span class=\"vc-icon\">&#128205;</span><span class=\"vc-name\">{name}</span>{badge}</span>");
-                    }
-                    venueHtml = $"<div class=\"bk-rv\">{chips}</div>";
-                }
+                var koBestOf = round.GetEffectiveBestOf(comp);
+                var koBoHtml = koBestOf > 0
+                    ? $"<div class=\"round-bo\">&#127932; Best of {koBestOf}</div>"
+                    : "";
 
                 html.AppendLine($"                    <div class=\"bk-hdr\" style=\"grid-column:{gridCol};grid-row:1\">");
-                html.AppendLine($"                        <div class=\"bk-rn\">{label}</div>{roundDateHtml}{venueHtml}");
+                html.AppendLine($"                        <div class=\"bk-rn\">{label}</div>{roundDateHtml}{koBoHtml}");
                 html.AppendLine($"                    </div>");
             }
 
@@ -2805,17 +2756,6 @@ namespace Wdpl2.Services
             var participantLabel = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage ? "pairs" : "players";
             html.AppendLine($"                    <div class=\"{sectionClass}\">");
             html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} {participantLabel})</span></h4>");
-            if (!string.IsNullOrEmpty(group.VenueName))
-            {
-                var vname = System.Net.WebUtility.HtmlEncode(group.VenueName);
-                var tbadge = !string.IsNullOrEmpty(group.TableLabel)
-                    ? $"<span class=\"vc-tables\">T{System.Net.WebUtility.HtmlEncode(group.TableLabel)}</span>"
-                    : "";
-                var titleAttr = !string.IsNullOrEmpty(group.TableLabel)
-                    ? $"title=\"{vname} — Table {System.Net.WebUtility.HtmlEncode(group.TableLabel)}\""
-                    : $"title=\"{vname}\"";
-                html.AppendLine($"                        <div class=\"group-venue\"><span class=\"venue-chip\" {titleAttr}><span class=\"vc-icon\">&#128205;</span><span class=\"vc-name\">{vname}</span>{tbadge}</span></div>");
-            }
             html.AppendLine($"                        <div class=\"group-players\">");
 
             foreach (var pid in group.ParticipantIds)

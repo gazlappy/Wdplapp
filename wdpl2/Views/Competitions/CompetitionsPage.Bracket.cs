@@ -619,7 +619,9 @@ public partial class CompetitionsPage
 
         // Max total frames is BestOf (e.g. best of 15 = 15 frames max).
         // Combined score can't exceed this. 0 = no limit.
-        int maxFrames = competition.BestOf;
+        // Prefer per-round BestOf, falling back to competition default.
+        var owningRound = competition.Rounds.FirstOrDefault(r => r.Matches.Any(m => m.Id == match.Id));
+        int maxFrames = owningRound?.GetEffectiveBestOf(competition) ?? competition.BestOf;
 
         var card = new VerticalStackLayout { Spacing = 0 };
 

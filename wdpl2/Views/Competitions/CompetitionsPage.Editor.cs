@@ -60,63 +60,86 @@ public partial class CompetitionsPage
                     }
                 };
 
-                View nameContent;
-                if (isDoublesFormat)
+                // Uniform participant card: bold primary name + optional muted sub-row.
+                // The sub-row carries doubles player names, the singles player's team name,
+                // or remains hidden when there's nothing to show.
+                var primaryLabel = new Label
                 {
-                    // Doubles card: bold team name + 2 muted player sub-rows
-                    var teamLabel = new Label
-                    {
-                        FontSize = 14,
-                        FontAttributes = FontAttributes.Bold,
-                        TextColor = Color.FromArgb("#0F172A")
-                    };
-                    teamLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
+                    FontSize = 14,
+                    FontAttributes = FontAttributes.Bold,
+                    TextColor = Color.FromArgb("#0F172A"),
+                    VerticalTextAlignment = TextAlignment.Center
+                };
+                primaryLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
 
-                    var playersLabel = new Label
-                    {
-                        FontSize = 11,
-                        TextColor = Color.FromArgb("#6B7280"),
-                        LineBreakMode = LineBreakMode.TailTruncation
-                    };
+                var subLabel = new Label
+                {
+                    FontSize = 11,
+                    TextColor = Color.FromArgb("#6B7280"),
+                    LineBreakMode = LineBreakMode.TailTruncation,
+                    IsVisible = false
+                };
 
-                    var stack = new VerticalStackLayout
-                    {
-                        Spacing = 2,
-                        Children = { teamLabel, playersLabel }
-                    };
+                var stack = new VerticalStackLayout
+                {
+                    Spacing = 2,
+                    Children = { primaryLabel, subLabel }
+                };
 
-                    // Resolve player names from the captured competition's DoublesTeams
-                    stack.BindingContextChanged += (s, e) =>
+                // Resolve sub-row content based on format
+                stack.BindingContextChanged += (s, e) =>
+                {
+                    if (stack.BindingContext is not ParticipantItem item || _selectedCompetition == null)
                     {
-                        if (stack.BindingContext is ParticipantItem item && _selectedCompetition != null)
+                        subLabel.IsVisible = false;
+                        return;
+                    }
+
+                    var allPlayers = DataStore.Data?.Players ?? new List<Player>();
+
+                    if (isDoublesFormat)
+                    {
+                        var team = _selectedCompetition.DoublesTeams.FirstOrDefault(d => d.Id == item.Id);
+                        if (team != null)
                         {
-                            var team = _selectedCompetition.DoublesTeams.FirstOrDefault(d => d.Id == item.Id);
-                            if (team != null)
+                            var p1 = allPlayers.FirstOrDefault(p => p.Id == team.Player1Id)?.FullName ?? "?";
+                            var p2 = allPlayers.FirstOrDefault(p => p.Id == team.Player2Id)?.FullName ?? "?";
+                            subLabel.Text = $"\U0001F465 {p1}  \u00B7  {p2}";
+                            subLabel.IsVisible = true;
+                            return;
+                        }
+                    }
+                    else if (participantFormat == CompetitionFormat.TeamKnockout)
+                    {
+                        // Sub-row: number of players in the team
+                        var playerCount = allPlayers.Count(p => p.TeamId == item.Id);
+                        if (playerCount > 0)
+                        {
+                            subLabel.Text = $"\U0001F465 {playerCount} player{(playerCount == 1 ? "" : "s")}";
+                            subLabel.IsVisible = true;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // Singles: show the player's team name when available
+                        var player = allPlayers.FirstOrDefault(p => p.Id == item.Id);
+                        if (player?.TeamId is Guid teamId)
+                        {
+                            var teamName = DataStore.Data?.Teams.FirstOrDefault(t => t.Id == teamId)?.Name;
+                            if (!string.IsNullOrWhiteSpace(teamName))
                             {
-                                var allPlayers = DataStore.Data?.Players ?? new List<Player>();
-                                var p1 = allPlayers.FirstOrDefault(p => p.Id == team.Player1Id)?.FullName ?? "?";
-                                var p2 = allPlayers.FirstOrDefault(p => p.Id == team.Player2Id)?.FullName ?? "?";
-                                playersLabel.Text = $"\U0001F465 {p1}  \u00B7  {p2}";
-                            }
-                            else
-                            {
-                                playersLabel.Text = "";
+                                subLabel.Text = $"\U0001F3AF {teamName}";
+                                subLabel.IsVisible = true;
+                                return;
                             }
                         }
-                    };
+                    }
 
-                    nameContent = stack;
-                }
-                else
-                {
-                    var nameLabel = new Label
-                    {
-                        VerticalTextAlignment = TextAlignment.Center,
-                        FontSize = 13
-                    };
-                    nameLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
-                    nameContent = nameLabel;
-                }
+                    subLabel.IsVisible = false;
+                };
+
+                View nameContent = stack;
 
                 var removeBtn = new Button
                 {
@@ -138,8 +161,8 @@ public partial class CompetitionsPage
                 {
                     Padding = 2,
                     Margin = new Thickness(0, 2),
-                    BackgroundColor = isDoublesFormat ? Color.FromArgb("#F8FAFC") : Colors.Transparent,
-                    Stroke = isDoublesFormat ? Color.FromArgb("#E2E8F0") : Colors.Transparent,
+                    BackgroundColor = Color.FromArgb("#F8FAFC"),
+                    Stroke = Color.FromArgb("#E2E8F0"),
                     StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
                     Content = grid
                 };
@@ -260,6 +283,11 @@ public partial class CompetitionsPage
 
     private void AddFormatSpecificActions(VerticalStackLayout content, Competition competition)
     {
+        // Always-visible competition-level Best Of default — shown for every format,
+        // regardless of whether a bracket/groups have been generated. Per-round overrides
+        // appear inline in the round schedule once rounds exist.
+        content.Children.Add(CreateCompetitionBestOfPicker(competition));
+
         if (competition.Format == CompetitionFormat.SinglesGroupStage || 
             competition.Format == CompetitionFormat.DoublesGroupStage)
         {
@@ -269,6 +297,79 @@ public partial class CompetitionsPage
         {
             AddKnockoutActions(content, competition);
         }
+    }
+
+    private View CreateCompetitionBestOfPicker(Competition competition)
+    {
+        // 0 = Unlimited; positive = best of N
+        var options = new[] { ("Unlimited", 0), ("1", 1), ("3", 3), ("5", 5),
+                              ("7", 7), ("9", 9), ("11", 11), ("15", 15) };
+
+        var summary = new Label
+        {
+            FontSize = 11,
+            FontAttributes = FontAttributes.Italic,
+            TextColor = Color.FromArgb("#64748B"),
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+
+        void RefreshSummary()
+        {
+            summary.Text = competition.BestOf > 0
+                ? $"Default for all rounds: Best of {competition.BestOf} (rounds may override)"
+                : "Default for all rounds: Unlimited (rounds may override)";
+        }
+
+        var chipRow = new FlexLayout
+        {
+            Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+            Direction = Microsoft.Maui.Layouts.FlexDirection.Row
+        };
+
+        Border MakeChip(string text, int value)
+        {
+            bool selected = competition.BestOf == value;
+            var lbl = new Label
+            {
+                Text = text,
+                FontSize = 11,
+                FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None,
+                TextColor = selected ? Colors.White : Color.FromArgb("#0F172A"),
+                Padding = new Thickness(8, 4),
+                VerticalTextAlignment = TextAlignment.Center
+            };
+            var border = new Border
+            {
+                BackgroundColor = selected ? Color.FromArgb("#3B82F6") : Color.FromArgb("#F1F5F9"),
+                Stroke = selected ? Color.FromArgb("#3B82F6") : Color.FromArgb("#E2E8F0"),
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+                Padding = 0,
+                Margin = new Thickness(0, 0, 6, 6),
+                Content = lbl
+            };
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                if (_editorViewModel == null) return;
+                await _editorViewModel.SaveCompetitionBestOfAsync(value);
+                SetStatus(_editorViewModel.StatusMessage);
+                if (_selectedCompetition != null)
+                    ShowCompetitionEditor(_selectedCompetition);
+            };
+            border.GestureRecognizers.Add(tap);
+            return border;
+        }
+
+        foreach (var (text, value) in options)
+            chipRow.Children.Add(MakeChip(text, value));
+
+        RefreshSummary();
+
+        var stack = new VerticalStackLayout { Spacing = 2, Margin = new Thickness(0, 0, 0, 8) };
+        stack.Children.Add(new Label { Text = "🏆 Best of (default):", FontSize = 13, FontAttributes = FontAttributes.Bold });
+        stack.Children.Add(chipRow);
+        stack.Children.Add(summary);
+        return stack;
     }
 
     private void AddGroupStageActions(VerticalStackLayout content, Competition competition)
@@ -650,16 +751,11 @@ public partial class CompetitionsPage
             Margin = new Thickness(0, 10, 0, 4)
         });
 
-        var groupDatePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 14 };
-        groupDatePicker.DateSelected += async (s, e) =>
+        content.Children.Add(CreateDateCard(settings.GroupDate ?? DateTime.Today, async newDate =>
         {
-            await _editorViewModel.SaveGroupDateAsync(e.NewDate);
+            await _editorViewModel.SaveGroupDateAsync(newDate);
             SetStatus(_editorViewModel.StatusMessage);
-        };
-        content.Children.Add(CreateLabeledField("Date:", groupDatePicker));
-
-        if (settings.GroupDate.HasValue)
-            content.Children.Add(CreateDateCard(settings.GroupDate.Value));
+        }));
 
         // ? 3. Group Count ???????????????????????????????????????????????
         content.Children.Add(new Label
@@ -970,16 +1066,14 @@ public partial class CompetitionsPage
             Margin = new Thickness(0, 0, 0, 4)
         });
 
-        // Date picker for round 1
-        var datePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 13 };
-        datePicker.DateSelected += async (s, e) =>
+        // Date card for round 1
+        content.Children.Add(CreateDateCard(settings.GroupDate ?? DateTime.Today, async newDate =>
         {
-            await _editorViewModel.SaveGroupDateAsync(e.NewDate);
+            await _editorViewModel.SaveGroupDateAsync(newDate);
             SetStatus(_editorViewModel.StatusMessage);
             if (_selectedCompetition != null)
                 ShowCompetitionEditor(_selectedCompetition);
-        };
-        content.Children.Add(CreateLabeledField("Date:", datePicker));
+        }));
 
         // Venue/table checkboxes (reuses existing mechanism)
         AddVenueSelectionUI(content, competition, settings);
@@ -1141,24 +1235,19 @@ public partial class CompetitionsPage
                 FontAttributes = FontAttributes.Bold
             });
 
-            // Date picker
-            var datePicker = new DatePicker { Date = round.Date ?? DateTime.Today, FontSize = 13 };
+            // Interactive date card for this round
             var capturedRound = round;
-
-            datePicker.DateSelected += async (s, e) =>
+            roundStack.Children.Add(CreateDateCard(round.Date ?? DateTime.Today, async newDate =>
             {
-                await _editorViewModel.SaveRoundDetailsAsync(capturedRound.Id, e.NewDate, null);
+                await _editorViewModel.SaveRoundDetailsAsync(capturedRound.Id, newDate, null);
                 SetStatus(_editorViewModel.StatusMessage);
                 // Refresh to update plate restrictions
                 if (_selectedCompetition != null)
                     ShowCompetitionEditor(_selectedCompetition);
-            };
-            roundStack.Children.Add(CreateLabeledField("Date:", datePicker));
+            }));
 
-            if (round.Date.HasValue)
-            {
-                roundStack.Children.Add(CreateDateCard(round.Date.Value));
-            }
+            // Per-round "Best of" picker (overrides competition-level default)
+            roundStack.Children.Add(CreateRoundBestOfPicker(competition, capturedRound));
 
             // Table selection for this round
             if (allVenues.Count > 0 && allVenues.Any(v => v.Tables.Count > 0))
@@ -1674,6 +1763,84 @@ public partial class CompetitionsPage
         border.GestureRecognizers.Add(pointer);
 
         return border;
+    }
+
+    private View CreateRoundBestOfPicker(Competition competition, CompetitionRound round)
+    {
+        // Common Best Of choices: 1, 3, 5, 7, 9, 11, 15. "Default" = inherit competition value.
+        var options = new[] { ("Default", (int?)null), ("1", (int?)1), ("3", (int?)3), ("5", (int?)5),
+                              ("7", (int?)7), ("9", (int?)9), ("11", (int?)11), ("15", (int?)15) };
+
+        var label = new Label
+        {
+            FontSize = 11,
+            FontAttributes = FontAttributes.Italic,
+            TextColor = Color.FromArgb("#64748B"),
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+
+        void RefreshSummary()
+        {
+            var compDefault = competition.BestOf > 0 ? $"Best of {competition.BestOf}" : "unlimited";
+            if (round.BestOf.HasValue)
+                label.Text = round.BestOf.Value > 0
+                    ? $"This round: Best of {round.BestOf.Value}"
+                    : "This round: Unlimited";
+            else
+                label.Text = $"This round: Default ({compDefault})";
+        }
+
+        var chipRow = new FlexLayout
+        {
+            Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+            Direction = Microsoft.Maui.Layouts.FlexDirection.Row
+        };
+
+        Border MakeChip(string text, int? value)
+        {
+            bool selected = round.BestOf == value || (!round.BestOf.HasValue && value == null);
+            var lbl = new Label
+            {
+                Text = text,
+                FontSize = 11,
+                FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None,
+                TextColor = selected ? Colors.White : Color.FromArgb("#0F172A"),
+                Padding = new Thickness(8, 4),
+                VerticalTextAlignment = TextAlignment.Center
+            };
+            var border = new Border
+            {
+                BackgroundColor = selected ? Color.FromArgb("#3B82F6") : Color.FromArgb("#F1F5F9"),
+                Stroke = selected ? Color.FromArgb("#3B82F6") : Color.FromArgb("#E2E8F0"),
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+                Padding = 0,
+                Margin = new Thickness(0, 0, 6, 6),
+                Content = lbl
+            };
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                if (_editorViewModel == null) return;
+                await _editorViewModel.SaveRoundDetailsAsync(round.Id, null, null,
+                    bestOf: value, clearBestOf: value == null);
+                SetStatus(_editorViewModel.StatusMessage);
+                if (_selectedCompetition != null)
+                    ShowCompetitionEditor(_selectedCompetition);
+            };
+            border.GestureRecognizers.Add(tap);
+            return border;
+        }
+
+        foreach (var (text, value) in options)
+            chipRow.Children.Add(MakeChip(text, value));
+
+        RefreshSummary();
+
+        var stack = new VerticalStackLayout { Spacing = 2, Margin = new Thickness(0, 6, 0, 0) };
+        stack.Children.Add(new Label { Text = "🏆 Best of:", FontSize = 12, FontAttributes = FontAttributes.Bold });
+        stack.Children.Add(chipRow);
+        stack.Children.Add(label);
+        return stack;
     }
 
     private static Border CreateTableChip(Guid venueId, Guid tableId, string label,

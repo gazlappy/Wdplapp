@@ -113,10 +113,24 @@ public partial class CompetitionEditorViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Save the competition-level default Best Of value (inherited by all rounds unless overridden).
+    /// Pass 0 for "Unlimited" or a positive integer for a specific best-of value.
+    /// </summary>
+    public async Task SaveCompetitionBestOfAsync(int bestOf)
+    {
+        if (CheckSeasonLocked()) return;
+
+        _competition.BestOf = bestOf;
+        await _competitionStore.UpdateCompetitionAsync(_competition);
+        await _competitionStore.SaveAsync();
+        StatusMessage = bestOf > 0 ? $"Default set to Best of {bestOf}" : "Default set to Unlimited";
+    }
+
+    /// <summary>
     /// Save date and table selections for a specific KO round.
     /// Automatically assigns matches to the selected tables round-robin.
     /// </summary>
-    public async Task SaveRoundDetailsAsync(Guid roundId, DateTime? date, List<CompetitionVenue>? venues)
+    public async Task SaveRoundDetailsAsync(Guid roundId, DateTime? date, List<CompetitionVenue>? venues, int? bestOf = null, bool clearBestOf = false)
     {
         if (CheckSeasonLocked()) return;
 
@@ -133,6 +147,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
             round.SelectedVenues = venues;
             CompetitionGenerator.AssignMatchVenueTables(round.Matches, venues);
         }
+        if (clearBestOf) round.BestOf = null;
+        else if (bestOf.HasValue) round.BestOf = bestOf.Value;
 
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
@@ -1581,10 +1597,11 @@ public partial class CompetitionEditorViewModel : ObservableObject
         if (CheckSeasonLocked()) return;
 
         bool anyUpdates = false;
-        int ftw = _competition.FramesToWin; // 0 = unlimited / not set
 
         foreach (var round in _competition.Rounds)
         {
+            int ftw = round.GetFramesToWin(_competition); // 0 = unlimited / not set
+
             foreach (var match in round.Matches)
             {
                 if (!match.Participant1Id.HasValue || !match.Participant2Id.HasValue)

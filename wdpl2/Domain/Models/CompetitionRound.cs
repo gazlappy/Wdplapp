@@ -25,6 +25,24 @@ namespace Wdpl2.Models
         /// <summary>Total number of selected tables across all venues for this round.</summary>
         public int TotalTables => SelectedVenues.Sum(v => v.TableCount);
 
+        /// <summary>
+        /// Per-round override for the "Best of" frame count.
+        /// null = inherit the competition-level <see cref="Competition.BestOf"/> value.
+        /// 0 = unlimited (explicit).
+        /// </summary>
+        public int? BestOf { get; set; }
+
+        /// <summary>Effective Best Of for this round, falling back to the competition default when not set.</summary>
+        public int GetEffectiveBestOf(Competition? competition) =>
+            BestOf ?? competition?.BestOf ?? 0;
+
+        /// <summary>Frames needed to win a match in this round, using the effective Best Of.</summary>
+        public int GetFramesToWin(Competition? competition)
+        {
+            var bo = GetEffectiveBestOf(competition);
+            return bo > 0 ? (bo + 1) / 2 : 0;
+        }
+
         public override string ToString() => Name;
     }
 }
