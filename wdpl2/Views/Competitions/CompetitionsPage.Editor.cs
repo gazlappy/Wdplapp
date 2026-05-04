@@ -294,17 +294,7 @@ public partial class CompetitionsPage
             int currentGroupRound = competition.Groups.Max(g => g.GroupRound);
             content.Children.Add(new Label { Text = $"✅ {competition.Groups.Count} groups generated (Round {currentGroupRound})", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
 
-            // Show current round date and venue summary
-            if (settings.GroupDate.HasValue)
-            {
-                content.Children.Add(new Label
-                {
-                    Text = $"\U0001F4C5 {settings.GroupDate.Value:dd MMM yyyy}",
-                    FontSize = 12,
-                    TextColor = Colors.Gray,
-                    Margin = new Thickness(0, 0, 0, 2)
-                });
-            }
+            // Show current round venue summary (date card now lives inline with the action buttons below)
             if (settings.SelectedVenues.Count > 0)
             {
                 int venueTables = settings.SelectedVenues.Sum(v => v.TableCount);
@@ -325,7 +315,9 @@ public partial class CompetitionsPage
             // Group action buttons
             var groupActionBar = new HorizontalStackLayout
             {
-                Spacing = 6,
+                Spacing = 8,
+                HorizontalOptions = LayoutOptions.Start,
+                VerticalOptions = LayoutOptions.Center,
                 Margin = new Thickness(0, 4, 0, 0)
             };
 
@@ -334,7 +326,9 @@ public partial class CompetitionsPage
                 Text = $"View Groups ({competition.Groups.Count})",
                 BackgroundColor = Color.FromArgb("#6366F1"),
                 TextColor = Colors.White,
-                Padding = new Thickness(8, 4)
+                FontSize = 13,
+                Padding = new Thickness(14, 8),
+                MinimumHeightRequest = 38
             };
             viewGroupsBtn.Clicked += (s, e) => ShowGroupsView();
             groupActionBar.Children.Add(viewGroupsBtn);
@@ -347,7 +341,9 @@ public partial class CompetitionsPage
                     Text = "🔀 Randomise",
                     BackgroundColor = Color.FromArgb("#F59E0B"),
                     TextColor = Colors.White,
-                    Padding = new Thickness(8, 4)
+                    FontSize = 13,
+                    Padding = new Thickness(14, 8),
+                    MinimumHeightRequest = 38
                 };
                 randomiseBtn.Clicked += async (s, e) =>
                 {
@@ -364,13 +360,45 @@ public partial class CompetitionsPage
                     Text = "🎱 Draw",
                     BackgroundColor = Color.FromArgb("#8B5CF6"),
                     TextColor = Colors.White,
-                    Padding = new Thickness(8, 4)
+                    FontSize = 13,
+                    Padding = new Thickness(14, 8),
+                    MinimumHeightRequest = 38
                 };
                 drawBtn.Clicked += (s, e) => OnRandomiseWithDraw();
                 groupActionBar.Children.Add(drawBtn);
             }
 
-            content.Children.Add(groupActionBar);
+            // Action buttons on the left, interactive date card on the right
+            var actionRow = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = GridLength.Star },
+                    new ColumnDefinition { Width = GridLength.Auto }
+                },
+                ColumnSpacing = 12,
+                VerticalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            groupActionBar.VerticalOptions = LayoutOptions.Center;
+            actionRow.Add(groupActionBar, 0, 0);
+
+            if (settings.GroupDate.HasValue)
+            {
+                var dateCard = CreateDateCard(settings.GroupDate.Value, async newDate =>
+                {
+                    await _editorViewModel.SaveGroupDateAsync(newDate);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    if (_selectedCompetition != null)
+                        ShowCompetitionEditor(_selectedCompetition);
+                });
+                dateCard.HorizontalOptions = LayoutOptions.End;
+                dateCard.VerticalOptions = LayoutOptions.Center;
+                dateCard.Margin = new Thickness(0);
+                actionRow.Add(dateCard, 1, 0);
+            }
+
+            content.Children.Add(actionRow);
 
             // Show how many have been selected so far
             int selectedCount = competition.Groups.Sum(g =>
@@ -402,23 +430,12 @@ public partial class CompetitionsPage
 
                 content.Children.Add(new Label
                 {
-                    Text = "Set the date and tables for the next round before advancing.",
+                    Text = "Set the tables for the next round before advancing. (Tap the date card above to change the round date.)",
                     FontSize = 11,
                     TextColor = Colors.Gray,
                     FontAttributes = FontAttributes.Italic,
                     Margin = new Thickness(0, 0, 0, 4)
                 });
-
-                // Date picker for next round
-                var nextDatePicker = new DatePicker { Date = settings.GroupDate ?? DateTime.Today, FontSize = 13 };
-                nextDatePicker.DateSelected += async (s, e) =>
-                {
-                    await _editorViewModel.SaveGroupDateAsync(e.NewDate);
-                    SetStatus(_editorViewModel.StatusMessage);
-                    if (_selectedCompetition != null)
-                        ShowCompetitionEditor(_selectedCompetition);
-                };
-                content.Children.Add(CreateLabeledField("Date:", nextDatePicker));
 
                 // Table selection for next round
                 content.Children.Add(new Label
@@ -642,7 +659,7 @@ public partial class CompetitionsPage
         content.Children.Add(CreateLabeledField("Date:", groupDatePicker));
 
         if (settings.GroupDate.HasValue)
-            content.Children.Add(new Label { Text = $"✅ {settings.GroupDate.Value:dd MMM yyyy}", FontSize = 13, TextColor = Color.FromArgb("#10B981") });
+            content.Children.Add(CreateDateCard(settings.GroupDate.Value));
 
         // ? 3. Group Count ???????????????????????????????????????????????
         content.Children.Add(new Label
@@ -1140,12 +1157,7 @@ public partial class CompetitionsPage
 
             if (round.Date.HasValue)
             {
-                roundStack.Children.Add(new Label
-                {
-                    Text = $"⚠️ {round.Date.Value:dd MMM yyyy}",
-                    FontSize = 11,
-                    TextColor = Color.FromArgb("#10B981")
-                });
+                roundStack.Children.Add(CreateDateCard(round.Date.Value));
             }
 
             // Table selection for this round
@@ -1163,7 +1175,7 @@ public partial class CompetitionsPage
                 var selectedTableIds = new HashSet<Guid>(
                     round.SelectedVenues.SelectMany(v => v.SelectedTables).Select(t => t.TableId));
 
-                var tablesLayout = new VerticalStackLayout { Spacing = 2 };
+                var tablesLayout = new VerticalStackLayout { Spacing = 6 };
 
                 int totalAvailableTables = 0;
                 int totalRestrictedTables = 0;
@@ -1172,70 +1184,43 @@ public partial class CompetitionsPage
                 {
                     if (venue.Tables.Count == 0) continue;
 
-                    tablesLayout.Children.Add(new Label
+                    var venueGroup = new VerticalStackLayout { Spacing = 4 };
+                    venueGroup.Children.Add(new Label
                     {
                         Text = venue.Name ?? "Unnamed Venue",
                         FontSize = 12,
                         FontAttributes = FontAttributes.Bold,
-                        Margin = new Thickness(0, 2, 0, 0)
+                        TextColor = Color.FromArgb("#475569")
                     });
+
+                    var chipRow = new FlexLayout
+                    {
+                        Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+                        Direction = Microsoft.Maui.Layouts.FlexDirection.Row
+                    };
 
                     foreach (var table in venue.Tables)
                     {
                         bool isRestricted = restrictedTableIds.Contains(table.Id);
                         bool isSelected = selectedTableIds.Contains(table.Id) && !isRestricted;
 
-                        if (isRestricted)
-                            totalRestrictedTables++;
-                        else
-                            totalAvailableTables++;
+                        if (isRestricted) totalRestrictedTables++;
+                        else totalAvailableTables++;
 
-                        var tableRow = new Grid
-                        {
-                            ColumnDefinitions =
-                            {
-                                new ColumnDefinition { Width = GridLength.Auto },
-                                new ColumnDefinition { Width = GridLength.Star },
-                            },
-                            ColumnSpacing = 4,
-                            Padding = new Thickness(16, 0, 0, 0)
-                        };
-
-                        var checkBox = new CheckBox
-                        {
-                            IsChecked = isSelected,
-                            IsEnabled = !isRestricted,
-                            VerticalOptions = LayoutOptions.Center
-                        };
-
-                        var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed" : table.Label;
-                        if (isRestricted)
-                        {
-                            var conflictName = tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : "another comp";
-                            tableLabelText += $" {Emojis.Warning} {conflictName}";
-                        }
-
-                        var tableLabel = new Label
-                        {
-                            Text = tableLabelText,
-                            FontSize = 11,
-                            VerticalTextAlignment = TextAlignment.Center,
-                            TextColor = isRestricted ? Color.FromArgb("#9CA3AF") : Colors.Black,
-                            FontAttributes = isRestricted ? FontAttributes.Italic : FontAttributes.None
-                        };
-
-                        tableRow.AutomationId = $"{venue.Id}|{table.Id}";
-
+                        var conflictName = isRestricted && tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : null;
                         var capturedRound2 = round;
-                        checkBox.CheckedChanged += async (s, e) =>
-                        {
-                            await SaveRoundTableSelections(competition, capturedRound2, allVenues, tablesLayout, restrictedTableIds);
-                        };
 
-                        tableRow.Add(checkBox, 0, 0);
-                        tableRow.Add(tableLabel, 1, 0);
-                        tablesLayout.Children.Add(tableRow);
+                        var chip = CreateTableChip(venue.Id, table.Id, table.Label, isSelected, isRestricted, conflictName,
+                            onToggle: async () =>
+                            {
+                                await SaveRoundTableSelections(competition, capturedRound2, allVenues, tablesLayout, restrictedTableIds);
+                            });
+                        chip.Margin = new Thickness(0, 0, 6, 6);
+                        chipRow.Children.Add(chip);
                     }
+
+                    venueGroup.Children.Add(chipRow);
+                    tablesLayout.Children.Add(venueGroup);
                 }
 
                 if (tablesLayout.Children.Count > 0)
@@ -1273,17 +1258,15 @@ public partial class CompetitionsPage
 
                     if (round.TotalTables > 0)
                     {
-                        var tableSummary = string.Join(", ", round.SelectedVenues.Select(v =>
-                        {
-                            var names = string.Join(", ", v.SelectedTables.Select(t => t.Label));
-                            return $"{v.VenueName} ({names})";
-                        }));
                         roundStack.Children.Add(new Label
                         {
-                            Text = $"✅ {tableSummary}",
+                            Text = $"✅ {round.TotalTables} table(s) selected",
                             FontSize = 11,
-                            TextColor = Color.FromArgb("#10B981")
+                            FontAttributes = FontAttributes.Bold,
+                            TextColor = Color.FromArgb("#10B981"),
+                            Margin = new Thickness(0, 4, 0, 0)
                         });
+                        roundStack.Children.Add(BuildSelectionSummaryChips(round.SelectedVenues));
 
                         var capturedRoundForShuffle = round;
                         var randomiseBtn = new Button
@@ -1326,22 +1309,9 @@ public partial class CompetitionsPage
 
         var venueSelections = new Dictionary<Guid, List<SelectedTable>>();
 
-        foreach (var venueSection in tablesLayout.Children)
+        foreach (var (venueId, tableId) in CollectSelectedChips(tablesLayout))
         {
-            if (venueSection is not Grid tableRow) continue;
-            if (string.IsNullOrEmpty(tableRow.AutomationId)) continue;
-
-            var parts = tableRow.AutomationId.Split('|');
-            if (parts.Length != 2) continue;
-            if (!Guid.TryParse(parts[0], out var venueId)) continue;
-            if (!Guid.TryParse(parts[1], out var tableId)) continue;
-
-            // Skip restricted tables
             if (restrictedTableIds.Contains(tableId)) continue;
-
-            var checkBox = tableRow.Children.OfType<CheckBox>().FirstOrDefault();
-            if (checkBox == null || !checkBox.IsChecked) continue;
-
             if (!venueSelections.ContainsKey(venueId))
                 venueSelections[venueId] = new List<SelectedTable>();
 
@@ -1349,8 +1319,9 @@ public partial class CompetitionsPage
             venueSelections[venueId].Add(new SelectedTable { TableId = tableId, Label = label });
         }
 
-        var venues = new List<CompetitionVenue>();
         var venueById = allVenues.ToDictionary(v => v.Id);
+
+        var venues = new List<CompetitionVenue>();
         foreach (var kvp in venueSelections)
         {
             var venueName = venueById.TryGetValue(kvp.Key, out var v) ? (v.Name ?? "") : "";
@@ -1408,13 +1379,13 @@ public partial class CompetitionsPage
         var selectedTableIds = new HashSet<Guid>(
             settings.SelectedVenues.SelectMany(v => v.SelectedTables).Select(t => t.TableId));
 
-        var venuesLayout = new VerticalStackLayout { Spacing = 8 };
+        var venuesLayout = new VerticalStackLayout { Spacing = 10 };
 
         foreach (var venue in venues)
         {
             if (venue.Tables.Count == 0) continue; // skip venues with no tables defined
 
-            var venueSection = new VerticalStackLayout { Spacing = 2 };
+            var venueSection = new VerticalStackLayout { Spacing = 4 };
 
             // Venue name header
             venueSection.Children.Add(new Label
@@ -1422,63 +1393,32 @@ public partial class CompetitionsPage
                 Text = venue.Name ?? "Unnamed Venue",
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold,
-                Margin = new Thickness(0, 2, 0, 0)
+                TextColor = Color.FromArgb("#475569")
             });
 
-            // One checkbox per table
+            var chipRow = new FlexLayout
+            {
+                Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+                Direction = Microsoft.Maui.Layouts.FlexDirection.Row
+            };
+
             foreach (var table in venue.Tables)
             {
                 bool isRestricted = restrictedTableIds.Contains(table.Id);
                 bool isSelected = selectedTableIds.Contains(table.Id) && !isRestricted;
 
-                var tableRow = new Grid
-                {
-                    ColumnDefinitions =
+                var conflictName = isRestricted && tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : null;
+
+                var chip = CreateTableChip(venue.Id, table.Id, table.Label, isSelected, isRestricted, conflictName,
+                    onToggle: async () =>
                     {
-                        new ColumnDefinition { Width = GridLength.Auto },
-                        new ColumnDefinition { Width = GridLength.Star },
-                    },
-                    ColumnSpacing = 4,
-                    Padding = new Thickness(16, 0, 0, 0) // indent under venue name
-                };
-
-                var checkBox = new CheckBox
-                {
-                    IsChecked = isSelected,
-                    IsEnabled = !isRestricted,
-                    VerticalOptions = LayoutOptions.Center
-                };
-
-                var tableLabelText = string.IsNullOrWhiteSpace(table.Label) ? "Unnamed Table" : table.Label;
-                if (isRestricted)
-                {
-                    var conflictName = tableConflictSource.TryGetValue(table.Id, out var cn) ? cn : "another comp";
-                    tableLabelText += $" {Emojis.Warning} {conflictName}";
-                }
-
-                var tableLabel = new Label
-                {
-                    Text = tableLabelText,
-                    FontSize = 12,
-                    VerticalTextAlignment = TextAlignment.Center,
-                    TextColor = isRestricted ? Color.FromArgb("#9CA3AF") : Colors.Black,
-                    FontAttributes = isRestricted ? FontAttributes.Italic : FontAttributes.None
-                };
-
-                // Tag with composite ID so we can read it back during save
-                tableRow.AutomationId = $"{venue.Id}|{table.Id}";
-
-                checkBox.CheckedChanged += async (s, e) =>
-                {
-                    await SaveVenueSelections(competition, venues, venuesLayout);
-                };
-
-                tableRow.Add(checkBox, 0, 0);
-                tableRow.Add(tableLabel, 1, 0);
-
-                venueSection.Children.Add(tableRow);
+                        await SaveVenueSelections(competition, venues, venuesLayout);
+                    });
+                chip.Margin = new Thickness(0, 0, 6, 6);
+                chipRow.Children.Add(chip);
             }
 
+            venueSection.Children.Add(chipRow);
             venuesLayout.Children.Add(venueSection);
         }
 
@@ -1554,28 +1494,13 @@ public partial class CompetitionsPage
         // Gather selected tables grouped by venue
         var venueSelections = new Dictionary<Guid, List<SelectedTable>>();
 
-        // Walk all venue sections ? table rows
-        foreach (var venueSection in venuesLayout.Children.OfType<VerticalStackLayout>())
+        foreach (var (venueId, tableId) in CollectSelectedChips(venuesLayout))
         {
-            foreach (var child in venueSection.Children)
-            {
-                if (child is not Grid tableRow) continue;
-                if (string.IsNullOrEmpty(tableRow.AutomationId)) continue;
+            if (!venueSelections.ContainsKey(venueId))
+                venueSelections[venueId] = new List<SelectedTable>();
 
-                var parts = tableRow.AutomationId.Split('|');
-                if (parts.Length != 2) continue;
-                if (!Guid.TryParse(parts[0], out var venueId)) continue;
-                if (!Guid.TryParse(parts[1], out var tableId)) continue;
-
-                var checkBox = tableRow.Children.OfType<CheckBox>().FirstOrDefault();
-                if (checkBox == null || !checkBox.IsChecked) continue;
-
-                if (!venueSelections.ContainsKey(venueId))
-                    venueSelections[venueId] = new List<SelectedTable>();
-
-                var label = tableById.TryGetValue(tableId, out var info) ? info.Table.Label : "";
-                venueSelections[venueId].Add(new SelectedTable { TableId = tableId, Label = label });
-            }
+            var label = tableById.TryGetValue(tableId, out var info) ? info.Table.Label : "";
+            venueSelections[venueId].Add(new SelectedTable { TableId = tableId, Label = label });
         }
 
         // Build the final list
@@ -1593,5 +1518,278 @@ public partial class CompetitionsPage
 
         await _editorViewModel.SaveSelectedVenuesAsync(selected);
         SetStatus(_editorViewModel.StatusMessage);
+    }
+
+    // ── Chip-based table selection helpers ────────────────────────────────────────────
+    // A chip is a Border wrapping a Label. State is encoded via StyleId:
+    //   "selected"   → user has chosen this table
+    //   "unselected" → available but not chosen
+    //   "restricted" → in use by another comp on the same date (read-only)
+    // AutomationId on every chip is "venueId|tableId" so save methods can read back.
+
+    private static readonly Color ChipSelectedBg     = Color.FromArgb("#3B82F6");
+    private static readonly Color ChipSelectedStroke = Color.FromArgb("#2563EB");
+    private static readonly Color ChipSelectedText   = Colors.White;
+    private static readonly Color ChipUnselectedBg   = Color.FromArgb("#F1F5F9");
+    private static readonly Color ChipUnselectedStroke = Color.FromArgb("#CBD5E1");
+    private static readonly Color ChipUnselectedText = Color.FromArgb("#0F172A");
+    private static readonly Color ChipRestrictedBg   = Color.FromArgb("#F3F4F6");
+    private static readonly Color ChipRestrictedStroke = Color.FromArgb("#E5E7EB");
+    private static readonly Color ChipRestrictedText = Color.FromArgb("#9CA3AF");
+
+    /// <summary>
+    /// Builds a fixtures-sheet-style date card: a small rounded "tile" showing the
+    /// day-of-week, large day number, uppercase month abbreviation and year.
+    /// Visual style mirrors the .wk-card pattern used in FixturesSheetGenerator.cs.
+    /// When <paramref name="onChanged"/> is supplied, the card becomes a date picker:
+    /// tapping the card opens the OS DatePicker; selecting a new date invokes the callback.
+    /// A subtle 3D tilt (lift + scale + shadow) is applied on hover/tap to mirror the
+    /// CSS .wk-card hover effect.
+    /// </summary>
+    private static Border CreateDateCard(DateTime date, Action<DateTime>? onChanged = null)
+    {
+        // Colours sourced from .wk-card in FixturesSheetGenerator.cs (metallic silver gradient, dark text).
+        var dow = new Label
+        {
+            Text = date.ToString("ddd").ToUpperInvariant(),
+            FontSize = 9,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#555555"),
+            HorizontalTextAlignment = TextAlignment.Center,
+            CharacterSpacing = 2.5
+        };
+
+        var day = new Label
+        {
+            Text = date.Day.ToString("00"),
+            FontSize = 28,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#1A1A1A"),
+            HorizontalTextAlignment = TextAlignment.Center,
+            LineHeight = 1
+        };
+
+        var month = new Label
+        {
+            Text = date.ToString("MMM").ToUpperInvariant(),
+            FontSize = 10,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Color.FromArgb("#555555"),
+            HorizontalTextAlignment = TextAlignment.Center,
+            CharacterSpacing = 2.5
+        };
+
+        var year = new Label
+        {
+            Text = date.Year.ToString(),
+            FontSize = 9,
+            TextColor = Color.FromArgb("#888888"),
+            HorizontalTextAlignment = TextAlignment.Center
+        };
+
+        var stack = new VerticalStackLayout
+        {
+            Spacing = 0,
+            HorizontalOptions = LayoutOptions.Center,
+            Children = { dow, day, month, year }
+        };
+
+        // Approximate 170deg silver gradient (#F8F8F8 → #E8E8E8 → #F4F4F4 → #D0D0D0 → #E0E0E0 → #C0C0C0)
+        var cardGradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0.1, 0),
+            EndPoint = new Point(0.9, 1),
+            GradientStops =
+            {
+                new GradientStop(Color.FromArgb("#F8F8F8"), 0.0f),
+                new GradientStop(Color.FromArgb("#E8E8E8"), 0.2f),
+                new GradientStop(Color.FromArgb("#F4F4F4"), 0.4f),
+                new GradientStop(Color.FromArgb("#D0D0D0"), 0.6f),
+                new GradientStop(Color.FromArgb("#E0E0E0"), 0.8f),
+                new GradientStop(Color.FromArgb("#C0C0C0"), 1.0f)
+            }
+        };
+
+        var border = new Border
+        {
+            Padding = new Thickness(12, 8),
+            Background = cardGradient,
+            Stroke = Color.FromArgb("#99FFFFFF"),
+            StrokeThickness = 1,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+            HorizontalOptions = LayoutOptions.Start,
+            Margin = new Thickness(0, 4, 0, 4),
+            Shadow = new Shadow
+            {
+                Brush = new SolidColorBrush(Color.FromArgb("#38000000")),
+                Offset = new Point(0, 6),
+                Radius = 12,
+                Opacity = 1f
+            }
+        };
+
+        if (onChanged != null)
+        {
+            // Embed an (almost) invisible DatePicker behind the card so a tap can open the OS picker.
+            var picker = new DatePicker
+            {
+                Date = date,
+                Opacity = 0,
+                InputTransparent = false,
+                BackgroundColor = Colors.Transparent,
+                HorizontalOptions = LayoutOptions.Fill,
+                VerticalOptions = LayoutOptions.Fill
+            };
+            picker.DateSelected += (s, e) => onChanged(e.NewDate);
+
+            var grid = new Grid();
+            grid.Children.Add(stack);
+            grid.Children.Add(picker);
+            border.Content = grid;
+
+            // Tap anywhere on the card → focus the picker (opens calendar on Windows).
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (s, e) => picker.Focus();
+            border.GestureRecognizers.Add(tap);
+        }
+        else
+        {
+            border.Content = stack;
+        }
+
+        // 3D tilt: lift + scale on pointer hover (desktop) — mirrors .wk-card:hover.
+        var pointer = new PointerGestureRecognizer();
+        pointer.PointerEntered += async (s, e) =>
+        {
+            await Task.WhenAll(
+                border.TranslateTo(0, -3, 150, Easing.CubicOut),
+                border.ScaleTo(1.03, 150, Easing.CubicOut));
+        };
+        pointer.PointerExited += async (s, e) =>
+        {
+            await Task.WhenAll(
+                border.TranslateTo(0, 0, 150, Easing.CubicOut),
+                border.ScaleTo(1.0, 150, Easing.CubicOut));
+        };
+        border.GestureRecognizers.Add(pointer);
+
+        return border;
+    }
+
+    private static Border CreateTableChip(Guid venueId, Guid tableId, string label,
+        bool isSelected, bool isRestricted, string? conflictName, Action? onToggle)
+    {
+        var displayText = string.IsNullOrWhiteSpace(label) ? "Unnamed" : label;
+        if (isRestricted && !string.IsNullOrEmpty(conflictName))
+            displayText += $"  •  {conflictName}";
+
+        var chipLabel = new Label
+        {
+            Text = displayText,
+            FontSize = 12,
+            FontAttributes = isSelected ? FontAttributes.Bold : FontAttributes.None,
+            TextColor = isRestricted ? ChipRestrictedText
+                       : isSelected ? ChipSelectedText
+                       : ChipUnselectedText,
+            VerticalTextAlignment = TextAlignment.Center
+        };
+
+        var chip = new Border
+        {
+            AutomationId = $"{venueId}|{tableId}",
+            StyleId = isRestricted ? "restricted" : (isSelected ? "selected" : "unselected"),
+            Padding = new Thickness(10, 4),
+            BackgroundColor = isRestricted ? ChipRestrictedBg
+                            : isSelected ? ChipSelectedBg
+                            : ChipUnselectedBg,
+            Stroke = isRestricted ? ChipRestrictedStroke
+                   : isSelected ? ChipSelectedStroke
+                   : ChipUnselectedStroke,
+            StrokeThickness = 1,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+            Content = chipLabel
+        };
+
+        if (!isRestricted && onToggle != null)
+        {
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (s, e) =>
+            {
+                bool nowSelected = chip.StyleId != "selected";
+                chip.StyleId = nowSelected ? "selected" : "unselected";
+                chip.BackgroundColor = nowSelected ? ChipSelectedBg : ChipUnselectedBg;
+                chip.Stroke = nowSelected ? ChipSelectedStroke : ChipUnselectedStroke;
+                chipLabel.TextColor = nowSelected ? ChipSelectedText : ChipUnselectedText;
+                chipLabel.FontAttributes = nowSelected ? FontAttributes.Bold : FontAttributes.None;
+                onToggle();
+            };
+            chip.GestureRecognizers.Add(tap);
+        }
+
+        return chip;
+    }
+
+    /// <summary>
+    /// Recursively walk a layout collecting all chip Borders whose StyleId == "selected".
+    /// Returns parsed (venueId, tableId) pairs.
+    /// </summary>
+    private static IEnumerable<(Guid venueId, Guid tableId)> CollectSelectedChips(Microsoft.Maui.IView root)
+    {
+        if (root is Border b && b.StyleId == "selected" && !string.IsNullOrEmpty(b.AutomationId))
+        {
+            var parts = b.AutomationId.Split('|');
+            if (parts.Length == 2 && Guid.TryParse(parts[0], out var v) && Guid.TryParse(parts[1], out var t))
+                yield return (v, t);
+        }
+
+        if (root is Microsoft.Maui.ILayout layout)
+        {
+            foreach (var child in layout)
+                foreach (var hit in CollectSelectedChips(child))
+                    yield return hit;
+        }
+        else if (root is IContentView cv && cv.Content is Microsoft.Maui.IView inner)
+        {
+            foreach (var hit in CollectSelectedChips(inner))
+                yield return hit;
+        }
+    }
+
+    /// <summary>
+    /// Build a wrapping FlexLayout summary of currently-selected venue/table chips for display only.
+    /// </summary>
+    private static FlexLayout BuildSelectionSummaryChips(IEnumerable<CompetitionVenue> selectedVenues)
+    {
+        var summary = new FlexLayout
+        {
+            Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap,
+            Direction = Microsoft.Maui.Layouts.FlexDirection.Row,
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+
+        foreach (var v in selectedVenues)
+        {
+            foreach (var t in v.SelectedTables)
+            {
+                var chip = new Border
+                {
+                    Padding = new Thickness(8, 3),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    BackgroundColor = Color.FromArgb("#ECFDF5"),
+                    Stroke = Color.FromArgb("#A7F3D0"),
+                    StrokeThickness = 1,
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+                    Content = new Label
+                    {
+                        Text = $"✓ {v.VenueName} · {t.Label}",
+                        FontSize = 11,
+                        TextColor = Color.FromArgb("#065F46")
+                    }
+                };
+                summary.Children.Add(chip);
+            }
+        }
+
+        return summary;
     }
 }

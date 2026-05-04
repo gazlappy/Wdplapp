@@ -2357,26 +2357,119 @@ namespace Wdpl2.Services
                 html.AppendLine("            </div>");
 
                 // ── Competition panels ────────────────────────────────────
+                // Scoped polish for doubles competitions only — pilot design before rolling out elsewhere
+                html.AppendLine("            <style>");
+                // Compact venue chips (applied to all competition formats — replaces the old dense comma-joined text)
+                // High specificity + reset to override any prior .bk-rv / .group-venue rules in the main stylesheet
+                html.AppendLine("            .comp-panel .bk-rv, .comp-panel .group-venue, .gs-wrap .group-venue { display: flex !important; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px 0 !important; padding: 0 !important; background: none !important; border: none !important; font-size: inherit !important; color: inherit !important; }");
+                html.AppendLine("            .comp-panel .venue-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; background: var(--bg-alt, #F1F5F9); border: 1px solid var(--border-color, #E2E8F0); border-radius: 999px; font-size: 0.72rem; font-weight: 500; color: var(--text-secondary, #64748B); line-height: 1.4; white-space: nowrap; max-width: 100%; }");
+                html.AppendLine("            .comp-panel .venue-chip .vc-icon { opacity: 0.7; font-size: 0.7rem; }");
+                html.AppendLine("            .comp-panel .venue-chip .vc-name { overflow: hidden; text-overflow: ellipsis; }");
+                html.AppendLine("            .comp-panel .venue-chip .vc-tables { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #E2E8F0); border-radius: 999px; padding: 1px 7px; font-size: 0.65rem; color: var(--text-color, #0F172A); font-weight: 700; line-height: 1.3; }");
+                html.AppendLine("            .comp-panel .group-venue .venue-chip { font-size: 0.78rem; }");
+                html.AppendLine("            .comp-doubles .comp-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; padding: 4px 0 14px 0; border-bottom: 1px solid var(--border-color, #E2E8F0); margin-bottom: 18px; }");
+                html.AppendLine("            .comp-doubles .comp-header .ch-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-alt, #F1F5F9); border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--text-color, #0F172A); }");
+                html.AppendLine("            .comp-doubles .comp-header .ch-meta { color: var(--text-secondary, #64748B); font-size: 0.8rem; }");
+                html.AppendLine("            .comp-doubles .comp-header .ch-meta a { color: var(--primary-color, #3B82F6); text-decoration: none; }");
+                html.AppendLine("            .comp-doubles .comp-header .ch-meta a:hover { text-decoration: underline; }");
+                html.AppendLine("            .comp-doubles .comp-notes { font-size: 0.85rem; color: var(--text-secondary, #64748B); font-style: italic; margin: -8px 0 16px 0; padding-left: 10px; border-left: 3px solid var(--border-color, #E2E8F0); }");
+                // Slimmer bracket cards: hide per-card date/venue (round header already shows them)
+                html.AppendLine("            .comp-doubles .bk-card .bk-date, .comp-doubles .bk-card .bk-venue { display: none; }");
+                html.AppendLine("            .comp-doubles .bk-card { padding: 8px 10px; }");
+                html.AppendLine("            .comp-doubles .bk-card .bk-name { font-size: 0.85rem; line-height: 1.25; }");
+                // Group section: hide redundant participant list when standings table is rendered
+                html.AppendLine("            .comp-doubles .group-section.gs-has-standings .group-players { display: none; }");
+                // Hide repeated per-match date/venue inside groups (group header carries it)
+                html.AppendLine("            .comp-doubles .group-matches .match-date, .comp-doubles .group-matches .match-venue { display: none; }");
+                html.AppendLine("            </style>");
+
                 for (int i = 0; i < competitions.Count; i++)
                 {
                     var comp = competitions[i];
                     var display = i == 0 ? "block" : "none";
+                    var isDoubles = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage;
+                    var panelClass = isDoubles ? "comp-panel comp-doubles" : "comp-panel";
 
-                    html.AppendLine($"            <div class=\"comp-panel\" id=\"comp-{i}\" style=\"display:{display}\">");
+                    html.AppendLine($"            <div class=\"{panelClass}\" id=\"comp-{i}\" style=\"display:{display}\">");
 
-                    // Meta info bar
                     var formatLabel = comp.Format.ToString().Replace("Knockout", " Knockout").Replace("GroupStage", " Group Stage").Replace("RoundRobin", "Round Robin");
-                    html.AppendLine($"                <div class=\"comp-info-bar\">");
-                    html.AppendLine($"                    <span>&#127919; {formatLabel}</span>");
-                    html.AppendLine($"                    <span>&#128101; {GetParticipantCount(comp)} entries</span>");
-                    if (comp.StartDate.HasValue)
-                        html.AppendLine($"                    <span>&#128197; {comp.StartDate.Value:dd MMM yyyy}</span>");
                     var compSeasonName = _league.Seasons.FirstOrDefault(s => s.Id == comp.SeasonId)?.Name;
-                    if (!string.IsNullOrWhiteSpace(compSeasonName))
-                        html.AppendLine($"                    <span>&#127921; {compSeasonName}</span>");
-                    if (!string.IsNullOrWhiteSpace(comp.Notes))
-                        html.AppendLine($"                    <span>&#128221; {comp.Notes}</span>");
-                    html.AppendLine($"                </div>");
+
+                    if (isDoubles)
+                    {
+                        // Tidy doubles header — primary chips + a single quiet meta line
+                        html.AppendLine("                <div class=\"comp-header\">");
+                        html.AppendLine($"                    <span class=\"ch-chip\">&#128101; {GetParticipantCount(comp)} pairs</span>");
+                        html.AppendLine($"                    <span class=\"ch-chip\">&#127919; {formatLabel}</span>");
+                        if (comp.BestOf > 0)
+                            html.AppendLine($"                    <span class=\"ch-chip\">&#127932; Best of {comp.BestOf}</span>");
+
+                        var metaParts = new List<string>();
+                        if (comp.StartDate.HasValue) metaParts.Add($"&#128197; {comp.StartDate.Value:dd MMM yyyy}");
+                        if (!string.IsNullOrWhiteSpace(compSeasonName)) metaParts.Add(Esc(compSeasonName));
+
+                        if (comp.PlateCompetitionId.HasValue)
+                        {
+                            var plate = _league.Competitions.FirstOrDefault(c => c.Id == comp.PlateCompetitionId.Value);
+                            var plateIdx = plate != null ? competitions.FindIndex(c => c.Id == plate.Id) : -1;
+                            if (plate != null && plateIdx >= 0)
+                                metaParts.Add($"Plate: <a href=\"#\" onclick=\"showComp({plateIdx});return false;\">{Esc(plate.Name)}</a>");
+                            else if (plate != null)
+                                metaParts.Add($"Plate: {Esc(plate.Name)}");
+                        }
+                        if (comp.ParentCompetitionId.HasValue)
+                        {
+                            var parent = _league.Competitions.FirstOrDefault(c => c.Id == comp.ParentCompetitionId.Value);
+                            var parentIdx = parent != null ? competitions.FindIndex(c => c.Id == parent.Id) : -1;
+                            if (parent != null && parentIdx >= 0)
+                                metaParts.Add($"Plate of: <a href=\"#\" onclick=\"showComp({parentIdx});return false;\">{Esc(parent.Name)}</a>");
+                            else if (parent != null)
+                                metaParts.Add($"Plate of: {Esc(parent.Name)}");
+                        }
+
+                        if (metaParts.Count > 0)
+                            html.AppendLine($"                    <span class=\"ch-meta\">{string.Join(" &middot; ", metaParts)}</span>");
+                        html.AppendLine("                </div>");
+
+                        if (!string.IsNullOrWhiteSpace(comp.Notes))
+                            html.AppendLine($"                <p class=\"comp-notes\">{Esc(comp.Notes)}</p>");
+                    }
+                    else
+                    {
+                        // Original info bar for non-doubles formats
+                        html.AppendLine($"                <div class=\"comp-info-bar\">");
+                        html.AppendLine($"                    <span>&#127919; {formatLabel}</span>");
+                        html.AppendLine($"                    <span>&#128101; {GetParticipantCount(comp)} entries</span>");
+                        if (comp.BestOf > 0)
+                            html.AppendLine($"                    <span>&#127932; Best of {comp.BestOf} (first to {comp.FramesToWin})</span>");
+                        if (comp.StartDate.HasValue)
+                            html.AppendLine($"                    <span>&#128197; {comp.StartDate.Value:dd MMM yyyy}</span>");
+                        if (!string.IsNullOrWhiteSpace(compSeasonName))
+                            html.AppendLine($"                    <span>&#127921; {compSeasonName}</span>");
+
+                        if (comp.PlateCompetitionId.HasValue)
+                        {
+                            var plate = _league.Competitions.FirstOrDefault(c => c.Id == comp.PlateCompetitionId.Value);
+                            var plateIdx = plate != null ? competitions.FindIndex(c => c.Id == plate.Id) : -1;
+                            if (plate != null && plateIdx >= 0)
+                                html.AppendLine($"                    <span>&#127894; Plate: <a href=\"#\" onclick=\"showComp({plateIdx});return false;\">{Esc(plate.Name)}</a></span>");
+                            else if (plate != null)
+                                html.AppendLine($"                    <span>&#127894; Plate: {Esc(plate.Name)}</span>");
+                        }
+                        if (comp.ParentCompetitionId.HasValue)
+                        {
+                            var parent = _league.Competitions.FirstOrDefault(c => c.Id == comp.ParentCompetitionId.Value);
+                            var parentIdx = parent != null ? competitions.FindIndex(c => c.Id == parent.Id) : -1;
+                            if (parent != null && parentIdx >= 0)
+                                html.AppendLine($"                    <span>&#8617;&#65039; Plate of: <a href=\"#\" onclick=\"showComp({parentIdx});return false;\">{Esc(parent.Name)}</a></span>");
+                            else if (parent != null)
+                                html.AppendLine($"                    <span>&#8617;&#65039; Plate of: {Esc(parent.Name)}</span>");
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(comp.Notes))
+                            html.AppendLine($"                    <span>&#128221; {comp.Notes}</span>");
+                        html.AppendLine($"                </div>");
+                    }
 
                     // Round Robin → standings + results
                     if (comp.Format == CompetitionFormat.RoundRobin && comp.Rounds.Count > 0)
@@ -2507,16 +2600,24 @@ namespace Wdpl2.Services
                     ? $"<div class=\"round-date\">{round.Date.Value:dd MMM yyyy}</div>"
                     : "<div class=\"round-date\">Date TBC</div>";
 
-                // Round-level venue info (matching app display)
+                // Round-level venue info — compact chip per venue with table-count badge
                 var venueHtml = "";
                 if (round.SelectedVenues.Count > 0)
                 {
-                    var venueText = string.Join(", ", round.SelectedVenues.Select(v =>
+                    var chips = new StringBuilder();
+                    foreach (var v in round.SelectedVenues)
                     {
-                        var tables = string.Join(", ", v.SelectedTables.Select(t => t.Label));
-                        return string.IsNullOrEmpty(tables) ? v.VenueName : $"{v.VenueName} ({tables})";
-                    }));
-                    venueHtml = $"<div class=\"bk-rv\">&#128205; {System.Net.WebUtility.HtmlEncode(venueText)}</div>";
+                        var name = System.Net.WebUtility.HtmlEncode(v.VenueName ?? "");
+                        var tableLabels = string.Join(", ", v.SelectedTables.Select(t => t.Label));
+                        var titleAttr = string.IsNullOrEmpty(tableLabels)
+                            ? $"title=\"{name}\""
+                            : $"title=\"{name} — {System.Net.WebUtility.HtmlEncode(tableLabels)}\"";
+                        var badge = v.TableCount > 0
+                            ? $"<span class=\"vc-tables\">{v.TableCount}</span>"
+                            : "";
+                        chips.Append($"<span class=\"venue-chip\" {titleAttr}><span class=\"vc-icon\">&#128205;</span><span class=\"vc-name\">{name}</span>{badge}</span>");
+                    }
+                    venueHtml = $"<div class=\"bk-rv\">{chips}</div>";
                 }
 
                 html.AppendLine($"                    <div class=\"bk-hdr\" style=\"grid-column:{gridCol};grid-row:1\">");
@@ -2575,6 +2676,8 @@ namespace Wdpl2.Services
             html.AppendLine($"                            <div class=\"bk-player{(p2w ? " bk-w" : "")}{(p2Bye ? " bk-bye" : p2Name == null ? " bk-tbd" : "")}\">");
             html.AppendLine($"                                <span class=\"bk-name\">{p2Display}</span><span class=\"bk-sc{(p2w ? " bk-sw" : "")}\">{match.Participant2Score}</span>");
             html.AppendLine($"                            </div>");
+            if (match.ScheduledDate.HasValue)
+                html.AppendLine($"                            <div class=\"bk-date\" style=\"font-size:0.75rem;color:var(--text-secondary,#64748B);margin-top:4px;\">&#128197; {match.ScheduledDate.Value:dd MMM HH:mm}</div>");
             if (!string.IsNullOrEmpty(match.VenueDisplay))
                 html.AppendLine($"                            <div class=\"bk-venue\">&#128205; {System.Net.WebUtility.HtmlEncode(match.VenueDisplay)}</div>");
             html.AppendLine($"                        </div>");
@@ -2697,10 +2800,22 @@ namespace Wdpl2.Services
         private void AppendGroupSection(StringBuilder html, CompetitionGroup group, Competition comp,
             List<Player> players, List<Team> teams, int topAdvance, bool hasSelections)
         {
-            html.AppendLine($"                    <div class=\"group-section\">");
-            html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} players)</span></h4>");
-            if (!string.IsNullOrEmpty(group.VenueDisplay))
-                html.AppendLine($"                        <p class=\"group-venue\">&#128205; {group.VenueDisplay}</p>");
+            var hasStandings = group.Standings.Any(s => s.Played > 0);
+            var sectionClass = hasStandings ? "group-section gs-has-standings" : "group-section";
+            var participantLabel = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage ? "pairs" : "players";
+            html.AppendLine($"                    <div class=\"{sectionClass}\">");
+            html.AppendLine($"                        <h4>{group.Name} <span class=\"group-count\">({group.ParticipantIds.Count} {participantLabel})</span></h4>");
+            if (!string.IsNullOrEmpty(group.VenueName))
+            {
+                var vname = System.Net.WebUtility.HtmlEncode(group.VenueName);
+                var tbadge = !string.IsNullOrEmpty(group.TableLabel)
+                    ? $"<span class=\"vc-tables\">T{System.Net.WebUtility.HtmlEncode(group.TableLabel)}</span>"
+                    : "";
+                var titleAttr = !string.IsNullOrEmpty(group.TableLabel)
+                    ? $"title=\"{vname} — Table {System.Net.WebUtility.HtmlEncode(group.TableLabel)}\""
+                    : $"title=\"{vname}\"";
+                html.AppendLine($"                        <div class=\"group-venue\"><span class=\"venue-chip\" {titleAttr}><span class=\"vc-icon\">&#128205;</span><span class=\"vc-name\">{vname}</span>{tbadge}</span></div>");
+            }
             html.AppendLine($"                        <div class=\"group-players\">");
 
             foreach (var pid in group.ParticipantIds)
@@ -2739,6 +2854,43 @@ namespace Wdpl2.Services
             }
 
             html.AppendLine($"                        </div>");
+
+            // Per-group standings table (only when matches have been played)
+            if (group.Standings.Any(s => s.Played > 0))
+            {
+                var sortedStandings = group.Standings
+                    .Where(s => group.ParticipantIds.Contains(s.ParticipantId))
+                    .OrderByDescending(s => s.Points)
+                    .ThenByDescending(s => s.FrameDifference)
+                    .ThenByDescending(s => s.FramesFor)
+                    .ToList();
+
+                html.AppendLine("                        <div class=\"group-standings\" style=\"margin-top:10px;\">");
+                html.AppendLine($"                            <table class=\"{GetTableClasses()}\" style=\"font-size:0.85rem;\">");
+                html.AppendLine("                                <thead><tr><th>#</th><th>Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>FD</th><th>Pts</th></tr></thead>");
+                html.AppendLine("                                <tbody>");
+                int pos = 1;
+                foreach (var s in sortedStandings)
+                {
+                    var pname = GetWebParticipantName(s.ParticipantId, comp, players, teams) ?? "?";
+                    var fd = s.FrameDifference;
+                    html.AppendLine($"                                    <tr><td>{pos++}</td><td>{Esc(pname)}</td><td>{s.Played}</td><td>{s.Won}</td><td>{s.Drawn}</td><td>{s.Lost}</td><td>{(fd >= 0 ? "+" : "")}{fd}</td><td><strong>{s.Points}</strong></td></tr>");
+                }
+                html.AppendLine("                                </tbody>");
+                html.AppendLine("                            </table>");
+                html.AppendLine("                        </div>");
+            }
+
+            // Per-group match results
+            if (group.Matches.Any(m => m.IsComplete))
+            {
+                html.AppendLine("                        <div class=\"group-matches\" style=\"margin-top:10px;\">");
+                html.AppendLine("                            <h5 style=\"margin:6px 0;font-size:0.85rem;color:var(--text-secondary,#64748B);\">Matches</h5>");
+                foreach (var match in group.Matches.Where(m => m.IsComplete))
+                    AppendMatchRow(html, match, comp, players, teams);
+                html.AppendLine("                        </div>");
+            }
+
             html.AppendLine($"                    </div>");
         }
 
@@ -2756,6 +2908,8 @@ namespace Wdpl2.Services
             html.AppendLine($"                            <span class=\"match-score\">{match.Participant1Score} - {match.Participant2Score}</span>");
             html.AppendLine($"                            <span class=\"match-player{(isP2Winner ? " winner" : "")}\">{p2}</span>");
             html.AppendLine($"                        </div>");
+            if (match.ScheduledDate.HasValue)
+                html.AppendLine($"                        <div class=\"match-date\" style=\"font-size:0.8rem;color:var(--text-secondary,#64748B);\">&#128197; {match.ScheduledDate.Value:dd MMM yyyy HH:mm}</div>");
             if (!string.IsNullOrEmpty(match.VenueDisplay))
                 html.AppendLine($"                        <div class=\"match-venue\">&#128205; {System.Net.WebUtility.HtmlEncode(match.VenueDisplay)}</div>");
         }
