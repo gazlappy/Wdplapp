@@ -40,6 +40,11 @@ public partial class CompetitionsPage
         };
 
         // Participants list - bound to the editor ViewModel's collection
+        // Capture format in closure so the template can render doubles teams differently
+        var participantFormat = competition.Format;
+        var isDoublesFormat = participantFormat == CompetitionFormat.DoublesKnockout
+                           || participantFormat == CompetitionFormat.DoublesGroupStage;
+
         _participantsView = new CollectionView
         {
             ItemsSource = _editorViewModel.Participants,
@@ -47,7 +52,7 @@ public partial class CompetitionsPage
             {
                 var grid = new Grid
                 {
-                    Padding = new Thickness(6, 3),
+                    Padding = new Thickness(8, 6),
                     ColumnDefinitions =
                     {
                         new ColumnDefinition { Width = GridLength.Star },
@@ -55,12 +60,63 @@ public partial class CompetitionsPage
                     }
                 };
 
-                var nameLabel = new Label
+                View nameContent;
+                if (isDoublesFormat)
                 {
-                    VerticalTextAlignment = TextAlignment.Center,
-                    FontSize = 13
-                };
-                nameLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
+                    // Doubles card: bold team name + 2 muted player sub-rows
+                    var teamLabel = new Label
+                    {
+                        FontSize = 14,
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = Color.FromArgb("#0F172A")
+                    };
+                    teamLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
+
+                    var playersLabel = new Label
+                    {
+                        FontSize = 11,
+                        TextColor = Color.FromArgb("#6B7280"),
+                        LineBreakMode = LineBreakMode.TailTruncation
+                    };
+
+                    var stack = new VerticalStackLayout
+                    {
+                        Spacing = 2,
+                        Children = { teamLabel, playersLabel }
+                    };
+
+                    // Resolve player names from the captured competition's DoublesTeams
+                    stack.BindingContextChanged += (s, e) =>
+                    {
+                        if (stack.BindingContext is ParticipantItem item && _selectedCompetition != null)
+                        {
+                            var team = _selectedCompetition.DoublesTeams.FirstOrDefault(d => d.Id == item.Id);
+                            if (team != null)
+                            {
+                                var allPlayers = DataStore.Data?.Players ?? new List<Player>();
+                                var p1 = allPlayers.FirstOrDefault(p => p.Id == team.Player1Id)?.FullName ?? "?";
+                                var p2 = allPlayers.FirstOrDefault(p => p.Id == team.Player2Id)?.FullName ?? "?";
+                                playersLabel.Text = $"\U0001F465 {p1}  \u00B7  {p2}";
+                            }
+                            else
+                            {
+                                playersLabel.Text = "";
+                            }
+                        }
+                    };
+
+                    nameContent = stack;
+                }
+                else
+                {
+                    var nameLabel = new Label
+                    {
+                        VerticalTextAlignment = TextAlignment.Center,
+                        FontSize = 13
+                    };
+                    nameLabel.SetBinding(Label.TextProperty, nameof(ParticipantItem.Name));
+                    nameContent = nameLabel;
+                }
 
                 var removeBtn = new Button
                 {
@@ -69,19 +125,22 @@ public partial class CompetitionsPage
                     Padding = new Thickness(6, 2),
                     WidthRequest = 30,
                     BackgroundColor = Color.FromArgb("#EF4444"),
-                    TextColor = Colors.White
+                    TextColor = Colors.White,
+                    VerticalOptions = LayoutOptions.Center
                 };
                 removeBtn.SetBinding(Button.CommandParameterProperty, nameof(ParticipantItem.Id));
                 removeBtn.Clicked += OnRemoveParticipant;
 
-                grid.Add(nameLabel, 0, 0);
+                grid.Add(nameContent, 0, 0);
                 grid.Add(removeBtn, 1, 0);
 
                 return new Border
                 {
                     Padding = 2,
-                    Margin = new Thickness(0, 1),
-                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
+                    Margin = new Thickness(0, 2),
+                    BackgroundColor = isDoublesFormat ? Color.FromArgb("#F8FAFC") : Colors.Transparent,
+                    Stroke = isDoublesFormat ? Color.FromArgb("#E2E8F0") : Colors.Transparent,
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
                     Content = grid
                 };
             })
@@ -240,7 +299,7 @@ public partial class CompetitionsPage
             {
                 content.Children.Add(new Label
                 {
-                    Text = $"⚠️ {settings.GroupDate.Value:dd MMM yyyy}",
+                    Text = $"\U0001F4C5 {settings.GroupDate.Value:dd MMM yyyy}",
                     FontSize = 12,
                     TextColor = Colors.Gray,
                     Margin = new Thickness(0, 0, 0, 2)
@@ -256,7 +315,7 @@ public partial class CompetitionsPage
                 }));
                 content.Children.Add(new Label
                 {
-                    Text = $"⚠️ {venueDetails} � {venueTables} table(s)",
+                    Text = $"\U0001F4CD {venueDetails} \u00B7 {venueTables} table(s)",
                     FontSize = 12,
                     TextColor = Colors.Gray,
                     Margin = new Thickness(0, 0, 0, 4)
@@ -335,7 +394,7 @@ public partial class CompetitionsPage
                 // ?? Next Round Settings: date & tables ??????????????
                 content.Children.Add(new Label
                 {
-                    Text = "⚠️ Next Round Settings",
+                    Text = "\U0001F3AF Next Round Settings",
                     FontSize = 14,
                     FontAttributes = FontAttributes.Bold,
                     Margin = new Thickness(0, 10, 0, 4)
@@ -364,7 +423,7 @@ public partial class CompetitionsPage
                 // Table selection for next round
                 content.Children.Add(new Label
                 {
-                    Text = "⚠️ Tables",
+                    Text = "\U0001F3B1 Tables",
                     FontSize = 13,
                     FontAttributes = FontAttributes.Bold,
                     Margin = new Thickness(0, 6, 0, 2)
@@ -388,7 +447,7 @@ public partial class CompetitionsPage
 
                 var koBtn = new Button
                 {
-                    Text = $"⚠️ Create Knockout Bracket ({selectedCount} players)",
+                    Text = $"\U0001F3C6 Create Knockout Bracket ({selectedCount} players)",
                     BackgroundColor = Color.FromArgb("#10B981"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4)
@@ -398,7 +457,7 @@ public partial class CompetitionsPage
 
                 var nextGroupBtn = new Button
                 {
-                    Text = "⚠️ Another Round of Groups",
+                    Text = "\U0001F501 Another Round of Groups",
                     BackgroundColor = Color.FromArgb("#6366F1"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4)
@@ -463,7 +522,7 @@ public partial class CompetitionsPage
             {
                 var createPlateBtn = new Button
                 {
-                    Text = "⚠️ Create Plate Competition (losers)",
+                    Text = "\U0001F3C5 Create Plate Competition (losers)",
                     BackgroundColor = Color.FromArgb("#F59E0B"),
                     TextColor = Colors.White,
                     Padding = new Thickness(8, 4),
@@ -492,7 +551,7 @@ public partial class CompetitionsPage
                     var roundNum = round.Key;
                     var viewPrevBtn = new Button
                     {
-                        Text = $"⚠️ View Round {roundNum} ({round.Count()} groups � completed)",
+                        Text = $"\U0001F4C2 View Round {roundNum} ({round.Count()} groups \u00B7 completed)",
                         FontSize = 12,
                         TextColor = Colors.Gray,
                         BackgroundColor = Colors.Transparent,
@@ -524,7 +583,7 @@ public partial class CompetitionsPage
         // ? 2. Venue Selection ???????????????????????????????????????????
         content.Children.Add(new Label
         {
-            Text = "⚠️ Select Venues & Tables",
+            Text = "\U0001F4CD Select Venues & Tables",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -557,7 +616,7 @@ public partial class CompetitionsPage
                     Margin = new Thickness(0, 4, 0, 0),
                     Content = new Label
                     {
-                        Text = $"⚠️ {explanation}",
+                        Text = $"\U0001F4A1 {explanation}",
                         FontSize = 11,
                         TextColor = Color.FromArgb("#1E40AF")
                     }
@@ -568,7 +627,7 @@ public partial class CompetitionsPage
         // Group date picker
         content.Children.Add(new Label
         {
-            Text = "⚠️ Group Round Date",
+            Text = "\U0001F4C5 Group Round Date",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -588,7 +647,7 @@ public partial class CompetitionsPage
         // ? 3. Group Count ???????????????????????????????????????????????
         content.Children.Add(new Label
         {
-            Text = "⚠️ Choose Number of Groups",
+            Text = "\U0001F522 Choose Number of Groups",
             FontSize = 14,
             FontAttributes = FontAttributes.Bold,
             Margin = new Thickness(0, 10, 0, 4)
@@ -666,8 +725,8 @@ public partial class CompetitionsPage
                 Spacing = 2,
                 Children =
                 {
-                    new Label { Text = $"⚠️ Top {settings.TopPlayersAdvance} from each group advance", FontSize = 12 },
-                    new Label { Text = $"⚠️ {plateDesc}", FontSize = 12 },
+                    new Label { Text = $"\U0001F3AF Top {settings.TopPlayersAdvance} from each group advance", FontSize = 12 },
+                    new Label { Text = $"\U0001F3C5 {plateDesc}", FontSize = 12 },
                     new Label { Text = "Players do their own draw within groups and report who got through", FontSize = 11, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic }
                 }
             }

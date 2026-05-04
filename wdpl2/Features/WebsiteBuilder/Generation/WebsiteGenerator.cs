@@ -2583,54 +2583,115 @@ namespace Wdpl2.Services
         private void AppendGroupStage(StringBuilder html, Competition comp, List<Player> players, List<Team> teams)
         {
             int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
+            int currentRound = comp.Groups.Count > 0 ? comp.Groups.Max(g => g.GroupRound) : 1;
+            bool currentHasSelections = comp.Groups.Any(g => g.Standings.Any(s => s.Position > 0));
 
-            // Render previous group rounds first (archived)
+            // Build list of all rounds (previous + current) so we can render as tabs
+            var rounds = new List<(int roundNumber, bool isCurrent, DateTime? date, int advance, bool hasSelections, List<CompetitionGroup> groups)>();
+
             if (comp.PreviousGroups.Count > 0)
             {
-                var previousRounds = comp.PreviousGroups
-                    .GroupBy(g => g.GroupRound)
-                    .OrderBy(r => r.Key);
-
-                foreach (var round in previousRounds)
+                foreach (var prev in comp.PreviousGroups.GroupBy(g => g.GroupRound).OrderBy(r => r.Key))
                 {
-                    // Infer how many advanced per group from the stored standings
-                    // (the TopPlayersAdvance setting may have changed for later rounds)
-                    int roundAdvance = round.Max(g => g.Standings.Count(s => s.Position > 0));
+                    int roundAdvance = prev.Max(g => g.Standings.Count(s => s.Position > 0));
                     if (roundAdvance < 1) roundAdvance = topAdvance;
-
-                    html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {round.Key}</h3>");
-                    html.AppendLine("                <div class=\"comp-groups\">");
-                    foreach (var group in round.OrderBy(g => g.GroupNumber))
-                    {
-                        AppendGroupSection(html, group, comp, players, teams, roundAdvance, hasSelections: true);
-                    }
-                    html.AppendLine("                </div>");
+                    DateTime? roundDate = null;
+                    rounds.Add((prev.Key, false, roundDate, roundAdvance, true, prev.OrderBy(g => g.GroupNumber).ToList()));
                 }
             }
 
-            // Current groups
-            int currentRound = comp.Groups.Count > 0 ? comp.Groups.Max(g => g.GroupRound) : 1;
-            bool hasSelections = comp.Groups.Any(g => g.Standings.Any(s => s.Position > 0));
-
-            if (comp.PreviousGroups.Count > 0)
+            if (comp.Groups.Count > 0)
             {
-                var currentGroupDate = comp.GroupSettings?.GroupDate;
-                var currentGroupDateHtml = currentGroupDate.HasValue
-                    ? $" <span class=\"round-date\">{currentGroupDate.Value:dd MMM yyyy}</span>"
-                    : "";
-                html.AppendLine($"                <h3 class=\"group-round-title\">Group Round {currentRound}{currentGroupDateHtml}</h3>");
-            }
-            else if (comp.GroupSettings?.GroupDate.HasValue == true)
-            {
-                html.AppendLine($"                <p class=\"round-date\" style=\"margin-bottom:8px\">{comp.GroupSettings.GroupDate.Value:dd MMM yyyy}</p>");
+                rounds.Add((currentRound, true, comp.GroupSettings?.GroupDate, topAdvance, currentHasSelections,
+                    comp.Groups.OrderBy(g => g.GroupNumber).ToList()));
             }
 
-            html.AppendLine("                <div class=\"comp-groups\">");
-            foreach (var group in comp.Groups.OrderBy(g => g.GroupNumber))
+            if (rounds.Count == 0) return;
+
+            // Inline styles: responsive grid for groups + tab strip for rounds
+            html.AppendLine("                <style>");
+            html.AppendLine("                .gs-wrap .comp-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-items: start; }");
+            html.AppendLine("                .gs-wrap .group-section { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #E2E8F0); border-radius: 10px; padding: 14px 16px; }");
+            html.AppendLine("                .gs-wrap .group-section h4 { margin: 0 0 8px 0; font-size: 1rem; }");
+            html.AppendLine("                .gs-wrap .group-count { color: var(--text-secondary, #64748B); font-weight: 400; font-size: 0.85rem; }");
+            html.AppendLine("                .gs-wrap .group-venue { font-size: 0.8rem; color: var(--text-secondary, #64748B); margin: 0 0 8px 0; }");
+            html.AppendLine("                .gs-wrap .group-players { display: flex; flex-direction: column; gap: 4px; }");
+            html.AppendLine("                .gs-wrap .group-player { padding: 6px 10px; border-radius: 6px; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--bg-alt, #F8FAFC); }");
+            html.AppendLine("                .gs-wrap .group-player.gp-winner { background: #ECFDF5; }");
+            html.AppendLine("                .gs-wrap .group-player.gp-loser { background: #FEF2F2; opacity: 0.7; }");
+            html.AppendLine("                .gs-wrap .group-player.gp-noshow { background: #F3F4F6; opacity: 0.6; text-decoration: line-through; }");
+            html.AppendLine("                .gs-wrap .gp-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }");
+            html.AppendLine("                .gs-wrap .gp-badge-w { background: #10B981; color: #fff; }");
+            html.AppendLine("                .gs-wrap .gp-badge-l { background: #EF4444; color: #fff; }");
+            html.AppendLine("                .gs-wrap .gp-badge-ns { background: #94A3B8; color: #fff; }");
+            html.AppendLine("                .gs-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 16px 0; border-bottom: 1px solid var(--border-color, #E2E8F0); padding-bottom: 8px; }");
+            html.AppendLine("                .gs-tab { background: var(--bg-alt, #F1F5F9); color: var(--text-color, #0F172A); border: 1px solid var(--border-color, #E2E8F0); border-radius: 8px; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }");
+            html.AppendLine("                .gs-tab:hover { background: var(--card-bg, #fff); border-color: var(--primary-color, #3B82F6); }");
+            html.AppendLine("                .gs-tab.active { background: var(--primary-color, #3B82F6); color: #fff; border-color: var(--primary-color, #3B82F6); }");
+            html.AppendLine("                .gs-tab .gs-tab-date { font-weight: 400; opacity: 0.85; margin-left: 6px; font-size: 0.75rem; }");
+            html.AppendLine("                .gs-panel { display: none; }");
+            html.AppendLine("                .gs-panel.active { display: block; }");
+            html.AppendLine("                .gs-round-meta { font-size: 0.85rem; color: var(--text-secondary, #64748B); margin: 0 0 10px 0; }");
+            html.AppendLine("                </style>");
+
+            html.AppendLine("                <div class=\"gs-wrap\">");
+
+            // Tab strip — only when more than one round to switch between
+            int defaultIdx = rounds.Count - 1; // default to most recent (current) round
+            if (rounds.Count > 1)
             {
-                AppendGroupSection(html, group, comp, players, teams, topAdvance, hasSelections);
+                html.AppendLine("                <div class=\"gs-tabs\">");
+                for (int i = 0; i < rounds.Count; i++)
+                {
+                    var r = rounds[i];
+                    var label = r.isCurrent && comp.PreviousGroups.Count > 0
+                        ? $"Current Round ({r.roundNumber})"
+                        : $"Round {r.roundNumber}";
+                    var dateBit = r.date.HasValue
+                        ? $"<span class=\"gs-tab-date\">{r.date.Value:dd MMM}</span>"
+                        : "";
+                    var active = i == defaultIdx ? " active" : "";
+                    html.AppendLine($"                    <button type=\"button\" class=\"gs-tab{active}\" onclick=\"gsShow(this,{i})\">{label}{dateBit}</button>");
+                }
+                html.AppendLine("                </div>");
             }
+
+            // Round panels
+            for (int i = 0; i < rounds.Count; i++)
+            {
+                var r = rounds[i];
+                var active = i == defaultIdx ? " active" : "";
+                html.AppendLine($"                <div class=\"gs-panel{active}\" data-gs-idx=\"{i}\">");
+
+                if (r.date.HasValue)
+                    html.AppendLine($"                    <p class=\"gs-round-meta\">&#128197; {r.date.Value:dddd dd MMM yyyy} &middot; Top {r.advance} advance per group</p>");
+                else
+                    html.AppendLine($"                    <p class=\"gs-round-meta\">Top {r.advance} advance per group</p>");
+
+                html.AppendLine("                    <div class=\"comp-groups\">");
+                foreach (var group in r.groups)
+                    AppendGroupSection(html, group, comp, players, teams, r.advance, r.hasSelections);
+                html.AppendLine("                    </div>");
+
+                html.AppendLine("                </div>");
+            }
+
             html.AppendLine("                </div>");
+
+            // Tab switching script (only needed when there's more than one round)
+            if (rounds.Count > 1)
+            {
+                html.AppendLine("                <script>");
+                html.AppendLine("                function gsShow(btn, idx) {");
+                html.AppendLine("                    var wrap = btn.closest('.gs-wrap'); if (!wrap) return;");
+                html.AppendLine("                    wrap.querySelectorAll('.gs-tab').forEach(function(t){ t.classList.remove('active'); });");
+                html.AppendLine("                    wrap.querySelectorAll('.gs-panel').forEach(function(p){ p.classList.remove('active'); });");
+                html.AppendLine("                    btn.classList.add('active');");
+                html.AppendLine("                    var panel = wrap.querySelector('.gs-panel[data-gs-idx=\"' + idx + '\"]');");
+                html.AppendLine("                    if (panel) panel.classList.add('active');");
+                html.AppendLine("                }");
+                html.AppendLine("                </script>");
+            }
         }
 
         private void AppendGroupSection(StringBuilder html, CompetitionGroup group, Competition comp,

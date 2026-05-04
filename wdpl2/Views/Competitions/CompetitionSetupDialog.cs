@@ -15,6 +15,7 @@ public class CompetitionSetupDialog : ContentPage
     
     // Group Stage Settings
     private VerticalStackLayout _groupStagePanel;
+    private Border _doublesHintPanel;
     private Entry _numberOfGroupsEntry;
     private Entry _topAdvanceEntry;
     private Entry _lowerPlateEntry;
@@ -137,12 +138,45 @@ public class CompetitionSetupDialog : ContentPage
         _groupStagePanel.Children.Add(CreateFieldRow("Create Plate Competition:", _createPlateSwitch));
         _groupStagePanel.Children.Add(CreateFieldRow("Plate Suffix:", _plateSuffixEntry));
 
+        // Doubles format hint (shown only for doubles formats)
+        _doublesHintPanel = new Border
+        {
+            IsVisible = false,
+            Padding = 12,
+            BackgroundColor = Color.FromArgb("#F0F9FF"),
+            Stroke = Color.FromArgb("#6366F1"),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+            Margin = new Thickness(0, 6, 0, 0),
+            Content = new VerticalStackLayout
+            {
+                Spacing = 4,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "\U0001F465 Doubles Competition",
+                        FontSize = 14,
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = Color.FromArgb("#1E40AF")
+                    },
+                    new Label
+                    {
+                        Text = "You'll add 2-player teams after creation. Each team is treated as a single entry in the draw.",
+                        FontSize = 12,
+                        TextColor = Color.FromArgb("#1E40AF")
+                    }
+                }
+            }
+        };
+
         // Format changed handler
         _formatPicker.SelectedIndexChanged += (s, e) =>
         {
             var selectedFormat = GetSelectedFormat();
             _groupStagePanel.IsVisible = selectedFormat == CompetitionFormat.SinglesGroupStage || 
                                          selectedFormat == CompetitionFormat.DoublesGroupStage;
+            _doublesHintPanel.IsVisible = selectedFormat == CompetitionFormat.DoublesKnockout ||
+                                          selectedFormat == CompetitionFormat.DoublesGroupStage;
         };
 
         // Buttons
@@ -219,9 +253,12 @@ public class CompetitionSetupDialog : ContentPage
                         }
                     },
                     
+                    // Doubles hint (conditionally visible)
+                    _doublesHintPanel,
+
                     // Group Stage Settings (conditionally visible)
                     _groupStagePanel,
-                    
+
                     // Buttons
                     createBtn,
                     cancelBtn

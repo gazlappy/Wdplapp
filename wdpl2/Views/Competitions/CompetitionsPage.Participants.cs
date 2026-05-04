@@ -56,112 +56,317 @@ public partial class CompetitionsPage
             return;
         }
 
-        var selectionPage = new ContentPage
+        // Load teams for the season so we can group players by team
+        var seasonId = _selectedCompetition.SeasonId ?? _currentSeasonId;
+        var allTeams = DataStore.Data?.Teams?
+            .Where(t => t != null && t.SeasonId == seasonId)
+            .OrderBy(t => t.Name)
+            .ToList() ?? new List<Team>();
+
+        var allItems = availablePlayers.Select(p => new SelectionItem<Guid>
         {
-            Title = "Select Doubles Team"
+            Id = p.Id,
+            Name = p.FullName,
+            IsSelected = false,
+            Tag = p.TeamId
+        }).ToList();
+
+        var teamEntries = new List<(Guid? id, string name)> { (null, "All Players") };
+        var teamsWithPlayers = allTeams
+            .Where(t => availablePlayers.Any(p => p.TeamId == t.Id))
+            .OrderBy(t => t.Name)
+            .ToList();
+        foreach (var team in teamsWithPlayers)
+            teamEntries.Add((team.Id, team.Name ?? "Unnamed Team"));
+        if (availablePlayers.Any(p => p.TeamId == null))
+            teamEntries.Add((Guid.Empty, "No Team"));
+
+        // ── UI elements ─────────────────────────────────────────────────
+        var teamListLayout = new VerticalStackLayout { Spacing = 0 };
+        var playerListView = new CollectionView
+        {
+            SelectionMode = SelectionMode.None,
+            ItemsSource = new ObservableCollection<SelectionItem<Guid>>(allItems)
         };
 
-        var player1Picker = new Picker
+        // Live preview of team name (editable)
+        var teamNameEntry = new Entry
         {
-            Title = "Select Player 1",
-            ItemsSource = availablePlayers.Select(p => p.FullName).ToList()
+            Placeholder = "Team name (auto-fills when 2 players picked)",
+            FontSize = 14
+        };
+        bool userEditedName = false;
+        teamNameEntry.TextChanged += (s, e) =>
+        {
+            // Only flag as user-edited if they actually typed (not when we auto-set it)
+            if (teamNameEntry.IsFocused)
+                userEditedName = true;
         };
 
-        var player2Picker = new Picker
+        var statusLabel = new Label
         {
-            Title = "Select Player 2",
-            ItemsSource = availablePlayers.Select(p => p.FullName).ToList()
+            Text = "Pick 2 players",
+            FontSize = 13,
+            FontAttributes = FontAttributes.Bold,
+            HorizontalTextAlignment = TextAlignment.Center,
+            TextColor = Color.FromArgb("#6B7280"),
+            Margin = new Thickness(0, 4)
         };
 
         var addBtn = new Button
         {
-            Text = "Add Team",
-            Margin = new Thickness(10),
+            Text = "\U0001F465 Add Team",
             BackgroundColor = Color.FromArgb("#10B981"),
-            TextColor = Colors.White
+            TextColor = Colors.White,
+            Padding = new Thickness(12, 6),
+            FontSize = 14,
+            IsEnabled = false
         };
 
-        var cancelBtn = new Button
+        void RefreshSelectionState()
         {
-            Text = "Cancel",
-            Margin = new Thickness(10),
-            BackgroundColor = Color.FromArgb("#EF4444"),
-            TextColor = Colors.White
+            var selected = allItems.Where(i => i.IsSelected).ToList();
+            int count = selected.Count;
+
+            if (count == 0)
+            {
+                statusLabel.Text = "Pick 2 players";
+                statusLabel.TextColor = Color.FromArgb("#6B7280");
+            }
+            else if (count == 1)
+            {
+                statusLabel.Text = $"\u2713 1 selected \u00B7 pick 1 more";
+                statusLabel.TextColor = Color.FromArgb("#F59E0B");
+            }
+            else if (count == 2)
+            {
+                statusLabel.Text = "\u2713 2 selected \u00B7 ready to add";
+                statusLabel.TextColor = Color.FromArgb("#10B981");
+            }
+            else
+            {
+                statusLabel.Text = $"\u26A0 {count} selected \u00B7 only 2 allowed";
+                statusLabel.TextColor = Color.FromArgb("#EF4444");
+            }
+
+            // Auto-update the team name if user hasn't manually edited it
+            if (!userEditedName && count == 2)
+            {
+                var wasFocused = teamNameEntry.IsFocused;
+                teamNameEntry.Text = $"{selected[0].Name} & {selected[1].Name}";
+                userEditedName = false; // re-clear in case the TextChanged set it
+            }
+
+            addBtn.IsEnabled = count == 2 && !string.IsNullOrWhiteSpace(teamNameEntry.Text);
+        }
+
+        teamNameEntry.TextChanged += (s, e) => addBtn.IsEnabled = allItems.Count(i => i.IsSelected) == 2 && !string.IsNullOrWhiteSpace(teamNameEntry.Text);
+
+        Guid? currentTeamFilter = null;
+        void ApplyTeamFilter(Guid? teamId)
+        {
+            currentTeamFilter = teamId;
+            IEnumerable<SelectionItem<Guid>> filtered;
+            if (teamId == null)
+                filtered = allItems;
+            else if (teamId == Guid.Empty)
+                filtered = allItems.Where(i => i.Tag == null);
+            else
+                filtered = allItems.Where(i => i.Tag is Guid tid && tid == teamId);
+            playerListView.ItemsSource = new ObservableCollection<SelectionItem<Guid>>(filtered.ToList());
+            RebuildTeamList(teamListLayout, teamEntries, allItems, teamId, ApplyTeamFilter, RefreshSelectionState);
+        }
+
+        playerListView.ItemTemplate = new DataTemplate(() =>
+        {
+            var grid = new Grid
+            {
+                Padding = new Thickness(8, 4),
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition { Width = new GridLength(36) },
+                    new ColumnDefinition { Width = GridLength.Star }
+                }
+            };
+
+            var checkBox = new CheckBox { VerticalOptions = LayoutOptions.Center };
+            checkBox.SetBinding(CheckBox.IsCheckedProperty, nameof(SelectionItem<Guid>.IsSelected), BindingMode.TwoWay);
+
+            var nameLabel = new Label { VerticalTextAlignment = TextAlignment.Center, FontSize = 14 };
+            nameLabel.SetBinding(Label.TextProperty, nameof(SelectionItem<Guid>.Name));
+
+            grid.Add(checkBox, 0, 0);
+            grid.Add(nameLabel, 1, 0);
+
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (s, e) =>
+            {
+                if (grid.BindingContext is SelectionItem<Guid> item)
+                {
+                    // If trying to select a 3rd, block it
+                    if (!item.IsSelected && allItems.Count(i => i.IsSelected) >= 2)
+                        return;
+                    item.IsSelected = !item.IsSelected;
+                }
+            };
+            grid.GestureRecognizers.Add(tap);
+
+            return grid;
+        });
+
+        // Enforce max-2 selection on PropertyChanged
+        foreach (var item in allItems)
+        {
+            item.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != nameof(SelectionItem<Guid>.IsSelected)) return;
+                if (s is SelectionItem<Guid> changed && changed.IsSelected
+                    && allItems.Count(i => i.IsSelected) > 2)
+                {
+                    // Revert: too many selected
+                    changed.IsSelected = false;
+                    return;
+                }
+                RefreshSelectionState();
+            };
+        }
+
+        RebuildTeamList(teamListLayout, teamEntries, allItems, null, ApplyTeamFilter, RefreshSelectionState);
+
+        var teamPanel = new Border
+        {
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+            Stroke = Color.FromArgb("#E5E7EB"),
+            Padding = 0,
+            Content = new ScrollView { Content = teamListLayout }
         };
 
-        var taskCompletionSource = new TaskCompletionSource<bool>();
+        var playerPanel = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                statusLabel,
+                new Border
+                {
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+                    Stroke = Color.FromArgb("#E5E7EB"),
+                    Padding = 0,
+                    Content = playerListView,
+                    VerticalOptions = LayoutOptions.FillAndExpand
+                }
+            }
+        };
+
+        var splitGrid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) }
+            },
+            ColumnSpacing = 8,
+            RowDefinitions = { new RowDefinition { Height = GridLength.Star } },
+            VerticalOptions = LayoutOptions.FillAndExpand
+        };
+        splitGrid.Add(teamPanel, 0, 0);
+        splitGrid.Add(playerPanel, 1, 0);
+
+        // Team name preview block
+        var namePreviewBlock = new Border
+        {
+            Padding = 10,
+            BackgroundColor = Color.FromArgb("#F0F9FF"),
+            Stroke = Color.FromArgb("#6366F1"),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 4,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "\U0001F465 Team Name",
+                        FontSize = 12,
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = Color.FromArgb("#1E40AF")
+                    },
+                    teamNameEntry
+                }
+            }
+        };
+
+        var tcs = new TaskCompletionSource<bool>();
 
         addBtn.Clicked += async (s, e) =>
         {
-            if (player1Picker.SelectedIndex < 0 || player2Picker.SelectedIndex < 0)
+            var selected = allItems.Where(i => i.IsSelected).ToList();
+            if (selected.Count != 2)
             {
-                await DisplayAlert("Error", "Please select both players", "OK");
+                await DisplayAlert("Pick 2 Players", "Please pick exactly 2 players.", "OK");
                 return;
             }
-
-            if (player1Picker.SelectedIndex == player2Picker.SelectedIndex)
-            {
-                await DisplayAlert("Error", "Please select different players", "OK");
-                return;
-            }
-
-            var p1 = availablePlayers[player1Picker.SelectedIndex];
-            var p2 = availablePlayers[player2Picker.SelectedIndex];
 
             var team = new DoublesTeam
             {
-                Player1Id = p1.Id,
-                Player2Id = p2.Id,
-                TeamName = $"{p1.FullName} & {p2.FullName}"
+                Player1Id = selected[0].Id,
+                Player2Id = selected[1].Id,
+                TeamName = string.IsNullOrWhiteSpace(teamNameEntry.Text)
+                    ? $"{selected[0].Name} & {selected[1].Name}"
+                    : teamNameEntry.Text.Trim()
             };
 
             await _editorViewModel!.AddDoublesTeamCommand.ExecuteAsync(team);
             SetStatus(_editorViewModel.StatusMessage);
 
-            taskCompletionSource.SetResult(true);
+            tcs.TrySetResult(true);
             await Navigation.PopModalAsync();
         };
 
+        var cancelBtn = new Button
+        {
+            Text = "Cancel",
+            BackgroundColor = Color.FromArgb("#EF4444"),
+            TextColor = Colors.White,
+            Padding = new Thickness(12, 6),
+            FontSize = 14
+        };
         cancelBtn.Clicked += async (s, e) =>
         {
-            taskCompletionSource.SetResult(false);
+            tcs.TrySetResult(false);
             await Navigation.PopModalAsync();
         };
 
-        selectionPage.Content = new VerticalStackLayout
+        var bottomBar = new HorizontalStackLayout
         {
-            Spacing = 12,
-            Padding = 20,
-            Children =
-            {
-                new Label { Text = "Select 2 Players", FontSize = 18, FontAttributes = FontAttributes.Bold },
-                new Border
-                {
-                    Padding = 10,
-                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 4 },
-                    Content = new VerticalStackLayout
-                    {
-                        Spacing = 10,
-                        Children =
-                        {
-                            new Label { Text = "Player 1:", FontAttributes = FontAttributes.Bold },
-                            player1Picker,
-                            new Label { Text = "Player 2:", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 10, 0, 0) },
-                            player2Picker
-                        }
-                    }
-                },
-                new HorizontalStackLayout
-                {
-                    Spacing = 8,
-                    Margin = new Thickness(0, 20, 0, 0),
-                    Children = { addBtn, cancelBtn }
-                }
-            }
+            Spacing = 8,
+            HorizontalOptions = LayoutOptions.Center,
+            Children = { addBtn, cancelBtn }
         };
 
-        await Navigation.PushModalAsync(new NavigationPage(selectionPage));
-        await taskCompletionSource.Task;
+        var rootGrid = new Grid
+        {
+            Padding = 12,
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Star },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto }
+            },
+            RowSpacing = 8
+        };
+        rootGrid.Add(splitGrid, 0, 0);
+        rootGrid.Add(namePreviewBlock, 0, 1);
+        rootGrid.Add(bottomBar, 0, 2);
+
+        var page = new ContentPage
+        {
+            Title = "Add Doubles Team",
+            Content = rootGrid
+        };
+
+        await Navigation.PushModalAsync(new NavigationPage(page));
+        await tcs.Task;
     }
 
     private async Task ShowMultiSelectPlayersDialog()
