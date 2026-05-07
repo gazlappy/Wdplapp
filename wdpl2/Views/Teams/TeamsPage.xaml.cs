@@ -182,7 +182,7 @@ public partial class TeamsPage : ContentPage
         // NEW: Debug check button
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
-        RefreshAll();
+        // RefreshAll() is called from OnAppearing(); no need to also do it in the ctor.
     }
 
     /// <summary>
@@ -210,12 +210,11 @@ public partial class TeamsPage : ContentPage
             {
                 var teamId = _pendingTeamSelection.Value;
                 _pendingTeamSelection = null;
-                
-                // Find and select the team in the list
-                MainThread.BeginInvokeOnMainThread(async () =>
+
+                // RefreshAll() above has already populated _teamItems synchronously.
+                // Marshal to the UI thread to set the selection without an arbitrary delay.
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    await System.Threading.Tasks.Task.Delay(100); // Allow list to populate
-                    
                     var teamItem = _teamItems.FirstOrDefault(t => t.Id == teamId);
                     if (teamItem != null)
                     {
@@ -227,8 +226,7 @@ public partial class TeamsPage : ContentPage
                         _showAllSeasons = true;
                         ShowAllSeasonsCheck.IsChecked = true;
                         RefreshTeamList(null);
-                        
-                        await System.Threading.Tasks.Task.Delay(100);
+
                         teamItem = _teamItems.FirstOrDefault(t => t.Id == teamId);
                         if (teamItem != null)
                         {
@@ -317,6 +315,9 @@ public partial class TeamsPage : ContentPage
             int totalFramesFor = 0;
             int totalFramesAgainst = 0;
 
+            // Hoisted: settings don't change per fixture (uses the selected team's own season)
+            var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam?.SeasonId);
+
             foreach (var fixture in fixtures)
             {
                 var isHome = fixture.HomeTeamId == _selectedTeam.Id;
@@ -340,8 +341,7 @@ public partial class TeamsPage : ContentPage
                 else if (drew) totalDraws++;
                 else totalLosses++;
 
-                // Calculate points (using settings)
-                var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam?.SeasonId);
+                // Calculate points (using hoisted settings)
                 int ourPoints = ourScore; // Frames won
                 int theirPoints = theirScore;
 
@@ -569,7 +569,7 @@ public partial class TeamsPage : ContentPage
                 var isHome = f.HomeTeamId == _selectedTeam.Id;
                 var opponentId = isHome ? f.AwayTeamId : f.HomeTeamId;
                 var opponent = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == opponentId);
-                var venue = DataStore.Data.Venues?.SelectMany(v => new[] { v }).FirstOrDefault(v => v.Id == f.VenueId);
+                var venue = DataStore.Data.Venues?.FirstOrDefault(v => v.Id == f.VenueId);
                 var division = DataStore.Data.Divisions?.FirstOrDefault(d => d.Id == f.DivisionId);
                 var hasResult = f.Frames.Count > 0;
 
@@ -1142,6 +1142,7 @@ public partial class TeamsPage : ContentPage
                 }
             }
 
+            DataStore.Save();
             RefreshTeamList(SearchEntry?.Text);
 
             if (_selectedTeam != null)

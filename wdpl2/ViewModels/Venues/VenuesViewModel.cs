@@ -195,7 +195,7 @@ public partial class VenuesViewModel : BaseViewModel
 
         _selectedVenue.Tables.Add(table);
         _tables.Add(table);
-        _newTableName = "";
+        NewTableName = "";
         SetStatus($"Added table: {table.Label}");
     }
 

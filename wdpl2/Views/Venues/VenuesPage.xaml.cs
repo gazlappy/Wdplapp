@@ -63,7 +63,7 @@ public partial class VenuesPage : ContentPage
         ExportBtn.Clicked += async (_, __) => await ExportVenuesAsync();
         VenuesImport.ImportRequested += async (stream, fileName) => await ImportVenuesCsvAsync(stream, fileName);
 
-        RefreshAll();
+        // RefreshAll() is called from OnAppearing(); no need to also do it in the ctor.
     }
 
     protected override void OnAppearing()
@@ -266,6 +266,7 @@ public partial class VenuesPage : ContentPage
         };
 
         DataStore.Data.Venues.Add(venue);
+        DataStore.Save();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -290,6 +291,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Notes = NotesEntry.Text?.Trim();
 
         string venueName = _selectedVenue.Name; // Store name before refresh
+        DataStore.Save();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Updated: {venueName}");
     }
@@ -314,6 +316,7 @@ public partial class VenuesPage : ContentPage
 
         DataStore.Data.Venues.Remove(_selectedVenue);
         _selectedVenue = null;
+        DataStore.Save();
         RefreshVenues(SearchEntry.Text);
         ClearEditor();
         SetStatus("Deleted");
@@ -350,6 +353,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Tables.Add(table);
         _tables.Add(table);
         NewTableEntry.Text = "";
+        DataStore.Save();
         SetStatus($"Added table: {tableName}");
     }
 
@@ -371,6 +375,7 @@ public partial class VenuesPage : ContentPage
 
         _selectedVenue.Tables.Remove(selectedTable);
         _tables.Remove(selectedTable);
+        DataStore.Save();
         SetStatus($"Removed table: {selectedTable.Label}");
     }
 
@@ -445,6 +450,7 @@ public partial class VenuesPage : ContentPage
             deleted++;
         }
 
+        DataStore.Save();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Deleted {deleted} venue(s)");
     }
@@ -546,6 +552,7 @@ public partial class VenuesPage : ContentPage
             }
         }
 
+        DataStore.Save();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }

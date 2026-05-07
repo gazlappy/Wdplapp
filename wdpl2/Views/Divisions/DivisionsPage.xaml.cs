@@ -71,7 +71,7 @@ public partial class DivisionsPage : ContentPage
 
         DebugCheckBtn.Clicked += async (_, __) => await CheckDatabaseAsync();
 
-        RefreshAll();
+        // RefreshAll() is called from OnAppearing(); no need to also do it in the ctor.
     }
 
     protected override void OnAppearing()
@@ -147,30 +147,15 @@ public partial class DivisionsPage : ContentPage
         {
             _divisions.Clear();
 
-            System.Diagnostics.Debug.WriteLine($"=== DIVISIONS DEBUG ===");
-            System.Diagnostics.Debug.WriteLine($"Current Season ID: {_currentSeasonId}");
-            System.Diagnostics.Debug.WriteLine($"Show All Seasons: {_showAllSeasons}");
-            System.Diagnostics.Debug.WriteLine($"Total Divisions in DB: {DataStore.Data?.Divisions?.Count ?? 0}");
-            
-            if (DataStore.Data?.Divisions != null)
-            {
-                foreach (var d in DataStore.Data.Divisions)
-                {
-                    System.Diagnostics.Debug.WriteLine($"  Division: '{d.Name}' (SeasonId: {d.SeasonId})");
-                }
-            }
-
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
                 SetStatus("No season selected - check 'Show all seasons' to see all data");
-                System.Diagnostics.Debug.WriteLine("No season selected and show all seasons is OFF");
                 return;
             }
 
             if (DataStore.Data?.Divisions == null)
             {
                 SetStatus("No divisions data available");
-                System.Diagnostics.Debug.WriteLine("DataStore.Data.Divisions is NULL");
                 return;
             }
 
@@ -184,26 +169,16 @@ public partial class DivisionsPage : ContentPage
                     .OrderBy(d => d.Name ?? "")
                     .ToList();
 
-            System.Diagnostics.Debug.WriteLine($"Filtered Divisions: {divisions.Count}");
-            
-            foreach (var d in divisions)
-            {
-                System.Diagnostics.Debug.WriteLine($"  Will display: '{d.Name}' (SeasonId: {d.SeasonId})");
-            }
-
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var lower = search.ToLower();
-                divisions = divisions.Where(d => (d.Name ?? "").ToLower().Contains(lower))
+                divisions = divisions
+                    .Where(d => (d.Name ?? "").Contains(search, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(d => d.Name ?? "")
                     .ToList();
-                System.Diagnostics.Debug.WriteLine($"After search filter: {divisions.Count}");
             }
 
             foreach (var d in divisions)
                 _divisions.Add(d);
-
-            System.Diagnostics.Debug.WriteLine($"Added {_divisions.Count} items to ObservableCollection");
 
             if (_showAllSeasons)
             {
@@ -215,7 +190,7 @@ public partial class DivisionsPage : ContentPage
                 var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
                 var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-                
+
                 if (_divisions.Count == 0 && DataStore.Data.Divisions.Count > 0)
                 {
                     var otherSeasons = DataStore.Data.Divisions
@@ -223,25 +198,21 @@ public partial class DivisionsPage : ContentPage
                         .GroupBy(d => d.SeasonId)
                         .Select(g => new { SeasonId = g.Key, Count = g.Count() })
                         .ToList();
-                    
+
                     if (otherSeasons.Count != 0)
                     {
                         var otherSeasonInfo = string.Join(", ", otherSeasons.Select(s => $"{s.Count} in season {s.SeasonId}"));
                         SetStatus($"No divisions in current season. Found: {otherSeasonInfo}. Check 'Show all seasons' or go to Seasons page to switch.");
-                        System.Diagnostics.Debug.WriteLine($"Found divisions in other seasons: {otherSeasonInfo}");
                         return;
                     }
                 }
-                
+
                 SetStatus($"{_divisions.Count} division(s){seasonInfo}{importedTag}");
             }
-            
-            System.Diagnostics.Debug.WriteLine("=== END DIVISIONS DEBUG ===");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"DivisionsPage RefreshDivisions Error: {ex}");
-            System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             SetStatus($"Error loading divisions: {ex.Message}");
         }
     }
@@ -304,6 +275,7 @@ public partial class DivisionsPage : ContentPage
         };
 
         DataStore.Data.Divisions.Add(division);
+        DataStore.Save();
         RefreshDivisions(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -319,6 +291,7 @@ public partial class DivisionsPage : ContentPage
         _selected.Name = NameEntry.Text?.Trim() ?? "";
         _selected.Notes = NotesEntry.Text?.Trim();
 
+        DataStore.Save();
         RefreshDivisions(SearchEntry.Text);
         ShowDivisionInfo(_selected); // Refresh the info panel
         SetStatus($"Updated: {_selected.Name}");
@@ -337,6 +310,7 @@ public partial class DivisionsPage : ContentPage
 
         DataStore.Data.Divisions.Remove(_selected);
         _selected = null;
+        DataStore.Save();
         RefreshDivisions(SearchEntry.Text);
         ClearEditor();
         HideDivisionInfo();
@@ -398,6 +372,7 @@ public partial class DivisionsPage : ContentPage
             deleted++;
         }
 
+        DataStore.Save();
         RefreshDivisions(SearchEntry.Text);
         HideDivisionInfo();
         SetStatus($"Deleted {deleted} division(s)");
@@ -475,6 +450,7 @@ public partial class DivisionsPage : ContentPage
             }
         }
 
+        DataStore.Save();
         RefreshDivisions(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }

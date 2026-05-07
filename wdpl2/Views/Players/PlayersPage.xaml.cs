@@ -622,6 +622,7 @@ public partial class PlayersPage : ContentPage
                 Notes = NotesEntry.Text?.Trim()
             };
             DataStore.Data.Players.Add(player);
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"Added: {player.FullName}");
         }
@@ -663,6 +664,7 @@ public partial class PlayersPage : ContentPage
             }
             _selected.TeamId = selectedTeam?.Id;
             var updatedName = _selected.FullName;
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             RefreshHeadToHead();
             SetStatus($"Updated: {updatedName}");
@@ -685,6 +687,7 @@ public partial class PlayersPage : ContentPage
 
             DataStore.Data.Players.Remove(_selected);
             _selected = null;
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             ClearEditor();
             RefreshHeadToHead();
@@ -744,6 +747,7 @@ public partial class PlayersPage : ContentPage
                 var player = DataStore.Data?.Players?.FirstOrDefault(p => p.Id == item.Id);
                 if (player != null) { DataStore.Data?.Players?.Remove(player); deleted++; }
             }
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Deleted {deleted} player(s)");
         }
@@ -839,6 +843,7 @@ public partial class PlayersPage : ContentPage
                     updated++;
                 }
             }
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Imported: {added} added, {updated} updated");
         }
@@ -960,6 +965,7 @@ public partial class PlayersPage : ContentPage
             var playerName = _selected.FullName;
             var newTeamName = newTeam.Name ?? "Unknown";
 
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             LoadEditor(_selected);
             RefreshHeadToHead();
@@ -1033,6 +1039,7 @@ public partial class PlayersPage : ContentPage
                 }
             }
 
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Assigned {count} player(s) to {teamLabel}");
         }
@@ -1088,6 +1095,7 @@ public partial class PlayersPage : ContentPage
                 player.TeamId = team.Id;
             }
 
+            DataStore.Save();
             SafeRefreshPlayers(SearchEntry?.Text);
 
             // Re-select in editor if this was the active player
