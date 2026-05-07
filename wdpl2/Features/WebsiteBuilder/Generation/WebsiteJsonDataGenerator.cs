@@ -13,6 +13,12 @@ namespace Wdpl2.Services;
 /// </summary>
 public sealed class WebsiteJsonDataGenerator
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = false,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly LeagueData _league;
     private readonly WebsiteSettings _settings;
     private readonly AppSettings _leagueSettings;
@@ -88,13 +94,7 @@ public sealed class WebsiteJsonDataGenerator
             });
         }
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        return JsonSerializer.Serialize(new { players = playersData, generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") }, options);
+        return JsonSerializer.Serialize(new { players = playersData, generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") }, JsonOptions);
     }
 
     /// <summary>
@@ -197,13 +197,7 @@ public sealed class WebsiteJsonDataGenerator
             });
         }
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        return JsonSerializer.Serialize(new { teams = teamsData, generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") }, options);
+        return JsonSerializer.Serialize(new { teams = teamsData, generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") }, JsonOptions);
     }
 
     /// <summary>
@@ -309,18 +303,12 @@ public sealed class WebsiteJsonDataGenerator
             });
         }
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
         return JsonSerializer.Serialize(new
         {
             teams = captainTeams,
             contacts,
             generated = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
-        }, options);
+        }, JsonOptions);
     }
 
     /// <summary>SHA-256 hex (lowercase) of the UTF-8 PIN bytes — matches browser <c>crypto.subtle.digest('SHA-256', ...)</c>.</summary>

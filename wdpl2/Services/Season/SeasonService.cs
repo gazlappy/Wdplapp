@@ -28,10 +28,12 @@ namespace Wdpl2.Services
         /// </summary>
         public static SeasonService Current { get; private set; } = null!;
 
+        private readonly IDataStore _dataStore;
         private Guid? _currentSeasonId;
 
-        public SeasonService()
+        public SeasonService(IDataStore dataStore)
         {
+            _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
             Current = this;
         }
 
@@ -57,7 +59,7 @@ namespace Wdpl2.Services
                     Season? season = null;
                     if (_currentSeasonId.HasValue)
                     {
-                        season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
+                        season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
                     }
 
                     SeasonChanged?.Invoke(this, new SeasonChangedEventArgs(oldSeasonId, _currentSeasonId, season));
@@ -74,7 +76,7 @@ namespace Wdpl2.Services
             Season? season = null;
             if (_currentSeasonId.HasValue)
             {
-                season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
+                season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
             }
 
             SeasonChanged?.Invoke(this, new SeasonChangedEventArgs(_currentSeasonId, _currentSeasonId, season));
@@ -85,14 +87,15 @@ namespace Wdpl2.Services
         /// </summary>
         public void Initialize()
         {
-            if (DataStore.Data.ActiveSeasonId.HasValue)
+            var data = _dataStore.GetData();
+            if (data.ActiveSeasonId.HasValue)
             {
-                _currentSeasonId = DataStore.Data.ActiveSeasonId;
+                _currentSeasonId = data.ActiveSeasonId;
             }
             else
             {
                 // Select the first active season if available
-                var activeSeason = DataStore.Data.Seasons.FirstOrDefault(s => s.IsActive);
+                var activeSeason = data.Seasons.FirstOrDefault(s => s.IsActive);
                 if (activeSeason != null)
                 {
                     _currentSeasonId = activeSeason.Id;
@@ -100,7 +103,7 @@ namespace Wdpl2.Services
                 else
                 {
                     // Select the first season by start date if available
-                    var firstSeason = DataStore.Data.Seasons.OrderByDescending(s => s.StartDate).FirstOrDefault();
+                    var firstSeason = data.Seasons.OrderByDescending(s => s.StartDate).FirstOrDefault();
                     if (firstSeason != null)
                     {
                         _currentSeasonId = firstSeason.Id;
@@ -115,7 +118,7 @@ namespace Wdpl2.Services
         public Season? GetCurrentSeason()
         {
             if (!_currentSeasonId.HasValue) return null;
-            return DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
+            return _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
         }
     }
 

@@ -325,6 +325,7 @@ public partial class FrameStatsPage : ContentPage
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine(ex);
             StatusLabel.Text = $"Error: {ex.Message}";
         }
     }

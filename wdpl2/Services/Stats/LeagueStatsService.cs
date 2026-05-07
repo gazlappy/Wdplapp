@@ -158,6 +158,14 @@ public static class LeagueStatsService
         public List<PlayerOfMonth> MonthlyWinners { get; set; } = new();
     }
 
+    private sealed class PlayerSeasonAccumulator
+    {
+        public int Wins;
+        public int Losses;
+        public int EightBalls;
+        public List<bool> Results { get; } = new();
+    }
+
     public static SeasonRecap GenerateSeasonRecap(
         Season season, List<Fixture> fixtures, List<Player> players,
         List<Team> teams, AppSettings settings)
@@ -170,7 +178,7 @@ public static class LeagueStatsService
         recap.TotalEightBalls = completed.Sum(f => f.Frames.Count(fr => fr.EightBall));
 
         // Player stats
-        var playerStats = new Dictionary<Guid, (int wins, int losses, int eightBalls, List<bool> results)>();
+        var playerStats = new Dictionary<Guid, PlayerSeasonAccumulator>();
         foreach (var fixture in completed.OrderBy(f => f.Date))
         {
             foreach (var frame in fixture.Frames)
@@ -178,22 +186,20 @@ public static class LeagueStatsService
                 if (frame.HomePlayerId.HasValue && !FrameResult.IsVoidPlayer(frame.HomePlayerId))
                 {
                     var id = frame.HomePlayerId.Value;
-                    if (!playerStats.ContainsKey(id)) playerStats[id] = (0, 0, 0, new List<bool>());
-                    var s = playerStats[id];
+                    if (!playerStats.TryGetValue(id, out var s)) { s = new PlayerSeasonAccumulator(); playerStats[id] = s; }
                     bool won = frame.Winner == FrameWinner.Home;
-                    bool eb = frame.EightBall && won;
-                    playerStats[id] = (s.wins + (won ? 1 : 0), s.losses + (won ? 0 : 1), s.eightBalls + (eb ? 1 : 0), s.results);
-                    s.results.Add(won);
+                    if (won) s.Wins++; else s.Losses++;
+                    if (frame.EightBall && won) s.EightBalls++;
+                    s.Results.Add(won);
                 }
                 if (frame.AwayPlayerId.HasValue && !FrameResult.IsVoidPlayer(frame.AwayPlayerId))
                 {
                     var id = frame.AwayPlayerId.Value;
-                    if (!playerStats.ContainsKey(id)) playerStats[id] = (0, 0, 0, new List<bool>());
-                    var s = playerStats[id];
+                    if (!playerStats.TryGetValue(id, out var s)) { s = new PlayerSeasonAccumulator(); playerStats[id] = s; }
                     bool won = frame.Winner == FrameWinner.Away;
-                    bool eb = frame.EightBall && won;
-                    playerStats[id] = (s.wins + (won ? 1 : 0), s.losses + (won ? 0 : 1), s.eightBalls + (eb ? 1 : 0), s.results);
-                    s.results.Add(won);
+                    if (won) s.Wins++; else s.Losses++;
+                    if (frame.EightBall && won) s.EightBalls++;
+                    s.Results.Add(won);
                 }
             }
         }
@@ -201,19 +207,19 @@ public static class LeagueStatsService
         var playerLookup = players.ToDictionary(p => p.Id);
 
         // Top scorer
-        var topScorer = playerStats.OrderByDescending(s => s.Value.wins).FirstOrDefault();
+        var topScorer = playerStats.OrderByDescending(s => s.Value.Wins).FirstOrDefault();
         if (topScorer.Key != Guid.Empty && playerLookup.TryGetValue(topScorer.Key, out var ts))
         {
             recap.TopScorer = ts.FullName;
-            recap.TopScorerWins = topScorer.Value.wins;
+            recap.TopScorerWins = topScorer.Value.Wins;
         }
 
         // Most 8-balls
-        var most8b = playerStats.OrderByDescending(s => s.Value.eightBalls).FirstOrDefault();
+        var most8b = playerStats.OrderByDescending(s => s.Value.EightBalls).FirstOrDefault();
         if (most8b.Key != Guid.Empty && playerLookup.TryGetValue(most8b.Key, out var m8))
         {
             recap.MostEightBalls = m8.FullName;
-            recap.MostEightBallCount = most8b.Value.eightBalls;
+            recap.MostEightBallCount = most8b.Value.EightBalls;
         }
 
         // Longest win streak
@@ -222,7 +228,7 @@ public static class LeagueStatsService
         foreach (var (pid, stat) in playerStats)
         {
             int streak = 0, maxStreak = 0;
-            foreach (var won in stat.results)
+            foreach (var won in stat.Results)
             {
                 streak = won ? streak + 1 : 0;
                 if (streak > maxStreak) maxStreak = streak;

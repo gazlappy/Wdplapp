@@ -16,14 +16,17 @@ public static partial class DataStore
         PropertyNameCaseInsensitive = true
     };
 
-    private static readonly string DataPath =
-        Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
+    // Paths are lazily resolved so unit tests (which can't init MAUI FileSystem)
+    // can touch DataStore.Data without triggering the static cctor MAUI lookup.
+    private static readonly Lazy<string> _appDataDir = new(() =>
+    {
+        try { return FileSystem.AppDataDirectory; }
+        catch { return Path.Combine(Path.GetTempPath(), "wdpl2-test"); }
+    });
 
-    private static readonly string BackupPath =
-        Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json.bak");
-
-    private static readonly string ImportSnapshotPath =
-        Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json.pre-import");
+    private static string DataPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json");
+    private static string BackupPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.bak");
+    private static string ImportSnapshotPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.pre-import");
 
     private static int _saveCount;
     private const int AutoBackupInterval = 5;
@@ -61,7 +64,16 @@ public static partial class DataStore
         }
     }
 
-    public static void Save()
+    public static void Save() => SaveCore(syncEntities: true, pushToCloud: true);
+
+    /// <summary>
+    /// Save only the JSON file without syncing entities to the database.
+    /// Use when only non-entity data (e.g. CalendarEvents, CalendarSettings) has changed
+    /// and entity tables (competitions, fixtures, etc.) should not be overwritten.
+    /// </summary>
+    public static void SaveJsonOnly() => SaveCore(syncEntities: false, pushToCloud: false);
+
+    private static void SaveCore(bool syncEntities, bool pushToCloud)
     {
         EnsureDataDirectory();
 
@@ -71,48 +83,40 @@ public static partial class DataStore
             if (File.Exists(DataPath))
                 File.Copy(DataPath, BackupPath, overwrite: true);
         }
-        catch { /* non-critical */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataStore.Save] Backup snapshot failed: {ex.Message}");
+        }
 
         var json = JsonSerializer.Serialize(Data, JsonOpts);
         File.WriteAllText(DataPath, json);
 
-        // Push entity changes to EF Core so both stores stay in sync
-        SyncEntitiesToDatabase();
+        if (syncEntities)
+        {
+            // Push entity changes to EF Core so both stores stay in sync
+            SyncEntitiesToDatabase();
+        }
 
         // Auto-backup every N saves
-        _saveCount++;
-        if (_saveCount % AutoBackupInterval == 0)
+        var count = System.Threading.Interlocked.Increment(ref _saveCount);
+        if (count % AutoBackupInterval == 0)
         {
             try
             {
                 var backupService = new Wdpl2.Services.BackupService();
                 _ = backupService.CreateBackupAsync();
             }
-            catch { /* non-critical */ }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataStore.Save] Auto-backup failed: {ex.Message}");
+            }
         }
 
-        // Push to cloud if enabled (fire-and-forget)
-        PushToCloudIfEnabled();
-    }
-
-    /// <summary>
-    /// Save only the JSON file without syncing entities to the database.
-    /// Use when only non-entity data (e.g. CalendarEvents, CalendarSettings) has changed
-    /// and entity tables (competitions, fixtures, etc.) should not be overwritten.
-    /// </summary>
-    public static void SaveJsonOnly()
-    {
-        EnsureDataDirectory();
-
-        try
+        if (pushToCloud)
         {
-            if (File.Exists(DataPath))
-                File.Copy(DataPath, BackupPath, overwrite: true);
+            // Push to cloud if enabled (fire-and-forget)
+            PushToCloudIfEnabled();
         }
-        catch { /* non-critical */ }
-
-        var json = JsonSerializer.Serialize(Data, JsonOpts);
-        File.WriteAllText(DataPath, json);
     }
 
     /// <summary>
@@ -149,11 +153,14 @@ public static partial class DataStore
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push error: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push error: {ex}");
                 }
             });
         }
-        catch { /* non-critical */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CloudSync] Auto-push setup failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -296,7 +303,10 @@ public static partial class DataStore
             if (File.Exists(ImportSnapshotPath))
                 File.Delete(ImportSnapshotPath);
         }
-        catch { /* non-critical */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataStore.ClearPreImportSnapshot] {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -354,8 +364,27 @@ public static partial class DataStore
             // Overlay entity collections from EF Core (source of truth after migration)
             RefreshEntitiesFromDatabase();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[DataStore.Load] Primary load failed: {ex.Message}. Attempting backup recovery.");
+
+            // Attempt to recover from the last good backup snapshot before giving up
+            try
+            {
+                if (File.Exists(BackupPath))
+                {
+                    var backupJson = File.ReadAllText(BackupPath);
+                    Data = JsonSerializer.Deserialize<LeagueData>(backupJson, JsonOpts) ?? new LeagueData();
+                    System.Diagnostics.Debug.WriteLine("[DataStore.Load] Restored from BackupPath snapshot.");
+                    RefreshEntitiesFromDatabase();
+                    return;
+                }
+            }
+            catch (Exception backupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataStore.Load] Backup recovery also failed: {backupEx.Message}");
+            }
+
             Data = new LeagueData();
         }
     }

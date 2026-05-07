@@ -290,8 +290,8 @@ public partial class DeploymentSettingsPage : ContentPage
             ProgressBar.Progress = 0;
             DeployToGitHubBtn.IsEnabled = false;
             
-            var gitHubService = new GitHubPagesService(token, username, repoName);
-            
+            using var gitHubService = new GitHubPagesService(token, username, repoName);
+
             var (validCreds, credMessage) = await gitHubService.ValidateConnectionAsync();
             if (!validCreds)
             {
@@ -373,7 +373,7 @@ public partial class DeploymentSettingsPage : ContentPage
             GitHubStatusFrame.IsVisible = true;
             GitHubStatusLabel.Text = "Checking...";
             
-            var gitHubService = new GitHubPagesService(token, username, repoName);
+            using var gitHubService = new GitHubPagesService(token, username, repoName);
             var (enabled, url, status, buildError) = await gitHubService.GetPagesStatusAsync();
             
             if (!enabled)

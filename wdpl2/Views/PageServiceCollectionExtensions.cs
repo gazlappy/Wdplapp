@@ -22,6 +22,9 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<SettingsPage>();
         services.AddTransient<SearchPage>();
         services.AddTransient<SqlImportPage>();
+        services.AddTransient<PlayerResultsPage>();
+        services.AddTransient<SeasonComparisonPage>();
+        services.AddTransient<CalendarOptionsPage>();
 
         return services;
     }

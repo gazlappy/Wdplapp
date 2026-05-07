@@ -62,6 +62,10 @@ public class DataMigrationService
             progress?.Report(new MigrationProgress { Stage = "Creating database", Percentage = 20 });
             await _context.Database.EnsureCreatedAsync();
 
+            // Wrap all entity inserts in a single transaction so a partial
+            // failure leaves the database empty rather than half-populated.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             // 3. Migrate Seasons
             progress?.Report(new MigrationProgress { Stage = "Migrating seasons", Percentage = 30 });
             result.SeasonsCount = await MigrateSeasonsAsync(jsonData.Seasons);
@@ -89,6 +93,9 @@ public class DataMigrationService
             // 9. Migrate Competitions
             progress?.Report(new MigrationProgress { Stage = "Migrating competitions", Percentage = 90 });
             result.CompetitionsCount = await MigrateCompetitionsAsync(jsonData.Competitions);
+
+            // Commit all entity inserts atomically
+            await transaction.CommitAsync();
 
             // 10. Backup original JSON file
             progress?.Report(new MigrationProgress { Stage = "Creating backup", Percentage = 95 });

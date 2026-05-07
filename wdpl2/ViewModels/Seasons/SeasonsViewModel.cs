@@ -59,11 +59,6 @@ public partial class SeasonsViewModel : ObservableObject
         }
     }
 
-    private async Task InitializeAsync()
-    {
-        await LoadSeasonsAsync();
-    }
-
     [RelayCommand]
     private async Task LoadSeasonsAsync()
     {
@@ -194,9 +189,10 @@ public partial class SeasonsViewModel : ObservableObject
         await _dataStore.SaveAsync();
 
         // Also cascade delete from JSON data store and clean up orphans
-        DataStore.Data.DeleteSeasonCascade(season.Id);
-        DataStore.Data.CleanupOrphans();
-        DataStore.Save();
+        var data = _dataStore.GetData();
+        data.DeleteSeasonCascade(season.Id);
+        data.CleanupOrphans();
+        await _dataStore.SaveAsync();
 
         await LoadSeasonsAsync();
 

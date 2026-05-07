@@ -175,8 +175,7 @@ public static class PanelBuilder
     public static Grid SwitchRow(string label, bool value, Action<bool> setter, string? helpText = null)
     {
         var sw = new Switch { IsToggled = value };
-        var localSetter = setter;
-        sw.Toggled += (_, _) => { localSetter(sw.IsToggled); DataStore.Save(); };
+        sw.Toggled += (_, _) => { setter(sw.IsToggled); DataStore.Save(); };
         return SettingRow(label, sw, helpText);
     }
 

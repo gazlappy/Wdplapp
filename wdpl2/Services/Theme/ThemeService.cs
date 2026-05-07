@@ -24,8 +24,11 @@ public class ThemeService : IThemeService
     /// </summary>
     public static ThemeService Current { get; private set; } = null!;
 
-    public ThemeService()
+    private readonly IDataStore _dataStore;
+
+    public ThemeService(IDataStore dataStore)
     {
+        _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         Current = this;
     }
 
@@ -34,7 +37,7 @@ public class ThemeService : IThemeService
     /// </summary>
     public void ApplyTheme()
     {
-        var settings = Wdpl2.DataStore.Data.Settings;
+        var settings = _dataStore.GetData().Settings;
         ApplyTheme(settings.UseSystemTheme, settings.DarkModeEnabled);
     }
 
@@ -60,10 +63,10 @@ public class ThemeService : IThemeService
     /// </summary>
     public void SetDarkMode(bool enabled)
     {
-        var settings = Wdpl2.DataStore.Data.Settings;
+        var settings = _dataStore.GetData().Settings;
         settings.DarkModeEnabled = enabled;
         settings.UseSystemTheme = false;
-        Wdpl2.DataStore.Save();
+        _ = _dataStore.SaveAsync();
         ApplyTheme();
     }
 
@@ -72,9 +75,9 @@ public class ThemeService : IThemeService
     /// </summary>
     public void UseSystemTheme()
     {
-        var settings = Wdpl2.DataStore.Data.Settings;
+        var settings = _dataStore.GetData().Settings;
         settings.UseSystemTheme = true;
-        Wdpl2.DataStore.Save();
+        _ = _dataStore.SaveAsync();
         ApplyTheme();
     }
 
@@ -87,7 +90,7 @@ public class ThemeService : IThemeService
         {
             if (Application.Current == null) return false;
 
-            var settings = Wdpl2.DataStore.Data.Settings;
+            var settings = _dataStore.GetData().Settings;
             if (settings.UseSystemTheme)
             {
                 return Application.Current.RequestedTheme == AppTheme.Dark;

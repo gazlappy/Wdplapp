@@ -34,6 +34,23 @@ namespace Wdpl2.Services
             _league = league;
             _settings = settings;
         }
+
+        /// <summary>
+        /// Produces a filename-safe slug from a title or user-supplied slug:
+        /// lowercased, alphanumerics + hyphens only, collapsed runs.
+        /// </summary>
+        private static string SanitizeSlug(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+            var sb = new StringBuilder(raw.Length);
+            foreach (var ch in raw.Trim().ToLowerInvariant())
+            {
+                if (ch is >= 'a' and <= 'z' or >= '0' and <= '9') sb.Append(ch);
+                else if (sb.Length > 0 && sb[^1] != '-') sb.Append('-');
+            }
+            while (sb.Length > 0 && sb[^1] == '-') sb.Length--;
+            return sb.ToString();
+        }
         
         /// <summary>
         /// Generate all HTML files for the website
@@ -59,6 +76,11 @@ namespace Wdpl2.Services
 
             // Generate files based on template
             var template = WebsiteTemplate.GetTemplateById(_settings.SelectedTemplate) ?? WebsiteTemplate.Modern;
+
+            // Hoist season data + sub-generators (used by Players/Divisions/Captains branches below)
+            var (seasonDivisions, seasonVenues, seasonTeams, seasonPlayers, seasonFixtures) = _league.GetSeasonData(season.Id);
+            var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
+            var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
 
             // Core files
             files["home.html"] = GenerateIndexPage(season, template);
@@ -92,11 +114,7 @@ namespace Wdpl2.Services
                 }
 
                 // Generate JSON data file and single template page (instead of individual HTML files per player)
-                var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
-                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
-                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
-
-                files["players-data.json"] = jsonGenerator.GeneratePlayersJson(players, teams, fixtures);
+                files["players-data.json"] = jsonGenerator.GeneratePlayersJson(seasonPlayers, seasonTeams, seasonFixtures);
                 files["player.html"] = templateGenerator.GeneratePlayerTemplatePage(
                     season,
                     _cacheBuster,
@@ -112,11 +130,7 @@ namespace Wdpl2.Services
                 files["divisions.html"] = GenerateDivisionsPage(season, template);
                 
                 // Generate JSON data file and single template page for teams
-                var (divisions2, venues2, teams2, players2, fixtures2) = _league.GetSeasonData(season.Id);
-                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
-                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
-
-                files["teams-data.json"] = jsonGenerator.GenerateTeamsJson(teams2, divisions2, venues2, players2, fixtures2);
+                files["teams-data.json"] = jsonGenerator.GenerateTeamsJson(seasonTeams, seasonDivisions, seasonVenues, seasonPlayers, seasonFixtures);
                 files["team.html"] = templateGenerator.GenerateTeamTemplatePage(
                     season,
                     _cacheBuster,
@@ -164,11 +178,7 @@ namespace Wdpl2.Services
             // Captains Area (PIN-gated, client-side)
             if (_settings.EnableCaptainsArea)
             {
-                var (capDivs, capVenues, capTeams, capPlayers, capFixtures) = _league.GetSeasonData(season.Id);
-                var jsonGenerator = new WebsiteJsonDataGenerator(_league, _settings, _leagueSettings);
-                var templateGenerator = new WebsiteTemplatePageGenerator(_settings);
-
-                files["captains-data.json"] = jsonGenerator.GenerateCaptainsJson(capTeams, capDivs, capVenues, capPlayers, capFixtures);
+                files["captains-data.json"] = jsonGenerator.GenerateCaptainsJson(seasonTeams, seasonDivisions, seasonVenues, seasonPlayers, seasonFixtures);
                 files["captains.html"] = templateGenerator.GenerateCaptainsLoginPage(
                     season, _cacheBuster,
                     AppendDocumentHead, AppendHeader, AppendNavigation, AppendFooter);
@@ -181,7 +191,8 @@ namespace Wdpl2.Services
             // Custom pages
             foreach (var page in _settings.CustomPages.Where(p => p.IsPublished))
             {
-                var slug = string.IsNullOrWhiteSpace(page.Slug) ? page.Title.ToLower().Replace(" ", "-") : page.Slug;
+                var slug = string.IsNullOrWhiteSpace(page.Slug) ? SanitizeSlug(page.Title) : SanitizeSlug(page.Slug);
+                if (string.IsNullOrWhiteSpace(slug)) continue;
                 files[$"{slug}.html"] = GenerateCustomPage(season, template, page);
             }
             

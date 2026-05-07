@@ -315,6 +315,7 @@
 	
 	<ItemGroup>
 	  <Folder Include="ViewModels\Fixtures\" />
+	  <Folder Include="ViewModels\LeagueTables\" />
 	</ItemGroup>
 
 </Project>

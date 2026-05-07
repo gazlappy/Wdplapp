@@ -11,21 +11,19 @@ namespace Wdpl2.Services;
 /// <summary>
 /// Service for deploying static websites to GitHub Pages
 /// </summary>
-public sealed class GitHubPagesService
+public sealed class GitHubPagesService : IDisposable
 {
-    private readonly string _token;
     private readonly string _username;
     private readonly string _repoName;
     private readonly HttpClient _httpClient;
-    
+
     private const string GitHubApiBase = "https://api.github.com";
-    
+
     public GitHubPagesService(string token, string username, string repoName)
     {
-        _token = token;
         _username = username;
         _repoName = repoName;
-        
+
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -213,16 +211,8 @@ public sealed class GitHubPagesService
             
             var url = pages.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() : null;
             var status = pages.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : "unknown";
-            
-            // Check for build error
-            string? buildError = null;
-            if (pages.TryGetProperty("build_type", out var buildType) && 
-                pages.TryGetProperty("source", out var source))
-            {
-                // Pages is configured
-            }
-            
-            return (true, url, status, buildError);
+
+            return (true, url, status, null);
         }
         catch (Exception ex)
         {
@@ -309,12 +299,13 @@ public sealed class GitHubPagesService
             
             return (treeSha, commitSha);
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[GitHubPages] GetCurrentTree error: {ex}");
             return (null, null);
         }
     }
-    
+
     private async Task<string?> CreateBlobAsync(string fileContent)
     {
         try
@@ -330,22 +321,25 @@ public sealed class GitHubPagesService
             
             var response = await _httpClient.PostAsync(
                 $"{GitHubApiBase}/repos/{_username}/{_repoName}/git/blobs", content);
-            
+
             if (!response.IsSuccessStatusCode)
             {
+                var err = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateBlob failed: {response.StatusCode} - {err}");
                 return null;
             }
-            
+
             var responseContent = await response.Content.ReadAsStringAsync();
             var blob = JsonSerializer.Deserialize<JsonElement>(responseContent);
             return blob.GetProperty("sha").GetString();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateBlob error: {ex}");
             return null;
         }
     }
-    
+
     private async Task<string?> CreateTreeAsync(List<object> treeItems, string? baseTreeSha)
     {
         try
@@ -359,22 +353,25 @@ public sealed class GitHubPagesService
             
             var response = await _httpClient.PostAsync(
                 $"{GitHubApiBase}/repos/{_username}/{_repoName}/git/trees", content);
-            
+
             if (!response.IsSuccessStatusCode)
             {
+                var err = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateTree failed: {response.StatusCode} - {err}");
                 return null;
             }
-            
+
             var responseContent = await response.Content.ReadAsStringAsync();
             var tree = JsonSerializer.Deserialize<JsonElement>(responseContent);
             return tree.GetProperty("sha").GetString();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateTree error: {ex}");
             return null;
         }
     }
-    
+
     private async Task<string?> CreateCommitAsync(string treeSha, string? parentSha, string message)
     {
         try
@@ -388,22 +385,25 @@ public sealed class GitHubPagesService
             
             var response = await _httpClient.PostAsync(
                 $"{GitHubApiBase}/repos/{_username}/{_repoName}/git/commits", content);
-            
+
             if (!response.IsSuccessStatusCode)
             {
+                var err = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateCommit failed: {response.StatusCode} - {err}");
                 return null;
             }
-            
+
             var responseContent = await response.Content.ReadAsStringAsync();
             var commit = JsonSerializer.Deserialize<JsonElement>(responseContent);
             return commit.GetProperty("sha").GetString();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[GitHubPages] CreateCommit error: {ex}");
             return null;
         }
     }
-    
+
     private async Task<bool> UpdateBranchAsync(string commitSha, bool createNew)
     {
         try
@@ -459,12 +459,13 @@ public sealed class GitHubPagesService
                 return response.IsSuccessStatusCode;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[GitHubPages] UpdateBranch error: {ex}");
             return false;
         }
     }
-    
+
     /// <summary>
     /// Enable GitHub Pages with retry logic
     /// </summary>
@@ -543,5 +544,10 @@ public sealed class GitHubPagesService
         
         System.Diagnostics.Debug.WriteLine("Failed to enable GitHub Pages after 3 attempts");
         return false;
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 }

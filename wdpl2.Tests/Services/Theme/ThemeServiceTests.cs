@@ -1,119 +1,102 @@
-﻿using Wdpl2.Services;
+using Moq;
+using Wdpl2.Models;
+using Wdpl2.Services;
 
 namespace wdpl2.Tests;
 
 /// <summary>
-/// Tests for ThemeService - manages app theme (light/dark mode).
-/// 
-/// TESTABILITY LIMITATIONS:
-/// This class has static dependencies that prevent comprehensive unit testing:
-/// 1. Application.Current (MAUI static) - Required for theme application (lines 46-55)
-/// 2. DataStore (static class) - Required for settings persistence (lines 37, 63-66, 75-77)
-/// 
-/// COVERAGE STATUS:
-/// - Constructor: Fully tested ✓
-/// - ApplyTheme(bool, bool): Partially tested (early return path only, lines 48-55 require Application.Current)
-/// - ApplyTheme(): Requires DataStore, test skipped
-/// - SetDarkMode(): Requires DataStore, test skipped
-/// - UseSystemTheme(): Requires DataStore, test skipped
-/// 
-/// These dependencies require MAUI runtime context. Full testing would require:
-/// - Integration tests with MAUI infrastructure, OR
-/// - Refactoring to use dependency injection (IApplication, IDataStore interfaces)
+/// Tests for ThemeService — manages app theme (light/dark mode).
+/// Uses a mocked <see cref="IDataStore"/>; methods that touch <c>Application.Current</c>
+/// are tolerant of a null UI host (return early / return false).
 /// </summary>
 public class ThemeServiceTests
 {
+    private static (ThemeService Service, LeagueData Data, Mock<IDataStore> Mock) CreateService()
+    {
+        var data = new LeagueData();
+        var mock = new Mock<IDataStore>();
+        mock.Setup(x => x.GetData()).Returns(data);
+        mock.Setup(x => x.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var service = new ThemeService(mock.Object);
+        return (service, data, mock);
+    }
+
     [Fact]
     public void Constructor_SetsCurrentStaticProperty()
     {
-        // Arrange & Act
-        var service = new ThemeService();
-
-        // Assert
+        var (service, _, _) = CreateService();
         Assert.Same(service, ThemeService.Current);
+    }
+
+    [Fact]
+    public void Constructor_NullDataStore_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() => new ThemeService(null!));
     }
 
     [Fact]
     public void GetThemeForJs_WhenNotDarkMode_ReturnsLight()
     {
-        // Arrange
-        var service = new ThemeService();
-        // Application.Current will be null, IsDarkModeActive returns false
-
-        // Act
-        var theme = service.GetThemeForJs();
-
-        // Assert
-        Assert.Equal("light", theme);
+        var (service, _, _) = CreateService();
+        Assert.Equal("light", service.GetThemeForJs());
     }
 
     [Fact]
     public void IsDarkModeActive_ApplicationCurrentNull_ReturnsFalse()
     {
-        // Arrange
-        var service = new ThemeService();
-        // Application.Current will be null in test context
-
-        // Act
-        var isDark = service.IsDarkModeActive;
-
-        // Assert
-        Assert.False(isDark);
+        var (service, _, _) = CreateService();
+        Assert.False(service.IsDarkModeActive);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data.Settings cannot be accessed in unit tests")]
+    [Fact]
     public void ApplyTheme_NoParameters_DoesNotThrow()
     {
-        // Arrange
-        var service = new ThemeService();
-
-        // Act & Assert
-        // Accesses DataStore.Data.Settings and calls ApplyTheme with those values
-        // Application.Current will be null, so it returns early without setting theme
+        var (service, _, _) = CreateService();
         service.ApplyTheme();
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data.Settings cannot be accessed in unit tests")]
-    public void SetDarkMode_True_DoesNotThrow()
+    [Fact]
+    public void SetDarkMode_True_PersistsAndDisablesSystemTheme()
     {
-        // Arrange
-        var service = new ThemeService();
+        var (service, data, mock) = CreateService();
+        data.Settings.UseSystemTheme = true;
 
-        // Act & Assert
-        // Sets DarkModeEnabled = true, UseSystemTheme = false, saves, and applies theme
-        // DataStore.Data.Settings is accessible in test context
         service.SetDarkMode(true);
+
+        Assert.True(data.Settings.DarkModeEnabled);
+        Assert.False(data.Settings.UseSystemTheme);
+        mock.Verify(x => x.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data.Settings cannot be accessed in unit tests")]
-    public void SetDarkMode_False_DoesNotThrow()
+    [Fact]
+    public void SetDarkMode_False_PersistsAndDisablesSystemTheme()
     {
-        // Arrange
-        var service = new ThemeService();
+        var (service, data, mock) = CreateService();
+        data.Settings.UseSystemTheme = true;
+        data.Settings.DarkModeEnabled = true;
 
-        // Act & Assert
-        // Sets DarkModeEnabled = false, UseSystemTheme = false, saves, and applies theme
         service.SetDarkMode(false);
+
+        Assert.False(data.Settings.DarkModeEnabled);
+        Assert.False(data.Settings.UseSystemTheme);
+        mock.Verify(x => x.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data.Settings cannot be accessed in unit tests")]
-    public void UseSystemTheme_DoesNotThrow()
+    [Fact]
+    public void UseSystemTheme_PersistsSystemThemeFlag()
     {
-        // Arrange
-        var service = new ThemeService();
+        var (service, data, mock) = CreateService();
 
-        // Act & Assert
-        // Sets UseSystemTheme = true, saves, and applies theme
         service.UseSystemTheme();
+
+        Assert.True(data.Settings.UseSystemTheme);
+        mock.Verify(x => x.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public void ApplyTheme_UseSystemTheme_ApplicationCurrentNull_DoesNotThrow()
     {
-        // Arrange
-        var service = new ThemeService();
-
-        // Act & Assert
+        var (service, _, _) = CreateService();
         service.ApplyTheme(useSystemTheme: true, darkModeEnabled: true);
         service.ApplyTheme(useSystemTheme: true, darkModeEnabled: false);
     }
@@ -121,20 +104,14 @@ public class ThemeServiceTests
     [Fact]
     public void ApplyTheme_DarkModeEnabled_ApplicationCurrentNull_DoesNotThrow()
     {
-        // Arrange
-        var service = new ThemeService();
-
-        // Act & Assert
+        var (service, _, _) = CreateService();
         service.ApplyTheme(useSystemTheme: false, darkModeEnabled: true);
     }
 
     [Fact]
     public void ApplyTheme_DarkModeDisabled_ApplicationCurrentNull_DoesNotThrow()
     {
-        // Arrange
-        var service = new ThemeService();
-
-        // Act & Assert
+        var (service, _, _) = CreateService();
         service.ApplyTheme(useSystemTheme: false, darkModeEnabled: false);
     }
 }

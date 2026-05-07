@@ -176,11 +176,6 @@ public partial class WhatIfSimulatorPage : ContentPage
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch;
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
-            
-            // Refresh the UI
-            var index = _remainingFixtures.IndexOf(fixture);
-            _remainingFixtures.RemoveAt(index);
-            _remainingFixtures.Insert(index, fixture);
         }
     }
 
@@ -192,16 +187,12 @@ public partial class WhatIfSimulatorPage : ContentPage
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
-            
-            // Refresh the UI
-            var index = _remainingFixtures.IndexOf(fixture);
-            _remainingFixtures.RemoveAt(index);
-            _remainingFixtures.Insert(index, fixture);
         }
     }
 
     private void OnAllHomeWinsClicked(object? sender, EventArgs e)
     {
+        if (!_currentSeasonId.HasValue) return;
         var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
@@ -209,17 +200,13 @@ public partial class WhatIfSimulatorPage : ContentPage
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
         }
-        
-        // Force refresh
-        var temp = _remainingFixtures.ToList();
-        _remainingFixtures.Clear();
-        foreach (var f in temp) _remainingFixtures.Add(f);
-        
+
         StatusLabel.Text = "Set all remaining fixtures to home wins";
     }
 
     private void OnAllAwayWinsClicked(object? sender, EventArgs e)
     {
+        if (!_currentSeasonId.HasValue) return;
         var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
@@ -227,12 +214,7 @@ public partial class WhatIfSimulatorPage : ContentPage
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
         }
-        
-        // Force refresh
-        var temp = _remainingFixtures.ToList();
-        _remainingFixtures.Clear();
-        foreach (var f in temp) _remainingFixtures.Add(f);
-        
+
         StatusLabel.Text = "Set all remaining fixtures to away wins";
     }
 
@@ -334,7 +316,7 @@ public partial class WhatIfSimulatorPage : ContentPage
     public Color ChangeColor { get; set; } = Colors.Gray;
 }
 
-public class SimulatedFixture
+public class SimulatedFixture : System.ComponentModel.INotifyPropertyChanged
 {
     public Guid FixtureId { get; set; }
     public Guid HomeTeamId { get; set; }
@@ -343,7 +325,29 @@ public class SimulatedFixture
     public string AwayTeamName { get; set; } = "";
     public string FixtureDescription { get; set; } = "";
     public DateTime Date { get; set; }
-    public int PredictedHomeScore { get; set; }
-    public int PredictedAwayScore { get; set; }
-    public string PredictedResult { get; set; } = "";
+
+    private int _predictedHomeScore;
+    public int PredictedHomeScore
+    {
+        get => _predictedHomeScore;
+        set { if (_predictedHomeScore != value) { _predictedHomeScore = value; OnPropertyChanged(nameof(PredictedHomeScore)); } }
+    }
+
+    private int _predictedAwayScore;
+    public int PredictedAwayScore
+    {
+        get => _predictedAwayScore;
+        set { if (_predictedAwayScore != value) { _predictedAwayScore = value; OnPropertyChanged(nameof(PredictedAwayScore)); } }
+    }
+
+    private string _predictedResult = "";
+    public string PredictedResult
+    {
+        get => _predictedResult;
+        set { if (_predictedResult != value) { _predictedResult = value; OnPropertyChanged(nameof(PredictedResult)); } }
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged(string name) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
 }

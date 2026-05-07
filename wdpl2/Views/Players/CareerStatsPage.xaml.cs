@@ -49,23 +49,16 @@ public partial class CareerStatsPage : ContentPage
 
     private void RefreshList()
     {
-        _players.Clear();
-
         var allPlayers = DataStore.Data.Players;
         var allFixtures = DataStore.Data.Fixtures;
         var allSeasons = DataStore.Data.Seasons;
 
-        System.Diagnostics.Debug.WriteLine("=== CAREER STATS DEBUG ===");
-        System.Diagnostics.Debug.WriteLine($"Total players: {allPlayers.Count}");
-        System.Diagnostics.Debug.WriteLine($"Total fixtures: {allFixtures.Count}");
-        System.Diagnostics.Debug.WriteLine($"Total seasons: {allSeasons.Count}");
-        System.Diagnostics.Debug.WriteLine($"Players with GlobalPlayerId: {allPlayers.Count(p => p.GlobalPlayerId.HasValue)}");
-
         // Build a comprehensive player list:
         // 1. Group players WITH GlobalPlayerId by their GlobalPlayerId
         // 2. Include players WITHOUT GlobalPlayerId individually
-        
+
         var processedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var built = new List<PlayerCareerStats>();
 
         // First, process players with GlobalPlayerId (multi-season players)
         var playerGroups = allPlayers
@@ -73,15 +66,13 @@ public partial class CareerStatsPage : ContentPage
             .GroupBy(p => p.GlobalPlayerId!.Value)
             .ToList();
 
-        System.Diagnostics.Debug.WriteLine($"Player groups with GlobalPlayerId: {playerGroups.Count}");
-
         foreach (var group in playerGroups)
         {
             var firstPlayer = group.First();
             var playerName = firstPlayer.FullName;
             processedNames.Add(playerName);
 
-            ProcessPlayerGroup(group.Key, playerName, group.Select(p => p.Id).ToList(), allFixtures, allSeasons);
+            ProcessPlayerGroup(group.Key, playerName, group.Select(p => p.Id).ToList(), allFixtures, allSeasons, built);
         }
 
         // Second, process players WITHOUT GlobalPlayerId (single-season players not yet linked)
@@ -89,40 +80,36 @@ public partial class CareerStatsPage : ContentPage
             .Where(p => !p.GlobalPlayerId.HasValue && !processedNames.Contains(p.FullName))
             .ToList();
 
-        System.Diagnostics.Debug.WriteLine($"Single-season players without GlobalPlayerId: {singleSeasonPlayers.Count}");
-
         foreach (var player in singleSeasonPlayers)
         {
             if (processedNames.Contains(player.FullName))
                 continue;
-                
+
             processedNames.Add(player.FullName);
-            ProcessPlayerGroup(player.Id, player.FullName, new List<Guid> { player.Id }, allFixtures, allSeasons);
+            ProcessPlayerGroup(player.Id, player.FullName, new List<Guid> { player.Id }, allFixtures, allSeasons, built);
         }
 
-        // Apply search filter
+        // Apply search filter and sort in a single pass on the local list,
+        // then atomically swap into the bound collection.
+        IEnumerable<PlayerCareerStats> result = built;
         if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
         {
             var searchText = SearchEntry.Text;
-            var filtered = _players.Where(p => p.PlayerName.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
-            _players.Clear();
-            foreach (var player in filtered)
-                _players.Add(player);
+            result = result.Where(p => p.PlayerName.Contains(searchText, StringComparison.OrdinalIgnoreCase));
         }
+        result = result.OrderByDescending(p => p.TotalFramesPlayed);
 
-        // Sort by total frames played (most active first)
-        var sorted = _players.OrderByDescending(p => p.TotalFramesPlayed).ToList();
         _players.Clear();
-        foreach (var player in sorted)
+        foreach (var player in result)
             _players.Add(player);
 
         StatusLabel.Text = $"{_players.Count} player(s) with career stats";
-        System.Diagnostics.Debug.WriteLine($"Displaying {_players.Count} players");
     }
 
     private void ProcessPlayerGroup(Guid globalId, string playerName, List<Guid> playerIds, 
         System.Collections.Generic.List<Models.Fixture> allFixtures, 
-        System.Collections.Generic.List<Models.Season> allSeasons)
+        System.Collections.Generic.List<Models.Season> allSeasons,
+        List<PlayerCareerStats> target)
     {
         var playerIdSet = new HashSet<Guid>(playerIds);
         
@@ -201,7 +188,7 @@ public partial class CareerStatsPage : ContentPage
 
         if (totalFramesPlayed > 0)
         {
-            _players.Add(new PlayerCareerStats
+            target.Add(new PlayerCareerStats
             {
                 GlobalPlayerId = globalId,
                 PlayerName = playerName,

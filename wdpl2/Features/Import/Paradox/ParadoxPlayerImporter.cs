@@ -196,7 +196,7 @@ public static class ParadoxPlayerImporter
 
             result.Players = players;
             result.Success = true;
-            DataStore.Save();
+            // Note: caller is responsible for persisting (orchestrator batches a single Save).
         }
         catch (Exception ex)
         {

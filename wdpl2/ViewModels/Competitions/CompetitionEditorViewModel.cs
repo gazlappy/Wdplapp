@@ -73,7 +73,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     public Task<List<Venue>> GetAvailableVenuesAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var venues = DataStore.Data?.Venues?
+        var venues = _competitionStore.GetData()?.Venues?
             .Where(v => v != null && v.SeasonId == seasonId)
             .OrderBy(v => v.Name)
             .ToList() ?? new List<Venue>();
@@ -169,7 +169,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     private void SyncRoundCalendarEvent(CompetitionRound round)
     {
-        var events = DataStore.Data.CalendarEvents;
+        var events = _competitionStore.GetData().CalendarEvents;
         var existing = events.FirstOrDefault(e =>
             e.CompetitionId == _competition.Id && e.RoundId == round.Id);
 
@@ -218,7 +218,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
         if (!seasonId.HasValue) return;
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonId.Value);
+        var season = _competitionStore.GetData().Seasons.FirstOrDefault(s => s.Id == seasonId.Value);
         if (season == null) return;
 
         // Remove previous blackout for this round (only if the title matches ours)
@@ -579,7 +579,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     /// </summary>
     private bool CheckSeasonLocked()
     {
-        if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
+        if (_competitionStore.GetData().IsSeasonLocked(_competition.SeasonId))
         {
             StatusMessage = "Cannot modify â€” season is locked";
             return true;
@@ -620,7 +620,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             // Allow toggling the lock + website-visibility flags even when the
             // competition is locked â€” these are the only two settings that can
             // change a locked competition (otherwise you could never unlock it).
-            if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
+            if (_competitionStore.GetData().IsSeasonLocked(_competition.SeasonId))
             {
                 StatusMessage = "Cannot modify â€” season is locked";
                 return;
@@ -674,7 +674,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             format == CompetitionFormat.Swiss || format == CompetitionFormat.SinglesGroupStage)
         {
             // Singles - use players from JSON store
-            _cachedPlayers = DataStore.Data?.Players?
+            _cachedPlayers = _competitionStore.GetData()?.Players?
                 .Where(p => p != null && p.SeasonId == seasonId)
                 .ToList() ?? new List<Player>();
             foreach (var playerId in _competition.ParticipantIds)
@@ -693,7 +693,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.DoublesKnockout || format == CompetitionFormat.DoublesGroupStage)
         {
             // Doubles - use players from JSON store
-            _cachedPlayers = DataStore.Data?.Players?
+            _cachedPlayers = _competitionStore.GetData()?.Players?
                 .Where(p => p != null && p.SeasonId == seasonId)
                 .ToList() ?? new List<Player>();
             foreach (var team in _competition.DoublesTeams)
@@ -712,7 +712,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         else if (format == CompetitionFormat.TeamKnockout)
         {
             // Team knockout - use teams from JSON store
-            _cachedTeams = DataStore.Data?.Teams?
+            _cachedTeams = _competitionStore.GetData()?.Teams?
                 .Where(t => t != null && t.SeasonId == seasonId)
                 .ToList() ?? new List<Team>();
             foreach (var teamId in _competition.ParticipantIds)
@@ -834,7 +834,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             }
 
             // Get ratings for seeding
-            var data = DataStore.Data;
+            var data = _competitionStore.GetData();
             var season = seasonId.HasValue ? data.Seasons.FirstOrDefault(s => s.Id == seasonId) : null;
             var fixtures = data.Fixtures.Where(f => f.SeasonId == seasonId && f.Frames.Count > 0).ToList();
             var players = data.Players.Where(p => p.SeasonId == seasonId).ToList();
@@ -1732,7 +1732,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     public Task<List<Player>> GetAvailablePlayersAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var players = DataStore.Data?.Players?
+        var players = _competitionStore.GetData()?.Players?
             .Where(p => p != null && p.SeasonId == seasonId && !_competition.ParticipantIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
             .ToList() ?? new List<Player>();
@@ -1748,7 +1748,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             usedPlayerIds.Add(team.Player2Id);
         }
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var players = DataStore.Data?.Players?
+        var players = _competitionStore.GetData()?.Players?
             .Where(p => p != null && p.SeasonId == seasonId && !usedPlayerIds.Contains(p.Id))
             .OrderBy(p => p.FullName)
             .ToList() ?? new List<Player>();
@@ -1758,7 +1758,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
     public Task<List<Team>> GetAvailableTeamsAsync()
     {
         var seasonId = _competition.SeasonId ?? CurrentSeasonId;
-        var teams = DataStore.Data?.Teams?
+        var teams = _competitionStore.GetData()?.Teams?
             .Where(t => t != null && t.SeasonId == seasonId && !_competition.ParticipantIds.Contains(t.Id))
             .OrderBy(t => t.Name)
             .ToList() ?? new List<Team>();

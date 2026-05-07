@@ -49,9 +49,10 @@ public partial class CareerStatsViewModel : BaseViewModel
         
         try
         {
-            var allPlayers = DataStore.Data.Players;
-            var allFixtures = DataStore.Data.Fixtures;
-            var allSeasons = DataStore.Data.Seasons;
+            var data = _dataStore.GetData();
+            var allPlayers = data.Players;
+            var allFixtures = data.Fixtures;
+            var allSeasons = data.Seasons;
             
             // Group players by GlobalPlayerId
             var playerGroups = allPlayers
@@ -188,21 +189,21 @@ public partial class CareerStatsViewModel : BaseViewModel
     [RelayCommand]
     private async Task SearchPlayersAsync(string? searchText)
     {
-        _searchText = searchText ?? "";
+        SearchText = searchText ?? "";
         await LoadCareerStatsAsync();
     }
 
     [RelayCommand]
     private void SelectPlayer(PlayerCareerStats? player)
     {
-        _selectedPlayer = player;
-        
+        SelectedPlayer = player;
+
         if (player != null)
         {
-            _seasonBreakdown.Clear();
+            SeasonBreakdown.Clear();
             foreach (var season in player.SeasonBreakdown)
-                _seasonBreakdown.Add(season);
-                
+                SeasonBreakdown.Add(season);
+
             SetStatus($"{player.PlayerName} - {player.TotalFramesPlayed} frames across {player.SeasonsPlayed} seasons");
         }
     }

@@ -430,7 +430,7 @@ public partial class CompetitionsPage
 
         var sorted = StandingsSorter.Sort(
             stats,
-            DataStore.Data.GetSettingsForSeason(_currentSeasonId),
+            _dataStore.GetData().GetSettingsForSeason(_currentSeasonId),
             s => s.Value.pts,
             s => s.Value.ff,
             s => s.Value.fa,

@@ -172,7 +172,7 @@ public static class ParadoxDivisionImporter
 
             result.Divisions = divisions;
             result.Success = true;
-            DataStore.Save();
+            // Note: caller is responsible for persisting (orchestrator batches a single Save).
         }
         catch (Exception ex)
         {

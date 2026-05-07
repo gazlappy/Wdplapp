@@ -17,17 +17,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new competition
     /// </summary>
-    Task AddCompetitionAsync(Competition competition);
-    
+    Task AddCompetitionAsync(Competition competition, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing competition
     /// </summary>
-    Task UpdateCompetitionAsync(Competition competition);
-    
+    Task UpdateCompetitionAsync(Competition competition, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a competition
     /// </summary>
-    Task DeleteCompetitionAsync(Competition competition);
+    Task DeleteCompetitionAsync(Competition competition, CancellationToken ct = default);
     
     /// <summary>
     /// Get all players for a season
@@ -37,17 +37,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new player
     /// </summary>
-    Task AddPlayerAsync(Player player);
-    
+    Task AddPlayerAsync(Player player, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing player
     /// </summary>
-    Task UpdatePlayerAsync(Player player);
-    
+    Task UpdatePlayerAsync(Player player, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a player
     /// </summary>
-    Task DeletePlayerAsync(Player player);
+    Task DeletePlayerAsync(Player player, CancellationToken ct = default);
     
     /// <summary>
     /// Get all teams for a season
@@ -57,17 +57,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new team
     /// </summary>
-    Task AddTeamAsync(Team team);
-    
+    Task AddTeamAsync(Team team, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing team
     /// </summary>
-    Task UpdateTeamAsync(Team team);
-    
+    Task UpdateTeamAsync(Team team, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a team
     /// </summary>
-    Task DeleteTeamAsync(Team team);
+    Task DeleteTeamAsync(Team team, CancellationToken ct = default);
     
     /// <summary>
     /// Get all venues for a season
@@ -77,17 +77,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new venue
     /// </summary>
-    Task AddVenueAsync(Venue venue);
-    
+    Task AddVenueAsync(Venue venue, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing venue
     /// </summary>
-    Task UpdateVenueAsync(Venue venue);
-    
+    Task UpdateVenueAsync(Venue venue, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a venue
     /// </summary>
-    Task DeleteVenueAsync(Venue venue);
+    Task DeleteVenueAsync(Venue venue, CancellationToken ct = default);
     
     /// <summary>
     /// Get all divisions for a season
@@ -97,17 +97,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new division
     /// </summary>
-    Task AddDivisionAsync(Division division);
-    
+    Task AddDivisionAsync(Division division, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing division
     /// </summary>
-    Task UpdateDivisionAsync(Division division);
-    
+    Task UpdateDivisionAsync(Division division, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a division
     /// </summary>
-    Task DeleteDivisionAsync(Division division);
+    Task DeleteDivisionAsync(Division division, CancellationToken ct = default);
     
     /// <summary>
     /// Get all fixtures for a season
@@ -117,17 +117,17 @@ public interface IDataStore
     /// <summary>
     /// Add a new fixture
     /// </summary>
-    Task AddFixtureAsync(Fixture fixture);
-    
+    Task AddFixtureAsync(Fixture fixture, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing fixture
     /// </summary>
-    Task UpdateFixtureAsync(Fixture fixture);
-    
+    Task UpdateFixtureAsync(Fixture fixture, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a fixture
     /// </summary>
-    Task DeleteFixtureAsync(Fixture fixture);
+    Task DeleteFixtureAsync(Fixture fixture, CancellationToken ct = default);
     
     /// <summary>
     /// Get all seasons
@@ -137,22 +137,22 @@ public interface IDataStore
     /// <summary>
     /// Add a new season
     /// </summary>
-    Task AddSeasonAsync(Season season);
-    
+    Task AddSeasonAsync(Season season, CancellationToken ct = default);
+
     /// <summary>
     /// Update an existing season
     /// </summary>
-    Task UpdateSeasonAsync(Season season);
-    
+    Task UpdateSeasonAsync(Season season, CancellationToken ct = default);
+
     /// <summary>
     /// Delete a season
     /// </summary>
-    Task DeleteSeasonAsync(Season season);
-    
+    Task DeleteSeasonAsync(Season season, CancellationToken ct = default);
+
     /// <summary>
     /// Save all changes to disk
     /// </summary>
-    Task SaveAsync();
+    Task SaveAsync(CancellationToken ct = default);
     
     /// <summary>
     /// Get the underlying data (for backward compatibility)

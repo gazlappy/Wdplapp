@@ -280,7 +280,7 @@ public sealed class WebsiteTemplatePageGenerator
             var pos = 1;
             for (var i = 0; i < sorted.length; i++) {
                 var p = sorted[i];
-                if (i > 0 && sorted[i-1].rating === p.rating) pos = pos; else pos = i + 1;
+                if (i === 0 || sorted[i-1].rating !== p.rating) pos = i + 1;
                 var isJoint = (i > 0 && sorted[i-1].rating === p.rating) || (i < sorted.length-1 && sorted[i+1].rating === p.rating);
                 var posDisplay = isJoint ? pos + '=' : '' + pos;
                 rosterHtml += '<tr><td>' + posDisplay + '</td><td><strong><a href=""player.html?id=' + p.id + '"" class=""player-link"">' + p.name + '</a></strong></td><td>' + p.played + '</td><td>' + p.won + '</td><td>' + p.lost + '</td><td>' + p.winPct.toFixed(1) + '%</td><td>' + p.rating + '</td></tr>';

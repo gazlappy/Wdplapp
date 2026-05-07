@@ -95,7 +95,7 @@ public partial class CompetitionsPage
                         return;
                     }
 
-                    var allPlayers = DataStore.Data?.Players ?? new List<Player>();
+                    var allPlayers = _dataStore.GetData()?.Players ?? new List<Player>();
 
                     if (isDoublesFormat)
                     {
@@ -126,7 +126,7 @@ public partial class CompetitionsPage
                         var player = allPlayers.FirstOrDefault(p => p.Id == item.Id);
                         if (player?.TeamId is Guid teamId)
                         {
-                            var teamName = DataStore.Data?.Teams.FirstOrDefault(t => t.Id == teamId)?.Name;
+                            var teamName = _dataStore.GetData()?.Teams.FirstOrDefault(t => t.Id == teamId)?.Name;
                             if (!string.IsNullOrWhiteSpace(teamName))
                             {
                                 subLabel.Text = $"\U0001F3AF {teamName}";

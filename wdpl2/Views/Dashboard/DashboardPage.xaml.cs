@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Wdpl2.ViewModels;
 
 namespace Wdpl2.Views;
@@ -18,7 +19,7 @@ public partial class DashboardPage : ContentPage
     private async void OnLeagueTablesClicked(object? sender, EventArgs e)
     {
         try { await Shell.Current.GoToAsync("//Tables"); }
-        catch { /* tab may not exist */ }
+        catch (Exception ex) { Debug.WriteLine($"[DashboardPage] Tables tab navigation failed: {ex.Message}"); }
     }
 
     private async void OnSearchClicked(object? sender, EventArgs e)
@@ -29,6 +30,6 @@ public partial class DashboardPage : ContentPage
     private async void OnAnalyticsClicked(object? sender, EventArgs e)
     {
         try { await Shell.Current.GoToAsync("//Analytics"); }
-        catch { /* tab may not exist */ }
+        catch (Exception ex) { Debug.WriteLine($"[DashboardPage] Analytics tab navigation failed: {ex.Message}"); }
     }
 }

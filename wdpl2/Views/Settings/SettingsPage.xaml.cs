@@ -608,6 +608,11 @@ namespace Wdpl2.Views
 
         private View CreateNotificationsPanel()
         {
+            // Resolve services once — these can be null on platforms without registration.
+            var services = Handler?.MauiContext?.Services;
+            var notificationService = services?.GetService<INotificationService>();
+            var reminderService = services?.GetService<MatchReminderService>();
+
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
             // ── User Preferences ──
@@ -685,7 +690,6 @@ namespace Wdpl2.Views
             {
                 try
                 {
-                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
                     if (notificationService != null)
                     {
                         var granted = await notificationService.RequestPermissionsAsync();
@@ -717,7 +721,6 @@ namespace Wdpl2.Views
             {
                 try
                 {
-                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
                     if (notificationService != null)
                     {
                         await notificationService.ShowNotificationAsync(
@@ -744,7 +747,6 @@ namespace Wdpl2.Views
             {
                 try
                 {
-                    var reminderService = Handler?.MauiContext?.Services.GetService<MatchReminderService>();
                     if (reminderService != null)
                     {
                         await reminderService.CancelAllMatchRemindersAsync();
@@ -822,7 +824,6 @@ namespace Wdpl2.Views
             {
                 try
                 {
-                    var notificationService = Handler?.MauiContext?.Services.GetService<INotificationService>();
                     if (notificationService != null)
                     {
                         var count = await notificationService.GetPendingNotificationCountAsync();
@@ -1322,6 +1323,31 @@ namespace Wdpl2.Views
         }
 
         /// <summary>
+        /// Counts of records whose SeasonId references a non-existent season.
+        /// </summary>
+        private readonly record struct OrphanCounts(
+            int Fixtures, int Players, int Teams, int Venues, int Divisions, int Competitions)
+        {
+            public int Total => Fixtures + Players + Teams + Venues + Divisions + Competitions;
+        }
+
+        /// <summary>
+        /// Count records that reference a missing season — used by the Data Management scan & clean handlers.
+        /// </summary>
+        private static OrphanCounts CountOrphans(LeagueData data)
+        {
+            var validSeasonIds = new HashSet<Guid>(data.Seasons.Select(s => s.Id));
+            return new OrphanCounts(
+                Fixtures: data.Fixtures.Count(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value)),
+                Players: data.Players.Count(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value)),
+                Teams: data.Teams.Count(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value)),
+                Venues: data.Venues.Count(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value)),
+                Divisions: data.Divisions.Count(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value)),
+                Competitions: data.Competitions.Count(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value))
+            );
+        }
+
+        /// <summary>
         /// Build a human-readable summary of what will be moved with the selected divisions.
         /// </summary>
         private static string BuildMoveSummary(LeagueData data, List<Guid> divisionIds, Guid sourceSeasonId)
@@ -1476,16 +1502,14 @@ namespace Wdpl2.Views
             scanButton.Clicked += (s, e) =>
             {
                 var data = DataStore.Data;
-                var validSeasonIds = new HashSet<Guid>(data.Seasons.Select(s2 => s2.Id));
-
-                int orphanFixtures = data.Fixtures.Count(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value));
-                int orphanPlayers = data.Players.Count(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value));
-                int orphanTeams = data.Teams.Count(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value));
-                int orphanVenues = data.Venues.Count(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
-                int orphanDivisions = data.Divisions.Count(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
-                int orphanCompetitions = data.Competitions.Count(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
-
-                int totalOrphans = orphanFixtures + orphanPlayers + orphanTeams + orphanVenues + orphanDivisions + orphanCompetitions;
+                var counts = CountOrphans(data);
+                int orphanFixtures = counts.Fixtures;
+                int orphanPlayers = counts.Players;
+                int orphanTeams = counts.Teams;
+                int orphanVenues = counts.Venues;
+                int orphanDivisions = counts.Divisions;
+                int orphanCompetitions = counts.Competitions;
+                int totalOrphans = counts.Total;
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"Seasons in database: {data.Seasons.Count}");
@@ -1527,15 +1551,14 @@ namespace Wdpl2.Views
             cleanButton.Clicked += async (s, e) =>
             {
                 var data = DataStore.Data;
-                var validSeasonIds = new HashSet<Guid>(data.Seasons.Select(s2 => s2.Id));
-
-                int orphanFixtures = data.Fixtures.Count(f => f.SeasonId == null || !validSeasonIds.Contains(f.SeasonId.Value));
-                int orphanPlayers = data.Players.Count(p => p.SeasonId == null || !validSeasonIds.Contains(p.SeasonId.Value));
-                int orphanTeams = data.Teams.Count(t => t.SeasonId == null || !validSeasonIds.Contains(t.SeasonId.Value));
-                int orphanVenues = data.Venues.Count(v => v.SeasonId == null || !validSeasonIds.Contains(v.SeasonId.Value));
-                int orphanDivisions = data.Divisions.Count(d => d.SeasonId == null || !validSeasonIds.Contains(d.SeasonId.Value));
-                int orphanCompetitions = data.Competitions.Count(c => c.SeasonId == null || !validSeasonIds.Contains(c.SeasonId.Value));
-                int total = orphanFixtures + orphanPlayers + orphanTeams + orphanVenues + orphanDivisions + orphanCompetitions;
+                var counts = CountOrphans(data);
+                int orphanFixtures = counts.Fixtures;
+                int orphanPlayers = counts.Players;
+                int orphanTeams = counts.Teams;
+                int orphanVenues = counts.Venues;
+                int orphanDivisions = counts.Divisions;
+                int orphanCompetitions = counts.Competitions;
+                int total = counts.Total;
 
                 var confirm = await DisplayAlert(
                     "Clean Storage",

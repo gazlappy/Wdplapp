@@ -10,13 +10,15 @@ namespace Wdpl2.Views;
 
 public partial class PlayerResultsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<PlayerResultRow> _results = new();
     private Guid _playerId;
     private string _playerName = "";
     private int _currentRating = 1000;
 
-    public PlayerResultsPage()
+    public PlayerResultsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         ResultsList.ItemsSource = _results;
     }
@@ -35,7 +37,7 @@ public partial class PlayerResultsPage : ContentPage
     {
         _results.Clear();
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         // Get player info
         var player = data.Players.FirstOrDefault(p => p.Id == _playerId);

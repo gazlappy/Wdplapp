@@ -223,7 +223,7 @@ public static class ParadoxDoubleImporter
 
             result.Doubles = doubles;
             result.Success = true;
-            DataStore.Save();
+            // Note: caller is responsible for persisting (orchestrator batches a single Save).
         }
         catch (Exception ex)
         {

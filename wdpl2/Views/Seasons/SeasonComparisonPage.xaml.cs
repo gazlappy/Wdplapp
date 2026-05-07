@@ -6,15 +6,17 @@ namespace Wdpl2.Views;
 
 public class SeasonComparisonPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private Picker _season1Picker;
     private Picker _season2Picker;
     private VerticalStackLayout _resultsStack;
 
-    public SeasonComparisonPage()
+    public SeasonComparisonPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         Title = "📊 Season Comparison";
 
-        var seasons = DataStore.Data.Seasons.OrderByDescending(s => s.StartDate).ToList();
+        var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ToList();
 
         _season1Picker = new Picker { Title = "Select Season 1", ItemsSource = seasons, ItemDisplayBinding = new Binding("Name") };
         _season2Picker = new Picker { Title = "Select Season 2", ItemsSource = seasons, ItemDisplayBinding = new Binding("Name") };
@@ -64,7 +66,7 @@ public class SeasonComparisonPage : ContentPage
             return;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var (_, _, teams1, players1, fixtures1) = data.GetSeasonData(s1.Id);
         var (_, _, teams2, players2, fixtures2) = data.GetSeasonData(s2.Id);
 

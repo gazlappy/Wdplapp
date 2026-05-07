@@ -73,7 +73,7 @@ namespace Wdpl2.Services
         /// <summary>
         /// Predefined schema for your actual database.
         /// </summary>
-        public static Dictionary<string, DatabaseSchemaConfig> KnownSchemas = new()
+        public static readonly IReadOnlyDictionary<string, DatabaseSchemaConfig> KnownSchemas = new Dictionary<string, DatabaseSchemaConfig>
         {
             ["YourActualDatabase"] = new DatabaseSchemaConfig
             {

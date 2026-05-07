@@ -147,7 +147,7 @@ public static class ParadoxVenueImporter
 
             result.Venues = venues;
             result.Success = true;
-            DataStore.Save();
+            // Note: caller is responsible for persisting (orchestrator batches a single Save).
         }
         catch (Exception ex)
         {

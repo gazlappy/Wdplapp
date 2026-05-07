@@ -46,6 +46,8 @@ public partial class AnalyticsHubPage : ContentPage
 
     private async void OnSeasonComparisonClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new SeasonComparisonPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<SeasonComparisonPage>()
+            ?? throw new System.InvalidOperationException("SeasonComparisonPage not registered");
+        await Navigation.PushAsync(page);
     }
 }

@@ -2,13 +2,15 @@ using System.Collections.ObjectModel;
 using Microsoft.Maui.Controls.Shapes;
 using Wdpl2.Helpers;
 using Wdpl2.Models;
+using Wdpl2.Services;
 using static Wdpl2.Helpers.PanelBuilder;
 
 namespace Wdpl2.Views;
 
 public partial class CalendarOptionsPage : ContentPage
 {
-    private static LeagueData League => DataStore.Data;
+    private readonly IDataStore _dataStore;
+    private LeagueData League => _dataStore.GetData();
     private CalendarSettings Settings => League.CalendarSettings;
 
     // Color swatch ↔ setting pairs
@@ -36,8 +38,9 @@ public partial class CalendarOptionsPage : ContentPage
         "Events"
     };
 
-    public CalendarOptionsPage()
+    public CalendarOptionsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         CategoriesList.ItemsSource = _categories;
         CategoriesList.SelectedItem = _categories.First();
@@ -915,7 +918,7 @@ public partial class CalendarOptionsPage : ContentPage
     {
         if (!_isDirty) return;
         _isDirty = false;
-        DataStore.Save();
+        _ = _dataStore.SaveAsync();
     }
 
     protected override void OnDisappearing()

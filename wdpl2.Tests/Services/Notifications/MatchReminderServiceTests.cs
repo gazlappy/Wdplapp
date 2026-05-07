@@ -1,4 +1,4 @@
-﻿using Moq;
+using Moq;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -264,7 +264,7 @@ public class MatchReminderServiceTests
     }
 
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task SchedulePlayerMatchRemindersAsync_WithValidPlayer_SchedulesReminders()
     {
         // Arrange
@@ -302,7 +302,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task SchedulePlayerMatchRemindersAsync_WithNonExistentPlayer_DoesNotSchedule()
     {
         // Arrange
@@ -326,7 +326,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Never);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task SchedulePlayerMatchRemindersAsync_WithPlayerButNoTeam_DoesNotSchedule()
     {
         // Arrange
@@ -352,7 +352,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Never);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task SchedulePlayerMatchRemindersAsync_WithNoUpcomingFixtures_DoesNotSchedule()
     {
         // Arrange
@@ -381,7 +381,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Never);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task SchedulePlayerMatchRemindersAsync_WithException_CatchesAndContinues()
     {
         // Arrange
@@ -396,7 +396,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithValidTeam_SchedulesPlayerReminders()
     {
         // Arrange
@@ -423,7 +423,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeastOnce);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithNonExistentTeam_DoesNotSchedule()
     {
         // Arrange
@@ -443,7 +443,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithNullPlayers_DoesNotSchedule()
     {
         // Arrange
@@ -464,7 +464,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeast(1));
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithEmptyPlayersList_DoesNotSchedule()
     {
         // Arrange
@@ -485,7 +485,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeast(1));
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithException_CatchesAndContinues()
     {
         // Arrange
@@ -500,7 +500,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleTeamMatchRemindersAsync_WithCustomHours_PassesHoursToPlayerScheduler()
     {
         // Arrange
@@ -525,7 +525,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeastOnce);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleFixtureReminderAsync_WithValidFixture_SchedulesReminder()
     {
         // Arrange
@@ -555,7 +555,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeast(1));
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleFixtureReminderAsync_WithMissingHomeTeam_UsesDefaultName()
     {
         // Arrange
@@ -584,7 +584,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeast(1));
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleFixtureReminderAsync_WithMissingAwayTeam_UsesDefaultName()
     {
         // Arrange
@@ -613,7 +613,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.AtLeast(1));
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleFixtureReminderAsync_WithException_CatchesAndContinues()
     {
         // Arrange
@@ -634,7 +634,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleFixtureReminderAsync_WithCustomHours_PassesHoursToScheduler()
     {
         // Arrange
@@ -728,7 +728,7 @@ public class MatchReminderServiceTests
         _mockNotificationService.Verify(x => x.CancelNotificationAsync(It.IsAny<int>()), Times.AtLeastOnce);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task NotifyMatchResultAsync_WithHomeWin_ShowsWinnerNotification()
     {
         // Arrange
@@ -773,7 +773,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task NotifyMatchResultAsync_WithAwayWin_ShowsWinnerNotification()
     {
         // Arrange
@@ -816,7 +816,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task NotifyMatchResultAsync_WithDraw_ShowsDrawNotification()
     {
         // Arrange
@@ -859,7 +859,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task NotifyMatchResultAsync_WithMissingTeams_UsesDefaultNames()
     {
         // Arrange
@@ -900,7 +900,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task NotifyMatchResultAsync_WithException_CatchesAndContinues()
     {
         // Arrange
@@ -932,7 +932,7 @@ public class MatchReminderServiceTests
         _mockDataStore.Verify(x => x.GetData(), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithUpcomingFixtures_SchedulesNotification()
     {
         // Arrange
@@ -959,7 +959,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithNoUpcomingFixtures_DoesNotSchedule()
     {
         // Arrange
@@ -982,7 +982,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Never);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithNullFixtures_DoesNotSchedule()
     {
         // Arrange
@@ -1005,7 +1005,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Never);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithMaxFiveFixtures_LimitsToFive()
     {
         // Arrange
@@ -1034,7 +1034,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithTodayAsDayOfWeek_SchedulesNextWeek()
     {
         // Arrange
@@ -1059,7 +1059,7 @@ public class MatchReminderServiceTests
             It.IsAny<string?>()), Times.Once);
     }
 
-    [Fact(Skip = "Requires MAUI FileSystem infrastructure - DataStore.Data cannot be accessed in unit tests")]
+    [Fact]
     public async Task ScheduleWeeklyFixtureListAsync_WithException_CatchesAndContinues()
     {
         // Arrange

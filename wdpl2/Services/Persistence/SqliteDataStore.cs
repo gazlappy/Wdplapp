@@ -36,18 +36,18 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddCompetitionAsync(Competition competition)
+    public async Task AddCompetitionAsync(Competition competition, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Competitions.Add(competition);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateCompetitionAsync(Competition competition)
+    public async Task UpdateCompetitionAsync(Competition competition, CancellationToken ct = default)
     {
         // EF Core's JSON change tracking for deeply nested OwnsMany().ToJson()
         // collections (Rounds → Matches, Groups → Standings, etc.) is broken in
@@ -61,46 +61,46 @@ public class SqliteDataStore : IDataStore
         // Add() works because it creates fresh tracking entries with proper
         // ordinal values. Competition has no FK references from other tables
         // (see LeagueContext note), so delete + re-insert is safe.
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
             try
             {
                 await _context.Database.ExecuteSqlInterpolatedAsync(
-                    $"DELETE FROM Competitions WHERE Id = {competition.Id}");
+                    $"DELETE FROM Competitions WHERE Id = {competition.Id}", ct);
 
                 // Clear the tracker so the subsequent Add doesn't conflict
                 // with any stale entries from FindAsync or prior operations.
                 _context.ChangeTracker.Clear();
 
                 _context.Competitions.Add(competition);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(ct);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(ct);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(ct);
                 throw;
             }
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteCompetitionAsync(Competition competition)
+    public async Task DeleteCompetitionAsync(Competition competition, CancellationToken ct = default)
     {
         // Competition may be detached (loaded with AsNoTracking), so find the
         // tracked entity by ID instead of attaching the detached graph – this
         // avoids "shadow key property unknown" errors on owned JSON collections.
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
-            var tracked = await _context.Competitions.FindAsync(competition.Id);
+            var tracked = await _context.Competitions.FindAsync(new object?[] { competition.Id }, ct);
             if (tracked != null)
             {
                 _context.Competitions.Remove(tracked);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(ct);
             }
         }
         finally { _gate.Release(); }
@@ -125,35 +125,35 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddPlayerAsync(Player player)
+    public async Task AddPlayerAsync(Player player, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Players.Add(player);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdatePlayerAsync(Player player)
+    public async Task UpdatePlayerAsync(Player player, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Players.Update(player);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeletePlayerAsync(Player player)
+    public async Task DeletePlayerAsync(Player player, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Players.Remove(player);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
@@ -176,35 +176,35 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddTeamAsync(Team team)
+    public async Task AddTeamAsync(Team team, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Teams.Add(team);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateTeamAsync(Team team)
+    public async Task UpdateTeamAsync(Team team, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Teams.Update(team);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteTeamAsync(Team team)
+    public async Task DeleteTeamAsync(Team team, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Teams.Remove(team);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
@@ -227,35 +227,35 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddVenueAsync(Venue venue)
+    public async Task AddVenueAsync(Venue venue, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Venues.Add(venue);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateVenueAsync(Venue venue)
+    public async Task UpdateVenueAsync(Venue venue, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Venues.Update(venue);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteVenueAsync(Venue venue)
+    public async Task DeleteVenueAsync(Venue venue, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Venues.Remove(venue);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
@@ -278,35 +278,35 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddDivisionAsync(Division division)
+    public async Task AddDivisionAsync(Division division, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Divisions.Add(division);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateDivisionAsync(Division division)
+    public async Task UpdateDivisionAsync(Division division, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Divisions.Update(division);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteDivisionAsync(Division division)
+    public async Task DeleteDivisionAsync(Division division, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Divisions.Remove(division);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
@@ -329,35 +329,35 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddFixtureAsync(Fixture fixture)
+    public async Task AddFixtureAsync(Fixture fixture, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Fixtures.Add(fixture);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateFixtureAsync(Fixture fixture)
+    public async Task UpdateFixtureAsync(Fixture fixture, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Fixtures.Update(fixture);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteFixtureAsync(Fixture fixture)
+    public async Task DeleteFixtureAsync(Fixture fixture, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Fixtures.Remove(fixture);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
@@ -376,32 +376,32 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task AddSeasonAsync(Season season)
+    public async Task AddSeasonAsync(Season season, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Seasons.Add(season);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateSeasonAsync(Season season)
+    public async Task UpdateSeasonAsync(Season season, CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             _context.Seasons.Update(season);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
-    public async Task DeleteSeasonAsync(Season season)
+    public async Task DeleteSeasonAsync(Season season, CancellationToken ct = default)
     {
         // Cascade delete all entities belonging to this season
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             var seasonId = season.Id;
@@ -414,40 +414,36 @@ public class SqliteDataStore : IDataStore
             _context.Competitions.RemoveRange(_context.Competitions.Where(c => c.SeasonId == seasonId));
             _context.Seasons.Remove(season);
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
     // ====== COMMON ======
-    public async Task SaveAsync()
+    public async Task SaveAsync(CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
         finally { _gate.Release(); }
     }
 
+    [Obsolete("Use the typed Get*Async methods instead. This back-compat snapshot loads everything into memory and bypasses the async gate.")]
     public LeagueData GetData()
     {
-        // For backward compatibility, load all data into memory
-        // This should be phased out as we migrate fully to EF Core
-        _gate.Wait();
-        try
+        // Back-compat snapshot — does NOT take the async semaphore (would deadlock
+        // if called from the UI thread while an async op holds the gate).
+        return new LeagueData
         {
-            return new LeagueData
-            {
-                Seasons = _context.Seasons.ToList(),
-                Divisions = _context.Divisions.ToList(),
-                Teams = _context.Teams.ToList(),
-                Players = _context.Players.ToList(),
-                Venues = _context.Venues.ToList(),
-                Fixtures = _context.Fixtures.ToList(),
-                Competitions = _context.Competitions.ToList()
-            };
-        }
-        finally { _gate.Release(); }
+            Seasons = _context.Seasons.ToList(),
+            Divisions = _context.Divisions.ToList(),
+            Teams = _context.Teams.ToList(),
+            Players = _context.Players.ToList(),
+            Venues = _context.Venues.ToList(),
+            Fixtures = _context.Fixtures.ToList(),
+            Competitions = _context.Competitions.ToList()
+        };
     }
 }

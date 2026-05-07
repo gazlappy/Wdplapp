@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using Wdpl2.Models;
 using Wdpl2.Services;
 
 namespace wdpl2.Tests;
@@ -8,11 +10,20 @@ namespace wdpl2.Tests;
 /// </summary>
 public class CoreServiceCollectionExtensionsTests
 {
+    private static ServiceCollection CreateServicesWithDataStore()
+    {
+        var services = new ServiceCollection();
+        var mockDataStore = new Mock<IDataStore>();
+        mockDataStore.Setup(x => x.GetData()).Returns(new LeagueData());
+        services.AddSingleton(mockDataStore.Object);
+        return services;
+    }
+
     [Fact]
     public void AddCoreAppServices_RegistersSeasonService()
     {
         // Arrange
-        var services = new ServiceCollection();
+        var services = CreateServicesWithDataStore();
 
         // Act
         var result = services.AddCoreAppServices();
@@ -28,7 +39,7 @@ public class CoreServiceCollectionExtensionsTests
     public void AddCoreAppServices_RegistersThemeService()
     {
         // Arrange
-        var services = new ServiceCollection();
+        var services = CreateServicesWithDataStore();
 
         // Act
         var result = services.AddCoreAppServices();
@@ -57,7 +68,7 @@ public class CoreServiceCollectionExtensionsTests
     public void AddCoreAppServices_RegistersSeasonServiceAsSingleton()
     {
         // Arrange
-        var services = new ServiceCollection();
+        var services = CreateServicesWithDataStore();
 
         // Act
         services.AddCoreAppServices();
@@ -73,7 +84,7 @@ public class CoreServiceCollectionExtensionsTests
     public void AddCoreAppServices_RegistersThemeServiceAsSingleton()
     {
         // Arrange
-        var services = new ServiceCollection();
+        var services = CreateServicesWithDataStore();
 
         // Act
         services.AddCoreAppServices();
@@ -89,7 +100,7 @@ public class CoreServiceCollectionExtensionsTests
     public void AddCoreAppServices_RegistersBothServices()
     {
         // Arrange
-        var services = new ServiceCollection();
+        var services = CreateServicesWithDataStore();
 
         // Act
         services.AddCoreAppServices();

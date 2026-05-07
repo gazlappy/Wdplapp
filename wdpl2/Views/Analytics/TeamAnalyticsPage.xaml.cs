@@ -107,6 +107,8 @@ public partial class TeamAnalyticsPage : ContentPage
             var opponentStats = new System.Collections.Generic.Dictionary<Guid, (int w, int d, int l)>();
             var playerStats = new System.Collections.Generic.Dictionary<Guid, (int w, int l, int frames)>();
 
+            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+
             foreach (var fixture in fixtures)
             {
                 bool isHome = fixture.HomeTeamId == _selectedTeam.Id;
@@ -138,7 +140,6 @@ public partial class TeamAnalyticsPage : ContentPage
                 }
 
                 // Calculate points (frames + bonuses)
-                var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
                 totalPoints += ourScore;
                 if (won) totalPoints += settings.MatchWinBonus;
                 else if (drew) totalPoints += settings.MatchDrawBonus;
@@ -251,6 +252,7 @@ public partial class TeamAnalyticsPage : ContentPage
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine(ex);
             StatusLabel.Text = $"Error: {ex.Message}";
         }
     }

@@ -213,7 +213,7 @@ public static class ParadoxTeamImporter
 
             result.Teams = teams;
             result.Success = true;
-            DataStore.Save();
+            // Note: caller is responsible for persisting (orchestrator batches a single Save).
         }
         catch (Exception ex)
         {

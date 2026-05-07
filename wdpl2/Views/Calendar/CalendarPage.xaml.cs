@@ -275,7 +275,8 @@ public partial class CalendarPage : ContentPage
                 break;
 
             case "\u2699\ufe0f Calendar Settings":
-                var optionsPage = new CalendarOptionsPage();
+                var optionsPage = Application.Current?.Handler?.MauiContext?.Services.GetService<CalendarOptionsPage>()
+                    ?? throw new InvalidOperationException("CalendarOptionsPage not registered");
                 optionsPage.Disappearing += (_, _) => ApplySettings();
                 await Navigation.PushModalAsync(new NavigationPage(optionsPage));
                 break;

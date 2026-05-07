@@ -58,7 +58,7 @@ public partial class CompetitionsPage
 
         // Load teams for the season so we can group players by team
         var seasonId = _selectedCompetition.SeasonId ?? _currentSeasonId;
-        var allTeams = DataStore.Data?.Teams?
+        var allTeams = _dataStore.GetData()?.Teams?
             .Where(t => t != null && t.SeasonId == seasonId)
             .OrderBy(t => t.Name)
             .ToList() ?? new List<Team>();
@@ -383,7 +383,7 @@ public partial class CompetitionsPage
 
         // Load teams for the season from JSON store
         var seasonId = _selectedCompetition.SeasonId ?? _currentSeasonId;
-        var allTeams = DataStore.Data?.Teams?
+        var allTeams = _dataStore.GetData()?.Teams?
             .Where(t => t != null && t.SeasonId == seasonId)
             .OrderBy(t => t.Name)
             .ToList() ?? new List<Team>();

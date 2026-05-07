@@ -64,12 +64,15 @@ public partial class DashboardViewModel : BaseViewModel
     [ObservableProperty]
     private string _playerOfTheMonthStats = "";
 
-    public DashboardViewModel(ISeasonService seasonService)
+    public DashboardViewModel(ISeasonService seasonService, IDataStore dataStore)
         : base(seasonService)
     {
+        _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _seasonService.SeasonChanged += OnSeasonChanged;
         SafeFireAndForget(LoadDashboardAsync);
     }
+
+    private readonly IDataStore _dataStore;
 
     protected override void OnSeasonChanged(object? sender, SeasonChangedEventArgs e)
     {
@@ -92,7 +95,7 @@ public partial class DashboardViewModel : BaseViewModel
         {
             await Task.Run(() =>
             {
-                var data = DataStore.Data;
+                var data = _dataStore.GetData();
                 if (data == null) return;
                 var seasonId = _seasonService.CurrentSeasonId;
 

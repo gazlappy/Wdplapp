@@ -77,20 +77,20 @@ public partial class SettingsViewModel : ObservableObject
         if (settings != null)
         {
             // Load theme settings
-            _darkMode = settings.DarkModeEnabled;
-            _useSystemTheme = settings.UseSystemTheme;
-            
+            DarkMode = settings.DarkModeEnabled;
+            UseSystemTheme = settings.UseSystemTheme;
+
             // Load notification settings (Phase 3)
-            _matchRemindersEnabled = settings.MatchRemindersEnabled;
-            _reminderHours = settings.ReminderHoursBefore;
-            _selectedReminderHoursIndex = ReminderHourOptions.IndexOf(_reminderHours);
-            if (_selectedReminderHoursIndex < 0) _selectedReminderHoursIndex = 1; // Default to 2 hours
-            _resultNotificationsEnabled = settings.ResultNotificationsEnabled;
-            _weeklyFixtureListEnabled = settings.WeeklyFixtureListEnabled;
-            
+            MatchRemindersEnabled = settings.MatchRemindersEnabled;
+            ReminderHours = settings.ReminderHoursBefore;
+            var idx = ReminderHourOptions.IndexOf(ReminderHours);
+            SelectedReminderHoursIndex = idx < 0 ? 1 : idx; // Default to 2 hours
+            ResultNotificationsEnabled = settings.ResultNotificationsEnabled;
+            WeeklyFixtureListEnabled = settings.WeeklyFixtureListEnabled;
+
             // Load other settings if they exist
-            _framesPerMatch = 8; // Default value
-            _autoSave = true;
+            FramesPerMatch = 8; // Default value
+            AutoSave = true;
         }
     }
     
@@ -100,8 +100,8 @@ public partial class SettingsViewModel : ObservableObject
         {
             if (_notificationService != null)
             {
-                _notificationsEnabled = await _notificationService.AreNotificationsEnabledAsync();
-                _pendingNotifications = await _notificationService.GetPendingNotificationCountAsync();
+                NotificationsEnabled = await _notificationService.AreNotificationsEnabledAsync();
+                PendingNotifications = await _notificationService.GetPendingNotificationCountAsync();
             }
         }
         catch (Exception ex)
@@ -128,15 +128,15 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task ResetSettingsAsync()
     {
-        _darkMode = false;
-        _useSystemTheme = true;
-        _defaultVenue = "";
-        _framesPerMatch = 8;
-        _autoSave = true;
-        
+        DarkMode = false;
+        UseSystemTheme = true;
+        DefaultVenue = "";
+        FramesPerMatch = 8;
+        AutoSave = true;
+
         // Apply system theme
         ThemeService.Current.UseSystemTheme();
-        
+
         await SaveSettingsAsync();
         SetStatus("Settings reset to defaults");
     }
@@ -156,8 +156,8 @@ public partial class SettingsViewModel : ObservableObject
         if (_notificationService != null)
         {
             var granted = await _notificationService.RequestPermissionsAsync();
-            _notificationsEnabled = granted;
-            
+            NotificationsEnabled = granted;
+
             if (granted)
             {
                 SetStatus("✅ Notifications enabled");
@@ -198,7 +198,7 @@ public partial class SettingsViewModel : ObservableObject
             try
             {
                 await _matchReminderService.CancelAllMatchRemindersAsync();
-                _pendingNotifications = 0;
+                PendingNotifications = 0;
                 SetStatus("✅ All notifications cancelled");
             }
             catch (System.Exception ex)
@@ -212,30 +212,30 @@ public partial class SettingsViewModel : ObservableObject
     private async Task RefreshNotificationStatusAsync()
     {
         await LoadNotificationStatusAsync();
-        SetStatus($"✅ {_pendingNotifications} pending notifications");
+        SetStatus($"✅ {PendingNotifications} pending notifications");
     }
 
     private void SetStatus(string message)
     {
-        _statusMessage = $"{System.DateTime.Now:HH:mm:ss}  {message}";
+        StatusMessage = $"{System.DateTime.Now:HH:mm:ss}  {message}";
     }
     
     // Theme Commands
     [RelayCommand]
     private void SetDarkMode(bool enabled)
     {
-        _darkMode = enabled;
-        if (!_useSystemTheme)
+        DarkMode = enabled;
+        if (!UseSystemTheme)
         {
             ThemeService.Current.SetDarkMode(enabled);
             SetStatus(enabled ? "ℹ️ Dark mode enabled" : "ℹ️ Light mode enabled");
         }
     }
-    
+
     [RelayCommand]
     private void SetSystemTheme(bool enabled)
     {
-        _useSystemTheme = enabled;
+        UseSystemTheme = enabled;
         if (enabled)
         {
             ThemeService.Current.UseSystemTheme();
@@ -243,18 +243,18 @@ public partial class SettingsViewModel : ObservableObject
         }
         else
         {
-            ThemeService.Current.SetDarkMode(_darkMode);
+            ThemeService.Current.SetDarkMode(DarkMode);
         }
     }
-    
+
     [RelayCommand]
     private void ToggleDarkMode()
     {
-        if (_useSystemTheme)
+        if (UseSystemTheme)
         {
             // First disable system theme, then toggle
-            _useSystemTheme = false;
-            _darkMode = true;
+            UseSystemTheme = false;
+            DarkMode = true;
             ThemeService.Current.SetDarkMode(true);
         }
         else

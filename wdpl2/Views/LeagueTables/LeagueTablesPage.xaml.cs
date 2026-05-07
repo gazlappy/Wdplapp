@@ -100,8 +100,6 @@ public partial class LeagueTablesPage : ContentPage
         SortPicker.SelectedIndexChanged += (_, __) => RefreshPlayerRatings();
         ExportBtn.Clicked += async (_, __) => await ExportCsvAsync();
         RecalculateBtn.Clicked += (_, __) => OnRecalculateClicked();
-
-        RefreshAll();
     }
 
     protected override void OnAppearing()
@@ -137,14 +135,8 @@ public partial class LeagueTablesPage : ContentPage
         // Keep SeasonService in sync if we had to fall back
         if (_currentSeasonId.HasValue && SeasonService.Current.CurrentSeasonId != _currentSeasonId)
         {
-            System.Diagnostics.Debug.WriteLine($"  => Syncing SeasonService from fallback: {_currentSeasonId}");
             SeasonService.Current.CurrentSeasonId = _currentSeasonId;
         }
-
-        var seasonName = _currentSeasonId.HasValue
-            ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId)?.Name ?? "?"
-            : "NONE";
-        System.Diagnostics.Debug.WriteLine($"=== TABLES RefreshAll: SeasonId={_currentSeasonId} ({seasonName}) ===");
 
         _isRefreshing = true;
         try
@@ -190,18 +182,10 @@ public partial class LeagueTablesPage : ContentPage
         }
 
         var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
-        System.Diagnostics.Debug.WriteLine($"  Divisions found: {_divisions.Count} for season '{season?.Name}'");
 
         if (_divisions.Count == 0)
         {
-            // Diagnostic: show total divisions and their season linkage
             var totalDivs = DataStore.Data.Divisions.Count;
-            var divsWithSeason = DataStore.Data.Divisions.Count(d => d.SeasonId.HasValue);
-            System.Diagnostics.Debug.WriteLine($"  DIAGNOSTIC: Total divisions={totalDivs}, with SeasonId={divsWithSeason}");
-            foreach (var d in DataStore.Data.Divisions.Take(5))
-            {
-                System.Diagnostics.Debug.WriteLine($"    Div '{d.Name}' SeasonId={d.SeasonId} (looking for {_currentSeasonId})");
-            }
             SetStatus($"Season: {season?.Name ?? "?"} | 0 divisions (total in DB: {totalDivs})");
         }
         else
@@ -216,8 +200,6 @@ public partial class LeagueTablesPage : ContentPage
         // which can lag behind in MAUI when ItemsSource is an ObservableCollection.
         var idx = DivisionPicker.SelectedIndex;
         _selectedDivision = (idx >= 0 && idx < _divisions.Count) ? _divisions[idx] : null;
-
-        System.Diagnostics.Debug.WriteLine($"  OnDivisionChanged: idx={idx}, div={_selectedDivision?.Name ?? "NULL"}");
 
         RenderTeamTableHeader();
         RefreshTeamTable();
@@ -249,7 +231,6 @@ public partial class LeagueTablesPage : ContentPage
         if (fixtureTeamIds.Count > 0)
         {
             teams = data.Teams.Where(t => fixtureTeamIds.Contains(t.Id)).ToList();
-            System.Diagnostics.Debug.WriteLine($"  GetTeamsForDivision: Found {teams.Count} teams via fixture fallback for '{division.Name}'");
         }
 
         // Last resort: if season has only one division, show all teams for that season
@@ -259,7 +240,6 @@ public partial class LeagueTablesPage : ContentPage
             if (seasonDivisions.Count == 1 && seasonDivisions[0].Id == division.Id)
             {
                 teams = data.Teams.Where(t => t.SeasonId == _currentSeasonId).ToList();
-                System.Diagnostics.Debug.WriteLine($"  GetTeamsForDivision: Found {teams.Count} teams via single-division fallback");
             }
         }
 
@@ -312,7 +292,6 @@ public partial class LeagueTablesPage : ContentPage
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
         {
-            System.Diagnostics.Debug.WriteLine($"  RefreshTeamTable: EARLY RETURN (season={_currentSeasonId}, div={_selectedDivision?.Name})");
             SetStatus($"No data: season={(_currentSeasonId.HasValue ? "yes" : "NO")} div={(_selectedDivision != null ? _selectedDivision.Name : "NONE")}");
             return;
         }
@@ -323,12 +302,9 @@ public partial class LeagueTablesPage : ContentPage
         var teams = GetTeamsForDivision(data, _selectedDivision);
         var teamIds = new HashSet<Guid>(teams.Select(t => t.Id));
 
-        // Gather all season fixtures for diagnostics, then progressively filter
+        // Gather all season fixtures, then progressively filter
         var allSeasonFixtures = data.Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
-            .ToList();
-        var seasonFixturesWithFrames = allSeasonFixtures
-            .Where(f => f.Frames.Count != 0)
             .ToList();
         var seasonFixturesWithResults = allSeasonFixtures
             .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
@@ -362,27 +338,6 @@ public partial class LeagueTablesPage : ContentPage
 
         var tById = teams.ToDictionary(t => t.Id, t => t);
 
-        System.Diagnostics.Debug.WriteLine($"  RefreshTeamTable DIAGNOSTICS for '{seasonName}' / '{divName}':");
-        System.Diagnostics.Debug.WriteLine($"    Total fixtures in DB: {data.Fixtures.Count}");
-        System.Diagnostics.Debug.WriteLine($"    Season fixtures (SeasonId match): {allSeasonFixtures.Count}");
-        System.Diagnostics.Debug.WriteLine($"    With frames (Frames.Count>0): {seasonFixturesWithFrames.Count}");
-        System.Diagnostics.Debug.WriteLine($"    With results (any Winner!=None): {seasonFixturesWithResults.Count}");
-        System.Diagnostics.Debug.WriteLine($"    Matching division (teams or DivisionId): {fixtures.Count}");
-        System.Diagnostics.Debug.WriteLine($"    Teams (after expansion): {teams.Count} [{string.Join(", ", teams.Select(t => t.Name))}]");
-        if (seasonFixturesWithResults.Count > 0 && fixtures.Count == 0)
-        {
-            var fixtureTeamIds = seasonFixturesWithResults
-                .SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
-                .Distinct().ToList();
-            var fixtureDivIds = seasonFixturesWithResults
-                .Where(f => f.DivisionId.HasValue)
-                .Select(f => f.DivisionId!.Value)
-                .Distinct().ToList();
-            System.Diagnostics.Debug.WriteLine($"    !! No fixtures match. Fixture DivisionIds=[{string.Join(", ", fixtureDivIds.Take(5).Select(id => id.ToString()[..8]))}], selected div={_selectedDivision.Id.ToString()[..8]}");
-            System.Diagnostics.Debug.WriteLine($"    !! Fixture team IDs=[{string.Join(", ", fixtureTeamIds.Take(10).Select(id => id.ToString()[..8]))}]");
-            System.Diagnostics.Debug.WriteLine($"    !! Division team IDs=[{string.Join(", ", teamIds.Take(10).Select(id => id.ToString()[..8]))}]");
-        }
-
         var standings = StandingsCalculator.Calculate(teams, fixtures, Settings);
         var standingsByTeam = standings.ToDictionary(s => s.TeamId);
 
@@ -399,9 +354,6 @@ public partial class LeagueTablesPage : ContentPage
         });
 
         var skippedBothTeams = fixtures.Count(f => !tById.ContainsKey(f.HomeTeamId) || !tById.ContainsKey(f.AwayTeamId));
-
-        if (skippedBothTeams > 0)
-            System.Diagnostics.Debug.WriteLine($"    Skipped {skippedBothTeams} fixture(s) where one team not in division");
 
         var rows = StandingsSorter.Sort(
             table.Values,
@@ -977,7 +929,8 @@ public partial class LeagueTablesPage : ContentPage
             {
                 if (e is TappedEventArgs tapped && tapped.Parameter is PlayerRow row)
                 {
-                    var resultsPage = new PlayerResultsPage();
+                    var resultsPage = Application.Current?.Handler?.MauiContext?.Services.GetService<PlayerResultsPage>()
+                        ?? throw new InvalidOperationException("PlayerResultsPage not registered");
                     resultsPage.LoadPlayer(row.PlayerId, row.Player, row.Rating);
                     await Application.Current?.MainPage?.Navigation.PushAsync(resultsPage)!;
                 }
