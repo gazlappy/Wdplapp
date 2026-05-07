@@ -11,32 +11,44 @@ public partial class AnalyticsHubPage : ContentPage
 
     private async void OnCareerStatsClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new CareerStatsPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<CareerStatsPage>()
+            ?? throw new System.InvalidOperationException("CareerStatsPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnFrameStatsClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new FrameStatsPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<FrameStatsPage>()
+            ?? throw new System.InvalidOperationException("FrameStatsPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnAchievementsClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new AchievementsPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<AchievementsPage>()
+            ?? throw new System.InvalidOperationException("AchievementsPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnSeasonAwardsClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new SeasonAwardsPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<SeasonAwardsPage>()
+            ?? throw new System.InvalidOperationException("SeasonAwardsPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnMatchDayClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new MatchDayDashboardPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<MatchDayDashboardPage>()
+            ?? throw new System.InvalidOperationException("MatchDayDashboardPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnTeamAnalyticsClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new TeamAnalyticsPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<TeamAnalyticsPage>()
+            ?? throw new System.InvalidOperationException("TeamAnalyticsPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnWhatIfClicked(object? sender, System.EventArgs e)

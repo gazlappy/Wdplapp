@@ -9,6 +9,7 @@ namespace Wdpl2.Views;
 
 public partial class ImportHistoricalDataPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<SeasonCopyService.HistoricalDivision> _divisions = new();
     private readonly ObservableCollection<SeasonCopyService.HistoricalVenue> _venues = new();
     private readonly ObservableCollection<SeasonCopyService.HistoricalTeam> _teams = new();
@@ -17,17 +18,20 @@ public partial class ImportHistoricalDataPage : ContentPage
     private Guid? _targetSeasonId;
     private string _currentTab = "Divisions";
 
-    public ImportHistoricalDataPage(Guid? targetSeasonId = null)
+    public ImportHistoricalDataPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-
-        _targetSeasonId = targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
 
         DivisionsList.ItemsSource = _divisions;
         VenuesList.ItemsSource = _venues;
         TeamsList.ItemsSource = _teams;
         PlayersList.ItemsSource = _players;
+    }
 
+    public void SetTargetSeason(Guid? targetSeasonId)
+    {
+        _targetSeasonId = targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         LoadData();
     }
 
@@ -40,14 +44,15 @@ public partial class ImportHistoricalDataPage : ContentPage
             return;
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _targetSeasonId);
+        var data = _dataStore.GetData();
+        var season = data.Seasons.FirstOrDefault(s => s.Id == _targetSeasonId);
         SeasonLabel.Text = $"Target Season: {season?.Name ?? "Unknown"}";
 
         // Load historical data
-        var historicalDivisions = SeasonCopyService.GetHistoricalDivisions(DataStore.Data, _targetSeasonId.Value);
-        var historicalVenues = SeasonCopyService.GetHistoricalVenues(DataStore.Data, _targetSeasonId.Value);
-        var historicalTeams = SeasonCopyService.GetHistoricalTeams(DataStore.Data, _targetSeasonId.Value);
-        var historicalPlayers = SeasonCopyService.GetHistoricalPlayers(DataStore.Data, _targetSeasonId.Value);
+        var historicalDivisions = SeasonCopyService.GetHistoricalDivisions(data, _targetSeasonId.Value);
+        var historicalVenues = SeasonCopyService.GetHistoricalVenues(data, _targetSeasonId.Value);
+        var historicalTeams = SeasonCopyService.GetHistoricalTeams(data, _targetSeasonId.Value);
+        var historicalPlayers = SeasonCopyService.GetHistoricalPlayers(data, _targetSeasonId.Value);
 
         _divisions.Clear();
         foreach (var div in historicalDivisions)
@@ -238,14 +243,14 @@ public partial class ImportHistoricalDataPage : ContentPage
         try
         {
             var result = SeasonCopyService.CopyAllToSeason(
-                DataStore.Data,
+                _dataStore.GetData(),
                 _divisions.ToList(),
                 _venues.ToList(),
                 _teams.ToList(),
                 _players.ToList(),
                 _targetSeasonId.Value);
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
 
             var message = $"Successfully imported:\n\n" +
                          $"� {result.divisions} Division(s)\n" +

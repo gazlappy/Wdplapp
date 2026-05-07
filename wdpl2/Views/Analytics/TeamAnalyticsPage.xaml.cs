@@ -11,20 +11,22 @@ namespace Wdpl2.Views;
 
 public partial class TeamAnalyticsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<Team> _teams = new();
     private readonly ObservableCollection<PlayerContribution> _playerContributions = new();
     private readonly ObservableCollection<OpponentRecord> _opponentRecords = new();
     private Guid? _currentSeasonId;
     private Team? _selectedTeam;
 
-    public TeamAnalyticsPage()
+    public TeamAnalyticsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         TeamPicker.ItemsSource = _teams;
         PlayerContributionsList.ItemsSource = _playerContributions;
         OpponentRecordsList.ItemsSource = _opponentRecords;
-        
+
         LoadTeams();
     }
 
@@ -60,7 +62,7 @@ public partial class TeamAnalyticsPage : ContentPage
         }
 
         _teams.Clear();
-        var teams = DataStore.Data.Teams
+        var teams = _dataStore.GetData().Teams
             .Where(t => t.SeasonId == _currentSeasonId)
             .OrderBy(t => t.Name)
             .ToList();
@@ -87,7 +89,7 @@ public partial class TeamAnalyticsPage : ContentPage
 
         try
         {
-            var fixtures = DataStore.Data.Fixtures
+            var fixtures = _dataStore.GetData().Fixtures
                 .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
                 .ToList();
@@ -107,7 +109,7 @@ public partial class TeamAnalyticsPage : ContentPage
             var opponentStats = new System.Collections.Generic.Dictionary<Guid, (int w, int d, int l)>();
             var playerStats = new System.Collections.Generic.Dictionary<Guid, (int w, int l, int frames)>();
 
-            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
 
             foreach (var fixture in fixtures)
             {
@@ -195,7 +197,7 @@ public partial class TeamAnalyticsPage : ContentPage
 
             foreach (var kvp in topPlayers)
             {
-                var player = DataStore.Data.Players.FirstOrDefault(p => p.Id == kvp.Key);
+                var player = _dataStore.GetData().Players.FirstOrDefault(p => p.Id == kvp.Key);
                 if (player == null) continue;
 
                 var stats = kvp.Value;
@@ -213,7 +215,7 @@ public partial class TeamAnalyticsPage : ContentPage
             _opponentRecords.Clear();
             foreach (var kvp in opponentStats.OrderByDescending(o => o.Value.w))
             {
-                var opponent = DataStore.Data.Teams.FirstOrDefault(t => t.Id == kvp.Key);
+                var opponent = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == kvp.Key);
                 if (opponent == null) continue;
 
                 var stats = kvp.Value;
@@ -225,7 +227,7 @@ public partial class TeamAnalyticsPage : ContentPage
             }
 
             // Team rating (average of active players)
-            var activePlayers = DataStore.Data.Players
+            var activePlayers = _dataStore.GetData().Players
                 .Where(p => p.TeamId == _selectedTeam.Id && p.SeasonId == _currentSeasonId)
                 .ToList();
 

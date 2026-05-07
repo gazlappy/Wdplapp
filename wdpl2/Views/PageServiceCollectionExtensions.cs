@@ -25,6 +25,15 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<PlayerResultsPage>();
         services.AddTransient<SeasonComparisonPage>();
         services.AddTransient<CalendarOptionsPage>();
+        services.AddTransient<CareerStatsPage>();
+        services.AddTransient<MatchDayDashboardPage>();
+        services.AddTransient<SmartImportPage>();
+        services.AddTransient<Logos.LogosHubPage>();
+        services.AddTransient<SeasonAwardsPage>();
+        services.AddTransient<TeamAnalyticsPage>();
+        services.AddTransient<FrameStatsPage>();
+        services.AddTransient<AchievementsPage>();
+        services.AddTransient<ImportHistoricalDataPage>();
 
         return services;
     }

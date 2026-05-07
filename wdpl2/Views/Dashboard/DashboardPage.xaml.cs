@@ -13,7 +13,9 @@ public partial class DashboardPage : ContentPage
 
     private async void OnMatchDayClicked(object? sender, EventArgs e)
     {
-        await Navigation.PushAsync(new MatchDayDashboardPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<MatchDayDashboardPage>()
+            ?? throw new InvalidOperationException("MatchDayDashboardPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnLeagueTablesClicked(object? sender, EventArgs e)

@@ -2,17 +2,20 @@ using System.Collections.ObjectModel;
 using Wdpl2.Features.WebsiteBuilder.Logo;
 using Wdpl2.Features.WebsiteBuilder.Views;
 using Wdpl2.Models;
+using Wdpl2.Services;
 
 namespace Wdpl2.Views.Logos;
 
 public partial class LogosHubPage : ContentPage
 {
-    private static LeagueData League => DataStore.Data;
+    private readonly IDataStore _dataStore;
+    private LeagueData League => _dataStore.GetData();
 
     private readonly ObservableCollection<LogoCatalogDisplayItem> _items = new();
 
-    public LogosHubPage()
+    public LogosHubPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         LogosCollection.ItemsSource = _items;
     }
@@ -65,7 +68,7 @@ public partial class LogosHubPage : ContentPage
             if (string.IsNullOrWhiteSpace(category)) category = "General";
 
             League.WebsiteSettings.AddLogoCatalogItem(name, bytes, "", category);
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             Reload();
         }
         catch (Exception ex)
@@ -99,7 +102,7 @@ public partial class LogosHubPage : ContentPage
             t.LogoCatalogId = null;
 
         League.WebsiteSettings.RemoveLogoCatalogItem(item.Id);
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         Reload();
     }
 
@@ -131,7 +134,7 @@ public partial class LogosHubPage : ContentPage
         {
             foreach (var t in League.Teams.Where(t => t.LogoCatalogId == item.Id))
                 t.LogoCatalogId = null;
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             await DisplayAlert("Cleared", $"'{item.Name}' is no longer assigned to any team.", "OK");
             return;
         }
@@ -151,6 +154,6 @@ public partial class LogosHubPage : ContentPage
             team.LogoCatalogId = item.Id;
             await DisplayAlert("Assigned", $"'{item.Name}' assigned to {team.Name}.", "OK");
         }
-        DataStore.Save();
+        await _dataStore.SaveAsync();
     }
 }

@@ -24,20 +24,22 @@ public partial class SqlImportPage : ContentPage
     // UI state
     private int _currentStep = 1;
     private bool _isProcessing = false;
-    
+
     // Optional pre-selected file path (set before page appears)
     private string? _preSelectedFilePath;
+    private readonly IDataStore _dataStore;
 
-    public SqlImportPage()
+    public SqlImportPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         BuildUI();
     }
-    
+
     /// <summary>
     /// Constructor with pre-selected file path
     /// </summary>
-    public SqlImportPage(string filePath) : this()
+    public SqlImportPage(IDataStore dataStore, string filePath) : this(dataStore)
     {
         _preSelectedFilePath = filePath;
     }
@@ -1032,7 +1034,7 @@ public partial class SqlImportPage : ContentPage
 
             var (importedData, result) = await SqlFileImporter.ImportFromSqlFileAsync(
                 _selectedFilePath,
-                DataStore.Data,
+                _dataStore.GetData(),
                 false);
 
             _lastImportResult = result;
@@ -1056,7 +1058,7 @@ public partial class SqlImportPage : ContentPage
             await Task.Delay(50);
 
             // Save data - ImportFromSqlFileAsync already adds to DataStore.Data
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             
             UpdateProgressStep("SaveStep", true, "Data saved!");
             await Task.Delay(100);
@@ -1213,8 +1215,8 @@ public partial class SqlImportPage : ContentPage
 
         try
         {
-            SqlFileImporter.RollbackImport(DataStore.Data, _lastImportResult);
-            DataStore.Save();
+            SqlFileImporter.RollbackImport(_dataStore.GetData(), _lastImportResult);
+            await _dataStore.SaveAsync();
 
             await DisplayAlert("Success", "Import has been rolled back successfully.", "OK");
             ResetWizard();

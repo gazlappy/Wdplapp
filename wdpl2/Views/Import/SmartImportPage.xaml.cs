@@ -15,6 +15,7 @@ namespace Wdpl2.Views;
 
 public partial class SmartImportPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly LeagueFileDiscoveryService _discoveryService = new();
     private readonly Dictionary<string, bool> _scanLocations = new();
     private List<LeagueFileDiscoveryService.DiscoveredFile> _discoveredFiles = new();
@@ -24,8 +25,9 @@ public partial class SmartImportPage : ContentPage
     private int _currentStep = 1;
     private string? _activeYearFilter;
 
-    public SmartImportPage()
+    public SmartImportPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         PopulateScanLocations();
     }
@@ -908,7 +910,7 @@ public partial class SmartImportPage : ContentPage
                     try
                     {
                         var (_, sqlResult) = await SqlFileImporter.ImportFromSqlFileAsync(
-                            sqlFile.FilePath, DataStore.Data, false, targetSeasonId: seasonId);
+                            sqlFile.FilePath, _dataStore.GetData(), false, targetSeasonId: seasonId);
 
                         if (sqlResult.Success)
                         {
@@ -998,7 +1000,7 @@ public partial class SmartImportPage : ContentPage
             }
 
             // Save all changes
-            DataStore.Save();
+            await _dataStore.SaveAsync();
 
             // Build results
             ImportProgressPanel.IsVisible = false;
@@ -1027,7 +1029,7 @@ public partial class SmartImportPage : ContentPage
     /// Bypasses the BatchHtmlImportService preview pipeline which loses data from tables
     /// with Unknown DetectedType.
     /// </summary>
-    private static async Task<(int entitiesCreated, Guid? seasonId)> ImportHtmlFilesDirectAsync(
+    private async Task<(int entitiesCreated, Guid? seasonId)> ImportHtmlFilesDirectAsync(
         List<LeagueFileDiscoveryService.DiscoveredFile> htmlFiles,
         string seasonDisplayName,
         Guid? seasonId,
@@ -1099,7 +1101,7 @@ public partial class SmartImportPage : ContentPage
             totals.Seasons++;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var sid = seasonId.Value;
 
         // ── Create Divisions (normalized and fuzzy-merged) ──
@@ -1616,9 +1618,9 @@ public partial class SmartImportPage : ContentPage
     /// Post-import cleanup: merge near-duplicate divisions, remove teams that look like
     /// player names or venue names (cross-referencing entities within the same season).
     /// </summary>
-    private static void DeduplicateSeasonData(Guid seasonId, List<string> errors)
+    private void DeduplicateSeasonData(Guid seasonId, List<string> errors)
     {
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         // ── 1. Merge near-duplicate divisions ──
         var seasonDivisions = data.Divisions.Where(d => d.SeasonId == seasonId).ToList();
@@ -1728,7 +1730,7 @@ public partial class SmartImportPage : ContentPage
         }
     }
 
-    private static Guid CreateSeason(string displayName)
+    private Guid CreateSeason(string displayName)
     {
         // Parse year from display name to set reasonable dates
         int startYear = DateTime.Now.Year;
@@ -1746,7 +1748,7 @@ public partial class SmartImportPage : ContentPage
             MatchStartTime = new TimeSpan(20, 0, 0)
         };
 
-        DataStore.Data.Seasons.Add(season);
+        _dataStore.GetData().Seasons.Add(season);
         return season.Id;
     }
 

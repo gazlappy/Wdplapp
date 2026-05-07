@@ -9,12 +9,14 @@ namespace Wdpl2.Views;
 
 public partial class CareerStatsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<PlayerCareerStats> _players = new();
     private readonly ObservableCollection<SeasonStats> _seasonBreakdown = new();
     private bool _isFlyoutOpen = false;
 
-    public CareerStatsPage()
+    public CareerStatsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
 
         PlayersList.ItemsSource = _players;
@@ -49,9 +51,10 @@ public partial class CareerStatsPage : ContentPage
 
     private void RefreshList()
     {
-        var allPlayers = DataStore.Data.Players;
-        var allFixtures = DataStore.Data.Fixtures;
-        var allSeasons = DataStore.Data.Seasons;
+        var data = _dataStore.GetData();
+        var allPlayers = data.Players;
+        var allFixtures = data.Fixtures;
+        var allSeasons = data.Seasons;
 
         // Build a comprehensive player list:
         // 1. Group players WITH GlobalPlayerId by their GlobalPlayerId
@@ -114,7 +117,7 @@ public partial class CareerStatsPage : ContentPage
         var playerIdSet = new HashSet<Guid>(playerIds);
         
         // Get all seasons these player IDs belong to
-        var seasonIds = DataStore.Data.Players
+        var seasonIds = _dataStore.GetData().Players
             .Where(p => playerIdSet.Contains(p.Id) && p.SeasonId.HasValue)
             .Select(p => p.SeasonId!.Value)
             .Distinct()

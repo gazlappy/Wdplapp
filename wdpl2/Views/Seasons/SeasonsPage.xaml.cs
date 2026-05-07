@@ -469,7 +469,9 @@ namespace Wdpl2.Views
                 return;
             }
 
-            var importPage = new ImportHistoricalDataPage(_selected.Id);
+            var importPage = Application.Current?.Handler?.MauiContext?.Services.GetService<ImportHistoricalDataPage>()
+                ?? throw new InvalidOperationException("ImportHistoricalDataPage not registered");
+            importPage.SetTargetSeason(_selected.Id);
             await Navigation.PushModalAsync(new NavigationPage(importPage));
         }
 

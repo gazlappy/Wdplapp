@@ -23,7 +23,7 @@ public partial class CompetitionsPage
     private List<Venue> GetVenuesForCurrentCompetition()
     {
         var seasonId = _selectedCompetition?.SeasonId ?? _viewModel.CurrentSeasonId;
-        var all = DataStore.Data?.Venues ?? new List<Venue>();
+        var all = _dataStore.GetData()?.Venues ?? new List<Venue>();
         var list = seasonId.HasValue
             ? all.Where(v => v != null && v.SeasonId == seasonId.Value).ToList()
             : all.Where(v => v != null).ToList();
@@ -38,7 +38,7 @@ public partial class CompetitionsPage
     private async Task AssignMatchVenueAsync(CompetitionMatch match, Competition competition)
     {
         if (_editorViewModel == null) return;
-        if (DataStore.Data.IsSeasonLocked(competition.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(competition.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot change venue — this season is locked.", "OK");
@@ -115,7 +115,7 @@ public partial class CompetitionsPage
     private async Task AssignGroupVenueAsync(CompetitionGroup group, Competition competition)
     {
         if (_editorViewModel == null) return;
-        if (DataStore.Data.IsSeasonLocked(competition.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(competition.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot change venue — this season is locked.", "OK");
@@ -213,7 +213,7 @@ public partial class CompetitionsPage
     private async Task EditMatchTeamsAsync(CompetitionMatch match, Competition competition)
     {
         if (_editorViewModel == null) return;
-        if (DataStore.Data.IsSeasonLocked(competition.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(competition.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot change teams — this season is locked.", "OK");

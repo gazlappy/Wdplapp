@@ -9,18 +9,20 @@ namespace Wdpl2.Views;
 
 public partial class AchievementsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<PlayerOption> _players = new();
     private readonly ObservableCollection<AchievementDisplay> _achievements = new();
     private PlayerOption? _selectedPlayer;
     private bool _allSeasonsMode = true;
 
-    public AchievementsPage()
+    public AchievementsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         PlayerPicker.ItemsSource = _players;
         AchievementsList.ItemsSource = _achievements;
-        
+
         LoadPlayers();
     }
 
@@ -32,7 +34,7 @@ public partial class AchievementsPage : ContentPage
         {
             // Group players - include those WITH GlobalPlayerId grouped together,
             // AND those WITHOUT GlobalPlayerId individually
-            var playersWithGlobal = DataStore.Data.Players
+            var playersWithGlobal = _dataStore.GetData().Players
                 .Where(p => p.GlobalPlayerId.HasValue)
                 .GroupBy(p => p.GlobalPlayerId!.Value)
                 .Select(g => new PlayerOption
@@ -45,7 +47,7 @@ public partial class AchievementsPage : ContentPage
                 .ToList();
 
             // Also include players without GlobalPlayerId (single season players)
-            var playersWithoutGlobal = DataStore.Data.Players
+            var playersWithoutGlobal = _dataStore.GetData().Players
                 .Where(p => !p.GlobalPlayerId.HasValue)
                 .Select(p => new PlayerOption
                 {
@@ -79,7 +81,7 @@ public partial class AchievementsPage : ContentPage
                 return;
             }
 
-            var players = DataStore.Data.Players
+            var players = _dataStore.GetData().Players
                 .Where(p => p.SeasonId == currentSeasonId)
                 .OrderBy(p => p.FullName)
                 .ToList();
@@ -131,18 +133,18 @@ public partial class AchievementsPage : ContentPage
             if (_allSeasonsMode)
             {
                 // Get ALL fixtures from ALL seasons
-                fixtures = DataStore.Data.Fixtures
+                fixtures = _dataStore.GetData().Fixtures
                     .Where(f => f.Frames.Count != 0)
                     .ToList();
-                allPlayers = DataStore.Data.Players.ToList();
+                allPlayers = _dataStore.GetData().Players.ToList();
             }
             else
             {
                 var currentSeasonId = SeasonService.Current.CurrentSeasonId;
-                fixtures = DataStore.Data.Fixtures
+                fixtures = _dataStore.GetData().Fixtures
                     .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
                     .ToList();
-                allPlayers = DataStore.Data.Players
+                allPlayers = _dataStore.GetData().Players
                     .Where(p => p.SeasonId == currentSeasonId)
                     .ToList();
             }

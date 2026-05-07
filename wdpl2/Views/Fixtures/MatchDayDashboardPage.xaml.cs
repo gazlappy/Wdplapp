@@ -9,16 +9,18 @@ namespace Wdpl2.Views;
 
 public partial class MatchDayDashboardPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<MatchDayFixture> _fixtures = new();
     private DateTime _currentDate = DateTime.Today;
     private Guid? _currentSeasonId;
 
-    public MatchDayDashboardPage()
+    public MatchDayDashboardPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         FixturesList.ItemsSource = _fixtures;
-        
+
         LoadMatches();
     }
 
@@ -62,7 +64,8 @@ public partial class MatchDayDashboardPage : ContentPage
                 : _currentDate.ToString("dddd, MMMM dd, yyyy");
 
             // Get fixtures for the selected date
-            var fixtures = DataStore.Data.Fixtures
+            var data = _dataStore.GetData();
+            var fixtures = data.Fixtures
                 .Where(f => f.SeasonId == _currentSeasonId && f.Date.Date == _currentDate.Date)
                 .OrderBy(f => f.Date)
                 .ToList();
@@ -84,10 +87,10 @@ public partial class MatchDayDashboardPage : ContentPage
 
             foreach (var fixture in fixtures)
             {
-                var homeTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
-                var awayTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
-                var division = DataStore.Data.Divisions.FirstOrDefault(d => d.Id == fixture.DivisionId);
-                var venue = fixture.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == fixture.VenueId) : null;
+                var homeTeam = data.Teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                var awayTeam = data.Teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                var division = data.Divisions.FirstOrDefault(d => d.Id == fixture.DivisionId);
+                var venue = fixture.VenueId.HasValue ? data.Venues.FirstOrDefault(v => v.Id == fixture.VenueId) : null;
 
                 bool hasResult = fixture.Frames.Count != 0;
                 if (hasResult) completed++;

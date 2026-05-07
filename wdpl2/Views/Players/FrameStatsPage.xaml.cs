@@ -11,18 +11,20 @@ namespace Wdpl2.Views;
 
 public partial class FrameStatsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<PlayerOption> _players = new();
     private readonly ObservableCollection<DayPerformance> _dayPerformance = new();
     private PlayerOption? _selectedPlayer;
     private bool _allSeasonsMode = true;
 
-    public FrameStatsPage()
+    public FrameStatsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         PlayerPicker.ItemsSource = _players;
         DayPerformanceList.ItemsSource = _dayPerformance;
-        
+
         LoadPlayers();
     }
 
@@ -34,7 +36,7 @@ public partial class FrameStatsPage : ContentPage
         {
             // Group players - include those WITH GlobalPlayerId grouped together,
             // AND those WITHOUT GlobalPlayerId individually
-            var playersWithGlobal = DataStore.Data.Players
+            var playersWithGlobal = _dataStore.GetData().Players
                 .Where(p => p.GlobalPlayerId.HasValue)
                 .GroupBy(p => p.GlobalPlayerId!.Value)
                 .Select(g => new PlayerOption
@@ -47,7 +49,7 @@ public partial class FrameStatsPage : ContentPage
                 .ToList();
 
             // Also include players without GlobalPlayerId (single season players)
-            var playersWithoutGlobal = DataStore.Data.Players
+            var playersWithoutGlobal = _dataStore.GetData().Players
                 .Where(p => !p.GlobalPlayerId.HasValue)
                 .Select(p => new PlayerOption
                 {
@@ -81,7 +83,7 @@ public partial class FrameStatsPage : ContentPage
                 return;
             }
 
-            var players = DataStore.Data.Players
+            var players = _dataStore.GetData().Players
                 .Where(p => p.SeasonId == currentSeasonId)
                 .OrderBy(p => p.FullName)
                 .ToList();
@@ -150,7 +152,7 @@ public partial class FrameStatsPage : ContentPage
             if (_allSeasonsMode)
             {
                 // Get ALL fixtures from ALL seasons
-                fixtures = DataStore.Data.Fixtures
+                fixtures = _dataStore.GetData().Fixtures
                     .Where(f => f.Frames.Count != 0)
                     .OrderBy(f => f.Date)
                     .ToList();
@@ -158,7 +160,7 @@ public partial class FrameStatsPage : ContentPage
             else
             {
                 var currentSeasonId = SeasonService.Current.CurrentSeasonId;
-                fixtures = DataStore.Data.Fixtures
+                fixtures = _dataStore.GetData().Fixtures
                     .Where(f => f.SeasonId == currentSeasonId && f.Frames.Count != 0)
                     .OrderBy(f => f.Date)
                     .ToList();
@@ -234,7 +236,7 @@ public partial class FrameStatsPage : ContentPage
 
             if (opponentStats != null)
             {
-                var opponent = DataStore.Data.Players.FirstOrDefault(p => p.Id == opponentStats.OpponentId);
+                var opponent = _dataStore.GetData().Players.FirstOrDefault(p => p.Id == opponentStats.OpponentId);
                 BestOpponentLabel.Text = opponent?.FullName ?? "Unknown";
                 BestOpponentStatsLabel.Text = $"{opponentStats.WinRate * 100:F1}% ({opponentStats.Wins}/{opponentStats.Total})";
             }
@@ -261,7 +263,7 @@ public partial class FrameStatsPage : ContentPage
 
             if (venueStats != null)
             {
-                var venue = DataStore.Data.Venues.FirstOrDefault(v => v.Id == venueStats.VenueId);
+                var venue = _dataStore.GetData().Venues.FirstOrDefault(v => v.Id == venueStats.VenueId);
                 BestVenueLabel.Text = venue?.Name ?? "Unknown";
                 BestVenueStatsLabel.Text = $"{venueStats.WinRate * 100:F1}% ({venueStats.Wins}/{venueStats.Total})";
             }

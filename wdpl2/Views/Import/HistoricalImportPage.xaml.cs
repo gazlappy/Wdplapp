@@ -190,7 +190,8 @@ public partial class HistoricalImportPage : ContentPage
     /// </summary>
     private async void OnSmartImportClicked(object? sender, EventArgs e)
     {
-        var smartImportPage = new SmartImportPage();
+        var smartImportPage = Application.Current?.Handler?.MauiContext?.Services.GetService<SmartImportPage>()
+            ?? throw new InvalidOperationException("SmartImportPage not registered");
         await Navigation.PushAsync(smartImportPage);
     }
 
@@ -1963,8 +1964,10 @@ public partial class HistoricalImportPage : ContentPage
         if (file == null) return;
 
         // Navigate to the dedicated SQL Import Wizard page with the selected file
-        var sqlImportPage = new SqlImportPage(file.FilePath);
+        var sqlImportPage = Application.Current?.Handler?.MauiContext?.Services.GetService<SqlImportPage>()
+            ?? throw new InvalidOperationException("SqlImportPage not registered");
         await Navigation.PushAsync(sqlImportPage);
+        await sqlImportPage.LoadFileAsync(file.FilePath);
     }
 
     private Task ProcessParadoxFolderAsync(string folderPath)

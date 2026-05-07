@@ -10,15 +10,17 @@ namespace Wdpl2.Views;
 
 public partial class SeasonAwardsPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<DivisionMVP> _divisionMVPs = new();
     private Guid? _currentSeasonId;
 
-    public SeasonAwardsPage()
+    public SeasonAwardsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         DivisionMVPsList.ItemsSource = _divisionMVPs;
-        
+
         LoadAwards();
     }
 
@@ -56,12 +58,13 @@ public partial class SeasonAwardsPage : ContentPage
                 return;
             }
 
-            var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+            var data = _dataStore.GetData();
+            var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
             SeasonLabel.Text = season?.Name ?? "Unknown Season";
 
             // Get all players and their stats for this season
-            var players = DataStore.Data.Players.Where(p => p.SeasonId == _currentSeasonId).ToList();
-            var fixtures = DataStore.Data.Fixtures.Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0).ToList();
+            var players = data.Players.Where(p => p.SeasonId == _currentSeasonId).ToList();
+            var fixtures = data.Fixtures.Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0).ToList();
 
             if (players.Count == 0 || fixtures.Count == 0)
             {
@@ -138,10 +141,10 @@ public partial class SeasonAwardsPage : ContentPage
         {
             PlayerId = player.Id,
             PlayerName = player.FullName,
-            StartingRating = DataStore.Data.GetSettingsForSeason(_currentSeasonId).RatingStartValue
+            StartingRating = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId).RatingStartValue
         };
 
-        var playerTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId);
+        var playerTeam = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == player.TeamId);
         stats.DivisionId = playerTeam?.DivisionId;
 
         var matchCount = 0;
@@ -197,7 +200,7 @@ public partial class SeasonAwardsPage : ContentPage
     {
         _divisionMVPs.Clear();
 
-        var divisions = DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).ToList();
+        var divisions = _dataStore.GetData().Divisions.Where(d => d.SeasonId == _currentSeasonId).ToList();
 
         foreach (var division in divisions)
         {
