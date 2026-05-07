@@ -65,6 +65,31 @@ public partial class CalendarPage : ContentPage
         LoadSeasons();
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        Wdpl2.Services.SeasonService.Current.SeasonChanged += OnGlobalSeasonChanged;
+
+        // Pick up any changes the user made on CalendarOptionsPage (colours, filter
+        // defaults, week start, legend visibility, preset events, etc.).
+        ApplySettings();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        Wdpl2.Services.SeasonService.Current.SeasonChanged -= OnGlobalSeasonChanged;
+    }
+
+    private void OnGlobalSeasonChanged(object? sender, Wdpl2.Services.SeasonChangedEventArgs e)
+    {
+        Microsoft.Maui.ApplicationModel.MainThread.BeginInvokeOnMainThread(() =>
+        {
+            LoadSeasons();
+            Refresh();
+        });
+    }
+
     /// <summary>
     /// Reads CalendarSettings and applies colours, filter defaults, and view preferences.
     /// Called on construction and when returning from the CalendarOptionsPage.

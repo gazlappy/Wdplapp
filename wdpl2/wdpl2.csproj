@@ -312,5 +312,9 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </None>
 	</ItemGroup>
+	
+	<ItemGroup>
+	  <Folder Include="ViewModels\Fixtures\" />
+	</ItemGroup>
 
 </Project>

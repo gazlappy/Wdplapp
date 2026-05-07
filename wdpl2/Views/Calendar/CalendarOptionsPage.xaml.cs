@@ -47,7 +47,7 @@ public partial class CalendarOptionsPage : ContentPage
 
     private void OnCategorySelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        SaveSettings();
+        FlushPendingSave();
         var selected = e.CurrentSelection?.FirstOrDefault() as string;
         ShowCategory(selected);
     }
@@ -87,13 +87,13 @@ public partial class CalendarOptionsPage : ContentPage
         viewPicker.Items.Add("Year");
         viewPicker.Items.Add("Day");
         viewPicker.SelectedItem = s.DefaultView;
-        viewPicker.SelectedIndexChanged += (_, _) => { s.DefaultView = viewPicker.SelectedItem?.ToString() ?? "Month"; DataStore.Save(); };
+        viewPicker.SelectedIndexChanged += (_, _) => { s.DefaultView = viewPicker.SelectedItem?.ToString() ?? "Month"; SaveSettings(); };
 
         var weekPicker = new Picker { WidthRequest = 160, FontSize = 14 };
         weekPicker.Items.Add("Monday");
         weekPicker.Items.Add("Sunday");
         weekPicker.SelectedIndex = s.WeekStartDay == 0 ? 1 : 0;
-        weekPicker.SelectedIndexChanged += (_, _) => { s.WeekStartDay = weekPicker.SelectedIndex == 1 ? 0 : 1; DataStore.Save(); };
+        weekPicker.SelectedIndexChanged += (_, _) => { s.WeekStartDay = weekPicker.SelectedIndex == 1 ? 0 : 1; SaveSettings(); };
 
         root.Children.Add(Card(new VerticalStackLayout
         {
@@ -331,7 +331,7 @@ public partial class CalendarOptionsPage : ContentPage
             typeof(CalendarSettings).GetProperty(settingName)?.SetValue(Settings, selectedHex);
             TrySetSwatchColor(swatch, selectedHex);
             hexLabel.Text = selectedHex.ToUpperInvariant();
-            DataStore.Save();
+            SaveSettings();
         }
     }
 
@@ -359,7 +359,7 @@ public partial class CalendarOptionsPage : ContentPage
             s.MonthMaxEventsPerCell = PanelBuilder.ParseInt(maxEvt.Text, 2, 1, 10);
             s.MonthDayFontSize = PanelBuilder.ParseInt(dayFont.Text, 14, 8, 24);
             s.MonthLabelFontSize = PanelBuilder.ParseInt(lblFont.Text, 9, 6, 18);
-            DataStore.Save();
+            SaveSettings();
         }
 
         cellH.Unfocused += (_, _) => SaveMonth();
@@ -400,7 +400,7 @@ public partial class CalendarOptionsPage : ContentPage
             s.YearCellWidth = PanelBuilder.ParseInt(cellW.Text, 42, 24, 80);
             s.YearRowHeight = PanelBuilder.ParseInt(rowH.Text, 38, 24, 80);
             s.YearMonthLabelWidth = PanelBuilder.ParseInt(monthW.Text, 80, 40, 160);
-            DataStore.Save();
+            SaveSettings();
         }
 
         cellW.Unfocused += (_, _) => SaveYear();
@@ -442,7 +442,7 @@ public partial class CalendarOptionsPage : ContentPage
         if (presets.Count == 0)
         {
             presets.AddRange(PresetHoliday.CreateDefaults());
-            DataStore.Save();
+            SaveSettings();
         }
 
         var builtIn = presets.Where(h => h.IsBuiltIn).ToList();
@@ -551,7 +551,7 @@ public partial class CalendarOptionsPage : ContentPage
         toggle.Toggled += (_, _) =>
         {
             holiday.IsEnabled = toggle.IsToggled;
-            DataStore.Save();
+            SaveSettings();
         };
         grid.Add(toggle, 0, 0);
 
@@ -570,7 +570,7 @@ public partial class CalendarOptionsPage : ContentPage
             if (!string.IsNullOrWhiteSpace(nameEntry.Text))
             {
                 holiday.Name = nameEntry.Text.Trim();
-                DataStore.Save();
+                SaveSettings();
             }
         };
         grid.Add(nameEntry, 1, 0);
@@ -601,7 +601,7 @@ public partial class CalendarOptionsPage : ContentPage
             monthPicker.SelectedIndexChanged += (_, _) =>
             {
                 holiday.FixedMonth = monthPicker.SelectedIndex + 1;
-                DataStore.Save();
+                SaveSettings();
                 descLabel.Text = $"Fixed: {holiday.FixedDay:00}/{holiday.FixedMonth:00} every year";
             };
             dateRow.Children.Add(monthPicker);
@@ -619,7 +619,7 @@ public partial class CalendarOptionsPage : ContentPage
                 if (int.TryParse(dayEntry.Text, out var d) && d >= 1 && d <= 31)
                 {
                     holiday.FixedDay = d;
-                    DataStore.Save();
+                    SaveSettings();
                     descLabel.Text = $"Fixed: {holiday.FixedDay:00}/{holiday.FixedMonth:00} every year";
                 }
             };
@@ -646,7 +646,7 @@ public partial class CalendarOptionsPage : ContentPage
                     $"Delete \"{holiday.Name}\"?", "Delete", "Cancel");
                 if (!confirm) return;
                 Settings.PresetHolidays.Remove(holiday);
-                DataStore.Save();
+                SaveSettings();
                 ShowCategory("Preset Events");
             };
             grid.Add(deleteBtn, 2, 0);
@@ -694,7 +694,7 @@ public partial class CalendarOptionsPage : ContentPage
             IsCustom = true,
             IsEnabled = true
         });
-        DataStore.Save();
+        SaveSettings();
         ShowCategory("Preset Events");
     }
 
@@ -707,7 +707,7 @@ public partial class CalendarOptionsPage : ContentPage
 
         Settings.PresetHolidays.Clear();
         Settings.PresetHolidays.AddRange(PresetHoliday.CreateDefaults());
-        DataStore.Save();
+        SaveSettings();
         ShowCategory("Preset Events");
     }
 
@@ -728,7 +728,7 @@ public partial class CalendarOptionsPage : ContentPage
         catPicker.SelectedIndexChanged += (_, _) =>
         {
             s.DefaultEventCategory = catPicker.SelectedItem?.ToString() ?? "General";
-            DataStore.Save();
+            SaveSettings();
         };
 
         root.Children.Add(Card(new VerticalStackLayout
@@ -793,7 +793,7 @@ public partial class CalendarOptionsPage : ContentPage
         };
         titleEntry.SetAppThemeColor(Entry.TextColorProperty, Color.FromArgb("#111827"), Colors.White);
         titleEntry.SetAppThemeColor(Entry.BackgroundColorProperty, Colors.Transparent, Colors.Transparent);
-        titleEntry.Unfocused += (_, _) => { evt.Title = titleEntry.Text?.Trim() ?? ""; DataStore.Save(); };
+        titleEntry.Unfocused += (_, _) => { evt.Title = titleEntry.Text?.Trim() ?? ""; SaveSettings(); };
         grid.Add(titleEntry, 0, 0);
 
         var infoRow = new HorizontalStackLayout { Spacing = 12 };
@@ -804,7 +804,7 @@ public partial class CalendarOptionsPage : ContentPage
             FontSize = 13,
             Format = "ddd dd MMM yyyy"
         };
-        datePicker.DateSelected += (_, _) => { evt.Date = datePicker.Date; DataStore.Save(); };
+        datePicker.DateSelected += (_, _) => { evt.Date = datePicker.Date; SaveSettings(); };
         infoRow.Children.Add(datePicker);
 
         var evtCatPicker = new Picker { FontSize = 13, WidthRequest = 120 };
@@ -815,7 +815,7 @@ public partial class CalendarOptionsPage : ContentPage
         {
             if (Enum.TryParse<CalendarEventCategory>(evtCatPicker.SelectedItem?.ToString(), out var c))
                 evt.Category = c;
-            DataStore.Save();
+            SaveSettings();
         };
         infoRow.Children.Add(evtCatPicker);
 
@@ -852,7 +852,7 @@ public partial class CalendarOptionsPage : ContentPage
                 var comp = comps.FirstOrDefault(c => c.Name == selected);
                 evt.CompetitionId = comp?.Id;
             }
-            DataStore.Save();
+            SaveSettings();
         };
         compRow.Children.Add(compPicker);
         grid.Add(compRow, 0, 2);
@@ -868,7 +868,7 @@ public partial class CalendarOptionsPage : ContentPage
         notesEntry.Unfocused += (_, _) =>
         {
             evt.Notes = string.IsNullOrWhiteSpace(notesEntry.Text) ? null : notesEntry.Text.Trim();
-            DataStore.Save();
+            SaveSettings();
         };
         grid.Add(notesEntry, 0, 3);
 
@@ -891,7 +891,7 @@ public partial class CalendarOptionsPage : ContentPage
                 $"Delete \"{evt.Title}\"?", "Delete", "Cancel");
             if (!confirm) return;
             League.CalendarEvents.Remove(evt);
-            DataStore.Save();
+            SaveSettings();
             ShowCategory("Events");
         };
         grid.Add(deleteBtn, 1, 0);
@@ -905,11 +905,28 @@ public partial class CalendarOptionsPage : ContentPage
     //  SAVE / HANDLERS
     // ═══════════════════════════════════════════════════════════
 
-    private void SaveSettings() => DataStore.Save();
+    // SaveSettings is intentionally cheap: it just flags the page as dirty.
+    // The actual DataStore.Save() happens on category change, page disappear,
+    // explicit save/reset, or delete-all — see FlushPendingSave().
+    private bool _isDirty;
+    private void SaveSettings() => _isDirty = true;
+
+    private void FlushPendingSave()
+    {
+        if (!_isDirty) return;
+        _isDirty = false;
+        DataStore.Save();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        FlushPendingSave();
+    }
 
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
-        SaveSettings();
+        FlushPendingSave();
         await Navigation.PopModalAsync();
     }
 
@@ -920,7 +937,8 @@ public partial class CalendarOptionsPage : ContentPage
         if (!confirm) return;
 
         League.CalendarSettings = new CalendarSettings();
-        DataStore.Save();
+        SaveSettings();
+        FlushPendingSave();
         ShowCategory(CategoriesList.SelectedItem as string);
     }
 
@@ -935,7 +953,8 @@ public partial class CalendarOptionsPage : ContentPage
         if (!confirm) return;
 
         League.CalendarEvents.Clear();
-        DataStore.Save();
+        SaveSettings();
+        FlushPendingSave();
         ShowCategory("Events");
     }
 

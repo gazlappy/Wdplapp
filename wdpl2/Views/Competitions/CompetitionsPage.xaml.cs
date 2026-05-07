@@ -59,19 +59,7 @@ public partial class CompetitionsPage : ContentPage
 
         BindingContext = _viewModel;
 
-        // React when the ViewModel finishes reloading (e.g. after season change)
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-
         UpdateSeasonLabel();
-
-        try
-        {
-            RefreshList();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"CompetitionsPage RefreshList error: {ex.Message}");
-        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -114,6 +102,10 @@ public partial class CompetitionsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+
+        // React to ViewModel notifications only while the page is visible.
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
         UpdateSeasonLabel();
         try
         {
@@ -129,7 +121,9 @@ public partial class CompetitionsPage : ContentPage
     {
         base.OnDisappearing();
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        _viewModel.Cleanup();
+        // NOTE: do NOT call _viewModel.Cleanup() here — the VM is a long-lived singleton
+        // shared with anything else that uses it; cleanup would unsubscribe SeasonChanged
+        // permanently and break refresh on the next visit to the page.
     }
 
     private void OnCompetitionTapped(Competition competition)

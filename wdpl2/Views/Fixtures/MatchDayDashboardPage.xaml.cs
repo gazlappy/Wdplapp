@@ -26,6 +26,7 @@ public partial class MatchDayDashboardPage : ContentPage
     {
         base.OnAppearing();
         SeasonService.Current.SeasonChanged += OnSeasonChanged;
+        LoadMatches();
     }
 
     protected override void OnDisappearing()
@@ -144,9 +145,9 @@ public partial class MatchDayDashboardPage : ContentPage
     {
         if (sender is Button button && button.CommandParameter is Guid fixtureId)
         {
-            // Navigate to fixtures page with this fixture selected
+            // Hand the target fixture id to the Fixtures tab; it will pick it up in OnAppearing.
+            FixturesPage.PendingFixtureId = fixtureId;
             await Shell.Current.GoToAsync("//Fixtures");
-            // Note: Would need to pass fixture ID to Fixtures page to auto-select
         }
     }
 }

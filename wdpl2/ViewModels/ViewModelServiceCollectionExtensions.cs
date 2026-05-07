@@ -16,7 +16,6 @@ public static class ViewModelServiceCollectionExtensions
         services.AddTransient<PlayersViewModel>();
         services.AddTransient<TeamsViewModel>();
         services.AddTransient<SeasonsViewModel>();
-        services.AddTransient<FixturesViewModel>();
         services.AddTransient<LeagueTablesViewModel>();
         services.AddTransient<SettingsViewModel>();
 

@@ -14,6 +14,12 @@ namespace Wdpl2.Views;
 
 public partial class FixturesPage : ContentPage
 {
+    /// <summary>
+    /// Set by other pages (e.g. MatchDayDashboardPage) before navigating to the Fixtures tab
+    /// to request that a particular fixture be selected once the page appears.
+    /// </summary>
+    public static Guid? PendingFixtureId { get; set; }
+
     // Left list projection
     public sealed class FixtureListItem
     {
@@ -126,13 +132,8 @@ public partial class FixturesPage : ContentPage
         CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
         OverlayTap.Tapped += (_, __) => CloseFlyout();
 
-        // Initial control defaults - set to start of year or active season start date
-        if (FromDate != null)
-        {
-            // Start from the beginning of the current year to ensure all fixtures are visible
-            // This will be updated in OnAppearing() when we have season data
-            FromDate.Date = new DateTime(DateTime.Today.Year, 1, 1);
-        }
+        // FromDate default and the initial RefreshList are deferred to OnAppearing,
+        // which has access to the active season and avoids a wasted refresh on cold open.
 
         // Bind fixture list
         FixturesList.ItemsSource = _items;
@@ -204,8 +205,7 @@ public partial class FixturesPage : ContentPage
             KeyboardCaptureEntry.TextChanged += OnKeyboardInput;
         }
 
-        System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor END, calling RefreshList ===");
-        RefreshList();
+        System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor END ===");
     }
     
     private void OnGlobalSeasonChanged(object? sender, SeasonChangedEventArgs e)
@@ -234,23 +234,10 @@ public partial class FixturesPage : ContentPage
 
     // ========== PLAYER SELECTION FROM SIDE LISTS ==========
 
-    private void OnHomePlayerSelected(object? sender, SelectionChangedEventArgs e)
-    {
-        // Legacy handler - kept for compatibility but now using quick panels
-    }
-
-    private void OnAwayPlayerSelected(object? sender, SelectionChangedEventArgs e)
-    {
-        // Legacy handler - kept for compatibility but now using quick panels
-    }
-
     private void OnQuickPlayerTapped(Guid playerId, string playerName, bool isHomeTeam)
     {
-        System.Diagnostics.Debug.WriteLine($"=== QUICK PLAYER TAP: {playerName} (Home={isHomeTeam}, Phase={_entryPhase}) ===");
-
         if (_selectedFixture == null || _currentFrameIndex < 0 || _currentFrameIndex >= _frameRows.Count)
         {
-            System.Diagnostics.Debug.WriteLine("  => EARLY RETURN - fixture or frame invalid");
             return;
         }
 
@@ -267,7 +254,6 @@ public partial class FixturesPage : ContentPage
 
             if (playerFrameCount >= 3)
             {
-                System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {playerName} already has {playerFrameCount} frames (max 3)");
                 _ = DisplayAlert("Maximum Frames Reached", 
                     $"{playerName} has already played 3 frames.\n\nEach player can only play a maximum of 3 frames per match.", 
                     "OK");
@@ -294,7 +280,6 @@ public partial class FixturesPage : ContentPage
                     frameRow.HomePlayerLabel.TextColor = Color.FromArgb("#1E293B");
                     frameRow.HomePlayerLabel.FontAttributes = FontAttributes.None;
                 }
-                System.Diagnostics.Debug.WriteLine($"  => Assigned HOME player 2 to doubles frame {_currentFrameIndex + 1}");
 
                 // Now advance since the pair is complete
                 AdvanceToNextSlot(isHomeTeam);
@@ -315,7 +300,6 @@ public partial class FixturesPage : ContentPage
                 if (duplicatePairing)
                 {
                     var awayName = frameRow.AwayPlayerName;
-                    System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {playerName} vs {awayName} already played");
                     _ = DisplayAlert("Duplicate Pairing", 
                         $"{playerName} has already played against {awayName} in this match.\n\nNo repeat pairings allowed.", 
                         "OK");
@@ -338,7 +322,6 @@ public partial class FixturesPage : ContentPage
                 frameRow.HomePlayerLabel.TextColor = isVoid ? Color.FromArgb("#EA580C") : Color.FromArgb("#1E293B");
                 frameRow.HomePlayerLabel.FontAttributes = FontAttributes.None;
             }
-            System.Diagnostics.Debug.WriteLine($"  => Assigned HOME player to frame {_currentFrameIndex + 1}");
 
             // Auto-award win to opponent when voiding
             if (isVoid)
@@ -387,7 +370,6 @@ public partial class FixturesPage : ContentPage
                     frameRow.AwayPlayerLabel.TextColor = Color.FromArgb("#1E293B");
                     frameRow.AwayPlayerLabel.FontAttributes = FontAttributes.None;
                 }
-                System.Diagnostics.Debug.WriteLine($"  => Assigned AWAY player 2 to doubles frame {_currentFrameIndex + 1}");
 
                 AdvanceToNextSlot(isHomeTeam);
                 UpdateCurrentFrameIndicator();
@@ -407,7 +389,6 @@ public partial class FixturesPage : ContentPage
                 if (duplicatePairing)
                 {
                     var homeName = frameRow.HomePlayerName;
-                    System.Diagnostics.Debug.WriteLine($"  => BLOCKED - {homeName} vs {playerName} already played");
                     _ = DisplayAlert("Duplicate Pairing", 
                         $"{homeName} has already played against {playerName} in this match.\n\nNo repeat pairings allowed.", 
                         "OK");
@@ -430,7 +411,6 @@ public partial class FixturesPage : ContentPage
                 frameRow.AwayPlayerLabel.TextColor = isVoid ? Color.FromArgb("#EA580C") : Color.FromArgb("#1E293B");
                 frameRow.AwayPlayerLabel.FontAttributes = FontAttributes.None;
             }
-            System.Diagnostics.Debug.WriteLine($"  => Assigned AWAY player to frame {_currentFrameIndex + 1}");
 
             // Auto-award win to opponent when voiding
             if (isVoid)
@@ -691,7 +671,6 @@ public partial class FixturesPage : ContentPage
             return;
 
         var upperKey = key.ToUpperInvariant();
-        System.Diagnostics.Debug.WriteLine($"KEY: '{upperKey}'");
 
         // Navigation: Up/Down arrow or W/S
         if (upperKey == "UP" || upperKey == "W")
@@ -756,7 +735,6 @@ public partial class FixturesPage : ContentPage
             if (index < players.Count)
             {
                 var player = players[index];
-                System.Diagnostics.Debug.WriteLine($"KEY SELECT: {player.Name} (isHome={isHome})");
                 OnQuickPlayerTapped(player.Id, player.Name, isHome);
             }
         }
@@ -1854,7 +1832,6 @@ public partial class FixturesPage : ContentPage
         var tapGesture = new TapGestureRecognizer { NumberOfTapsRequired = 1 };
         tapGesture.Tapped += (s, e) => 
         {
-            System.Diagnostics.Debug.WriteLine($"TAP: {playerName} (isHome={isHome})");
             OnQuickPlayerTapped(playerId, playerName, isHome);
             RefocusKeyboardCapture();
         };
@@ -1914,7 +1891,6 @@ public partial class FixturesPage : ContentPage
         var tapGesture = new TapGestureRecognizer { NumberOfTapsRequired = 1 };
         tapGesture.Tapped += (s, e) =>
         {
-            System.Diagnostics.Debug.WriteLine($"TAP: VOID (isHome={isHome})");
             OnQuickPlayerTapped(voidId, "VOID", isHome);
             RefocusKeyboardCapture();
         };
@@ -3407,7 +3383,8 @@ public partial class FixturesPage : ContentPage
             {
                 seasonId = activeSeason.Id;
                 DataStore.Data.ActiveSeasonId = seasonId;
-                try { DataStore.Save(); } catch { }
+                try { DataStore.Save(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"FixturesPage: failed to persist recovered ActiveSeasonId: {ex.Message}"); }
             }
         }
         
@@ -3687,7 +3664,15 @@ public partial class FixturesPage : ContentPage
                 FromDate.Date = new DateTime(DateTime.Today.Year, 1, 1);
             }
         }
-        
+
         RefreshList();
+
+        // If another page asked us to open a specific fixture, honour it now that the list is built.
+        if (PendingFixtureId.HasValue)
+        {
+            var id = PendingFixtureId.Value;
+            PendingFixtureId = null;
+            RestoreSelection(id);
+        }
     }
 }

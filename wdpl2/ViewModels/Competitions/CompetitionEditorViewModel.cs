@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -173,7 +173,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         var existing = events.FirstOrDefault(e =>
             e.CompetitionId == _competition.Id && e.RoundId == round.Id);
 
-        var title = $"{_competition.Name} — {round.Name}";
+        var title = $"{_competition.Name} â€” {round.Name}";
         var previousDate = existing?.Date;
 
         if (!round.Date.HasValue)
@@ -268,7 +268,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         await _competitionStore.UpdateCompetitionAsync(_competition);
         await _competitionStore.SaveAsync();
 
-        StatusMessage = $"🎲 {round.Name}: venues randomised";
+        StatusMessage = $"ðŸŽ² {round.Name}: venues randomised";
     }
 
     /// <summary>
@@ -317,7 +317,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     /// <summary>
     /// Get tables that are in use by ANY other competition in the same season on a given date.
-    /// Returns a dictionary mapping table ID → the name of the competition using it.
+    /// Returns a dictionary mapping table ID â†’ the name of the competition using it.
     /// </summary>
     public async Task<Dictionary<Guid, string>> GetTablesInUseByOtherCompsOnDateAsync(DateTime date)
     {
@@ -384,7 +384,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
     /// <summary>
     /// Change the number of groups and regenerate. Only safe before knockout rounds exist.
-    /// Clears existing groups (current round only — preserves PreviousGroups archive)
+    /// Clears existing groups (current round only â€” preserves PreviousGroups archive)
     /// and regenerates with the new count using the existing participants.
     /// </summary>
     public async Task ChangeGroupCountAndRegenerateAsync(int newGroupCount)
@@ -493,12 +493,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error regenerating groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
     /// <summary>
     /// Calculate the recommended number of groups based on participants, tables,
-    /// and ensuring groups × topAdvance produces a power-of-2 for the KO bracket.
+    /// and ensuring groups Ã— topAdvance produces a power-of-2 for the KO bracket.
     /// </summary>
     public (int recommended, int totalTables, int participantCount, string explanation) GetGroupRecommendation()
     {
@@ -516,9 +517,9 @@ public partial class CompetitionEditorViewModel : ObservableObject
         int maxGroups = totalTables;
 
         // Find the best group count where:
-        //  1. groups × topAdvance is a power of 2 (valid KO bracket)
-        //  2. groups ≤ tables
-        //  3. each group has ≥ 3 participants (meaningful round-robin)
+        //  1. groups Ã— topAdvance is a power of 2 (valid KO bracket)
+        //  2. groups â‰¤ tables
+        //  3. each group has â‰¥ 3 participants (meaningful round-robin)
         //  4. target ~4 per group for ideal group size
         int recommended = 0;
         int bestDiff = int.MaxValue;
@@ -557,8 +558,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
         var explanation = $"{participantCount} participants across {totalTables} tables\n" +
                           $"Recommended: {recommended} groups of ~{recPerGroup}" +
                           (remainder > 0 ? $" ({remainder} group(s) with {recPerGroup + 1})" : "") +
-                          $"\n→ {recKoTotal} advance to knockout (top {topAdvance} per group)" +
-                          (koValid ? " ✅" : " ⚠️ not a power of 2");
+                          $"\nâ†’ {recKoTotal} advance to knockout (top {topAdvance} per group)" +
+                          (koValid ? " âœ…" : " âš ï¸ not a power of 2");
 
         return (recommended, totalTables, participantCount, explanation);
     }
@@ -580,12 +581,12 @@ public partial class CompetitionEditorViewModel : ObservableObject
     {
         if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
         {
-            StatusMessage = "Cannot modify — season is locked";
+            StatusMessage = "Cannot modify â€” season is locked";
             return true;
         }
         if (_competition.IsLocked)
         {
-            StatusMessage = "Cannot modify — competition is locked. Unlock it to make changes.";
+            StatusMessage = "Cannot modify â€” competition is locked. Unlock it to make changes.";
             return true;
         }
         return false;
@@ -617,11 +618,11 @@ public partial class CompetitionEditorViewModel : ObservableObject
         try
         {
             // Allow toggling the lock + website-visibility flags even when the
-            // competition is locked — these are the only two settings that can
+            // competition is locked â€” these are the only two settings that can
             // change a locked competition (otherwise you could never unlock it).
             if (DataStore.Data.IsSeasonLocked(_competition.SeasonId))
             {
-                StatusMessage = "Cannot modify — season is locked";
+                StatusMessage = "Cannot modify â€” season is locked";
                 return;
             }
 
@@ -646,6 +647,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error saving: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -804,6 +806,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error generating bracket: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -865,6 +868,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error generating seeded bracket: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -896,11 +900,12 @@ public partial class CompetitionEditorViewModel : ObservableObject
             await _competitionStore.SaveAsync();
 
             HasRounds = _competition.Rounds.Count > 0;
-            StatusMessage = $"Manual bracket created — {rounds[0].Matches.Count} first-round slots to fill";
+            StatusMessage = $"Manual bracket created â€” {rounds[0].Matches.Count} first-round slots to fill";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error generating manual bracket: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -934,6 +939,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error assigning participant: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -988,6 +994,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error clearing slot: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1018,6 +1025,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error swapping: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1071,6 +1079,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error generating groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1121,6 +1130,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error randomising groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1135,7 +1145,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (_competition.Rounds.Count > 0)
         {
-            StatusMessage = "Can't clear groups — knockout rounds already created";
+            StatusMessage = "Can't clear groups â€” knockout rounds already created";
             return;
         }
 
@@ -1163,6 +1173,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error clearing groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1184,7 +1195,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (_competition.Rounds.Count > 0)
         {
-            StatusMessage = "Can't move — knockout rounds already created";
+            StatusMessage = "Can't move â€” knockout rounds already created";
             return;
         }
 
@@ -1223,6 +1234,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error moving participant: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1287,11 +1299,12 @@ public partial class CompetitionEditorViewModel : ObservableObject
             await _competitionStore.SaveAsync();
 
             HasGroups = true;
-            StatusMessage = $"Created {n} empty groups — drag players in";
+            StatusMessage = $"Created {n} empty groups â€” drag players in";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error creating empty groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1305,7 +1318,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (_competition.Rounds.Count > 0)
         {
-            StatusMessage = "Can't assign — knockout rounds already created";
+            StatusMessage = "Can't assign â€” knockout rounds already created";
             return;
         }
 
@@ -1336,6 +1349,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error assigning: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1348,7 +1362,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (_competition.Rounds.Count > 0)
         {
-            StatusMessage = "Can't unassign — knockout rounds already created";
+            StatusMessage = "Can't unassign â€” knockout rounds already created";
             return;
         }
 
@@ -1379,6 +1393,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error removing: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1485,6 +1500,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error creating next group round: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1538,6 +1554,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error finalizing groups: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1610,7 +1627,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
         if (_competition.ParentCompetitionId.HasValue)
         {
-            StatusMessage = "This is already a plate — cannot create a sub-plate";
+            StatusMessage = "This is already a plate â€” cannot create a sub-plate";
             return;
         }
 
@@ -1687,6 +1704,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error creating plate: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
@@ -1795,7 +1813,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 }
                 else if (match.IsComplete)
                 {
-                    // Score was edited so there's no longer a clear winner — revert to incomplete
+                    // Score was edited so there's no longer a clear winner â€” revert to incomplete
                     match.WinnerId = null;
                     match.IsComplete = false;
                     anyUpdates = true;
@@ -1879,7 +1897,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
             // Don't allow plates to create their own sub-plates
             if (_competition.ParentCompetitionId.HasValue)
             {
-                StatusMessage = "This competition is already a plate/losers cup — cannot create a sub-plate";
+                StatusMessage = "This competition is already a plate/losers cup â€” cannot create a sub-plate";
                 return;
             }
 
@@ -1952,6 +1970,7 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error creating Losers Cup: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
         }
     }
 
