@@ -1238,6 +1238,57 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Remove a participant from their current group, returning them to the
+    /// "Unassigned" pool for re-placement. The participant remains in the
+    /// competition's overall participant list. Rebuilds the round-robin
+    /// matches and clears standings for the affected group.
+    /// Only works before any KO rounds exist.
+    /// </summary>
+    public async Task RemoveParticipantFromGroupAsync(Guid participantId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        if (_competition.Groups.Count == 0)
+        {
+            StatusMessage = "No groups";
+            return;
+        }
+
+        if (_competition.Rounds.Count > 0)
+        {
+            StatusMessage = "Can't remove — knockout rounds already created";
+            return;
+        }
+
+        try
+        {
+            int latestRound = _competition.Groups.Max(g => g.GroupRound);
+            var sourceGroup = _competition.Groups
+                .FirstOrDefault(g => g.GroupRound == latestRound && g.ParticipantIds.Contains(participantId));
+
+            if (sourceGroup == null)
+            {
+                StatusMessage = "Group not found";
+                return;
+            }
+
+            sourceGroup.ParticipantIds.Remove(participantId);
+            sourceGroup.Standings.RemoveAll(s => s.ParticipantId == participantId);
+            RebuildGroupMatches(sourceGroup);
+            sourceGroup.Standings.Clear();
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+            StatusMessage = $"Removed from {sourceGroup.Name} (still in competition)";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error removing from group: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
     private static void RebuildGroupMatches(CompetitionGroup group)
     {
         var matches = new List<CompetitionMatch>();

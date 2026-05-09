@@ -409,6 +409,42 @@ public partial class CompetitionsPage
                 }
             }
 
+            // Remove-from-group button (only when editable, before KO rounds)
+            // Detaches the participant from this group (back to the Unassigned pool)
+            // without removing them from the competition.
+            if (editable && _selectedCompetition != null && _selectedCompetition.Rounds.Count == 0)
+            {
+                var pidRem = participantId;
+                var grpRem = group;
+                var removeBtn = new Button
+                {
+                    Text = "🗑",
+                    FontSize = 11,
+                    Padding = new Thickness(6, 2),
+                    MinimumWidthRequest = 32,
+                    HeightRequest = 28,
+                    BackgroundColor = Color.FromArgb("#9CA3AF"),
+                    TextColor = Colors.White,
+                    CornerRadius = 4,
+                    Margin = new Thickness(4, 0, 0, 0)
+                };
+                removeBtn.Clicked += async (_, _) =>
+                {
+                    if (_editorViewModel == null) return;
+                    var pname = GetParticipantName(pidRem, format) ?? "player";
+                    var ok = await DisplayAlert(
+                        "Remove from Group",
+                        $"Remove {pname} from {grpRem.Name}? They'll return to the Unassigned pool but stay in the competition.",
+                        "Remove", "Cancel");
+                    if (!ok) return;
+                    await _editorViewModel.RemoveParticipantFromGroupAsync(pidRem);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    ShowGroupsView();
+                };
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                rowGrid.Add(removeBtn, rowGrid.ColumnDefinitions.Count - 1, 0);
+            }
+
             // No Show toggle button (only when editable)
             if (editable)
             {
