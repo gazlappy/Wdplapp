@@ -13,6 +13,19 @@ public class SqliteDataStore : IDataStore
     private readonly LeagueContext _context;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    // Cached LeagueData snapshot for the legacy GetData() path. Pages call
+    // GetData() many times per refresh (often inside tight loops), and each
+    // uncached call would issue 7 separate full-table queries against SQLite.
+    // The cache is invalidated whenever SaveAsync runs or any Add/Update/Delete
+    // mutates the database.
+    private LeagueData? _cachedSnapshot;
+    private readonly object _snapshotLock = new();
+
+    private void InvalidateSnapshot()
+    {
+        lock (_snapshotLock) { _cachedSnapshot = null; }
+    }
+
     public SqliteDataStore(LeagueContext context)
     {
         _context = context;
@@ -43,6 +56,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Competitions.Add(competition);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -76,6 +90,7 @@ public class SqliteDataStore : IDataStore
 
                 _context.Competitions.Add(competition);
                 await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
 
                 await transaction.CommitAsync(ct);
             }
@@ -101,6 +116,7 @@ public class SqliteDataStore : IDataStore
             {
                 _context.Competitions.Remove(tracked);
                 await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
             }
         }
         finally { _gate.Release(); }
@@ -132,6 +148,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Players.Add(player);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -143,6 +160,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Players.Update(player);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -154,6 +172,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Players.Remove(player);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -183,6 +202,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Teams.Add(team);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -194,6 +214,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Teams.Update(team);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -205,6 +226,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Teams.Remove(team);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -234,6 +256,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Venues.Add(venue);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -245,6 +268,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Venues.Update(venue);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -256,6 +280,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Venues.Remove(venue);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -285,6 +310,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Divisions.Add(division);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -296,6 +322,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Divisions.Update(division);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -307,6 +334,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Divisions.Remove(division);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -336,6 +364,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Fixtures.Add(fixture);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -347,6 +376,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Fixtures.Update(fixture);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -358,6 +388,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Fixtures.Remove(fixture);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -383,6 +414,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Seasons.Add(season);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -394,6 +426,7 @@ public class SqliteDataStore : IDataStore
         {
             _context.Seasons.Update(season);
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -415,6 +448,7 @@ public class SqliteDataStore : IDataStore
             _context.Seasons.Remove(season);
 
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -426,6 +460,7 @@ public class SqliteDataStore : IDataStore
         try
         {
             await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
         }
         finally { _gate.Release(); }
     }
@@ -435,15 +470,22 @@ public class SqliteDataStore : IDataStore
     {
         // Back-compat snapshot — does NOT take the async semaphore (would deadlock
         // if called from the UI thread while an async op holds the gate).
-        return new LeagueData
+        // Cached so repeated calls within a page refresh don't re-query SQLite.
+        lock (_snapshotLock)
         {
-            Seasons = _context.Seasons.ToList(),
-            Divisions = _context.Divisions.ToList(),
-            Teams = _context.Teams.ToList(),
-            Players = _context.Players.ToList(),
-            Venues = _context.Venues.ToList(),
-            Fixtures = _context.Fixtures.ToList(),
-            Competitions = _context.Competitions.ToList()
-        };
+            if (_cachedSnapshot != null) return _cachedSnapshot;
+
+            _cachedSnapshot = new LeagueData
+            {
+                Seasons = _context.Seasons.AsNoTracking().ToList(),
+                Divisions = _context.Divisions.AsNoTracking().ToList(),
+                Teams = _context.Teams.AsNoTracking().ToList(),
+                Players = _context.Players.AsNoTracking().ToList(),
+                Venues = _context.Venues.AsNoTracking().ToList(),
+                Fixtures = _context.Fixtures.AsNoTracking().ToList(),
+                Competitions = _context.Competitions.AsNoTracking().ToList()
+            };
+            return _cachedSnapshot;
+        }
     }
 }

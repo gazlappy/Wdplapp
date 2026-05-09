@@ -10,6 +10,7 @@ namespace Wdpl2.Views;
 
 public partial class ImportPreviewPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private ImportPreview? _preview;
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<DivisionPreview> _divisions = new();
@@ -17,8 +18,9 @@ public partial class ImportPreviewPage : ContentPage
     private readonly ObservableCollection<PlayerPreview> _players = new();
     private readonly ObservableCollection<CompetitionWinner> _competitions = new();
 
-    public ImportPreviewPage()
+    public ImportPreviewPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         
         SeasonPicker.ItemsSource = _seasons;
@@ -37,7 +39,7 @@ public partial class ImportPreviewPage : ContentPage
             FileNameLabel.Text = $"File: {System.IO.Path.GetFileName(filePath)}";
 
             // Extract preview data
-            _preview = await ImportPreviewService.ExtractPreviewAsync(filePath, DataStore.Data);
+            _preview = await ImportPreviewService.ExtractPreviewAsync(filePath, _dataStore.GetData());
 
             if (_preview == null || _preview.HasErrors)
             {
@@ -70,7 +72,7 @@ public partial class ImportPreviewPage : ContentPage
     {
         _seasons.Clear();
         
-        foreach (var season in DataStore.Data.Seasons.OrderByDescending(s => s.StartDate))
+        foreach (var season in _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate))
         {
             _seasons.Add(season);
         }
@@ -208,8 +210,8 @@ public partial class ImportPreviewPage : ContentPage
             IsActive = false
         };
 
-        DataStore.Data.Seasons.Add(season);
-        DataStore.Save();
+        _dataStore.GetData().Seasons.Add(season);
+        await _dataStore.SaveAsync();
 
         _seasons.Add(season);
         SeasonPicker.SelectedItem = season;
@@ -317,12 +319,12 @@ public partial class ImportPreviewPage : ContentPage
             var result = await ImportPreviewService.ApplyPreviewAsync(
                 _preview,
                 selectedSeason.Id,
-                DataStore.Data);
+                _dataStore.GetData());
 
             if (result.Success)
             {
                 // Save changes
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 DataStore.ClearPreImportSnapshot();
 
                 await DisplayAlert(

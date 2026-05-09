@@ -17,17 +17,18 @@ namespace Wdpl2.Views
 {
     public partial class SettingsPage : ContentPage
     {
+        private readonly IDataStore _dataStore;
         private Guid? _editingSeasonId;
         private AppSettings Settings => _editingSeasonId.HasValue
-            ? DataStore.Data.GetSettingsForSeason(_editingSeasonId)
-            : DataStore.Data.Settings;
+            ? _dataStore.GetData().GetSettingsForSeason(_editingSeasonId)
+            : _dataStore.GetData().Settings;
 
         /// <summary>
         /// Returns true when we are editing a season-specific override (not the global defaults).
         /// </summary>
         private bool IsEditingSeasonOverride =>
             _editingSeasonId.HasValue &&
-            DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _editingSeasonId.Value)?.Settings != null;
+            _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _editingSeasonId.Value)?.Settings != null;
 
         private readonly ObservableCollection<string> _categories = new()
         {
@@ -61,8 +62,9 @@ namespace Wdpl2.Views
         private VerticalStackLayout? _tiebreakerListLayout;
         private Label? _statusLabel;
 
-        public SettingsPage()
+        public SettingsPage(IDataStore dataStore)
         {
+            _dataStore = dataStore;
             InitializeComponent();
 
             CategoriesList.ItemsSource = _categories;
@@ -136,7 +138,7 @@ namespace Wdpl2.Views
                 }
 
                 currentThemeLabel.Text = GetCurrentThemeText();
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 // Refresh the panel after a short delay to allow theme to apply
                 Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
@@ -148,7 +150,7 @@ namespace Wdpl2.Views
                 ThemeService.Current.SetDarkMode(e.Value);
                 statusLabel.Text = e.Value ? "\U0001F319 Dark mode enabled" : "\u2600\uFE0F Light mode enabled";
                 currentThemeLabel.Text = GetCurrentThemeText();
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 // Refresh the panel after a short delay to allow theme to apply
                 Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100), () => ShowCategory("Appearance"));
@@ -360,7 +362,7 @@ namespace Wdpl2.Views
                 if (!Settings.TiebreakerOrder.Contains(criterion))
                 {
                     Settings.TiebreakerOrder.Add(criterion);
-                    DataStore.Save();
+                    _ = _dataStore.SaveAsync();
                     RebuildTiebreakerRows();
                 }
                 addPicker.SelectedIndex = -1;
@@ -413,7 +415,7 @@ namespace Wdpl2.Views
                 upBtn.Clicked += (s, e) =>
                 {
                     (order[index - 1], order[index]) = (order[index], order[index - 1]);
-                    DataStore.Save();
+                    _ = _dataStore.SaveAsync();
                     RebuildTiebreakerRows();
                 };
 
@@ -421,7 +423,7 @@ namespace Wdpl2.Views
                 downBtn.Clicked += (s, e) =>
                 {
                     (order[index + 1], order[index]) = (order[index], order[index + 1]);
-                    DataStore.Save();
+                    _ = _dataStore.SaveAsync();
                     RebuildTiebreakerRows();
                 };
 
@@ -429,7 +431,7 @@ namespace Wdpl2.Views
                 removeBtn.Clicked += (s, e) =>
                 {
                     order.RemoveAt(index);
-                    DataStore.Save();
+                    _ = _dataStore.SaveAsync();
                     RebuildTiebreakerRows();
                 };
 
@@ -468,7 +470,7 @@ namespace Wdpl2.Views
         /// </summary>
         private View BuildSeasonScopeSelector(string categoryToRefresh)
         {
-            var seasons = DataStore.Data.Seasons.OrderByDescending(s => s.StartDate).ToList();
+            var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ToList();
 
             var seasonPicker = new Picker { Title = "Settings scope", HorizontalOptions = LayoutOptions.Fill };
             seasonPicker.Items.Add("Global Defaults");
@@ -512,15 +514,15 @@ namespace Wdpl2.Views
             customToggle.Toggled += (s, e) =>
             {
                 if (!_editingSeasonId.HasValue) return;
-                var season = DataStore.Data.Seasons.FirstOrDefault(se => se.Id == _editingSeasonId.Value);
+                var season = _dataStore.GetData().Seasons.FirstOrDefault(se => se.Id == _editingSeasonId.Value);
                 if (season == null) return;
 
                 if (e.Value)
-                    season.Settings ??= DataStore.Data.Settings.Clone();
+                    season.Settings ??= _dataStore.GetData().Settings.Clone();
                 else
                     season.Settings = null;
 
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
                 ShowCategory(categoryToRefresh);
             };
 
@@ -641,7 +643,7 @@ namespace Wdpl2.Views
             matchRemindersSwitch.Toggled += (s, e) =>
             {
                 Settings.MatchRemindersEnabled = e.Value;
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
                 if (_statusLabel != null)
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Match reminders {(e.Value ? "enabled" : "disabled")}";
             };
@@ -652,7 +654,7 @@ namespace Wdpl2.Views
                 {
                     0 => 1, 1 => 2, 2 => 4, 3 => 6, 4 => 12, 5 => 24, _ => 2
                 };
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
                 if (_statusLabel != null)
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Reminder time set to {Settings.ReminderHoursBefore} hour(s) before match";
             };
@@ -660,7 +662,7 @@ namespace Wdpl2.Views
             resultNotificationsSwitch.Toggled += (s, e) =>
             {
                 Settings.ResultNotificationsEnabled = e.Value;
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
                 if (_statusLabel != null)
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Result notifications {(e.Value ? "enabled" : "disabled")}";
             };
@@ -668,7 +670,7 @@ namespace Wdpl2.Views
             weeklyFixtureSwitch.Toggled += (s, e) =>
             {
                 Settings.WeeklyFixtureListEnabled = e.Value;
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
                 if (_statusLabel != null)
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  {Emojis.Success} Weekly fixture list {(e.Value ? "enabled" : "disabled")}";
             };
@@ -849,7 +851,7 @@ namespace Wdpl2.Views
 
         private View CreateDivisionManagementPanel()
         {
-            var data = DataStore.Data;
+            var data = _dataStore.GetData();
             var seasons = data.Seasons.OrderByDescending(s => s.StartDate).ToList();
 
             var seasonPicker = new Picker { Title = "Select Season", HorizontalOptions = LayoutOptions.Fill };
@@ -1000,7 +1002,7 @@ namespace Wdpl2.Views
                         {
                             capturedDiv.Name = DivisionHelper.NormalizeDivisionName(newName);
                             capturedDiv.ModifiedDate = DateTime.UtcNow;
-                            DataStore.Save();
+                            _ = _dataStore.SaveAsync();
                             RefreshDivisionList();
                             statusLabel.Text = $"{Emojis.Success} Renamed to \"{capturedDiv.Name}\"";
                         }
@@ -1043,7 +1045,7 @@ namespace Wdpl2.Views
                             fixture.DivisionId = targetDiv.Id;
 
                         data.Divisions.Remove(capturedDiv);
-                        DataStore.Save();
+                        _ = _dataStore.SaveAsync();
                         RefreshDivisionList();
                         statusLabel.Text = $"{Emojis.Success} Merged into \"{targetDiv.Name}\"";
                     };
@@ -1058,7 +1060,7 @@ namespace Wdpl2.Views
                         if (!confirm) return;
 
                         data.Divisions.Remove(capturedDiv);
-                        DataStore.Save();
+                        _ = _dataStore.SaveAsync();
                         RefreshDivisionList();
                         statusLabel.Text = $"{Emojis.Success} Deleted \"{capturedDiv.Name}\"";
                     };
@@ -1123,7 +1125,7 @@ namespace Wdpl2.Views
                 MoveDivisionsToSeason(data, divIds, sourceSeasonId, newSeason.Id);
                 UpdateSeasonDatesFromFixtures(data, newSeason.Id);
                 UpdateSeasonDatesFromFixtures(data, sourceSeasonId);
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 seasons.Clear();
                 seasons.AddRange(data.Seasons.OrderByDescending(ss => ss.StartDate));
@@ -1184,7 +1186,7 @@ namespace Wdpl2.Views
                 MoveDivisionsToSeason(data, divIds, sourceSeasonId, targetSeason.Id);
                 UpdateSeasonDatesFromFixtures(data, targetSeason.Id);
                 UpdateSeasonDatesFromFixtures(data, sourceSeasonId);
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 RefreshDivisionList();
                 statusLabel.Text = $"{Emojis.Success} Moved {divNames.Count} division(s) to \"{targetSeason.Name}\"";
@@ -1278,7 +1280,7 @@ namespace Wdpl2.Views
 
                 if (mergedCount > 0 || renamedCount > 0 || deletedCount > 0)
                 {
-                    DataStore.Save();
+                    _ = _dataStore.SaveAsync();
                     RefreshDivisionList();
                     statusLabel.Text = $"{Emojis.Success} Merged {mergedCount} duplicates, normalized {renamedCount} names, deleted {deletedCount} empty divisions";
                 }
@@ -1501,7 +1503,7 @@ namespace Wdpl2.Views
 
             scanButton.Clicked += (s, e) =>
             {
-                var data = DataStore.Data;
+                var data = _dataStore.GetData();
                 var counts = CountOrphans(data);
                 int orphanFixtures = counts.Fixtures;
                 int orphanPlayers = counts.Players;
@@ -1550,7 +1552,7 @@ namespace Wdpl2.Views
 
             cleanButton.Clicked += async (s, e) =>
             {
-                var data = DataStore.Data;
+                var data = _dataStore.GetData();
                 var counts = CountOrphans(data);
                 int orphanFixtures = counts.Fixtures;
                 int orphanPlayers = counts.Players;
@@ -1576,7 +1578,7 @@ namespace Wdpl2.Views
                 if (!confirm) return;
 
                 data.CleanupOrphans();
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 orphanResultsLabel.Text = $"✅ Removed {total} orphaned records.\n\nStorage is now clean.";
                 orphanResultsBorder.Stroke = Color.FromArgb("#10B981");
@@ -1595,7 +1597,7 @@ namespace Wdpl2.Views
 
             deleteAllSeasonsBtn.Clicked += async (s, e) =>
             {
-                var data = DataStore.Data;
+                var data = _dataStore.GetData();
                 var seasonCount = data.Seasons.Count;
 
                 if (seasonCount == 0)
@@ -1648,7 +1650,7 @@ namespace Wdpl2.Views
                     data.DeleteSeasonCascade(id);
 
                 data.CleanupOrphans();
-                DataStore.Save();
+                _ = _dataStore.SaveAsync();
 
                 var deletedCount = seasonIds.Count;
                 statusLabel.Text = $"✅ Deleted {deletedCount} season{(deletedCount != 1 ? "s" : "")} and all associated data." +
@@ -2541,7 +2543,7 @@ namespace Wdpl2.Views
                 if (_roundsPerOpponentEntry != null && int.TryParse(_roundsPerOpponentEntry.Text, out var rounds) && rounds >= 1)
                     Settings.DefaultRoundsPerOpponent = rounds;
 
-                DataStore.Save();
+                await _dataStore.SaveAsync();
 
                 if (_statusLabel != null)
                     _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  Settings saved successfully.";
@@ -2568,7 +2570,7 @@ namespace Wdpl2.Views
             if (!confirm) return;
 
             Settings.ResetToDefaults();
-            DataStore.Save();
+            await _dataStore.SaveAsync();
 
             var selected = CategoriesList.SelectedItem as string;
             ShowCategory(selected);
@@ -2579,7 +2581,7 @@ namespace Wdpl2.Views
 
         private async System.Threading.Tasks.Task OnRecalculateAllRatingsAsync()
         {
-            var data = DataStore.Data;
+            var data = _dataStore.GetData();
 
             int vbaFrameCount = 0;
             int totalFrames = 0;
@@ -2620,7 +2622,7 @@ namespace Wdpl2.Views
             if (!confirm) return;
 
             int cleared = RatingCalculator.ClearVbaRatingData(data.Fixtures);
-            DataStore.Save();
+            await _dataStore.SaveAsync();
 
             if (_statusLabel != null)
                 _statusLabel.Text = $"{DateTime.Now:HH:mm:ss}  Cleared VBA data from {cleared} frame(s). Ratings will now use current settings.";

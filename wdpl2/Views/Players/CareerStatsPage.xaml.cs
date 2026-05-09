@@ -220,7 +220,8 @@ public partial class CareerStatsPage : ContentPage
         }
 
         // Navigate to player profile page
-        var profilePage = new PlayerProfilePage();
+        var profilePage = Application.Current?.Handler?.MauiContext?.Services.GetService<PlayerProfilePage>()
+            ?? throw new InvalidOperationException("PlayerProfilePage not registered");
         profilePage.LoadPlayer(player.GlobalPlayerId, player.PlayerName);
         Navigation.PushAsync(profilePage);
 

@@ -10,7 +10,8 @@ namespace Wdpl2.Views
 {
     public partial class SeasonsPage : ContentPage
     {
-        private static LeagueData League => DataStore.Data;
+        private readonly IDataStore _dataStore;
+        private LeagueData League => _dataStore.GetData();
 
         /// <summary>Em-dash separator used between date and title in exclusion date display strings.</summary>
         private const string Separator = " \u2014 ";
@@ -21,8 +22,9 @@ namespace Wdpl2.Views
         private Season? _selected;
         private bool _isFlyoutOpen = false;
 
-        public SeasonsPage()
+        public SeasonsPage(IDataStore dataStore)
         {
+            _dataStore = dataStore;
             InitializeComponent();
 
             StartPicker.Date = DateTime.Today;
@@ -70,7 +72,7 @@ namespace Wdpl2.Views
             season.IsActive = true;
             League.ActiveSeasonId = season.Id;
 
-            try { DataStore.Save(); }
+            try { _ = _dataStore.SaveAsync(); }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SetActiveSeason save error: {ex.Message}");
@@ -82,7 +84,9 @@ namespace Wdpl2.Views
         private void OnNewClicked(object sender, EventArgs e)
         {
             // Navigate to the new season setup wizard
-            Navigation.PushAsync(new SeasonSetupPage());
+            var page = Application.Current?.Handler?.MauiContext?.Services.GetService<SeasonSetupPage>()
+                ?? throw new InvalidOperationException("SeasonSetupPage not registered");
+            Navigation.PushAsync(page);
         }
 
         private void OnRefreshListClicked(object sender, EventArgs e)
@@ -206,7 +210,7 @@ namespace Wdpl2.Views
 
             try 
             { 
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 System.Diagnostics.Debug.WriteLine($"?? Season saved: {model.Name} (ID: {model.Id})");
                 System.Diagnostics.Debug.WriteLine($"   IsActive: {model.IsActive}");
                 System.Diagnostics.Debug.WriteLine($"   ActiveSeasonId: {League.ActiveSeasonId?.ToString() ?? "NULL"}");
@@ -276,7 +280,7 @@ namespace Wdpl2.Views
             }
 
             // Get counts of associated data using cascade delete helper
-            var (divisions, venues, teams, players, fixtures) = DataStore.Data.GetSeasonData(_selected.Id);
+            var (divisions, venues, teams, players, fixtures) = _dataStore.GetData().GetSeasonData(_selected.Id);
 
             var message = $"?? WARNING: This will permanently delete:\n\n" +
                           $"• Season: {_selected.Name}\n" +
@@ -296,11 +300,11 @@ namespace Wdpl2.Views
             if (!confirm) return;
 
             // Cascade delete all data for this season
-            DataStore.Data.DeleteSeasonCascade(_selected.Id);
+            _dataStore.GetData().DeleteSeasonCascade(_selected.Id);
 
             // Also clean up any orphaned entities (null or invalid SeasonId)
-            DataStore.Data.CleanupOrphans();
-            DataStore.Save();
+            _dataStore.GetData().CleanupOrphans();
+            await _dataStore.SaveAsync();
 
             _selected = null;
             RefreshList(selectFirst: true);
@@ -369,7 +373,7 @@ namespace Wdpl2.Views
                 
                 if (confirm)
                 {
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     StatusLabel.Text = $"\u2705 Fixed {totalFixed} items and saved!";
 
                     // Trigger a refresh on all pages by updating the season service
@@ -445,7 +449,7 @@ namespace Wdpl2.Views
                 League.Fixtures.RemoveAll(f => f.SeasonId == _selected.Id);
                 League.Fixtures.AddRange(fixtures);
 
-                try { DataStore.Save(); } catch { }
+                try { await _dataStore.SaveAsync(); } catch { }
 
                 StatusLabel.Text = $"Generated {fixtures.Count} fixtures for \"{_selected.Name}\".";
                 await DisplayAlert("Fixtures", StatusLabel.Text, "OK");
@@ -526,7 +530,7 @@ namespace Wdpl2.Views
                 _exclusionDates[index] = newDisplay;
 
             // Sync title to any matching calendar event on the same date
-            var calEvent = DataStore.Data.CalendarEvents
+            var calEvent = _dataStore.GetData().CalendarEvents
                 .FirstOrDefault(ce => ce.Date.Date == date.Date);
             if (calEvent != null && !string.IsNullOrWhiteSpace(newTitle))
             {
@@ -631,7 +635,7 @@ namespace Wdpl2.Views
             _exclusionTitles.Clear();
             if (s.BlackoutDates != null)
             {
-                var calendarEvents = DataStore.Data.CalendarEvents;
+                var calendarEvents = _dataStore.GetData().CalendarEvents;
                 foreach (var date in s.BlackoutDates.OrderBy(d => d))
                 {
                     var dateKey = date.ToString("yyyy-MM-dd");
@@ -739,8 +743,8 @@ namespace Wdpl2.Views
             UpdateLockUI(season);
 
             // Calculate statistics
-            var (divisions, venues, teams, players, fixtures) = DataStore.Data.GetSeasonData(season.Id);
-            var competitions = DataStore.Data.Competitions?.Where(c => c.SeasonId == season.Id).ToList() ?? new List<Models.Competition>();
+            var (divisions, venues, teams, players, fixtures) = _dataStore.GetData().GetSeasonData(season.Id);
+            var competitions = _dataStore.GetData().Competitions?.Where(c => c.SeasonId == season.Id).ToList() ?? new List<Models.Competition>();
 
             DivisionsCount.Text = divisions.Count.ToString();
             TeamsCount.Text = teams.Count.ToString();
@@ -817,7 +821,7 @@ namespace Wdpl2.Views
                 _selected.IsLocked = true;
             }
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             UpdateLockUI(_selected);
 
             // Refresh list to update lock icon
@@ -846,7 +850,7 @@ namespace Wdpl2.Views
                 StatusLabel.Text = "Generating SQL export…";
                 ExportSqlBtn.IsEnabled = false;
 
-                var sql = SqlExportService.GenerateSeasonSql(DataStore.Data, _selected.Id);
+                var sql = SqlExportService.GenerateSeasonSql(_dataStore.GetData(), _selected.Id);
                 var fileName = $"{_selected.Name.Replace(" ", "_")}_Export_{DateTime.Now:yyyyMMdd_HHmmss}.sql";
 
                 await ExportService.ShareFileAsync(sql, fileName, $"SQL Export — {_selected.Name}");

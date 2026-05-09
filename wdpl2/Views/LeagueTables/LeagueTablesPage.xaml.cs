@@ -19,8 +19,10 @@ namespace Wdpl2.Views;
 
 public partial class LeagueTablesPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
+
     // Access to settings — resolved for the currently selected season
-    private AppSettings Settings => DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+    private AppSettings Settings => _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
 
     // Row types for tables
     private sealed class TeamRow
@@ -78,8 +80,9 @@ public partial class LeagueTablesPage : ContentPage
     private Division? _selectedDivision;
     private bool _isRefreshing;
 
-    public LeagueTablesPage()
+    public LeagueTablesPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
 
         TeamTableList.ItemsSource = _teamRows;
@@ -129,8 +132,8 @@ public partial class LeagueTablesPage : ContentPage
     {
         // Fallback chain: SeasonService ? DataStore.ActiveSeasonId ? first active season
         _currentSeasonId = SeasonService.Current.CurrentSeasonId
-            ?? DataStore.Data.ActiveSeasonId
-            ?? DataStore.Data.Seasons.FirstOrDefault(s => s.IsActive)?.Id;
+            ?? _dataStore.GetData().ActiveSeasonId
+            ?? _dataStore.GetData().Seasons.FirstOrDefault(s => s.IsActive)?.Id;
 
         // Keep SeasonService in sync if we had to fall back
         if (_currentSeasonId.HasValue && SeasonService.Current.CurrentSeasonId != _currentSeasonId)
@@ -174,18 +177,18 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        foreach (var d in DataStore.Data.Divisions
+        foreach (var d in _dataStore.GetData().Divisions
             .Where(d => d.SeasonId == _currentSeasonId)
             .OrderBy(d => d.Name))
         {
             _divisions.Add(d);
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
 
         if (_divisions.Count == 0)
         {
-            var totalDivs = DataStore.Data.Divisions.Count;
+            var totalDivs = _dataStore.GetData().Divisions.Count;
             SetStatus($"Season: {season?.Name ?? "?"} | 0 divisions (total in DB: {totalDivs})");
         }
         else
@@ -296,7 +299,7 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var seasonName = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId)?.Name ?? "?";
         var divName = _selectedDivision.Name ?? "?";
         var teams = GetTeamsForDivision(data, _selectedDivision);
@@ -488,7 +491,8 @@ public partial class LeagueTablesPage : ContentPage
                 if (e is TappedEventArgs tapped && tapped.Parameter is TeamRow row)
                 {
                     // Navigate to TeamsPage with the selected team
-                    var teamsPage = new TeamsPage();
+                    var teamsPage = Application.Current?.Handler?.MauiContext?.Services.GetService<TeamsPage>()
+                        ?? throw new InvalidOperationException("TeamsPage not registered");
                     teamsPage.SelectTeam(row.TeamId);
                     await Application.Current?.MainPage?.Navigation.PushAsync(teamsPage)!;
                 }
@@ -585,7 +589,7 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var tById = data.Teams.ToDictionary(t => t.Id, t => t);
 
         // Get teams in this division (for filtering display only)
@@ -989,7 +993,7 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         // Check if the active season has doubles enabled
         var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId.Value);
@@ -1045,18 +1049,18 @@ public partial class LeagueTablesPage : ContentPage
     {
         if (playerId.HasValue)
         {
-            var player = DataStore.Data.Players.FirstOrDefault(p => p.Id == playerId.Value);
+            var player = _dataStore.GetData().Players.FirstOrDefault(p => p.Id == playerId.Value);
             if (player != null)
                 return player.FullName ?? $"{player.FirstName} {player.LastName}".Trim();
         }
         return fallbackName;
     }
 
-    private static string ResolveTeamName(Guid? teamId, string fallbackName)
+    private string ResolveTeamName(Guid? teamId, string fallbackName)
     {
         if (teamId.HasValue)
         {
-            var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == teamId.Value);
+            var team = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == teamId.Value);
             if (team != null)
                 return team.Name ?? fallbackName;
         }
@@ -1074,7 +1078,7 @@ public partial class LeagueTablesPage : ContentPage
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
             return new();
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var season = data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
         if (season == null) return new();
 
@@ -1338,7 +1342,7 @@ public partial class LeagueTablesPage : ContentPage
             return;
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
         var divName = _selectedDivision?.Name?.Replace(" ", "_") ?? "All";
 
         var sb = new StringBuilder();

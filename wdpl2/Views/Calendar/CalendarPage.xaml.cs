@@ -1,13 +1,15 @@
 using System.Collections.ObjectModel;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
+using Wdpl2.Services;
 
 namespace Wdpl2.Views;
 
 public partial class CalendarPage : ContentPage
 {
-    private static LeagueData League => DataStore.Data;
-    private static CalendarSettings CalSettings => League.CalendarSettings;
+    private readonly IDataStore _dataStore;
+    private LeagueData League => _dataStore.GetData();
+    private CalendarSettings CalSettings => League.CalendarSettings;
 
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<Division> _divisions = new();
@@ -50,8 +52,9 @@ public partial class CalendarPage : ContentPage
     private Color TransferWindowColor = Color.FromArgb("#06B6D4");
     private Color CustomEventColor = Color.FromArgb("#14B8A6");
 
-    public CalendarPage()
+    public CalendarPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
 
         SeasonPicker.ItemsSource = _seasons;
@@ -390,7 +393,7 @@ public partial class CalendarPage : ContentPage
         };
 
         League.CalendarEvents.Add(evt);
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         ReloadCalendarEvents();
         Refresh();
     }
@@ -425,7 +428,7 @@ public partial class CalendarPage : ContentPage
             if (!string.IsNullOrWhiteSpace(newTitle))
             {
                 evt.Title = newTitle.Trim();
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -437,7 +440,7 @@ public partial class CalendarPage : ContentPage
             if (cat is not null and not "Cancel" && Enum.TryParse<CalendarEventCategory>(cat, out var parsed))
             {
                 evt.Category = parsed;
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -452,7 +455,7 @@ public partial class CalendarPage : ContentPage
                 null, System.Globalization.DateTimeStyles.None, out var newDate))
             {
                 evt.Date = newDate.Date;
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -476,7 +479,7 @@ public partial class CalendarPage : ContentPage
                 if (selected == "Remove Link")
                 {
                     evt.CompetitionId = null;
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     ReloadCalendarEvents();
                     Refresh();
                 }
@@ -486,7 +489,7 @@ public partial class CalendarPage : ContentPage
                     if (comp != null)
                     {
                         evt.CompetitionId = comp.Id;
-                        DataStore.Save();
+                        await _dataStore.SaveAsync();
                         ReloadCalendarEvents();
                         Refresh();
                     }
@@ -505,7 +508,7 @@ public partial class CalendarPage : ContentPage
             if (newNotes != null)
             {
                 evt.Notes = string.IsNullOrWhiteSpace(newNotes) ? null : newNotes.Trim();
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -517,7 +520,7 @@ public partial class CalendarPage : ContentPage
             if (confirm)
             {
                 League.CalendarEvents.Remove(evt);
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -2056,7 +2059,7 @@ public partial class CalendarPage : ContentPage
         if (presets.Count == 0)
         {
             presets.AddRange(PresetHoliday.CreateDefaults());
-            DataStore.Save();
+            _ = _dataStore.SaveAsync();
         }
 
         for (int y = startYear; y <= endYear; y++)

@@ -11,6 +11,7 @@ namespace Wdpl2.Views;
 
 public partial class SeasonSetupPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private SetupMethod _selectedMethod = SetupMethod.None;
     private Season? _newSeason;
     private SeasonTemplate? _selectedTemplate;
@@ -41,8 +42,9 @@ public partial class SeasonSetupPage : ContentPage
     private Label? _teamsCountLabel;
     private Label? _playersCountLabel;
 
-    public SeasonSetupPage()
+    public SeasonSetupPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
     }
 
@@ -131,7 +133,7 @@ public partial class SeasonSetupPage : ContentPage
     private View CreateCopyPreviousContent()
     {
         _availableSeasons.Clear();
-        var seasons = DataStore.Data.Seasons
+        var seasons = _dataStore.GetData().Seasons
             .OrderByDescending(s => s.StartDate)
             .Take(10)
             .ToList();
@@ -322,7 +324,7 @@ public partial class SeasonSetupPage : ContentPage
             };
             detailsLabel.SetBinding(Label.TextProperty, new Binding
             {
-                StringFormat = "\U0001F4CA {0} division(s) • {1} teams/div • {2} frames/match",
+                StringFormat = "\U0001F4CA {0} division(s) ï¿½ {1} teams/div ï¿½ {2} frames/match",
                 Path = "."
             });
 
@@ -558,16 +560,16 @@ public partial class SeasonSetupPage : ContentPage
             IsActive = false // Don't auto-activate
         };
 
-        DataStore.Data.Seasons.Add(_newSeason);
+        _dataStore.GetData().Seasons.Add(_newSeason);
 
         int copiedCount = 0;
 
         // Copy data based on selections
         if (_copyDivisions)
         {
-            foreach (var div in DataStore.Data.Divisions.Where(d => d.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var div in _dataStore.GetData().Divisions.Where(d => d.SeasonId == _sourceSeason.Id).ToList())
             {
-                DataStore.Data.Divisions.Add(new Division
+                _dataStore.GetData().Divisions.Add(new Division
                 {
                     SeasonId = _newSeason.Id,
                     Name = div.Name,
@@ -579,9 +581,9 @@ public partial class SeasonSetupPage : ContentPage
 
         if (_copyVenues)
         {
-            foreach (var venue in DataStore.Data.Venues.Where(v => v.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var venue in _dataStore.GetData().Venues.Where(v => v.SeasonId == _sourceSeason.Id).ToList())
             {
-                DataStore.Data.Venues.Add(new Venue
+                _dataStore.GetData().Venues.Add(new Venue
                 {
                     SeasonId = _newSeason.Id,
                     Name = venue.Name,
@@ -595,9 +597,9 @@ public partial class SeasonSetupPage : ContentPage
         // Copy selected teams
         if (_selectedTeamIds.Count > 0)
         {
-            foreach (var team in DataStore.Data.Teams.Where(t => t.SeasonId == _sourceSeason.Id && _selectedTeamIds.Contains(t.Id)).ToList())
+            foreach (var team in _dataStore.GetData().Teams.Where(t => t.SeasonId == _sourceSeason.Id && _selectedTeamIds.Contains(t.Id)).ToList())
             {
-                DataStore.Data.Teams.Add(new Team
+                _dataStore.GetData().Teams.Add(new Team
                 {
                     SeasonId = _newSeason.Id,
                     Name = team.Name,
@@ -612,9 +614,9 @@ public partial class SeasonSetupPage : ContentPage
         // Copy selected players
         if (_selectedPlayerIds.Count > 0)
         {
-            foreach (var player in DataStore.Data.Players.Where(p => p.SeasonId == _sourceSeason.Id && _selectedPlayerIds.Contains(p.Id)).ToList())
+            foreach (var player in _dataStore.GetData().Players.Where(p => p.SeasonId == _sourceSeason.Id && _selectedPlayerIds.Contains(p.Id)).ToList())
             {
-                DataStore.Data.Players.Add(new Player
+                _dataStore.GetData().Players.Add(new Player
                 {
                     SeasonId = _newSeason.Id,
                     FirstName = player.FirstName,
@@ -625,7 +627,7 @@ public partial class SeasonSetupPage : ContentPage
             }
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         await DisplayAlert("Success", $"\u2705 Season '{_newSeason.Name}' created!\nCopied {copiedCount} items from '{_sourceSeason.Name}'.", "OK");
         await Navigation.PopAsync();
@@ -656,18 +658,18 @@ public partial class SeasonSetupPage : ContentPage
             Name = nameEntry.Text.Trim(),
             StartDate = startDate?.Date ?? DateTime.Today,
             EndDate = endDate?.Date ?? DateTime.Today.AddMonths(3),
-            MatchDayOfWeek = DataStore.Data.Settings.DefaultMatchDay,
-            MatchStartTime = DataStore.Data.Settings.DefaultMatchTime,
+            MatchDayOfWeek = _dataStore.GetData().Settings.DefaultMatchDay,
+            MatchStartTime = _dataStore.GetData().Settings.DefaultMatchTime,
             FramesPerMatch = _selectedTemplate.FramesPerMatch,
             IsActive = false
         };
 
-        DataStore.Data.Seasons.Add(_newSeason);
+        _dataStore.GetData().Seasons.Add(_newSeason);
 
         // Create divisions based on template
         for (int i = 1; i <= _selectedTemplate.Divisions; i++)
         {
-            DataStore.Data.Divisions.Add(new Division
+            _dataStore.GetData().Divisions.Add(new Division
             {
                 SeasonId = _newSeason.Id,
                 Name = _selectedTemplate.Divisions == 1 ? "Division 1" : $"Division {i}",
@@ -675,7 +677,7 @@ public partial class SeasonSetupPage : ContentPage
             });
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         await DisplayAlert("Success", 
             $"\u2705 Season '{_newSeason.Name}' created with {_selectedTemplate.Divisions} division(s)!\n\n" +
@@ -712,8 +714,8 @@ public partial class SeasonSetupPage : ContentPage
             IsActive = false
         };
 
-        DataStore.Data.Seasons.Add(_newSeason);
-        DataStore.Save();
+        _dataStore.GetData().Seasons.Add(_newSeason);
+        await _dataStore.SaveAsync();
 
         await DisplayAlert("Success", 
             $"\u2705 Season '{_newSeason.Name}' created!\n\n" +
@@ -726,12 +728,12 @@ public partial class SeasonSetupPage : ContentPage
 
     private void PopulateSourceSeasonData(Season source)
     {
-        _sourceTeams = DataStore.Data.Teams
+        _sourceTeams = _dataStore.GetData().Teams
             .Where(t => t.SeasonId == source.Id)
             .OrderBy(t => t.Name)
             .ToList();
 
-        _sourcePlayers = DataStore.Data.Players
+        _sourcePlayers = _dataStore.GetData().Players
             .Where(p => p.SeasonId == source.Id)
             .OrderBy(p => p.LastName)
             .ThenBy(p => p.FirstName)
@@ -805,7 +807,7 @@ public partial class SeasonSetupPage : ContentPage
             };
 
             var divName = team.DivisionId.HasValue
-                ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == team.DivisionId.Value)?.Name
+                ? _dataStore.GetData().Divisions.FirstOrDefault(d => d.Id == team.DivisionId.Value)?.Name
                 : null;
 
             var row = new HorizontalStackLayout
@@ -886,7 +888,7 @@ public partial class SeasonSetupPage : ContentPage
             };
 
             var teamName = player.TeamId.HasValue
-                ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId.Value)?.Name
+                ? _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == player.TeamId.Value)?.Name
                 : null;
 
             var row = new HorizontalStackLayout

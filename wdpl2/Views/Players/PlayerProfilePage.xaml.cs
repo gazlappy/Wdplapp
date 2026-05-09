@@ -11,13 +11,15 @@ namespace Wdpl2.Views;
 
 public partial class PlayerProfilePage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<SeasonHistory> _seasonHistory = new();
     private readonly ObservableCollection<HeadToHeadRecord> _headToHead = new();
     private Guid? _globalPlayerId;
     private string _playerName = "";
 
-    public PlayerProfilePage()
+    public PlayerProfilePage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         
         SeasonHistoryList.ItemsSource = _seasonHistory;
@@ -45,7 +47,7 @@ public partial class PlayerProfilePage : ContentPage
 
             // Get all player instances across seasons
             // Include players where GlobalPlayerId matches OR the ID itself matches (for players without GlobalPlayerId)
-            var playerInstances = DataStore.Data.Players
+            var playerInstances = _dataStore.GetData().Players
                 .Where(p => p.GlobalPlayerId == _globalPlayerId || p.Id == _globalPlayerId)
                 .ToList();
 
@@ -57,7 +59,7 @@ public partial class PlayerProfilePage : ContentPage
 
             // Also find players with the same name who might not have GlobalPlayerId set
             var playerName = playerInstances.First().FullName;
-            var additionalPlayers = DataStore.Data.Players
+            var additionalPlayers = _dataStore.GetData().Players
                 .Where(p => !playerInstances.Any(pi => pi.Id == p.Id) && 
                            p.FullName.Equals(playerName, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -66,7 +68,7 @@ public partial class PlayerProfilePage : ContentPage
 
             // Get all seasons this player played in
             var seasonIds = playerInstances.Select(p => p.SeasonId).Distinct().ToList();
-            var seasons = DataStore.Data.Seasons
+            var seasons = _dataStore.GetData().Seasons
                 .Where(s => seasonIds.Contains(s.Id))
                 .OrderByDescending(s => s.StartDate)
                 .ToList();
@@ -103,8 +105,8 @@ public partial class PlayerProfilePage : ContentPage
                 ? $"Career: {seasons.Min(s => s.StartDate.Year)}-{seasons.Max(s => s.StartDate.Year)}"
                 : seasons.Count != 0 ? $"Career: {seasons.First().StartDate.Year}" : "Career: -";
 
-            var currentPlayer = playerInstances.OrderByDescending(p => DataStore.Data.Seasons.FirstOrDefault(s => s.Id == p.SeasonId)?.StartDate).FirstOrDefault();
-            var currentTeam = currentPlayer?.TeamId.HasValue == true ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == currentPlayer.TeamId) : null;
+            var currentPlayer = playerInstances.OrderByDescending(p => _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == p.SeasonId)?.StartDate).FirstOrDefault();
+            var currentTeam = currentPlayer?.TeamId.HasValue == true ? _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == currentPlayer.TeamId) : null;
             CurrentTeamLabel.Text = currentTeam != null ? $"Team: {currentTeam.Name}" : "Team: Free Agent";
 
             TotalFramesLabel.Text = totalFrames.ToString();
@@ -122,7 +124,7 @@ public partial class PlayerProfilePage : ContentPage
             // Calculate head-to-head records (using all player IDs)
             CalculateHeadToHead(playerInstances);
 
-            // Performance stats — form indicator (last 5 league frames)
+            // Performance stats â€” form indicator (last 5 league frames)
             var formString = CalculateForm(allPlayerIds, 5);
             FormLabel.Text = formString.Length > 0 ? formString : "-";
 
@@ -148,7 +150,7 @@ public partial class PlayerProfilePage : ContentPage
 
     private SeasonHistory? CalculateSeasonStats(List<Player> playersInSeason, HashSet<Guid> allPlayerIds, Season season)
     {
-        var fixtures = DataStore.Data.Fixtures
+        var fixtures = _dataStore.GetData().Fixtures
             .Where(f => f.SeasonId == season.Id && f.Frames.Count != 0)
             .ToList();
 
@@ -193,8 +195,8 @@ public partial class PlayerProfilePage : ContentPage
         if (framesPlayed == 0) return null;
 
         var player = playersInSeason.First();
-        var team = player.TeamId.HasValue ? DataStore.Data.Teams.FirstOrDefault(t => t.Id == player.TeamId) : null;
-        var division = team?.DivisionId.HasValue ?? false ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == team.DivisionId) : null;
+        var team = player.TeamId.HasValue ? _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == player.TeamId) : null;
+        var division = team?.DivisionId.HasValue ?? false ? _dataStore.GetData().Divisions.FirstOrDefault(d => d.Id == team.DivisionId) : null;
 
         return new SeasonHistory
         {
@@ -217,7 +219,7 @@ public partial class PlayerProfilePage : ContentPage
         _headToHead.Clear();
 
         var opponentStats = new System.Collections.Generic.Dictionary<Guid, HeadToHeadRecord>();
-        var fixtures = DataStore.Data.Fixtures.Where(f => f.Frames.Count != 0).ToList();
+        var fixtures = _dataStore.GetData().Fixtures.Where(f => f.Frames.Count != 0).ToList();
         var playerIds = new System.Collections.Generic.HashSet<Guid>(playerInstances.Select(p => p.Id));
 
         foreach (var fixture in fixtures)
@@ -240,7 +242,7 @@ public partial class PlayerProfilePage : ContentPage
 
                 if (!opponentId.HasValue) continue;
 
-                var opponent = DataStore.Data.Players.FirstOrDefault(p => p.Id == opponentId.Value);
+                var opponent = _dataStore.GetData().Players.FirstOrDefault(p => p.Id == opponentId.Value);
                 if (opponent == null) continue;
 
                 var globalOpponentId = opponent.GlobalPlayerId ?? opponent.Id;
@@ -314,11 +316,11 @@ public partial class PlayerProfilePage : ContentPage
     /// <summary>
     /// Build a form string showing the last N league frame results (W/L) for the player.
     /// </summary>
-    private static string CalculateForm(HashSet<Guid> playerIds, int count)
+    private string CalculateForm(HashSet<Guid> playerIds, int count)
     {
         var results = new List<char>();
 
-        foreach (var fixture in DataStore.Data.Fixtures.OrderBy(f => f.Date))
+        foreach (var fixture in _dataStore.GetData().Fixtures.OrderBy(f => f.Date))
         {
             foreach (var frame in fixture.Frames)
             {

@@ -10,6 +10,7 @@ namespace Wdpl2.Views;
 
 public partial class WhatIfSimulatorPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<Division> _divisions = new();
     private readonly ObservableCollection<TableRow> _currentStandings = new();
     private readonly ObservableCollection<SimulatedFixture> _remainingFixtures = new();
@@ -17,8 +18,9 @@ public partial class WhatIfSimulatorPage : ContentPage
     private Guid? _currentSeasonId;
     private Division? _selectedDivision;
 
-    public WhatIfSimulatorPage()
+    public WhatIfSimulatorPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         
         DivisionPicker.ItemsSource = _divisions;
@@ -61,7 +63,7 @@ public partial class WhatIfSimulatorPage : ContentPage
         }
 
         _divisions.Clear();
-        var divisions = DataStore.Data.Divisions
+        var divisions = _dataStore.GetData().Divisions
             .Where(d => d.SeasonId == _currentSeasonId)
             .OrderBy(d => d.Name)
             .ToList();
@@ -90,13 +92,13 @@ public partial class WhatIfSimulatorPage : ContentPage
 
         _currentStandings.Clear();
 
-        var teams = DataStore.Data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
-        var fixtures = DataStore.Data.Fixtures
+        var teams = _dataStore.GetData().Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
+        var fixtures = _dataStore.GetData().Fixtures
             .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 
-        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
         var standings = StandingsCalculator.Calculate(teams, fixtures, settings);
 
         var sorted = StandingsSorter.Sort(
@@ -137,10 +139,10 @@ public partial class WhatIfSimulatorPage : ContentPage
 
         _remainingFixtures.Clear();
 
-        var teams = DataStore.Data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
+        var teams = _dataStore.GetData().Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
         var teamIds = teams.Select(t => t.Id).ToHashSet();
         
-        var remaining = DataStore.Data.Fixtures
+        var remaining = _dataStore.GetData().Fixtures
             .Where(f => f.SeasonId == _currentSeasonId)
             .Where(f => f.Frames.Count == 0) // No results yet
             .Where(f => teamIds.Contains(f.HomeTeamId) && teamIds.Contains(f.AwayTeamId))
@@ -172,7 +174,7 @@ public partial class WhatIfSimulatorPage : ContentPage
     {
         if (sender is Button button && button.CommandParameter is SimulatedFixture fixture)
         {
-            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch;
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
@@ -183,7 +185,7 @@ public partial class WhatIfSimulatorPage : ContentPage
     {
         if (sender is Button button && button.CommandParameter is SimulatedFixture fixture)
         {
-            var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch - 2;
             fixture.PredictedAwayScore = settings.DefaultFramesPerMatch;
             fixture.PredictedResult = $"{fixture.PredictedHomeScore}-{fixture.PredictedAwayScore}";
@@ -193,7 +195,7 @@ public partial class WhatIfSimulatorPage : ContentPage
     private void OnAllHomeWinsClicked(object? sender, EventArgs e)
     {
         if (!_currentSeasonId.HasValue) return;
-        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch;
@@ -207,7 +209,7 @@ public partial class WhatIfSimulatorPage : ContentPage
     private void OnAllAwayWinsClicked(object? sender, EventArgs e)
     {
         if (!_currentSeasonId.HasValue) return;
-        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
         foreach (var fixture in _remainingFixtures)
         {
             fixture.PredictedHomeScore = settings.DefaultFramesPerMatch - 2;
@@ -230,15 +232,15 @@ public partial class WhatIfSimulatorPage : ContentPage
 
         _predictedStandings.Clear();
 
-        var teams = DataStore.Data.Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
+        var teams = _dataStore.GetData().Teams.Where(t => t.DivisionId == _selectedDivision.Id).ToList();
 
         // Get actual completed fixtures
-        var completedFixtures = DataStore.Data.Fixtures
+        var completedFixtures = _dataStore.GetData().Fixtures
             .Where(f => f.SeasonId == _currentSeasonId && f.Frames.Count != 0)
             .Where(f => teams.Select(t => t.Id).Contains(f.HomeTeamId) || teams.Select(t => t.Id).Contains(f.AwayTeamId))
             .ToList();
 
-        var settings = DataStore.Data.GetSettingsForSeason(_currentSeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(_currentSeasonId);
         var standings = StandingsCalculator.Calculate(teams, completedFixtures, settings);
         var standingsDict = standings.ToDictionary(s => s.TeamId);
 

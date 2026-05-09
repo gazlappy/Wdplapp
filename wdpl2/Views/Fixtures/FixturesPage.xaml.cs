@@ -14,6 +14,8 @@ namespace Wdpl2.Views;
 
 public partial class FixturesPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
+
     /// <summary>
     /// Set by other pages (e.g. MatchDayDashboardPage) before navigating to the Fixtures tab
     /// to request that a particular fixture be selected once the page appears.
@@ -111,8 +113,8 @@ public partial class FixturesPage : ContentPage
     /// <summary>Returns true (and shows alert) if the selected fixture's season is locked.</summary>
     private async Task<bool> CheckSeasonLockedAsync(string action = "modify")
     {
-        var seasonId = _selectedFixture?.SeasonId ?? DataStore.Data.ActiveSeasonId;
-        if (DataStore.Data.IsSeasonLocked(seasonId))
+        var seasonId = _selectedFixture?.SeasonId ?? _dataStore.GetData().ActiveSeasonId;
+        if (_dataStore.GetData().IsSeasonLocked(seasonId))
         {
             await DisplayAlert($"{Emojis.Lock} Season Locked",
                 $"Cannot {action} — this season is locked. Unlock it from the Seasons page first.", "OK");
@@ -121,10 +123,11 @@ public partial class FixturesPage : ContentPage
         return false;
     }
 
-    public FixturesPage()
+    public FixturesPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         System.Diagnostics.Debug.WriteLine("=== FIXTURES PAGE: Constructor START ===");
-        
+
         InitializeComponent();
 
         // Wire up burger menu and flyout
@@ -795,11 +798,11 @@ public partial class FixturesPage : ContentPage
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("ACTIVE SEASON DIAGNOSTICS\n");
         
-        var activeSeasonId = DataStore.Data.ActiveSeasonId;
+        var activeSeasonId = _dataStore.GetData().ActiveSeasonId;
         sb.AppendLine($"ActiveSeasonId Property: {(activeSeasonId.HasValue ? activeSeasonId.Value.ToString() : "NOT SET")}");
         sb.AppendLine();
         
-        var seasons = DataStore.Data.Seasons ?? new List<Season>();
+        var seasons = _dataStore.GetData().Seasons ?? new List<Season>();
         sb.AppendLine($"Total Seasons: {seasons.Count}");
         sb.AppendLine();
         
@@ -1288,7 +1291,7 @@ public partial class FixturesPage : ContentPage
     {
         _items.Clear();
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         if (data == null) return;
         
         // Load divisions into picker if empty or season changed.
@@ -1432,7 +1435,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        _selectedFixture = DataStore.Data.Fixtures.First(x => x.Id == li.Id);
+        _selectedFixture = _dataStore.GetData().Fixtures.First(x => x.Id == li.Id);
         BuildScorecard();
         UpdateHeader();
         UpdateReminderStatus();
@@ -1501,7 +1504,7 @@ public partial class FixturesPage : ContentPage
         _entryPhase = EntryPhase.HomeLineup;
 
         // Get team info
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var homeTeam = data.Teams.FirstOrDefault(t => t.Id == _selectedFixture.HomeTeamId);
         var awayTeam = data.Teams.FirstOrDefault(t => t.Id == _selectedFixture.AwayTeamId);
         var division = data.Divisions.FirstOrDefault(d => d.Id == _selectedFixture.DivisionId);
@@ -1663,7 +1666,7 @@ public partial class FixturesPage : ContentPage
 
         if (_selectedFixture == null) return;
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         // Get home team players (filter by season to prevent cross-season leakage)
         var fixtureSeasonId = _selectedFixture.SeasonId;
@@ -1921,7 +1924,7 @@ public partial class FixturesPage : ContentPage
 
     private FrameRowData CreateFrameRow(int index, FrameResult fr)
     {
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         // Get existing player names
         string homePlayerName = "";
@@ -2472,7 +2475,7 @@ public partial class FixturesPage : ContentPage
         // Summary text
         if (cancelled != FrameWinner.None)
         {
-            var data = DataStore.Data;
+            var data = _dataStore.GetData();
             var teamId = cancelled == FrameWinner.Home ? _selectedFixture.HomeTeamId : _selectedFixture.AwayTeamId;
             var teamName = data.Teams.FirstOrDefault(t => t.Id == teamId)?.Name ?? (cancelled == FrameWinner.Home ? "Home" : "Away");
             CancelSummary.Text = _selectedFixture.CancellationPenalty > 0
@@ -2497,7 +2500,7 @@ public partial class FixturesPage : ContentPage
         CancelPanel.IsVisible = hasCancel;
 
         // Set team names on buttons
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var homeTeam = data.Teams.FirstOrDefault(t => t.Id == _selectedFixture.HomeTeamId);
         var awayTeam = data.Teams.FirstOrDefault(t => t.Id == _selectedFixture.AwayTeamId);
         CancelHomeBtn.Text = homeTeam?.Name ?? "Home";
@@ -2535,9 +2538,9 @@ public partial class FixturesPage : ContentPage
         // Check for scheduling conflicts
         var conflicts = FixtureValidator.DetectScheduleConflicts(
             fixture,
-            DataStore.Data.Fixtures,
-            DataStore.Data.Teams,
-            DataStore.Data.Venues);
+            _dataStore.GetData().Fixtures,
+            _dataStore.GetData().Teams,
+            _dataStore.GetData().Venues);
 
         if (conflicts.Warnings.Count > 0)
         {
@@ -2547,7 +2550,7 @@ public partial class FixturesPage : ContentPage
             if (!proceed) return;
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         UpdateHeader();
 
         await ScheduleFixtureReminderAsync(fixture);
@@ -2561,7 +2564,7 @@ public partial class FixturesPage : ContentPage
         // Send result notification if enabled
         if (_reminderService != null && fixture.Frames.Count > 0)
         {
-            try { await _reminderService.NotifyMatchResultIfEnabledAsync(fixture, DataStore.Data.GetSettingsForSeason(fixture.SeasonId)); }
+            try { await _reminderService.NotifyMatchResultIfEnabledAsync(fixture, _dataStore.GetData().GetSettingsForSeason(fixture.SeasonId)); }
             catch { /* non-critical */ }
         }
 
@@ -2583,7 +2586,7 @@ public partial class FixturesPage : ContentPage
         _selectedFixture.CancelledByTeam = FrameWinner.None;
         _selectedFixture.CancellationPenalty = 0;
         _selectedFixture.ModifiedDate = DateTime.UtcNow;
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         foreach (var row in _frameRows)
         {
@@ -2641,7 +2644,7 @@ public partial class FixturesPage : ContentPage
     {
         if (await CheckSeasonLockedAsync("reschedule fixtures")) return;
 
-        var league   = DataStore.Data;
+        var league   = _dataStore.GetData();
         var seasonId = league.ActiveSeasonId;
         bool activeOnly = ActiveSeasonOnly?.IsToggled ?? true;
 
@@ -2720,7 +2723,7 @@ public partial class FixturesPage : ContentPage
         var apply = await DisplayAlert("Apply Changes?", sb.ToString().TrimEnd(), "Save", "Cancel");
         if (!apply) return;
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshList();
         CloseFlyout();
 
@@ -2734,7 +2737,7 @@ public partial class FixturesPage : ContentPage
 
     private async System.Threading.Tasks.Task OnExportSchedulePlanAsync()
     {
-        var league   = DataStore.Data;
+        var league   = _dataStore.GetData();
         var seasonId = league.ActiveSeasonId;
         if (!seasonId.HasValue)
         {
@@ -2800,7 +2803,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var league = DataStore.Data;
+        var league = _dataStore.GetData();
         var result = Wdpl2.Services.ScheduleSnapshotService.Apply(league, json);
 
         var sb = new System.Text.StringBuilder();
@@ -2833,7 +2836,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshList();
         CloseFlyout();
         await DisplayAlert($"{Emojis.Success} Done", $"{result.Applied} fixture(s) updated.", "OK");
@@ -2843,7 +2846,7 @@ public partial class FixturesPage : ContentPage
     {
         if (await CheckSeasonLockedAsync("fix clashes")) return;
 
-        var league   = DataStore.Data;
+        var league   = _dataStore.GetData();
         var seasonId = league.ActiveSeasonId;
         bool activeOnly = ActiveSeasonOnly?.IsToggled ?? true;
 
@@ -2913,7 +2916,7 @@ public partial class FixturesPage : ContentPage
         var apply = await DisplayAlert("Apply Changes?", sb.ToString().TrimEnd(), "Save", "Cancel");
         if (!apply) return;
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshList();
         CloseFlyout();
 
@@ -2979,7 +2982,7 @@ public partial class FixturesPage : ContentPage
         };
 
         var conflicts = FixtureValidator.DetectScheduleConflicts(
-            tempFixture, DataStore.Data.Fixtures, DataStore.Data.Teams, DataStore.Data.Venues);
+            tempFixture, _dataStore.GetData().Fixtures, _dataStore.GetData().Teams, _dataStore.GetData().Venues);
 
         if (conflicts.Warnings.Count > 0)
         {
@@ -2991,7 +2994,7 @@ public partial class FixturesPage : ContentPage
 
         _selectedFixture.Date = newDate;
         _selectedFixture.ModifiedDate = DateTime.UtcNow;
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         UpdateHeader();
         RefreshList();
@@ -3035,7 +3038,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
         var seasonTeams = data.Teams
             .Where(t => t.SeasonId == _selectedFixture.SeasonId)
             .OrderBy(t => t.Name)
@@ -3161,7 +3164,7 @@ public partial class FixturesPage : ContentPage
         _selectedFixture.TableId      = newTableId;
         _selectedFixture.DivisionId   = newDivisionId;
         _selectedFixture.ModifiedDate = DateTime.UtcNow;
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         UpdateHeader();
         RefreshList();
@@ -3181,10 +3184,10 @@ public partial class FixturesPage : ContentPage
         try
         {
             var seasonId = _selectedFixture.SeasonId;
-            var players = DataStore.Data.Players.Where(p => p.SeasonId == seasonId).ToList();
-            var teams = DataStore.Data.Teams.Where(t => t.SeasonId == seasonId).ToList();
-            var venues = DataStore.Data.Venues.Where(v => v.SeasonId == seasonId).ToList();
-            var frames = DataStore.Data.GetSettingsForSeason(_selectedFixture.SeasonId).DefaultFramesPerMatch;
+            var players = _dataStore.GetData().Players.Where(p => p.SeasonId == seasonId).ToList();
+            var teams = _dataStore.GetData().Teams.Where(t => t.SeasonId == seasonId).ToList();
+            var venues = _dataStore.GetData().Venues.Where(v => v.SeasonId == seasonId).ToList();
+            var frames = _dataStore.GetData().GetSettingsForSeason(_selectedFixture.SeasonId).DefaultFramesPerMatch;
 
             var html = ExportService.GenerateBlankScorecardHtml(_selectedFixture, teams, players, venues, frames);
             await ExportService.ShareFileAsync(html, $"scorecard_{_selectedFixture.Date:yyyyMMdd}.html", "Blank Scorecard");
@@ -3210,7 +3213,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var settings = DataStore.Data.GetSettingsForSeason(_selectedFixture.SeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(_selectedFixture.SeasonId);
         if (!settings.MatchRemindersEnabled)
         {
             ReminderStatusLabel.Text = $"{Emojis.Warning} Reminders disabled";
@@ -3231,7 +3234,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var tById = DataStore.Data.Teams.ToDictionary(t => t.Id, t => t);
+        var tById = _dataStore.GetData().Teams.ToDictionary(t => t.Id, t => t);
         var home = tById.TryGetValue(_selectedFixture.HomeTeamId, out var ht) ? (ht.Name ?? "Home") : "Home";
         var away = tById.TryGetValue(_selectedFixture.AwayTeamId, out var at) ? (at.Name ?? "Away") : "Away";
 
@@ -3245,12 +3248,12 @@ public partial class FixturesPage : ContentPage
     {
         if (_reminderService == null || fixture.Date <= DateTime.Now) return;
 
-        var settings = DataStore.Data.GetSettingsForSeason(fixture.SeasonId);
+        var settings = _dataStore.GetData().GetSettingsForSeason(fixture.SeasonId);
         if (!settings.MatchRemindersEnabled) return;
 
         try
         {
-            var teamById = DataStore.Data.Teams.ToDictionary(t => t.Id, t => t);
+            var teamById = _dataStore.GetData().Teams.ToDictionary(t => t.Id, t => t);
             var homeTeam = teamById.TryGetValue(fixture.HomeTeamId, out var ht) ? ht.Name : "Home";
             var awayTeam = teamById.TryGetValue(fixture.AwayTeamId, out var at) ? at.Name : "Away";
 
@@ -3316,7 +3319,7 @@ public partial class FixturesPage : ContentPage
             "Delete every fixture in the database?", "Delete All", "Cancel");
         if (!ok) return;
 
-        int removed = DataStore.Data.Fixtures.Count;
+        int removed = _dataStore.GetData().Fixtures.Count;
         
         if (_reminderService != null)
         {
@@ -3324,8 +3327,8 @@ public partial class FixturesPage : ContentPage
             catch { }
         }
         
-        DataStore.Data.Fixtures.Clear();
-        DataStore.Save();
+        _dataStore.GetData().Fixtures.Clear();
+        await _dataStore.SaveAsync();
 
         _selectedFixture = null;
         ClearScorecard();
@@ -3336,7 +3339,7 @@ public partial class FixturesPage : ContentPage
 
     private async System.Threading.Tasks.Task OnDeleteActiveSeasonFixturesAsync()
     {
-        var seasonId = DataStore.Data.ActiveSeasonId;
+        var seasonId = _dataStore.GetData().ActiveSeasonId;
         if (seasonId is null)
         {
             await DisplayAlert($"{Emojis.Info} No Active Season",
@@ -3344,7 +3347,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(seasonId))
+        if (_dataStore.GetData().IsSeasonLocked(seasonId))
         {
             await DisplayAlert($"{Emojis.Lock} Season Locked",
                 "Cannot delete fixtures — this season is locked.", "OK");
@@ -3355,11 +3358,11 @@ public partial class FixturesPage : ContentPage
             "Delete all fixtures in the active season?", "Delete", "Cancel");
         if (!ok) return;
 
-        int before = DataStore.Data.Fixtures.Count;
-        DataStore.Data.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
-        int removed = before - DataStore.Data.Fixtures.Count;
+        int before = _dataStore.GetData().Fixtures.Count;
+        _dataStore.GetData().Fixtures.RemoveAll(f => f.SeasonId == seasonId);
+        int removed = before - _dataStore.GetData().Fixtures.Count;
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
 
         if (_selectedFixture?.SeasonId == seasonId)
         {
@@ -3374,16 +3377,16 @@ public partial class FixturesPage : ContentPage
     private async System.Threading.Tasks.Task OnGenerateFixturesAsync()
     {
         if (await CheckSeasonLockedAsync("generate fixtures")) return;
-        var seasonId = DataStore.Data.ActiveSeasonId;
+        var seasonId = _dataStore.GetData().ActiveSeasonId;
         
         if (seasonId is null)
         {
-            var activeSeason = DataStore.Data.Seasons.FirstOrDefault(s => s.IsActive);
+            var activeSeason = _dataStore.GetData().Seasons.FirstOrDefault(s => s.IsActive);
             if (activeSeason != null)
             {
                 seasonId = activeSeason.Id;
-                DataStore.Data.ActiveSeasonId = seasonId;
-                try { DataStore.Save(); }
+                _dataStore.GetData().ActiveSeasonId = seasonId;
+                try { await _dataStore.SaveAsync(); }
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"FixturesPage: failed to persist recovered ActiveSeasonId: {ex.Message}"); }
             }
         }
@@ -3395,22 +3398,22 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonId);
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == seasonId);
         if (season == null)
         {
             await DisplayAlert("Error", "Season not found.", "OK");
             return;
         }
         
-        var teamCounts = DataStore.Data.Teams
+        var teamCounts = _dataStore.GetData().Teams
             .Where(t => t.SeasonId == seasonId)
             .GroupBy(t => t.DivisionId)
             .Select(g => g.Count())
             .ToList();
 
         // Also count total season teams — handles case where DivisionId isn't set yet
-        var totalSeasonTeams = DataStore.Data.Teams.Count(t => t.SeasonId == seasonId);
-        var seasonDivisions = DataStore.Data.Divisions.Count(d => d.SeasonId == seasonId);
+        var totalSeasonTeams = _dataStore.GetData().Teams.Count(t => t.SeasonId == seasonId);
+        var seasonDivisions = _dataStore.GetData().Divisions.Count(d => d.SeasonId == seasonId);
 
         if (teamCounts.All(x => x < 2) && (totalSeasonTeams < 2 || seasonDivisions == 0))
         {
@@ -3419,7 +3422,7 @@ public partial class FixturesPage : ContentPage
             return;
         }
 
-        var existing = DataStore.Data.Fixtures.Count(f => f.SeasonId == seasonId);
+        var existing = _dataStore.GetData().Fixtures.Count(f => f.SeasonId == seasonId);
         var confirm = await DisplayAlert("Generate Fixtures",
             $"Generate fixtures for '{season.Name}'?" + 
             (existing > 0 ? $"\n\n{existing} existing will be replaced." : ""),
@@ -3429,9 +3432,9 @@ public partial class FixturesPage : ContentPage
 
         try
         {
-            var settings = DataStore.Data.GetSettingsForSeason(seasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(seasonId);
             var fixtures = Services.FixtureGenerator.Generate(
-                league: DataStore.Data,
+                league: _dataStore.GetData(),
                 seasonId: seasonId.Value,
                 startDate: season.StartDate,
                 matchNight: settings.DefaultMatchDay,
@@ -3440,14 +3443,14 @@ public partial class FixturesPage : ContentPage
                 endDate: season.EndDate,
                 blackoutDates: season.BlackoutDates);
 
-            DataStore.Data.Fixtures.RemoveAll(f => f.SeasonId == seasonId);
-            DataStore.Data.Fixtures.AddRange(fixtures);
-            DataStore.Save();
+            _dataStore.GetData().Fixtures.RemoveAll(f => f.SeasonId == seasonId);
+            _dataStore.GetData().Fixtures.AddRange(fixtures);
+            await _dataStore.SaveAsync();
 
             // Detect any scheduling conflicts across the generated fixtures
             var allConflictWarnings = new List<string>();
-            var teams = DataStore.Data.Teams;
-            var venues = DataStore.Data.Venues;
+            var teams = _dataStore.GetData().Teams;
+            var venues = _dataStore.GetData().Venues;
             foreach (var fix in fixtures)
             {
                 var check = FixtureValidator.DetectScheduleConflicts(fix, fixtures, teams, venues);
@@ -3485,7 +3488,7 @@ public partial class FixturesPage : ContentPage
     {
         try
         {
-            var data = DataStore.Data;
+            var data = _dataStore.GetData();
             var seasonId = data.ActiveSeasonId;
             if (!seasonId.HasValue)
             {
@@ -3598,7 +3601,7 @@ public partial class FixturesPage : ContentPage
 
                 if (saved > 0)
                 {
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     RefreshList();
                     await page.DisplayAlert($"{Emojis.Success} Done", $"Saved scores for {saved} fixture(s).", "OK");
                     await Navigation.PopAsync();
@@ -3648,10 +3651,10 @@ public partial class FixturesPage : ContentPage
         // Update FromDate to the active season's start date if available
         if (FromDate != null)
         {
-            var activeSeasonId = DataStore.Data.ActiveSeasonId;
+            var activeSeasonId = _dataStore.GetData().ActiveSeasonId;
             if (activeSeasonId.HasValue)
             {
-                var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == activeSeasonId);
+                var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == activeSeasonId);
                 if (season != null)
                 {
                     // Set to the season start date to show all fixtures

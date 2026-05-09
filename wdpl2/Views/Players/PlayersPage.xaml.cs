@@ -68,6 +68,7 @@ public partial class PlayersPage : ContentPage
         public string Record { get; set; } = "";
     }
 
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<PlayerListItem> _items = new();
     private readonly ObservableCollection<Team> _teams = new();
     private readonly ObservableCollection<HeadToHeadItem> _h2hItems = new();
@@ -84,8 +85,9 @@ public partial class PlayersPage : ContentPage
 
     private static readonly string[] SortOptions = ["A ? Z", "Z ? A", "By Team", "Newest First"];
 
-    public PlayersPage()
+    public PlayersPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         try
         {
             InitializeComponent();
@@ -140,13 +142,13 @@ public partial class PlayersPage : ContentPage
             {
                 try
                 {
-                    if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+                    if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
                     {
                         await DisplayAlert($"{Emojis.Lock} Season Locked",
-                            "Cannot save changes — this season is locked.", "OK");
+                            "Cannot save changes ï¿½ this season is locked.", "OK");
                         return;
                     }
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     await DisplayAlert($"{Emojis.Success} Saved", "All changes saved successfully!", "OK");
                     SetStatus("Saved.");
                 }
@@ -224,7 +226,7 @@ public partial class PlayersPage : ContentPage
             H2HList.IsVisible = true;
 
             SelectedPlayerName.Text = _selected.FullName;
-            var team = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == _selected.TeamId);
+            var team = _dataStore.GetData().Teams?.FirstOrDefault(t => t.Id == _selected.TeamId);
             SelectedPlayerTeam.Text = team?.Name ?? "No team assigned";
 
             List<Guid> seasonIds = new();
@@ -232,12 +234,12 @@ public partial class PlayersPage : ContentPage
             if (selectedSeason != null)
                 seasonIds.Add(selectedSeason.Id);
             else
-                seasonIds = DataStore.Data.Seasons.Select(s => s.Id).ToList();
+                seasonIds = _dataStore.GetData().Seasons.Select(s => s.Id).ToList();
 
             var h2hData = new Dictionary<Guid, HeadToHeadItem>();
             var seasonRecords = new Dictionary<Guid, Dictionary<Guid, (int wins, int losses, int eightBalls)>>();
 
-            var fixtures = DataStore.Data.Fixtures
+            var fixtures = _dataStore.GetData().Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .ToList();
 
@@ -273,7 +275,7 @@ public partial class PlayersPage : ContentPage
 
                         if (!h2hData.ContainsKey(opponentId.Value))
                         {
-                            var opponent = DataStore.Data.Players?.FirstOrDefault(p => p.Id == opponentId.Value);
+                            var opponent = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == opponentId.Value);
                             h2hData[opponentId.Value] = new HeadToHeadItem
                             {
                                 OpponentId = opponentId.Value,
@@ -308,7 +310,7 @@ public partial class PlayersPage : ContentPage
                 {
                     foreach (var seasonKvp in seasons.OrderByDescending(s => s.Key))
                     {
-                        var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == seasonKvp.Key);
+                        var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == seasonKvp.Key);
                         kvp.Value.SeasonBreakdown.Add(new SeasonRecord
                         {
                             SeasonName = season?.Name ?? "Unknown Season",
@@ -327,7 +329,7 @@ public partial class PlayersPage : ContentPage
                 _h2hItems.Add(item);
 
             var winPct = totalFramesPlayed > 0 ? (double)totalWins / totalFramesPlayed * 100.0 : 0;
-            SelectedPlayerStats.Text = $"{totalFramesPlayed} frames • {totalWins}W-{totalFramesPlayed - totalWins}L ({winPct:0.#}%) • {totalEightBalls} 8-balls";
+            SelectedPlayerStats.Text = $"{totalFramesPlayed} frames ï¿½ {totalWins}W-{totalFramesPlayed - totalWins}L ({winPct:0.#}%) ï¿½ {totalEightBalls} 8-balls";
             SetStatus($"Found {_h2hItems.Count} opponent(s)");
         }
         catch (Exception ex)
@@ -368,7 +370,7 @@ public partial class PlayersPage : ContentPage
             _currentSeasonId = SeasonService.Current.CurrentSeasonId;
             if (!_currentSeasonId.HasValue)
             {
-                var activeSeason = DataStore.Data?.Seasons?.FirstOrDefault(s => s.IsActive);
+                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
                 if (activeSeason != null) _currentSeasonId = activeSeason.Id;
             }
             SafeRefreshPlayers(SearchEntry?.Text);
@@ -386,7 +388,7 @@ public partial class PlayersPage : ContentPage
         try
         {
             _h2hSeasons.Clear();
-            foreach (var season in DataStore.Data.Seasons.OrderByDescending(s => s.StartDate))
+            foreach (var season in _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate))
                 _h2hSeasons.Add(season);
 
             if (_currentSeasonId.HasValue)
@@ -407,11 +409,11 @@ public partial class PlayersPage : ContentPage
         {
             _teams.Clear();
             if (!_showAllSeasons && !_currentSeasonId.HasValue) return;
-            if (DataStore.Data?.Teams == null) return;
+            if (_dataStore.GetData()?.Teams == null) return;
 
             var teams = _showAllSeasons
-                ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
-                : DataStore.Data.Teams.Where(t => t != null && t.SeasonId == _currentSeasonId).OrderBy(t => t.Name ?? "").ToList();
+                ? _dataStore.GetData().Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
+                : _dataStore.GetData().Teams.Where(t => t != null && t.SeasonId == _currentSeasonId).OrderBy(t => t.Name ?? "").ToList();
 
             foreach (var t in teams) _teams.Add(t);
         }
@@ -431,19 +433,19 @@ public partial class PlayersPage : ContentPage
                 SetStatus("No season selected - check 'Show all seasons' or activate a season");
                 return;
             }
-            if (DataStore.Data?.Players == null)
+            if (_dataStore.GetData()?.Players == null)
             {
                 SetStatus("No players data available");
                 return;
             }
 
             var teamLookup = _showAllSeasons
-                ? DataStore.Data.Teams?.Where(t => t != null).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>()
-                : DataStore.Data.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>();
+                ? _dataStore.GetData().Teams?.Where(t => t != null).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>()
+                : _dataStore.GetData().Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>();
 
             var playersQuery = _showAllSeasons
-                ? DataStore.Data.Players.Where(p => p != null)
-                : DataStore.Data.Players.Where(p => p != null && p.SeasonId == _currentSeasonId);
+                ? _dataStore.GetData().Players.Where(p => p != null)
+                : _dataStore.GetData().Players.Where(p => p != null && p.SeasonId == _currentSeasonId);
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -485,7 +487,7 @@ public partial class PlayersPage : ContentPage
                 SetStatus($"{_items.Count} player(s) across {players.GroupBy(p => p.SeasonId).Count()} season(s)");
             else if (players.Count != 0)
             {
-                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 SetStatus($"{_items.Count} player(s){(season != null ? $" in {season.Name}" : "")}{(season != null && !season.IsActive ? " (Imported)" : "")}");
             }
             else
@@ -516,7 +518,7 @@ public partial class PlayersPage : ContentPage
                 RefreshHeadToHead();
                 return;
             }
-            _selected = DataStore.Data?.Players?.FirstOrDefault(p => p.Id == item.Id);
+            _selected = _dataStore.GetData()?.Players?.FirstOrDefault(p => p.Id == item.Id);
             if (_selected == null) 
             { 
                 SetStatus("Player not found"); 
@@ -580,7 +582,7 @@ public partial class PlayersPage : ContentPage
             _transferHistory.Add(new TransferHistoryItem
             {
                 TransferSummary = $"{transfer.FromTeamName} ? {transfer.ToTeamName}",
-                TransferDetails = $"{transfer.TransferDate:dd MMM yyyy} • Rating: {transfer.RatingAtTransfer} • {transfer.WinsAtTransfer}W-{transfer.LossesAtTransfer}L ({transfer.FramesPlayedAtTransfer} frames)"
+                TransferDetails = $"{transfer.TransferDate:dd MMM yyyy} ï¿½ Rating: {transfer.RatingAtTransfer} ï¿½ {transfer.WinsAtTransfer}W-{transfer.LossesAtTransfer}L ({transfer.FramesPlayedAtTransfer} frames)"
             });
         }
     }
@@ -603,10 +605,10 @@ public partial class PlayersPage : ContentPage
         try
         {
             if (!_currentSeasonId.HasValue) { SetStatus("Please select a season first"); return; }
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
-                    "Cannot add players — this season is locked.", "OK");
+                    "Cannot add players ï¿½ this season is locked.", "OK");
                 return;
             }
             var first = FirstNameEntry.Text?.Trim() ?? "";
@@ -621,8 +623,8 @@ public partial class PlayersPage : ContentPage
                 TeamId = (TeamPicker.SelectedItem as Team)?.Id,
                 Notes = NotesEntry.Text?.Trim()
             };
-            DataStore.Data.Players.Add(player);
-            DataStore.Save();
+            _dataStore.GetData().Players.Add(player);
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"Added: {player.FullName}");
         }
@@ -634,10 +636,10 @@ public partial class PlayersPage : ContentPage
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
-            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_selected.SeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
-                    "Cannot edit players — this season is locked.", "OK");
+                    "Cannot edit players ï¿½ this season is locked.", "OK");
                 return;
             }
 
@@ -664,7 +666,7 @@ public partial class PlayersPage : ContentPage
             }
             _selected.TeamId = selectedTeam?.Id;
             var updatedName = _selected.FullName;
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             RefreshHeadToHead();
             SetStatus($"Updated: {updatedName}");
@@ -677,17 +679,17 @@ public partial class PlayersPage : ContentPage
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
-            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_selected.SeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
-                    "Cannot delete players — this season is locked.", "OK");
+                    "Cannot delete players ï¿½ this season is locked.", "OK");
                 return;
             }
             if (!await DisplayAlert($"{Emojis.Warning} Delete Player", $"Delete '{_selected.FullName}'?", "Yes", "No")) return;
 
-            DataStore.Data.Players.Remove(_selected);
+            _dataStore.GetData().Players.Remove(_selected);
             _selected = null;
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             ClearEditor();
             RefreshHeadToHead();
@@ -727,10 +729,10 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
-                    "Cannot delete players — this season is locked.", "OK");
+                    "Cannot delete players ï¿½ this season is locked.", "OK");
                 return;
             }
             var selectedItems = PlayersList.SelectedItems?.Cast<PlayerListItem>().ToList();
@@ -744,10 +746,10 @@ public partial class PlayersPage : ContentPage
             int deleted = 0;
             foreach (var item in selectedItems)
             {
-                var player = DataStore.Data?.Players?.FirstOrDefault(p => p.Id == item.Id);
-                if (player != null) { DataStore.Data?.Players?.Remove(player); deleted++; }
+                var player = _dataStore.GetData()?.Players?.FirstOrDefault(p => p.Id == item.Id);
+                if (player != null) { _dataStore.GetData()?.Players?.Remove(player); deleted++; }
             }
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Deleted {deleted} player(s)");
         }
@@ -767,12 +769,12 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var season = DataStore.Data?.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+            var season = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
             var csv = new StringBuilder();
             csv.AppendLine("FirstName,LastName,Team,Active,Notes");
 
-            var players = DataStore.Data?.Players?.Where(p => p != null && p.SeasonId == _currentSeasonId).OrderBy(p => p.LastName ?? "").ToList() ?? new List<Player>();
-            var teamLookup = DataStore.Data?.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "") ?? new Dictionary<Guid, string>();
+            var players = _dataStore.GetData()?.Players?.Where(p => p != null && p.SeasonId == _currentSeasonId).OrderBy(p => p.LastName ?? "").ToList() ?? new List<Player>();
+            var teamLookup = _dataStore.GetData()?.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId).ToDictionary(t => t.Id, t => t.Name ?? "") ?? new Dictionary<Guid, string>();
 
             foreach (var p in players)
             {
@@ -804,7 +806,7 @@ public partial class PlayersPage : ContentPage
 
             var rows = Csv.Read(stream);
             int added = 0, updated = 0;
-            var teams = DataStore.Data?.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId && !string.IsNullOrWhiteSpace(t.Name))
+            var teams = _dataStore.GetData()?.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId && !string.IsNullOrWhiteSpace(t.Name))
                 .ToDictionary(t => t.Name!.Trim(), t => t, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, Team>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var r in rows)
@@ -813,7 +815,7 @@ public partial class PlayersPage : ContentPage
                 var last = r.Get("LastName") ?? "";
                 if (string.IsNullOrWhiteSpace(first) && string.IsNullOrWhiteSpace(last)) continue;
 
-                var existing = DataStore.Data?.Players?.FirstOrDefault(p => p != null && p.SeasonId == _currentSeasonId &&
+                var existing = _dataStore.GetData()?.Players?.FirstOrDefault(p => p != null && p.SeasonId == _currentSeasonId &&
                     string.Equals(p.FirstName, first, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(p.LastName, last, StringComparison.OrdinalIgnoreCase));
 
@@ -833,7 +835,7 @@ public partial class PlayersPage : ContentPage
                         Notes = notes,
                         IsActive = isActive
                     };
-                    DataStore.Data?.Players?.Add(player);
+                    _dataStore.GetData()?.Players?.Add(player);
                     added++;
                 }
                 else
@@ -843,7 +845,7 @@ public partial class PlayersPage : ContentPage
                     updated++;
                 }
             }
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Imported: {added} added, {updated} updated");
         }
@@ -862,10 +864,10 @@ public partial class PlayersPage : ContentPage
                 await DisplayAlert($"{Emojis.Info} No Player Selected", "Please select a player to transfer.", "OK");
                 return;
             }
-            if (DataStore.Data.IsSeasonLocked(_selected.SeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_selected.SeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
-                    "Cannot transfer players — this season is locked.", "OK");
+                    "Cannot transfer players ï¿½ this season is locked.", "OK");
                 return;
             }
             if (!_selected.TeamId.HasValue)
@@ -874,14 +876,14 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var currentTeam = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == _selected.TeamId);
+            var currentTeam = _dataStore.GetData().Teams?.FirstOrDefault(t => t.Id == _selected.TeamId);
             if (currentTeam == null)
             {
                 await DisplayAlert($"{Emojis.Error} Error", "Could not find the player's current team.", "OK");
                 return;
             }
 
-            var availableTeams = DataStore.Data.Teams?
+            var availableTeams = _dataStore.GetData().Teams?
                 .Where(t => t != null && t.SeasonId == _selected.SeasonId && t.Id != currentTeam.Id)
                 .OrderBy(t => t.Name).ToList() ?? new List<Team>();
 
@@ -899,7 +901,7 @@ public partial class PlayersPage : ContentPage
             if (newTeam == null) return;
 
             // Calculate current stats - with null safety
-            int currentRating = DataStore.Data.GetSettingsForSeason(_selected.SeasonId)?.RatingStartValue ?? 1000;
+            int currentRating = _dataStore.GetData().GetSettingsForSeason(_selected.SeasonId)?.RatingStartValue ?? 1000;
             int framesPlayed = 0, wins = 0, losses = 0;
 
             try
@@ -907,15 +909,15 @@ public partial class PlayersPage : ContentPage
                 var seasonIds = new List<Guid>();
                 if (_selected.SeasonId.HasValue) seasonIds.Add(_selected.SeasonId.Value);
 
-                var fixtures = DataStore.Data.Fixtures?.Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty)).ToList() ?? new List<Fixture>();
-                var settings = DataStore.Data.GetSettingsForSeason(_selected.SeasonId);
-                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _selected.SeasonId);
+                var fixtures = _dataStore.GetData().Fixtures?.Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty)).ToList() ?? new List<Fixture>();
+                var settings = _dataStore.GetData().GetSettingsForSeason(_selected.SeasonId);
+                var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _selected.SeasonId);
                 var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
 
                 if (fixtures.Count != 0)
                 {
-                    var allPlayers = DataStore.Data.Players?.ToList() ?? new List<Player>();
-                    var allTeams = DataStore.Data.Teams?.ToList() ?? new List<Team>();
+                    var allPlayers = _dataStore.GetData().Players?.ToList() ?? new List<Player>();
+                    var allTeams = _dataStore.GetData().Teams?.ToList() ?? new List<Team>();
                     
                     var ratings = RatingCalculator.CalculateAllRatings(
                         fixtures, 
@@ -939,7 +941,7 @@ public partial class PlayersPage : ContentPage
             }
 
             var confirmMessage = $"Transfer {_selected.FullName} from {currentTeam.Name} to {newTeam.Name}?\n\n" +
-                                 $"Current Stats:\n• Rating: {currentRating}\n• Frames: {framesPlayed} ({wins}W-{losses}L)\n\n" +
+                                 $"Current Stats:\nï¿½ Rating: {currentRating}\nï¿½ Frames: {framesPlayed} ({wins}W-{losses}L)\n\n" +
                                  $"These stats will be preserved in the transfer history.";
 
             if (!await DisplayAlert("?? Confirm Transfer", confirmMessage, "Transfer", "Cancel")) return;
@@ -965,7 +967,7 @@ public partial class PlayersPage : ContentPage
             var playerName = _selected.FullName;
             var newTeamName = newTeam.Name ?? "Unknown";
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             LoadEditor(_selected);
             RefreshHeadToHead();
@@ -986,7 +988,7 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
                     "Cannot assign players \u2014 this season is locked.", "OK");
@@ -999,7 +1001,7 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var availableTeams = DataStore.Data.Teams?
+            var availableTeams = _dataStore.GetData().Teams?
                 .Where(t => t != null && t.SeasonId == _currentSeasonId)
                 .OrderBy(t => t.Name ?? "").ToList() ?? [];
 
@@ -1011,12 +1013,12 @@ public partial class PlayersPage : ContentPage
 
             var teamNames = availableTeams.Select(t => t.Name ?? "Unknown").ToArray();
             var chosen = await DisplayActionSheet(
-                $"Assign {selectedItems.Count} player(s) to team:", "Cancel", "— No Team —", teamNames);
+                $"Assign {selectedItems.Count} player(s) to team:", "Cancel", "ï¿½ No Team ï¿½", teamNames);
             if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
 
             Guid? newTeamId = null;
             string teamLabel;
-            if (chosen != "— No Team —")
+            if (chosen != "ï¿½ No Team ï¿½")
             {
                 var team = availableTeams.FirstOrDefault(t => t.Name == chosen);
                 if (team == null) return;
@@ -1031,7 +1033,7 @@ public partial class PlayersPage : ContentPage
             int count = 0;
             foreach (var item in selectedItems)
             {
-                var player = DataStore.Data.Players?.FirstOrDefault(p => p.Id == item.Id);
+                var player = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == item.Id);
                 if (player != null)
                 {
                     player.TeamId = newTeamId;
@@ -1039,7 +1041,7 @@ public partial class PlayersPage : ContentPage
                 }
             }
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"{Emojis.Success} Assigned {count} player(s) to {teamLabel}");
         }
@@ -1059,17 +1061,17 @@ public partial class PlayersPage : ContentPage
             var item = label?.BindingContext as PlayerListItem;
             if (item == null) return;
 
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
                     "Cannot change team \u2014 this season is locked.", "OK");
                 return;
             }
 
-            var player = DataStore.Data.Players?.FirstOrDefault(p => p.Id == item.Id);
+            var player = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == item.Id);
             if (player == null) return;
 
-            var availableTeams = DataStore.Data.Teams?
+            var availableTeams = _dataStore.GetData().Teams?
                 .Where(t => t != null && t.SeasonId == player.SeasonId)
                 .OrderBy(t => t.Name ?? "").ToList() ?? [];
 
@@ -1081,10 +1083,10 @@ public partial class PlayersPage : ContentPage
 
             var teamNames = availableTeams.Select(t => t.Name ?? "Unknown").ToArray();
             var chosen = await DisplayActionSheet(
-                $"Assign {player.FullName} to:", "Cancel", "— No Team —", teamNames);
+                $"Assign {player.FullName} to:", "Cancel", "ï¿½ No Team ï¿½", teamNames);
             if (string.IsNullOrEmpty(chosen) || chosen == "Cancel") return;
 
-            if (chosen == "— No Team —")
+            if (chosen == "ï¿½ No Team ï¿½")
             {
                 player.TeamId = null;
             }
@@ -1095,7 +1097,7 @@ public partial class PlayersPage : ContentPage
                 player.TeamId = team.Id;
             }
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
 
             // Re-select in editor if this was the active player

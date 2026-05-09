@@ -328,6 +328,13 @@ public class LeagueContext : DbContext
                 await AddColumnIfMissingAsync(conn, table, "ModifiedDate", $"ALTER TABLE \"{table}\" ADD COLUMN ModifiedDate TEXT");
             }
 
+            // --- Add captain contact + logo columns to Teams (added after initial schema) ---
+            await AddColumnIfMissingAsync(conn, "Teams", "CaptainEmail", "ALTER TABLE \"Teams\" ADD COLUMN CaptainEmail TEXT");
+            await AddColumnIfMissingAsync(conn, "Teams", "CaptainPhone", "ALTER TABLE \"Teams\" ADD COLUMN CaptainPhone TEXT");
+            await AddColumnIfMissingAsync(conn, "Teams", "CaptainPin", "ALTER TABLE \"Teams\" ADD COLUMN CaptainPin TEXT");
+            await AddColumnIfMissingAsync(conn, "Teams", "LogoCatalogId", "ALTER TABLE \"Teams\" ADD COLUMN LogoCatalogId TEXT");
+            await AddColumnIfMissingAsync(conn, "Teams", "GlobalTeamId", "ALTER TABLE \"Teams\" ADD COLUMN GlobalTeamId TEXT");
+
             // Remove the SeasonId FK constraint from Competitions.
             // Seasons live in the JSON store, so the FK always fails.
             // SQLite can't drop constraints, so we recreate the table.

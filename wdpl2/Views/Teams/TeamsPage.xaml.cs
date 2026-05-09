@@ -122,8 +122,11 @@ public partial class TeamsPage : ContentPage
     private Guid? _currentSeasonId;
     private bool _showAllSeasons = false;
 
-    public TeamsPage()
+    private readonly IDataStore _dataStore;
+
+    public TeamsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
 
         TeamsList.ItemsSource = _teamItems;
@@ -151,13 +154,13 @@ public partial class TeamsPage : ContentPage
 
         SaveBtn.Clicked += async (_, __) =>
         {
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                    "Cannot save changes — this season is locked.", "OK");
+                    "Cannot save changes ï¿½ this season is locked.", "OK");
                 return;
             }
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             await DisplayAlert("Saved", "All changes have been saved.", "OK");
             SetStatus("Saved.");
         };
@@ -278,7 +281,7 @@ public partial class TeamsPage : ContentPage
 
             SelectedTeamName.Text = _selectedTeam.Name ?? "Unknown Team";
             
-            var division = DataStore.Data.Divisions?.FirstOrDefault(d => d.Id == _selectedTeam.DivisionId);
+            var division = _dataStore.GetData().Divisions?.FirstOrDefault(d => d.Id == _selectedTeam.DivisionId);
             SelectedTeamDivision.Text = division?.Name ?? "No division assigned";
 
             // Determine which seasons to include
@@ -292,7 +295,7 @@ public partial class TeamsPage : ContentPage
             else
             {
                 // All seasons
-                seasonIds = DataStore.Data.Seasons
+                seasonIds = _dataStore.GetData().Seasons
                     .Select(s => s.Id)
                     .ToList();
             }
@@ -302,7 +305,7 @@ public partial class TeamsPage : ContentPage
             var seasonRecords = new Dictionary<Guid, Dictionary<Guid, (int w, int d, int l, int ff, int fa, int pf, int pa)>>();
 
             // Get all fixtures for the selected seasons involving this team
-            var fixtures = DataStore.Data.Fixtures
+            var fixtures = _dataStore.GetData().Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
                 .Where(f => f.Frames.Count != 0) // Only completed matches
@@ -316,7 +319,7 @@ public partial class TeamsPage : ContentPage
             int totalFramesAgainst = 0;
 
             // Hoisted: settings don't change per fixture (uses the selected team's own season)
-            var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam?.SeasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(_selectedTeam?.SeasonId);
 
             foreach (var fixture in fixtures)
             {
@@ -358,7 +361,7 @@ public partial class TeamsPage : ContentPage
                 // Overall head-to-head
                 if (!h2hData.ContainsKey(opponentId))
                 {
-                    var opponent = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == opponentId);
+                    var opponent = _dataStore.GetData().Teams?.FirstOrDefault(t => t.Id == opponentId);
                     h2hData[opponentId] = new TeamHeadToHeadItem
                     {
                         OpponentId = opponentId,
@@ -404,7 +407,7 @@ public partial class TeamsPage : ContentPage
                 {
                     foreach (var seasonKvp in seasons.OrderByDescending(s => s.Key))
                     {
-                        var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == seasonKvp.Key);
+                        var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == seasonKvp.Key);
                         var record = seasonKvp.Value;
                         kvp.Value.SeasonBreakdown.Add(new TeamSeasonRecord
                         {
@@ -430,7 +433,7 @@ public partial class TeamsPage : ContentPage
             var recordText = totalDraws > 0 
                 ? $"{totalWins}W-{totalDraws}D-{totalLosses}L" 
                 : $"{totalWins}W-{totalLosses}L";
-            SelectedTeamStats.Text = $"{totalMatches} matches • {recordText} ({winPct:0.#}%) • {totalFramesFor}-{totalFramesAgainst} frames";
+            SelectedTeamStats.Text = $"{totalMatches} matches ï¿½ {recordText} ({winPct:0.#}%) ï¿½ {totalFramesFor}-{totalFramesAgainst} frames";
 
             // Refresh team players list
             RefreshTeamPlayers(seasonIds);
@@ -460,7 +463,7 @@ public partial class TeamsPage : ContentPage
             }
 
             // Get players for this team
-            var teamPlayers = DataStore.Data.Players
+            var teamPlayers = _dataStore.GetData().Players
                 .Where(p => p.TeamId == _selectedTeam.Id)
                 .ToList();
 
@@ -471,24 +474,24 @@ public partial class TeamsPage : ContentPage
             }
 
             // Get fixtures for calculating player stats
-            var fixtures = DataStore.Data.Fixtures
+            var fixtures = _dataStore.GetData().Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
                 .Where(f => f.Frames.Count != 0)
                 .ToList();
 
             // Get season start date for rating calculation
-            var settings = DataStore.Data.GetSettingsForSeason(_selectedTeam.SeasonId);
+            var settings = _dataStore.GetData().GetSettingsForSeason(_selectedTeam.SeasonId);
             var season = seasonIds.Count == 1
-                ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == seasonIds[0])
-                : DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _selectedTeam.SeasonId);
+                ? _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == seasonIds[0])
+                : _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _selectedTeam.SeasonId);
             var seasonStartDate = season?.StartDate ?? DateTime.Now.AddMonths(-6);
 
             // Calculate ratings using the shared RatingCalculator
             var allRatings = RatingCalculator.CalculateAllRatings(
                 fixtures,
                 teamPlayers,
-                DataStore.Data.Teams,
+                _dataStore.GetData().Teams,
                 settings,
                 seasonStartDate);
 
@@ -552,7 +555,7 @@ public partial class TeamsPage : ContentPage
                 return;
             }
 
-            var fixtures = DataStore.Data.Fixtures
+            var fixtures = _dataStore.GetData().Fixtures
                 .Where(f => seasonIds.Contains(f.SeasonId ?? Guid.Empty))
                 .Where(f => f.HomeTeamId == _selectedTeam.Id || f.AwayTeamId == _selectedTeam.Id)
                 .OrderBy(f => f.Date)
@@ -568,9 +571,9 @@ public partial class TeamsPage : ContentPage
             {
                 var isHome = f.HomeTeamId == _selectedTeam.Id;
                 var opponentId = isHome ? f.AwayTeamId : f.HomeTeamId;
-                var opponent = DataStore.Data.Teams?.FirstOrDefault(t => t.Id == opponentId);
-                var venue = DataStore.Data.Venues?.FirstOrDefault(v => v.Id == f.VenueId);
-                var division = DataStore.Data.Divisions?.FirstOrDefault(d => d.Id == f.DivisionId);
+                var opponent = _dataStore.GetData().Teams?.FirstOrDefault(t => t.Id == opponentId);
+                var venue = _dataStore.GetData().Venues?.FirstOrDefault(v => v.Id == f.VenueId);
+                var division = _dataStore.GetData().Divisions?.FirstOrDefault(d => d.Id == f.DivisionId);
                 var hasResult = f.Frames.Count > 0;
 
                 var ourScore = isHome ? f.HomeScore : f.AwayScore;
@@ -592,7 +595,7 @@ public partial class TeamsPage : ContentPage
 
             var played = _teamFixtureItems.Count(f => f.HasResult);
             var remaining = _teamFixtureItems.Count - played;
-            TeamFixturesCountLabel.Text = $"{_teamFixtureItems.Count} fixture(s) • {played} played • {remaining} remaining";
+            TeamFixturesCountLabel.Text = $"{_teamFixtureItems.Count} fixture(s) ï¿½ {played} played ï¿½ {remaining} remaining";
         }
         catch (Exception ex)
         {
@@ -653,7 +656,7 @@ public partial class TeamsPage : ContentPage
             // If no season is set, try to use the active season
             if (!_currentSeasonId.HasValue)
             {
-                var activeSeason = DataStore.Data?.Seasons?.FirstOrDefault(s => s.IsActive);
+                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
                 if (activeSeason != null)
                 {
                     _currentSeasonId = activeSeason.Id;
@@ -676,7 +679,7 @@ public partial class TeamsPage : ContentPage
         {
             _h2hSeasons.Clear();
 
-            var seasons = DataStore.Data.Seasons
+            var seasons = _dataStore.GetData().Seasons
                 .OrderByDescending(s => s.StartDate)
                 .ToList();
 
@@ -717,7 +720,7 @@ public partial class TeamsPage : ContentPage
                 return; // This already clears the list since we called _teamItems.Clear() above
             }
 
-            if (DataStore.Data?.Teams == null)
+            if (_dataStore.GetData()?.Teams == null)
             {
                 SetStatus("No teams data available");
                 System.Diagnostics.Debug.WriteLine("   ?? No teams data available");
@@ -728,8 +731,8 @@ public partial class TeamsPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"   ?? Loading teams...");
 
             var teams = _showAllSeasons
-                ? DataStore.Data.Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
-                : DataStore.Data.Teams.Where(t => t != null && _currentSeasonId.HasValue && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
+                ? _dataStore.GetData().Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
+                : _dataStore.GetData().Teams.Where(t => t != null && _currentSeasonId.HasValue && t.SeasonId == _currentSeasonId.Value).OrderBy(t => t.Name ?? "").ToList();
 
             System.Diagnostics.Debug.WriteLine($"   Found {teams.Count} teams");
 
@@ -741,7 +744,7 @@ public partial class TeamsPage : ContentPage
                     .ToList();
             }
 
-            var venueLookup = DataStore.Data.Venues?
+            var venueLookup = _dataStore.GetData().Venues?
                 .Where(v => _showAllSeasons || (v != null && v.SeasonId == _currentSeasonId))
                 .ToDictionary(v => v.Id, v => v)
                 ?? new Dictionary<Guid, Venue>();
@@ -769,7 +772,7 @@ public partial class TeamsPage : ContentPage
             }
             else if (teams.Count != 0)
             {
-                var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+                var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
                 var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
                 SetStatus($"{_teamItems.Count} team(s){seasonInfo}{importedTag}");
@@ -801,16 +804,16 @@ public partial class TeamsPage : ContentPage
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("?? TEAMS DATABASE CHECK\n");
-            sb.AppendLine($"Total Teams: {DataStore.Data.Teams?.Count ?? 0}");
-            sb.AppendLine($"Total Players: {DataStore.Data.Players?.Count ?? 0}");
+            sb.AppendLine($"Total Teams: {_dataStore.GetData().Teams?.Count ?? 0}");
+            sb.AppendLine($"Total Players: {_dataStore.GetData().Players?.Count ?? 0}");
             sb.AppendLine($"Show All Seasons: {_showAllSeasons}");
             sb.AppendLine("\nTeams by season:");
 
-            var teamsList = DataStore.Data.Teams ?? new System.Collections.Generic.List<Team>();
+            var teamsList = _dataStore.GetData().Teams ?? new System.Collections.Generic.List<Team>();
             var grouped = teamsList.GroupBy(t => t.SeasonId).Select(g => new { SeasonId = g.Key, Count = g.Count() });
             foreach (var g in grouped)
             {
-                var season = g.SeasonId.HasValue ? DataStore.Data.Seasons.FirstOrDefault(s => s.Id == g.SeasonId.Value)?.Name : "No season";
+                var season = g.SeasonId.HasValue ? _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == g.SeasonId.Value)?.Name : "No season";
                 sb.AppendLine($"  {season}: {g.Count} (SeasonId: {g.SeasonId})");
             }
 
@@ -846,8 +849,8 @@ public partial class TeamsPage : ContentPage
 
         // If showing all seasons, include every division; otherwise only current season
         var divisions = _showAllSeasons
-            ? DataStore.Data.Divisions.OrderBy(d => d.Name)
-            : DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).OrderBy(d => d.Name);
+            ? _dataStore.GetData().Divisions.OrderBy(d => d.Name)
+            : _dataStore.GetData().Divisions.Where(d => d.SeasonId == _currentSeasonId).OrderBy(d => d.Name);
 
         foreach (var d in divisions)
             _divisions.Add(d);
@@ -858,8 +861,8 @@ public partial class TeamsPage : ContentPage
         _venues.Clear();
 
         var venues = _showAllSeasons
-            ? DataStore.Data.Venues.OrderBy(v => v.Name)
-            : DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
+            ? _dataStore.GetData().Venues.OrderBy(v => v.Name)
+            : _dataStore.GetData().Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
 
         foreach (var v in venues)
             _venues.Add(v);
@@ -870,8 +873,8 @@ public partial class TeamsPage : ContentPage
         _players.Clear();
 
         var players = _showAllSeasons
-            ? DataStore.Data.Players.OrderBy(p => p.FullName)
-            : DataStore.Data.Players.Where(p => p.SeasonId == _currentSeasonId).OrderBy(p => p.FullName);
+            ? _dataStore.GetData().Players.OrderBy(p => p.FullName)
+            : _dataStore.GetData().Players.Where(p => p.SeasonId == _currentSeasonId).OrderBy(p => p.FullName);
 
         foreach (var p in players)
             _players.Add(p);
@@ -885,10 +888,10 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                "Cannot add teams — this season is locked.", "OK");
+                "Cannot add teams ï¿½ this season is locked.", "OK");
             return;
         }
 
@@ -913,8 +916,8 @@ public partial class TeamsPage : ContentPage
             ProvidesFood = FoodSwitch.IsToggled
         };
 
-        DataStore.Data.Teams.Add(team);
-        DataStore.Save();
+        _dataStore.GetData().Teams.Add(team);
+        await _dataStore.SaveAsync();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -927,10 +930,10 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedTeam.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedTeam.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                "Cannot edit teams — this season is locked.", "OK");
+                "Cannot edit teams ï¿½ this season is locked.", "OK");
             return;
         }
 
@@ -949,7 +952,7 @@ public partial class TeamsPage : ContentPage
         _selectedTeam.CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id;
         _selectedTeam.ProvidesFood = FoodSwitch.IsToggled;
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         var updatedName = _selectedTeam.Name; // Store name before RefreshTeamList clears selection
         RefreshTeamList(SearchEntry.Text);
         RefreshHeadToHead(); // Refresh H2H with updated team info
@@ -969,7 +972,7 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        _selectedTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
+        _selectedTeam = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == item.Id);
         if (_selectedTeam == null)
         {
             SetStatus("Team not found");
@@ -996,19 +999,19 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedTeam.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedTeam.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                "Cannot delete teams — this season is locked.", "OK");
+                "Cannot delete teams ï¿½ this season is locked.", "OK");
             return;
         }
 
         var confirm = await DisplayAlert("Delete Team", $"Delete '{_selectedTeam.Name}'?", "Yes", "No");
         if (!confirm) return;
 
-        DataStore.Data.Teams.Remove(_selectedTeam);
+        _dataStore.GetData().Teams.Remove(_selectedTeam);
         _selectedTeam = null;
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshTeamList(SearchEntry.Text);
         ClearEditor();
         RefreshHeadToHead();
@@ -1049,10 +1052,10 @@ public partial class TeamsPage : ContentPage
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
-        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                "Cannot delete teams — this season is locked.", "OK");
+                "Cannot delete teams ï¿½ this season is locked.", "OK");
             return;
         }
 
@@ -1070,15 +1073,15 @@ public partial class TeamsPage : ContentPage
         int deleted = 0;
         foreach (var item in selectedItems)
         {
-            var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
+            var team = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == item.Id);
             if (team != null)
             {
-                DataStore.Data.Teams.Remove(team);
+                _dataStore.GetData().Teams.Remove(team);
                 deleted++;
             }
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Deleted {deleted} team(s)");
     }
@@ -1087,7 +1090,7 @@ public partial class TeamsPage : ContentPage
     {
         try
         {
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                     "Cannot assign divisions \u2014 this season is locked.", "OK");
@@ -1101,7 +1104,7 @@ public partial class TeamsPage : ContentPage
                 return;
             }
 
-            var availableDivisions = DataStore.Data.Divisions
+            var availableDivisions = _dataStore.GetData().Divisions
                 .Where(d => d.SeasonId == _currentSeasonId)
                 .OrderBy(d => d.Name)
                 .ToList();
@@ -1134,7 +1137,7 @@ public partial class TeamsPage : ContentPage
             int count = 0;
             foreach (var item in selectedItems)
             {
-                var team = DataStore.Data.Teams.FirstOrDefault(t => t.Id == item.Id);
+                var team = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == item.Id);
                 if (team != null)
                 {
                     team.DivisionId = newDivisionId;
@@ -1142,7 +1145,7 @@ public partial class TeamsPage : ContentPage
                 }
             }
 
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             RefreshTeamList(SearchEntry?.Text);
 
             if (_selectedTeam != null)
@@ -1164,14 +1167,14 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot modify teams \u2014 this season is locked.", "OK");
             return;
         }
 
-        var divisions = DataStore.Data.Divisions
+        var divisions = _dataStore.GetData().Divisions
             .Where(d => d.SeasonId == _currentSeasonId)
             .OrderBy(d => d.Name)
             .ToList();
@@ -1183,7 +1186,7 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        var teams = DataStore.Data.Teams
+        var teams = _dataStore.GetData().Teams
             .Where(t => t.SeasonId == _currentSeasonId)
             .ToList();
 
@@ -1233,7 +1236,7 @@ public partial class TeamsPage : ContentPage
         for (int i = 0; i < shuffled.Count; i++)
             shuffled[i].DivisionId = divisions[i % divisions.Count].Id;
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshTeamList(SearchEntry.Text);
 
         if (_selectedTeam != null)
@@ -1250,21 +1253,21 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
         var csv = new System.Text.StringBuilder();
         csv.AppendLine("Name,Division,Venue,Table,Captain,ProvidesFood");
 
         var teams = _showAllSeasons
-            ? DataStore.Data.Teams.OrderBy(t => t.Name)
-            : DataStore.Data.Teams.Where(t => t.SeasonId == _currentSeasonId).OrderBy(t => t.Name);
+            ? _dataStore.GetData().Teams.OrderBy(t => t.Name)
+            : _dataStore.GetData().Teams.Where(t => t.SeasonId == _currentSeasonId).OrderBy(t => t.Name);
 
         foreach (var t in teams)
         {
-            var div = t.DivisionId.HasValue ? DataStore.Data.Divisions.FirstOrDefault(d => d.Id == t.DivisionId)?.Name : "";
-            var venue = t.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == t.VenueId)?.Name : "";
-            var venueObj = t.VenueId.HasValue ? DataStore.Data.Venues.FirstOrDefault(v => v.Id == t.VenueId) : null;
+            var div = t.DivisionId.HasValue ? _dataStore.GetData().Divisions.FirstOrDefault(d => d.Id == t.DivisionId)?.Name : "";
+            var venue = t.VenueId.HasValue ? _dataStore.GetData().Venues.FirstOrDefault(v => v.Id == t.VenueId)?.Name : "";
+            var venueObj = t.VenueId.HasValue ? _dataStore.GetData().Venues.FirstOrDefault(v => v.Id == t.VenueId) : null;
             var table = venueObj != null && t.TableId.HasValue ? venueObj.Tables.FirstOrDefault(tb => tb.Id == t.TableId)?.Label : "";
-            var captain = t.CaptainPlayerId.HasValue ? DataStore.Data.Players.FirstOrDefault(p => p.Id == t.CaptainPlayerId)?.FullName : "";
+            var captain = t.CaptainPlayerId.HasValue ? _dataStore.GetData().Players.FirstOrDefault(p => p.Id == t.CaptainPlayerId)?.FullName : "";
 
             csv.AppendLine($"\"{t.Name}\",\"{div}\",\"{venue}\",\"{table}\",\"{captain}\",{t.ProvidesFood}");
         }
@@ -1289,15 +1292,15 @@ public partial class TeamsPage : ContentPage
         var rows = Csv.Read(stream);
         int added = 0, updated = 0;
 
-        var divisions = DataStore.Data.Divisions.Where(d => d.SeasonId == _currentSeasonId).ToDictionary(d => (d.Name ?? "").Trim(), d => d, StringComparer.OrdinalIgnoreCase);
-        var venues = DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).ToDictionary(v => (v.Name ?? "").Trim(), v => v, StringComparer.OrdinalIgnoreCase);
+        var divisions = _dataStore.GetData().Divisions.Where(d => d.SeasonId == _currentSeasonId).ToDictionary(d => (d.Name ?? "").Trim(), d => d, StringComparer.OrdinalIgnoreCase);
+        var venues = _dataStore.GetData().Venues.Where(v => v.SeasonId == _currentSeasonId).ToDictionary(v => (v.Name ?? "").Trim(), v => v, StringComparer.OrdinalIgnoreCase);
 
         foreach (var r in rows)
         {
             var name = r.Get("Name");
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            var existing = DataStore.Data.Teams.FirstOrDefault(t => t.SeasonId == _currentSeasonId && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            var existing = _dataStore.GetData().Teams.FirstOrDefault(t => t.SeasonId == _currentSeasonId && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
 
             var divName = r.Get("Division");
             var venueName = r.Get("Venue");
@@ -1313,7 +1316,7 @@ public partial class TeamsPage : ContentPage
                     VenueId = venues.TryGetValue(venueName ?? "", out var ven) ? ven.Id : null,
                     ProvidesFood = providesFood
                 };
-                DataStore.Data.Teams.Add(team);
+                _dataStore.GetData().Teams.Add(team);
                 added++;
             }
             else
@@ -1325,7 +1328,7 @@ public partial class TeamsPage : ContentPage
             }
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshTeamList(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }

@@ -14,6 +14,7 @@ namespace Wdpl2.Views;
 
 public partial class VenuesPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private readonly ObservableCollection<Venue> _venues = new();
     private readonly ObservableCollection<VenueTable> _tables = new();
 
@@ -21,8 +22,9 @@ public partial class VenuesPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
 
-    public VenuesPage()
+    public VenuesPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
 
         VenuesList.ItemsSource = _venues;
@@ -42,13 +44,13 @@ public partial class VenuesPage : ContentPage
 
         SaveBtn.Clicked += async (_, __) =>
         {
-            if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
             {
                 await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                     "Cannot save changes — this season is locked.", "OK");
                 return;
             }
-            DataStore.Save();
+            await _dataStore.SaveAsync();
             await DisplayAlert("Saved", "All changes saved.", "OK");
             SetStatus("Saved.");
         };
@@ -120,7 +122,7 @@ public partial class VenuesPage : ContentPage
             // If no season is set, try to use the active season
             if (!_currentSeasonId.HasValue)
             {
-                var activeSeason = DataStore.Data?.Seasons?.FirstOrDefault(s => s.IsActive);
+                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
                 if (activeSeason != null)
                 {
                     _currentSeasonId = activeSeason.Id;
@@ -153,7 +155,7 @@ public partial class VenuesPage : ContentPage
                 return; // List is already cleared
             }
 
-            if (DataStore.Data?.Venues == null)
+            if (_dataStore.GetData()?.Venues == null)
             {
                 SetStatus("No venues data available");
                 System.Diagnostics.Debug.WriteLine("   ?? No venues data available");
@@ -163,7 +165,7 @@ public partial class VenuesPage : ContentPage
 
             System.Diagnostics.Debug.WriteLine($"   ?? Loading venues...");
 
-            var venues = DataStore.Data.Venues
+            var venues = _dataStore.GetData().Venues
                 .Where(v => v != null && v.SeasonId == _currentSeasonId.Value)
                 .OrderBy(v => v.Name ?? "")
                 .ToList();
@@ -181,7 +183,7 @@ public partial class VenuesPage : ContentPage
             foreach (var v in venues)
                 _venues.Add(v);
 
-            var season = DataStore.Data.Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
+            var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
             var seasonInfo = season != null ? $" in {season.Name}" : "";
             var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
             SetStatus($"{_venues.Count} venue(s){seasonInfo}{importedTag}");
@@ -242,7 +244,7 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot add venues — this season is locked.", "OK");
@@ -265,8 +267,8 @@ public partial class VenuesPage : ContentPage
             Tables = new System.Collections.Generic.List<VenueTable>()
         };
 
-        DataStore.Data.Venues.Add(venue);
-        DataStore.Save();
+        _dataStore.GetData().Venues.Add(venue);
+        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -279,7 +281,7 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedVenue.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot edit venues — this season is locked.", "OK");
@@ -291,7 +293,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Notes = NotesEntry.Text?.Trim();
 
         string venueName = _selectedVenue.Name; // Store name before refresh
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Updated: {venueName}");
     }
@@ -304,7 +306,7 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedVenue.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot delete venues — this season is locked.", "OK");
@@ -314,9 +316,9 @@ public partial class VenuesPage : ContentPage
         var confirm = await DisplayAlert("Delete Venue", $"Delete '{_selectedVenue.Name}'?", "Yes", "No");
         if (!confirm) return;
 
-        DataStore.Data.Venues.Remove(_selectedVenue);
+        _dataStore.GetData().Venues.Remove(_selectedVenue);
         _selectedVenue = null;
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         ClearEditor();
         SetStatus("Deleted");
@@ -330,7 +332,7 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedVenue.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot add tables — this season is locked.", "OK");
@@ -353,7 +355,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Tables.Add(table);
         _tables.Add(table);
         NewTableEntry.Text = "";
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         SetStatus($"Added table: {tableName}");
     }
 
@@ -366,7 +368,7 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        if (DataStore.Data.IsSeasonLocked(_selectedVenue.SeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_selectedVenue.SeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot remove tables — this season is locked.", "OK");
@@ -375,7 +377,7 @@ public partial class VenuesPage : ContentPage
 
         _selectedVenue.Tables.Remove(selectedTable);
         _tables.Remove(selectedTable);
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         SetStatus($"Removed table: {selectedTable.Label}");
     }
 
@@ -420,7 +422,7 @@ public partial class VenuesPage : ContentPage
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
-        if (DataStore.Data.IsSeasonLocked(_currentSeasonId))
+        if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
                 "Cannot delete venues — this season is locked.", "OK");
@@ -446,11 +448,11 @@ public partial class VenuesPage : ContentPage
         int deleted = 0;
         foreach (var item in selectedItems)
         {
-            DataStore.Data.Venues.Remove(item);
+            _dataStore.GetData().Venues.Remove(item);
             deleted++;
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Deleted {deleted} venue(s)");
     }
@@ -463,11 +465,11 @@ public partial class VenuesPage : ContentPage
             return;
         }
 
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
         var csv = new StringBuilder();
         csv.AppendLine("Name,Address,Notes,Tables");
 
-        var venues = DataStore.Data.Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
+        var venues = _dataStore.GetData().Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
 
         foreach (var v in venues)
         {
@@ -504,7 +506,7 @@ public partial class VenuesPage : ContentPage
             var name = r.Get("Name");
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            var existing = DataStore.Data.Venues.FirstOrDefault(v =>
+            var existing = _dataStore.GetData().Venues.FirstOrDefault(v =>
                 v.SeasonId == _currentSeasonId &&
                 string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
 
@@ -531,7 +533,7 @@ public partial class VenuesPage : ContentPage
                     }
                 }
 
-                DataStore.Data.Venues.Add(venue);
+                _dataStore.GetData().Venues.Add(venue);
                 added++;
             }
             else
@@ -552,7 +554,7 @@ public partial class VenuesPage : ContentPage
             }
         }
 
-        DataStore.Save();
+        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }
@@ -573,7 +575,7 @@ public partial class VenuesPage : ContentPage
         VenueCapacity.Text = venue.Tables.Sum(t => t.MaxTeams).ToString();
         
         // Get teams at this venue
-        var teamsAtVenue = DataStore.Data?.Teams?
+        var teamsAtVenue = _dataStore.GetData()?.Teams?
             .Where(t => t.VenueId == venue.Id && t.SeasonId == _currentSeasonId)
             .OrderBy(t => t.Name)
             .ToList() ?? new List<Team>();
@@ -582,7 +584,7 @@ public partial class VenuesPage : ContentPage
         VenueTeamsDisplay.ItemsSource = teamsAtVenue;
         
         // Get fixtures at this venue
-        var fixturesAtVenue = DataStore.Data?.Fixtures?
+        var fixturesAtVenue = _dataStore.GetData()?.Fixtures?
             .Where(f => f.VenueId == venue.Id && f.SeasonId == _currentSeasonId)
             .Count() ?? 0;
         

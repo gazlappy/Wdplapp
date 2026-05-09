@@ -53,7 +53,9 @@ public partial class AnalyticsHubPage : ContentPage
 
     private async void OnWhatIfClicked(object? sender, System.EventArgs e)
     {
-        await Navigation.PushAsync(new WhatIfSimulatorPage());
+        var page = Application.Current?.Handler?.MauiContext?.Services.GetService<WhatIfSimulatorPage>()
+            ?? throw new System.InvalidOperationException("WhatIfSimulatorPage not registered");
+        await Navigation.PushAsync(page);
     }
 
     private async void OnSeasonComparisonClicked(object? sender, System.EventArgs e)

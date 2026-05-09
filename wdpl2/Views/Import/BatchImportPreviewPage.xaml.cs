@@ -11,6 +11,7 @@ namespace Wdpl2.Views;
 
 public partial class BatchImportPreviewPage : ContentPage
 {
+    private readonly IDataStore _dataStore;
     private BatchImportPreview? _batchPreview;
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<ImportFilePreview> _files = new();
@@ -66,10 +67,11 @@ public partial class BatchImportPreviewPage : ContentPage
         public bool ShouldMerge { get; set; } = false;
     }
 
-    public BatchImportPreviewPage()
+    public BatchImportPreviewPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
-        
+
         SeasonPicker.ItemsSource = _seasons;
         FilesList.ItemsSource = _files;
     }
@@ -487,7 +489,7 @@ public partial class BatchImportPreviewPage : ContentPage
     private void LoadSeasons()
     {
         _seasons.Clear();
-        var seasons = DataStore.Data?.Seasons;
+        var seasons = _dataStore.GetData()?.Seasons;
         if (seasons == null || seasons.Count == 0) return;
 
         foreach (var season in seasons.OrderByDescending(s => s.StartDate))
@@ -651,8 +653,8 @@ public partial class BatchImportPreviewPage : ContentPage
         if (string.IsNullOrWhiteSpace(seasonName)) return;
 
         var season = new Season { Id = Guid.NewGuid(), Name = seasonName, StartDate = DateTime.Now, IsActive = false };
-        DataStore.Data.Seasons.Add(season);
-        DataStore.Save();
+        _dataStore.GetData().Seasons.Add(season);
+        await _dataStore.SaveAsync();
         _seasons.Add(season);
         SeasonPicker.SelectedItem = season;
         await DisplayAlert("Success", $"Created season: {seasonName}", "OK");
@@ -738,7 +740,7 @@ public partial class BatchImportPreviewPage : ContentPage
 
             if (result.Success)
             {
-                DataStore.Save();
+                await _dataStore.SaveAsync();
                 DataStore.ClearPreImportSnapshot();
                 await DisplayAlert("Batch Import Complete!", result.Summary, "OK");
                 await Navigation.PopAsync();
@@ -767,7 +769,7 @@ public partial class BatchImportPreviewPage : ContentPage
     private async Task<ImportResult> ImportAggregatedDataAsync(Guid seasonId)
     {
         var result = new ImportResult();
-        var data = DataStore.Data;
+        var data = _dataStore.GetData();
 
         try
         {

@@ -32,8 +32,11 @@ public partial class HistoricalImportPage : ContentPage
         SqlFile
     }
 
-    public HistoricalImportPage()
+    private readonly IDataStore _dataStore;
+
+    public HistoricalImportPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
         SelectedFilesList.ItemsSource = _selectedFiles;
     }
@@ -864,13 +867,13 @@ public partial class HistoricalImportPage : ContentPage
             if (summary.Success)
             {
                 // Merge imported data into the main DataStore
-                DataStore.Data.Seasons.AddRange(data.Seasons);
-                DataStore.Data.Divisions.AddRange(data.Divisions);
-                DataStore.Data.Venues.AddRange(data.Venues);
-                DataStore.Data.Teams.AddRange(data.Teams);
-                DataStore.Data.Players.AddRange(data.Players);
-                DataStore.Data.Fixtures.AddRange(data.Fixtures);
-                DataStore.Save();
+                _dataStore.GetData().Seasons.AddRange(data.Seasons);
+                _dataStore.GetData().Divisions.AddRange(data.Divisions);
+                _dataStore.GetData().Venues.AddRange(data.Venues);
+                _dataStore.GetData().Teams.AddRange(data.Teams);
+                _dataStore.GetData().Players.AddRange(data.Players);
+                _dataStore.GetData().Fixtures.AddRange(data.Fixtures);
+                await _dataStore.SaveAsync();
                 DataStore.ClearPreImportSnapshot();
 
                 ShowSuccessResult("Access Database Imported", summary.Summary);
@@ -907,7 +910,8 @@ public partial class HistoricalImportPage : ContentPage
 
         // Navigate to preview page � it handles its own navigation
         // back when the user completes or cancels the import
-        var previewPage = new ImportPreviewPage();
+        var previewPage = Application.Current?.Handler?.MauiContext?.Services.GetService<ImportPreviewPage>()
+            ?? throw new InvalidOperationException("ImportPreviewPage not registered");
         await Navigation.PushAsync(previewPage);
         await previewPage.LoadPreviewAsync(file.FilePath);
     }
@@ -964,7 +968,7 @@ public partial class HistoricalImportPage : ContentPage
                         }
                     }
 
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     DataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("Spreadsheet Imported", 
                         $"Successfully processed {result.Tables.Count} tables:\n" +
@@ -1077,7 +1081,7 @@ public partial class HistoricalImportPage : ContentPage
                     if (importStats.FixturesImported > 0) resultSummary.AppendLine($"� Fixtures: {importStats.FixturesImported}");
                     if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"� Competitions: {importStats.CompetitionsImported}");
 
-                    DataStore.Save();
+                    await _dataStore.SaveAsync();
                     DataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("HTML Imported", resultSummary.ToString());
                 }
@@ -1111,7 +1115,8 @@ public partial class HistoricalImportPage : ContentPage
 
         // Navigate to batch preview page
         var filePaths = _selectedFiles.Select(f => f.FilePath).ToList();
-        var batchPreviewPage = new BatchImportPreviewPage();
+        var batchPreviewPage = Application.Current?.Handler?.MauiContext?.Services.GetService<BatchImportPreviewPage>()
+            ?? throw new InvalidOperationException("BatchImportPreviewPage not registered");
         await Navigation.PushAsync(batchPreviewPage);
         
         // Load the preview - the page will handle its own navigation when import is complete or cancelled
@@ -1196,7 +1201,7 @@ public partial class HistoricalImportPage : ContentPage
 
                     if (importResult.success)
                     {
-                        DataStore.Save();
+                        await _dataStore.SaveAsync();
                         DataStore.ClearPreImportSnapshot();
                         ShowSuccessResult("PDF Imported", importResult.message);
                     }
@@ -1367,7 +1372,7 @@ public partial class HistoricalImportPage : ContentPage
         var venueCol = FindColumnIndex(headerRow, "venue", "pub", "home");
 
         // Get or create a default division for this season
-        var division = DataStore.Data.Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
+        var division = _dataStore.GetData().Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
         if (division == null)
         {
             division = new Division
@@ -1376,7 +1381,7 @@ public partial class HistoricalImportPage : ContentPage
                 SeasonId = currentSeasonId,
                 Name = "Imported Division"
             };
-            DataStore.Data.Divisions.Add(division);
+            _dataStore.GetData().Divisions.Add(division);
         }
 
         foreach (var row in dataRows)
@@ -1387,7 +1392,7 @@ public partial class HistoricalImportPage : ContentPage
             if (string.IsNullOrWhiteSpace(teamName)) continue;
 
             // Check if team already exists in this season
-            var existingTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+            var existingTeam = _dataStore.GetData().Teams.FirstOrDefault(t =>
                 t.SeasonId == currentSeasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
                 t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
@@ -1402,7 +1407,7 @@ public partial class HistoricalImportPage : ContentPage
                 var venueName = row[venueCol]?.Trim();
                 if (!string.IsNullOrWhiteSpace(venueName))
                 {
-                    var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                    var existingVenue = _dataStore.GetData().Venues.FirstOrDefault(v =>
                         v.SeasonId == currentSeasonId &&
                         !string.IsNullOrWhiteSpace(v.Name) &&
                         v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
@@ -1415,7 +1420,7 @@ public partial class HistoricalImportPage : ContentPage
                             Name = venueName,
                             SeasonId = currentSeasonId
                         };
-                        DataStore.Data.Venues.Add(venue);
+                        _dataStore.GetData().Venues.Add(venue);
                         venueId = venue.Id;
                         stats.VenuesImported++;
                     }
@@ -1434,7 +1439,7 @@ public partial class HistoricalImportPage : ContentPage
                 DivisionId = division.Id,
                 VenueId = venueId
             };
-            DataStore.Data.Teams.Add(team);
+            _dataStore.GetData().Teams.Add(team);
             stats.TeamsImported++;
         }
 
@@ -1465,7 +1470,7 @@ public partial class HistoricalImportPage : ContentPage
             var lastName = string.Join(" ", nameParts.Skip(1));
 
             // Check if player already exists in this season
-            var existingPlayer = DataStore.Data.Players.FirstOrDefault(p =>
+            var existingPlayer = _dataStore.GetData().Players.FirstOrDefault(p =>
                 p.SeasonId == currentSeasonId &&
                 p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
                 p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true);
@@ -1479,7 +1484,7 @@ public partial class HistoricalImportPage : ContentPage
                 var teamName = row[teamCol]?.Trim();
                 if (!string.IsNullOrWhiteSpace(teamName))
                 {
-                    var team = DataStore.Data.Teams.FirstOrDefault(t =>
+                    var team = _dataStore.GetData().Teams.FirstOrDefault(t =>
                         t.SeasonId == currentSeasonId &&
                         !string.IsNullOrWhiteSpace(t.Name) &&
                         t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
@@ -1495,7 +1500,7 @@ public partial class HistoricalImportPage : ContentPage
                 LastName = lastName,
                 TeamId = teamId
             };
-            DataStore.Data.Players.Add(player);
+            _dataStore.GetData().Players.Add(player);
             stats.PlayersImported++;
         }
 
@@ -1519,7 +1524,7 @@ public partial class HistoricalImportPage : ContentPage
             if (string.IsNullOrWhiteSpace(venueName)) continue;
             
             // Check if venue already exists
-            var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+            var existingVenue = _dataStore.GetData().Venues.FirstOrDefault(v =>
                 v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
             
             if (existingVenue == null)
@@ -1541,7 +1546,7 @@ public partial class HistoricalImportPage : ContentPage
                     }
                 }
                 
-                DataStore.Data.Venues.Add(venue);
+                _dataStore.GetData().Venues.Add(venue);
                 stats.VenuesImported++;
             }
         }
@@ -1555,7 +1560,7 @@ public partial class HistoricalImportPage : ContentPage
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         // Get or create a default division
-        var division = DataStore.Data.Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
+        var division = _dataStore.GetData().Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
         if (division == null)
         {
             division = new Division
@@ -1564,7 +1569,7 @@ public partial class HistoricalImportPage : ContentPage
                 SeasonId = currentSeasonId,
                 Name = "Imported Division"
             };
-            DataStore.Data.Divisions.Add(division);
+            _dataStore.GetData().Divisions.Add(division);
         }
 
         foreach (var standing in standings)
@@ -1572,7 +1577,7 @@ public partial class HistoricalImportPage : ContentPage
             if (string.IsNullOrWhiteSpace(standing.TeamName)) continue;
 
             // Check if team already exists in this season
-            var existingTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+            var existingTeam = _dataStore.GetData().Teams.FirstOrDefault(t =>
                 t.SeasonId == currentSeasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
                 t.Name.Equals(standing.TeamName, StringComparison.OrdinalIgnoreCase));
@@ -1586,7 +1591,7 @@ public partial class HistoricalImportPage : ContentPage
                 Name = standing.TeamName,
                 DivisionId = division.Id
             };
-            DataStore.Data.Teams.Add(team);
+            _dataStore.GetData().Teams.Add(team);
             stats.TeamsImported++;
         }
 
@@ -1604,12 +1609,12 @@ public partial class HistoricalImportPage : ContentPage
                 continue;
 
             // Find home and away teams
-            var homeTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+            var homeTeam = _dataStore.GetData().Teams.FirstOrDefault(t =>
                 t.SeasonId == currentSeasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
                 t.Name.Equals(matchResult.HomeTeam, StringComparison.OrdinalIgnoreCase));
 
-            var awayTeam = DataStore.Data.Teams.FirstOrDefault(t =>
+            var awayTeam = _dataStore.GetData().Teams.FirstOrDefault(t =>
                 t.SeasonId == currentSeasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
                 t.Name.Equals(matchResult.AwayTeam, StringComparison.OrdinalIgnoreCase));
@@ -1619,7 +1624,7 @@ public partial class HistoricalImportPage : ContentPage
             var fixtureDate = matchResult.Date ?? DateTime.Today;
 
             // Check for duplicate fixture
-            var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
+            var existingFixture = _dataStore.GetData().Fixtures.FirstOrDefault(f =>
                 f.SeasonId == currentSeasonId &&
                 f.Date.Date == fixtureDate.Date &&
                 f.HomeTeamId == homeTeam.Id &&
@@ -1635,7 +1640,7 @@ public partial class HistoricalImportPage : ContentPage
                 HomeTeamId = homeTeam.Id,
                 AwayTeamId = awayTeam.Id
             };
-            DataStore.Data.Fixtures.Add(fixture);
+            _dataStore.GetData().Fixtures.Add(fixture);
             stats.FixturesImported++;
         }
 
@@ -1653,12 +1658,12 @@ public partial class HistoricalImportPage : ContentPage
             return Task.CompletedTask;
         }
 
-        DataStore.Data.Competitions ??= new List<Competition>();
+        _dataStore.GetData().Competitions ??= new List<Competition>();
 
         foreach (var detected in detectedCompetitions)
         {
             // Check if competition with same name already exists in this season
-            var existing = DataStore.Data.Competitions.FirstOrDefault(c =>
+            var existing = _dataStore.GetData().Competitions.FirstOrDefault(c =>
                 c.SeasonId == currentSeasonId &&
                 !string.IsNullOrWhiteSpace(c.Name) &&
                 c.Name.Equals(detected.Name, StringComparison.OrdinalIgnoreCase));
@@ -1751,7 +1756,7 @@ public partial class HistoricalImportPage : ContentPage
                 competition.Rounds.Add(finalRound);
             }
 
-            DataStore.Data.Competitions.Add(competition);
+            _dataStore.GetData().Competitions.Add(competition);
             stats.CompetitionsImported++;
         }
 
@@ -1770,7 +1775,7 @@ public partial class HistoricalImportPage : ContentPage
         var lastName = nameParts.Length > 1 ? nameParts[1] : "";
 
         // Try to find in current season first
-        var player = DataStore.Data.Players.FirstOrDefault(p =>
+        var player = _dataStore.GetData().Players.FirstOrDefault(p =>
             p.SeasonId == seasonId &&
             (p.FullName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
              (p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
@@ -1779,7 +1784,7 @@ public partial class HistoricalImportPage : ContentPage
         // If not found, try any season
         if (player == null)
         {
-            player = DataStore.Data.Players.FirstOrDefault(p =>
+            player = _dataStore.GetData().Players.FirstOrDefault(p =>
                 p.FullName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
                 (p.FirstName?.Equals(firstName, StringComparison.OrdinalIgnoreCase) == true &&
                  p.LastName?.Equals(lastName, StringComparison.OrdinalIgnoreCase) == true));
@@ -1840,7 +1845,7 @@ public partial class HistoricalImportPage : ContentPage
                     var venueName = row[venueCol]?.Trim();
                     if (string.IsNullOrWhiteSpace(venueName)) continue;
                     
-                    var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+                    var existingVenue = _dataStore.GetData().Venues.FirstOrDefault(v =>
                         v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
                     
                     if (existingVenue == null)
@@ -1851,7 +1856,7 @@ public partial class HistoricalImportPage : ContentPage
                             Name = venueName,
                             SeasonId = SeasonService.Current.CurrentSeasonId
                         };
-                        DataStore.Data.Venues.Add(venue);
+                        _dataStore.GetData().Venues.Add(venue);
                         stats.VenuesImported++;
                     }
                 }
@@ -1897,7 +1902,7 @@ public partial class HistoricalImportPage : ContentPage
             if (string.IsNullOrWhiteSpace(venueName) || venueName.Length < 3) continue;
 
             // Check if venue already exists
-            var existingVenue = DataStore.Data.Venues.FirstOrDefault(v =>
+            var existingVenue = _dataStore.GetData().Venues.FirstOrDefault(v =>
                 v.Name != null && v.Name.Equals(venueName, StringComparison.OrdinalIgnoreCase));
 
             if (existingVenue == null)
@@ -1908,7 +1913,7 @@ public partial class HistoricalImportPage : ContentPage
                     Name = venueName,
                     SeasonId = SeasonService.Current.CurrentSeasonId
                 };
-                DataStore.Data.Venues.Add(venue);
+                _dataStore.GetData().Venues.Add(venue);
                 stats.VenuesImported++;
             }
         }
@@ -2128,13 +2133,13 @@ public partial class HistoricalImportPage : ContentPage
                 Step3Title.Text = "✅ Import Complete!";
 
                 // Merge the imported data into the main DataStore
-                DataStore.Data.Seasons.AddRange(data.Seasons);
-                DataStore.Data.Divisions.AddRange(data.Divisions);
-                DataStore.Data.Venues.AddRange(data.Venues);
-                DataStore.Data.Teams.AddRange(data.Teams);
-                DataStore.Data.Players.AddRange(data.Players);
-                DataStore.Data.Fixtures.AddRange(data.Fixtures);
-                DataStore.Save();
+                _dataStore.GetData().Seasons.AddRange(data.Seasons);
+                _dataStore.GetData().Divisions.AddRange(data.Divisions);
+                _dataStore.GetData().Venues.AddRange(data.Venues);
+                _dataStore.GetData().Teams.AddRange(data.Teams);
+                _dataStore.GetData().Players.AddRange(data.Players);
+                _dataStore.GetData().Fixtures.AddRange(data.Fixtures);
+                await _dataStore.SaveAsync();
                 DataStore.ClearPreImportSnapshot();
 
                 // Show summary

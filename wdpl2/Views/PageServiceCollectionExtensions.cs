@@ -34,6 +34,8 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<FrameStatsPage>();
         services.AddTransient<AchievementsPage>();
         services.AddTransient<ImportHistoricalDataPage>();
+        services.AddTransient<BatchImportPreviewPage>();
+        services.AddTransient<CalendarPage>();
 
         return services;
     }
