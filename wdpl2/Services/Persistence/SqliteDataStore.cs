@@ -485,6 +485,35 @@ public class SqliteDataStore : IDataStore
                 Fixtures = _context.Fixtures.AsNoTracking().ToList(),
                 Competitions = _context.Competitions.AsNoTracking().ToList()
             };
+
+            // Carry over JSON-only fields that aren't stored in EF Core.
+            // Without these, callers see ActiveSeasonId == null (which causes
+            // pages like FixturesPage to early-return and show an empty list)
+            // and lose access to Settings/WebsiteSettings/CalendarEvents.
+            var json = DataStore.Data;
+            if (json != null)
+            {
+                _cachedSnapshot.ActiveSeasonId = json.ActiveSeasonId;
+                _cachedSnapshot.Settings = json.Settings;
+                _cachedSnapshot.WebsiteSettings = json.WebsiteSettings;
+                _cachedSnapshot.FixturesSheetSettings = json.FixturesSheetSettings;
+                _cachedSnapshot.CalendarEvents = json.CalendarEvents;
+                _cachedSnapshot.CalendarSettings = json.CalendarSettings;
+                _cachedSnapshot.DoublesPairings = json.DoublesPairings;
+
+                // Restore JSON-only Season properties (BlackoutDateTitles, Settings)
+                // that EF Core doesn't persist.
+                var jsonSeasonsById = json.Seasons.ToDictionary(s => s.Id, s => s);
+                foreach (var s in _cachedSnapshot.Seasons)
+                {
+                    if (jsonSeasonsById.TryGetValue(s.Id, out var js))
+                    {
+                        s.BlackoutDateTitles = js.BlackoutDateTitles;
+                        if (js.Settings != null) s.Settings = js.Settings;
+                    }
+                }
+            }
+
             return _cachedSnapshot;
         }
     }

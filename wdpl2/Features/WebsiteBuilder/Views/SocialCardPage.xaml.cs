@@ -588,7 +588,7 @@ public partial class SocialCardPage : ContentPage
         return $@"<!DOCTYPE html>
 <html><head><meta charset='utf-8'/>
 <meta name='viewport' content='width=device-width,initial-scale=1'/>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/dom-to-image-more/dist/dom-to-image-more.min.js'></script>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{ 
@@ -610,11 +610,23 @@ public partial class SocialCardPage : ContentPage
   }}
   .card-content {{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:24px 48px; box-sizing:border-box; overflow:hidden; min-height:0; }}
   .card-content-fit {{ width:100%; transform-origin:center center; }}
-  .match-row {{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:16px; padding:14px 20px; margin:6px 0; border-radius:10px; }}
+  .match-row {{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:16px; padding:14px 20px; margin:6px 0; border-radius:14px; }}
   .match-row .name {{ font-size:28px; min-width:0; word-break:break-word; overflow-wrap:anywhere; line-height:1.15; }}
   .match-row .name.left  {{ text-align:right; padding-right:8px; }}
   .match-row .name.right {{ text-align:left;  padding-left:8px;  }}
   .match-row .score {{ min-width:140px; text-align:center; font-weight:800; }}
+  /* Module-style card (mirrors the embossed look from the printable fixtures sheet) */
+  .mod-card {{
+    background: linear-gradient(170deg, {style.BgColor2} 0%, {style.BgColor} 100%);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.18),
+      inset 0 -1px 0 rgba(0,0,0,0.25),
+      0 4px 0 -2px rgba(0,0,0,0.30),
+      0 10px 20px rgba(0,0,0,0.30);
+  }}
+  .mod-card-title {{ font-size:22px; font-weight:800; color:{style.TextColor}; margin-bottom:6px; letter-spacing:0.5px; }}
 </style>
 </head>
 <body>
@@ -629,14 +641,20 @@ public partial class SocialCardPage : ContentPage
   function fitContent() {{
     var fit = document.getElementById('cardFit');
     if (!fit) return;
+    // Reset both possible scaling mechanisms before measuring
     fit.style.transform = 'none';
+    fit.style.zoom = '1';
     var parent = fit.parentElement;
     var availH = parent.clientHeight;
     var availW = parent.clientWidth;
     var contentH = fit.scrollHeight;
     var contentW = fit.scrollWidth;
     var s = Math.min(availH / contentH, availW / contentW, 1);
-    if (s < 1) fit.style.transform = 'scale(' + s + ')';
+    // Use CSS 'zoom' (not transform:scale) so html2canvas captures the
+    // shrunk layout correctly. transform:scale is a paint-only effect that
+    // html2canvas ignores, which previously caused the saved/copied image
+    // to render at the natural (overflowing) size.
+    if (s < 1) fit.style.zoom = s;
   }}
   function scaleCard() {{
     var wrap = document.getElementById('cardWrap');
@@ -655,7 +673,7 @@ public partial class SocialCardPage : ContentPage
   window._captureData = '';
   function startCapture() {{
     window._captureData = 'PENDING';
-    if (typeof html2canvas === 'undefined') {{
+    if (typeof domtoimage === 'undefined') {{
       window._captureData = 'ERROR:Image capture library not loaded. Check your internet connection.';
       return;
     }}
@@ -663,9 +681,12 @@ public partial class SocialCardPage : ContentPage
     var saved = wrap.style.transform;
     wrap.style.transform = 'none';
     fitContent();
-    html2canvas(document.querySelector('.card'), {{ scale: 1, useCORS: true, logging: false }})
-      .then(function(c) {{ wrap.style.transform = saved; window._captureData = c.toDataURL('image/png'); }})
-      .catch(function(e) {{ wrap.style.transform = saved; window._captureData = 'ERROR:' + e.message; }});
+    // dom-to-image-more renders CSS zoom/transform faithfully (via SVG foreignObject),
+    // unlike html2canvas which ignored the fit-to-fit shrinking and produced an
+    // overflowing PNG when pasted to Facebook.
+    domtoimage.toPng(document.querySelector('.card'), {{ width: {width}, height: {height}, cacheBust: true }})
+      .then(function(dataUrl) {{ wrap.style.transform = saved; window._captureData = dataUrl; }})
+      .catch(function(e) {{ wrap.style.transform = saved; window._captureData = 'ERROR:' + (e && e.message ? e.message : e); }});
   }}
   function getCaptureResult() {{ return window._captureData || ''; }}
 </script>
@@ -931,7 +952,7 @@ public partial class SocialCardPage : ContentPage
             var homeWin = f.HomeScore > f.AwayScore;
             var awayWin = f.AwayScore > f.HomeScore;
 
-            sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;'>
+            sb.Append($@"<div class='match-row mod-card'>
                 <div class='name left' style='font-weight:{(homeWin ? "700" : "400")};color:{style.TextColor};'>{Escape(home)}</div>
                 <div class='score' style='font-size:34px;color:{style.Accent};'>{f.HomeScore} - {f.AwayScore}</div>
                 <div class='name right' style='font-weight:{(awayWin ? "700" : "400")};color:{style.TextColor};'>{Escape(away)}</div>
@@ -971,7 +992,7 @@ public partial class SocialCardPage : ContentPage
             var away = _seasonTeams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Away";
             var venue = showVenue ? _seasonVenues.FirstOrDefault(v => v.Id == f.VenueId)?.Name : null;
 
-            sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;'>
+            sb.Append($@"<div class='match-row mod-card'>
                 <div class='name left' style='font-weight:600;color:{style.TextColor};'>{Escape(home)}</div>
                 <div class='score' style='min-width:140px;'>
                     <div style='font-size:28px;font-weight:700;color:{style.Accent};line-height:1.1;'>VS</div>
@@ -1038,6 +1059,47 @@ public partial class SocialCardPage : ContentPage
             }
         }
 
+        // Group stage winners (shown when no KO rounds exist yet, or always for group-stage formats
+        // that haven't progressed to a KO bracket).
+        bool isGroupFormat = comp.Format is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
+        bool hasKoMatches = comp.Rounds.Any(r => r.Matches.Any(m => m.IsComplete));
+        if (isGroupFormat && comp.Groups.Count > 0 && !hasKoMatches)
+        {
+            int topAdvance = comp.GroupSettings?.TopPlayersAdvance ?? 2;
+            int latestGroupRound = comp.Groups.Max(g => g.GroupRound);
+            var latestGroups = comp.Groups
+                .Where(g => g.GroupRound == latestGroupRound)
+                .OrderBy(g => g.GroupNumber)
+                .ToList();
+
+            bool anyStandings = latestGroups.Any(g => g.Standings.Any(s => s.Position > 0));
+            if (anyStandings)
+            {
+                sb.Append($"<div style='text-align:center;font-size:24px;color:{style.Accent};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:16px 0 12px;'>Group Winners</div>");
+
+                sb.Append("<div style='display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:flex-start;'>");
+                foreach (var g in latestGroups)
+                {
+                    var winners = g.Standings
+                        .Where(s => s.Position > 0 && s.Position <= topAdvance)
+                        .OrderBy(s => s.Position)
+                        .ToList();
+                    if (winners.Count == 0) continue;
+
+                    sb.Append($@"<div class='mod-card' style='padding:14px 18px;margin:0;flex:1 1 280px;min-width:260px;max-width:360px;box-sizing:border-box;'>
+                        <div class='mod-card-title' style='font-size:26px;'>{Escape(g.Name)}</div>");
+                    foreach (var s in winners)
+                    {
+                        var name = GetParticipantName(s.ParticipantId, comp) ?? "?";
+                        var medal = s.Position switch { 1 => "&#129351;", 2 => "&#129352;", 3 => "&#129353;", _ => $"#{s.Position}" };
+                        sb.Append($"<div style='font-size:24px;color:{style.TextColor};padding:3px 0;'>{medal} {Escape(name)}</div>");
+                    }
+                    sb.Append("</div>");
+                }
+                sb.Append("</div>");
+            }
+        }
+
         // Show latest round matches
         var latestRound = comp.Rounds
             .Where(r => r.Matches.Any(m => m.IsComplete))
@@ -1063,7 +1125,7 @@ public partial class SocialCardPage : ContentPage
                     var p1Win = m.WinnerId == m.Participant1Id;
                     var p2Win = m.WinnerId == m.Participant2Id;
 
-                    sb.Append($@"<div class='match-row' style='background:{style.BgColor2}40;padding:12px 16px;'>
+                    sb.Append($@"<div class='match-row mod-card' style='padding:12px 16px;'>
                         <div class='name left' style='font-size:24px;font-weight:{(p1Win ? "700" : "400")};color:{(p1Win ? style.Accent : style.TextColor)};'>{Escape(p1)}</div>
                         <div class='score' style='font-size:28px;color:{style.Accent};min-width:120px;'>{m.Participant1Score} - {m.Participant2Score}</div>
                         <div class='name right' style='font-size:24px;font-weight:{(p2Win ? "700" : "400")};color:{(p2Win ? style.Accent : style.TextColor)};'>{Escape(p2)}</div>
@@ -1124,6 +1186,45 @@ public partial class SocialCardPage : ContentPage
             .OrderBy(r => r.RoundNumber)
             .FirstOrDefault();
 
+        // Group-stage fallback: groups don't have a pre-draw of pairings, so just list
+        // each group and its participants for the latest group round.
+        bool isGroupFormat = comp.Format is CompetitionFormat.SinglesGroupStage or CompetitionFormat.DoublesGroupStage;
+        if (upcomingRound == null && isGroupFormat && comp.Groups.Count > 0)
+        {
+            int latestGroupRound = comp.Groups.Max(g => g.GroupRound);
+            var latestGroups = comp.Groups
+                .Where(g => g.GroupRound == latestGroupRound && g.ParticipantIds.Count > 0)
+                .OrderBy(g => g.GroupNumber)
+                .ToList();
+
+            if (latestGroups.Count > 0)
+            {
+                sb.Append($"<div style='text-align:center;font-size:24px;color:{style.Accent};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:16px 0 4px;'>Group Stage</div>");
+                if (comp.GroupSettings?.GroupDate.HasValue == true)
+                    sb.Append($"<div style='text-align:center;font-size:20px;color:{style.SubTextColor};margin-bottom:12px;'>{comp.GroupSettings.GroupDate.Value:dddd dd MMMM yyyy}</div>");
+                else
+                    sb.Append("<div style='margin-bottom:12px;'></div>");
+
+                sb.Append("<div style='display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:flex-start;'>");
+                foreach (var g in latestGroups)
+                {
+                    sb.Append($@"<div class='mod-card' style='padding:14px 18px;margin:0;flex:1 1 280px;min-width:260px;max-width:360px;box-sizing:border-box;'>
+                        <div class='mod-card-title' style='font-size:26px;'>{Escape(g.Name)}</div>");
+
+                    foreach (var pid in g.ParticipantIds)
+                    {
+                        var name = GetParticipantName(pid, comp) ?? "?";
+                        sb.Append($"<div style='font-size:24px;color:{style.TextColor};padding:3px 0;'>&#8226; {Escape(name)}</div>");
+                    }
+
+                    sb.Append("</div>");
+                }
+                sb.Append("</div>");
+
+                return sb.ToString();
+            }
+        }
+
         if (upcomingRound != null)
         {
             var upcomingMatches = upcomingRound.Matches
@@ -1146,8 +1247,8 @@ public partial class SocialCardPage : ContentPage
                     ? $"<div style='font-size:16px;color:{style.SubTextColor};margin-top:2px;'>&#128205; {Escape(m.VenueDisplay)}</div>"
                     : "";
 
-                sb.Append($@"<div style='padding:12px 16px;margin:4px 0;background:{style.BgColor2}40;border-radius:10px;'>
-                    <div class='match-row' style='padding:0;margin:0;background:transparent;'>
+                sb.Append($@"<div class='mod-card' style='padding:12px 16px;margin:4px 0;'>
+                    <div class='match-row' style='padding:0;margin:0;background:transparent;box-shadow:none;border:0;'>
                         <div class='name left' style='font-size:24px;font-weight:600;color:{style.TextColor};'>{Escape(p1)}</div>
                         <div class='score' style='font-size:28px;color:{style.Accent};min-width:120px;'>VS</div>
                         <div class='name right' style='font-size:24px;font-weight:600;color:{style.TextColor};'>{Escape(p2)}</div>
