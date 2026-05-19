@@ -18,6 +18,7 @@ public static class ViewModelServiceCollectionExtensions
         services.AddTransient<TeamsViewModel>();
         services.AddTransient<SeasonsViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<InboxViewModel>();
 
         return services;
     }

@@ -315,6 +315,12 @@
 		<Generator>MSBuild:Compile</Generator>
 	  </None>
 	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiXaml Update="Views\Inbox\InboxPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
 	
 	<ItemGroup>
 	  <Folder Include="ViewModels\Fixtures\" />

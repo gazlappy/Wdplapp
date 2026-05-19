@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:Wdpl2.Views"
-    xmlns:logos="clr-namespace:Wdpl2.Views.Logos">
+    xmlns:logos="clr-namespace:Wdpl2.Views.Logos"
+    xmlns:inbox="clr-namespace:Wdpl2.Views.Inbox">
 
     <TabBar>
         <Tab Title="Dashboard" Icon="stats.png">
