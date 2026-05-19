@@ -623,8 +623,7 @@ public partial class PlayersPage : ContentPage
                 TeamId = (TeamPicker.SelectedItem as Team)?.Id,
                 Notes = NotesEntry.Text?.Trim()
             };
-            _dataStore.GetData().Players.Add(player);
-            await _dataStore.SaveAsync();
+            await _dataStore.AddPlayerAsync(player);
             SafeRefreshPlayers(SearchEntry?.Text);
             SetStatus($"Added: {player.FullName}");
         }
@@ -666,7 +665,9 @@ public partial class PlayersPage : ContentPage
             }
             _selected.TeamId = selectedTeam?.Id;
             var updatedName = _selected.FullName;
-            await _dataStore.SaveAsync();
+            // _selected is a detached snapshot from GetData(); use the typed
+            // update so EF actually persists the changes (IsActive toggle etc).
+            await _dataStore.UpdatePlayerAsync(_selected);
             SafeRefreshPlayers(SearchEntry?.Text);
             RefreshHeadToHead();
             SetStatus($"Updated: {updatedName}");
@@ -687,9 +688,8 @@ public partial class PlayersPage : ContentPage
             }
             if (!await DisplayAlert($"{Emojis.Warning} Delete Player", $"Delete '{_selected.FullName}'?", "Yes", "No")) return;
 
-            _dataStore.GetData().Players.Remove(_selected);
+            await _dataStore.DeletePlayerAsync(_selected);
             _selected = null;
-            await _dataStore.SaveAsync();
             SafeRefreshPlayers(SearchEntry?.Text);
             ClearEditor();
             RefreshHeadToHead();

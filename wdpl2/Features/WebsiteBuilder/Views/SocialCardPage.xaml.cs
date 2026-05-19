@@ -936,7 +936,16 @@ public partial class SocialCardPage : ContentPage
         if (divId.HasValue && divId.Value != Guid.Empty)
             fixtures = fixtures.Where(f => f.DivisionId == divId.Value);
 
-        var latest = fixtures.OrderByDescending(f => f.Date).Take(8).ToList();
+        var ordered = fixtures.OrderByDescending(f => f.Date).ToList();
+        if (ordered.Count == 0) return $"<p style='text-align:center;color:{style.SubTextColor}'>No results found</p>";
+
+        // Restrict to the week (Mon–Sun) containing the most recent played fixture
+        // so prior-week results don't bleed in.
+        var anchor = ordered[0].Date.Date;
+        int daysFromMonday = ((int)anchor.DayOfWeek + 6) % 7;
+        var weekStart = anchor.AddDays(-daysFromMonday);
+        var weekEnd = weekStart.AddDays(7);
+        var latest = ordered.Where(f => f.Date.Date >= weekStart && f.Date.Date < weekEnd).Take(8).ToList();
         if (latest.Count == 0) return $"<p style='text-align:center;color:{style.SubTextColor}'>No results found</p>";
 
         var showDate = ShowDateCheck.IsChecked;
@@ -1088,6 +1097,8 @@ public partial class SocialCardPage : ContentPage
 
                     sb.Append($@"<div class='mod-card' style='padding:14px 18px;margin:0;flex:1 1 280px;min-width:260px;max-width:360px;box-sizing:border-box;'>
                         <div class='mod-card-title' style='font-size:26px;'>{Escape(g.Name)}</div>");
+                    if (!string.IsNullOrEmpty(g.VenueDisplay))
+                        sb.Append($"<div style='font-size:20px;color:{style.SubTextColor};margin:-4px 0 6px;'>&#128205; {Escape(g.VenueDisplay)}</div>");
                     foreach (var s in winners)
                     {
                         var name = GetParticipantName(s.ParticipantId, comp) ?? "?";
@@ -1210,6 +1221,8 @@ public partial class SocialCardPage : ContentPage
                 {
                     sb.Append($@"<div class='mod-card' style='padding:14px 18px;margin:0;flex:1 1 280px;min-width:260px;max-width:360px;box-sizing:border-box;'>
                         <div class='mod-card-title' style='font-size:26px;'>{Escape(g.Name)}</div>");
+                    if (!string.IsNullOrEmpty(g.VenueDisplay))
+                        sb.Append($"<div style='font-size:20px;color:{style.SubTextColor};margin:-4px 0 6px;'>&#128205; {Escape(g.VenueDisplay)}</div>");
 
                     foreach (var pid in g.ParticipantIds)
                     {

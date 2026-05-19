@@ -24,6 +24,20 @@ public class SqliteDataStore : IDataStore
     private void InvalidateSnapshot()
     {
         lock (_snapshotLock) { _cachedSnapshot = null; }
+
+        // Keep the legacy DataStore.Data JSON cache in sync with SQLite.
+        // The website generator and several Website Builder pages read from
+        // DataStore.Data directly (e.g. "private static LeagueData League =>
+        // DataStore.Data;"), so without this refresh a fixture saved via the
+        // typed Add/Update/Delete*Async methods would appear correctly on the
+        // editor tab but the generated website would publish the stale copy.
+        // Only fires on writes (this method is only invoked from mutating
+        // methods), so reads stay cheap.
+        try { DataStore.RefreshEntitiesFromDatabase(); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SqliteDataStore: RefreshEntitiesFromDatabase failed: {ex.Message}");
+        }
     }
 
     public SqliteDataStore(LeagueContext context)
@@ -263,12 +277,31 @@ public class SqliteDataStore : IDataStore
 
     public async Task UpdateVenueAsync(Venue venue, CancellationToken ct = default)
     {
+        // Venue.Tables is OwnsMany(...).ToJson(); same EF detached-update bug
+        // as Fixture/Competition (see UpdateFixtureAsync comment). Use the
+        // delete-and-reinsert workaround so table edits actually persist.
         await _gate.WaitAsync(ct);
         try
         {
-            _context.Venues.Update(venue);
-            await _context.SaveChangesAsync(ct);
-            InvalidateSnapshot();
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM Venues WHERE Id = {venue.Id}", ct);
+
+                _context.ChangeTracker.Clear();
+
+                _context.Venues.Add(venue);
+                await _context.SaveChangesAsync(ct);
+                InvalidateSnapshot();
+
+                await transaction.CommitAsync(ct);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
         }
         finally { _gate.Release(); }
     }
@@ -371,12 +404,36 @@ public class SqliteDataStore : IDataStore
 
     public async Task UpdateFixtureAsync(Fixture fixture, CancellationToken ct = default)
     {
+        // Fixture.Frames is configured as OwnsMany(...).ToJson(). EF Core's
+        // change tracking for owned JSON collections is broken on detached
+        // entities (see the long note in UpdateCompetitionAsync above):
+        //   • Update() throws on missing __synthesizedOrdinal shadow keys.
+        //   • Even when it doesn't throw, the partial-update diff silently
+        //     fails to write Frame mutations to disk – which is exactly the
+        //     "Save button doesn't save edited fixtures" bug.
+        // Workaround: delete the old row and re-insert in a transaction.
         await _gate.WaitAsync(ct);
         try
         {
-            _context.Fixtures.Update(fixture);
-            await _context.SaveChangesAsync(ct);
-            InvalidateSnapshot();
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM Fixtures WHERE Id = {fixture.Id}", ct);
+
+                _context.ChangeTracker.Clear();
+
+                _context.Fixtures.Add(fixture);
+                await _context.SaveChangesAsync(ct);
+                InvalidateSnapshot();
+
+                await transaction.CommitAsync(ct);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
         }
         finally { _gate.Release(); }
     }

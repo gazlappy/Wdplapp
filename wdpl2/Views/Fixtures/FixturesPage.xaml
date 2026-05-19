@@ -348,6 +348,14 @@
                                            TextColor="{AppThemeBinding Light=#1E40AF, Dark=#93C5FD}"
                                            HorizontalTextAlignment="Center" />
                                     <VerticalStackLayout x:Name="HomePlayersQuickPanel" Spacing="2" />
+                                    <Button x:Name="AddHomePlayerBtn"
+                                            Text="+ New Player"
+                                            FontSize="10"
+                                            Padding="6,2"
+                                            HeightRequest="26"
+                                            BackgroundColor="{AppThemeBinding Light=#1E40AF, Dark=#1E3A8A}"
+                                            TextColor="White"
+                                            Clicked="OnAddHomePlayerClicked" />
                                 </VerticalStackLayout>
                                 <BoxView Grid.Column="1" WidthRequest="1" 
                                          BackgroundColor="{AppThemeBinding Light=#CBD5E1, Dark=#475569}" 
@@ -360,6 +368,14 @@
                                            TextColor="{AppThemeBinding Light=#991B1B, Dark=#FCA5A5}"
                                            HorizontalTextAlignment="Center" />
                                     <VerticalStackLayout x:Name="AwayPlayersQuickPanel" Spacing="2" />
+                                    <Button x:Name="AddAwayPlayerBtn"
+                                            Text="+ New Player"
+                                            FontSize="10"
+                                            Padding="6,2"
+                                            HeightRequest="26"
+                                            BackgroundColor="{AppThemeBinding Light=#991B1B, Dark=#7F1D1D}"
+                                            TextColor="White"
+                                            Clicked="OnAddAwayPlayerClicked" />
                                 </VerticalStackLayout>
                             </Grid>
                         </Border>

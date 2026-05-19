@@ -267,8 +267,7 @@ public partial class VenuesPage : ContentPage
             Tables = new System.Collections.Generic.List<VenueTable>()
         };
 
-        _dataStore.GetData().Venues.Add(venue);
-        await _dataStore.SaveAsync();
+        await _dataStore.AddVenueAsync(venue);
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Added: {name}");
     }
@@ -293,7 +292,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Notes = NotesEntry.Text?.Trim();
 
         string venueName = _selectedVenue.Name; // Store name before refresh
-        await _dataStore.SaveAsync();
+        await _dataStore.UpdateVenueAsync(_selectedVenue);
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Updated: {venueName}");
     }
@@ -316,9 +315,9 @@ public partial class VenuesPage : ContentPage
         var confirm = await DisplayAlert("Delete Venue", $"Delete '{_selectedVenue.Name}'?", "Yes", "No");
         if (!confirm) return;
 
-        _dataStore.GetData().Venues.Remove(_selectedVenue);
+        var toDelete = _selectedVenue;
         _selectedVenue = null;
-        await _dataStore.SaveAsync();
+        await _dataStore.DeleteVenueAsync(toDelete);
         RefreshVenues(SearchEntry.Text);
         ClearEditor();
         SetStatus("Deleted");
@@ -355,7 +354,7 @@ public partial class VenuesPage : ContentPage
         _selectedVenue.Tables.Add(table);
         _tables.Add(table);
         NewTableEntry.Text = "";
-        await _dataStore.SaveAsync();
+        await _dataStore.UpdateVenueAsync(_selectedVenue);
         SetStatus($"Added table: {tableName}");
     }
 
@@ -377,7 +376,7 @@ public partial class VenuesPage : ContentPage
 
         _selectedVenue.Tables.Remove(selectedTable);
         _tables.Remove(selectedTable);
-        await _dataStore.SaveAsync();
+        await _dataStore.UpdateVenueAsync(_selectedVenue);
         SetStatus($"Removed table: {selectedTable.Label}");
     }
 
@@ -448,11 +447,10 @@ public partial class VenuesPage : ContentPage
         int deleted = 0;
         foreach (var item in selectedItems)
         {
-            _dataStore.GetData().Venues.Remove(item);
+            await _dataStore.DeleteVenueAsync(item);
             deleted++;
         }
 
-        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Deleted {deleted} venue(s)");
     }
@@ -533,7 +531,7 @@ public partial class VenuesPage : ContentPage
                     }
                 }
 
-                _dataStore.GetData().Venues.Add(venue);
+                await _dataStore.AddVenueAsync(venue);
                 added++;
             }
             else
@@ -550,11 +548,11 @@ public partial class VenuesPage : ContentPage
                     }
                 }
 
+                await _dataStore.UpdateVenueAsync(existing);
                 updated++;
             }
         }
 
-        await _dataStore.SaveAsync();
         RefreshVenues(SearchEntry.Text);
         SetStatus($"Imported: {added} added, {updated} updated");
     }

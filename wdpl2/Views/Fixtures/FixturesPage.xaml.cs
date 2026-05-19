@@ -1657,6 +1657,66 @@ public partial class FixturesPage : ContentPage
         }
     }
 
+    private async void OnAddHomePlayerClicked(object? sender, EventArgs e) => await AddPlayerToTeamAsync(true);
+    private async void OnAddAwayPlayerClicked(object? sender, EventArgs e) => await AddPlayerToTeamAsync(false);
+
+    private async Task AddPlayerToTeamAsync(bool isHome)
+    {
+        try
+        {
+            if (_selectedFixture == null)
+            {
+                await DisplayAlert("No Fixture", "Select a fixture first.", "OK");
+                return;
+            }
+            if (await CheckSeasonLockedAsync("add a player")) return;
+
+            var teamId = isHome ? _selectedFixture.HomeTeamId : _selectedFixture.AwayTeamId;
+            if (teamId == Guid.Empty)
+            {
+                await DisplayAlert("No Team", "This fixture has no team assigned for that side.", "OK");
+                return;
+            }
+
+            var data = _dataStore.GetData();
+            var team = data.Teams.FirstOrDefault(t => t.Id == teamId);
+            var teamName = team?.Name ?? (isHome ? "Home" : "Away");
+
+            var fullName = await DisplayPromptAsync(
+                $"New Player — {teamName}",
+                "Enter the player's full name (First Last):",
+                "Add", "Cancel",
+                placeholder: "e.g. John Smith",
+                maxLength: 100,
+                keyboard: Keyboard.Text);
+
+            if (string.IsNullOrWhiteSpace(fullName)) return;
+
+            var parts = fullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var first = parts.Length > 0 ? parts[0] : "";
+            var last = parts.Length > 1 ? parts[1] : "";
+
+            var player = new Player
+            {
+                SeasonId = _selectedFixture.SeasonId,
+                FirstName = first,
+                LastName = last,
+                TeamId = teamId
+            };
+
+            await _dataStore.AddPlayerAsync(player);
+            await _dataStore.SaveAsync();
+
+            LoadPlayerLists();
+            await DisplayAlert("Player Added", $"Added {player.FullName} to {teamName}.", "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Could not add player: {ex.Message}", "OK");
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
     private void LoadPlayerLists()
     {
         _homePlayers.Clear();
@@ -2550,6 +2610,10 @@ public partial class FixturesPage : ContentPage
             if (!proceed) return;
         }
 
+        // _selectedFixture is a detached snapshot from GetData() (AsNoTracking),
+        // so bare SaveAsync() has nothing tracked to write. Persist explicitly
+        // via UpdateFixtureAsync which handles the detached + owned-JSON case.
+        await _dataStore.UpdateFixtureAsync(fixture);
         await _dataStore.SaveAsync();
         UpdateHeader();
 
