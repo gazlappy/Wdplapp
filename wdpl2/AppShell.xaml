@@ -67,6 +67,10 @@
             <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate views:WebsiteBuilderPage}" />
         </Tab>
 
+        <Tab Title="Web Inbox" Icon="globe.png">
+            <ShellContent Title="Web Inbox" ContentTemplate="{DataTemplate inbox:InboxPage}" />
+        </Tab>
+
         <Tab Title="Settings">
             <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>

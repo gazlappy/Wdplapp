@@ -36,6 +36,7 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<ImportHistoricalDataPage>();
         services.AddTransient<BatchImportPreviewPage>();
         services.AddTransient<CalendarPage>();
+        services.AddTransient<InboxPage>();
 
         return services;
     }

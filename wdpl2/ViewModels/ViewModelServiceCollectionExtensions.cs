@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wdpl2.ViewModels.Inbox;
 
 namespace Wdpl2.ViewModels;
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wdpl2.Services.Inbox;
 
 namespace Wdpl2.Services;
 
@@ -12,6 +13,7 @@ public static class CoreServiceCollectionExtensions
     {
         services.AddSingleton<ISeasonService, SeasonService>();
         services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<IWebInboxService, HttpWebInboxService>();
 
         return services;
     }

@@ -1,0 +1,15 @@
+# Placeholder — cPanel's "Directory Privacy" tool will replace/overwrite
+# this file with the correct AuthUserFile path for your hosting account.
+#
+# After you protect this folder in cPanel, this file will look something like:
+#
+#   AuthType Basic
+#   AuthName "WDPL Admin"
+#   AuthUserFile "/home/youracct/.htpasswds/public_html/api/admin/passwd"
+#   require valid-user
+#
+# Don't edit it by hand — use cPanel → Directory Privacy.
+
+AuthType Basic
+AuthName "WDPL Admin"
+require valid-user

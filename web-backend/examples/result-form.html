@@ -1,0 +1,97 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WDPL - Submit a Match Result</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2em auto; padding: 0 1em; }
+  h1 { font-size: 1.3em; }
+  label { display: block; margin: .8em 0 .2em; font-weight: 600; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: .5em; font-size: 1em; }
+  button { margin-top: 1em; padding: .7em 1.2em; font-size: 1em; cursor: pointer; }
+  .ok  { color: #0a7d20; }
+  .err { color: #b00020; }
+  small { color: #666; }
+</style>
+</head>
+<body>
+  <h1>Submit a Match Result</h1>
+  <p><small>Captains only. The league admin will review and apply the result.</small></p>
+
+  <form id="resultForm">
+    <label>Captain token
+      <input name="token" required autocomplete="off">
+    </label>
+
+    <label>Fixture ID
+      <input name="fixtureId" required autocomplete="off"
+             placeholder="paste from the fixtures page">
+    </label>
+
+    <label>Home score
+      <input name="homeScore" type="number" min="0" required>
+    </label>
+
+    <label>Away score
+      <input name="awayScore" type="number" min="0" required>
+    </label>
+
+    <label>Notes (optional)
+      <textarea name="notes" rows="3"></textarea>
+    </label>
+
+    <label>Your name
+      <input name="submitter" autocomplete="name">
+    </label>
+
+    <button type="submit">Send result</button>
+  </form>
+
+  <p id="status"></p>
+
+<script>
+var API_URL = 'https://wdpl.uk/api/submit.php';
+
+document.getElementById('resultForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var status = document.getElementById('status');
+  status.textContent = 'Sending...';
+  status.className = '';
+
+  var f = e.target;
+  var body = {
+    type: 'match_result',
+    token: f.token.value.trim(),
+    referenceId: f.fixtureId.value.trim(),
+    submitter: f.submitter.value.trim(),
+    payload: {
+      homeScore: Number(f.homeScore.value),
+      awayScore: Number(f.awayScore.value),
+      notes: f.notes.value.trim()
+    }
+  };
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function (resp) {
+    return resp.json().catch(function () { return {}; }).then(function (data) {
+      if (resp.ok) {
+        status.textContent = 'Thanks - result received (#' + data.id + ').';
+        status.className = 'ok';
+        f.reset();
+      } else {
+        status.textContent = 'Error: ' + (data.error || resp.status);
+        status.className = 'err';
+      }
+    });
+  }).catch(function (err) {
+    status.textContent = 'Network error: ' + err;
+    status.className = 'err';
+  });
+});
+</script>
+</body>
+</html>
