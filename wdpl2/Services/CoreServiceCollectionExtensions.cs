@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wdpl2.Services.Cloud;
 using Wdpl2.Services.Inbox;
 
 namespace Wdpl2.Services;
@@ -15,6 +16,8 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IWebInboxService, HttpWebInboxService>();
         services.AddSingleton<IWebPublishService, HttpWebPublishService>();
+        services.AddSingleton<IMatchResultImporter, MatchResultImporter>();
+        services.AddSingleton<BackendDeployService>();
 
         return services;
     }

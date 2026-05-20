@@ -33,10 +33,28 @@
                     <Button Text="Save settings" Command="{Binding SaveSettingsCommand}" />
                     <Button Text="Refresh" Command="{Binding RefreshCommand}" />
                     <Button Text="Publish to web" Command="{Binding PublishLeagueCommand}" />
+                    <Button Text="Deploy backend"
+                            BackgroundColor="{AppThemeBinding Light=#047857, Dark=#064E3B}"
+                            Command="{Binding DeployBackendCommand}" />
                     <Button Text="Mark all processed"
                             Command="{Binding MarkAllProcessedCommand}"
                             IsVisible="{Binding HasItems}" />
                 </HorizontalStackLayout>
+                <Label Text="Quick links" FontAttributes="Bold" FontSize="12" Margin="0,6,0,0" />
+                <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
+                    <Button Text="Site home" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="/" />
+                    <Button Text="Captain login" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="/captain/" />
+                    <Button Text="Admin captains" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="/api/admin/captains.html" />
+                    <Button Text="Admin diag" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="/api/admin/diag.php" />
+                    <Button Text="League table" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="http://www.wdpl.uk/NewPool/standings.html" />
+                    <Button Text="Fixtures" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="http://www.wdpl.uk/NewPool/fixtures.html" />
+                </FlexLayout>
             </VerticalStackLayout>
         </Border>
         <Label Grid.Row="1"
@@ -46,35 +64,135 @@
         <RefreshView Grid.Row="2"
                      IsRefreshing="{Binding IsLoading}"
                      Command="{Binding RefreshCommand}">
-            <CollectionView ItemsSource="{Binding Items}" SelectionMode="None">
-                <CollectionView.EmptyView>
+            <ScrollView>
+                <VerticalStackLayout Spacing="16">
+
+                    <Label Text="Match result cards"
+                           FontAttributes="Bold" FontSize="14"
+                           IsVisible="{Binding HasResultGroups}" />
+
+                    <CollectionView ItemsSource="{Binding ResultGroups}" SelectionMode="None"
+                                    IsVisible="{Binding HasResultGroups}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:FixtureSubmissionGroup">
+                                <Border StrokeShape="RoundRectangle 10"
+                                        Padding="12" Margin="0,0,0,8"
+                                        StrokeThickness="1"
+                                        Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding Summary}" FontAttributes="Bold" FontSize="14" />
+                                        <Label Text="{Binding Status}" FontSize="12"
+                                               TextColor="{AppThemeBinding Light=#555, Dark=#9CA3AF}" />
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                            <Border Grid.Column="0" StrokeShape="RoundRectangle 6" Padding="8"
+                                                    StrokeThickness="1"
+                                                    Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+                                                <VerticalStackLayout Spacing="2">
+                                                    <Label Text="Home card" FontAttributes="Bold" FontSize="12" />
+                                                    <Label FontSize="11" TextColor="{AppThemeBinding Light=#555, Dark=#9CA3AF}"
+                                                           Text="{Binding HomeCard.Summary, FallbackValue='(not submitted)'}" />
+                                                </VerticalStackLayout>
+                                            </Border>
+                                            <Border Grid.Column="1" StrokeShape="RoundRectangle 6" Padding="8"
+                                                    StrokeThickness="1"
+                                                    Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+                                                <VerticalStackLayout Spacing="2">
+                                                    <Label Text="Away card" FontAttributes="Bold" FontSize="12" />
+                                                    <Label FontSize="11" TextColor="{AppThemeBinding Light=#555, Dark=#9CA3AF}"
+                                                           Text="{Binding AwayCard.Summary, FallbackValue='(not submitted)'}" />
+                                                </VerticalStackLayout>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Per-frame diff -->
+                                        <Label Text="Frames" FontAttributes="Bold" FontSize="12" Margin="0,4,0,0" />
+                                        <CollectionView ItemsSource="{Binding FrameRows}" SelectionMode="None">
+                                            <CollectionView.ItemTemplate>
+                                                <DataTemplate x:DataType="models:FrameDiffRow">
+                                                    <Grid ColumnDefinitions="32,*,*,90" ColumnSpacing="6" Padding="0,2">
+                                                        <Label Grid.Column="0" Text="{Binding Number, StringFormat='#{0}'}"
+                                                               FontSize="11" FontAttributes="Bold" VerticalOptions="Center" />
+                                                        <Label Grid.Column="1" Text="{Binding HomeText}" FontSize="11"
+                                                               LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                                        <Label Grid.Column="2" Text="{Binding AwayText}" FontSize="11"
+                                                               LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                                        <Label Grid.Column="3" Text="{Binding Status}" FontSize="11"
+                                                               FontAttributes="Bold" VerticalOptions="Center"
+                                                               HorizontalTextAlignment="End"
+                                                               TextColor="{AppThemeBinding Light=#15803D, Dark=#86EFAC}">
+                                                            <Label.Triggers>
+                                                                <DataTrigger TargetType="Label" Binding="{Binding IsAgreed}" Value="False">
+                                                                    <Setter Property="TextColor"
+                                                                            Value="{AppThemeBinding Light=#B91C1C, Dark=#FCA5A5}" />
+                                                                </DataTrigger>
+                                                            </Label.Triggers>
+                                                        </Label>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </CollectionView.ItemTemplate>
+                                        </CollectionView>
+
+                                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
+                                            <Button Text="Import" Margin="0,0,6,6"
+                                                    IsEnabled="{Binding IsAgreed}"
+                                                    Command="{Binding BindingContext.ImportGroupCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Force home" Margin="0,0,6,6"
+                                                    BackgroundColor="{AppThemeBinding Light=#1D4ED8, Dark=#1E3A8A}"
+                                                    Command="{Binding BindingContext.ForceImportHomeCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Force away" Margin="0,0,6,6"
+                                                    BackgroundColor="{AppThemeBinding Light=#1D4ED8, Dark=#1E3A8A}"
+                                                    Command="{Binding BindingContext.ForceImportAwayCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Reject..." Margin="0,0,6,6"
+                                                    BackgroundColor="{AppThemeBinding Light=#B91C1C, Dark=#7F1D1D}"
+                                                    Command="{Binding BindingContext.RejectGroupCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Discard" Margin="0,0,6,6"
+                                                    BackgroundColor="{AppThemeBinding Light=#B45309, Dark=#7C2D12}"
+                                                    Command="{Binding BindingContext.DiscardGroupCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                        </FlexLayout>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Label Text="Other submissions"
+                           FontAttributes="Bold" FontSize="14"
+                           IsVisible="{Binding HasOtherItems}" />
+
+                    <CollectionView ItemsSource="{Binding OtherItems}" SelectionMode="None"
+                                    IsVisible="{Binding HasOtherItems}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:WebSubmission">
+                                <Border StrokeShape="RoundRectangle 10"
+                                        Padding="12" Margin="0,0,0,8"
+                                        StrokeThickness="1"
+                                        Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding Summary}" FontAttributes="Bold" FontSize="14" />
+                                        <Label Text="{Binding PayloadPretty}"
+                                               FontFamily="Consolas" FontSize="12"
+                                               LineBreakMode="WordWrap" />
+                                        <Button Text="Mark processed"
+                                                HorizontalOptions="Start"
+                                                Command="{Binding BindingContext.MarkProcessedCommand, Source={x:Reference PageRoot}}"
+                                                CommandParameter="{Binding .}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
                     <Label Text="No pending submissions."
                            HorizontalTextAlignment="Center"
-                           VerticalOptions="Center"
-                           TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}" />
-                </CollectionView.EmptyView>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:WebSubmission">
-                        <Border StrokeShape="RoundRectangle 10"
-                                Padding="12"
-                                Margin="0,0,0,8"
-                                StrokeThickness="1"
-                                Stroke="{AppThemeBinding Light=#E5E7EB, Dark=#374151}">
-                            <VerticalStackLayout Spacing="6">
-                                <Label Text="{Binding Summary}" FontAttributes="Bold" FontSize="14" />
-                                <Label Text="{Binding PayloadPretty}"
-                                       FontFamily="Consolas"
-                                       FontSize="12"
-                                       LineBreakMode="WordWrap" />
-                                <Button Text="Mark processed"
-                                        HorizontalOptions="Start"
-                                        Command="{Binding BindingContext.MarkProcessedCommand, Source={x:Reference PageRoot}}"
-                                        CommandParameter="{Binding .}" />
-                            </VerticalStackLayout>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                           TextColor="{AppThemeBinding Light=#666, Dark=#9CA3AF}"
+                           IsVisible="{Binding IsEmpty}" />
+                </VerticalStackLayout>
+            </ScrollView>
         </RefreshView>
     </Grid>
 </ContentPage>
