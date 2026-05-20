@@ -52,6 +52,22 @@ try {
     $players = $prStmt->fetchAll();
 } catch (Exception $e) { /* league_players may not exist yet */ }
 
+// League settings (populated by the desktop app via admin/publish-league.php).
+// Falls back to WDPL defaults if the table doesn't exist yet.
+$settings = array(
+    'default_frames_per_match' => 15,
+    'max_frames_per_player'    => 3,
+);
+try {
+    $s = db()->query('SELECT setting_key, setting_value FROM league_settings')->fetchAll();
+    foreach ($s as $row) {
+        $k = $row['setting_key']; $v = $row['setting_value'];
+        if ($k === 'default_frames_per_match') $settings['default_frames_per_match'] = (int)$v;
+        else if ($k === 'max_frames_per_player') $settings['max_frames_per_player'] = (int)$v;
+        else $settings[$k] = $v;
+    }
+} catch (Exception $e) { /* table not provisioned yet — use defaults */ }
+
 json_response(array(
     'captain'  => array(
         'team_id'       => $c['team_id'],
@@ -61,4 +77,5 @@ json_response(array(
     ),
     'fixtures' => $fixtures,
     'players'  => $players,
+    'settings' => $settings,
 ));

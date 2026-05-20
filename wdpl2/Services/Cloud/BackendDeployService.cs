@@ -34,6 +34,7 @@ public sealed class BackendDeployService
         "api/captain/logout.php",
         "api/captain/me.php",
         "api/captain/submit-result.php",
+        "api/captain/history.php",
         "captain/index.html",
     };
 

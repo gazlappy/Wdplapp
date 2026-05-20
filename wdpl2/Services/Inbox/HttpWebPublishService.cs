@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Wdpl2.Models;
 
 namespace Wdpl2.Services.Inbox;
 
@@ -38,13 +39,53 @@ public sealed class HttpWebPublishService : IWebPublishService
         var divisions = await _data.GetDivisionsAsync(seasonId, ct);
         var venues    = await _data.GetVenuesAsync(seasonId, ct);
 
+        // App-side league settings (frame count etc) — pushed to the captain
+        // portal so it mirrors the desktop app's configured defaults.
+        var appSettings = _data.GetData().GetSettingsForSeason(seasonId);
+
         string? DivisionName(Guid? id) => id is null ? null : divisions.FirstOrDefault(d => d.Id == id)?.Name;
         string? VenueName(Guid? id)    => id is null ? null : venues.FirstOrDefault(v => v.Id == id)?.Name;
         string? TeamName(Guid id)      => teams.FirstOrDefault(t => t.Id == id)?.Name;
 
+        // Per-frame results (only fixtures with at least one recorded frame)
+        // so the captain portal's history view shows app-entered cards too.
+        var results = fixtures
+            .Where(f => f.Frames is { Count: > 0 })
+            .Select(f => new
+            {
+                fixture_id = f.Id.ToString(),
+                frames = f.Frames.Select(fr => new
+                {
+                    number            = fr.Number,
+                    home_player_id    = fr.HomePlayerId?.ToString(),
+                    home_player_name  = players.FirstOrDefault(p => p.Id == fr.HomePlayerId)?.FullName,
+                    home_player2_id   = fr.HomePlayer2Id?.ToString(),
+                    home_player2_name = players.FirstOrDefault(p => p.Id == fr.HomePlayer2Id)?.FullName,
+                    away_player_id    = fr.AwayPlayerId?.ToString(),
+                    away_player_name  = players.FirstOrDefault(p => p.Id == fr.AwayPlayerId)?.FullName,
+                    away_player2_id   = fr.AwayPlayer2Id?.ToString(),
+                    away_player2_name = players.FirstOrDefault(p => p.Id == fr.AwayPlayer2Id)?.FullName,
+                    winner            = fr.Winner switch
+                    {
+                        FrameWinner.Home => "home",
+                        FrameWinner.Away => "away",
+                        _                 => "none"
+                    },
+                    eight_ball = fr.EightBall,
+                    is_doubles = fr.IsDoubles,
+                    source     = "app"
+                })
+            })
+            .ToList();
+
         var payload = new
         {
             season_id = seasonId.ToString(),
+            settings = new
+            {
+                default_frames_per_match = appSettings.DefaultFramesPerMatch,
+                max_frames_per_player    = appSettings.MaxFramesPerPlayer,
+            },
             teams = teams.Select(t => new {
                 team_id       = t.Id.ToString(),
                 name          = t.Name ?? "",
@@ -67,7 +108,8 @@ public sealed class HttpWebPublishService : IWebPublishService
                 away_team_name = TeamName(f.AwayTeamId),
                 venue_name     = VenueName(f.VenueId),
                 fixture_date   = f.Date.ToString("yyyy-MM-dd HH:mm:ss")
-            })
+            }),
+            results = results,
         };
 
         using var http = BuildClient(settings);

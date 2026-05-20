@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -143,6 +143,15 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <div id="noFx" class="muted" style="display:none">No fixtures in the next 3 weeks.</div>
 </div>
 
+<div class="card" id="historyCard">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>Scorecard history</span>
+  <button class="secondary" onclick="loadHistory()" style="font-size:12px; padding:5px 10px;">Refresh</button>
+</h2>
+<div id="histList" class="fixture-list"></div>
+<div id="noHist" class="muted" style="display:none">No past scorecards yet.</div>
+</div>
+
 <div class="card" id="cardCard" style="display:none">
 <h2>Result card</h2>
 <div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
@@ -179,7 +188,7 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
   <button class="secondary" onclick="addFrame(false)">+ Singles</button>
   <button class="secondary" onclick="addFrame(true)">+ Doubles</button>
   <button class="secondary" onclick="removeFrame()">- Frame</button>
-  <button class="secondary" onclick="resetTo8()">Reset to 8</button>
+  <button class="secondary" onclick="resetFrames()" id="resetFramesBtn">Reset frames</button>
   <button class="secondary" onclick="clearAllWinners()">Clear winners</button>
   <span class="muted" id="frameCount"></span>
 </div>
@@ -201,6 +210,14 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 </div>
 </div>
 </main>
+
+<div id="histBg" class="modal-bg" onclick="closeHistory(event)">
+<div class="modal" onclick="event.stopPropagation()">
+<header><strong>Scorecard</strong></header>
+<div class="modal-body" id="histDetail"></div>
+<div class="modal-footer"><button class="secondary" onclick="closeHistory()">Close</button></div>
+</div>
+</div>
 
 <div id="pickerBg" class="modal-bg" onclick="closePicker(event)">
 <div class="modal" onclick="event.stopPropagation()">
@@ -262,9 +279,71 @@ async function loadDash() {
   state.captain = data.captain;
   state.fixtures = data.fixtures || [];
   state.players  = data.players  || [];
+  state.settings = data.settings || { default_frames_per_match: 8, max_frames_per_player: 3 };
   $('loginCard').style.display='none'; $('dash').style.display='block';
   $('who').textContent = state.captain.team_name + (state.captain.division_name ? ' - ' + state.captain.division_name : '');
+  const rb = $('resetFramesBtn'); if (rb) rb.textContent = 'Reset to ' + defaultFrameCount();
   renderFixtures();
+  loadHistory().catch(function(){});
+}
+
+async function loadHistory() {
+  const list = $('histList'); const none = $('noHist');
+  if (!list) return;
+  list.innerHTML = ''; none.style.display = 'none';
+  let data;
+  try { data = await api('/captain/history.php'); }
+  catch (e) { none.textContent = 'History unavailable: ' + e.message; none.style.display='block'; return; }
+  const ms = (data && data.matches) ? data.matches : [];
+  if (!ms.length) { none.textContent='No past scorecards yet.'; none.style.display='block'; return; }
+  ms.forEach(function(m) {
+    const div = document.createElement('div'); div.className='item';
+    const opp  = (m.home_team_id === state.captain.team_id) ? m.away_team_name : m.home_team_name;
+    const side = (m.home_team_id === state.captain.team_id) ? 'HOME vs' : 'away at';
+    const src  = (m.source === 'app') ? 'app' : (m.source || 'web');
+    div.innerHTML = '<div><strong>' + esc(side + ' ' + (opp || '')) + '</strong><br>' +
+                    '<span class="muted">' + esc(m.fixture_date || '') + '</span></div>' +
+                    '<div style="text-align:right"><strong>' + m.home_score + ' - ' + m.away_score + '</strong>' +
+                    '<br><span class="muted">' + m.frame_count + ' frames - ' + esc(src) + '</span></div>';
+    div.onclick = function() { openHistory(m); };
+    list.appendChild(div);
+  });
+}
+
+async function openHistory(m) {
+  let data;
+  try { data = await api('/captain/history.php?fixture_id=' + encodeURIComponent(m.fixture_id)); }
+  catch (e) { flash(e.message, false); return; }
+  const frames = (data && data.frames) ? data.frames : [];
+  let html = '<div style="font-weight:700; font-size:15px; margin-bottom:6px;">' +
+             esc(m.home_team_name || '?') + ' ' + m.home_score + ' - ' + m.away_score + ' ' + esc(m.away_team_name || '?') +
+             '</div><div class="muted" style="margin-bottom:10px">' + esc(m.fixture_date || '') +
+             (m.venue_name ? ' - ' + esc(m.venue_name) : '') + '</div>';
+  html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+  html += '<thead><tr style="background:#0f172a;"><th style="padding:4px 6px; text-align:left;">#</th>' +
+          '<th style="padding:4px 6px; text-align:left;">Home</th>' +
+          '<th style="padding:4px 6px; text-align:center;">Score</th>' +
+          '<th style="padding:4px 6px; text-align:left;">Away</th>' +
+          '<th style="padding:4px 6px; text-align:center;">8</th></tr></thead><tbody>';
+  frames.forEach(function(f){
+    const h = (f.home_player_name || '') + (f.home_player2_name ? ' / ' + f.home_player2_name : '');
+    const a = (f.away_player_name || '') + (f.away_player2_name ? ' / ' + f.away_player2_name : '');
+    const hw = f.winner==='home' ? '1' : '0';
+    const aw = f.winner==='away' ? '1' : '0';
+    const dbl = f.is_doubles==1 || f.is_doubles===true ? ' <span class="muted">(D)</span>' : '';
+    html += '<tr style="border-bottom:1px solid #334155;"><td style="padding:3px 6px;">' + f.frame_no + dbl + '</td>' +
+            '<td style="padding:3px 6px;">' + esc(h) + '</td>' +
+            '<td style="padding:3px 6px; text-align:center; font-weight:700;">' + hw + ' - ' + aw + '</td>' +
+            '<td style="padding:3px 6px;">' + esc(a) + '</td>' +
+            '<td style="padding:3px 6px; text-align:center;">' + ((f.eight_ball==1 || f.eight_ball===true) ? '8' : '') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  $('histDetail').innerHTML = html;
+  $('histBg').classList.add('open');
+}
+function closeHistory(e) {
+  if (e && e.target && !e.target.classList.contains('modal-bg')) return;
+  $('histBg').classList.remove('open');
 }
 function renderFixtures() {
   const list = $('fxList'); list.innerHTML = '';
@@ -294,7 +373,7 @@ function selectFixture(f, el) {
   $('scHomeTeam').textContent = f.home_team_name || 'Home Team';
   $('scAwayTeam').textContent = f.away_team_name || 'Away Team';
   $('scoreSub').textContent = (f.division_name ? f.division_name + ' - ' : '') + (f.fixture_date || '');
-  resetTo8();
+  resetFrames();
   renderNewPlayers();
   $('notes').value='';
 }
@@ -305,12 +384,20 @@ function emptyFrame(n, isDoubles) {
     awayId:null, awayName:null, away2Id:null, away2Name:null,
     winner:null, eightBall:false };
 }
-function resetTo8() {
+function defaultFrameCount() {
+  const n = state.settings && state.settings.default_frames_per_match;
+  const v = parseInt(n, 10);
+  return (v && v > 0 && v <= 50) ? v : 8;
+}
+function resetFrames() {
+  const n = defaultFrameCount();
   state.frames = [];
-  for (let i=0; i<8; i++) state.frames.push(emptyFrame(i+1, false));
+  for (let i=0; i<n; i++) state.frames.push(emptyFrame(i+1, false));
   state.currentIdx = 0; state.phase = 'home';
   renderAll();
 }
+// Back-compat shim.
+function resetTo8() { resetFrames(); }
 function addFrame(isDoubles) {
   state.frames.push(emptyFrame(state.frames.length+1, isDoubles));
   renderAll();
