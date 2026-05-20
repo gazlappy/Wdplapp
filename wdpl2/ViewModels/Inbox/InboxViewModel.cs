@@ -13,11 +13,13 @@ namespace Wdpl2.ViewModels.Inbox;
 public partial class InboxViewModel : BaseViewModel
 {
     private readonly IWebInboxService _service;
+    private readonly IWebPublishService _publish;
 
-    public InboxViewModel(ISeasonService seasonService, IWebInboxService service)
+    public InboxViewModel(ISeasonService seasonService, IWebInboxService service, IWebPublishService publish)
         : base(seasonService)
     {
         _service = service;
+        _publish = publish;
     }
 
     public ObservableCollection<WebSubmission> Items { get; } = new();
@@ -32,6 +34,9 @@ public partial class InboxViewModel : BaseViewModel
     private string _adminPassword = "";
 
     [ObservableProperty]
+    private bool _ignoreSslErrors;
+
+    [ObservableProperty]
     private bool _hasItems;
 
     public async Task InitializeAsync()
@@ -40,6 +45,7 @@ public partial class InboxViewModel : BaseViewModel
         BaseUrl = s.BaseUrl;
         AdminUser = s.AdminUser;
         AdminPassword = s.AdminPassword;
+        IgnoreSslErrors = s.IgnoreSslErrors;
         await RefreshAsync();
     }
 
@@ -50,7 +56,8 @@ public partial class InboxViewModel : BaseViewModel
         {
             BaseUrl = BaseUrl,
             AdminUser = AdminUser,
-            AdminPassword = AdminPassword
+            AdminPassword = AdminPassword,
+            IgnoreSslErrors = IgnoreSslErrors
         };
         await s.SaveAsync();
         SetStatus("Settings saved.");
@@ -96,6 +103,26 @@ public partial class InboxViewModel : BaseViewModel
         catch (Exception ex)
         {
             SetStatus($"Mark-processed failed: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task PublishLeagueAsync()
+    {
+        if (IsLoading) return;
+        IsLoading = true;
+        try
+        {
+            var (t, p, f) = await _publish.PublishLeagueAsync();
+            SetStatus($"Published {t} team(s), {p} player(s), {f} fixture(s) to wdpl.uk.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Publish failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 

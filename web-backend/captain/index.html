@@ -1,0 +1,244 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WDPL Captain Portal</title>
+<style>
+:root { --bg:#0f172a; --panel:#1e293b; --line:#334155; --text:#f1f5f9; --muted:#94a3b8; --accent:#3b82f6; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); }
+header { padding:14px 20px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+header h1 { margin:0; font-size:18px; }
+main { max-width:760px; margin:0 auto; padding:20px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px; }
+.card h2 { margin:0 0 10px; font-size:16px; }
+label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+input, select, textarea, button { font:inherit; }
+input, select, textarea { width:100%; padding:9px 11px; border-radius:6px; border:1px solid var(--line); background:#0f172a; color:var(--text); }
+button { background:var(--accent); color:white; border:none; border-radius:6px; padding:10px 16px; cursor:pointer; font-weight:600; }
+button.secondary { background:transparent; color:var(--text); border:1px solid var(--line); }
+.row { display:flex; gap:8px; align-items:center; }
+.frame-grid { display:grid; grid-template-columns: 28px 1fr 1fr 100px; gap:6px; align-items:center; margin-top:6px; }
+.frame-grid .head { font-size:11px; color:var(--muted); text-transform:uppercase; }
+.frame-grid select { padding:6px 8px; }
+.status { font-size:13px; padding:10px; border-radius:6px; margin-bottom:12px; }
+.status.ok  { background:#064e3b; color:#a7f3d0; }
+.status.bad { background:#7f1d1d; color:#fecaca; }
+.muted { color:var(--muted); font-size:12px; }
+.fixture-list { display:flex; flex-direction:column; gap:8px; }
+.fixture-list .item { padding:10px 12px; border:1px solid var(--line); border-radius:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.fixture-list .item:hover { border-color:var(--accent); }
+.fixture-list .item.selected { border-color:var(--accent); background:#1e3a5f; }
+</style>
+</head>
+<body>
+<header>
+<h1>WDPL Captain Portal</h1>
+<div id="who" class="muted"></div>
+</header>
+<main>
+<div id="status" class="status" style="display:none"></div>
+
+<div class="card" id="loginCard">
+<h2>Sign in</h2>
+<label>Username</label>
+<input id="u" autocomplete="username">
+<label>Password</label>
+<input id="p" type="password" autocomplete="current-password">
+<div style="margin-top:12px"><button onclick="doLogin()">Sign in</button></div>
+</div>
+
+<div id="dash" style="display:none">
+<div class="card">
+<h2>Your fixtures</h2>
+<div id="fxList" class="fixture-list"></div>
+<div id="noFx" class="muted" style="display:none">No fixtures in the next 3 weeks.</div>
+</div>
+
+<div class="card" id="cardCard" style="display:none">
+<h2>Result card</h2>
+<div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
+<div class="frame-grid">
+<div class="head">#</div>
+<div class="head">Home player</div>
+<div class="head">Away player</div>
+<div class="head">Winner</div>
+</div>
+<div id="frames"></div>
+<div class="row" style="margin-top:8px">
+<button class="secondary" onclick="addFrame()">+ Frame</button>
+<button class="secondary" onclick="removeFrame()">- Frame</button>
+<span class="muted" id="frameCount"></span>
+</div>
+<label style="margin-top:14px">Add a brand-new player (not in roster)</label>
+<div class="row">
+<input id="newPlayer" placeholder="Full name">
+<button class="secondary" onclick="addNewPlayer()">Add</button>
+</div>
+<div id="newPlayerList" class="muted" style="margin-top:4px"></div>
+<label style="margin-top:14px">Notes (optional)</label>
+<textarea id="notes" rows="3"></textarea>
+<div style="margin-top:14px; display:flex; gap:8px;">
+<button onclick="submitCard()">Submit card</button>
+<button class="secondary" onclick="logout()">Sign out</button>
+</div>
+</div>
+</div>
+</main>
+
+<script>
+const API = '../api';
+let state = { captain:null, fixtures:[], players:[], selectedFixture:null, newPlayers:[] };
+function $(id) { return document.getElementById(id); }
+function flash(msg, ok) {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'bad');
+  el.style.display = 'block';
+  setTimeout(function(){ el.style.display='none'; }, 4500);
+}
+async function api(path, opts) {
+  opts = opts || {};
+  opts.credentials = 'include';
+  opts.headers = Object.assign({ 'Content-Type':'application/json' }, opts.headers || {});
+  const r = await fetch(API + path, opts);
+  let body; try { body = await r.json(); } catch (e) { body = {}; }
+  if (!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+  return body;
+}
+async function doLogin() {
+  const u = $('u').value.trim(), p = $('p').value;
+  if (!u || !p) { flash('Enter username + password', false); return; }
+  try {
+    await api('/captain/login.php', { method:'POST', body: JSON.stringify({ username:u, password:p }) });
+    await loadDash();
+  } catch (e) { flash(e.message, false); }
+}
+async function logout() {
+  try { await api('/captain/logout.php', { method:'POST' }); } catch (e) {}
+  state = { captain:null, fixtures:[], players:[], selectedFixture:null, newPlayers:[] };
+  $('loginCard').style.display = 'block';
+  $('dash').style.display = 'none';
+  $('cardCard').style.display = 'none';
+  $('who').textContent = '';
+}
+async function loadDash() {
+  const data = await api('/captain/me.php');
+  state.captain  = data.captain;
+  state.fixtures = data.fixtures || [];
+  state.players  = data.players  || [];
+  $('loginCard').style.display = 'none';
+  $('dash').style.display = 'block';
+  $('who').textContent = state.captain.team_name + (state.captain.division_name ? ' - ' + state.captain.division_name : '');
+  renderFixtures();
+}
+function renderFixtures() {
+  const list = $('fxList'); list.innerHTML = '';
+  if (!state.fixtures.length) { $('noFx').style.display = 'block'; return; }
+  $('noFx').style.display = 'none';
+  state.fixtures.forEach(function(f) {
+    const div = document.createElement('div');
+    div.className = 'item';
+    const opp = (f.home_team_id === state.captain.team_id) ? f.away_team_name : f.home_team_name;
+    const side = (f.home_team_id === state.captain.team_id) ? 'HOME vs' : 'away at';
+    div.innerHTML = '<div><strong>' + side + ' ' + esc(opp || '') + '</strong><br><span class="muted">' +
+                    esc(f.fixture_date) + (f.venue_name ? ' - ' + esc(f.venue_name) : '') + '</span></div>' +
+                    '<div class="muted">' + f.fixture_id.substring(0,8) + '</div>';
+    div.onclick = function() { selectFixture(f, div); };
+    list.appendChild(div);
+  });
+}
+function selectFixture(f, el) {
+  state.selectedFixture = f;
+  state.newPlayers = [];
+  Array.from(document.querySelectorAll('.fixture-list .item')).forEach(function(x) { x.classList.remove('selected'); });
+  el.classList.add('selected');
+  $('cardCard').style.display = 'block';
+  $('fxHeader').textContent = (f.home_team_name || '?') + ' vs ' + (f.away_team_name || '?') + ' - ' + f.fixture_date;
+  $('frames').innerHTML = '';
+  for (let i = 0; i < 8; i++) addFrame();
+  renderNewPlayers();
+  $('notes').value = '';
+}
+function playerOptions(teamId) {
+  const opts = ['<option value="">- choose -</option>'];
+  state.players.filter(function(p) { return p.team_id === teamId; })
+    .forEach(function(p) { opts.push('<option value="' + p.player_id + '">' + esc(p.full_name) + '</option>'); });
+  state.newPlayers.filter(function(np) { return np.team_id === teamId; })
+    .forEach(function(np) { opts.push('<option value="new:' + esc(np.name) + '">' + esc(np.name) + ' (new)</option>'); });
+  return opts.join('');
+}
+function esc(s){return (s == null ? '' : String(s)).replace(/[&<>"'']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; });}
+function addFrame() {
+  const f = state.selectedFixture; if (!f) return;
+  const idx = $('frames').children.length + 1;
+  const row = document.createElement('div');
+  row.className = 'frame-grid';
+  row.innerHTML = '<div>' + idx + '</div>' +
+    '<select data-role="home">' + playerOptions(f.home_team_id) + '</select>' +
+    '<select data-role="away">' + playerOptions(f.away_team_id) + '</select>' +
+    '<select data-role="winner"><option value="">-</option><option value="home">Home</option><option value="away">Away</option></select>';
+  $('frames').appendChild(row);
+  updateCount();
+}
+function removeFrame() {
+  const list = $('frames');
+  if (list.lastChild) list.removeChild(list.lastChild);
+  updateCount();
+}
+function updateCount() { $('frameCount').textContent = $('frames').children.length + ' frames'; }
+function addNewPlayer() {
+  const name = $('newPlayer').value.trim();
+  if (!name) return;
+  state.newPlayers.push({ name: name, team_id: state.captain.team_id });
+  $('newPlayer').value = '';
+  renderNewPlayers();
+  Array.from($('frames').children).forEach(function(r) {
+    const homeSel = r.querySelector('[data-role="home"]');
+    const cur = homeSel.value;
+    homeSel.innerHTML = playerOptions(state.selectedFixture.home_team_id);
+    homeSel.value = cur;
+  });
+}
+function renderNewPlayers() {
+  $('newPlayerList').textContent = state.newPlayers.length
+    ? 'New players: ' + state.newPlayers.map(function(p){return p.name;}).join(', ') : '';
+}
+async function submitCard() {
+  const f = state.selectedFixture; if (!f) return;
+  const frames = [];
+  Array.from($('frames').children).forEach(function(row, i) {
+    const h = row.querySelector('[data-role="home"]').value;
+    const a = row.querySelector('[data-role="away"]').value;
+    const w = row.querySelector('[data-role="winner"]').value;
+    const hp = h.indexOf('new:') === 0 ? { id:null, name: h.substring(4) } : { id: h || null, name: lookupName(h) };
+    const ap = a.indexOf('new:') === 0 ? { id:null, name: a.substring(4) } : { id: a || null, name: lookupName(a) };
+    frames.push({
+      number: i + 1,
+      home_player_id:   hp.id, home_player_name: hp.name,
+      away_player_id:   ap.id, away_player_name: ap.name,
+      winner: w || null, eight_ball: false, is_doubles: false
+    });
+  });
+  if (!frames.length) { flash('Add at least one frame', false); return; }
+  try {
+    const res = await api('/captain/submit-result.php', {
+      method: 'POST',
+      body: JSON.stringify({
+        fixture_id: f.fixture_id, frames: frames,
+        new_players: state.newPlayers, notes: $('notes').value.trim()
+      })
+    });
+    flash('Submitted card #' + res.id + '. Opposing captain submits their own; admin will reconcile them.', true);
+  } catch (e) { flash(e.message, false); }
+}
+function lookupName(id) {
+  if (!id) return null;
+  const p = state.players.find(function(x) { return x.player_id === id; });
+  return p ? p.full_name : null;
+}
+api('/captain/me.php').then(function(d) { if (d && d.captain) loadDash(); }).catch(function(){});
+</script>
+</body>
+</html>

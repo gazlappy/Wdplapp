@@ -1,0 +1,233 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WDPL · Captain accounts</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font: 14px/1.4 system-ui, Segoe UI, Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+  h1 { margin: 0 0 16px; font-size: 20px; }
+  h2 { margin: 24px 0 8px; font-size: 15px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; margin: 8px 0 4px; color: #cbd5e1; font-size: 13px; }
+  input, select, button { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; width: 100%; }
+  input[type=checkbox] { width: auto; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button { background: #2563eb; border-color: #2563eb; color: white; cursor: pointer; width: auto; padding: 8px 16px; margin-top: 12px; }
+  button.secondary { background: #475569; border-color: #475569; }
+  button.danger { background: #b91c1c; border-color: #b91c1c; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
+  th { color: #94a3b8; font-weight: 600; }
+  tr:hover td { background: #0f172a; }
+  .status { margin-top: 12px; min-height: 1.4em; font-size: 13px; color: #facc15; }
+  .ok { color: #4ade80; }
+  .err { color: #f87171; }
+  .muted { color: #64748b; font-size: 12px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .pill.on { background: #14532d; color: #bbf7d0; }
+  .pill.off { background: #7f1d1d; color: #fecaca; }
+  .actions button { margin: 0 4px 0 0; padding: 4px 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Captain accounts</h1>
+<p class="muted">Captains log in at <a href="../../captain/" style="color:#60a5fa">/captain/</a>. One captain per team.</p>
+
+<div class="card">
+  <h2 id="formTitle">New captain</h2>
+  <form id="captainForm" autocomplete="off">
+    <input type="hidden" id="editingTeamId" />
+    <label for="team">Team</label>
+    <select id="team" required></select>
+    <span class="muted" id="teamHint"></span>
+
+    <div class="row">
+      <div>
+        <label for="username">Username</label>
+        <input id="username" required autocomplete="off" />
+      </div>
+      <div>
+        <label for="password">Password <span class="muted" id="pwHint"></span></label>
+        <input id="password" type="text" autocomplete="new-password" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="displayName">Display name</label>
+        <input id="displayName" />
+      </div>
+      <div>
+        <label for="email">Email</label>
+        <input id="email" type="email" />
+      </div>
+    </div>
+
+    <label style="margin-top:12px"><input type="checkbox" id="enabled" checked /> Enabled</label>
+
+    <div>
+      <button type="submit" id="saveBtn">Save captain</button>
+      <button type="button" class="secondary" id="cancelBtn" hidden>Cancel</button>
+    </div>
+    <div class="status" id="status"></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Existing captains</h2>
+  <table id="captainsTable">
+    <thead>
+      <tr>
+        <th>Team</th><th>Username</th><th>Display</th><th>Email</th>
+        <th>Enabled</th><th>Last login</th><th></th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan="7" class="muted">Loading...</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+const API = 'captains.php';
+let teams = [];
+let captains = [];
+
+const $ = id => document.getElementById(id);
+const status = (msg, cls) => { const s=$('status'); s.textContent=msg||''; s.className='status '+(cls||''); };
+
+async function load() {
+  status('Loading...');
+  try {
+    const r = await fetch(API, { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    captains = data.items || [];
+    teams = data.teams || [];
+    renderTeamOptions();
+    renderTable();
+    status('');
+    $('teamHint').textContent = teams.length === 0
+      ? 'No league_teams rows yet - click "Publish to web" in the MAUI app first.'
+      : teams.length + ' team(s) available.';
+  } catch (e) { status('Load failed: ' + e.message, 'err'); }
+}
+
+function renderTeamOptions() {
+  $('team').innerHTML = '<option value="">-- choose team --</option>' +
+    teams.map(t => '<option value="' + t.team_id + '">' + escapeHtml(t.team_name) + '</option>').join('');
+}
+
+function renderTable() {
+  const tb = $('captainsTable').querySelector('tbody');
+  if (!captains.length) { tb.innerHTML = '<tr><td colspan="7" class="muted">No captains yet.</td></tr>'; return; }
+  tb.innerHTML = captains.map(c =>
+    '<tr>' +
+      '<td>' + escapeHtml(c.team_name||'') + '</td>' +
+      '<td>' + escapeHtml(c.username||'') + '</td>' +
+      '<td>' + escapeHtml(c.display_name||'') + '</td>' +
+      '<td>' + escapeHtml(c.email||'') + '</td>' +
+      '<td><span class="pill ' + (Number(c.enabled)?'on':'off') + '">' + (Number(c.enabled)?'yes':'no') + '</span></td>' +
+      '<td>' + escapeHtml(c.last_login||'') + '</td>' +
+      '<td class="actions">' +
+        '<button type="button" data-edit="' + c.team_id + '">Edit</button>' +
+        '<button type="button" class="danger" data-del="' + c.team_id + '">Delete</button>' +
+      '</td>' +
+    '</tr>').join('');
+  tb.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => edit(b.dataset.edit));
+  tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b.dataset.del));
+}
+
+function edit(teamId) {
+  const c = captains.find(x => x.team_id === teamId);
+  if (!c) return;
+  $('formTitle').textContent = 'Edit captain - ' + c.team_name;
+  $('editingTeamId').value = c.team_id;
+  $('team').value = c.team_id;
+  $('username').value = c.username || '';
+  $('password').value = '';
+  $('pwHint').textContent = '(leave blank to keep current)';
+  $('displayName').value = c.display_name || '';
+  $('email').value = c.email || '';
+  $('enabled').checked = !!Number(c.enabled);
+  $('cancelBtn').hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+  $('formTitle').textContent = 'New captain';
+  $('editingTeamId').value = '';
+  $('captainForm').reset();
+  $('enabled').checked = true;
+  $('pwHint').textContent = '';
+  $('cancelBtn').hidden = true;
+  status('');
+}
+
+async function del(teamId) {
+  const c = captains.find(x => x.team_id === teamId);
+  if (!c) return;
+  if (!confirm('Delete captain for ' + c.team_name + '?')) return;
+  try {
+    const r = await fetch(API, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ team_id: teamId })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    status('Deleted.', 'ok');
+    await load();
+  } catch (e) { status('Delete failed: ' + e.message, 'err'); }
+}
+
+$('cancelBtn').onclick = resetForm;
+
+$('captainForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const team_id = $('team').value;
+  if (!team_id) { status('Pick a team.', 'err'); return; }
+  const team = teams.find(t => t.team_id === team_id);
+  const editing = $('editingTeamId').value === team_id;
+  const password = $('password').value;
+  if (!editing && !password) { status('Password required for a new captain.', 'err'); return; }
+
+  const body = {
+    team_id,
+    team_name: team ? team.team_name : '',
+    division_id: team ? team.division_id : null,
+    username: $('username').value.trim(),
+    display_name: $('displayName').value.trim(),
+    email: $('email').value.trim(),
+    enabled: $('enabled').checked
+  };
+  if (password) body.password = password;
+
+  $('saveBtn').disabled = true;
+  status('Saving...');
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    status('Saved.', 'ok');
+    resetForm();
+    await load();
+  } catch (e) { status('Save failed: ' + e.message, 'err'); }
+  finally { $('saveBtn').disabled = false; }
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+load();
+</script>
+</body>
+</html>

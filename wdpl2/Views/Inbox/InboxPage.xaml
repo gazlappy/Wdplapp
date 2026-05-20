@@ -23,9 +23,16 @@
                     <Label Grid.Row="2" Grid.Column="0" Text="Password" VerticalOptions="Center" />
                     <Entry Grid.Row="2" Grid.Column="1" Text="{Binding AdminPassword}" IsPassword="True" />
                 </Grid>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <CheckBox IsChecked="{Binding IgnoreSslErrors}" VerticalOptions="Center" />
+                    <Label Text="Ignore SSL certificate errors (insecure)"
+                           VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light=#B45309, Dark=#FBBF24}" />
+                </HorizontalStackLayout>
                 <HorizontalStackLayout Spacing="8">
                     <Button Text="Save settings" Command="{Binding SaveSettingsCommand}" />
                     <Button Text="Refresh" Command="{Binding RefreshCommand}" />
+                    <Button Text="Publish to web" Command="{Binding PublishLeagueCommand}" />
                     <Button Text="Mark all processed"
                             Command="{Binding MarkAllProcessedCommand}"
                             IsVisible="{Binding HasItems}" />

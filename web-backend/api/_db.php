@@ -8,6 +8,26 @@ define('DB_NAME', 'youracct_inbox');   // <-- change me
 define('DB_USER', 'youracct_wdpl');    // <-- change me
 define('DB_PASS', 'CHANGE-ME');        // <-- change me
 
+// Turn unexpected errors into a JSON 500 so the client sees the cause
+// instead of a blank Apache 500 page. Safe for a private admin tool.
+set_exception_handler(function ($ex) {
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Access-Control-Allow-Origin: *');
+    }
+    echo json_encode(array(
+        'error'   => 'server_exception',
+        'message' => $ex->getMessage(),
+        'where'   => basename($ex->getFile()) . ':' . $ex->getLine(),
+    ));
+    exit;
+});
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
 function db() {
     static $pdo = null;
     if ($pdo === null) {

@@ -14,6 +14,7 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<ISeasonService, SeasonService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IWebInboxService, HttpWebInboxService>();
+        services.AddSingleton<IWebPublishService, HttpWebPublishService>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Wdpl2.Services.Inbox;
 
@@ -10,10 +11,30 @@ namespace Wdpl2.Services.Inbox;
 /// </summary>
 public sealed class HttpWebInboxService : IWebInboxService
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
+    };
+
     private static readonly HttpClient _http = new()
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
+
+    private static readonly HttpClient _httpInsecure = new(new SocketsHttpHandler
+    {
+        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+        {
+            RemoteCertificateValidationCallback = (_, _, _, _) => true
+        }
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    private static HttpClient ClientFor(WebInboxSettings s) =>
+        s.IgnoreSslErrors ? _httpInsecure : _http;
 
     public async Task<IReadOnlyList<WebSubmission>> GetPendingAsync(CancellationToken ct = default)
     {
@@ -21,11 +42,11 @@ public sealed class HttpWebInboxService : IWebInboxService
         using var req = new HttpRequestMessage(HttpMethod.Get, BuildUrl(settings, "admin/pending.php"));
         AddAuth(req, settings);
 
-        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        using var resp = await ClientFor(settings).SendAsync(req, ct).ConfigureAwait(false);
         await EnsureOkAsync(resp).ConfigureAwait(false);
 
         await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        var parsed = await JsonSerializer.DeserializeAsync<PendingResponse>(stream, cancellationToken: ct)
+        var parsed = await JsonSerializer.DeserializeAsync<PendingResponse>(stream, _jsonOptions, ct)
                        .ConfigureAwait(false);
         return parsed?.Items ?? new List<WebSubmission>();
     }
@@ -49,7 +70,7 @@ public sealed class HttpWebInboxService : IWebInboxService
         };
         AddAuth(req, settings);
 
-        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        using var resp = await ClientFor(settings).SendAsync(req, ct).ConfigureAwait(false);
         await EnsureOkAsync(resp).ConfigureAwait(false);
     }
 
