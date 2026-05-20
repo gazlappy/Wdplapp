@@ -1,12 +1,19 @@
 <?php
 // _db.php — shared database connection + helpers.
-// Edit the three constants below with the values from your host.
 // PHP 5.6 compatible (no return types, no strict_types, no ??).
+//
+// Credentials live in _db.config.php (same folder) so deploys from the
+// MAUI app don't trample your real DB password. If _db.config.php is
+// missing, the hard-coded fallbacks below are used (edit at your peril —
+// the next backend deploy will overwrite this file).
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'youracct_inbox');   // <-- change me
-define('DB_USER', 'youracct_wdpl');    // <-- change me
-define('DB_PASS', 'CHANGE-ME');        // <-- change me
+if (is_file(__DIR__ . '/_db.config.php')) {
+    include_once __DIR__ . '/_db.config.php';
+}
+if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
+if (!defined('DB_NAME')) define('DB_NAME', 'youracct_inbox');   // <-- fallback only
+if (!defined('DB_USER')) define('DB_USER', 'youracct_wdpl');    // <-- fallback only
+if (!defined('DB_PASS')) define('DB_PASS', 'CHANGE-ME');        // <-- fallback only
 
 // Turn unexpected errors into a JSON 500 so the client sees the cause
 // instead of a blank Apache 500 page. Safe for a private admin tool.

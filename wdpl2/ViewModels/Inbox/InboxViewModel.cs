@@ -327,6 +327,10 @@ public partial class InboxViewModel : BaseViewModel
                 SetStatus($"{p.Status} ({p.FilesCompleted}/{p.TotalFiles})"));
 
             var result = await _backend.DeployAsync(settings, progress);
+            // Let any in-flight Progress<T> callbacks drain before we post the
+            // final diagnostic message, otherwise the last "Uploading X..."
+            // status can land after this SetStatus and clobber it.
+            await Task.Delay(150);
             SetStatus(result.Message.Replace(Environment.NewLine, " | "));
         }
         catch (Exception ex)

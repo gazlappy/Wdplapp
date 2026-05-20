@@ -441,6 +441,41 @@ namespace Wdpl2.Models
         public string FtpPassword { get; set; } = "";
         public bool UseSftp { get; set; } = false;
         public string RemotePath { get; set; } = "/";
+
+        /// <summary>
+        /// Remote path the PHP/HTML backend (captain portal, admin pages, API endpoints)
+        /// is deployed to. Usually the site's web root (e.g. <c>/public_html</c>), even when
+        /// <see cref="RemotePath"/> points at a sub-folder for the generated league site
+        /// (e.g. <c>/public_html/NewPool</c>). Leave blank to auto-derive as the parent of
+        /// <see cref="RemotePath"/>.
+        /// </summary>
+        public string BackendRemotePath { get; set; } = "";
+
+        // Backend database credentials. Pushed by BackendDeployService as
+        // api/_db.config.php (a sidecar that _db.php includes) so the deploy
+        // doesn't overwrite the server's working DB password every time.
+        public string BackendDbHost     { get; set; } = "localhost";
+        public string BackendDbName     { get; set; } = "";
+        public string BackendDbUser     { get; set; } = "";
+        public string BackendDbPassword { get; set; } = "";
+
+        /// <summary>
+        /// Returns <see cref="BackendRemotePath"/> if set, otherwise the parent folder of
+        /// <see cref="RemotePath"/> (so a website at <c>/public_html/NewPool</c> deploys
+        /// the backend to <c>/public_html</c>). Falls back to <see cref="RemotePath"/> itself
+        /// when no parent can be derived.
+        /// </summary>
+        public string GetEffectiveBackendRemotePath()
+        {
+            if (!string.IsNullOrWhiteSpace(BackendRemotePath))
+                return BackendRemotePath;
+
+            var trimmed = (RemotePath ?? "/").TrimEnd('/');
+            if (string.IsNullOrEmpty(trimmed)) return "/";
+            var idx = trimmed.LastIndexOf('/');
+            if (idx <= 0) return "/";
+            return trimmed[..idx];
+        }
         
         // GitHub Pages Settings
         public string GitHubToken { get; set; } = "";

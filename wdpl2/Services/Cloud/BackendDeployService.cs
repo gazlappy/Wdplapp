@@ -49,8 +49,9 @@ public sealed class BackendDeployService
     /// <summary>
     /// Reads the bundled backend files and returns them as a
     /// dictionary keyed by their target relative path (e.g. "api/captain/login.php").
+    /// Also records which files were missing in <paramref name="missing"/>.
     /// </summary>
-    public async Task<Dictionary<string, string>> LoadBundledAsync()
+    public async Task<Dictionary<string, string>> LoadBundledAsync(List<string>? missing = null)
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rel in BundledFiles)
@@ -61,9 +62,9 @@ public sealed class BackendDeployService
                 using var reader = new StreamReader(stream, Encoding.UTF8);
                 map[rel] = await reader.ReadToEndAsync();
             }
-            catch
+            catch (Exception ex)
             {
-                // File not packaged on this target - skip silently; report via Failures later.
+                missing?.Add($"{rel} ({ex.GetType().Name}: {ex.Message})");
             }
         }
         return map;
@@ -78,7 +79,18 @@ public sealed class BackendDeployService
         IProgress<UploadProgress>? progress = null,
         IEnumerable<string>? onlyFiles = null)
     {
-        var files = await LoadBundledAsync();
+        var missing = new List<string>();
+        var files = await LoadBundledAsync(missing);
+
+        // Inject the DB credential sidecar (api/_db.config.php) so the deploy
+        // configures the server without needing _db.php itself to carry secrets.
+        // Only emitted when the user has actually filled in DB credentials.
+        if (!string.IsNullOrWhiteSpace(settings.BackendDbName) &&
+            !string.IsNullOrWhiteSpace(settings.BackendDbUser))
+        {
+            files["api/_db.config.php"] = BuildDbConfigPhp(settings);
+        }
+
         if (onlyFiles is not null)
         {
             var filter = new HashSet<string>(onlyFiles, StringComparer.OrdinalIgnoreCase);
@@ -100,6 +112,11 @@ public sealed class BackendDeployService
         }
 
         var ftp = new FtpUploadService(settings);
+
+        // Backend deploys to the site root (or whatever BackendRemotePath says),
+        // NOT to WebsiteSettings.RemotePath which usually points at a sub-folder
+        // for the generated league site (e.g. /public_html/NewPool).
+        var backendRoot = settings.GetEffectiveBackendRemotePath();
 
         int uploaded = 0;
         var failures = new List<string>();
@@ -128,8 +145,9 @@ public sealed class BackendDeployService
             var originalRemote = settings.RemotePath;
             try
             {
-                var combined = originalRemote.TrimEnd('/') + "/" + subDir;
-                settings.RemotePath = combined.Replace("//", "/");
+                var combined = backendRoot.TrimEnd('/') + "/" + subDir;
+                settings.RemotePath = combined.Replace("//", "/").TrimEnd('/');
+                if (string.IsNullOrEmpty(settings.RemotePath)) settings.RemotePath = "/";
                 var (ok, msg) = await ftp.UploadWebsiteAsync(single);
                 if (ok) uploaded++;
                 else    failures.Add($"{rel}: {msg}");
@@ -144,15 +162,30 @@ public sealed class BackendDeployService
             }
         }
 
-        progress?.Report(new UploadProgress
-        {
-            FilesCompleted = files.Count,
-            TotalFiles     = files.Count,
-            Status         = failures.Count == 0 ? "Backend deployed." : $"Completed with {failures.Count} failure(s)."
-        });
+        // NOTE: do NOT post a final progress.Report here. Progress<T> callbacks
+        // are dispatched asynchronously via the sync context, so a "final"
+        // report would arrive AFTER the caller's SetStatus(result.Message)
+        // and silently overwrite the diagnostic output (size+hash+missing).
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Backend deploy: {uploaded}/{files.Count} file(s) uploaded to {settings.FtpHost}{settings.RemotePath}");
+        sb.AppendLine($"Backend deploy: {uploaded}/{files.Count} file(s) uploaded to {settings.FtpHost}{backendRoot}");
+
+        // Spot-check: report size + hash of captain/index.html so you can tell
+        // whether the bundled HTML is the new redesign or an old build.
+        if (files.TryGetValue("captain/index.html", out var capHtml))
+        {
+            var bytes = Encoding.UTF8.GetByteCount(capHtml);
+            var hash  = FtpUploadService.ComputeHash(capHtml);
+            sb.AppendLine($"  captain/index.html: {bytes:N0} bytes, sha256 {hash[..12]}...");
+        }
+
+        if (missing.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Missing from bundle ({missing.Count}) — REBUILD the app to pick up edits:");
+            foreach (var m in missing) sb.AppendLine("  - " + m);
+        }
+
         if (failures.Count > 0)
         {
             sb.AppendLine();
@@ -168,5 +201,24 @@ public sealed class BackendDeployService
             FilesSkipped  = files.Count - uploaded - failures.Count,
             Failures      = failures,
         };
+    }
+
+    /// <summary>
+    /// Build the contents of <c>api/_db.config.php</c> — a sidecar file that
+    /// <c>_db.php</c> includes to obtain DB credentials. Lets backend deploys
+    /// configure DB access without keeping passwords in the bundled source.
+    /// </summary>
+    private static string BuildDbConfigPhp(WebsiteSettings s)
+    {
+        static string Esc(string v) => (v ?? "").Replace("\\", "\\\\").Replace("'", "\\'");
+        var sb = new StringBuilder();
+        sb.AppendLine("<?php");
+        sb.AppendLine("// AUTO-GENERATED by the WDPL admin app on backend deploy.");
+        sb.AppendLine("// Edits here are overwritten on the next deploy.");
+        sb.AppendLine($"define('DB_HOST', '{Esc(s.BackendDbHost)}');");
+        sb.AppendLine($"define('DB_NAME', '{Esc(s.BackendDbName)}');");
+        sb.AppendLine($"define('DB_USER', '{Esc(s.BackendDbUser)}');");
+        sb.AppendLine($"define('DB_PASS', '{Esc(s.BackendDbPassword)}');");
+        return sb.ToString();
     }
 }

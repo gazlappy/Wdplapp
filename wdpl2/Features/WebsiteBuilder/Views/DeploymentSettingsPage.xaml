@@ -122,7 +122,22 @@
                     
                     <Label Text="Remote Path" FontSize="12" TextColor="#6B7280"/>
                     <Entry x:Name="FtpPathEntry" Placeholder="/public_html/"/>
-                    
+
+                    <Label Text="Backend Remote Path (leave blank to auto-derive)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="BackendPathEntry" Placeholder="/public_html"/>
+
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,6"/>
+                    <Label Text="Backend Database (written to api/_db.config.php on deploy)" FontSize="13" FontAttributes="Bold"/>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Entry Grid.Column="0" x:Name="DbHostEntry" Placeholder="DB host (localhost)"/>
+                        <Entry Grid.Column="1" x:Name="DbNameEntry" Placeholder="DB name"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Entry Grid.Column="0" x:Name="DbUserEntry" Placeholder="DB user"/>
+                        <Entry Grid.Column="1" x:Name="DbPasswordEntry" Placeholder="DB password" IsPassword="True"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" Color="#E5E7EB" Margin="0,6"/>
+
                     <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
                         <Button Grid.Column="0" 
                                 x:Name="TestConnectionBtn" 

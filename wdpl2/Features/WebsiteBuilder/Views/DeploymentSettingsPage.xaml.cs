@@ -32,6 +32,11 @@ public partial class DeploymentSettingsPage : ContentPage
         FtpUsernameEntry.Text = settings.FtpUsername;
         FtpPasswordEntry.Text = settings.FtpPassword;
         FtpPathEntry.Text = settings.RemotePath;
+        BackendPathEntry.Text = settings.BackendRemotePath;
+        DbHostEntry.Text = settings.BackendDbHost;
+        DbNameEntry.Text = settings.BackendDbName;
+        DbUserEntry.Text = settings.BackendDbUser;
+        DbPasswordEntry.Text = settings.BackendDbPassword;
 
         GitHubTokenEntry.Text = settings.GitHubToken;
         GitHubUsernameEntry.Text = settings.GitHubUsername;
@@ -52,6 +57,11 @@ public partial class DeploymentSettingsPage : ContentPage
         settings.FtpUsername = FtpUsernameEntry.Text?.Trim() ?? "";
         settings.FtpPassword = FtpPasswordEntry.Text?.Trim() ?? "";
         settings.RemotePath = FtpPathEntry.Text?.Trim() ?? "/public_html/";
+        settings.BackendRemotePath = BackendPathEntry.Text?.Trim() ?? "";
+        settings.BackendDbHost = DbHostEntry.Text?.Trim() ?? "localhost";
+        settings.BackendDbName = DbNameEntry.Text?.Trim() ?? "";
+        settings.BackendDbUser = DbUserEntry.Text?.Trim() ?? "";
+        settings.BackendDbPassword = DbPasswordEntry.Text ?? "";
 
         settings.GitHubToken = GitHubTokenEntry.Text?.Trim() ?? "";
         settings.GitHubUsername = GitHubUsernameEntry.Text?.Trim() ?? "";
