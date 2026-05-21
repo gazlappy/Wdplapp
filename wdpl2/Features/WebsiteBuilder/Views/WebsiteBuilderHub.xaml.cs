@@ -78,9 +78,9 @@ public partial class WebsiteBuilderHub : ContentPage
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
             or "rows-reports.html" or "entry-forms.html"
-            or "captains.html" or "captain-dashboard.html"
+            or "captains.html"
             or "player.html" or "team.html" or "pool-game.html" or "style.css"
-            or "sitemap.xml" or "players-data.json" or "teams-data.json" or "captains-data.json";
+            or "sitemap.xml" or "players-data.json" or "teams-data.json";
     
     protected override void OnAppearing()
     {
@@ -671,7 +671,6 @@ public partial class WebsiteBuilderHub : ContentPage
             "news.html" => "News",
             "rows-reports.html" => "Rows Reports",
             "captains.html" => "Captains",
-            "captain-dashboard.html" => "Captain Dashboard",
             _ => Path.GetFileNameWithoutExtension(fileName)
         };
     }
@@ -728,13 +727,6 @@ public partial class WebsiteBuilderHub : ContentPage
             var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
                 .Replace("\r", "").Replace("\n", "");
             html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
-        }
-
-        if (_generatedFiles.TryGetValue("captains-data.json", out var captainsJson))
-        {
-            var escaped = captainsJson.Replace("\\", "\\\\").Replace("'", "\\'")
-                .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchWithInline(html, "captains-data.json", escaped);
         }
 
         return html;

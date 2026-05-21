@@ -175,17 +175,14 @@ namespace Wdpl2.Services
             if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
                 files["history.html"] = GenerateHistoryPage(season, template);
 
-            // Captains Area (PIN-gated, client-side)
+            // Captains Area - now just a static landing page that links to the
+            // server-backed Captain Portal (deployed separately by BackendDeployService).
+            // The old PIN-gated dashboard and captains-data.json have been retired.
             if (_settings.EnableCaptainsArea)
             {
-                files["captains-data.json"] = jsonGenerator.GenerateCaptainsJson(seasonTeams, seasonDivisions, seasonVenues, seasonPlayers, seasonFixtures);
                 files["captains.html"] = templateGenerator.GenerateCaptainsLoginPage(
                     season, _cacheBuster,
                     AppendDocumentHead, AppendHeader, AppendNavigation, AppendFooter);
-                files["captain-dashboard.html"] = templateGenerator.GenerateCaptainDashboardPage(
-                    season, _cacheBuster,
-                    AppendDocumentHead, AppendHeader, AppendNavigation, AppendFooter,
-                    GetTableClasses());
             }
 
             // Custom pages

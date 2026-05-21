@@ -26,8 +26,26 @@ captain_login($row['team_id']);
 db()->prepare('UPDATE captains SET last_login = UTC_TIMESTAMP() WHERE team_id = :t')
     ->execute(array(':t' => $row['team_id']));
 
+// Also return the token in the JSON body so the client can fall back to an
+// Authorization: Bearer header when the cookie doesn't survive the hop
+// (cross-path, third-party cookie blockers, hosts that strip Set-Cookie, etc.).
+$token = null;
+if (!empty($_COOKIE[CAPTAIN_COOKIE])) $token = $_COOKIE[CAPTAIN_COOKIE];
+// captain_login() set the cookie via setcookie() which only populates
+// $_COOKIE on the *next* request; grab the token from the most recently
+// inserted session row for this team instead.
+if (!$token) {
+    $q = db()->prepare(
+        'SELECT token FROM captain_sessions
+          WHERE team_id = :t ORDER BY created_utc DESC LIMIT 1');
+    $q->execute(array(':t' => $row['team_id']));
+    $r = $q->fetch();
+    if ($r) $token = $r['token'];
+}
+
 json_response(array(
     'ok'            => true,
+    'token'         => $token,
     'team_id'       => $row['team_id'],
     'team_name'     => $row['team_name'],
     'display_name'  => $row['display_name'],

@@ -28,16 +28,40 @@ function captain_login($team_id) {
 }
 
 function captain_logout() {
-    if (!empty($_COOKIE[CAPTAIN_COOKIE])) {
+    $t = captain_current_token();
+    if ($t) {
         db()->prepare('DELETE FROM captain_sessions WHERE token = :t')
-            ->execute(array(':t' => $_COOKIE[CAPTAIN_COOKIE]));
+            ->execute(array(':t' => $t));
     }
     setcookie(CAPTAIN_COOKIE, '', time() - 3600, '/');
 }
 
+function captain_current_token() {
+    // Prefer the cookie, but fall back to an Authorization: Bearer <token>
+    // header — useful when third-party / cross-path cookies are blocked or
+    // when the host strips Set-Cookie on the login response.
+    if (!empty($_COOKIE[CAPTAIN_COOKIE])) return $_COOKIE[CAPTAIN_COOKIE];
+    $hdr = '';
+    if (!empty($_SERVER['HTTP_AUTHORIZATION']))            $hdr = $_SERVER['HTTP_AUTHORIZATION'];
+    else if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) $hdr = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    else if (function_exists('getallheaders')) {
+        $h = getallheaders();
+        if (is_array($h)) {
+            foreach ($h as $k => $v) {
+                if (strcasecmp($k, 'Authorization') === 0) { $hdr = $v; break; }
+            }
+        }
+    }
+    if ($hdr && stripos($hdr, 'Bearer ') === 0) {
+        return trim(substr($hdr, 7));
+    }
+    if (!empty($_SERVER['HTTP_X_CAPTAIN_TOKEN'])) return $_SERVER['HTTP_X_CAPTAIN_TOKEN'];
+    return null;
+}
+
 function captain_current() {
-    if (empty($_COOKIE[CAPTAIN_COOKIE])) return null;
-    $t = $_COOKIE[CAPTAIN_COOKIE];
+    $t = captain_current_token();
+    if (!$t) return null;
     $stmt = db()->prepare(
         'SELECT c.team_id, c.team_name, c.username, c.display_name, c.division_id, c.division_name,
                 s.expires_utc

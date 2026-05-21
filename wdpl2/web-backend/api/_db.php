@@ -54,7 +54,7 @@ function db() {
 function send_cors_headers() {
     header('Access-Control-Allow-Origin: *'); // tighten to your domain if you prefer
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Captain-Token');
     header('Access-Control-Max-Age: 86400');
 }
 

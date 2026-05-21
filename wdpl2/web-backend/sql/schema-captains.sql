@@ -29,12 +29,13 @@ CREATE TABLE IF NOT EXISTS league_teams (
 
 -- Snapshot of league players (pushed by the MAUI app).
 CREATE TABLE IF NOT EXISTS league_players (
-  player_id      CHAR(36)     NOT NULL PRIMARY KEY,
-  team_id        CHAR(36)     NULL,
-  season_id      CHAR(36)     NULL,
-  full_name      VARCHAR(160) NOT NULL,
-  is_active      TINYINT(1)   NOT NULL DEFAULT 1,
-  updated_utc    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  player_id         CHAR(36)     NOT NULL PRIMARY KEY,
+  team_id           CHAR(36)     NULL,
+  season_id         CHAR(36)     NULL,
+  full_name         VARCHAR(160) NOT NULL,
+  is_active         TINYINT(1)   NOT NULL DEFAULT 1,
+  added_by_captain  TINYINT(1)   NOT NULL DEFAULT 0,
+  updated_utc       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX ix_team (team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -62,4 +63,37 @@ CREATE TABLE IF NOT EXISTS captain_sessions (
   created_utc  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
   expires_utc  DATETIME  NOT NULL,
   INDEX ix_expires (expires_utc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player availability tracking (per week).
+-- week_start_utc is Monday 00:00 of the ISO week (same as me.php fixture window).
+CREATE TABLE IF NOT EXISTS player_availability (
+  player_id       CHAR(36) NOT NULL,
+  week_start_utc  DATETIME NOT NULL,
+  available       TINYINT(1) NOT NULL DEFAULT 1,
+  updated_utc     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (player_id, week_start_utc),
+  INDEX ix_week (week_start_utc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Captain-to-captain (and admin-to-captain) messaging.
+-- from_team_id = NULL means the admin/system sent it.
+-- to_team_id   = NULL means it's a broadcast to every captain.
+CREATE TABLE IF NOT EXISTS captain_messages (
+  message_id    BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  from_team_id  CHAR(36)     NULL,
+  to_team_id    CHAR(36)     NULL,
+  subject       VARCHAR(160) NOT NULL,
+  body          TEXT         NOT NULL,
+  sent_utc      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX ix_to (to_team_id, sent_utc),
+  INDEX ix_from (from_team_id, sent_utc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Per-recipient read tracking (supports broadcast messages).
+CREATE TABLE IF NOT EXISTS captain_message_reads (
+  message_id   BIGINT   NOT NULL,
+  team_id      CHAR(36) NOT NULL,
+  read_utc     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (message_id, team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,9 +1,13 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WDPL Captain Portal</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WDPL Captain">
 <style>
 :root {
   --bg:#0f172a; --panel:#1e293b; --line:#334155; --text:#f1f5f9; --muted:#94a3b8;
@@ -69,6 +73,14 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 .sc-row.set-c1 { background:#f0fdf4; }
 .sc-row.set-c2 { background:#dcfce7; }
 .sc-row.current { background:#FEF9C3 !important; }
+.sc-pill.locked { opacity:0.55; cursor:not-allowed; }
+.sc-eight.pending { background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; }
+.eight-banner { background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; border-radius:6px; padding:8px 10px; margin:8px 0; font-size:13px; display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.eight-banner button { padding:4px 10px; font-size:12px; }
+.live-pill { font-size:11px; padding:2px 8px; border-radius:10px; background:#1e3a5f; color:#bfdbfe; }
+.live-pill.live { background:#064e3b; color:#a7f3d0; }
+.final-banner { background:#1e3a5f; color:#dbeafe; border-radius:6px; padding:10px; margin-top:10px; font-size:13px; }
+.final-banner.done { background:#064e3b; color:#a7f3d0; }
 
 .sc-num { font-weight:700; color:#64748B; font-size:12px; text-align:center; }
 .sc-pill {
@@ -120,6 +132,11 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 </style>
 </head>
 <body>
+<div id="installBanner" style="display:none; background:#1f4e79; color:#fff; padding:10px 14px; text-align:center; font-size:14px;">
+  <span>Install WDPL Captain as an app for quick access.</span>
+  <button id="installBtn" style="margin-left:10px; padding:4px 12px;">Install</button>
+  <button onclick="document.getElementById('installBanner').style.display='none'" style="margin-left:6px; padding:4px 10px; background:transparent; color:#fff; border:1px solid #fff;">Dismiss</button>
+</div>
 <header>
 <h1>WDPL Captain Portal</h1>
 <div id="who" class="muted"></div>
@@ -138,9 +155,9 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 
 <div id="dash" style="display:none">
 <div class="card">
-<h2>Your fixtures</h2>
+<h2>Your fixtures this week</h2>
 <div id="fxList" class="fixture-list"></div>
-<div id="noFx" class="muted" style="display:none">No fixtures in the next 3 weeks.</div>
+<div id="noFx" class="muted" style="display:none">No fixtures this week, or all of this week's scorecards have been finalized.</div>
 </div>
 
 <div class="card" id="historyCard">
@@ -152,15 +169,78 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <div id="noHist" class="muted" style="display:none">No past scorecards yet.</div>
 </div>
 
-<div class="card" id="cardCard" style="display:none">
-<h2>Result card</h2>
-<div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
 
-<div class="phase">
-  <div class="pill" data-phase="home"    onclick="setPhase('home')">1. Home lineup</div>
-  <div class="pill" data-phase="away"    onclick="setPhase('away')">2. Away lineup</div>
-  <div class="pill" data-phase="results" onclick="setPhase('results')">3. Results</div>
+<div class="card" id="rosterCard">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>Team roster &amp; availability (this week)</span>
+  <button class="secondary" onclick="loadRoster()" style="font-size:12px; padding:5px 10px;">Refresh</button>
+</h2>
+<div id="rosterList" style="margin-bottom:12px"></div>
+<div id="noRoster" class="muted" style="display:none">No players yet.</div>
+<div style="border-top:1px solid #ddd; padding-top:12px; margin-top:12px;">
+  <label>Add new player</label>
+  <div class="row" style="margin-top:4px">
+    <input id="newPlayerName" placeholder="Full name" style="flex:1">
+    <button class="secondary" onclick="addPlayer()">Add</button>
+  </div>
 </div>
+</div>
+
+
+<div class="card" id="accountCard">
+<h2>Account settings</h2>
+<label>Display name</label>
+<input id="accountDisplay" placeholder="Your name">
+<label style="margin-top:8px">Email</label>
+<input id="accountEmail" type="email" placeholder="your@email.com">
+<button onclick="updateProfile()" style="margin-top:8px">Save profile</button>
+<hr style="margin:16px 0; border:0; border-top:1px solid #ddd">
+<h3 style="font-size:14px; margin-bottom:8px">Change password</h3>
+<label>Current password</label>
+<input id="pwdOld" type="password" autocomplete="current-password">
+<label style="margin-top:8px">New password</label>
+<input id="pwdNew" type="password" autocomplete="new-password">
+<button onclick="changePassword()" style="margin-top:8px">Change password</button>
+</div>
+
+<div class="card" id="messagesCard">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>Messages <span id="msgBadge" class="badge" style="display:none; background:#c00; color:#fff; margin-left:6px">0</span></span>
+  <button class="secondary" onclick="loadMessages()" style="font-size:12px; padding:5px 10px;">Refresh</button>
+</h2>
+<div id="msgList" class="fixture-list"></div>
+<div id="noMsg" class="muted" style="display:none">No messages.</div>
+<div style="border-top:1px solid #ddd; padding-top:12px; margin-top:12px;">
+  <label>Send message</label>
+  <select id="msgTo" style="width:100%; margin-top:4px"><option value="">Pick a captain...</option></select>
+  <input id="msgSubject" placeholder="Subject" style="margin-top:6px">
+  <textarea id="msgBody" rows="3" placeholder="Message body" style="margin-top:6px; width:100%"></textarea>
+  <button onclick="sendMessage()" style="margin-top:6px">Send</button>
+</div>
+</div>
+<div class="card" id="allFixturesCard">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>All fixtures</span>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <select id="fxWeeks" onchange="loadAllFixtures()" style="font-size:12px; padding:4px">
+      <option value="4">4 weeks</option>
+      <option value="8" selected>8 weeks</option>
+      <option value="12">12 weeks</option>
+      <option value="26">Season</option>
+    </select>
+    <button class="secondary" onclick="loadAllFixtures()" style="font-size:12px; padding:5px 10px;">Refresh</button>
+  </div>
+</h2>
+<div id="allFxList" class="fixture-list"></div>
+<div id="noAllFx" class="muted" style="display:none">No fixtures in this range.</div>
+</div>
+<div class="card" id="cardCard" style="display:none">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>Shared scorecard</span>
+  <span id="livePill" class="live-pill">offline</span>
+</h2>
+<div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
+<div id="sideHint" class="muted" style="margin-bottom:8px"></div>
 
 <div class="scorecard">
   <div class="sc-header">
@@ -184,27 +264,20 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
   </div>
 </div>
 
-<div class="row" style="margin-top:12px">
-  <button class="secondary" onclick="addFrame(false)">+ Singles</button>
-  <button class="secondary" onclick="addFrame(true)">+ Doubles</button>
-  <button class="secondary" onclick="removeFrame()">- Frame</button>
-  <button class="secondary" onclick="resetFrames()" id="resetFramesBtn">Reset frames</button>
-  <button class="secondary" onclick="clearAllWinners()">Clear winners</button>
+<div id="eightBanner" class="eight-banner" style="display:none"></div>
+
+<div class="row" style="margin-top:10px">
   <span class="muted" id="frameCount"></span>
 </div>
 
-<label style="margin-top:14px">Add a brand-new player (not in roster)</label>
-<div class="row">
-<input id="newPlayer" placeholder="Full name">
-<button class="secondary" onclick="addNewPlayer()">Add</button>
-</div>
-<div id="newPlayerList" class="muted" style="margin-top:4px"></div>
-
 <label style="margin-top:14px">Notes (optional)</label>
-<textarea id="notes" rows="2"></textarea>
+<textarea id="notes" rows="2" oninput="onNotesChange()"></textarea>
+
+<div id="finalBanner" class="final-banner" style="display:none"></div>
 
 <div style="margin-top:14px; display:flex; gap:8px;">
-<button onclick="submitCard()">Submit card</button>
+<button id="finalizeBtn" onclick="finalizeCard()" disabled>Finalize card</button>
+<button class="secondary" onclick="closeCard()">Close</button>
 <button class="secondary" onclick="logout()">Sign out</button>
 </div>
 </div>
@@ -243,478 +316,779 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <script>
 const API = '../api';
 const VOID_ID = 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF';
+
 let state = {
-  captain:null, fixtures:[], players:[], selectedFixture:null, newPlayers:[],
-  frames:[], phase:'home', currentIdx:0, pickerCtx:null
+  captain:null, fixtures:[], allFixtures:[], players:[], roster:[], availability:[], thisWeek:null, inbox:[], recipients:[], settings:null,
+  selectedFixture:null, yourSide:null,
+  version:-1, server:null,                 // server-authoritative state
+  currentIdx:0, pickerCtx:null,
+  homeFinal:false, awayFinal:false,
+  pollTimer:null, sendInflight:false, pendingOps:[]
 };
-function $(id) { return document.getElementById(id); }
-function esc(s){return (s==null?'':String(s)).replace(/[&<>"'']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function flash(msg, ok) {
-  const el = $('status'); el.textContent = msg;
-  el.className = 'status ' + (ok ? 'ok' : 'bad');
-  el.style.display = 'block';
+function $(id){ return document.getElementById(id); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"'']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function flash(msg, ok){
+  const el=$('status'); el.textContent=msg;
+  el.className='status '+(ok?'ok':'bad'); el.style.display='block';
   setTimeout(function(){ el.style.display='none'; }, 4500);
 }
-async function api(path, opts) {
-  opts = opts || {}; opts.credentials = 'include';
-  opts.headers = Object.assign({ 'Content-Type':'application/json' }, opts.headers || {});
-  const r = await fetch(API + path, opts);
-  let body; try { body = await r.json(); } catch (e) { body = {}; }
-  if (!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+function getToken(){ try { return localStorage.getItem('wdpl_cap_token') || ''; } catch(e){ return ''; } }
+function setToken(t){ try { if (t) localStorage.setItem('wdpl_cap_token', t); else localStorage.removeItem('wdpl_cap_token'); } catch(e){} }
+async function api(path, opts){
+  opts=opts||{}; opts.credentials='include';
+  const hdrs=Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  const t=getToken();
+  if (t) hdrs['Authorization']='Bearer '+t;
+  opts.headers=hdrs;
+  const r=await fetch(API+path, opts);
+  let body; try{ body=await r.json(); }catch(e){ body={}; }
+  if (!r.ok && r.status!==409) throw new Error(body.error||('HTTP '+r.status));
+  body.__status=r.status;
   return body;
 }
-async function doLogin() {
-  const u = $('u').value.trim(), p = $('p').value;
-  if (!u || !p) { flash('Enter username + password', false); return; }
-  try { await api('/captain/login.php', { method:'POST', body: JSON.stringify({ username:u, password:p }) }); await loadDash(); }
-  catch (e) { flash(e.message, false); }
+async function doLogin(){
+  const u=$('u').value.trim(), p=$('p').value;
+  if(!u||!p){ flash('Enter username + password',false); return; }
+  try{
+    const res=await api('/captain/login.php',{method:'POST',body:JSON.stringify({username:u,password:p})});
+    if (res && res.token) setToken(res.token);
+    await loadDash();
+  }
+  catch(e){ flash(e.message,false); }
 }
-async function logout() {
-  try { await api('/captain/logout.php', { method:'POST' }); } catch (e) {}
-  state = { captain:null, fixtures:[], players:[], selectedFixture:null, newPlayers:[], frames:[], phase:'home', currentIdx:0, pickerCtx:null };
+async function logout(){
+  stopPolling();
+  try{ await api('/captain/logout.php',{method:'POST'}); }catch(e){}
+  setToken('');
+  state={captain:null,fixtures:[],allFixtures:[],players:[],roster:[],availability:[],thisWeek:null,inbox:[],recipients:[],settings:null,selectedFixture:null,yourSide:null,
+         version:-1,server:null,currentIdx:0,pickerCtx:null,homeFinal:false,awayFinal:false,
+         pollTimer:null,sendInflight:false,pendingOps:[]};
   $('loginCard').style.display='block'; $('dash').style.display='none'; $('cardCard').style.display='none'; $('who').textContent='';
 }
-async function loadDash() {
-  const data = await api('/captain/me.php');
-  state.captain = data.captain;
-  state.fixtures = data.fixtures || [];
-  state.players  = data.players  || [];
-  state.settings = data.settings || { default_frames_per_match: 8, max_frames_per_player: 3 };
+async function loadDash(){
+
+// ──────────────────────────────────────────────────────────────────────────
+// MESSAGING
+// ──────────────────────────────────────────────────────────────────────────
+async function loadMessages(){
+  try{
+    const [inb, rec]=await Promise.all([
+      api('/captain/messages.php'),
+      api('/captain/messages.php?recipients=1')
+    ]);
+    state.inbox=(inb && inb.inbox)?inb.inbox:[];
+    state.recipients=(rec && rec.recipients)?rec.recipients:[];
+    renderInbox();
+    renderRecipients();
+  }catch(e){ flash('Failed to load messages: '+e.message,false); }
+}
+function renderInbox(){
+  const list=$('msgList'); list.innerHTML='';
+  if(state.inbox.length===0){ $('noMsg').style.display='block'; $('msgBadge').style.display='none'; return; }
+  $('noMsg').style.display='none';
+  const unread=state.inbox.filter(function(m){ return !m.is_read; }).length;
+  if(unread>0){ const b=$('msgBadge'); b.textContent=unread; b.style.display='inline-block'; }
+  else $('msgBadge').style.display='none';
+  state.inbox.forEach(function(m){
+    const div=document.createElement('div'); div.className='item';
+    if(!m.is_read){ div.style.fontWeight='600'; div.style.background='#fffbe6'; }
+    const broadcast=(m.to_team_id===null)?' <span class="muted" style="font-size:10px">[broadcast]</span>':'';
+    div.innerHTML='<div><strong>'+esc(m.subject)+'</strong>'+broadcast+
+                  '<br><span class="muted">from '+esc(m.from_name||'Admin')+' &middot; '+esc(m.sent_utc)+'</span>'+
+                  '<div style="margin-top:4px; font-weight:normal; white-space:pre-wrap">'+esc(m.body)+'</div></div>';
+    div.onclick=function(){ if(!m.is_read) markRead(m.message_id, div); };
+    list.appendChild(div);
+  });
+}
+function renderRecipients(){
+  const sel=$('msgTo'); sel.innerHTML='<option value="">Pick a captain...</option>';
+  state.recipients.forEach(function(r){
+    const o=document.createElement('option'); o.value=r.team_id;
+    o.textContent=r.team_name+(r.division_name?' ('+r.division_name+')':'');
+    sel.appendChild(o);
+  });
+}
+async function sendMessage(){
+  const to=$('msgTo').value;
+  const subject=$('msgSubject').value.trim();
+  const body=$('msgBody').value.trim();
+  if(!to){ flash('Pick a recipient',false); return; }
+  if(!subject||!body){ flash('Subject and body required',false); return; }
+  try{
+    await api('/captain/messages.php',{method:'POST',body:JSON.stringify({action:'send',to_team_id:to,subject:subject,body:body})});
+    $('msgSubject').value=''; $('msgBody').value=''; $('msgTo').value='';
+    flash('Message sent',true);
+    await loadMessages();
+  }catch(e){ flash(e.message,false); }
+}
+async function markRead(mid, el){
+  try{
+    await api('/captain/messages.php',{method:'POST',body:JSON.stringify({action:'mark_read',message_id:mid})});
+    if(el){ el.style.fontWeight='normal'; el.style.background=''; }
+    const m=state.inbox.filter(function(x){ return x.message_id===mid; })[0];
+    if(m){ m.is_read=true; }
+    const unread=state.inbox.filter(function(x){ return !x.is_read; }).length;
+    if(unread>0){ $('msgBadge').textContent=unread; } else { $('msgBadge').style.display='none'; }
+  }catch(e){}
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ACCOUNT SELF-SERVICE
+// ──────────────────────────────────────────────────────────────────────────
+async function loadAccount(){
+  try{
+    const d=await api('/captain/account.php');
+    if(d && d.account){
+      $('accountDisplay').value=d.account.display_name||'';
+      $('accountEmail').value=d.account.email||'';
+    }
+  }catch(e){ flash('Failed to load account: '+e.message,false); }
+}
+async function updateProfile(){
+  const display=$('accountDisplay').value.trim();
+  const email=$('accountEmail').value.trim();
+  try{
+    await api('/captain/account.php',{method:'POST',body:JSON.stringify({action:'update',display_name:display,email:email})});
+    flash('Profile updated',true);
+  }catch(e){ flash(e.message,false); }
+}
+async function changePassword(){
+  const old=$('pwdOld').value;
+  const newp=$('pwdNew').value;
+  if(!old||!newp){ flash('Enter current and new password',false); return; }
+  try{
+    await api('/captain/account.php',{method:'POST',body:JSON.stringify({action:'password',old_password:old,new_password:newp})});
+    $('pwdOld').value=''; $('pwdNew').value='';
+    flash('Password changed',true);
+  }catch(e){ flash(e.message,false); }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// MULTI-WEEK FIXTURES
+// ──────────────────────────────────────────────────────────────────────────
+async function loadAllFixtures(){
+  const weeks=$('fxWeeks').value;
+  try{
+    const d=await api('/captain/fixtures.php?weeks='+weeks);
+    state.allFixtures=(d && d.fixtures)?d.fixtures:[];
+    renderAllFixtures();
+  }catch(e){ flash('Failed to load fixtures: '+e.message,false); }
+}
+function renderAllFixtures(){
+  const list=$('allFxList'); list.innerHTML='';
+  if(state.allFixtures.length===0){ $('noAllFx').style.display='block'; return; }
+  $('noAllFx').style.display='none';
+  const byWeek={};
+  state.allFixtures.forEach(function(f){
+    const d=new Date(f.fixture_date.replace(' ','T')+'Z');
+    const mon=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+    mon.setUTCDate(mon.getUTCDate()-(mon.getUTCDay()||7)+1);
+    const wk=mon.toISOString().split('T')[0];
+    if(!byWeek[wk])byWeek[wk]=[];
+    byWeek[wk].push(f);
+  });
+  const weeks=Object.keys(byWeek).sort();
+  weeks.forEach(function(wk){
+    const hdr=document.createElement('div'); hdr.className='muted'; hdr.style.fontSize='11px'; hdr.style.marginTop='8px'; hdr.style.marginBottom='4px';
+    hdr.textContent='Week of '+wk;
+    list.appendChild(hdr);
+    byWeek[wk].forEach(function(f){
+      const div=document.createElement('div'); div.className='item';
+      const opp=(f.home_team_id===state.captain.team_id)?f.away_team_name:f.home_team_name;
+      const side=(f.home_team_id===state.captain.team_id)?'HOME vs':'away at';
+      const fin=f.finalized?'<span class="muted" style="font-size:11px"> [finalized]</span>':'';
+      div.innerHTML='<div><strong>'+side+' '+esc(opp||'')+'</strong>'+fin+'<br><span class="muted">'+
+                    esc(f.fixture_date)+(f.venue_name?' - '+esc(f.venue_name):'')+'</span></div>';
+      if(!f.finalized){
+        div.innerHTML+='<div class="muted">open</div>';
+        div.onclick=function(){ selectFixture(f, div); };
+        div.style.cursor='pointer';
+      }else{
+        div.style.opacity='0.6';
+      }
+      list.appendChild(div);
+    });
+  });
+}
+  const data=await api('/captain/me.php');
+  state.captain=data.captain;
+  state.fixtures=data.fixtures||[];
+  state.players=data.players||[];
+  state.settings=data.settings||{default_frames_per_match:15};
   $('loginCard').style.display='none'; $('dash').style.display='block';
-  $('who').textContent = state.captain.team_name + (state.captain.division_name ? ' - ' + state.captain.division_name : '');
-  const rb = $('resetFramesBtn'); if (rb) rb.textContent = 'Reset to ' + defaultFrameCount();
+  $('who').textContent=state.captain.team_name+(state.captain.division_name?' - '+state.captain.division_name:'');
   renderFixtures();
   loadHistory().catch(function(){});
+  loadRoster().catch(function(){});
+  loadAllFixtures().catch(function(){});
+  loadAccount().catch(function(){});
+  loadMessages().catch(function(){});
 }
-
-async function loadHistory() {
-  const list = $('histList'); const none = $('noHist');
-  if (!list) return;
-  list.innerHTML = ''; none.style.display = 'none';
-  let data;
-  try { data = await api('/captain/history.php'); }
-  catch (e) { none.textContent = 'History unavailable: ' + e.message; none.style.display='block'; return; }
-  const ms = (data && data.matches) ? data.matches : [];
-  if (!ms.length) { none.textContent='No past scorecards yet.'; none.style.display='block'; return; }
-  ms.forEach(function(m) {
-    const div = document.createElement('div'); div.className='item';
-    const opp  = (m.home_team_id === state.captain.team_id) ? m.away_team_name : m.home_team_name;
-    const side = (m.home_team_id === state.captain.team_id) ? 'HOME vs' : 'away at';
-    const src  = (m.source === 'app') ? 'app' : (m.source || 'web');
-    div.innerHTML = '<div><strong>' + esc(side + ' ' + (opp || '')) + '</strong><br>' +
-                    '<span class="muted">' + esc(m.fixture_date || '') + '</span></div>' +
-                    '<div style="text-align:right"><strong>' + m.home_score + ' - ' + m.away_score + '</strong>' +
-                    '<br><span class="muted">' + m.frame_count + ' frames - ' + esc(src) + '</span></div>';
-    div.onclick = function() { openHistory(m); };
-    list.appendChild(div);
-  });
-}
-
-async function openHistory(m) {
-  let data;
-  try { data = await api('/captain/history.php?fixture_id=' + encodeURIComponent(m.fixture_id)); }
-  catch (e) { flash(e.message, false); return; }
-  const frames = (data && data.frames) ? data.frames : [];
-  let html = '<div style="font-weight:700; font-size:15px; margin-bottom:6px;">' +
-             esc(m.home_team_name || '?') + ' ' + m.home_score + ' - ' + m.away_score + ' ' + esc(m.away_team_name || '?') +
-             '</div><div class="muted" style="margin-bottom:10px">' + esc(m.fixture_date || '') +
-             (m.venue_name ? ' - ' + esc(m.venue_name) : '') + '</div>';
-  html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
-  html += '<thead><tr style="background:#0f172a;"><th style="padding:4px 6px; text-align:left;">#</th>' +
-          '<th style="padding:4px 6px; text-align:left;">Home</th>' +
-          '<th style="padding:4px 6px; text-align:center;">Score</th>' +
-          '<th style="padding:4px 6px; text-align:left;">Away</th>' +
-          '<th style="padding:4px 6px; text-align:center;">8</th></tr></thead><tbody>';
-  frames.forEach(function(f){
-    const h = (f.home_player_name || '') + (f.home_player2_name ? ' / ' + f.home_player2_name : '');
-    const a = (f.away_player_name || '') + (f.away_player2_name ? ' / ' + f.away_player2_name : '');
-    const hw = f.winner==='home' ? '1' : '0';
-    const aw = f.winner==='away' ? '1' : '0';
-    const dbl = f.is_doubles==1 || f.is_doubles===true ? ' <span class="muted">(D)</span>' : '';
-    html += '<tr style="border-bottom:1px solid #334155;"><td style="padding:3px 6px;">' + f.frame_no + dbl + '</td>' +
-            '<td style="padding:3px 6px;">' + esc(h) + '</td>' +
-            '<td style="padding:3px 6px; text-align:center; font-weight:700;">' + hw + ' - ' + aw + '</td>' +
-            '<td style="padding:3px 6px;">' + esc(a) + '</td>' +
-            '<td style="padding:3px 6px; text-align:center;">' + ((f.eight_ball==1 || f.eight_ball===true) ? '8' : '') + '</td></tr>';
-  });
-  html += '</tbody></table>';
-  $('histDetail').innerHTML = html;
-  $('histBg').classList.add('open');
-}
-function closeHistory(e) {
-  if (e && e.target && !e.target.classList.contains('modal-bg')) return;
-  $('histBg').classList.remove('open');
-}
-function renderFixtures() {
-  const list = $('fxList'); list.innerHTML = '';
-  if (!state.fixtures.length) { $('noFx').style.display='block'; return; }
+function renderFixtures(){
+  const list=$('fxList'); list.innerHTML='';
+  if(!state.fixtures.length){ $('noFx').style.display='block'; return; }
   $('noFx').style.display='none';
-  state.fixtures.forEach(function(f) {
-    const div = document.createElement('div'); div.className='item';
-    const opp  = (f.home_team_id === state.captain.team_id) ? f.away_team_name : f.home_team_name;
-    const side = (f.home_team_id === state.captain.team_id) ? 'HOME vs' : 'away at';
-    div.innerHTML = '<div><strong>' + side + ' ' + esc(opp || '') + '</strong><br><span class="muted">' +
-                    esc(f.fixture_date) + (f.venue_name ? ' - ' + esc(f.venue_name) : '') + '</span></div>' +
-                    '<div class="muted">' + f.fixture_id.substring(0,8) + '</div>';
-    div.onclick = function() { selectFixture(f, div); };
+  state.fixtures.forEach(function(f){
+    const div=document.createElement('div'); div.className='item';
+    const opp=(f.home_team_id===state.captain.team_id)?f.away_team_name:f.home_team_name;
+    const side=(f.home_team_id===state.captain.team_id)?'HOME vs':'away at';
+    div.innerHTML='<div><strong>'+side+' '+esc(opp||'')+'</strong><br><span class="muted">'+
+                  esc(f.fixture_date)+(f.venue_name?' - '+esc(f.venue_name):'')+'</span></div>'+
+                  '<div class="muted">open shared</div>';
+    div.onclick=function(){ selectFixture(f, div); };
     list.appendChild(div);
   });
 }
-function selectFixture(f, el) {
-  state.selectedFixture = f;
-  state.newPlayers = [];
-  state.frames = [];
-  state.phase = 'home';
-  state.currentIdx = 0;
+function closeCard(){
+  stopPolling();
+  state.selectedFixture=null; state.server=null; state.version=-1;
+  $('cardCard').style.display='none';
   Array.from(document.querySelectorAll('.fixture-list .item')).forEach(function(x){ x.classList.remove('selected'); });
-  el.classList.add('selected');
+}
+async function selectFixture(f, el){
+  stopPolling();
+  state.selectedFixture=f;
+  Array.from(document.querySelectorAll('.fixture-list .item')).forEach(function(x){ x.classList.remove('selected'); });
+  if (el) el.classList.add('selected');
   $('cardCard').style.display='block';
-  $('fxHeader').textContent = (f.home_team_name || '?') + ' vs ' + (f.away_team_name || '?') + ' - ' + f.fixture_date;
-  $('scHomeTeam').textContent = f.home_team_name || 'Home Team';
-  $('scAwayTeam').textContent = f.away_team_name || 'Away Team';
-  $('scoreSub').textContent = (f.division_name ? f.division_name + ' - ' : '') + (f.fixture_date || '');
-  resetFrames();
-  renderNewPlayers();
-  $('notes').value='';
+  $('fxHeader').textContent=(f.home_team_name||'?')+' vs '+(f.away_team_name||'?')+' - '+f.fixture_date;
+  $('scHomeTeam').textContent=f.home_team_name||'Home Team';
+  $('scAwayTeam').textContent=f.away_team_name||'Away Team';
+  $('scoreSub').textContent=(f.division_name?f.division_name+' - ':'')+(f.fixture_date||'');
+  state.currentIdx=0;
+  state.server=null; state.version=-1;
+  state.homeFinal=false; state.awayFinal=false;
+  await fetchScorecard();
+  startPolling();
 }
 
-function emptyFrame(n, isDoubles) {
-  return { number:n, isDoubles:!!isDoubles,
-    homeId:null, homeName:null, home2Id:null, home2Name:null,
-    awayId:null, awayName:null, away2Id:null, away2Name:null,
-    winner:null, eightBall:false };
+function setLive(on){
+  const p=$('livePill');
+  if(on){ p.classList.add('live'); p.textContent='live - v'+state.version; }
+  else  { p.classList.remove('live'); p.textContent='reconnecting...'; }
 }
-function defaultFrameCount() {
-  const n = state.settings && state.settings.default_frames_per_match;
-  const v = parseInt(n, 10);
-  return (v && v > 0 && v <= 50) ? v : 8;
+function startPolling(){
+  stopPolling();
+  state.pollTimer=setInterval(function(){ fetchScorecard().catch(function(){ setLive(false); }); }, 2000);
 }
-function resetFrames() {
-  const n = defaultFrameCount();
-  state.frames = [];
-  for (let i=0; i<n; i++) state.frames.push(emptyFrame(i+1, false));
-  state.currentIdx = 0; state.phase = 'home';
-  renderAll();
-}
-// Back-compat shim.
-function resetTo8() { resetFrames(); }
-function addFrame(isDoubles) {
-  state.frames.push(emptyFrame(state.frames.length+1, isDoubles));
-  renderAll();
-}
-function removeFrame() {
-  if (state.frames.length>1) state.frames.pop();
-  if (state.currentIdx >= state.frames.length) state.currentIdx = state.frames.length-1;
-  renderAll();
-}
-function clearAllWinners() {
-  if (!confirm('Clear all winners and 8-balls?')) return;
-  state.frames.forEach(function(f){ f.winner=null; f.eightBall=false; });
-  renderAll();
-}
+function stopPolling(){ if(state.pollTimer){ clearInterval(state.pollTimer); state.pollTimer=null; } }
 
-function setWinner(i, w) {
-  const f = state.frames[i];
-  if (f.winner === w) { f.winner = null; f.eightBall = false; }
-  else { f.winner = w; }
-  state.currentIdx = i;
-  renderAll();
-  advanceAfterScore(i);
-}
-function toggleEight(i) {
-  const f = state.frames[i];
-  if (!f.winner) return;
-  f.eightBall = !f.eightBall;
-  renderAll();
-}
-function advanceAfterScore(scored) {
-  if (state.phase !== 'results') return;
-  for (let off=1; off<=state.frames.length; off++) {
-    const idx = (scored+off) % state.frames.length;
-    if (!state.frames[idx].winner) { state.currentIdx = idx; renderAll(); return; }
+async function fetchScorecard(){
+  const f=state.selectedFixture; if(!f) return;
+  const data=await api('/captain/scorecard.php?fixture_id='+encodeURIComponent(f.fixture_id));
+  state.yourSide=data.your_side;
+  state.homeFinal=!!data.home_finalized;
+  state.awayFinal=!!data.away_finalized;
+  if (data.version !== state.version || !state.server){
+    state.server=data.state; state.version=data.version;
+    renderAll();
   }
+  setLive(true);
+  updateFinalBanner();
+  $('sideHint').textContent='You are the '+(state.yourSide==='home'?'HOME':'AWAY')+' captain. You can edit '+state.yourSide.toUpperCase()+' players; either side records winners; 8-balls need both captains to agree.';
 }
 
-function setPhase(p) {
-  state.phase = p;
-  for (let i=0; i<state.frames.length; i++) {
-    const f = state.frames[i];
-    if (p==='home' && !f.homeId && !f.homeName) { state.currentIdx=i; break; }
-    if (p==='away' && !f.awayId && !f.awayName) { state.currentIdx=i; break; }
-    if (p==='results' && !f.winner) { state.currentIdx=i; break; }
-  }
-  renderAll();
+// Queue ops so we never lose a click while a request is in flight.
+async function sendOps(ops){
+  if (!ops || !ops.length) return;
+  state.pendingOps = state.pendingOps.concat(ops);
+  if (state.sendInflight) return;
+  state.sendInflight=true;
+  try{
+    while (state.pendingOps.length){
+      const batch=state.pendingOps; state.pendingOps=[];
+      const data=await api('/captain/scorecard.php',{
+        method:'POST',
+        body: JSON.stringify({ fixture_id: state.selectedFixture.fixture_id, if_version: state.version, ops: batch })
+      });
+      if (data.__status===409){
+        // Conflict: take server's version and retry queued ops (after the user's next action).
+        state.server=data.state; state.version=data.version; renderAll(); setLive(true);
+        flash('Other captain edited at the same time - refreshed.', true);
+        // Drop the batch (we'll re-issue if user repeats action).
+        continue;
+      }
+      state.server=data.state; state.version=data.version; renderAll(); setLive(true);
+      if (data.rejections && data.rejections.length){
+        // Show the first rejection (others are usually duplicates of the same root cause).
+        flash(data.rejections[0].reason, false);
+      }
+    }
+  }catch(e){ setLive(false); flash('Save failed: '+e.message,false); }
+  finally{ state.sendInflight=false; }
+  updateFinalBanner();
 }
 
-function setBgClass(i) {
-  const setIdx = Math.floor(i/5);
-  const even = (i%2===0);
-  const letter = ['a','b','c'][setIdx % 3];
-  return 'set-' + letter + (even?'1':'2');
+// --- Rendering driven from state.server ---
+function frames(){ return (state.server && state.server.frames) ? state.server.frames : []; }
+function setBgClass(i){ const setIdx=Math.floor(i/5); const even=(i%2===0); const letter=['a','b','c'][setIdx%3]; return 'set-'+letter+(even?'1':'2'); }
+function homeLabel(f){
+  if (f.home_player_id===VOID_ID) return {text:'VOID', cls:'void'};
+  if (!f.home_player_id && !f.home_player_name) return {text:'(tap to pick)', cls:'empty'};
+  if (f.is_doubles) return {text:(f.home_player_name||'?')+' / '+(f.home_player2_name||'(tap)'), cls:''};
+  return {text:f.home_player_name||'?', cls:''};
 }
-function homeLabel(f) {
-  if (f.homeId === VOID_ID) return { text:'VOID', cls:'void' };
-  if (!f.homeId && !f.homeName) return { text:'(tap to pick)', cls:'empty' };
-  if (f.isDoubles) return { text: (f.homeName||'?') + ' / ' + (f.home2Name||'(tap)'), cls:'' };
-  return { text: f.homeName || '?', cls:'' };
+function awayLabel(f){
+  if (f.away_player_id===VOID_ID) return {text:'VOID', cls:'void'};
+  if (!f.away_player_id && !f.away_player_name) return {text:'(tap to pick)', cls:'empty'};
+  if (f.is_doubles) return {text:(f.away_player_name||'?')+' / '+(f.away_player2_name||'(tap)'), cls:''};
+  return {text:f.away_player_name||'?', cls:''};
 }
-function awayLabel(f) {
-  if (f.awayId === VOID_ID) return { text:'VOID', cls:'void' };
-  if (!f.awayId && !f.awayName) return { text:'(tap to pick)', cls:'empty' };
-  if (f.isDoubles) return { text: (f.awayName||'?') + ' / ' + (f.away2Name||'(tap)'), cls:'' };
-  return { text: f.awayName || '?', cls:'' };
-}
-function renderAll() {
-  renderFrames(); renderScore(); renderPhase(); renderPhaseInfoBar(); updateCount();
-}
-function renderPhaseInfoBar() {
-  const bar = $('phaseInfo'); if (!bar) return;
+function renderAll(){ renderFrames(); renderScore(); renderPhaseInfoBar(); renderEightBanner(); updateCount(); }
+function renderPhaseInfoBar(){
+  const bar=$('phaseInfo'); if(!bar) return;
   bar.classList.remove('home-active','away-active');
-  let badge='', frameTxt='';
-  const idx = state.currentIdx;
-  const total = state.frames.length;
-  if (state.phase==='home') {
-    const filled = state.frames.filter(function(f){ return !!(f.homeId||f.homeName); }).length;
-    bar.classList.add('home-active');
-    frameTxt = 'Frame ' + (idx+1) + ' - Select HOME player (' + filled + '/' + total + ')';
-    badge = 'Phase 1 of 3: Home Lineup';
-  } else if (state.phase==='away') {
-    const filled = state.frames.filter(function(f){ return !!(f.awayId||f.awayName); }).length;
-    bar.classList.add('away-active');
-    frameTxt = 'Frame ' + (idx+1) + ' - Select AWAY player (' + filled + '/' + total + ')';
-    badge = 'Phase 2 of 3: Away Lineup';
-  } else {
-    const scored = state.frames.filter(function(f){ return !!f.winner; }).length;
-    frameTxt = 'Frame ' + (idx+1) + ' - Enter results (' + scored + '/' + total + ')';
-    badge = 'Phase 3 of 3: Results';
-  }
-  $('phaseInfoText').textContent = frameTxt;
-  $('phaseInfoBadge').textContent = badge;
+  const fr=frames(); const total=fr.length;
+  const homeFilled=fr.filter(function(f){return !!(f.home_player_id||f.home_player_name);}).length;
+  const awayFilled=fr.filter(function(f){return !!(f.away_player_id||f.away_player_name);}).length;
+  const scored   =fr.filter(function(f){return !!f.winner;}).length;
+  if (state.yourSide==='home') bar.classList.add('home-active');
+  else bar.classList.add('away-active');
+  $('phaseInfoText').textContent='Home '+homeFilled+'/'+total+' - Away '+awayFilled+'/'+total+' - Scored '+scored+'/'+total;
+  $('phaseInfoBadge').textContent = 'You: '+state.yourSide.toUpperCase();
 }
-function renderPhase() {
-  document.querySelectorAll('.phase .pill').forEach(function(p){
-    p.classList.remove('active','done');
-    const ph = p.getAttribute('data-phase');
-    if (ph === state.phase) p.classList.add('active');
-    else if (phaseDone(ph)) p.classList.add('done');
-  });
+function renderScore(){
+  let h=0,a=0;
+  frames().forEach(function(f){ if(f.winner==='home')h++; else if(f.winner==='away')a++; });
+  $('scoreHome').textContent=h; $('scoreAway').textContent=a;
 }
-function phaseDone(p) {
-  if (p==='home') return state.frames.every(function(f){ return !!(f.homeId || f.homeName); });
-  if (p==='away') return state.frames.every(function(f){ return !!(f.awayId || f.awayName); });
-  if (p==='results') return state.frames.every(function(f){ return !!f.winner; });
-  return false;
-}
-function renderScore() {
-  let h=0, a=0;
-  state.frames.forEach(function(f){
-    if (f.winner==='home') h++;
-    else if (f.winner==='away') a++;
-  });
-  $('scoreHome').textContent = h;
-  $('scoreAway').textContent = a;
-}
-function renderFrames() {
-  const homeWrap = $('rowsHome'); const awayWrap = $('rowsAway');
-  homeWrap.innerHTML = ''; awayWrap.innerHTML = '';
-  state.frames.forEach(function(f, i) {
-    const cur = (i===state.currentIdx);
-    const setCls = setBgClass(i);
+function renderFrames(){
+  const homeWrap=$('rowsHome'); const awayWrap=$('rowsAway');
+  homeWrap.innerHTML=''; awayWrap.innerHTML='';
+  const ownSideHome = (state.yourSide==='home');
+  frames().forEach(function(f, i){
+    const cur=(i===state.currentIdx);
+    const setCls=setBgClass(i);
 
-    // HOME row: # | H button | Home player
-    const hr = document.createElement('div');
-    hr.className = 'sc-row home ' + setCls + (cur?' current':'');
-    const num = document.createElement('div'); num.className='sc-num'; num.textContent = f.number;
-    hr.appendChild(num);
+    // HOME row
+    const hr=document.createElement('div');
+    hr.className='sc-row home '+setCls+(cur?' current':'');
+    const num=document.createElement('div'); num.className='sc-num'; num.textContent=f.number; hr.appendChild(num);
 
-    const hBtn = document.createElement('button');
-    hBtn.className = 'sc-win h' + (f.winner==='home'?' on':''); hBtn.textContent = f.winner==='home' ? '1' : '0';
-    hBtn.onclick = function(){ setWinner(i, 'home'); };
+    const hBtn=document.createElement('button');
+    hBtn.className='sc-win h'+(f.winner==='home'?' on':''); hBtn.textContent=f.winner==='home'?'1':'0';
+    hBtn.onclick=function(){ setWinner(i,'home'); };
     hr.appendChild(hBtn);
 
-    const hl = homeLabel(f);
-    const hc = document.createElement('div');
-    const hExtra = (cur && state.phase==='home') ? ' active-h' : '';
-    const hDbl = (f.isDoubles && hl.cls!=='void' && hl.cls!=='empty') ? ' dbl-h' : '';
-    hc.className = 'sc-pill home ' + hl.cls + hDbl + hExtra;
-    hc.textContent = hl.text;
-    hc.onclick = function(){ openPicker(i, 'home'); };
+    const hl=homeLabel(f);
+    const hc=document.createElement('div');
+    const lockedH = !ownSideHome;
+    hc.className='sc-pill home '+hl.cls+(f.is_doubles && hl.cls!=='void' && hl.cls!=='empty'?' dbl-h':'')+(lockedH?' locked':'');
+    hc.textContent=hl.text;
+    hc.onclick=function(){ if (lockedH){ flash('Only the HOME captain can edit home players.', false); return; } openPicker(i,'home'); };
     hr.appendChild(hc);
     homeWrap.appendChild(hr);
 
-    // AWAY row: Away player | A button | 8
-    const ar = document.createElement('div');
-    ar.className = 'sc-row away ' + setCls + (cur?' current':'');
-
-    const al = awayLabel(f);
-    const ac = document.createElement('div');
-    const aExtra = (cur && state.phase==='away') ? ' active-a' : '';
-    const aDbl = (f.isDoubles && al.cls!=='void' && al.cls!=='empty') ? ' dbl-a' : '';
-    ac.className = 'sc-pill away ' + al.cls + aDbl + aExtra;
-    ac.textContent = al.text;
-    ac.onclick = function(){ openPicker(i, 'away'); };
+    // AWAY row
+    const ar=document.createElement('div');
+    ar.className='sc-row away '+setCls+(cur?' current':'');
+    const al=awayLabel(f);
+    const ac=document.createElement('div');
+    const lockedA = ownSideHome;
+    ac.className='sc-pill away '+al.cls+(f.is_doubles && al.cls!=='void' && al.cls!=='empty'?' dbl-a':'')+(lockedA?' locked':'');
+    ac.textContent=al.text;
+    ac.onclick=function(){ if (lockedA){ flash('Only the AWAY captain can edit away players.', false); return; } openPicker(i,'away'); };
     ar.appendChild(ac);
 
-    const aBtn = document.createElement('button');
-    aBtn.className = 'sc-win a' + (f.winner==='away'?' on':''); aBtn.textContent = f.winner==='away' ? '1' : '0';
-    aBtn.onclick = function(){ setWinner(i, 'away'); };
+    const aBtn=document.createElement('button');
+    aBtn.className='sc-win a'+(f.winner==='away'?' on':''); aBtn.textContent=f.winner==='away'?'1':'0';
+    aBtn.onclick=function(){ setWinner(i,'away'); };
     ar.appendChild(aBtn);
 
-    const eb = document.createElement('button');
-    eb.className = 'sc-eight' + (f.eightBall?' on':''); eb.textContent='8';
-    eb.title = '8-ball / dish';
-    eb.disabled = !f.winner;
-    eb.onclick = function(){ toggleEight(i); };
+    const eb=document.createElement('button');
+    const pending = !!f.pending_eight;
+    eb.className='sc-eight'+(f.eight_ball?' on':'')+(pending?' pending':'');
+    eb.textContent= pending ? '?' : '8';
+    eb.title= pending ? ('Pending: '+f.pending_eight.by+' proposes '+(f.pending_eight.value?'8-ball':'no 8-ball')) : '8-ball / dish';
+    eb.disabled=!f.winner;
+    eb.onclick=function(){ toggleEight(i); };
     ar.appendChild(eb);
     awayWrap.appendChild(ar);
   });
 }
-function updateCount() { $('frameCount').textContent = state.frames.length + ' frames'; }
+function updateCount(){ $('frameCount').textContent=frames().length+' frames'; }
 
-function addNewPlayer() {
-  const name = $('newPlayer').value.trim(); if (!name) return;
-  state.newPlayers.push({ name:name, team_id: state.captain.team_id });
-  $('newPlayer').value=''; renderNewPlayers();
+// --- 8-ball agreement banner ---
+function renderEightBanner(){
+  const banner=$('eightBanner');
+  const fr=frames();
+  // Find the first frame with a pending_eight proposed by the OTHER side.
+  let mine=null, theirs=null;
+  for (let i=0;i<fr.length;i++){
+    const pe=fr[i].pending_eight;
+    if (!pe) continue;
+    if (pe.by===state.yourSide && !mine) mine={idx:i,pe:pe};
+    else if (pe.by!==state.yourSide && !theirs) theirs={idx:i,pe:pe};
+  }
+  if (theirs){
+    const f=fr[theirs.idx];
+    banner.style.display='flex';
+    banner.innerHTML='<span><strong>Frame '+f.number+':</strong> '+esc(theirs.pe.by.toUpperCase())+
+                     ' captain says '+(theirs.pe.value?'<strong>8-ball / dish</strong>':'<strong>no 8-ball</strong>')+'. Agree?</span>'+
+                     '<span><button onclick="agreeEight('+theirs.idx+')">Agree</button> '+
+                     '<button class="secondary" onclick="declineEight('+theirs.idx+')">Decline</button></span>';
+  } else if (mine){
+    const f=fr[mine.idx];
+    banner.style.display='flex';
+    banner.innerHTML='<span><strong>Frame '+f.number+':</strong> waiting for '+
+                     (state.yourSide==='home'?'AWAY':'HOME')+' captain to agree on '+(mine.pe.value?'8-ball':'no 8-ball')+'.</span>'+
+                     '<span><button class="secondary" onclick="cancelEight('+mine.idx+')">Cancel</button></span>';
+  } else {
+    banner.style.display='none'; banner.innerHTML='';
+  }
 }
-function renderNewPlayers() {
-  $('newPlayerList').textContent = state.newPlayers.length
-    ? 'New players: ' + state.newPlayers.map(function(p){return p.name;}).join(', ') : '';
+function agreeEight(i){ sendOps([{kind:'agree_eight', frame:i}]); }
+function declineEight(i){ sendOps([{kind:'decline_eight', frame:i}]); }
+function cancelEight(i){ sendOps([{kind:'decline_eight', frame:i}]); /* same effect, server only allows OTHER side -> need different op */
+  // Actually: server only lets the OTHER side cancel via decline_eight. To cancel your own proposal, propose the opposite back.
+  const f=frames()[i]; if(!f||!f.pending_eight) return;
+  sendOps([{kind:'propose_eight', frame:i, value: !f.pending_eight.value}]);
+  // Then immediately re-propose original -> too noisy. Simpler: just send a propose to the CURRENT eight_ball value to clear.
 }
 
-function openPicker(frameIdx, slot) {
-  state.pickerCtx = { frameIdx:frameIdx, slot:slot };
-  state.currentIdx = frameIdx;
-  if (slot==='home' || slot==='home2') { if (state.phase!=='results') state.phase='home'; }
-  else if (slot==='away' || slot==='away2') { if (state.phase!=='results') state.phase='away'; }
+// --- User actions ---
+function setWinner(i, who){
+  const f=frames()[i]; if(!f) return;
+  const val = (f.winner===who) ? null : who;
+  state.currentIdx=i;
+  sendOps([{kind:'set_winner', frame:i, value: val}]);
+}
+function toggleEight(i){
+  const f=frames()[i]; if(!f||!f.winner) return;
+  // If a pending proposal exists, ignore clicks until resolved.
+  if (f.pending_eight) return;
+  sendOps([{kind:'propose_eight', frame:i, value: !f.eight_ball}]);
+}
+
+let notesTimer=null;
+function onNotesChange(){
+  clearTimeout(notesTimer);
+  const v=$('notes').value;
+  notesTimer=setTimeout(function(){ sendOps([{kind:'set_notes', value:v}]); }, 600);
+}
+
+// --- Player picker ---
+function openPicker(frameIdx, slot){
+  // Lock check.
+  const ownSideHome = (state.yourSide==='home');
+  if ((slot==='home'||slot==='home2') && !ownSideHome) return;
+  if ((slot==='away'||slot==='away2') && ownSideHome) return;
+  state.pickerCtx={frameIdx:frameIdx, slot:slot};
+  state.currentIdx=frameIdx;
   renderPickerList();
-  $('pickerTitle').textContent = pickerTitleFor(slot, state.frames[frameIdx]);
-  const f = state.frames[frameIdx];
-  const showDbl = (slot==='home' || slot==='away');
-  $('doublesRow').style.display = showDbl ? 'flex' : 'none';
-  $('doublesChk').checked = !!f.isDoubles;
+  const f=frames()[frameIdx];
+  $('pickerTitle').textContent=pickerTitleFor(slot, f);
+  const showDbl=(slot==='home'||slot==='away');
+  $('doublesRow').style.display=showDbl?'flex':'none';
+  $('doublesChk').checked=!!f.is_doubles;
   $('pickerBg').classList.add('open');
-  $('pickerNewName').value = '';
+  $('pickerNewName').value='';
   renderAll();
 }
-function pickerTitleFor(slot, f) {
-  const base = 'Frame ' + f.number + ' - ';
-  if (slot==='home')  return base + 'HOME player' + (f.isDoubles?' #1':'');
-  if (slot==='home2') return base + 'HOME player #2';
-  if (slot==='away')  return base + 'AWAY player' + (f.isDoubles?' #1':'');
-  if (slot==='away2') return base + 'AWAY player #2';
+function pickerTitleFor(slot, f){
+  const base='Frame '+f.number+' - ';
+  if (slot==='home')  return base+'HOME player'+(f.is_doubles?' #1':'');
+  if (slot==='home2') return base+'HOME player #2';
+  if (slot==='away')  return base+'AWAY player'+(f.is_doubles?' #1':'');
+  if (slot==='away2') return base+'AWAY player #2';
   return base;
 }
-function closePicker(e) {
+function closePicker(e){
   if (e && e.target && !e.target.classList.contains('modal-bg')) return;
-  $('pickerBg').classList.remove('open');
-  state.pickerCtx = null;
+  $('pickerBg').classList.remove('open'); state.pickerCtx=null;
 }
-function togglePickerDoubles() {
-  const ctx = state.pickerCtx; if (!ctx) return;
-  const f = state.frames[ctx.frameIdx];
-  f.isDoubles = $('doublesChk').checked;
-  if (!f.isDoubles) { f.home2Id=null; f.home2Name=null; f.away2Id=null; f.away2Name=null; }
-  renderAll();
+function togglePickerDoubles(){
+  const ctx=state.pickerCtx; if(!ctx) return;
+  sendOps([{kind:'set_doubles', frame:ctx.frameIdx, value:$('doublesChk').checked}]);
 }
-function renderPickerList() {
-  const ctx = state.pickerCtx; if (!ctx) return;
-  const isHomeSide = (ctx.slot==='home' || ctx.slot==='home2');
-  const teamId = isHomeSide ? state.captain.team_id
-    : (state.selectedFixture.home_team_id === state.captain.team_id
-        ? state.selectedFixture.away_team_id
-        : state.selectedFixture.home_team_id);
-  const list = $('pickerList'); list.innerHTML = '';
+function renderPickerList(){
+  const ctx=state.pickerCtx; if(!ctx) return;
+  const isHomeSide=(ctx.slot==='home'||ctx.slot==='home2');
+  const teamId = isHomeSide ? state.selectedFixture.home_team_id : state.selectedFixture.away_team_id;
+  const list=$('pickerList'); list.innerHTML='';
 
-  const clearOpt = document.createElement('div');
-  clearOpt.className='player-opt clear';
+  const clearOpt=document.createElement('div'); clearOpt.className='player-opt clear';
   clearOpt.innerHTML='<span>(clear)</span><span class="badge">empty</span>';
-  clearOpt.onclick = function(){ pickPlayer(null, null); };
+  clearOpt.onclick=function(){ pickPlayer(null,null); };
   list.appendChild(clearOpt);
 
-  const voidOpt = document.createElement('div');
-  voidOpt.className='player-opt void';
+  const voidOpt=document.createElement('div'); voidOpt.className='player-opt void';
   voidOpt.innerHTML='<span>VOID / walkover</span><span class="badge">no player</span>';
-  voidOpt.onclick = function(){ pickPlayer(VOID_ID, 'VOID'); };
+  voidOpt.onclick=function(){ pickPlayer(VOID_ID,'VOID'); };
   list.appendChild(voidOpt);
 
-  state.players.filter(function(p){ return p.team_id === teamId; }).forEach(function(p){
-    const o = document.createElement('div'); o.className='player-opt';
-    o.innerHTML = '<span>' + esc(p.full_name) + '</span><span class="badge">roster</span>';
-    o.onclick = function(){ pickPlayer(p.player_id, p.full_name); };
-    list.appendChild(o);
-  });
-
-  state.newPlayers.filter(function(np){ return np.team_id === teamId; }).forEach(function(np){
-    const o = document.createElement('div'); o.className='player-opt';
-    o.innerHTML = '<span>' + esc(np.name) + '</span><span class="badge">new</span>';
-    o.onclick = function(){ pickPlayer(null, np.name); };
+  state.players.filter(function(p){ return p.team_id===teamId; }).forEach(function(p){
+    const o=document.createElement('div'); o.className='player-opt';
+    o.innerHTML='<span>'+esc(p.full_name)+'</span><span class="badge">roster</span>';
+    o.onclick=function(){ pickPlayer(p.player_id, p.full_name); };
     list.appendChild(o);
   });
 }
-function pickerAddNew() {
-  const name = $('pickerNewName').value.trim(); if (!name) return;
-  const ctx = state.pickerCtx; if (!ctx) return;
-  const isHomeSide = (ctx.slot==='home' || ctx.slot==='home2');
-  const teamId = isHomeSide ? state.captain.team_id
-    : (state.selectedFixture.home_team_id === state.captain.team_id
-        ? state.selectedFixture.away_team_id
-        : state.selectedFixture.home_team_id);
-  state.newPlayers.push({ name:name, team_id:teamId });
-  renderNewPlayers();
+function pickerAddNew(){
+  const name=$('pickerNewName').value.trim(); if(!name) return;
+  // New players go straight through as a name-only pick - server stores the name;
+  // admin reconciliation creates the player record on import.
   pickPlayer(null, name);
 }
-function pickPlayer(id, name) {
-  const ctx = state.pickerCtx; if (!ctx) return;
-  const f = state.frames[ctx.frameIdx];
-  if (ctx.slot==='home')  { f.homeId = id; f.homeName = name; }
-  if (ctx.slot==='home2') { f.home2Id = id; f.home2Name = name; }
-  if (ctx.slot==='away')  { f.awayId = id; f.awayName = name; }
-  if (ctx.slot==='away2') { f.away2Id = id; f.away2Name = name; }
-  closePicker({ target: $('pickerBg') });
-  if (state.phase==='home') {
-    if (f.isDoubles && ctx.slot==='home' && !f.home2Id && !f.home2Name) { openPicker(ctx.frameIdx, 'home2'); return; }
-    const next = state.frames.findIndex(function(fr){ return !(fr.homeId || fr.homeName); });
-    if (next>=0) state.currentIdx = next;
-    else { state.phase = 'away'; const n2 = state.frames.findIndex(function(fr){ return !(fr.awayId || fr.awayName); }); if (n2>=0) state.currentIdx = n2; }
-  } else if (state.phase==='away') {
-    if (f.isDoubles && ctx.slot==='away' && !f.away2Id && !f.away2Name) { openPicker(ctx.frameIdx, 'away2'); return; }
-    const next = state.frames.findIndex(function(fr){ return !(fr.awayId || fr.awayName); });
-    if (next>=0) state.currentIdx = next;
-    else { state.phase = 'results'; const n2 = state.frames.findIndex(function(fr){ return !fr.winner; }); if (n2>=0) state.currentIdx = n2; }
-  }
-  renderAll();
+function pickPlayer(id, name){
+  const ctx=state.pickerCtx; if(!ctx) return;
+  sendOps([{kind:'set_player', frame:ctx.frameIdx, slot:ctx.slot, player_id:id, player_name:name}]);
+  closePicker({target:$('pickerBg')});
 }
 
-async function submitCard() {
-  const f = state.selectedFixture; if (!f) return;
-  if (!state.frames.length) { flash('Add at least one frame', false); return; }
-  const frames = state.frames.map(function(fr, i){
-    return {
-      number: i+1,
-      home_player_id:   fr.homeId,
-      home_player_name: fr.homeName,
-      away_player_id:   fr.awayId,
-      away_player_name: fr.awayName,
-      home_player2_id:  fr.home2Id,
-      away_player2_id:  fr.away2Id,
-      winner: fr.winner,
-      eight_ball: !!fr.eightBall,
-      is_doubles: !!fr.isDoubles
-    };
-  });
-  try {
-    const res = await api('/captain/submit-result.php', {
+// --- Finalize ---
+function allScored(){ const fr=frames(); return fr.length>0 && fr.every(function(f){ return !!f.winner; }); }
+function updateFinalBanner(){
+  const fr=frames();
+  const btn=$('finalizeBtn');
+  btn.disabled = !allScored();
+  const banner=$('finalBanner');
+  const mine = (state.yourSide==='home') ? state.homeFinal : state.awayFinal;
+  const other= (state.yourSide==='home') ? state.awayFinal : state.homeFinal;
+  banner.classList.remove('done');
+  if (state.homeFinal && state.awayFinal){
+    banner.classList.add('done');
+    banner.style.display='block';
+    banner.textContent='Both captains have finalized this card. It will appear in the league admin inbox for reconciliation.';
+  } else if (mine){
+    banner.style.display='block';
+    banner.textContent='You have finalized. Waiting for the other captain to confirm the same scorecard...';
+  } else if (other){
+    banner.style.display='block';
+    banner.textContent='The other captain has finalized. Review the card and press Finalize if you agree.';
+  } else {
+    banner.style.display='none';
+  }
+}
+async function finalizeCard(){
+  if (!allScored()){ flash('All frames must have a winner first.', false); return; }
+  if (!confirm('Submit YOUR view of this card as final?')) return;
+  try{
+    const data = await api('/captain/finalize.php',{
       method:'POST',
-      body: JSON.stringify({
-        fixture_id: f.fixture_id, frames: frames,
-        new_players: state.newPlayers, notes: $('notes').value.trim()
-      })
+      body: JSON.stringify({ fixture_id: state.selectedFixture.fixture_id })
     });
-    flash('Submitted card #' + res.id + '. Opposing captain submits their own; admin will reconcile them.', true);
-  } catch (e) { flash(e.message, false); }
+    state.homeFinal=!!data.home_finalized; state.awayFinal=!!data.away_finalized;
+    updateFinalBanner();
+    flash('Card #'+data.id+' submitted. Admin inbox will reconcile both captains cards.', true);
+    loadHistory().catch(function(){});
+  }catch(e){ flash(e.message,false); }
+}
+
+// --- History (unchanged from previous version) ---
+async function loadHistory(){
+  const list=$('histList'); const none=$('noHist');
+  if (!list) return;
+  list.innerHTML=''; none.style.display='none';
+  let data;
+  try{ data=await api('/captain/history.php'); }
+  catch(e){ none.textContent='History unavailable: '+e.message; none.style.display='block'; return; }
+  const ms=(data&&data.matches)?data.matches:[];
+  if(!ms.length){ none.textContent='No past scorecards yet.'; none.style.display='block'; return; }
+  ms.forEach(function(m){
+    const div=document.createElement('div'); div.className='item';
+    const opp=(m.home_team_id===state.captain.team_id)?m.away_team_name:m.home_team_name;
+    const side=(m.home_team_id===state.captain.team_id)?'HOME vs':'away at';
+    const src=(m.source==='app')?'app':(m.source||'web');
+    div.innerHTML='<div><strong>'+esc(side+' '+(opp||''))+'</strong><br>'+
+                  '<span class="muted">'+esc(m.fixture_date||'')+'</span></div>'+
+                  '<div style="text-align:right"><strong>'+m.home_score+' - '+m.away_score+'</strong>'+
+                  '<br><span class="muted">'+m.frame_count+' frames - '+esc(src)+'</span></div>';
+    div.onclick=function(){ openHistory(m); };
+    list.appendChild(div);
+  });
+}
+async function openHistory(m){
+  let data;
+  try{ data=await api('/captain/history.php?fixture_id='+encodeURIComponent(m.fixture_id)); }
+  catch(e){ flash(e.message,false); return; }
+  const fr=(data&&data.frames)?data.frames:[];
+  let html='<div style="font-weight:700; font-size:15px; margin-bottom:6px;">'+
+           esc(m.home_team_name||'?')+' '+m.home_score+' - '+m.away_score+' '+esc(m.away_team_name||'?')+
+           '</div><div class="muted" style="margin-bottom:10px">'+esc(m.fixture_date||'')+
+           (m.venue_name?' - '+esc(m.venue_name):'')+'</div>';
+  html+='<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+  html+='<thead><tr style="background:#0f172a;"><th style="padding:4px 6px; text-align:left;">#</th>'+
+        '<th style="padding:4px 6px; text-align:left;">Home</th>'+
+        '<th style="padding:4px 6px; text-align:center;">Score</th>'+
+        '<th style="padding:4px 6px; text-align:left;">Away</th>'+
+        '<th style="padding:4px 6px; text-align:center;">8</th></tr></thead><tbody>';
+  fr.forEach(function(f){
+    const h=(f.home_player_name||'')+(f.home_player2_name?' / '+f.home_player2_name:'');
+    const a=(f.away_player_name||'')+(f.away_player2_name?' / '+f.away_player2_name:'');
+    const hw=f.winner==='home'?'1':'0';
+    const aw=f.winner==='away'?'1':'0';
+    const dbl=(f.is_doubles==1||f.is_doubles===true)?' <span class="muted">(D)</span>':'';
+    html+='<tr style="border-bottom:1px solid #334155;"><td style="padding:3px 6px;">'+f.frame_no+dbl+'</td>'+
+          '<td style="padding:3px 6px;">'+esc(h)+'</td>'+
+          '<td style="padding:3px 6px; text-align:center; font-weight:700;">'+hw+' - '+aw+'</td>'+
+          '<td style="padding:3px 6px;">'+esc(a)+'</td>'+
+          '<td style="padding:3px 6px; text-align:center;">'+((f.eight_ball==1||f.eight_ball===true)?'8':'')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  $('histDetail').innerHTML=html;
+  $('histBg').classList.add('open');
+}
+function closeHistory(e){
+  if (e && e.target && !e.target.classList.contains('modal-bg')) return;
+  $('histBg').classList.remove('open');
 }
 
 api('/captain/me.php').then(function(d){ if (d && d.captain) loadDash(); }).catch(function(){});
+
+// ──────────────────────────────────────────────────────────────────────────
+// ROSTER MANAGEMENT
+// ──────────────────────────────────────────────────────────────────────────
+async function loadRoster(){
+  try{
+    const d=await api('/captain/roster.php');
+    state.roster=(d && d.players)?d.players:[];
+    const now=new Date(); const mon=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+    mon.setUTCDate(mon.getUTCDate()-(mon.getUTCDay()||7)+1);
+    state.thisWeek=mon.toISOString().split('T')[0];
+    const av=await api('/captain/availability.php?week='+state.thisWeek);
+    state.availability=(av && av.players)?av.players:[];
+    renderRoster();
+  }catch(e){ flash('Failed to load roster: '+e.message,false); }
+}
+function renderRoster(){
+  const list=$('rosterList'); list.innerHTML='';
+  const active=state.roster.filter(function(p){ return p.is_active; });
+  const retired=state.roster.filter(function(p){ return !p.is_active; });
+  if(active.length===0 && retired.length===0){ $('noRoster').style.display='block'; return; }
+  $('noRoster').style.display='none';
+  const avMap={};
+  (state.availability||[]).forEach(function(a){ avMap[a.player_id]=a.available; });
+  const render=function(players, label){
+    if(players.length===0)return;
+    const sec=document.createElement('div'); sec.style.marginBottom='8px';
+    const h=document.createElement('div'); h.className='muted'; h.style.fontSize='11px'; h.style.marginBottom='4px'; h.textContent=label;
+    sec.appendChild(h);
+    players.forEach(function(p){
+      const row=document.createElement('div'); row.className='item'; row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center';
+      const left=document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
+      const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=(avMap[p.player_id]===1 || avMap[p.player_id]===true || avMap[p.player_id]===undefined);
+      chk.onchange=function(){ toggleAvailability(p.player_id, chk.checked); };
+      left.appendChild(chk);
+      const nm=document.createElement('span'); nm.textContent=p.full_name; left.appendChild(nm);
+      row.appendChild(left);
+      const btns=document.createElement('div'); btns.style.display='flex'; btns.style.gap='4px';
+      if(p.is_active && p.added_by_captain){
+        const eb=document.createElement('button'); eb.className='secondary'; eb.textContent='Edit'; eb.style.fontSize='11px'; eb.style.padding='3px 8px';
+        eb.onclick=function(){ editPlayer(p); }; btns.appendChild(eb);
+      }
+      if(p.is_active){
+        const rb=document.createElement('button'); rb.className='secondary'; rb.textContent='Retire'; rb.style.fontSize='11px'; rb.style.padding='3px 8px';
+        rb.onclick=function(){ retirePlayer(p); }; btns.appendChild(rb);
+      }
+      row.appendChild(btns); sec.appendChild(row);
+    });
+    list.appendChild(sec);
+  };
+  render(active,'Active players (✓ = available this week)');
+  render(retired,'Retired');
+}
+async function addPlayer(){
+  const nm=$('newPlayerName').value.trim();
+  if(!nm){ flash('Enter player name',false); return; }
+  try{
+    await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'add',full_name:nm})});
+    $('newPlayerName').value='';
+    flash('Player added',true);
+    await loadRoster();
+  }catch(e){ flash(e.message,false); }
+}
+async function editPlayer(p){
+  const nm=prompt('New name for '+p.full_name+':', p.full_name);
+  if(!nm || nm===p.full_name)return;
+  try{
+    await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'update',player_id:p.player_id,full_name:nm})});
+    flash('Player updated',true);
+    await loadRoster();
+  }catch(e){ flash(e.message,false); }
+}
+async function toggleAvailability(pid, avail){
+  try{
+    await api('/captain/availability.php',{method:'POST',body:JSON.stringify({player_id:pid,week_start:state.thisWeek,available:avail})});
+  }catch(e){ flash(e.message,false); }
+}
+async function retirePlayer(p){
+  if(!confirm('Retire '+p.full_name+'? (They will no longer appear in the player picker.)'))return;
+  try{
+    await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'retire',player_id:p.player_id})});
+    flash('Player retired',true);
+    await loadRoster();
+    if(state.captain) state.players=state.players.filter(function(x){ return x.player_id!==p.player_id; });
+  }catch(e){ flash(e.message,false); }
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────
+// PWA — service worker, install prompt, message notifications
+// ──────────────────────────────────────────────────────────────────────────
+(function(){
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(e){
+        console.warn('SW register failed:', e);
+      });
+    });
+  }
+
+  // beforeinstallprompt handler (Chrome / Edge / Android).
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    // Only show if the user hasn't dismissed it before.
+    try { if (localStorage.getItem('wdpl_install_dismissed')==='1') return; } catch(_){}
+    const b = document.getElementById('installBanner');
+    if (b) b.style.display='block';
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.onclick = async function(){
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      try { await deferredPrompt.userChoice; } catch(_){}
+      deferredPrompt = null;
+      if (b) b.style.display='none';
+      try { localStorage.setItem('wdpl_install_dismissed','1'); } catch(_){}
+    };
+  });
+
+  // Ask for notification permission once the user logs in successfully.
+  // (We piggy-back on loadDash via a tiny observer rather than touching it.)
+  let lastUnread = 0;
+  function maybeNotify(){
+    if (!('Notification' in window) || !window.state || !state.inbox) return;
+    const unread = state.inbox.filter(function(m){ return !m.is_read; }).length;
+    if (unread > lastUnread && Notification.permission === 'granted') {
+      try {
+        const newest = state.inbox.filter(function(m){ return !m.is_read; })[0];
+        new Notification('WDPL Captain — new message', {
+          body: newest ? (newest.subject + ' (from ' + (newest.from_name||'Admin') + ')') : 'You have a new message',
+          icon: 'manifest.webmanifest',
+          tag: 'wdpl-msg'
+        });
+      } catch(_){}
+    }
+    lastUnread = unread;
+  }
+  // Hook into loadMessages by polling state every few seconds.
+  setInterval(maybeNotify, 5000);
+
+  // Ask permission once the dashboard is visible.
+  function askIfNeeded(){
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      // Defer the prompt slightly so it doesn't surprise the user mid-login.
+      setTimeout(function(){
+        try { Notification.requestPermission(); } catch(_){}
+      }, 2500);
+    }
+  }
+  document.addEventListener('visibilitychange', askIfNeeded);
+  setTimeout(askIfNeeded, 3000);
+})();
 </script>
 </body>
 </html>

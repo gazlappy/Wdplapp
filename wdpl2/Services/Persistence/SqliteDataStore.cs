@@ -18,8 +18,14 @@ public class SqliteDataStore : IDataStore
     // uncached call would issue 7 separate full-table queries against SQLite.
     // The cache is invalidated whenever SaveAsync runs or any Add/Update/Delete
     // mutates the database.
-    private LeagueData? _cachedSnapshot;
-    private readonly object _snapshotLock = new();
+    //
+    // NOTE: static (process-wide) on purpose. IDataStore is registered as
+    // Transient so each page/service gets its own SqliteDataStore instance;
+    // a per-instance cache would leave OTHER instances handing out stale data
+    // after a write (the "Import on inbox doesn't update FixturesPage" bug).
+    // The snapshot only contains AsNoTracking() POCOs so it's safe to share.
+    private static LeagueData? _cachedSnapshot;
+    private static readonly object _snapshotLock = new();
 
     private void InvalidateSnapshot()
     {

@@ -6,21 +6,26 @@ require __DIR__ . '/../_captain.php';
 $c = require_captain();
 $team_id = $c['team_id'];
 
-// "This week" = Monday 00:00 UTC of the current ISO week .. +14 days
-// (gives current week + next week so a captain who's late can still see last week).
+// "This week" = Monday 00:00 UTC of the current ISO week .. following Monday 00:00.
+// A fixture only appears on the week it's actually being played; once BOTH
+// captains have finalized the shared scorecard the fixture drops off the list
+// (it's then on the admin's web inbox awaiting reconciliation).
 $now    = time();
-$start  = strtotime('monday this week 00:00:00', $now) - 7 * 86400; // last Monday
-$end    = $start + 21 * 86400;                                       // 3-week window
+$start  = strtotime('monday this week 00:00:00', $now);
+$end    = $start + 7 * 86400;
 
 $fixtures = array();
 try {
     $fxStmt = db()->prepare(
-        'SELECT fixture_id, season_id, division_id, home_team_id, away_team_id,
-                home_team_name, away_team_name, venue_name, fixture_date
-           FROM league_fixtures
-          WHERE (home_team_id = :th OR away_team_id = :ta)
-            AND fixture_date BETWEEN :s AND :e
-          ORDER BY fixture_date ASC');
+        'SELECT f.fixture_id, f.season_id, f.division_id, f.home_team_id, f.away_team_id,
+                f.home_team_name, f.away_team_name, f.venue_name, f.fixture_date
+           FROM league_fixtures f
+      LEFT JOIN live_scorecards s ON s.fixture_id = f.fixture_id
+          WHERE (f.home_team_id = :th OR f.away_team_id = :ta)
+            AND f.fixture_date >= :s
+            AND f.fixture_date <  :e
+            AND NOT (s.home_finalized_at IS NOT NULL AND s.away_finalized_at IS NOT NULL)
+          ORDER BY f.fixture_date ASC');
     $fxStmt->execute(array(
         ':th' => $team_id,
         ':ta' => $team_id,
@@ -28,7 +33,7 @@ try {
         ':e'  => gmdate('Y-m-d H:i:s', $end),
     ));
     $fixtures = $fxStmt->fetchAll();
-} catch (Exception $e) { /* league_fixtures may not exist yet */ }
+} catch (Exception $e) { /* league_fixtures or live_scorecards may not exist yet */ }
 
 // Players for this captain's team + the opposing team in each fixture (so they
 // can record opposing pairings if needed).

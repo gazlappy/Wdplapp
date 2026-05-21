@@ -35,7 +35,16 @@ public sealed class BackendDeployService
         "api/captain/me.php",
         "api/captain/submit-result.php",
         "api/captain/history.php",
+        "api/captain/scorecard.php",
+        "api/captain/finalize.php",
+        "api/captain/roster.php",
+        "api/captain/availability.php",
+        "api/captain/fixtures.php",
+        "api/captain/account.php",
+        "api/captain/messages.php",
         "captain/index.html",
+        "captain/manifest.webmanifest",
+        "captain/sw.js",
     };
 
     public sealed class DeployResult
