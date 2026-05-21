@@ -2682,6 +2682,10 @@ namespace Wdpl2.Services
             html.AppendLine("                .gs-wrap .group-player.gp-winner { background: #ECFDF5; }");
             html.AppendLine("                .gs-wrap .group-player.gp-loser { background: #FEF2F2; opacity: 0.7; }");
             html.AppendLine("                .gs-wrap .group-player.gp-noshow { background: #F3F4F6; opacity: 0.6; text-decoration: line-through; }");
+            html.AppendLine("                .gs-wrap .group-player.gp-organiser { background: #FEF3C7; border: 1px solid #FCD34D; }");
+            html.AppendLine("                .gs-wrap .group-player.gp-organiser.gp-winner { background: #FEF3C7; }");
+            html.AppendLine("                .gs-wrap .gp-organiser-star { color: #B45309; font-weight: 700; margin-left: 4px; }");
+            html.AppendLine("                .gs-wrap .gp-organiser-note { font-size: 0.78rem; color: var(--text-secondary, #64748B); font-style: italic; margin: 8px 0 0 0; }"); 
             html.AppendLine("                .gs-wrap .gp-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }");
             html.AppendLine("                .gs-wrap .gp-badge-w { background: #10B981; color: #fff; }");
             html.AppendLine("                .gs-wrap .gp-badge-l { background: #EF4444; color: #fff; }");
@@ -2735,6 +2739,13 @@ namespace Wdpl2.Services
                     AppendGroupSection(html, group, comp, players, teams, r.advance, r.hasSelections);
                 html.AppendLine("                    </div>");
 
+                // Organiser footnote — shown when at least one group in this
+                // round has nominated an organiser to run the draw on the night.
+                if (r.groups.Any(g => g.OrganiserParticipantId.HasValue))
+                {
+                    html.AppendLine("                    <p class=\"gp-organiser-note\">* Group organiser — runs the draw on the night.</p>");
+                }
+
                 html.AppendLine("                </div>");
             }
 
@@ -2776,6 +2787,7 @@ namespace Wdpl2.Services
                 bool isAdvancing = standing != null && standing.Position > 0 && standing.Position <= topAdvance;
                 bool isNoShow = comp.NoShowIds.Contains(pid);
                 bool isEliminated = hasSelections && !isAdvancing && !isNoShow;
+                bool isOrganiser = group.OrganiserParticipantId == pid;
 
                 string cssClass;
                 string badge;
@@ -2800,7 +2812,14 @@ namespace Wdpl2.Services
                     badge = "";
                 }
 
-                html.AppendLine($"                            <div class=\"{cssClass}\">{name}{badge}</div>");
+                if (isOrganiser && !isNoShow)
+                    cssClass += " gp-organiser";
+
+                var organiserMark = isOrganiser
+                    ? " <span class=\"gp-organiser-star\" title=\"Group organiser — runs the draw on the night\">*</span>"
+                    : "";
+
+                html.AppendLine($"                            <div class=\"{cssClass}\">{name}{organiserMark}{badge}</div>");
             }
 
             html.AppendLine($"                        </div>");

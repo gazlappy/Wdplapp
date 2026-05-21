@@ -311,11 +311,13 @@ public partial class CompetitionsPage
             var name = GetParticipantName(participantId, format) ?? "Unknown";
             bool isSelected = selectedIds.Contains(participantId);
             bool isNoShow = _selectedCompetition != null && _selectedCompetition.NoShowIds.Contains(participantId);
+            bool isOrganiser = group.OrganiserParticipantId == participantId;
 
             var rowBorder = new Border
             {
                 Padding = new Thickness(12, 8),
                 BackgroundColor = isNoShow ? Color.FromArgb("#FEE2E2")
+                    : isOrganiser ? Color.FromArgb("#FEF3C7")
                     : isSelected ? Color.FromArgb("#DBEAFE")
                     : Colors.White,
                 Margin = new Thickness(0, 1),
@@ -342,11 +344,12 @@ public partial class CompetitionsPage
 
             var nameLabel = new Label
             {
-                Text = name,
+                Text = isOrganiser ? $"{name} *" : name,
                 FontSize = 14,
                 VerticalTextAlignment = TextAlignment.Center,
-                FontAttributes = isSelected ? FontAttributes.Bold : FontAttributes.None,
+                FontAttributes = (isSelected || isOrganiser) ? FontAttributes.Bold : FontAttributes.None,
                 TextColor = isNoShow ? Color.FromArgb("#991B1B")
+                    : isOrganiser ? Color.FromArgb("#92400E")
                     : isSelected ? Color.FromArgb("#1D4ED8")
                     : Colors.Black,
                 TextDecorations = isNoShow ? TextDecorations.Strikethrough : TextDecorations.None
@@ -443,6 +446,36 @@ public partial class CompetitionsPage
                 };
                 rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 rowGrid.Add(removeBtn, rowGrid.ColumnDefinitions.Count - 1, 0);
+            }
+
+            // Organiser toggle button (only when editable) — nominates the
+            // person who runs the draw on the night. Shown with a "*" suffix
+            // and highlighted row on both the editor and the website.
+            if (editable && _selectedCompetition != null)
+            {
+                var pidOrg = participantId;
+                var grpOrg = group;
+                var organiserBtn = new Button
+                {
+                    Text = isOrganiser ? "★" : "☆",
+                    FontSize = 13,
+                    Padding = new Thickness(6, 2),
+                    MinimumWidthRequest = 32,
+                    HeightRequest = 28,
+                    BackgroundColor = isOrganiser ? Color.FromArgb("#D97706") : Color.FromArgb("#F59E0B"),
+                    TextColor = Colors.White,
+                    CornerRadius = 4,
+                    Margin = new Thickness(4, 0, 0, 0)
+                };
+                organiserBtn.Clicked += async (_, _) =>
+                {
+                    if (_editorViewModel == null) return;
+                    await _editorViewModel.ToggleGroupOrganiserAsync(grpOrg.Id, pidOrg);
+                    SetStatus(_editorViewModel.StatusMessage);
+                    ShowGroupsView();
+                };
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                rowGrid.Add(organiserBtn, rowGrid.ColumnDefinitions.Count - 1, 0);
             }
 
             // No Show toggle button (only when editable)

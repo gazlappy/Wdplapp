@@ -30,6 +30,12 @@ namespace Wdpl2.Models
         /// <summary>Participants in this group</summary>
         public List<Guid> ParticipantIds { get; set; } = new();
 
+        /// <summary>
+        /// The participant nominated to run the draw / organise this group on the night.
+        /// Marked with a "*" next to their name on the website and in the editor.
+        /// </summary>
+        public Guid? OrganiserParticipantId { get; set; }
+
         /// <summary>Group stage matches (round robin within group)</summary>
         public List<CompetitionMatch> Matches { get; set; } = new();
 

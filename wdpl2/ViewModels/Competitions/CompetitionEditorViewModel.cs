@@ -1221,6 +1221,11 @@ public partial class CompetitionEditorViewModel : ObservableObject
             sourceGroup.ParticipantIds.Remove(participantId);
             targetGroup.ParticipantIds.Add(participantId);
 
+            // Clear the organiser nomination from the source group if it was
+            // pointing at the participant being moved.
+            if (sourceGroup.OrganiserParticipantId == participantId)
+                sourceGroup.OrganiserParticipantId = null;
+
             // Rebuild round-robin matches and clear standings for both groups
             RebuildGroupMatches(sourceGroup);
             RebuildGroupMatches(targetGroup);
@@ -1275,6 +1280,8 @@ public partial class CompetitionEditorViewModel : ObservableObject
 
             sourceGroup.ParticipantIds.Remove(participantId);
             sourceGroup.Standings.RemoveAll(s => s.ParticipantId == participantId);
+            if (sourceGroup.OrganiserParticipantId == participantId)
+                sourceGroup.OrganiserParticipantId = null;
             RebuildGroupMatches(sourceGroup);
             sourceGroup.Standings.Clear();
 
@@ -1285,6 +1292,51 @@ public partial class CompetitionEditorViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error removing from group: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
+    /// <summary>
+    /// Toggle the group organiser (the person who runs the draw on the night)
+    /// for the specified group. Passing the same participant twice clears the
+    /// nomination; passing a different participant replaces it.
+    /// </summary>
+    public async Task ToggleGroupOrganiserAsync(Guid groupId, Guid participantId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        var group = _competition.Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group == null)
+        {
+            StatusMessage = "Group not found";
+            return;
+        }
+
+        if (!group.ParticipantIds.Contains(participantId))
+        {
+            StatusMessage = "Player isn't in that group";
+            return;
+        }
+
+        try
+        {
+            if (group.OrganiserParticipantId == participantId)
+            {
+                group.OrganiserParticipantId = null;
+                StatusMessage = $"Cleared organiser for {group.Name}";
+            }
+            else
+            {
+                group.OrganiserParticipantId = participantId;
+                StatusMessage = $"Set group organiser for {group.Name}";
+            }
+
+            await _competitionStore.UpdateCompetitionAsync(_competition);
+            await _competitionStore.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error setting organiser: {ex.Message}";
             System.Diagnostics.Debug.WriteLine(ex);
         }
     }
