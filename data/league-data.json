@@ -64,7 +64,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235911"
+      "ModifiedDate": "2026-05-21T09:46:18.3965994"
     },
     {
       "Id": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
@@ -84,7 +84,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235914"
+      "ModifiedDate": "2026-05-21T09:46:18.3965996"
     },
     {
       "Id": "1c3c7356-53b1-4a97-8b98-99196c2eb602",
@@ -104,7 +104,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235929"
+      "ModifiedDate": "2026-05-21T09:46:18.396601"
     },
     {
       "Id": "1f8cd509-a33e-4770-bfed-a6e5988a43d0",
@@ -124,7 +124,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235916"
+      "ModifiedDate": "2026-05-21T09:46:18.3965998"
     },
     {
       "Id": "30c2c6ef-fe0d-4f64-8f0c-a09e4c21ef76",
@@ -164,7 +164,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235919"
+      "ModifiedDate": "2026-05-21T09:46:18.3966001"
     },
     {
       "Id": "3b5d1d9b-7f12-42aa-a3ea-0c5c5c3ba1d3",
@@ -204,7 +204,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235932"
+      "ModifiedDate": "2026-05-21T09:46:18.3966013"
     },
     {
       "Id": "49e3aff7-3281-4412-ae0d-8d56c6aee29f",
@@ -284,7 +284,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235899"
+      "ModifiedDate": "2026-05-21T09:46:18.396598"
     },
     {
       "Id": "7897c23a-0dc5-4067-a01b-df594bc3d0ac",
@@ -344,7 +344,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235927"
+      "ModifiedDate": "2026-05-21T09:46:18.3966008"
     },
     {
       "Id": "8a89ff5a-20cd-4258-b101-3701b63b0335",
@@ -424,7 +424,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235909"
+      "ModifiedDate": "2026-05-21T09:46:18.3965991"
     },
     {
       "Id": "9f2e7f0c-d3bd-44dd-bfdf-e92e04d78e08",
@@ -464,7 +464,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235903"
+      "ModifiedDate": "2026-05-21T09:46:18.3965984"
     },
     {
       "Id": "e34d7d61-1255-42e4-b393-39741e45428b",
@@ -484,7 +484,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235881"
+      "ModifiedDate": "2026-05-21T09:46:18.3965956"
     },
     {
       "Id": "e73f63b7-77ce-4ad6-8371-228b70fc0c70",
@@ -544,7 +544,7 @@
       "Notes": null,
       "LogoCatalogId": null,
       "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-29T11:28:57.8235923"
+      "ModifiedDate": "2026-05-21T09:46:18.3966005"
     }
   ],
   "Players": [
@@ -802,23 +802,6 @@
       "Notes": "",
       "CreatedDate": "2026-04-04T22:37:06",
       "ModifiedDate": "2026-04-05T01:46:18.150104"
-    },
-    {
-      "Id": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
-      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
-      "GlobalPlayerId": null,
-      "Name": "SAM COTTRELL",
-      "FirstName": "SAM",
-      "LastName": "COTTRELL",
-      "TeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
-      "IsActive": true,
-      "DeactivatedDate": null,
-      "DeactivationReason": null,
-      "TransferHistory": [],
-      "Availability": [],
-      "Notes": "",
-      "CreatedDate": "2026-04-04T22:37:06",
-      "ModifiedDate": "2026-04-05T01:46:18.1501145"
     },
     {
       "Id": "7e966abc-d07a-49b4-adc0-2477cb5e7536",
@@ -3080,6 +3063,23 @@
       "Notes": null,
       "CreatedDate": "2026-04-04T22:37:06",
       "ModifiedDate": "2026-04-05T01:46:18.150109"
+    },
+    {
+      "Id": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
+      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
+      "GlobalPlayerId": null,
+      "Name": "SAM COTTRELL",
+      "FirstName": "SAM",
+      "LastName": "COTTRELL",
+      "TeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
+      "IsActive": true,
+      "DeactivatedDate": null,
+      "DeactivationReason": null,
+      "TransferHistory": [],
+      "Availability": [],
+      "Notes": "",
+      "CreatedDate": "2026-04-04T22:37:06",
+      "ModifiedDate": "2026-04-05T01:46:18.1501145"
     },
     {
       "Id": "79b8204d-c57f-4376-993b-af37e57b8006",
@@ -20401,6 +20401,249 @@
       "ModifiedDate": "2026-04-22T23:19:22.5688353"
     },
     {
+      "Id": "58e39a40-b964-4c6b-b1d3-9e3f7c2958e2",
+      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
+      "DivisionId": "ae96e82b-5a89-4996-ba32-8cb13b846fd0",
+      "HomeTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
+      "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
+      "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
+      "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
+      "Date": "2026-05-14T20:00:00",
+      "Frames": [
+        {
+          "Number": 1,
+          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
+          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 2,
+          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
+          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 3,
+          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
+          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 4,
+          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
+          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 5,
+          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
+          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 6,
+          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
+          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 7,
+          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
+          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 8,
+          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
+          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 9,
+          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
+          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 10,
+          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
+          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 11,
+          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
+          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 12,
+          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
+          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 13,
+          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
+          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 14,
+          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
+          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 15,
+          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
+          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        }
+      ],
+      "HomeLatePenalty": 0,
+      "AwayLatePenalty": 0,
+      "CancelledByTeam": 0,
+      "CancellationPenalty": 0,
+      "CreatedDate": "2026-04-09T19:00:03.6234868",
+      "ModifiedDate": "2026-04-22T23:19:22.5688403"
+    },
+    {
       "Id": "58f73d86-f9f8-4560-9ee8-957429d961b6",
       "SeasonId": "34ed4957-293d-47ea-abac-473de1391d60",
       "DivisionId": "e287cef4-72ff-41c2-b565-04b77fc5d89f",
@@ -21891,6 +22134,249 @@
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235536",
       "ModifiedDate": "2026-04-22T23:19:22.5688361"
+    },
+    {
+      "Id": "5e5e39e1-bb50-42e7-9e33-264e3243ab20",
+      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
+      "DivisionId": "b44cf864-0483-4923-b24f-c704755c6b77",
+      "HomeTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
+      "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
+      "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
+      "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
+      "Date": "2026-05-14T20:00:00",
+      "Frames": [
+        {
+          "Number": 1,
+          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
+          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 2,
+          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
+          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 3,
+          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
+          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 4,
+          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
+          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 5,
+          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
+          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 6,
+          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
+          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 7,
+          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
+          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 8,
+          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
+          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 9,
+          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
+          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 10,
+          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
+          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 11,
+          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
+          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 12,
+          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
+          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 13,
+          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
+          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 2,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 14,
+          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
+          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        },
+        {
+          "Number": 15,
+          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
+          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
+          "HomePlayer2Id": null,
+          "AwayPlayer2Id": null,
+          "Winner": 1,
+          "EightBall": false,
+          "IsDoubles": false,
+          "HomeOppRating": null,
+          "HomePlayerRating": null,
+          "AwayOppRating": null,
+          "AwayPlayerRating": null,
+          "WeekNo": null
+        }
+      ],
+      "HomeLatePenalty": 0,
+      "AwayLatePenalty": 0,
+      "CancelledByTeam": 0,
+      "CancellationPenalty": 0,
+      "CreatedDate": "2026-04-09T19:00:03.6235301",
+      "ModifiedDate": "2026-04-22T23:19:22.5688354"
     },
     {
       "Id": "62a870da-a3dc-4193-8b8e-77b0d4d592dd",
@@ -32210,7 +32696,7 @@
       "CancelledByTeam": 0,
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235125",
-      "ModifiedDate": "2026-04-22T23:19:22.5688407"
+      "ModifiedDate": "2026-05-21T09:20:52.4229076"
     },
     {
       "Id": "a3de5d14-dbf3-4a0b-8661-3de100ca0cdb",
@@ -48572,492 +49058,6 @@
       "CancellationPenalty": 0,
       "CreatedDate": "2026-04-09T19:00:03.6235056",
       "ModifiedDate": "2026-04-22T23:19:22.5688349"
-    },
-    {
-      "Id": "5e5e39e1-bb50-42e7-9e33-264e3243ab20",
-      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
-      "DivisionId": "b44cf864-0483-4923-b24f-c704755c6b77",
-      "HomeTeamId": "17fcc29f-be21-4bef-b38f-d5397a0ec60c",
-      "AwayTeamId": "47abdffd-ee14-4c8d-911c-b64625d2d735",
-      "VenueId": "58ca3a2a-1cc8-4101-b207-6f89c565079c",
-      "TableId": "92acd191-9083-4764-9fd2-81baf72eba01",
-      "Date": "2026-05-14T20:00:00",
-      "Frames": [
-        {
-          "Number": 1,
-          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
-          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 2,
-          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
-          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 3,
-          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
-          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 4,
-          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
-          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 5,
-          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
-          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 6,
-          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
-          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 7,
-          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
-          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 8,
-          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
-          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 9,
-          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
-          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 10,
-          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
-          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 11,
-          "HomePlayerId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
-          "AwayPlayerId": "346affe5-c3db-4df9-9b4b-fb6f71e4100b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 12,
-          "HomePlayerId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
-          "AwayPlayerId": "e3b15c1f-95de-486b-88bb-4fb6433886bd",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 13,
-          "HomePlayerId": "abd503e6-213e-4821-8768-47b8940433ed",
-          "AwayPlayerId": "9ae7ddf0-b2e9-4553-a9c2-48c26b1f912b",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 14,
-          "HomePlayerId": "5f52bd45-6bfe-4878-8715-ac453435009a",
-          "AwayPlayerId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 15,
-          "HomePlayerId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
-          "AwayPlayerId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        }
-      ],
-      "HomeLatePenalty": 0,
-      "AwayLatePenalty": 0,
-      "CancelledByTeam": 0,
-      "CancellationPenalty": 0,
-      "CreatedDate": "2026-04-09T19:00:03.6235301",
-      "ModifiedDate": "2026-04-22T23:19:22.5688354"
-    },
-    {
-      "Id": "58e39a40-b964-4c6b-b1d3-9e3f7c2958e2",
-      "SeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
-      "DivisionId": "ae96e82b-5a89-4996-ba32-8cb13b846fd0",
-      "HomeTeamId": "7028c19c-9531-4c02-9d6f-56ff9bb8e5a2",
-      "AwayTeamId": "3402642d-8eee-487a-8038-eba2cf19a3c3",
-      "VenueId": "6364c87d-ae2e-4c5d-b219-d69bcd5d1ffa",
-      "TableId": "104de5fc-93bc-4d82-bc06-8d3851907b20",
-      "Date": "2026-05-14T20:00:00",
-      "Frames": [
-        {
-          "Number": 1,
-          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
-          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 2,
-          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
-          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 3,
-          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
-          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 4,
-          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
-          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 5,
-          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
-          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 6,
-          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
-          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 7,
-          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
-          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 8,
-          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
-          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 9,
-          "HomePlayerId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
-          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 10,
-          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
-          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 11,
-          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
-          "AwayPlayerId": "cdee5161-f8f6-422b-b49b-3545c64036e1",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 12,
-          "HomePlayerId": "af117b4d-bcbf-4cd5-a14e-57d66dc2787a",
-          "AwayPlayerId": "ab6f7800-6415-48cd-956c-4d3335089785",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 13,
-          "HomePlayerId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
-          "AwayPlayerId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 1,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 14,
-          "HomePlayerId": "b02a073e-9dad-4ff1-8527-52b7972fe549",
-          "AwayPlayerId": "b75495fa-87c5-4b78-8471-675825520829",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        },
-        {
-          "Number": 15,
-          "HomePlayerId": "08c8acb1-375e-4054-8edb-9481d65a8e3e",
-          "AwayPlayerId": "7945547c-c228-4e56-bf7c-2d3c992eafbe",
-          "HomePlayer2Id": null,
-          "AwayPlayer2Id": null,
-          "Winner": 2,
-          "EightBall": false,
-          "IsDoubles": false,
-          "HomeOppRating": null,
-          "HomePlayerRating": null,
-          "AwayOppRating": null,
-          "AwayPlayerRating": null,
-          "WeekNo": null
-        }
-      ],
-      "HomeLatePenalty": 0,
-      "AwayLatePenalty": 0,
-      "CancelledByTeam": 0,
-      "CancellationPenalty": 0,
-      "CreatedDate": "2026-04-09T19:00:03.6234868",
-      "ModifiedDate": "2026-04-22T23:19:22.5688403"
     }
   ],
   "Seasons": [
@@ -49371,6 +49371,7 @@
             "4e702c89-5c70-41c4-8561-59c5433d2ecc",
             "f37c7427-fa93-4bd4-9b57-0bf9878903ea"
           ],
+          "OrganiserParticipantId": null,
           "Matches": [
             {
               "Id": "4280323b-caaa-4e91-bcfd-8959901745d0",
@@ -49737,6 +49738,7 @@
             "f95d8f74-168b-4e5d-b481-d4fea0df3d7b",
             "05743270-b992-4eb6-99e6-de780c1b7b74"
           ],
+          "OrganiserParticipantId": null,
           "Matches": [
             {
               "Id": "c98763d7-0524-4c64-8393-31eb8ca08865",
@@ -50103,6 +50105,7 @@
             "219d670d-0b4c-4ba7-b03d-eebb583059fc",
             "04d06dcb-58f1-49a0-999f-6b5f8660f998"
           ],
+          "OrganiserParticipantId": null,
           "Matches": [
             {
               "Id": "c9448a75-13a6-4304-8a7a-d91baa332ddd",
@@ -50469,6 +50472,7 @@
             "cd05e7b0-0516-4115-aaf6-b784e8e69583",
             "398bdf8b-716c-43d5-8bf8-bc8795f852bb"
           ],
+          "OrganiserParticipantId": null,
           "Matches": [
             {
               "Id": "15245fc9-94da-450c-9b19-de7c564bca66",
@@ -51427,6 +51431,7 @@
             "12b8af00-babb-4e36-84bc-18c490b88788",
             "3ba5519f-5738-490d-8f05-0dcf00f19f47"
           ],
+          "OrganiserParticipantId": "7cdab3ef-de89-460a-a51b-8ce47e6830a2",
           "Matches": [
             {
               "Id": "b254b274-0b60-4f90-ae43-d47bf8ca552e",
@@ -51699,7 +51704,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "fbde442e-49d9-42a1-a5c4-2a0316357a28",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "54a93053-0f3e-4a2e-b7c5-c681fb8d37a5",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "162733a8-6b4a-4456-a448-2e9b07f4e687",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "7cdab3ef-de89-460a-a51b-8ce47e6830a2",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "12b8af00-babb-4e36-84bc-18c490b88788",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "3ba5519f-5738-490d-8f05-0dcf00f19f47",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "VIC \u2014 BAR"
         },
         {
@@ -51720,6 +51798,7 @@
             "3482ec43-bb19-479e-b078-0b91d88ff10e",
             "945e1902-6c8f-4303-a663-a5b03ccdfdae"
           ],
+          "OrganiserParticipantId": "154ae3a2-e97b-46aa-b055-68cfafde9837",
           "Matches": [
             {
               "Id": "515e56b6-168e-4aa6-8a8e-bca79d25544f",
@@ -51992,7 +52071,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "665c0829-aa30-49f3-944a-3a5513f290bc",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "e9f79e07-96a7-4003-8164-2eac67565bd7",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "154ae3a2-e97b-46aa-b055-68cfafde9837",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "4ca78c9b-8708-4a8c-b508-474bc450c74d",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "3482ec43-bb19-479e-b078-0b91d88ff10e",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "945e1902-6c8f-4303-a663-a5b03ccdfdae",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "R.G.W.M.C \u2014 TABLE 1"
         },
         {
@@ -52013,6 +52165,7 @@
             "3d0cd223-9b97-476a-be5e-a265ca75a6c0",
             "9b8bff0a-2e51-4a6b-93ef-6904bc061065"
           ],
+          "OrganiserParticipantId": "50a867fe-46b3-421f-8b95-3315a4801bca",
           "Matches": [
             {
               "Id": "57e15724-6a6c-463d-9588-0b41097642bd",
@@ -52285,7 +52438,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "779f501a-b3d5-417c-a50f-1f778b7edae8",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "50a867fe-46b3-421f-8b95-3315a4801bca",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "5d3147c8-b0f8-43fc-92f6-6af271310393",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "ab6f7800-6415-48cd-956c-4d3335089785",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "3d0cd223-9b97-476a-be5e-a265ca75a6c0",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "9b8bff0a-2e51-4a6b-93ef-6904bc061065",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "VIC \u2014 TABLE 1"
         },
         {
@@ -52306,6 +52532,7 @@
             "c546fcf8-a7e3-4ad2-8ffe-015d691436f3",
             "61ee984c-d1a4-4ca2-8390-e10fe6122a3d"
           ],
+          "OrganiserParticipantId": "0a2bf6de-2b5d-48e2-b05c-35ec2e888f1f",
           "Matches": [
             {
               "Id": "8204afc8-0f6a-49d4-b49d-0f0b0b9cc0e9",
@@ -52578,7 +52805,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "de0f835a-a3ed-44dc-8d6b-8429f239c019",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "c546fcf8-a7e3-4ad2-8ffe-015d691436f3",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "0df8399c-82cc-4b8d-bde4-26bffa053d90",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "0a2bf6de-2b5d-48e2-b05c-35ec2e888f1f",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "1a1d053e-5bf2-41bf-a168-07245ec6f6e0",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "61ee984c-d1a4-4ca2-8390-e10fe6122a3d",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "R.G.W.M.C \u2014 TABLE 2"
         },
         {
@@ -52599,6 +52899,7 @@
             "5f52bd45-6bfe-4878-8715-ac453435009a",
             "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52"
           ],
+          "OrganiserParticipantId": "6365f5fa-fb02-4f70-8a91-63eadaf26c70",
           "Matches": [
             {
               "Id": "d2985ee2-4129-4ac8-879e-94787ba348d0",
@@ -52871,7 +53172,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "6365f5fa-fb02-4f70-8a91-63eadaf26c70",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "d7c482c8-d25d-41d2-9ce8-a4b916b020e9",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "348c53ef-80b6-464d-94a8-8078c8510d2e",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "19f1434c-afbe-43d1-a20a-68aa6c11edce",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "5f52bd45-6bfe-4878-8715-ac453435009a",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "1795a99e-4df3-4fe6-88c4-30e3cdd9ab52",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "VIC \u2014 TABLE 2"
         },
         {
@@ -52892,6 +53266,7 @@
             "24bd78a2-55cc-43d1-b97e-0ffef09704c9",
             "528ac354-c3e3-425f-b832-8cbf899cb15b"
           ],
+          "OrganiserParticipantId": "528ac354-c3e3-425f-b832-8cbf899cb15b",
           "Matches": [
             {
               "Id": "6683e5b9-7dc3-4c80-98d0-2983da7b2cc7",
@@ -53164,7 +53539,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "9fb24bca-ef30-47df-a9fd-71088cfca71d",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "528ac354-c3e3-425f-b832-8cbf899cb15b",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "ab7e663f-90ce-4bfd-b278-8ebb59484d61",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "4d0b267e-94c6-4cfa-970f-4dc895f3eb85",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "9a11a07d-e918-46f6-a2f9-a9ba8af0c816",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "24bd78a2-55cc-43d1-b97e-0ffef09704c9",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "R.G.W.M.C \u2014 BAR"
         },
         {
@@ -53185,6 +53633,7 @@
             "e7ff81b4-1bb3-44f1-90f8-b8f3b013ddad",
             "8685720a-6e7e-4249-bf87-de7abe1396b1"
           ],
+          "OrganiserParticipantId": "8685720a-6e7e-4249-bf87-de7abe1396b1",
           "Matches": [
             {
               "Id": "b5c509ab-d01c-432c-b068-dd5a827a933d",
@@ -53457,7 +53906,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "2a2ce289-0e7b-4cad-bb7b-d3113e9cb329",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "8685720a-6e7e-4249-bf87-de7abe1396b1",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "d1e63215-fd2a-4ed5-9362-662f77d6d2fa",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "5ff49b75-ed54-4806-8287-ad7acc3ce4b3",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "c9d4920f-5b21-45cc-abab-ee14b9c634f9",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "e7ff81b4-1bb3-44f1-90f8-b8f3b013ddad",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "CON CLUB \u2014 BAR"
         },
         {
@@ -53478,6 +54000,7 @@
             "abd503e6-213e-4821-8768-47b8940433ed",
             "8bb997e1-605e-4c97-84d4-45c2caf43ed0"
           ],
+          "OrganiserParticipantId": "142228bb-a1a3-4517-ada9-d4405cd5b413",
           "Matches": [
             {
               "Id": "c133032f-7018-4c8f-a87e-b31888b5e51c",
@@ -53750,7 +54273,80 @@
               "VenueDisplay": ""
             }
           ],
-          "Standings": [],
+          "Standings": [
+            {
+              "ParticipantId": "8ddf2e11-2c67-4aef-ad8e-1b89c411d25a",
+              "Position": 1,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "142228bb-a1a3-4517-ada9-d4405cd5b413",
+              "Position": 2,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "03b0bb16-26b5-4f79-b286-cf0dec64bccd",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "f23b83da-fa42-448e-aae3-fabae7170ac5",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "abd503e6-213e-4821-8768-47b8940433ed",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            },
+            {
+              "ParticipantId": "8bb997e1-605e-4c97-84d4-45c2caf43ed0",
+              "Position": 0,
+              "Played": 0,
+              "Won": 0,
+              "Drawn": 0,
+              "Lost": 0,
+              "FramesFor": 0,
+              "FramesAgainst": 0,
+              "FrameDifference": 0,
+              "Points": 0
+            }
+          ],
           "VenueDisplay": "BLUE BALL \u2014 BAR"
         }
       ],
@@ -53760,7 +54356,9 @@
       "RandomDraw": true,
       "PlateCompetitionId": null,
       "ParentCompetitionId": null,
-      "NoShowIds": [],
+      "NoShowIds": [
+        "5ff49b75-ed54-4806-8287-ad7acc3ce4b3"
+      ],
       "IsLocked": false,
       "ShowOnWebsite": true
     },
@@ -54446,7 +55044,7 @@
     "ShowRules": true,
     "ShowContactPage": false,
     "ShowPoolGame": false,
-    "EnableCaptainsArea": false,
+    "EnableCaptainsArea": true,
     "CaptainsAreaNavLabel": "\uD83D\uDD10 Captains",
     "CaptainsAreaPageTitle": "Captains Area",
     "CaptainsWelcomeMessage": "Welcome captains. Sign in with your team PIN to access fixtures, contacts and submission tools.",
@@ -54629,15 +55227,20 @@
     "FtpPassword": "",
     "UseSftp": false,
     "RemotePath": "/public_html/NewPool/",
+    "BackendRemotePath": "",
+    "BackendDbHost": "localhost",
+    "BackendDbName": "zmbhmnhb_cl25-newpool",
+    "BackendDbUser": "zmbhmnhb_cl25-newpool",
+    "BackendDbPassword": "8Ball!!!",
     "GitHubToken": "",
     "GitHubUsername": "",
     "GitHubRepoName": "",
     "EnableCloudSync": false,
-    "LastCloudSyncUtc": "2026-05-18T23:39:40.0564078Z",
+    "LastCloudSyncUtc": "2026-05-19T00:01:38.3330723Z",
     "SelectedSeasonId": "92be65b4-b598-4f4a-8a67-9d08b7afefb2",
     "SelectedTemplate": "modern",
-    "LastGenerated": "2026-05-19T00:54:33.465525+01:00",
-    "LastUploaded": "2026-05-19T00:59:51.6729394+01:00",
+    "LastGenerated": "2026-05-22T10:14:12.6619107+01:00",
+    "LastUploaded": "2026-05-22T10:16:03.639333+01:00",
     "UseCustomLogo": true,
     "LogoMaxWidth": 300,
     "LogoMaxHeight": 150,
@@ -58181,26 +58784,27 @@
     "HasSocialLinks": false,
     "HasContactInfo": false,
     "UploadedFileHashes": {
-      "home.html": "2051d53e551ac841013d0ffb2815d9fe8269ef274fc14e8482f3e07c8187da19",
+      "home.html": "3256a62ccebe7ee628827428b50b149821608faa49c7401cd17639804e7b40fa",
       "style.css": "ab549fb44667109e1ac9cc6a535f9504bc618478bffb83d0833ec2492436e22d",
-      "standings.html": "3ae95dec612872f5dbc3e48286df491955f65b2f3ad501b28c7baebd2ed9ca73",
-      "standings-red.html": "7dc8f6d524a5271f8cc6f5db8b0033d27ad62e855d6f51941feeaf6e73d27190",
-      "standings-yellow.html": "eea2613ed56ac7bc3eea761cb47db1bedd4a1dd8caa20a4944c37f4ae4e328a6",
-      "fixtures.html": "bf794ff1d8ca102d4672aa4655297f8736dfe99ee87ba695854bfe993019323f",
-      "results.html": "c4afa20d60359d8f7b4d4456ce8b3ac69d6ea2560ba3bf6cc468b1e7f9814106",
-      "players.html": "0bce8d68d84dc8c356660c7c0a2cc19ce70cd5262b1084450783c595271d419c",
-      "players-red.html": "c4145a356a8efe60868549776637061f22265884133670e75215eb18659b773f",
-      "players-yellow.html": "54af640bbbdb097d316a679be315163902fc78cb8468a32fbd71e34e1d85861d",
-      "players-data.json": "528415d102ec31f13568cc6dfcec09d71bdac6d77520383a61c688ae4b4e9c43",
-      "player.html": "1240cdfde513cb33c1e1a60972260d7288823d170f1aaae09610b974b62e97b0",
-      "divisions.html": "9795b73782478d4c93ffcc5ad535573f8eddc27447d0813fc30bb7f988cfaafe",
-      "teams-data.json": "9ddb35cb7328e1a673c84240ab02722b263fb98ec05d317b25525796369c06e6",
-      "team.html": "95d6a46d257f5bab21ccaf965612f16391af065c57e8d3c2012ca2b985830634",
-      "competitions.html": "51317e49d6780f2b14c44c17c87ecd86f3ef94d0b06f264f560268d92c29aef1",
-      "rules.html": "ce6c2895cad1948ca248f349213109ed67b5b96573ce19153b0356381a530cd9",
-      "rows-reports.html": "99e1c42138fa234efbf1667af73d5f9151cf8cc63c93ad09be4bb27d37b5e7b7",
-      "entry-forms.html": "d42ce502ce2df8c5bb82b433b133be1b54627d1d8338d8a2d742fa87bbea33f5",
-      "_submissions.html": "ebd134d7b9812d0236e1c27d3a62e7bb5293663204f480c36f2ce3fdc86122bb"
+      "standings.html": "1146a701f3f8c4df6cf154812c72494d87952fe5d82febb9021cfd359d74e847",
+      "standings-red.html": "fbacfddfec0d680f8664a30e250e8fbafda64d9567bd21cad3f9c9955d9b3a02",
+      "standings-yellow.html": "4eceab4700052e51537d8f4f7d8d02d6a890fb3e8d3521d6052851919588f8d2",
+      "fixtures.html": "2bdd6664a9565423ffb7182cca67f6c0e7288c2f7ee1ca47e6d6ff0e0bdda4e2",
+      "results.html": "3199e4031412e6d7f6b7e81e61f0953e97c07a0ad2a60f3ae94180f1e587f2cc",
+      "players.html": "bb8717a16755dc1777468b8b618e02448835def4940d660b3ec7d6ca7f76e598",
+      "players-red.html": "e35bbe49a248a38665d364a607a9eb9de80824448ce5a6954de5347c178ee52d",
+      "players-yellow.html": "0cdb5ad00cadd6362ecaf22b32549637dec339ea1345e19bb1aac2cea87ec1d1",
+      "players-data.json": "d8912aed185239295cc5b7eaf9102b0a8e738497045a96b12c1a0f29e3658378",
+      "player.html": "904be931440961450354591023b15c15cbbab7dbb6c0a4dbb496edec4fc55c4b",
+      "divisions.html": "cf024c7e6e1fdbf3b147bf94fe84f7079bd4edeae75d23a53c668cfcff41e1a9",
+      "teams-data.json": "a3dca2b6273ea6001ce6604244674819b81385e1e3dc3f9ff7804e2883e0c2fe",
+      "team.html": "630711f903734c4e9dc616ce90230929834adff7352c284d14b408b632bfa9cc",
+      "competitions.html": "1279cde3198437ee09ae7c782f7928c887fdf2168fd167e0e5b8a7881eb2331c",
+      "rules.html": "01997f9d6b8c4f3039f5650551ed4c1985b831c339ddda4d2cc13f83f98ad3e6",
+      "rows-reports.html": "807bc8faa45bb0981a432d2a59c312b70f7e6236e3d0fb4d17e1774c45cfb119",
+      "entry-forms.html": "b239bde4548dca788f023302ca3a76eb13f5921793a43208a7501873bf14f6fb",
+      "_submissions.html": "3b544e2e62198f11cf8de3f3aff198234324349a474227096c1ecb173e663119",
+      "captains.html": "768bb2e305328ad4c525bef7358c86fd7014db8f5779929a21c22e64847aa23f"
     }
   },
   "FixturesSheetSettings": {
