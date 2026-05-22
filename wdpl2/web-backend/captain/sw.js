@@ -1,10 +1,11 @@
 // captain/sw.js — minimal service worker for the WDPL Captain Portal.
 // Strategy:
-//   * Static shell (index.html, manifest) → cache-first, fall back to network.
-//   * API calls (../api/**) → network-first (always try fresh, cache as fallback for GET).
+//   * HTML navigations (the shell)   → network-first, fall back to cache (so style/markup changes appear immediately after a deploy).
+//   * API calls (../api/**)          → network-first, fall back to cache for GETs.
+//   * Everything else (assets)       → cache-first, fall back to network.
 //   * Bump CACHE_VERSION whenever the shell changes so old clients refresh.
 
-const CACHE_VERSION = 'wdpl-captain-v3';
+const CACHE_VERSION = 'wdpl-captain-v6';
 const SHELL = [
   './',
   './index.html',
@@ -29,11 +30,38 @@ self.addEventListener('activate', function (event) {
   );
 });
 
+// Allow the page to ask the SW to skip waiting (instant update on demand).
+self.addEventListener('message', function (e) {
+  if (e && e.data === 'skipWaiting') self.skipWaiting();
+});
+
 self.addEventListener('fetch', function (event) {
   const req = event.request;
   if (req.method !== 'GET') return;
+
   const url = new URL(req.url);
-  const isApi = url.pathname.indexOf('/api/') !== -1;
+  const isApi  = url.pathname.indexOf('/api/') !== -1;
+  const isHtml = req.mode === 'navigate' ||
+                 (req.headers.get('accept') || '').indexOf('text/html') !== -1;
+
+  // HTML navigations: always try the network first so deployed style/markup
+  // changes appear without a manual cache clear.
+  if (isHtml) {
+    event.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then(function (c) { c.put(req, copy); }).catch(function(){});
+        }
+        return res;
+      }).catch(function () {
+        return caches.match(req).then(function (cached) {
+          return cached || caches.match('./index.html');
+        });
+      })
+    );
+    return;
+  }
 
   if (isApi) {
     // Network-first for API GETs.
@@ -55,7 +83,7 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // Cache-first for shell + assets.
+  // Cache-first for shell + static assets.
   event.respondWith(
     caches.match(req).then(function (cached) {
       return cached || fetch(req).then(function (res) {
