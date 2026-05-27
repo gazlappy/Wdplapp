@@ -17,6 +17,7 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<PlayersPage>();
         services.AddTransient<TeamsPage>();
         services.AddTransient<SeasonsPage>();
+        services.AddTransient<SeasonSetupPage>();
         services.AddTransient<FixturesPage>();
         services.AddTransient<LeagueTablesPage>();
         services.AddTransient<SettingsPage>();

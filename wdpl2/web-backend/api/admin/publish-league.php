@@ -23,6 +23,59 @@ $settings  = isset($body['settings']) && is_array($body['settings']) ? $body['se
 $results   = isset($body['results'])  && is_array($body['results'])  ? $body['results']  : array();
 
 $pdo = db();
+
+// Ensure schemas exist (first-ever publish on a fresh DB).
+try {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS league_teams (
+            team_id       VARCHAR(64) NOT NULL,
+            season_id     VARCHAR(64) NULL,
+            division_id   VARCHAR(64) NULL,
+            name          VARCHAR(160) NOT NULL,
+            division_name VARCHAR(120) NULL,
+            venue_name    VARCHAR(200) NULL,
+            PRIMARY KEY (team_id),
+            KEY ix_team_season (season_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS league_players (
+            player_id  VARCHAR(64) NOT NULL,
+            team_id    VARCHAR(64) NULL,
+            season_id  VARCHAR(64) NULL,
+            full_name  VARCHAR(160) NOT NULL,
+            is_active  TINYINT(1) NOT NULL DEFAULT 1,
+            PRIMARY KEY (player_id),
+            KEY ix_player_team   (team_id),
+            KEY ix_player_season (season_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS league_fixtures (
+            fixture_id     VARCHAR(64) NOT NULL,
+            season_id      VARCHAR(64) NULL,
+            division_id    VARCHAR(64) NULL,
+            division_name  VARCHAR(120) NULL,
+            home_team_id   VARCHAR(64) NULL,
+            away_team_id   VARCHAR(64) NULL,
+            home_team_name VARCHAR(160) NULL,
+            away_team_name VARCHAR(160) NULL,
+            venue_name     VARCHAR(200) NULL,
+            fixture_date   DATETIME NULL,
+            PRIMARY KEY (fixture_id),
+            KEY ix_fx_season (season_id),
+            KEY ix_fx_date   (fixture_date)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS live_scorecards (
+            fixture_id          VARCHAR(64) NOT NULL PRIMARY KEY,
+            state_json          MEDIUMTEXT NULL,
+            home_finalized_at   DATETIME NULL,
+            away_finalized_at   DATETIME NULL,
+            updated_utc         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {
+    json_response(array('error' => 'schema: ' . $e->getMessage()), 500);
+}
+
 $pdo->beginTransaction();
 try {
     // Wipe everything for this season (or all if null).

@@ -49,6 +49,14 @@ namespace Wdpl2.Views
             RefreshList(selectFirst: true);
         }
 
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            // The Season Setup wizard may have added a new season; reflect it here.
+            var previouslySelectedId = _selected?.Id;
+            RefreshList(selectId: previouslySelectedId, selectFirst: previouslySelectedId == null);
+        }
+
         private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selected = e.CurrentSelection?.FirstOrDefault() as Season;
@@ -64,18 +72,27 @@ namespace Wdpl2.Views
         /// <summary>
         /// Make the given season the active one. Deactivates all others, persists, and notifies SeasonService.
         /// </summary>
-        private void SetActiveSeason(Season season)
+        private async Task SetActiveSeasonAsync(Season season)
         {
-            foreach (var s in League.Seasons)
-                s.IsActive = (s.Id == season.Id);
+            try
+            {
+                // Deactivate any other seasons currently flagged active
+                foreach (var s in League.Seasons.Where(s => s.IsActive && s.Id != season.Id).ToList())
+                {
+                    s.IsActive = false;
+                    await _dataStore.UpdateSeasonAsync(s);
+                }
 
-            season.IsActive = true;
-            League.ActiveSeasonId = season.Id;
+                season.IsActive = true;
+                await _dataStore.UpdateSeasonAsync(season);
 
-            try { _ = _dataStore.SaveAsync(); }
+                // ActiveSeasonId is a JSON-only field; persist via legacy JSON store
+                DataStore.Data.ActiveSeasonId = season.Id;
+                DataStore.SaveJsonOnly();
+            }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SetActiveSeason save error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"SetActiveSeasonAsync save error: {ex.Message}");
             }
 
             SeasonService.Current.CurrentSeasonId = season.Id;
@@ -137,45 +154,8 @@ namespace Wdpl2.Views
             model.StartDate = StartPicker.Date;
             model.EndDate = EndPicker.Date;
             
-            // Handle IsActive properly
-            bool wasActive = model.IsActive;
             bool willBeActive = ActiveSwitch.IsToggled;
-            
-            if (willBeActive && !wasActive)
-            {
-                // Turning this season ON - deactivate all others
-                System.Diagnostics.Debug.WriteLine($"?? Activating season: {model.Name}");
-                foreach (var s in League.Seasons)
-                    s.IsActive = false;
-                    
-                model.IsActive = true;
-                League.ActiveSeasonId = model.Id;
-            }
-            else if (!willBeActive && wasActive)
-            {
-                // Turning this season OFF
-                System.Diagnostics.Debug.WriteLine($"?? Deactivating season: {model.Name}");
-                model.IsActive = false;
-                
-                // If this was the active season, clear the ActiveSeasonId
-                if (League.ActiveSeasonId == model.Id)
-                {
-                    League.ActiveSeasonId = null;
-                }
-            }
-            else if (willBeActive && wasActive)
-            {
-                // Season was already active and staying active
-                System.Diagnostics.Debug.WriteLine($"? Season remains active: {model.Name}");
-                model.IsActive = true;
-                League.ActiveSeasonId = model.Id;
-            }
-            else
-            {
-                // Season was inactive and staying inactive
-                System.Diagnostics.Debug.WriteLine($"? Season remains inactive: {model.Name}");
-                model.IsActive = false;
-            }
+            model.IsActive = willBeActive;
 
             model.BlackoutDates = _exclusionDates
                 .Select(s =>
@@ -192,72 +172,43 @@ namespace Wdpl2.Views
 
             model.NormaliseDates();
 
-            var existing = League.Seasons.FirstOrDefault(s => s.Id == model.Id);
-            if (existing == null)
-                League.Seasons.Add(model);
-            else
+            try
             {
-                existing.Name = model.Name;
-                existing.StartDate = model.StartDate;
-                existing.EndDate = model.EndDate;
-                existing.IsActive = model.IsActive;
-                existing.BlackoutDates = model.BlackoutDates;
-                existing.BlackoutDateTitles = model.BlackoutDateTitles;
-                existing.IncludeDoubles = model.IncludeDoubles;
-                existing.SinglesFrameCount = model.SinglesFrameCount;
-                existing.DoublesFrameCount = model.DoublesFrameCount;
-            }
+                var isNew = League.Seasons.All(s => s.Id != model.Id);
 
-            try 
-            { 
-                await _dataStore.SaveAsync();
-                System.Diagnostics.Debug.WriteLine($"?? Season saved: {model.Name} (ID: {model.Id})");
-                System.Diagnostics.Debug.WriteLine($"   IsActive: {model.IsActive}");
-                System.Diagnostics.Debug.WriteLine($"   ActiveSeasonId: {League.ActiveSeasonId?.ToString() ?? "NULL"}");
-            } 
+                // If turning this season on, deactivate any other currently-active seasons first
+                if (willBeActive)
+                {
+                    foreach (var s in League.Seasons.Where(s => s.IsActive && s.Id != model.Id).ToList())
+                    {
+                        s.IsActive = false;
+                        await _dataStore.UpdateSeasonAsync(s);
+                    }
+                }
+
+                if (isNew)
+                    await _dataStore.AddSeasonAsync(model);
+                else
+                    await _dataStore.UpdateSeasonAsync(model);
+
+                // ActiveSeasonId is JSON-only; persist via legacy JSON store
+                if (willBeActive)
+                    DataStore.Data.ActiveSeasonId = model.Id;
+                else if (DataStore.Data.ActiveSeasonId == model.Id)
+                    DataStore.Data.ActiveSeasonId = League.Seasons.FirstOrDefault(s => s.IsActive && s.Id != model.Id)?.Id;
+                DataStore.SaveJsonOnly();
+
+                System.Diagnostics.Debug.WriteLine($"Season saved: {model.Name} IsActive={model.IsActive} ActiveSeasonId={DataStore.Data.ActiveSeasonId?.ToString() ?? "NULL"}");
+            }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"? Save error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Save error: {ex}");
+                await DisplayAlert("Save Error", ex.Message, "OK");
+                return;
             }
 
-            // ALWAYS update SeasonService to trigger the event
-            System.Diagnostics.Debug.WriteLine($"?? Updating SeasonService.Current.CurrentSeasonId...");
-            System.Diagnostics.Debug.WriteLine($"   Before: {SeasonService.Current.CurrentSeasonId?.ToString() ?? "NULL"}");
-            System.Diagnostics.Debug.WriteLine($"   wasActive: {wasActive}, willBeActive: {willBeActive}");
-            System.Diagnostics.Debug.WriteLine($"   League.ActiveSeasonId: {League.ActiveSeasonId?.ToString() ?? "NULL"}");
-            
-            if (willBeActive)
-            {
-                // Season is being activated or staying active
-                SeasonService.Current.CurrentSeasonId = model.Id;
-            }
-            else
-            {
-                // Season is NOT active (either deactivated or staying inactive)
-                // Clear the current season if there's no active season
-                if (League.ActiveSeasonId == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"   No active season in League - setting CurrentSeasonId to NULL");
-                    SeasonService.Current.CurrentSeasonId = null;
-                }
-                else
-                {
-                    // There's another active season - switch to it
-                    var activeSeason = League.Seasons.FirstOrDefault(s => s.IsActive);
-                    if (activeSeason != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"   Switching to active season: {activeSeason.Name}");
-                        SeasonService.Current.CurrentSeasonId = activeSeason.Id;
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"   No active season found - setting CurrentSeasonId to NULL");
-                        SeasonService.Current.CurrentSeasonId = null;
-                    }
-                }
-            }
-            
-            System.Diagnostics.Debug.WriteLine($"   After: {SeasonService.Current.CurrentSeasonId?.ToString() ?? "NULL"}");
+            // Notify the rest of the app
+            SeasonService.Current.CurrentSeasonId = DataStore.Data.ActiveSeasonId;
 
             RefreshList(selectId: model.Id);
             
@@ -319,7 +270,7 @@ namespace Wdpl2.Views
                 return;
             }
 
-            SetActiveSeason(_selected);
+            await SetActiveSeasonAsync(_selected);
             RefreshList(selectId: _selected.Id);
             StatusLabel.Text = $"\u2705 \"{_selected.Name}\" set as active.";
         }

@@ -21,7 +21,14 @@ function _stand_compute($pdo, $season_id, $include_unfinalized) {
          LEFT JOIN live_scorecards s ON s.fixture_id = f.fixture_id'
          . ($where ? (' WHERE ' . implode(' AND ', $where)) : '')
          . ($where ? ' AND' : ' WHERE') . ' s.fixture_id IS NOT NULL ' . $finCond;
-    $st = $pdo->prepare($sql); $st->execute($args); $rows = $st->fetchAll();
+    try {
+        $st = $pdo->prepare($sql); $st->execute($args); $rows = $st->fetchAll();
+    } catch (Exception $e) {
+        // Likely the league_fixtures/live_scorecards tables don't exist yet
+        // (no league has been published). Return an empty standings set so the
+        // UI can render instead of bombing with a 500.
+        return array();
+    }
 
     $div = array();
     foreach ($rows as $r) {

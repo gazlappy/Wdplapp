@@ -146,11 +146,32 @@ function admin_current() {
     }
 
     // 2) HTTP Basic auth (used by the MAUI desktop app).
+    $bu = null; $bp = null;
     if (!empty($_SERVER['PHP_AUTH_USER'])) {
-        $u = $_SERVER['PHP_AUTH_USER'];
-        $p = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '';
-        $row = admin_find_user_by_username($u);
-        if ($row && (int)$row['enabled'] === 1 && password_verify($p, $row['password_hash'])) {
+        $bu = $_SERVER['PHP_AUTH_USER'];
+        $bp = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '';
+    } else {
+        // PHP-CGI / FastCGI on cPanel doesn't populate PHP_AUTH_USER; the
+        // Authorization header comes through verbatim instead.
+        $hdr = '';
+        if (!empty($_SERVER['HTTP_AUTHORIZATION']))               $hdr = $_SERVER['HTTP_AUTHORIZATION'];
+        else if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) $hdr = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        else if (function_exists('getallheaders')) {
+            $h = getallheaders();
+            if (is_array($h)) foreach ($h as $k => $v) {
+                if (strcasecmp($k, 'Authorization') === 0) { $hdr = $v; break; }
+            }
+        }
+        if ($hdr && stripos($hdr, 'Basic ') === 0) {
+            $decoded = base64_decode(substr($hdr, 6), true);
+            if ($decoded !== false && strpos($decoded, ':') !== false) {
+                list($bu, $bp) = explode(':', $decoded, 2);
+            }
+        }
+    }
+    if ($bu !== null && $bu !== '') {
+        $row = admin_find_user_by_username($bu);
+        if ($row && (int)$row['enabled'] === 1 && password_verify((string)$bp, $row['password_hash'])) {
             return $row;
         }
     }
