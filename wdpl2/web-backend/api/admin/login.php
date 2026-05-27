@@ -21,7 +21,7 @@ if (admin_users_count() === 0) {
     if (strlen($pass) < 6) {
         json_response(array('error' => 'first admin password must be at least 6 characters'), 400);
     }
-    admin_create_user($user, $pass, $user, null, 'admin', 1);
+    admin_create_user($user, $pass, $user, null, 'superadmin', 1);
 }
 
 $row = admin_login_check($user, $pass);

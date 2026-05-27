@@ -8,7 +8,7 @@
 // Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
-require_admin();
+$me = require_admin();
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
@@ -26,11 +26,13 @@ if ($method === 'GET') {
 }
 
 if ($method === 'DELETE') {
+    require_admin('superadmin');
     $body = read_json_body();
     $team_id = trim((string)(isset($body['team_id']) ? $body['team_id'] : ''));
     if ($team_id === '') json_response(array('error' => 'team_id required'), 400);
     $stmt = db()->prepare('DELETE FROM league_teams WHERE team_id = :t');
     $stmt->execute(array(':t' => $team_id));
+    audit_log($me, 'team.delete', $team_id);
     json_response(array('ok' => true, 'rows' => $stmt->rowCount()));
 }
 
@@ -61,6 +63,7 @@ if ($action === 'update') {
             ->execute(array(':n' => $name, ':dn' => ($dn === '' ? null : $dn), ':t' => $tid));
     } catch (Exception $e) { /* captains table may not exist yet */ }
 
+    audit_log($me, 'team.update', $tid, array('name'=>$name,'division'=>$dn,'venue'=>$vn));
     json_response(array('ok' => true, 'rows' => $stmt->rowCount()));
 }
 

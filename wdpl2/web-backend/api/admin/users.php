@@ -27,7 +27,7 @@ if ($method === 'GET') {
     json_response(array('items' => $rows, 'me' => $me['user_id'], 'needs_bootstrap' => false));
 }
 
-$me = require_admin();
+$me = require_admin('superadmin');
 
 if ($method === 'DELETE') {
     $body = read_json_body();
@@ -38,6 +38,7 @@ if ($method === 'DELETE') {
     db()->prepare('DELETE FROM admin_sessions WHERE user_id = :u')->execute(array(':u' => $uid));
     $d = db()->prepare('DELETE FROM admin_users WHERE user_id = :u');
     $d->execute(array(':u' => $uid));
+    audit_log($me, 'admin_user.delete', $uid);
     json_response(array('ok' => true, 'rows' => $d->rowCount()));
 }
 
@@ -57,6 +58,7 @@ if ($action === 'create') {
         isset($body['email'])        ? $body['email']        : null,
         isset($body['role'])         ? $body['role']         : 'admin',
         !empty($body['enabled']) ? 1 : (isset($body['enabled']) ? 0 : 1));
+    audit_log($me, 'admin_user.create', $u, array('role' => isset($body['role']) ? $body['role'] : 'admin'));
     json_response(array('ok' => true, 'user_id' => $id));
 }
 
@@ -94,6 +96,7 @@ if ($action === 'update') {
             ->execute(array(':u' => $uid, ':t' => (string)admin_current_token()));
     }
 
+    audit_log($me, 'admin_user.update', $uid, array('role'=>$role,'enabled'=>$en,'pw'=>!empty($body['password'])));
     json_response(array('ok' => true));
 }
 

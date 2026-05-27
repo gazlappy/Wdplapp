@@ -9,7 +9,7 @@
 // PHP 5.6 compatible.
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
-require_admin();
+$me = require_admin();
 require_post();
 
 $body = read_json_body();
@@ -52,6 +52,7 @@ try {
 
     $pdo->commit();
 
+    audit_log($me, 'fixture.reopen', $fid, array('notes' => $note));
     json_response(array(
         'ok'                 => true,
         'fixture_id'         => $fid,

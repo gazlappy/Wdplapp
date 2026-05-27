@@ -15,7 +15,7 @@
   header nav button.active { background:#2563eb; border-color:#2563eb; color:#fff; }
   header .grow { flex:1; }
   header .who { color:#94a3b8; font-size:12px; }
-  main { padding:20px; max-width:1100px; margin:0 auto; }
+  main { padding:20px; max-width:1200px; margin:0 auto; }
   h2 { margin:0 0 12px; font-size:15px; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
   .card { background:#1e293b; border:1px solid #334155; border-radius:10px; padding:16px; margin-bottom:16px; }
   table { width:100%; border-collapse:collapse; margin-top:8px; }
@@ -23,10 +23,12 @@
   th { color:#94a3b8; font-weight:600; }
   tr:hover td { background:#0b1220; }
   input, select, button, textarea { font:inherit; padding:8px 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#e2e8f0; }
+  textarea { width:100%; min-height:80px; resize:vertical; }
   button { background:#2563eb; border-color:#2563eb; color:white; cursor:pointer; padding:6px 12px; }
   button.secondary { background:#475569; border-color:#475569; }
   button.danger    { background:#b91c1c; border-color:#b91c1c; }
   button.warn      { background:#b45309; border-color:#b45309; }
+  button.ok        { background:#15803d; border-color:#15803d; }
   button:disabled  { opacity:.5; cursor:not-allowed; }
   .muted { color:#64748b; font-size:12px; }
   .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
@@ -34,6 +36,7 @@
   .pill.part  { background:#7c2d12; color:#fed7aa; }
   .pill.done  { background:#1e3a8a; color:#bfdbfe; }
   .pill.gone  { background:#7f1d1d; color:#fecaca; }
+  .pill.role  { background:#312e81; color:#c7d2fe; }
   .status { padding:10px 12px; border-radius:6px; margin:8px 0; font-size:13px; }
   .status.ok  { background:#14532d; color:#bbf7d0; }
   .status.err { background:#7f1d1d; color:#fecaca; }
@@ -42,7 +45,6 @@
   .filterbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
   .filterbar input[type=search] { min-width:240px; }
   .empty { padding:24px; text-align:center; color:#64748b; }
-  /* login */
   .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login { width:100%; max-width:380px; background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; }
   .login h1 { margin:0 0 4px; font-size:18px; }
@@ -52,18 +54,28 @@
   .login button { width:100%; margin-top:14px; padding:10px 12px; }
   .bootstrap-note { background:#1e3a8a; color:#bfdbfe; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  @media (max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  @media (max-width:720px){ .grid2,.grid3{ grid-template-columns:1fr; } }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-start; justify-content:center; padding:24px; z-index:50; overflow:auto; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#0f172a; border:1px solid #334155; border-radius:10px; width:100%; max-width:1100px; padding:18px; }
+  .modal h2 { margin-top:0; }
+  .modal .close { float:right; }
+  .frame-row td { vertical-align:middle; }
+  .frame-row input, .frame-row select { width:100%; padding:4px 6px; font-size:12px; }
+  .pill-tab { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; background:#334155; }
+  .checklist { max-height:300px; overflow:auto; border:1px solid #334155; border-radius:6px; padding:8px; }
+  .checklist label { display:flex; align-items:center; gap:6px; padding:2px 0; font-size:13px; }
 </style>
 </head>
 <body>
 
-<!-- =========================== LOGIN SCREEN =========================== -->
 <div id="loginScreen" class="login-wrap" style="display:none">
   <form class="login" id="loginForm" autocomplete="on" onsubmit="doLogin(event)">
     <h1>WDPL Admin</h1>
-    <p class="lead" id="loginLead">Sign in to manage scorecards, teams and captains.</p>
+    <p class="lead" id="loginLead">Sign in to manage the league.</p>
     <div id="bootstrapNote" class="bootstrap-note" style="display:none">
-      No admin users exist yet. The credentials you enter below will be used to <strong>create the first admin account</strong>.
+      No admin users exist yet. The credentials you enter below will be used to <strong>create the first admin account</strong> (as superadmin).
     </div>
     <label for="lu">Username</label>
     <input id="lu" autocomplete="username" required>
@@ -74,17 +86,29 @@
   </form>
 </div>
 
-<!-- =========================== APP =========================== -->
 <div id="app" style="display:none">
 
 <header>
   <h1>WDPL Admin</h1>
   <nav id="tabs">
     <button data-tab="scorecards" class="active">Scorecards</button>
+    <button data-tab="fixtures">Fixtures</button>
+    <button data-tab="generate">Generate fixtures</button>
+    <button data-tab="standings">Standings</button>
     <button data-tab="teams">Teams</button>
+    <button data-tab="players">Players</button>
     <button data-tab="captains">Captains</button>
-    <button data-tab="users">Admin users</button>
+    <button data-tab="seasons">Seasons</button>
     <button data-tab="inbox">Inbox</button>
+    <button data-tab="broadcast">Broadcast</button>
+    <button data-tab="email">Email</button>
+    <button data-tab="topscorers">Top scorers</button>
+    <button data-tab="availability">Availability</button>
+    <button data-tab="cup">Cup</button>
+    <button data-tab="settings">Settings</button>
+    <button data-tab="users">Admin users</button>
+    <button data-tab="audit">Audit log</button>
+    <button data-tab="export">Export</button>
   </nav>
   <div class="grow"></div>
   <span class="who" id="who"></span>
@@ -92,7 +116,6 @@
 </header>
 
 <main>
-
 <div id="globalStatus" class="status info" style="display:none"></div>
 
 <section id="tab-scorecards">
@@ -115,6 +138,50 @@
   </div>
 </section>
 
+<section id="tab-fixtures" style="display:none">
+  <div class="card">
+    <h2>Fixtures</h2>
+    <div class="filterbar">
+      <input type="search" id="fxSearch" placeholder="Team / venue..." oninput="renderFixtures()">
+      <label>From <input type="date" id="fxFrom" onchange="loadFixtures()"></label>
+      <label>To <input type="date" id="fxTo"   onchange="loadFixtures()"></label>
+      <button class="secondary" onclick="loadFixtures()">Refresh</button>
+    </div>
+    <div id="fxList"></div>
+  </div>
+</section>
+
+<section id="tab-generate" style="display:none">
+  <div class="card">
+    <h2>Generate fixtures (round-robin)</h2>
+    <p class="muted">Picks every team-pair once (or twice if double round). Inserts into <code>league_fixtures</code>. Won't replace existing rows â€” run carefully.</p>
+    <div class="grid3">
+      <div><label>Season</label><select id="genSeason"></select></div>
+      <div><label>Division (optional id)</label><input id="genDivision" placeholder="e.g. div-a"></div>
+      <div><label>Start date (optional)</label><input type="date" id="genStart"></div>
+      <div><label><input type="checkbox" id="genWeekly" checked> Schedule weekly</label></div>
+      <div><label><input type="checkbox" id="genDouble"> Double round (home + away)</label></div>
+      <div><label><input type="checkbox" id="genVenue" checked> Use home team venue</label></div>
+    </div>
+    <h2 style="margin-top:18px">Teams</h2>
+    <div class="checklist" id="genTeams"></div>
+    <div style="margin-top:12px"><button onclick="genRun()">Generate fixtures</button></div>
+  </div>
+</section>
+
+<section id="tab-standings" style="display:none">
+  <div class="card">
+    <h2>Standings</h2>
+    <div class="filterbar">
+      <label>Season <select id="stSeason" onchange="loadStandings()"></select></label>
+      <label><input type="checkbox" id="stInclude" onchange="loadStandings()"> Include unfinalized cards</label>
+      <button class="secondary" onclick="loadStandings()">Refresh</button>
+      <button class="ok" onclick="publishStandings()">Publish to league/standings.json</button>
+    </div>
+    <div id="stList"></div>
+  </div>
+</section>
+
 <section id="tab-teams" style="display:none">
   <div class="card">
     <h2>Teams</h2>
@@ -126,38 +193,52 @@
   </div>
 </section>
 
-<section id="tab-captains" style="display:none">
-  <div class="card" style="padding:0; overflow:hidden">
-    <iframe id="captainsFrame" src="about:blank" style="border:0; width:100%; height:80vh; background:#0f172a"></iframe>
+<section id="tab-players" style="display:none">
+  <div class="card">
+    <h2>Players</h2>
+    <div class="filterbar">
+      <input type="search" id="plSearch" placeholder="Name..." oninput="loadPlayers()">
+      <label>Team <select id="plTeam" onchange="loadPlayers()"><option value="">(all)</option></select></label>
+      <button class="secondary" onclick="loadPlayers()">Refresh</button>
+    </div>
+    <div id="plList"></div>
+    <h2 style="margin-top:18px">Add player</h2>
+    <form class="grid3" onsubmit="plCreate(event)">
+      <div><label>Team</label><select id="plNewTeam" required></select></div>
+      <div><label>Full name</label><input id="plNewName" required></div>
+      <div style="display:flex;align-items:flex-end"><button type="submit">Add</button></div>
+    </form>
+    <h2 style="margin-top:18px">Merge duplicates</h2>
+    <p class="muted">Pick the KEEP player id, paste comma-separated drop ids. Rewrites live scorecards.</p>
+    <form class="grid3" onsubmit="plMerge(event)">
+      <div><label>Keep id</label><input id="plKeep" required></div>
+      <div><label>Drop ids (comma-separated)</label><input id="plDrop" required></div>
+      <div style="display:flex;align-items:flex-end"><button class="warn" type="submit">Merge</button></div>
+    </form>
   </div>
 </section>
 
-<section id="tab-users" style="display:none">
+<section id="tab-captains" style="display:none">
   <div class="card">
-    <h2>Admin users</h2>
-    <p class="muted">People allowed to sign in here. Sessions last 12 hours.</p>
-    <div id="userList"></div>
-    <h2 style="margin-top:24px">Add new admin</h2>
-    <form id="newUserForm" onsubmit="createUser(event)" class="grid2">
-      <div>
-        <label>Username</label>
-        <input id="nuUser" required autocomplete="off">
-      </div>
-      <div>
-        <label>Display name</label>
-        <input id="nuName" autocomplete="off">
-      </div>
-      <div>
-        <label>Password (min 6)</label>
-        <input id="nuPass" type="password" required autocomplete="new-password">
-      </div>
-      <div>
-        <label>Email (optional)</label>
-        <input id="nuEmail" type="email" autocomplete="off">
-      </div>
-      <div style="grid-column:1 / -1">
-        <button type="submit">Create admin</button>
-      </div>
+    <h2>Captain accounts</h2>
+    <div class="filterbar">
+      <input type="search" id="capSearch" placeholder="Team / username..." oninput="renderCaptains()">
+      <button class="secondary" onclick="loadCaptains()">Refresh</button>
+    </div>
+    <div id="capList"></div>
+  </div>
+</section>
+
+<section id="tab-seasons" style="display:none">
+  <div class="card">
+    <h2>Seasons</h2>
+    <div id="ssList"></div>
+    <h2 style="margin-top:18px">Add season</h2>
+    <form class="grid3" onsubmit="ssCreate(event)">
+      <div><label>Name</label><input id="ssNewName" required></div>
+      <div><label>Starts on</label><input type="date" id="ssNewStart"></div>
+      <div><label>Ends on</label><input type="date" id="ssNewEnd"></div>
+      <div style="grid-column:1/-1"><button type="submit">Create season</button></div>
     </form>
   </div>
 </section>
@@ -165,13 +246,156 @@
 <section id="tab-inbox" style="display:none">
   <div class="card">
     <h2>Pending submissions</h2>
-    <p class="muted">Captain cards waiting to be imported.</p>
     <div class="filterbar"><button class="secondary" onclick="loadInbox()">Refresh</button></div>
     <div id="inboxList"></div>
   </div>
 </section>
 
+<section id="tab-broadcast" style="display:none">
+  <div class="card">
+    <h2>Broadcast (in-app)</h2>
+    <p class="muted">Sends to every captain's in-app inbox.</p>
+    <form onsubmit="sendBroadcast(event)" class="grid2">
+      <div style="grid-column:1 / -1"><label>Subject</label><input id="bcSubj" required></div>
+      <div style="grid-column:1 / -1"><label>Body</label><textarea id="bcBody" required></textarea></div>
+      <div style="grid-column:1 / -1"><button type="submit">Send to all captains</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-email" style="display:none">
+  <div class="card">
+    <h2>Email captains</h2>
+    <p class="muted">Uses the server's mail() function. Only enabled captains with an email address receive it.</p>
+    <form onsubmit="sendEmail(event)" class="grid2">
+      <div><label>To</label><select id="emTo"><option value="all" selected>All captains</option></select></div>
+      <div><label>Reply-To (optional)</label><input id="emReply" type="email"></div>
+      <div style="grid-column:1 / -1"><label>Subject</label><input id="emSubj" required></div>
+      <div style="grid-column:1 / -1"><label>Body</label><textarea id="emBody" required></textarea></div>
+      <div style="grid-column:1 / -1"><button type="submit">Send email</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-settings" style="display:none">
+  <div class="card">
+    <h2>League settings</h2>
+    <p class="muted">Common keys: <code>default_frames_per_match</code>, <code>max_frames_per_player</code>, <code>season_id</code>.</p>
+    <div id="settingsList"></div>
+    <h2 style="margin-top:24px">Add / set</h2>
+    <form onsubmit="setSetting(event)" class="grid2">
+      <div><label>Key</label><input id="stKey" required></div>
+      <div><label>Value</label><input id="stVal"></div>
+      <div style="grid-column:1 / -1"><button type="submit">Save setting</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-users" style="display:none">
+  <div class="card">
+    <h2>Admin users</h2>
+    <p class="muted">Sessions last 12 hours. Roles: <code>superadmin</code> (everything), <code>admin</code> (no destructive ops), <code>readonly</code>.</p>
+    <div id="userList"></div>
+    <h2 style="margin-top:24px">Add new admin</h2>
+    <form id="newUserForm" onsubmit="createUser(event)" class="grid2">
+      <div><label>Username</label><input id="nuUser" required autocomplete="off"></div>
+      <div><label>Display name</label><input id="nuName" autocomplete="off"></div>
+      <div><label>Password (min 6)</label><input id="nuPass" type="password" required autocomplete="new-password"></div>
+      <div><label>Email (optional)</label><input id="nuEmail" type="email" autocomplete="off"></div>
+      <div><label>Role</label>
+        <select id="nuRole">
+          <option value="admin" selected>admin</option>
+          <option value="superadmin">superadmin</option>
+          <option value="readonly">readonly</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:flex-end"><button type="submit">Create admin</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-audit" style="display:none">
+  <div class="card">
+    <h2>Audit log</h2>
+    <div class="filterbar">
+      <input type="search" id="auAction" placeholder="action..." oninput="loadAudit()">
+      <input type="search" id="auActor"  placeholder="actor..."  oninput="loadAudit()">
+      <input type="search" id="auQ"      placeholder="target/details..." oninput="loadAudit()">
+      <button class="secondary" onclick="loadAudit()">Refresh</button>
+    </div>
+    <div id="auditList"></div>
+  </div>
+</section>
+
+<section id="tab-topscorers" style="display:none">
+  <div class="card">
+    <h2>Top scorers</h2>
+    <div class="filterbar">
+      <label>Season <select id="tsSeason" onchange="loadTopScorers()"><option value="">(current)</option></select></label>
+      <label>Team <select id="tsTeam" onchange="loadTopScorers()"><option value="">(all)</option></select></label>
+      <label>Min played <input type="number" id="tsMin" value="0" min="0" style="width:70px" oninput="loadTopScorers()"></label>
+      <label>Limit <input type="number" id="tsLimit" value="50" min="1" max="500" style="width:70px" oninput="loadTopScorers()"></label>
+      <button class="secondary" onclick="loadTopScorers()">Refresh</button>
+    </div>
+    <div id="tsList"></div>
+  </div>
+</section>
+
+<section id="tab-availability" style="display:none">
+  <div class="card">
+    <h2>Availability</h2>
+    <div class="filterbar">
+      <label>Week (Mon) <input type="date" id="avWeek" onchange="loadAvailability()"></label>
+      <label>Team <select id="avTeam" onchange="loadAvailability()"><option value="">(all)</option></select></label>
+      <button class="secondary" onclick="loadAvailability()">Refresh</button>
+    </div>
+    <div id="avList"></div>
+  </div>
+</section>
+
+<section id="tab-cup" style="display:none">
+  <div class="card">
+    <h2>Cup competitions</h2>
+    <div class="filterbar">
+      <button class="secondary" onclick="loadCups()">Refresh</button>
+      <button onclick="cupShowNew()">+ New cup</button>
+    </div>
+    <div id="cupList"></div>
+  </div>
+  <div class="card" id="cupNewCard" style="display:none">
+    <h2>New cup</h2>
+    <form id="cupNewForm" class="grid">
+      <label>Name <input id="cupNewName" required></label>
+      <label>Season <select id="cupNewSeason"><option value="">(none)</option></select></label>
+      <label><input type="checkbox" id="cupNewShuffle"> Shuffle pairings</label>
+      <div style="grid-column:1/-1"><strong>Teams:</strong><div id="cupNewTeams" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;margin-top:6px"></div></div>
+      <div style="grid-column:1/-1"><button type="submit">Create cup</button> <button type="button" class="secondary" onclick="document.getElementById('cupNewCard').style.display='none'">Cancel</button></div>
+    </form>
+  </div>
+  <div class="card" id="cupDetailCard" style="display:none">
+    <h2 id="cupDetailTitle">Cup</h2>
+    <div id="cupDetail"></div>
+  </div>
+</section>
+
+<section id="tab-export" style="display:none">
+
+  <div class="card">
+    <h2>Export / backup</h2>
+    <p class="muted">Downloads a JSON snapshot of all WDPL tables (passwords stripped).</p>
+    <button onclick="downloadExport()">Download backup.json</button>
+  </div>
+</section>
+
 </main>
+</div>
+
+<div id="scModal" class="modal-bg" onclick="if(event.target===this)closeScModal()">
+  <div class="modal">
+    <button class="secondary close" onclick="closeScModal()">Close</button>
+    <h2 id="scModalTitle">Edit scorecard</h2>
+    <div id="scModalBody"></div>
+  </div>
 </div>
 
 <script>
@@ -179,7 +403,7 @@ const API = '..';
 let session = { user: null, token: null };
 
 function $(id){ return document.getElementById(id); }
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"'']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function flash(msg, kind){
   const el = $('globalStatus');
   el.className = 'status ' + (kind || 'info');
@@ -202,66 +426,52 @@ async function api(path, opts){
   try { body = await r.json(); } catch(e){ body = {}; }
   if (!r.ok) {
     const err = new Error((body && body.error) || ('HTTP ' + r.status));
-    err.status = r.status;
-    err.body   = body;
+    err.status = r.status; err.body = body;
     throw err;
   }
   return body;
 }
 
+function isSuper(){ return session.user && session.user.role === 'superadmin'; }
+
 function showLogin(needsBootstrap){
   $('app').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   $('bootstrapNote').style.display = needsBootstrap ? 'block' : 'none';
-  $('loginLead').textContent = needsBootstrap
-    ? 'First-time setup: create the initial admin account.'
-    : 'Sign in to manage scorecards, teams and captains.';
   $('loginErr').style.display = 'none';
   $('lu').focus();
 }
-
 function showApp(){
   $('loginScreen').style.display = 'none';
   $('app').style.display = 'block';
-  $('captainsFrame').src = './captains.html';
   loadScorecards();
 }
-
 async function checkSession(){
   session.token = loadToken();
   try {
     const r = await api('/admin/whoami.php');
     if (r && r.ok) {
       session.user = r;
-      $('who').textContent = 'Signed in as ' + (r.display_name || r.username);
-      showApp();
-      return;
+      $('who').textContent = 'Signed in as ' + (r.display_name || r.username) + ' (' + r.role + ')';
+      showApp(); return;
     }
     showLogin(!!(r && r.needs_bootstrap));
   } catch (e) {
     showLogin(e.body && e.body.needs_bootstrap);
   }
 }
-
 async function doLogin(ev){
   ev.preventDefault();
-  const u = $('lu').value.trim(), p = $('lp').value;
-  $('loginBtn').disabled = true;
-  $('loginErr').style.display = 'none';
+  $('loginBtn').disabled = true; $('loginErr').style.display = 'none';
   try {
     session.token = null;
-    const r = await api('/admin/login.php', { method:'POST', body: JSON.stringify({ username: u, password: p }) });
-    session.token = r.token || null;
-    saveToken(session.token);
+    const r = await api('/admin/login.php', { method:'POST', body: JSON.stringify({ username: $('lu').value.trim(), password: $('lp').value }) });
+    session.token = r.token || null; saveToken(session.token);
     session.user = r;
-    $('who').textContent = 'Signed in as ' + (r.display_name || r.username);
+    $('who').textContent = 'Signed in as ' + (r.display_name || r.username) + ' (' + r.role + ')';
     showApp();
-  } catch (e) {
-    $('loginErr').textContent = e.message;
-    $('loginErr').style.display = 'block';
-  } finally {
-    $('loginBtn').disabled = false;
-  }
+  } catch (e) { $('loginErr').textContent = e.message; $('loginErr').style.display = 'block'; }
+  finally { $('loginBtn').disabled = false; }
 }
 
 document.querySelectorAll('#tabs button').forEach(function(b){
@@ -270,10 +480,23 @@ document.querySelectorAll('#tabs button').forEach(function(b){
     b.classList.add('active');
     document.querySelectorAll('#app main > section').forEach(function(s){ s.style.display='none'; });
     $('tab-' + b.dataset.tab).style.display = 'block';
-    if (b.dataset.tab === 'scorecards') loadScorecards();
-    if (b.dataset.tab === 'teams')      loadTeams();
-    if (b.dataset.tab === 'inbox')      loadInbox();
-    if (b.dataset.tab === 'users')      loadUsers();
+    const t = b.dataset.tab;
+    if (t === 'scorecards') loadScorecards();
+    if (t === 'fixtures')   loadFixtures();
+    if (t === 'generate')   loadGenerate();
+    if (t === 'standings')  loadStandings();
+    if (t === 'teams')      loadTeams();
+    if (t === 'players')    { loadTeamsForPickers(); loadPlayers(); }
+    if (t === 'captains')   loadCaptains();
+    if (t === 'seasons')    loadSeasons();
+    if (t === 'inbox')      loadInbox();
+    if (t === 'email')      loadEmailRecipients();
+    if (t === 'topscorers') loadTopScorers();
+    if (t === 'availability') loadAvailability();
+    if (t === 'cup')        loadCups();
+    if (t === 'users')      loadUsers();
+    if (t === 'settings')   loadSettings();
+    if (t === 'audit')      loadAudit();
   };
 });
 
@@ -283,14 +506,13 @@ $('logout').onclick = async function(){
   showLogin(false);
 };
 
-/* ---------------- Scorecards ---------------- */
+/* Scorecards */
 let _scAll = [];
 async function loadScorecards(){
-  const f = $('scFilter').value;
   try {
+    const f = $('scFilter').value;
     const d = await api('/admin/scorecards.php' + (f ? ('?status=' + encodeURIComponent(f)) : ''));
-    _scAll = d.items || [];
-    renderScorecards();
+    _scAll = d.items || []; renderScorecards();
   } catch (e) { flash('Failed to load scorecards: ' + e.message, 'err'); }
 }
 function scStatusPill(r){
@@ -309,7 +531,7 @@ function renderScorecards(){
   });
   const host = $('scList');
   if (!items.length) { host.innerHTML = '<div class="empty">No scorecards match.</div>'; return; }
-  let html = '<table><thead><tr><th>Fixture</th><th>Date</th><th>Status</th><th>Version</th><th>Last edit (UTC)</th><th>Actions</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Fixture</th><th>Date</th><th>Status</th><th>Ver</th><th>Updated (UTC)</th><th>Actions</th></tr></thead><tbody>';
   items.forEach(function(r){
     const teams = esc((r.home_team_name||'?') + ' vs ' + (r.away_team_name||'?'));
     html += '<tr>' +
@@ -319,41 +541,219 @@ function renderScorecards(){
       '<td>' + (r.version!=null ? esc(r.version) : '-') + '</td>' +
       '<td>' + esc(r.updated_utc||'') + '</td>' +
       '<td class="actions">' +
-        '<button class="warn"   onclick="scReopen(\'' + r.fixture_id + '\')">Send back to captains</button>' +
+        '<button onclick="scEdit(\'' + r.fixture_id + '\')">Edit</button>' +
+        '<button class="warn" onclick="scReopen(\'' + r.fixture_id + '\')">Send back</button>' +
         '<button class="secondary" onclick="scClear(\'' + r.fixture_id + '\',\'home\')">Clear home</button>' +
         '<button class="secondary" onclick="scClear(\'' + r.fixture_id + '\',\'away\')">Clear away</button>' +
-        '<button class="danger" onclick="scReset(\'' + r.fixture_id + '\')">Reset</button>' +
+        (isSuper() ? '<button class="danger" onclick="scReset(\'' + r.fixture_id + '\')">Reset</button>' : '') +
       '</td></tr>';
   });
   html += '</tbody></table>';
   host.innerHTML = html;
 }
 async function scReopen(fid){
-  if (!confirm('Send this fixture back to the captains? Both finalizations will be cleared and any pending inbox cards closed.')) return;
-  try {
-    await api('/admin/reopen-fixture.php', { method:'POST',
-      body: JSON.stringify({ fixture_id: fid, by: session.user && session.user.username, notes: 'reopened from admin portal' }) });
-    flash('Fixture sent back to the captains.', 'ok'); loadScorecards();
+  if (!confirm('Send this fixture back to the captains?')) return;
+  try { await api('/admin/reopen-fixture.php', { method:'POST', body: JSON.stringify({ fixture_id: fid, by: session.user.username, notes: 'reopened from admin portal' }) });
+    flash('Fixture sent back.', 'ok'); loadScorecards();
   } catch (e) { flash('Reopen failed: ' + e.message, 'err'); }
 }
 async function scClear(fid, side){
-  if (!confirm('Clear ' + side.toUpperCase() + ' captain finalization for this card?')) return;
-  try {
-    await api('/admin/scorecards.php', { method:'POST',
-      body: JSON.stringify({ action:'clear', fixture_id: fid, side: side }) });
-    flash(side.toUpperCase() + ' finalization cleared.', 'ok'); loadScorecards();
+  if (!confirm('Clear ' + side.toUpperCase() + ' finalization?')) return;
+  try { await api('/admin/scorecards.php', { method:'POST', body: JSON.stringify({ action:'clear', fixture_id: fid, side: side }) });
+    flash(side.toUpperCase() + ' cleared.', 'ok'); loadScorecards();
   } catch (e) { flash('Clear failed: ' + e.message, 'err'); }
 }
 async function scReset(fid){
-  if (!confirm('RESET this scorecard? All frames, picks and winners on the live card will be deleted. This cannot be undone.')) return;
-  try {
-    await api('/admin/scorecards.php', { method:'POST',
-      body: JSON.stringify({ action:'reset', fixture_id: fid }) });
-    flash('Scorecard reset.', 'ok'); loadScorecards();
+  if (!confirm('RESET this scorecard? Picks, winners and notes wiped. Cannot be undone.')) return;
+  try { await api('/admin/scorecards.php', { method:'POST', body: JSON.stringify({ action:'reset', fixture_id: fid }) });
+    flash('Reset.', 'ok'); loadScorecards();
   } catch (e) { flash('Reset failed: ' + e.message, 'err'); }
 }
 
-/* ---------------- Teams ---------------- */
+/* Scorecard editor */
+let _edFid = null, _edState = null;
+async function scEdit(fid){
+  try {
+    const r = await api('/admin/scorecard-edit.php?fixture_id=' + encodeURIComponent(fid));
+    _edFid = fid; _edState = r.state;
+    $('scModalTitle').textContent = 'Edit: ' + (r.state.home_team_name||'?') + ' vs ' + (r.state.away_team_name||'?');
+    renderEditor(r);
+    $('scModal').classList.add('show');
+  } catch (e) { flash('Failed to load card: ' + e.message, 'err'); }
+}
+function closeScModal(){ $('scModal').classList.remove('show'); _edFid=null; _edState=null; }
+function renderEditor(r){
+  const fr = r.state.frames || [];
+  let h = '<div class="muted">Version: ' + r.version + ' &middot; ' +
+          'Home: ' + (r.home_finalized ? '<span class="pill done">finalized</span>' : '<span class="pill live">open</span>') +
+          ' &middot; Away: ' + (r.away_finalized ? '<span class="pill done">finalized</span>' : '<span class="pill live">open</span>') +
+          '</div>';
+  h += '<div class="actions" style="margin:10px 0">' +
+       '<button onclick="edAddFrame()">+ Frame</button>' +
+       '<button class="secondary" onclick="edRemoveFrame()">- Frame</button>' +
+       '<button class="ok" onclick="edForce(\'home\')">Force-finalize HOME</button>' +
+       '<button class="ok" onclick="edForce(\'away\')">Force-finalize AWAY</button>' +
+       '<button class="ok" onclick="edForce(\'both\')">Force-finalize BOTH</button>' +
+       '</div>';
+  h += '<table><thead><tr><th>#</th><th>D</th><th>Home P1</th><th>Home P2</th><th>Away P1</th><th>Away P2</th><th>Winner</th><th>8</th><th></th></tr></thead><tbody>';
+  fr.forEach(function(f, i){
+    h += '<tr class="frame-row" data-i="' + i + '">' +
+      '<td>' + esc(f.number) + '</td>' +
+      '<td><input type="checkbox" class="ed-d"' + (f.is_doubles ? ' checked' : '') + '></td>' +
+      '<td><input class="ed-h1" value="' + esc(f.home_player_name||'') + '"></td>' +
+      '<td><input class="ed-h2" value="' + esc(f.home_player2_name||'') + '"' + (f.is_doubles?'':' disabled') + '></td>' +
+      '<td><input class="ed-a1" value="' + esc(f.away_player_name||'') + '"></td>' +
+      '<td><input class="ed-a2" value="' + esc(f.away_player2_name||'') + '"' + (f.is_doubles?'':' disabled') + '></td>' +
+      '<td><select class="ed-w"><option value=""' + (!f.winner?' selected':'') + '>-</option>' +
+            '<option value="home"' + (f.winner==='home'?' selected':'') + '>home</option>' +
+            '<option value="away"' + (f.winner==='away'?' selected':'') + '>away</option></select></td>' +
+      '<td><input type="checkbox" class="ed-8"' + (f.eight_ball?' checked':'') + '></td>' +
+      '<td><button onclick="edSave(' + i + ')">Save</button></td></tr>';
+  });
+  h += '</tbody></table>';
+  h += '<h2 style="margin-top:18px">Notes</h2>' +
+       '<textarea id="ed-notes">' + esc(r.state.notes||'') + '</textarea>' +
+       '<div><button onclick="edSaveNotes()" style="margin-top:8px">Save notes</button></div>';
+  $('scModalBody').innerHTML = h;
+}
+async function edRefresh(){
+  const r = await api('/admin/scorecard-edit.php?fixture_id=' + encodeURIComponent(_edFid));
+  _edState = r.state; renderEditor(r);
+}
+async function edSave(i){
+  const tr = document.querySelector('#scModalBody tr[data-i="' + i + '"]');
+  const cur = _edState.frames[i];
+  const fields = {
+    is_doubles: tr.querySelector('.ed-d').checked,
+    home_player_name: tr.querySelector('.ed-h1').value || null,
+    home_player2_name: tr.querySelector('.ed-h2').value || null,
+    away_player_name: tr.querySelector('.ed-a1').value || null,
+    away_player2_name: tr.querySelector('.ed-a2').value || null,
+    winner: tr.querySelector('.ed-w').value || null,
+    eight_ball: tr.querySelector('.ed-8').checked
+  };
+  fields.home_player_id  = fields.home_player_name  && fields.home_player_name  === cur.home_player_name  ? cur.home_player_id  : null;
+  fields.home_player2_id = fields.home_player2_name && fields.home_player2_name === cur.home_player2_name ? cur.home_player2_id : null;
+  fields.away_player_id  = fields.away_player_name  && fields.away_player_name  === cur.away_player_name  ? cur.away_player_id  : null;
+  fields.away_player2_id = fields.away_player2_name && fields.away_player2_name === cur.away_player2_name ? cur.away_player2_id : null;
+  try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'set_frame', fixture_id: _edFid, frame: i, fields: fields }) });
+    flash('Frame ' + (i+1) + ' saved.', 'ok'); edRefresh();
+  } catch (e) { flash('Save failed: ' + e.message, 'err'); }
+}
+async function edAddFrame(){ try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'add_frame', fixture_id: _edFid }) }); edRefresh(); } catch(e){ flash(e.message,'err'); } }
+async function edRemoveFrame(){ if(!confirm('Remove the last frame?'))return; try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'remove_frame', fixture_id: _edFid }) }); edRefresh(); } catch(e){ flash(e.message,'err'); } }
+async function edSaveNotes(){ try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'set_notes', fixture_id: _edFid, value: $('ed-notes').value }) }); flash('Notes saved.','ok'); } catch(e){ flash(e.message,'err'); } }
+async function edForce(side){
+  if (!confirm('Force-finalize ' + side.toUpperCase() + '?')) return;
+  try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'force_finalize', fixture_id: _edFid, side: side }) });
+    flash('Finalized ' + side + '.', 'ok'); edRefresh(); loadScorecards();
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Fixtures */
+let _fxAll = [];
+async function loadFixtures(){
+  const qs = [];
+  const f = $('fxFrom').value, t = $('fxTo').value;
+  if (f) qs.push('from=' + f); if (t) qs.push('to=' + t);
+  try { const d = await api('/admin/fixtures.php' + (qs.length?'?'+qs.join('&'):'')); _fxAll = d.items||[]; renderFixtures(); }
+  catch (e) { flash('Failed to load fixtures: ' + e.message, 'err'); }
+}
+function renderFixtures(){
+  const q = ($('fxSearch').value||'').toLowerCase();
+  const items = _fxAll.filter(function(r){
+    if (!q) return true;
+    return ((r.home_team_name||'')+' '+(r.away_team_name||'')+' '+(r.venue_name||'')).toLowerCase().indexOf(q)>=0;
+  });
+  const host = $('fxList');
+  if (!items.length) { host.innerHTML = '<div class="empty">No fixtures match.</div>'; return; }
+  let h = '<table><thead><tr><th>Date</th><th>Division</th><th>Home</th><th>Away</th><th>Venue</th><th>Live</th><th>Actions</th></tr></thead><tbody>';
+  items.forEach(function(f){
+    h += '<tr data-fid="' + esc(f.fixture_id) + '">' +
+      '<td><input class="fx-d" type="date" value="' + esc((f.fixture_date||'').substring(0,10)) + '"></td>' +
+      '<td>' + esc(f.division_name||'') + '</td>' +
+      '<td>' + esc(f.home_team_name||'') + '</td>' +
+      '<td>' + esc(f.away_team_name||'') + '</td>' +
+      '<td><input class="fx-v" value="' + esc(f.venue_name||'') + '"></td>' +
+      '<td>' + (f.has_live==1||f.has_live===true ? '<span class="pill live">yes</span>' : '<span class="muted">no</span>') + '</td>' +
+      '<td class="actions">' +
+        '<button onclick="fxSave(this)">Save</button>' +
+        '<button class="secondary" onclick="fxSwap(this)">Swap</button>' +
+        '<button class="warn" onclick="fxPostpone(this)">Postpone</button>' +
+        (isSuper()?'<button class="danger" onclick="fxDelete(this)">Delete</button>':'') +
+      '</td></tr>';
+  });
+  h += '</tbody></table>';
+  host.innerHTML = h;
+}
+function _fxRow(btn){ const tr=btn.closest('tr'); return {tr:tr, fid:tr.dataset.fid}; }
+async function fxSave(btn){
+  const r = _fxRow(btn);
+  try { await api('/admin/fixtures.php', { method:'POST', body: JSON.stringify({ action:'update', fixture_id: r.fid, fixture_date: r.tr.querySelector('.fx-d').value || null, venue_name: r.tr.querySelector('.fx-v').value }) });
+    flash('Saved.', 'ok'); loadFixtures();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function fxSwap(btn){ const r=_fxRow(btn); if(!confirm('Swap home and away?'))return; try{ await api('/admin/fixtures.php',{method:'POST',body:JSON.stringify({action:'swap',fixture_id:r.fid})}); flash('Swapped.','ok'); loadFixtures(); } catch(e){ flash(e.message,'err'); } }
+async function fxPostpone(btn){ const r=_fxRow(btn); if(!confirm('Postpone (clear date)?'))return; try{ await api('/admin/fixtures.php',{method:'POST',body:JSON.stringify({action:'postpone',fixture_id:r.fid})}); flash('Postponed.','ok'); loadFixtures(); } catch(e){ flash(e.message,'err'); } }
+async function fxDelete(btn){ const r=_fxRow(btn); if(!confirm('Delete this fixture and its live card?'))return; try{ await api('/admin/fixtures.php',{method:'DELETE',body:JSON.stringify({fixture_id:r.fid})}); flash('Deleted.','ok'); loadFixtures(); } catch(e){ flash(e.message,'err'); } }
+
+/* Generate fixtures */
+async function loadGenerate(){
+  await loadSeasonOptions('genSeason');
+  try {
+    const t = await api('/admin/teams.php');
+    const host = $('genTeams');
+    const items = t.items || [];
+    if (!items.length) { host.innerHTML = '<div class="empty">No teams defined.</div>'; return; }
+    host.innerHTML = items.map(function(t){
+      return '<label><input type="checkbox" class="gen-t" value="' + esc(t.team_id) + '"> ' + esc(t.team_name) + ' <span class="muted">(' + esc(t.division_name||'') + ')</span></label>';
+    }).join('');
+  } catch (e) { flash(e.message,'err'); }
+}
+async function genRun(){
+  const tids = Array.from(document.querySelectorAll('.gen-t:checked')).map(function(x){ return x.value; });
+  if (tids.length < 2) { flash('Pick at least 2 teams.', 'err'); return; }
+  const sid = $('genSeason').value;
+  if (!sid) { flash('Pick a season.', 'err'); return; }
+  if (!confirm('Generate ' + (tids.length * (tids.length - 1) / 2) + (($('genDouble').checked)?' x2':'') + ' fixtures?')) return;
+  try {
+    const r = await api('/admin/generate-fixtures.php', { method:'POST', body: JSON.stringify({
+      season_id: sid, division_id: $('genDivision').value || null,
+      team_ids: tids, start_date: $('genStart').value || null,
+      weekly: $('genWeekly').checked, double_round: $('genDouble').checked, venue_lookup: $('genVenue').checked }) });
+    flash('Inserted ' + r.inserted + ' fixtures across ' + r.rounds + ' rounds.', 'ok');
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Standings */
+async function loadStandings(){
+  await loadSeasonOptions('stSeason');
+  const sid = $('stSeason').value;
+  const inc = $('stInclude').checked ? '&include_unfinalized=1' : '';
+  try {
+    const d = await api('/admin/standings.php?season_id=' + encodeURIComponent(sid||'') + inc);
+    const host = $('stList');
+    if (!d.divisions || !d.divisions.length) { host.innerHTML = '<div class="empty">No data.</div>'; return; }
+    let h = '';
+    d.divisions.forEach(function(div){
+      h += '<h2 style="margin-top:14px">' + esc(div.name) + '</h2>';
+      h += '<table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>FF</th><th>FA</th><th>Diff</th><th>Pts</th></tr></thead><tbody>';
+      div.rows.forEach(function(r, i){
+        h += '<tr><td>' + (i+1) + '</td><td>' + esc(r.team) + '</td><td>' + r.played + '</td><td>' + r.won + '</td><td>' + r.drew + '</td><td>' + r.lost + '</td><td>' + r.frames_for + '</td><td>' + r.frames_against + '</td><td>' + (r.frames_for - r.frames_against) + '</td><td><strong>' + r.points + '</strong></td></tr>';
+      });
+      h += '</tbody></table>';
+    });
+    host.innerHTML = h;
+  } catch (e) { flash(e.message,'err'); }
+}
+async function publishStandings(){
+  if (!confirm('Publish standings to league/standings.json?')) return;
+  try { const r = await api('/admin/standings.php', { method:'POST', body: JSON.stringify({ action:'publish', season_id: $('stSeason').value || null }) });
+    flash('Published (' + r.bytes + ' bytes).', 'ok');
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Teams */
 let _teamAll = [];
 async function loadTeams(){
   try { const d = await api('/admin/teams.php'); _teamAll = d.items || []; renderTeams(); }
@@ -370,17 +770,14 @@ function renderTeams(){
   if (!items.length) { host.innerHTML = '<div class="empty">No teams match.</div>'; return; }
   let html = '<table><thead><tr><th>Team name</th><th>Division</th><th>Venue</th><th>Captain</th><th>Actions</th></tr></thead><tbody>';
   items.forEach(function(t){
-    const cap = t.captain_username
-      ? esc(t.captain_username) + (t.captain_enabled==0 ? ' <span class="pill gone">disabled</span>' : '')
-      : '<span class="muted">none</span>';
+    const cap = t.captain_username ? esc(t.captain_username) + (t.captain_enabled==0 ? ' <span class="pill gone">disabled</span>' : '') : '<span class="muted">none</span>';
     html += '<tr data-tid="' + esc(t.team_id) + '">' +
       '<td><input class="t-name" value="' + esc(t.team_name||'') + '"></td>' +
       '<td><input class="t-div"  value="' + esc(t.division_name||'') + '"></td>' +
       '<td><input class="t-ven"  value="' + esc(t.venue_name||'') + '"></td>' +
       '<td>' + cap + '<div class="muted">' + esc(t.team_id) + '</div></td>' +
-      '<td class="actions">' +
-        '<button onclick="teamSave(this)">Save</button>' +
-        '<button class="danger" onclick="teamDelete(this)">Delete</button>' +
+      '<td class="actions"><button onclick="teamSave(this)">Save</button>' +
+        (isSuper()?'<button class="danger" onclick="teamDelete(this)">Delete</button>':'') +
       '</td></tr>';
   });
   html += '</tbody></table>';
@@ -388,28 +785,208 @@ function renderTeams(){
 }
 async function teamSave(btn){
   const tr = btn.closest('tr');
-  const tid  = tr.dataset.tid;
+  const tid = tr.dataset.tid;
   const name = tr.querySelector('.t-name').value.trim();
   const dn   = tr.querySelector('.t-div').value.trim();
   const vn   = tr.querySelector('.t-ven').value.trim();
   if (!name) { flash('Team name is required.', 'err'); return; }
-  try {
-    await api('/admin/teams.php', { method:'POST',
-      body: JSON.stringify({ action:'update', team_id: tid, name: name, division_name: dn, venue_name: vn }) });
+  try { await api('/admin/teams.php', { method:'POST', body: JSON.stringify({ action:'update', team_id: tid, name: name, division_name: dn, venue_name: vn }) });
     flash('Saved ' + name + '.', 'ok'); loadTeams();
-  } catch (e) { flash('Save failed: ' + e.message, 'err'); }
+  } catch (e) { flash(e.message,'err'); }
 }
 async function teamDelete(btn){
-  const tr = btn.closest('tr');
-  const tid = tr.dataset.tid;
+  const tr = btn.closest('tr'); const tid = tr.dataset.tid;
   if (!confirm('Delete this team row?')) return;
-  try {
-    await api('/admin/teams.php', { method:'DELETE', body: JSON.stringify({ team_id: tid }) });
+  try { await api('/admin/teams.php', { method:'DELETE', body: JSON.stringify({ team_id: tid }) });
     flash('Team deleted.', 'ok'); loadTeams();
-  } catch (e) { flash('Delete failed: ' + e.message, 'err'); }
+  } catch (e) { flash(e.message,'err'); }
 }
 
-/* ---------------- Admin users ---------------- */
+/* Players */
+async function loadTeamsForPickers(){
+  try {
+    const d = await api('/admin/teams.php');
+    const opts = '<option value="">(all)</option>' + (d.items||[]).map(function(t){ return '<option value="' + esc(t.team_id) + '">' + esc(t.team_name) + '</option>'; }).join('');
+    $('plTeam').innerHTML = opts;
+    $('plNewTeam').innerHTML = (d.items||[]).map(function(t){ return '<option value="' + esc(t.team_id) + '">' + esc(t.team_name) + '</option>'; }).join('');
+  } catch (e) {}
+}
+async function loadPlayers(){
+  const qs = [];
+  if ($('plTeam').value) qs.push('team_id=' + encodeURIComponent($('plTeam').value));
+  if ($('plSearch').value) qs.push('q=' + encodeURIComponent($('plSearch').value));
+  try {
+    const d = await api('/admin/players.php' + (qs.length?'?'+qs.join('&'):''));
+    const items = d.items || []; const host = $('plList');
+    if (!items.length) { host.innerHTML = '<div class="empty">No players.</div>'; return; }
+    let h = '<table><thead><tr><th>Name</th><th>Team</th><th>Active</th><th>id</th><th>Actions</th></tr></thead><tbody>';
+    items.forEach(function(p){
+      h += '<tr data-pid="' + esc(p.player_id) + '">' +
+        '<td><input class="pl-n" value="' + esc(p.full_name||'') + '"></td>' +
+        '<td>' + esc(p.team_name||'?') + '</td>' +
+        '<td><input class="pl-a" type="checkbox"' + (p.is_active==1?' checked':'') + '></td>' +
+        '<td class="muted">' + esc(p.player_id) + '</td>' +
+        '<td class="actions">' +
+          '<button onclick="plSave(this)">Save</button>' +
+          '<button class="secondary" onclick="plTransfer(this)">Transfer</button>' +
+          (isSuper()?'<button class="danger" onclick="plDelete(this)">Delete</button>':'') +
+        '</td></tr>';
+    });
+    h += '</tbody></table>'; host.innerHTML = h;
+  } catch (e) { flash(e.message,'err'); }
+}
+async function plCreate(ev){
+  ev.preventDefault();
+  try { await api('/admin/players.php', { method:'POST', body: JSON.stringify({ action:'create', team_id: $('plNewTeam').value, full_name: $('plNewName').value.trim() }) });
+    flash('Added.', 'ok'); $('plNewName').value=''; loadPlayers();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function plSave(btn){
+  const tr = btn.closest('tr');
+  try { await api('/admin/players.php', { method:'POST', body: JSON.stringify({ action:'update', player_id: tr.dataset.pid, full_name: tr.querySelector('.pl-n').value.trim(), is_active: tr.querySelector('.pl-a').checked ? 1 : 0 }) });
+    flash('Saved.', 'ok');
+  } catch (e) { flash(e.message,'err'); }
+}
+async function plTransfer(btn){
+  const tr = btn.closest('tr');
+  const to = prompt('Transfer to team_id:'); if (!to) return;
+  try { await api('/admin/players.php', { method:'POST', body: JSON.stringify({ action:'transfer', player_id: tr.dataset.pid, to_team_id: to.trim() }) });
+    flash('Transferred.', 'ok'); loadPlayers();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function plDelete(btn){
+  const tr = btn.closest('tr');
+  if (!confirm('Delete this player?')) return;
+  try { await api('/admin/players.php', { method:'DELETE', body: JSON.stringify({ player_id: tr.dataset.pid }) });
+    flash('Deleted.', 'ok'); loadPlayers();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function plMerge(ev){
+  ev.preventDefault();
+  const drops = $('plDrop').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if (!drops.length) return;
+  if (!confirm('Merge ' + drops.length + ' player(s) into ' + $('plKeep').value + '?')) return;
+  try { const r = await api('/admin/players.php', { method:'POST', body: JSON.stringify({ action:'merge', keep_id: $('plKeep').value.trim(), drop_ids: drops }) });
+    flash('Merged. Live cards updated: ' + r.live_cards_updated, 'ok'); $('plKeep').value=''; $('plDrop').value=''; loadPlayers();
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Captains */
+let _capAll = [];
+async function loadCaptains(){
+  try { const d = await api('/admin/captains.php'); _capAll = d.items || []; renderCaptains(); }
+  catch (e) { flash(e.message,'err'); }
+}
+function renderCaptains(){
+  const q = ($('capSearch').value||'').toLowerCase();
+  const items = _capAll.filter(function(c){
+    if (!q) return true;
+    return ((c.team_name||'')+' '+(c.username||'')+' '+(c.email||'')).toLowerCase().indexOf(q)>=0;
+  });
+  const host = $('capList');
+  if (!items.length) { host.innerHTML = '<div class="empty">No captains.</div>'; return; }
+  let h = '<table><thead><tr><th>Team</th><th>Username</th><th>Display</th><th>Email</th><th>Enabled</th><th>Last login</th><th>Actions</th></tr></thead><tbody>';
+  items.forEach(function(c){
+    h += '<tr data-tid="' + esc(c.team_id) + '">' +
+      '<td>' + esc(c.team_name||'') + '<div class="muted">' + esc(c.division_name||'') + '</div></td>' +
+      '<td>' + esc(c.username) + '</td>' +
+      '<td>' + esc(c.display_name||'') + '</td>' +
+      '<td>' + esc(c.email||'') + '</td>' +
+      '<td>' + (c.enabled==1 ? '<span class="pill done">yes</span>' : '<span class="pill gone">no</span>') + '</td>' +
+      '<td>' + esc(c.last_login||'never') + '</td>' +
+      '<td class="actions">' +
+        '<button onclick="capReset(this)">Reset password</button>' +
+        '<button class="secondary" onclick="capToggle(this,' + c.enabled + ')">' + (c.enabled==1?'Disable':'Enable') + '</button>' +
+        '<button class="warn" onclick="capKick(this)">Kick sessions</button>' +
+        (isSuper()?'<button class="secondary" onclick="capTransfer(this)">Transfer</button>':'') +
+      '</td></tr>';
+  });
+  h += '</tbody></table>'; host.innerHTML = h;
+}
+async function capReset(btn){
+  const tid = btn.closest('tr').dataset.tid;
+  const pw = prompt('New password (min 6):'); if (!pw) return;
+  try { await api('/admin/captain-account.php',{method:'POST',body:JSON.stringify({action:'reset_password',team_id:tid,password:pw})}); flash('Password reset.','ok'); }
+  catch(e){ flash(e.message,'err'); }
+}
+async function capToggle(btn, cur){
+  const tid = btn.closest('tr').dataset.tid;
+  try { await api('/admin/captain-account.php',{method:'POST',body:JSON.stringify({action:'set_enabled',team_id:tid,enabled: cur==1 ? 0 : 1})}); loadCaptains(); }
+  catch(e){ flash(e.message,'err'); }
+}
+async function capKick(btn){
+  const tid = btn.closest('tr').dataset.tid;
+  try { const r = await api('/admin/captain-account.php',{method:'POST',body:JSON.stringify({action:'kick_sessions',team_id:tid})}); flash('Kicked ' + r.rows + ' session(s).','ok'); }
+  catch(e){ flash(e.message,'err'); }
+}
+async function capTransfer(btn){
+  const from = btn.closest('tr').dataset.tid;
+  const to = prompt('Transfer to team_id:'); if (!to) return;
+  try { await api('/admin/captain-account.php',{method:'POST',body:JSON.stringify({action:'transfer',from_team_id:from,to_team_id:to.trim()})}); flash('Transferred.','ok'); loadCaptains(); }
+  catch(e){ flash(e.message,'err'); }
+}
+
+/* Seasons */
+async function loadSeasonOptions(selectId){
+  try {
+    const d = await api('/admin/seasons.php');
+    const sel = $(selectId);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">(none)</option>' +
+      (d.items||[]).map(function(s){ return '<option value="' + esc(s.season_id) + '"' + (s.season_id===d.current_id?' selected':'') + '>' + esc(s.name) + (s.is_active==1?' \u2605':'') + '</option>'; }).join('');
+    if (cur) sel.value = cur;
+  } catch(e) {}
+}
+async function loadSeasons(){
+  try {
+    const d = await api('/admin/seasons.php');
+    const items = d.items || []; const host = $('ssList');
+    if (!items.length) { host.innerHTML = '<div class="empty">No seasons.</div>'; return; }
+    let h = '<table><thead><tr><th>Name</th><th>Starts</th><th>Ends</th><th>Current</th><th>id</th><th>Actions</th></tr></thead><tbody>';
+    items.forEach(function(s){
+      const isCur = s.season_id === d.current_id || s.is_active==1;
+      h += '<tr data-sid="' + esc(s.season_id) + '">' +
+        '<td><input class="ss-n" value="' + esc(s.name) + '"></td>' +
+        '<td><input class="ss-s" type="date" value="' + esc(s.starts_on||'') + '"></td>' +
+        '<td><input class="ss-e" type="date" value="' + esc(s.ends_on||'') + '"></td>' +
+        '<td>' + (isCur ? '<span class="pill done">current</span>' : '') + '</td>' +
+        '<td class="muted">' + esc(s.season_id) + '</td>' +
+        '<td class="actions">' +
+          '<button onclick="ssSave(this)">Save</button>' +
+          (isCur ? '' : '<button class="ok" onclick="ssMakeCurrent(this)">Make current</button>') +
+          (isSuper()?'<button class="danger" onclick="ssDel(this)">Delete</button>':'') +
+        '</td></tr>';
+    });
+    h += '</tbody></table>'; host.innerHTML = h;
+  } catch (e) { flash(e.message,'err'); }
+}
+async function ssCreate(ev){
+  ev.preventDefault();
+  try { await api('/admin/seasons.php', { method:'POST', body: JSON.stringify({ action:'create', name: $('ssNewName').value, starts_on: $('ssNewStart').value || null, ends_on: $('ssNewEnd').value || null }) });
+    flash('Created.', 'ok'); $('ssNewName').value=''; $('ssNewStart').value=''; $('ssNewEnd').value=''; loadSeasons();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function ssSave(btn){
+  const tr = btn.closest('tr');
+  try { await api('/admin/seasons.php', { method:'POST', body: JSON.stringify({ action:'update', season_id: tr.dataset.sid, name: tr.querySelector('.ss-n').value, starts_on: tr.querySelector('.ss-s').value || null, ends_on: tr.querySelector('.ss-e').value || null }) });
+    flash('Saved.', 'ok');
+  } catch (e) { flash(e.message,'err'); }
+}
+async function ssMakeCurrent(btn){
+  const tr = btn.closest('tr');
+  try { await api('/admin/seasons.php', { method:'POST', body: JSON.stringify({ action:'set_current', season_id: tr.dataset.sid }) });
+    flash('Current set.', 'ok'); loadSeasons();
+  } catch (e) { flash(e.message,'err'); }
+}
+async function ssDel(btn){
+  const tr = btn.closest('tr');
+  if (!confirm('Delete this season row? (Fixtures keep their season_id.)')) return;
+  try { await api('/admin/seasons.php', { method:'POST', body: JSON.stringify({ action:'delete', season_id: tr.dataset.sid }) });
+    flash('Deleted.', 'ok'); loadSeasons();
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Admin users */
 async function loadUsers(){
   try {
     const d = await api('/admin/users.php');
@@ -417,14 +994,17 @@ async function loadUsers(){
     const items = d.items || [];
     if (!items.length) { host.innerHTML = '<div class="empty">No admin users.</div>'; return; }
     const myId = d.me;
-    let html = '<table><thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Enabled</th><th>Last login</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Username</th><th>Display</th><th>Email</th><th>Role</th><th>Enabled</th><th>Last login</th><th>Actions</th></tr></thead><tbody>';
     items.forEach(function(u){
       const isMe = u.user_id === myId;
       html += '<tr data-uid="' + esc(u.user_id) + '">' +
         '<td>' + esc(u.username) + (isMe ? ' <span class="pill done">you</span>' : '') + '</td>' +
         '<td><input class="u-name"  value="' + esc(u.display_name||'') + '"></td>' +
         '<td><input class="u-email" value="' + esc(u.email||'') + '"></td>' +
-        '<td><input class="u-en"    type="checkbox"' + (u.enabled==1 ? ' checked' : '') + (isMe ? ' disabled' : '') + '></td>' +
+        '<td><select class="u-role">' +
+          ['superadmin','admin','readonly'].map(function(r){ return '<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>'; }).join('') +
+          '</select></td>' +
+        '<td><input class="u-en" type="checkbox"' + (u.enabled==1 ? ' checked' : '') + (isMe ? ' disabled' : '') + '></td>' +
         '<td>' + esc(u.last_login||'never') + '</td>' +
         '<td class="actions">' +
           '<button onclick="userSave(this)">Save</button>' +
@@ -438,54 +1018,44 @@ async function loadUsers(){
 }
 async function createUser(ev){
   ev.preventDefault();
-  const u = $('nuUser').value.trim();
-  const n = $('nuName').value.trim();
-  const p = $('nuPass').value;
-  const e = $('nuEmail').value.trim();
   try {
-    await api('/admin/users.php', { method:'POST',
-      body: JSON.stringify({ action:'create', username: u, display_name: n, password: p, email: e }) });
-    flash('Admin "' + u + '" created.', 'ok');
-    $('newUserForm').reset();
-    loadUsers();
-  } catch (err) { flash('Create failed: ' + err.message, 'err'); }
+    await api('/admin/users.php', { method:'POST', body: JSON.stringify({ action:'create',
+      username: $('nuUser').value.trim(), display_name: $('nuName').value.trim(),
+      password: $('nuPass').value, email: $('nuEmail').value.trim(),
+      role: $('nuRole').value }) });
+    flash('Admin created.', 'ok'); $('newUserForm').reset(); loadUsers();
+  } catch (err) { flash(err.message,'err'); }
 }
 async function userSave(btn){
-  const tr = btn.closest('tr');
-  const uid = tr.dataset.uid;
-  const body = {
-    action:'update',
-    user_id: uid,
+  const tr = btn.closest('tr'); const uid = tr.dataset.uid;
+  try { await api('/admin/users.php', { method:'POST', body: JSON.stringify({
+    action:'update', user_id: uid,
     display_name: tr.querySelector('.u-name').value.trim(),
     email:        tr.querySelector('.u-email').value.trim(),
-    enabled:      tr.querySelector('.u-en').checked ? 1 : 0
-  };
-  try { await api('/admin/users.php', { method:'POST', body: JSON.stringify(body) }); flash('Saved.', 'ok'); loadUsers(); }
-  catch (e) { flash('Save failed: ' + e.message, 'err'); }
+    role:         tr.querySelector('.u-role').value,
+    enabled:      tr.querySelector('.u-en').checked ? 1 : 0 }) });
+    flash('Saved.', 'ok'); loadUsers();
+  } catch (e) { flash(e.message,'err'); }
 }
 async function userPw(btn, uid){
-  const p = prompt('Enter a new password (min 6 chars):');
-  if (!p) return;
-  try {
-    await api('/admin/users.php', { method:'POST',
-      body: JSON.stringify({ action:'update', user_id: uid, password: p }) });
+  const p = prompt('Enter a new password (min 6 chars):'); if (!p) return;
+  try { await api('/admin/users.php', { method:'POST', body: JSON.stringify({ action:'update', user_id: uid, password: p }) });
     flash('Password reset.', 'ok');
-  } catch (e) { flash('Reset failed: ' + e.message, 'err'); }
+  } catch (e) { flash(e.message,'err'); }
 }
 async function userDelete(btn){
-  const tr = btn.closest('tr');
-  const uid = tr.dataset.uid;
-  if (!confirm('Delete this admin account? Their active sessions will end immediately.')) return;
-  try { await api('/admin/users.php', { method:'DELETE', body: JSON.stringify({ user_id: uid }) }); flash('Deleted.', 'ok'); loadUsers(); }
-  catch (e) { flash('Delete failed: ' + e.message, 'err'); }
+  const tr = btn.closest('tr'); const uid = tr.dataset.uid;
+  if (!confirm('Delete this admin account?')) return;
+  try { await api('/admin/users.php', { method:'DELETE', body: JSON.stringify({ user_id: uid }) });
+    flash('Deleted.', 'ok'); loadUsers();
+  } catch (e) { flash(e.message,'err'); }
 }
 
-/* ---------------- Inbox ---------------- */
+/* Inbox */
 async function loadInbox(){
   try {
     const d = await api('/admin/pending.php');
-    const host = $('inboxList');
-    const items = d.items || [];
+    const host = $('inboxList'); const items = d.items || [];
     if (!items.length) { host.innerHTML = '<div class="empty">Inbox is empty.</div>'; return; }
     let html = '<table><thead><tr><th>#</th><th>Type</th><th>Fixture / ref</th><th>Submitter</th><th>Received (UTC)</th><th>Actions</th></tr></thead><tbody>';
     items.forEach(function(s){
@@ -494,19 +1064,228 @@ async function loadInbox(){
               '<td>' + esc(s.received_utc||'') + '</td>' +
               '<td class="actions"><button class="secondary" onclick="markProc(' + s.id + ')">Mark processed</button></td></tr>';
     });
-    html += '</tbody></table>';
-    host.innerHTML = html;
-  } catch (e) { flash('Failed to load inbox: ' + e.message, 'err'); }
+    html += '</tbody></table>'; host.innerHTML = html;
+  } catch (e) { flash(e.message,'err'); }
 }
 async function markProc(id){
-  try {
-    await api('/admin/mark-processed.php', { method:'POST',
-      body: JSON.stringify({ ids: [id], by: session.user && session.user.username, notes: 'processed from admin portal' }) });
+  try { await api('/admin/mark-processed.php', { method:'POST', body: JSON.stringify({ ids: [id], by: session.user.username, notes: 'processed from admin portal' }) });
     flash('#' + id + ' marked processed.', 'ok'); loadInbox();
-  } catch (e) { flash('Failed: ' + e.message, 'err'); }
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Broadcast */
+async function sendBroadcast(ev){
+  ev.preventDefault();
+  try { await api('/admin/broadcast.php', { method:'POST', body: JSON.stringify({ subject: $('bcSubj').value, body: $('bcBody').value }) });
+    flash('Broadcast sent.', 'ok'); $('bcSubj').value=''; $('bcBody').value='';
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Email */
+async function loadEmailRecipients(){
+  try {
+    const d = await api('/admin/email.php');
+    const sel = $('emTo');
+    sel.innerHTML = '<option value="all" selected>All captains (' + (d.recipients||[]).length + ')</option>' +
+      (d.recipients||[]).map(function(r){ return '<option value="' + esc(r.team_id) + '">' + esc(r.team_name) + ' &lt;' + esc(r.email) + '&gt;</option>'; }).join('');
+  } catch (e) {}
+}
+async function sendEmail(ev){
+  ev.preventDefault();
+  if (!confirm('Send this email?')) return;
+  try { const r = await api('/admin/email.php', { method:'POST', body: JSON.stringify({ action:'send', to: $('emTo').value, subject: $('emSubj').value, body: $('emBody').value, reply_to: $('emReply').value }) });
+    flash('Sent to ' + r.sent + ' of ' + r.recipients + '.' + (r.failed.length ? ' Failed: ' + r.failed.join(', ') : ''), r.failed.length ? 'info' : 'ok');
+    $('emSubj').value=''; $('emBody').value='';
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Settings */
+async function loadSettings(){
+  try {
+    const d = await api('/admin/settings.php');
+    const host = $('settingsList'); const items = d.items || [];
+    if (!items.length) { host.innerHTML = '<div class="empty">No settings yet.</div>'; return; }
+    let h = '<table><thead><tr><th>Key</th><th>Value</th><th></th></tr></thead><tbody>';
+    items.forEach(function(s){
+      h += '<tr data-k="' + esc(s.key) + '">' +
+        '<td><code>' + esc(s.key) + '</code></td>' +
+        '<td><input class="st-v" value="' + esc(s.value||'') + '"></td>' +
+        '<td class="actions"><button onclick="stSave(this)">Save</button>' +
+        (isSuper()?'<button class="danger" onclick="stDel(this)">Delete</button>':'') +
+        '</td></tr>';
+    });
+    h += '</tbody></table>'; host.innerHTML = h;
+  } catch (e) { flash(e.message,'err'); }
+}
+async function stSave(btn){ const tr=btn.closest('tr'); try { await api('/admin/settings.php',{method:'POST',body:JSON.stringify({action:'set',key:tr.dataset.k,value:tr.querySelector('.st-v').value})}); flash('Saved.','ok'); } catch(e){ flash(e.message,'err'); } }
+async function stDel(btn){ const tr=btn.closest('tr'); if(!confirm('Delete '+tr.dataset.k+'?'))return; try { await api('/admin/settings.php',{method:'POST',body:JSON.stringify({action:'delete',key:tr.dataset.k})}); loadSettings(); } catch(e){ flash(e.message,'err'); } }
+async function setSetting(ev){ ev.preventDefault(); try { await api('/admin/settings.php',{method:'POST',body:JSON.stringify({action:'set',key:$('stKey').value.trim(),value:$('stVal').value})}); flash('Saved.','ok'); $('stKey').value=''; $('stVal').value=''; loadSettings(); } catch(e){ flash(e.message,'err'); } }
+
+/* Audit */
+async function loadAudit(){
+  const qs = [];
+  if ($('auAction').value) qs.push('action=' + encodeURIComponent($('auAction').value));
+  if ($('auActor').value)  qs.push('actor='  + encodeURIComponent($('auActor').value));
+  if ($('auQ').value)      qs.push('q='      + encodeURIComponent($('auQ').value));
+  try {
+    const d = await api('/admin/audit.php' + (qs.length?'?'+qs.join('&'):''));
+    const host = $('auditList'); const items = d.items || [];
+    if (!items.length) { host.innerHTML = '<div class="empty">No audit entries.</div>'; return; }
+    let h = '<table><thead><tr><th>When (UTC)</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th><th>IP</th></tr></thead><tbody>';
+    items.forEach(function(a){
+      h += '<tr><td>' + esc(a.ts_utc) + '</td><td>' + esc(a.actor_name||'') + '</td>' +
+           '<td><span class="pill-tab">' + esc(a.action) + '</span></td>' +
+           '<td><code>' + esc(a.target||'') + '</code></td>' +
+           '<td><code style="font-size:11px">' + esc(a.details||'') + '</code></td>' +
+           '<td class="muted">' + esc(a.ip||'') + '</td></tr>';
+    });
+    h += '</tbody></table>'; host.innerHTML = h;
+  } catch (e) { flash(e.message,'err'); }
+}
+
+/* Export */
+function downloadExport(){
+  const a = document.createElement('a');
+  a.href = API + '/admin/export.php?download=1';
+  a.target = '_blank';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 checkSession();
+
+// === Wave 3: Top scorers / Availability / Cup ===
+async function loadTopScorers(){
+  const s = document.getElementById('tsSeason').value;
+  const t = document.getElementById('tsTeam').value;
+  const m = document.getElementById('tsMin').value || 0;
+  const l = document.getElementById('tsLimit').value || 50;
+  const q = new URLSearchParams(); if(s) q.set('season_id',s); if(t) q.set('team_id',t); q.set('min_played',m); q.set('limit',l);
+  try {
+    const r = await api('/admin/top-scorers.php?' + q.toString());
+    const rows = (r.items||[]).map(function(x){
+      return '<tr><td>'+esc(x.name)+'</td><td>'+esc(x.team||'')+'</td><td>'+x.played+'</td><td>'+x.won+'</td><td>'+x.lost+'</td><td>'+x.eight_balls+'</td><td>'+x.win_pct+'%</td></tr>';
+    }).join('');
+    document.getElementById('tsList').innerHTML = '<table><thead><tr><th>Player</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>8s</th><th>Win%</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // populate season/team filters once
+    if (!window._tsFiltersLoaded) {
+      window._tsFiltersLoaded = true;
+      try { const ss = await api('/admin/seasons.php'); const sel = document.getElementById('tsSeason');
+        (ss.items||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.season_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+      try { const ts = await api('/admin/teams.php'); const sel = document.getElementById('tsTeam');
+        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+    }
+  } catch(e){ flash('Top scorers: '+e.message,'err'); }
+}
+
+function _mondayISO(){
+  const d = new Date(); const day = (d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-day);
+  return d.toISOString().slice(0,10);
+}
+async function loadAvailability(){
+  const w = document.getElementById('avWeek');
+  if (!w.value) w.value = _mondayISO();
+  const t = document.getElementById('avTeam').value;
+  const q = new URLSearchParams(); q.set('week', w.value); if(t) q.set('team_id', t);
+  try {
+    const r = await api('/admin/availability.php?' + q.toString());
+    const teams = (r.teams||[]).map(function(tm){
+      const players = tm.players.map(function(p){
+        const cls = p.available ? 'ok' : 'warn';
+        return '<tr><td>'+esc(p.full_name)+'</td><td class="'+cls+'">'+(p.available?'Yes':'No')+'</td><td class="muted">'+(p.updated_utc||'')+'</td></tr>';
+      }).join('');
+      return '<div class="card"><h3>'+esc(tm.team_name)+' <span class="muted">(Yes '+tm.count_yes+' / No '+tm.count_no+')</span></h3>'+
+             '<table><thead><tr><th>Player</th><th>Avail</th><th>Updated</th></tr></thead><tbody>'+players+'</tbody></table></div>';
+    }).join('');
+    document.getElementById('avList').innerHTML = teams || '<p class="muted">No data.</p>';
+    if (!window._avTeamsLoaded) {
+      window._avTeamsLoaded = true;
+      try { const ts = await api('/admin/teams.php'); const sel = document.getElementById('avTeam');
+        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+    }
+  } catch(e){ flash('Availability: '+e.message,'err'); }
+}
+
+async function loadCups(){
+  try {
+    const r = await api('/admin/cup.php');
+    const items = (r.items||[]).map(function(c){
+      return '<tr><td><a href="#" onclick="cupOpen(\''+c.cup_id+'\');return false">'+esc(c.name)+'</a></td>'+
+             '<td class="muted">'+(c.created_utc||'')+'</td>'+
+             '<td><button class="warn" onclick="cupDelete(\''+c.cup_id+'\')">Delete</button></td></tr>';
+    }).join('');
+    document.getElementById('cupList').innerHTML = '<table><thead><tr><th>Name</th><th>Created</th><th></th></tr></thead><tbody>'+items+'</tbody></table>';
+  } catch(e){ flash('Cups: '+e.message,'err'); }
+}
+async function cupShowNew(){
+  document.getElementById('cupNewCard').style.display = 'block';
+  try { const ts = await api('/admin/teams.php');
+    const host = document.getElementById('cupNewTeams');
+    host.innerHTML = (ts.items||ts.teams||[]).map(function(t){
+      return '<label><input type="checkbox" class="cup-t" value="'+t.team_id+'"> '+esc(t.name)+'</label>';
+    }).join('');
+  } catch(e){}
+  try { const ss = await api('/admin/seasons.php'); const sel = document.getElementById('cupNewSeason');
+    sel.innerHTML = '<option value="">(none)</option>';
+    (ss.items||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.season_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+}
+document.addEventListener('submit', function(ev){
+  if (ev.target && ev.target.id === 'cupNewForm') {
+    ev.preventDefault();
+    const name = document.getElementById('cupNewName').value.trim();
+    const season_id = document.getElementById('cupNewSeason').value || null;
+    const shuffle = document.getElementById('cupNewShuffle').checked;
+    const tids = Array.from(document.querySelectorAll('.cup-t:checked')).map(function(x){ return x.value; });
+    if (!name || tids.length < 2) { flash('Name + at least 2 teams','err'); return; }
+    api('/admin/cup.php', { method:'POST', body: JSON.stringify({ action:'create', name:name, season_id:season_id, team_ids:tids, shuffle:shuffle }) })
+      .then(function(r){ flash('Cup created.','ok'); document.getElementById('cupNewCard').style.display='none'; loadCups(); cupOpen(r.cup_id); })
+      .catch(function(e){ flash(e.message,'err'); });
+  }
+});
+async function cupOpen(cid){
+  try {
+    const r = await api('/admin/cup.php?cup_id=' + encodeURIComponent(cid));
+    document.getElementById('cupDetailCard').style.display = 'block';
+    document.getElementById('cupDetailTitle').textContent = 'Cup: ' + (r.cup ? r.cup.name : cid);
+    const byRound = {};
+    (r.matches||[]).forEach(function(m){ (byRound[m.round_no]=byRound[m.round_no]||[]).push(m); });
+    const roundKeys = Object.keys(byRound).sort(function(a,b){return a-b;});
+    const html = roundKeys.map(function(rn){
+      const rows = byRound[rn].map(function(m){
+        const win = m.winner_team_id || '';
+        const homeBtn = m.home_team_id ? '<button onclick="cupAdvance('+m.match_id+',\''+m.home_team_id+'\')" '+(win===m.home_team_id?'class="ok"':'')+'>'+esc(m.home_team_name||'?')+'</button>' : '<span class="muted">BYE</span>';
+        const awayBtn = m.away_team_id ? '<button onclick="cupAdvance('+m.match_id+',\''+m.away_team_id+'\')" '+(win===m.away_team_id?'class="ok"':'')+'>'+esc(m.away_team_name||'?')+'</button>' : '<span class="muted">BYE</span>';
+        return '<tr><td>'+m.slot+'</td><td>'+homeBtn+'</td><td>vs</td><td>'+awayBtn+'</td>'+
+               '<td><input type="date" value="'+(m.scheduled_date||'')+'" onchange="cupSchedule('+m.match_id+',this.value,null,null)" style="width:130px"></td>'+
+               '<td><input placeholder="venue" value="'+esc(m.venue_name||'')+'" onchange="cupSchedule('+m.match_id+',null,this.value,null)" style="width:140px"></td>'+
+               '<td><input placeholder="notes" value="'+esc(m.notes||'')+'" onchange="cupSchedule('+m.match_id+',null,null,this.value)" style="width:160px"></td></tr>';
+      }).join('');
+      return '<h3>Round '+rn+'</h3><table><thead><tr><th>#</th><th>Home</th><th></th><th>Away</th><th>Date</th><th>Venue</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    }).join('');
+    document.getElementById('cupDetail').innerHTML = html || '<p class="muted">No matches.</p>';
+  } catch(e){ flash('Cup: '+e.message,'err'); }
+}
+async function cupAdvance(mid, wid){
+  try { await api('/admin/cup.php', { method:'POST', body: JSON.stringify({ action:'advance', match_id:mid, winner_team_id:wid }) });
+    flash('Winner set.','ok');
+    // refresh open cup
+    const t = document.getElementById('cupDetailTitle').textContent;
+    const cups = await api('/admin/cup.php'); const match = (cups.items||[]).find(function(c){ return ('Cup: '+c.name) === t; });
+    if (match) cupOpen(match.cup_id);
+  } catch(e){ flash(e.message,'err'); }
+}
+async function cupSchedule(mid, date, venue, notes){
+  const body = { action:'schedule', match_id:mid };
+  if (date !== null) body.scheduled_date = date;
+  if (venue !== null) body.venue_name = venue;
+  if (notes !== null) body.notes = notes;
+  try { await api('/admin/cup.php', { method:'POST', body: JSON.stringify(body) }); flash('Saved.','ok'); }
+  catch(e){ flash(e.message,'err'); }
+}
+async function cupDelete(cid){
+  if (!confirm('Delete this cup?')) return;
+  try { await api('/admin/cup.php', { method:'DELETE', body: JSON.stringify({ cup_id: cid }) }); flash('Deleted.','ok'); loadCups(); }
+  catch(e){ flash(e.message,'err'); }
+}
 </script>
 </body>
 </html>

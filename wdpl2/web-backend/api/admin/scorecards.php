@@ -9,7 +9,7 @@
 // Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
-require_admin();
+$me = require_admin();
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
@@ -51,11 +51,13 @@ if ($action === 'clear') {
     $colV = ($side === 'home') ? 'home_finalized_version' : 'away_finalized_version';
     $stmt = db()->prepare("UPDATE live_scorecards SET $col = NULL, $colV = NULL WHERE fixture_id = :f");
     $stmt->execute(array(':f' => $fid));
+    audit_log($me, 'scorecard.clear', $fid, array('side' => $side));
     json_response(array('ok' => true, 'cleared' => $side, 'rows' => $stmt->rowCount()));
 }
 
 if ($action === 'reset') {
-    // Drop the live state so the captains start with a clean card next time
+    require_admin('superadmin');
+    // Drop the live state
     // they open the fixture. Also closes any pending match_result submissions.
     db()->beginTransaction();
     try {
@@ -68,6 +70,7 @@ if ($action === 'reset') {
               WHERE processed = 0 AND type = 'match_result' AND reference_id = :f");
         $d2->execute(array(':f' => $fid));
         db()->commit();
+        audit_log($me, 'scorecard.reset', $fid);
         json_response(array('ok' => true, 'live_deleted' => $d1->rowCount(), 'submissions_closed' => $d2->rowCount()));
     } catch (Exception $e) {
         if (db()->inTransaction()) db()->rollBack();
@@ -76,8 +79,10 @@ if ($action === 'reset') {
 }
 
 if ($action === 'delete') {
+    require_admin('superadmin');
     $stmt = db()->prepare('DELETE FROM live_scorecards WHERE fixture_id = :f');
     $stmt->execute(array(':f' => $fid));
+    audit_log($me, 'scorecard.delete', $fid);
     json_response(array('ok' => true, 'rows' => $stmt->rowCount()));
 }
 

@@ -158,13 +158,58 @@ function admin_current() {
     return null;
 }
 
-function require_admin() {
+function admin_role_rank($role) {
+    $r = strtolower((string)$role);
+    if ($r === 'superadmin') return 3;
+    if ($r === 'admin')      return 2;
+    if ($r === 'readonly')   return 1;
+    return 2; // legacy rows with no role -> treat as admin
+}
+
+function require_admin($minRole = null) {
     $a = admin_current();
     if (!$a) {
         // Don't ask the browser for Basic-auth here - the SPA shows its own form.
         json_response(array('error' => 'unauthenticated'), 401);
     }
+    if ($minRole !== null && admin_role_rank($a['role']) < admin_role_rank($minRole)) {
+        json_response(array('error' => 'forbidden', 'required_role' => $minRole, 'your_role' => $a['role']), 403);
+    }
     return $a;
+}
+
+function admin_ensure_audit_schema() {
+    db()->exec(
+        'CREATE TABLE IF NOT EXISTS admin_audit (
+           audit_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+           ts_utc      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           actor_id    CHAR(36)     NULL,
+           actor_name  VARCHAR(120) NULL,
+           action      VARCHAR(80)  NOT NULL,
+           target      VARCHAR(200) NULL,
+           details     TEXT         NULL,
+           ip          VARCHAR(64)  NULL,
+           INDEX ix_ts (ts_utc),
+           INDEX ix_action (action)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+function audit_log($actor, $action, $target = null, $details = null) {
+    try {
+        admin_ensure_audit_schema();
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? substr($_SERVER['REMOTE_ADDR'], 0, 64) : null;
+        db()->prepare(
+            'INSERT INTO admin_audit (actor_id, actor_name, action, target, details, ip)
+             VALUES (:aid, :an, :ac, :tg, :de, :ip)')
+           ->execute(array(
+               ':aid' => is_array($actor) ? $actor['user_id'] : null,
+               ':an'  => is_array($actor) ? ($actor['display_name'] ?: $actor['username']) : (string)$actor,
+               ':ac'  => substr((string)$action, 0, 80),
+               ':tg'  => $target !== null ? substr((string)$target, 0, 200) : null,
+               ':de'  => $details !== null ? (is_string($details) ? $details : json_encode($details)) : null,
+               ':ip'  => $ip,
+           ));
+    } catch (Exception $e) { /* never fail the request because of auditing */ }
 }
 
 /**
