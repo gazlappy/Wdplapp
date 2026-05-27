@@ -451,6 +451,54 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <div id="noFx" class="muted" style="display:none">No fixtures this week, or all of this week's scorecards have been finalized.</div>
 </div>
 
+<div class="card" id="cardCard" style="display:none">
+<h2 style="display:flex; justify-content:space-between; align-items:center;">
+  <span>Shared scorecard</span>
+  <span id="livePill" class="live-pill">offline</span>
+</h2>
+<div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
+<div id="sideHint" class="muted" style="margin-bottom:8px"></div>
+
+<div class="scorecard">
+  <div class="sc-header">
+    <div id="scHomeTeam" class="sc-team-h">Home Team</div>
+    <div class="sc-score-badge">
+      <div class="sc-score-big"><span id="scoreHome">0</span> - <span id="scoreAway">0</span></div>
+      <div id="scoreSub" class="sc-score-sub">Div. - Date</div>
+    </div>
+    <div id="scAwayTeam" class="sc-team-a">Away Team</div>
+  </div>
+  <div id="phaseInfo" class="sc-phase"><span id="phaseInfoText">Frame 1 - Select HOME player</span><span id="phaseInfoBadge" class="badge">Phase 1 of 3</span></div>
+  <div class="sc-cols">
+    <div>
+      <div class="sc-col-head home"><span class="h0">#</span><span class="h1">H</span><span class="h2">Home Player</span></div>
+      <div id="rowsHome" class="sc-rows-home"></div>
+    </div>
+    <div>
+      <div class="sc-col-head away"><span class="a0">Away Player</span><span class="a1">A</span><span class="a2">8</span></div>
+      <div id="rowsAway" class="sc-rows-away"></div>
+    </div>
+  </div>
+</div>
+
+<div id="eightBanner" class="eight-banner" style="display:none"></div>
+
+<div class="row" style="margin-top:10px">
+  <span class="muted" id="frameCount"></span>
+</div>
+
+<label style="margin-top:14px">Notes (optional)</label>
+<textarea id="notes" rows="2" oninput="onNotesChange()"></textarea>
+
+<div id="finalBanner" class="final-banner" style="display:none"></div>
+
+<div style="margin-top:14px; display:flex; gap:8px;">
+<button id="finalizeBtn" onclick="finalizeCard()" disabled>Finalize card</button>
+<button class="secondary" onclick="closeCard()">Close</button>
+<button class="secondary" onclick="logout()">Sign out</button>
+</div>
+</div>
+
 <div class="card" id="historyCard">
 <h2 style="display:flex; justify-content:space-between; align-items:center;">
   <span>Scorecard history</span>
@@ -525,53 +573,6 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 <div id="allFxList" class="fixture-list"></div>
 <div id="noAllFx" class="muted" style="display:none">No fixtures in this range.</div>
 </div>
-<div class="card" id="cardCard" style="display:none">
-<h2 style="display:flex; justify-content:space-between; align-items:center;">
-  <span>Shared scorecard</span>
-  <span id="livePill" class="live-pill">offline</span>
-</h2>
-<div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
-<div id="sideHint" class="muted" style="margin-bottom:8px"></div>
-
-<div class="scorecard">
-  <div class="sc-header">
-    <div id="scHomeTeam" class="sc-team-h">Home Team</div>
-    <div class="sc-score-badge">
-      <div class="sc-score-big"><span id="scoreHome">0</span> - <span id="scoreAway">0</span></div>
-      <div id="scoreSub" class="sc-score-sub">Div. - Date</div>
-    </div>
-    <div id="scAwayTeam" class="sc-team-a">Away Team</div>
-  </div>
-  <div id="phaseInfo" class="sc-phase"><span id="phaseInfoText">Frame 1 - Select HOME player</span><span id="phaseInfoBadge" class="badge">Phase 1 of 3</span></div>
-  <div class="sc-cols">
-    <div>
-      <div class="sc-col-head home"><span class="h0">#</span><span class="h1">H</span><span class="h2">Home Player</span></div>
-      <div id="rowsHome" class="sc-rows-home"></div>
-    </div>
-    <div>
-      <div class="sc-col-head away"><span class="a0">Away Player</span><span class="a1">A</span><span class="a2">8</span></div>
-      <div id="rowsAway" class="sc-rows-away"></div>
-    </div>
-  </div>
-</div>
-
-<div id="eightBanner" class="eight-banner" style="display:none"></div>
-
-<div class="row" style="margin-top:10px">
-  <span class="muted" id="frameCount"></span>
-</div>
-
-<label style="margin-top:14px">Notes (optional)</label>
-<textarea id="notes" rows="2" oninput="onNotesChange()"></textarea>
-
-<div id="finalBanner" class="final-banner" style="display:none"></div>
-
-<div style="margin-top:14px; display:flex; gap:8px;">
-<button id="finalizeBtn" onclick="finalizeCard()" disabled>Finalize card</button>
-<button class="secondary" onclick="closeCard()">Close</button>
-<button class="secondary" onclick="logout()">Sign out</button>
-</div>
-</div>
 </div>
 </main>
 
@@ -613,7 +614,7 @@ let state = {
   selectedFixture:null, yourSide:null,
   version:-1, server:null,                 // server-authoritative state
   currentIdx:0, pickerCtx:null,
-  homeFinal:false, awayFinal:false,
+  homeFinal:false, awayFinal:false, awayLocked:false,
   pollTimer:null, sendInflight:false, pendingOps:[]
 };
 function $(id){ return document.getElementById(id); }
@@ -652,7 +653,7 @@ async function logout(){
   try{ await api('/captain/logout.php',{method:'POST'}); }catch(e){}
   setToken('');
   state={captain:null,fixtures:[],allFixtures:[],players:[],roster:[],availability:[],thisWeek:null,inbox:[],recipients:[],settings:null,selectedFixture:null,yourSide:null,
-         version:-1,server:null,currentIdx:0,pickerCtx:null,homeFinal:false,awayFinal:false,
+         version:-1,server:null,currentIdx:0,pickerCtx:null,homeFinal:false,awayFinal:false,awayLocked:false,
          pollTimer:null,sendInflight:false,pendingOps:[]};
   $('loginCard').style.display='block'; $('dash').style.display='none'; $('cardCard').style.display='none'; $('who').textContent='';
 }
@@ -870,13 +871,20 @@ async function fetchScorecard(){
   state.yourSide=data.your_side;
   state.homeFinal=!!data.home_finalized;
   state.awayFinal=!!data.away_finalized;
+  state.awayLocked=!!data.away_locked;
   if (data.version !== state.version || !state.server){
     state.server=data.state; state.version=data.version;
     renderAll();
   }
   setLive(true);
   updateFinalBanner();
-  $('sideHint').textContent='You are the '+(state.yourSide==='home'?'HOME':'AWAY')+' captain. You can edit '+state.yourSide.toUpperCase()+' players; either side records winners; 8-balls need both captains to agree.';
+  let hint='You are the '+(state.yourSide==='home'?'HOME':'AWAY')+' captain. You can edit '+state.yourSide.toUpperCase()+' players; either side records winners; 8-balls need both captains to agree.';
+  if (state.awayLocked){
+    hint += state.yourSide==='home'
+      ? ' Away picks are locked until you nominate a home player in each of the LAST 5 frames.'
+      : ' Away picks are locked until the HOME captain nominates a home player in each of the LAST 5 frames.';
+  }
+  $('sideHint').textContent=hint;
 }
 
 // Queue ops so we never lose a click while a request is in flight.
@@ -894,12 +902,16 @@ async function sendOps(ops){
       });
       if (data.__status===409){
         // Conflict: take server's version and retry queued ops (after the user's next action).
-        state.server=data.state; state.version=data.version; renderAll(); setLive(true);
+        state.server=data.state; state.version=data.version;
+        if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
+        renderAll(); setLive(true);
         flash('Other captain edited at the same time - refreshed.', true);
         // Drop the batch (we'll re-issue if user repeats action).
         continue;
       }
-      state.server=data.state; state.version=data.version; renderAll(); setLive(true);
+      state.server=data.state; state.version=data.version;
+      if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
+      renderAll(); setLive(true);
       if (data.rejections && data.rejections.length){
         // Show the first rejection (others are usually duplicates of the same root cause).
         flash(data.rejections[0].reason, false);
@@ -975,10 +987,17 @@ function renderFrames(){
     ar.className='sc-row away '+setCls+(cur?' current':'');
     const al=awayLabel(f);
     const ac=document.createElement('div');
-    const lockedA = ownSideHome;
+    const total = frames().length;
+    const isLast5 = (total >= 5 && i >= total - 5);
+    const awayBlocked = (!ownSideHome && state.awayLocked && isLast5);
+    const lockedA = ownSideHome || awayBlocked;
     ac.className='sc-pill away '+al.cls+(f.is_doubles && al.cls!=='void' && al.cls!=='empty'?' dbl-a':'')+(lockedA?' locked':'');
     ac.textContent=al.text;
-    ac.onclick=function(){ if (lockedA){ flash('Only the AWAY captain can edit away players.', false); return; } openPicker(i,'away'); };
+    ac.onclick=function(){
+      if (ownSideHome){ flash('Only the AWAY captain can edit away players.', false); return; }
+      if (awayBlocked){ flash('Wait for the HOME captain to nominate their lead player in the last 5 frames before picking away players for those frames.', false); return; }
+      openPicker(i,'away');
+    };
     ar.appendChild(ac);
 
     const aBtn=document.createElement('button');

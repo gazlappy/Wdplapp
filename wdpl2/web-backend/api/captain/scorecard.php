@@ -50,6 +50,21 @@ function default_settings() {
     return $s;
 }
 
+// WDPL rule: the away captain cannot pick any away player until the home
+// captain has nominated the lead home player in each of the LAST 5 frames.
+// Returns true if the away side is currently blocked.
+function away_locked_until_home_last5($state) {
+    $frames = isset($state['frames']) ? $state['frames'] : array();
+    $n = count($frames);
+    if ($n < 5) return false;
+    for ($i = $n - 5; $i < $n; $i++) {
+        $f = $frames[$i];
+        $hasHome = (!empty($f['home_player_id']) || !empty($f['home_player_name']));
+        if (!$hasHome) return true;
+    }
+    return false;
+}
+
 function empty_state($fixture) {
     $s = default_settings();
     $n = $s['default_frames_per_match']; if ($n <= 0 || $n > 50) $n = 15;
@@ -223,6 +238,7 @@ if ($method === 'GET') {
         'state'      => $row['state'],
         'home_finalized' => $row['home_finalized_version'] !== null,
         'away_finalized' => $row['away_finalized_version'] !== null,
+        'away_locked'    => away_locked_until_home_last5($row['state']),
     ));
 }
 
@@ -281,6 +297,23 @@ try {
 
             $pid = isset($op['player_id'])   ? $op['player_id']   : null;
             $pnm = isset($op['player_name']) ? $op['player_name'] : null;
+
+            // WDPL rule: away captain may not pick into the LAST 5 frames until
+            // the home captain has nominated the lead home player in each of
+            // those last 5 frames. The first frames are unaffected.
+            // Clearing a slot (null pick) is always allowed.
+            $isAwaySlot = ($slot === 'away' || $slot === 'away2');
+            $isClearing = ($pid === null && ($pnm === null || $pnm === ''));
+            $nFrames    = count($state['frames']);
+            $isLast5    = ($nFrames >= 5 && $idx >= $nFrames - 5);
+            if ($isAwaySlot && !$isClearing && $isLast5 && away_locked_until_home_last5($state)) {
+                $rejections[] = array(
+                    'op_index' => $opIdx, 'frame' => $f['number'], 'slot' => $slot,
+                    'reason'   => 'Away picks for the last 5 frames are locked until the home captain has nominated all of theirs.',
+                );
+                unset($f);
+                continue;
+            }
 
             // WDPL rules - reject pick (and skip op) if violated.
             $err = validate_player_pick($state, $idx, $slot, $pid, $pnm, $maxPerPlayer);
@@ -352,7 +385,7 @@ try {
     }
     $pdo->commit();
 
-    json_response(array('version' => $version, 'state' => $state, 'your_side' => $side, 'rejections' => $rejections));
+    json_response(array('version' => $version, 'state' => $state, 'your_side' => $side, 'rejections' => $rejections, 'away_locked' => away_locked_until_home_last5($state)));
 }
 catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
