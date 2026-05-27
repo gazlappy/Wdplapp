@@ -904,17 +904,30 @@ async function sendOps(ops){
         // Conflict: take server's version and retry queued ops (after the user's next action).
         state.server=data.state; state.version=data.version;
         if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
-        renderAll(); setLive(true);
+        if (typeof data.home_finalized !== 'undefined') state.homeFinal=!!data.home_finalized;
+        if (typeof data.away_finalized !== 'undefined') state.awayFinal=!!data.away_finalized;
+        renderAll(); updateFinalBanner(); setLive(true);
         flash('Other captain edited at the same time - refreshed.', true);
         // Drop the batch (we'll re-issue if user repeats action).
         continue;
       }
+      const prevHome = state.homeFinal, prevAway = state.awayFinal;
       state.server=data.state; state.version=data.version;
       if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
-      renderAll(); setLive(true);
+      if (typeof data.home_finalized !== 'undefined') state.homeFinal=!!data.home_finalized;
+      if (typeof data.away_finalized !== 'undefined') state.awayFinal=!!data.away_finalized;
+      renderAll(); updateFinalBanner(); setLive(true);
       if (data.rejections && data.rejections.length){
         // Show the first rejection (others are usually duplicates of the same root cause).
         flash(data.rejections[0].reason, false);
+      }
+      // If a previous finalization (by either captain) was just invalidated by this edit,
+      // surface a clear notice so the affected captain knows they must re-finalize.
+      else if ((prevHome && !state.homeFinal) || (prevAway && !state.awayFinal)){
+        const mineCleared = (state.yourSide==='home') ? (prevHome && !state.homeFinal) : (prevAway && !state.awayFinal);
+        flash(mineCleared
+          ? 'Your finalization was cleared because the card changed. Please review and finalize again.'
+          : 'The other captain had finalized - their finalization was cleared by this edit.', true);
       }
     }
   }catch(e){ setLive(false); flash('Save failed: '+e.message,false); }
@@ -1160,12 +1173,14 @@ function updateFinalBanner(){
     banner.classList.add('done');
     banner.style.display='block';
     banner.textContent='Both captains have finalized this card. It will appear in the league admin inbox for reconciliation.';
+    btn.disabled = true;
   } else if (mine){
     banner.style.display='block';
-    banner.textContent='You have finalized. Waiting for the other captain to confirm the same scorecard...';
+    banner.textContent='You have finalized. Waiting for the other captain to confirm the same scorecard. Any further edit will clear your finalization and you will need to finalize again.';
+    btn.disabled = true;
   } else if (other){
     banner.style.display='block';
-    banner.textContent='The other captain has finalized. Review the card and press Finalize if you agree.';
+    banner.textContent='The other captain has finalized. Review the card and press Finalize if you agree. Editing the card will clear their finalization.';
   } else {
     banner.style.display='none';
   }

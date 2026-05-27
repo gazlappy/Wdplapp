@@ -8,8 +8,10 @@
 //   "fixtures":[{ "fixture_id","division_id","home_team_id","away_team_id",
 //                 "home_team_name","away_team_name","venue_name","fixture_date" }, ...]
 // }
-// Auth: Basic auth handled by .htaccess (same as pending.php).
+// Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
+require __DIR__ . '/../_admin.php';
+require_admin();
 require_post();
 
 $body = read_json_body();

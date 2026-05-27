@@ -1,15 +1,18 @@
-# Placeholder — cPanel's "Directory Privacy" tool will replace/overwrite
-# this file with the correct AuthUserFile path for your hosting account.
+# Auth for /api/admin/ is now handled IN PHP (see _admin.php + admin/login.php)
+# so this folder is intentionally NOT protected by Apache Basic-auth anymore.
 #
-# After you protect this folder in cPanel, this file will look something like:
+# IMPORTANT: if you previously enabled cPanel -> Directory Privacy on this
+# folder, open cPanel and switch it OFF for /public_html/api/admin -- otherwise
+# the browser will keep prompting for the old Basic-auth credentials and the
+# new admin login page won't render.
 #
-#   AuthType Basic
-#   AuthName "WDPL Admin"
-#   AuthUserFile "/home/youracct/.htpasswds/public_html/api/admin/passwd"
-#   require valid-user
-#
-# Don't edit it by hand — use cPanel → Directory Privacy.
+# We DO still want PHP to see Basic-auth headers when the MAUI desktop app
+# sends them (that's how the old Web Inbox connects); the rewrite below
+# forwards Authorization headers to PHP without challenging the browser.
 
-AuthType Basic
-AuthName "WDPL Admin"
-require valid-user
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} ^(.+)$
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+</IfModule>
+

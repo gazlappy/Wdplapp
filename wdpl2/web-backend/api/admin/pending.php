@@ -2,6 +2,8 @@
 // pending.php — admin: list unprocessed submissions.
 // PHP 5.6 compatible.
 require __DIR__ . '/../_db.php';
+require __DIR__ . '/../_admin.php';
+require_admin();
 
 $stmt = db()->prepare(
    'SELECT id, type, season_id, reference_id, payload_json,

@@ -46,6 +46,8 @@
                             Command="{Binding OpenLinkCommand}" CommandParameter="/" />
                     <Button Text="Captain login" Margin="0,0,6,6"
                             Command="{Binding OpenLinkCommand}" CommandParameter="/captain/" />
+                    <Button Text="Admin portal" Margin="0,0,6,6"
+                            Command="{Binding OpenLinkCommand}" CommandParameter="/api/admin/" />
                     <Button Text="Admin captains" Margin="0,0,6,6"
                             Command="{Binding OpenLinkCommand}" CommandParameter="/api/admin/captains.html" />
                     <Button Text="Admin diag" Margin="0,0,6,6"
@@ -148,6 +150,10 @@
                                             <Button Text="Reject..." Margin="0,0,6,6"
                                                     BackgroundColor="{AppThemeBinding Light=#B91C1C, Dark=#7F1D1D}"
                                                     Command="{Binding BindingContext.RejectGroupCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Send back to captains" Margin="0,0,6,6"
+                                                    BackgroundColor="{AppThemeBinding Light=#0E7490, Dark=#155E75}"
+                                                    Command="{Binding BindingContext.ReopenGroupCommand, Source={x:Reference PageRoot}}"
                                                     CommandParameter="{Binding .}" />
                                             <Button Text="Discard" Margin="0,0,6,6"
                                                     BackgroundColor="{AppThemeBinding Light=#B45309, Dark=#7C2D12}"

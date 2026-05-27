@@ -382,10 +382,33 @@ try {
         $version++;
         $state['last_edit'] = array('by' => $side, 'at' => gmdate('c'));
         save_state($fid, $version, $state);
+        // Any edit invalidates prior finalizations - both captains must re-finalize
+        // to confirm they accept the changed card.
+        $pdo->prepare('UPDATE live_scorecards
+                          SET home_finalized_at = NULL, home_finalized_version = NULL,
+                              away_finalized_at = NULL, away_finalized_version = NULL
+                        WHERE fixture_id = :f
+                          AND (home_finalized_version IS NOT NULL OR away_finalized_version IS NOT NULL)')
+            ->execute(array(':f' => $fid));
     }
+
+    // Re-read finalization status so the client can refresh banner/button state.
+    $fin = $pdo->prepare('SELECT home_finalized_version, away_finalized_version
+                            FROM live_scorecards WHERE fixture_id = :f');
+    $fin->execute(array(':f' => $fid));
+    $finRow = $fin->fetch();
+
     $pdo->commit();
 
-    json_response(array('version' => $version, 'state' => $state, 'your_side' => $side, 'rejections' => $rejections, 'away_locked' => away_locked_until_home_last5($state)));
+    json_response(array(
+        'version'        => $version,
+        'state'          => $state,
+        'your_side'      => $side,
+        'rejections'     => $rejections,
+        'away_locked'    => away_locked_until_home_last5($state),
+        'home_finalized' => $finRow && $finRow['home_finalized_version'] !== null,
+        'away_finalized' => $finRow && $finRow['away_finalized_version'] !== null,
+    ));
 }
 catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();

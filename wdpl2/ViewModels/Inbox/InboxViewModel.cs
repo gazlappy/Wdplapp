@@ -211,6 +211,35 @@ public partial class InboxViewModel : BaseViewModel
         await MarkGroupProcessedAsync(group, "rejected: " + note.Trim());
     }
 
+    [RelayCommand]
+    private async Task ReopenGroupAsync(FixtureSubmissionGroup? group)
+    {
+        if (group is null || group.FixtureId == Guid.Empty) return;
+        if (!await ConfirmAsync("Send back to captains",
+            $"Reopen {group.Summary}? Both captains' finalizations will be cleared and the fixture will reappear in their portals so they can re-play / re-submit the card."))
+            return;
+
+        var note = await PromptAsync("Reopen note",
+            "Optional note for the captains / audit trail:",
+            "needs replay");
+
+        IsLoading = true;
+        try
+        {
+            await _service.ReopenFixtureAsync(group.FixtureId, AdminUser, note);
+            SetStatus($"Reopened {group.Summary}. The fixture is back in the captain portal.");
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Reopen failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     private async Task MarkGroupProcessedAsync(FixtureSubmissionGroup group, string note)
     {
         var ids = new List<long>();

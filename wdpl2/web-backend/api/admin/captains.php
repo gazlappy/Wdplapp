@@ -4,8 +4,10 @@
 // POST -> upsert. Body: { "team_id","team_name","division_id","division_name",
 //                         "username","password","display_name","email","enabled":true }
 // If "password" is omitted on an update, the existing hash is kept.
-// Auth: Basic auth handled by .htaccess.
+// Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
+require __DIR__ . '/../_admin.php';
+require_admin();
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '';
 if ($method === 'GET') {

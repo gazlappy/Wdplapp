@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WDPL Admin</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:0; font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif; background:#0f172a; color:#e2e8f0; }
+  header { background:#1e293b; border-bottom:1px solid #334155; padding:12px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:16px; }
+  header nav { display:flex; gap:6px; flex-wrap:wrap; }
+  header nav button { background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:6px; cursor:pointer; font:inherit; }
+  header nav button.active { background:#2563eb; border-color:#2563eb; color:#fff; }
+  header .grow { flex:1; }
+  header .who { color:#94a3b8; font-size:12px; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  h2 { margin:0 0 12px; font-size:15px; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
+  .card { background:#1e293b; border:1px solid #334155; border-radius:10px; padding:16px; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th, td { padding:8px 10px; text-align:left; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
+  th { color:#94a3b8; font-weight:600; }
+  tr:hover td { background:#0b1220; }
+  input, select, button, textarea { font:inherit; padding:8px 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#e2e8f0; }
+  button { background:#2563eb; border-color:#2563eb; color:white; cursor:pointer; padding:6px 12px; }
+  button.secondary { background:#475569; border-color:#475569; }
+  button.danger    { background:#b91c1c; border-color:#b91c1c; }
+  button.warn      { background:#b45309; border-color:#b45309; }
+  button:disabled  { opacity:.5; cursor:not-allowed; }
+  .muted { color:#64748b; font-size:12px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
+  .pill.live  { background:#14532d; color:#bbf7d0; }
+  .pill.part  { background:#7c2d12; color:#fed7aa; }
+  .pill.done  { background:#1e3a8a; color:#bfdbfe; }
+  .pill.gone  { background:#7f1d1d; color:#fecaca; }
+  .status { padding:10px 12px; border-radius:6px; margin:8px 0; font-size:13px; }
+  .status.ok  { background:#14532d; color:#bbf7d0; }
+  .status.err { background:#7f1d1d; color:#fecaca; }
+  .status.info{ background:#1e3a8a; color:#bfdbfe; }
+  .actions button { margin:0 4px 4px 0; padding:4px 10px; font-size:12px; }
+  .filterbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  .filterbar input[type=search] { min-width:240px; }
+  .empty { padding:24px; text-align:center; color:#64748b; }
+  /* login */
+  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login { width:100%; max-width:380px; background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; }
+  .login h1 { margin:0 0 4px; font-size:18px; }
+  .login p.lead { margin:0 0 16px; color:#94a3b8; font-size:13px; }
+  .login label { display:block; margin:10px 0 4px; font-size:13px; color:#cbd5e1; }
+  .login input { width:100%; }
+  .login button { width:100%; margin-top:14px; padding:10px 12px; }
+  .bootstrap-note { background:#1e3a8a; color:#bfdbfe; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<!-- =========================== LOGIN SCREEN =========================== -->
+<div id="loginScreen" class="login-wrap" style="display:none">
+  <form class="login" id="loginForm" autocomplete="on" onsubmit="doLogin(event)">
+    <h1>WDPL Admin</h1>
+    <p class="lead" id="loginLead">Sign in to manage scorecards, teams and captains.</p>
+    <div id="bootstrapNote" class="bootstrap-note" style="display:none">
+      No admin users exist yet. The credentials you enter below will be used to <strong>create the first admin account</strong>.
+    </div>
+    <label for="lu">Username</label>
+    <input id="lu" autocomplete="username" required>
+    <label for="lp">Password</label>
+    <input id="lp" type="password" autocomplete="current-password" required>
+    <button id="loginBtn" type="submit">Sign in</button>
+    <div id="loginErr" class="status err" style="display:none; margin-top:12px"></div>
+  </form>
+</div>
+
+<!-- =========================== APP =========================== -->
+<div id="app" style="display:none">
+
+<header>
+  <h1>WDPL Admin</h1>
+  <nav id="tabs">
+    <button data-tab="scorecards" class="active">Scorecards</button>
+    <button data-tab="teams">Teams</button>
+    <button data-tab="captains">Captains</button>
+    <button data-tab="users">Admin users</button>
+    <button data-tab="inbox">Inbox</button>
+  </nav>
+  <div class="grow"></div>
+  <span class="who" id="who"></span>
+  <button class="secondary" id="logout">Sign out</button>
+</header>
+
+<main>
+
+<div id="globalStatus" class="status info" style="display:none"></div>
+
+<section id="tab-scorecards">
+  <div class="card">
+    <h2>Live scorecards</h2>
+    <div class="filterbar">
+      <label>Filter
+        <select id="scFilter" onchange="loadScorecards()" style="margin-left:6px">
+          <option value="">All</option>
+          <option value="open">In progress</option>
+          <option value="home_only">Home finalized only</option>
+          <option value="away_only">Away finalized only</option>
+          <option value="both" selected>Both finalized</option>
+        </select>
+      </label>
+      <input type="search" id="scSearch" placeholder="Search team..." oninput="renderScorecards()">
+      <button class="secondary" onclick="loadScorecards()">Refresh</button>
+    </div>
+    <div id="scList"></div>
+  </div>
+</section>
+
+<section id="tab-teams" style="display:none">
+  <div class="card">
+    <h2>Teams</h2>
+    <div class="filterbar">
+      <input type="search" id="teamSearch" placeholder="Search team or division..." oninput="renderTeams()">
+      <button class="secondary" onclick="loadTeams()">Refresh</button>
+    </div>
+    <div id="teamList"></div>
+  </div>
+</section>
+
+<section id="tab-captains" style="display:none">
+  <div class="card" style="padding:0; overflow:hidden">
+    <iframe id="captainsFrame" src="about:blank" style="border:0; width:100%; height:80vh; background:#0f172a"></iframe>
+  </div>
+</section>
+
+<section id="tab-users" style="display:none">
+  <div class="card">
+    <h2>Admin users</h2>
+    <p class="muted">People allowed to sign in here. Sessions last 12 hours.</p>
+    <div id="userList"></div>
+    <h2 style="margin-top:24px">Add new admin</h2>
+    <form id="newUserForm" onsubmit="createUser(event)" class="grid2">
+      <div>
+        <label>Username</label>
+        <input id="nuUser" required autocomplete="off">
+      </div>
+      <div>
+        <label>Display name</label>
+        <input id="nuName" autocomplete="off">
+      </div>
+      <div>
+        <label>Password (min 6)</label>
+        <input id="nuPass" type="password" required autocomplete="new-password">
+      </div>
+      <div>
+        <label>Email (optional)</label>
+        <input id="nuEmail" type="email" autocomplete="off">
+      </div>
+      <div style="grid-column:1 / -1">
+        <button type="submit">Create admin</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-inbox" style="display:none">
+  <div class="card">
+    <h2>Pending submissions</h2>
+    <p class="muted">Captain cards waiting to be imported.</p>
+    <div class="filterbar"><button class="secondary" onclick="loadInbox()">Refresh</button></div>
+    <div id="inboxList"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+const API = '..';
+let session = { user: null, token: null };
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"'']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function flash(msg, kind){
+  const el = $('globalStatus');
+  el.className = 'status ' + (kind || 'info');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(flash._t);
+  flash._t = setTimeout(function(){ el.style.display='none'; }, 5000);
+}
+function loadToken(){ try { return localStorage.getItem('wdpl_admin_token') || ''; } catch(e){ return ''; } }
+function saveToken(t){ try { if (t) localStorage.setItem('wdpl_admin_token', t); else localStorage.removeItem('wdpl_admin_token'); } catch(e){} }
+
+async function api(path, opts){
+  opts = opts || {};
+  opts.credentials = 'include';
+  const hdrs = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+  if (session.token) hdrs['Authorization'] = 'Bearer ' + session.token;
+  opts.headers = hdrs;
+  const r = await fetch(API + path, opts);
+  let body = null;
+  try { body = await r.json(); } catch(e){ body = {}; }
+  if (!r.ok) {
+    const err = new Error((body && body.error) || ('HTTP ' + r.status));
+    err.status = r.status;
+    err.body   = body;
+    throw err;
+  }
+  return body;
+}
+
+function showLogin(needsBootstrap){
+  $('app').style.display = 'none';
+  $('loginScreen').style.display = 'flex';
+  $('bootstrapNote').style.display = needsBootstrap ? 'block' : 'none';
+  $('loginLead').textContent = needsBootstrap
+    ? 'First-time setup: create the initial admin account.'
+    : 'Sign in to manage scorecards, teams and captains.';
+  $('loginErr').style.display = 'none';
+  $('lu').focus();
+}
+
+function showApp(){
+  $('loginScreen').style.display = 'none';
+  $('app').style.display = 'block';
+  $('captainsFrame').src = './captains.html';
+  loadScorecards();
+}
+
+async function checkSession(){
+  session.token = loadToken();
+  try {
+    const r = await api('/admin/whoami.php');
+    if (r && r.ok) {
+      session.user = r;
+      $('who').textContent = 'Signed in as ' + (r.display_name || r.username);
+      showApp();
+      return;
+    }
+    showLogin(!!(r && r.needs_bootstrap));
+  } catch (e) {
+    showLogin(e.body && e.body.needs_bootstrap);
+  }
+}
+
+async function doLogin(ev){
+  ev.preventDefault();
+  const u = $('lu').value.trim(), p = $('lp').value;
+  $('loginBtn').disabled = true;
+  $('loginErr').style.display = 'none';
+  try {
+    session.token = null;
+    const r = await api('/admin/login.php', { method:'POST', body: JSON.stringify({ username: u, password: p }) });
+    session.token = r.token || null;
+    saveToken(session.token);
+    session.user = r;
+    $('who').textContent = 'Signed in as ' + (r.display_name || r.username);
+    showApp();
+  } catch (e) {
+    $('loginErr').textContent = e.message;
+    $('loginErr').style.display = 'block';
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+}
+
+document.querySelectorAll('#tabs button').forEach(function(b){
+  b.onclick = function(){
+    document.querySelectorAll('#tabs button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    document.querySelectorAll('#app main > section').forEach(function(s){ s.style.display='none'; });
+    $('tab-' + b.dataset.tab).style.display = 'block';
+    if (b.dataset.tab === 'scorecards') loadScorecards();
+    if (b.dataset.tab === 'teams')      loadTeams();
+    if (b.dataset.tab === 'inbox')      loadInbox();
+    if (b.dataset.tab === 'users')      loadUsers();
+  };
+});
+
+$('logout').onclick = async function(){
+  try { await api('/admin/logout.php', { method:'POST' }); } catch (e) {}
+  session.token = null; session.user = null; saveToken('');
+  showLogin(false);
+};
+
+/* ---------------- Scorecards ---------------- */
+let _scAll = [];
+async function loadScorecards(){
+  const f = $('scFilter').value;
+  try {
+    const d = await api('/admin/scorecards.php' + (f ? ('?status=' + encodeURIComponent(f)) : ''));
+    _scAll = d.items || [];
+    renderScorecards();
+  } catch (e) { flash('Failed to load scorecards: ' + e.message, 'err'); }
+}
+function scStatusPill(r){
+  const h = !!r.home_finalized_at, a = !!r.away_finalized_at;
+  if (h && a) return '<span class="pill done">Both finalized</span>';
+  if (h)      return '<span class="pill part">Home finalized</span>';
+  if (a)      return '<span class="pill part">Away finalized</span>';
+  return '<span class="pill live">In progress</span>';
+}
+function renderScorecards(){
+  const q = ($('scSearch').value || '').toLowerCase();
+  const items = _scAll.filter(function(r){
+    if (!q) return true;
+    return (r.home_team_name||'').toLowerCase().indexOf(q) >= 0 ||
+           (r.away_team_name||'').toLowerCase().indexOf(q) >= 0;
+  });
+  const host = $('scList');
+  if (!items.length) { host.innerHTML = '<div class="empty">No scorecards match.</div>'; return; }
+  let html = '<table><thead><tr><th>Fixture</th><th>Date</th><th>Status</th><th>Version</th><th>Last edit (UTC)</th><th>Actions</th></tr></thead><tbody>';
+  items.forEach(function(r){
+    const teams = esc((r.home_team_name||'?') + ' vs ' + (r.away_team_name||'?'));
+    html += '<tr>' +
+      '<td>' + teams + '<div class="muted">' + esc(r.fixture_id) + '</div></td>' +
+      '<td>' + esc(r.fixture_date||'') + '</td>' +
+      '<td>' + scStatusPill(r) + '</td>' +
+      '<td>' + (r.version!=null ? esc(r.version) : '-') + '</td>' +
+      '<td>' + esc(r.updated_utc||'') + '</td>' +
+      '<td class="actions">' +
+        '<button class="warn"   onclick="scReopen(\'' + r.fixture_id + '\')">Send back to captains</button>' +
+        '<button class="secondary" onclick="scClear(\'' + r.fixture_id + '\',\'home\')">Clear home</button>' +
+        '<button class="secondary" onclick="scClear(\'' + r.fixture_id + '\',\'away\')">Clear away</button>' +
+        '<button class="danger" onclick="scReset(\'' + r.fixture_id + '\')">Reset</button>' +
+      '</td></tr>';
+  });
+  html += '</tbody></table>';
+  host.innerHTML = html;
+}
+async function scReopen(fid){
+  if (!confirm('Send this fixture back to the captains? Both finalizations will be cleared and any pending inbox cards closed.')) return;
+  try {
+    await api('/admin/reopen-fixture.php', { method:'POST',
+      body: JSON.stringify({ fixture_id: fid, by: session.user && session.user.username, notes: 'reopened from admin portal' }) });
+    flash('Fixture sent back to the captains.', 'ok'); loadScorecards();
+  } catch (e) { flash('Reopen failed: ' + e.message, 'err'); }
+}
+async function scClear(fid, side){
+  if (!confirm('Clear ' + side.toUpperCase() + ' captain finalization for this card?')) return;
+  try {
+    await api('/admin/scorecards.php', { method:'POST',
+      body: JSON.stringify({ action:'clear', fixture_id: fid, side: side }) });
+    flash(side.toUpperCase() + ' finalization cleared.', 'ok'); loadScorecards();
+  } catch (e) { flash('Clear failed: ' + e.message, 'err'); }
+}
+async function scReset(fid){
+  if (!confirm('RESET this scorecard? All frames, picks and winners on the live card will be deleted. This cannot be undone.')) return;
+  try {
+    await api('/admin/scorecards.php', { method:'POST',
+      body: JSON.stringify({ action:'reset', fixture_id: fid }) });
+    flash('Scorecard reset.', 'ok'); loadScorecards();
+  } catch (e) { flash('Reset failed: ' + e.message, 'err'); }
+}
+
+/* ---------------- Teams ---------------- */
+let _teamAll = [];
+async function loadTeams(){
+  try { const d = await api('/admin/teams.php'); _teamAll = d.items || []; renderTeams(); }
+  catch (e) { flash('Failed to load teams: ' + e.message, 'err'); }
+}
+function renderTeams(){
+  const q = ($('teamSearch').value || '').toLowerCase();
+  const items = _teamAll.filter(function(t){
+    if (!q) return true;
+    return (t.team_name||'').toLowerCase().indexOf(q) >= 0 ||
+           (t.division_name||'').toLowerCase().indexOf(q) >= 0;
+  });
+  const host = $('teamList');
+  if (!items.length) { host.innerHTML = '<div class="empty">No teams match.</div>'; return; }
+  let html = '<table><thead><tr><th>Team name</th><th>Division</th><th>Venue</th><th>Captain</th><th>Actions</th></tr></thead><tbody>';
+  items.forEach(function(t){
+    const cap = t.captain_username
+      ? esc(t.captain_username) + (t.captain_enabled==0 ? ' <span class="pill gone">disabled</span>' : '')
+      : '<span class="muted">none</span>';
+    html += '<tr data-tid="' + esc(t.team_id) + '">' +
+      '<td><input class="t-name" value="' + esc(t.team_name||'') + '"></td>' +
+      '<td><input class="t-div"  value="' + esc(t.division_name||'') + '"></td>' +
+      '<td><input class="t-ven"  value="' + esc(t.venue_name||'') + '"></td>' +
+      '<td>' + cap + '<div class="muted">' + esc(t.team_id) + '</div></td>' +
+      '<td class="actions">' +
+        '<button onclick="teamSave(this)">Save</button>' +
+        '<button class="danger" onclick="teamDelete(this)">Delete</button>' +
+      '</td></tr>';
+  });
+  html += '</tbody></table>';
+  host.innerHTML = html;
+}
+async function teamSave(btn){
+  const tr = btn.closest('tr');
+  const tid  = tr.dataset.tid;
+  const name = tr.querySelector('.t-name').value.trim();
+  const dn   = tr.querySelector('.t-div').value.trim();
+  const vn   = tr.querySelector('.t-ven').value.trim();
+  if (!name) { flash('Team name is required.', 'err'); return; }
+  try {
+    await api('/admin/teams.php', { method:'POST',
+      body: JSON.stringify({ action:'update', team_id: tid, name: name, division_name: dn, venue_name: vn }) });
+    flash('Saved ' + name + '.', 'ok'); loadTeams();
+  } catch (e) { flash('Save failed: ' + e.message, 'err'); }
+}
+async function teamDelete(btn){
+  const tr = btn.closest('tr');
+  const tid = tr.dataset.tid;
+  if (!confirm('Delete this team row?')) return;
+  try {
+    await api('/admin/teams.php', { method:'DELETE', body: JSON.stringify({ team_id: tid }) });
+    flash('Team deleted.', 'ok'); loadTeams();
+  } catch (e) { flash('Delete failed: ' + e.message, 'err'); }
+}
+
+/* ---------------- Admin users ---------------- */
+async function loadUsers(){
+  try {
+    const d = await api('/admin/users.php');
+    const host = $('userList');
+    const items = d.items || [];
+    if (!items.length) { host.innerHTML = '<div class="empty">No admin users.</div>'; return; }
+    const myId = d.me;
+    let html = '<table><thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Enabled</th><th>Last login</th><th>Actions</th></tr></thead><tbody>';
+    items.forEach(function(u){
+      const isMe = u.user_id === myId;
+      html += '<tr data-uid="' + esc(u.user_id) + '">' +
+        '<td>' + esc(u.username) + (isMe ? ' <span class="pill done">you</span>' : '') + '</td>' +
+        '<td><input class="u-name"  value="' + esc(u.display_name||'') + '"></td>' +
+        '<td><input class="u-email" value="' + esc(u.email||'') + '"></td>' +
+        '<td><input class="u-en"    type="checkbox"' + (u.enabled==1 ? ' checked' : '') + (isMe ? ' disabled' : '') + '></td>' +
+        '<td>' + esc(u.last_login||'never') + '</td>' +
+        '<td class="actions">' +
+          '<button onclick="userSave(this)">Save</button>' +
+          '<button class="secondary" onclick="userPw(this,\'' + u.user_id + '\')">Reset password</button>' +
+          (isMe ? '' : '<button class="danger" onclick="userDelete(this)">Delete</button>') +
+        '</td></tr>';
+    });
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  } catch (e) { flash('Failed to load admins: ' + e.message, 'err'); }
+}
+async function createUser(ev){
+  ev.preventDefault();
+  const u = $('nuUser').value.trim();
+  const n = $('nuName').value.trim();
+  const p = $('nuPass').value;
+  const e = $('nuEmail').value.trim();
+  try {
+    await api('/admin/users.php', { method:'POST',
+      body: JSON.stringify({ action:'create', username: u, display_name: n, password: p, email: e }) });
+    flash('Admin "' + u + '" created.', 'ok');
+    $('newUserForm').reset();
+    loadUsers();
+  } catch (err) { flash('Create failed: ' + err.message, 'err'); }
+}
+async function userSave(btn){
+  const tr = btn.closest('tr');
+  const uid = tr.dataset.uid;
+  const body = {
+    action:'update',
+    user_id: uid,
+    display_name: tr.querySelector('.u-name').value.trim(),
+    email:        tr.querySelector('.u-email').value.trim(),
+    enabled:      tr.querySelector('.u-en').checked ? 1 : 0
+  };
+  try { await api('/admin/users.php', { method:'POST', body: JSON.stringify(body) }); flash('Saved.', 'ok'); loadUsers(); }
+  catch (e) { flash('Save failed: ' + e.message, 'err'); }
+}
+async function userPw(btn, uid){
+  const p = prompt('Enter a new password (min 6 chars):');
+  if (!p) return;
+  try {
+    await api('/admin/users.php', { method:'POST',
+      body: JSON.stringify({ action:'update', user_id: uid, password: p }) });
+    flash('Password reset.', 'ok');
+  } catch (e) { flash('Reset failed: ' + e.message, 'err'); }
+}
+async function userDelete(btn){
+  const tr = btn.closest('tr');
+  const uid = tr.dataset.uid;
+  if (!confirm('Delete this admin account? Their active sessions will end immediately.')) return;
+  try { await api('/admin/users.php', { method:'DELETE', body: JSON.stringify({ user_id: uid }) }); flash('Deleted.', 'ok'); loadUsers(); }
+  catch (e) { flash('Delete failed: ' + e.message, 'err'); }
+}
+
+/* ---------------- Inbox ---------------- */
+async function loadInbox(){
+  try {
+    const d = await api('/admin/pending.php');
+    const host = $('inboxList');
+    const items = d.items || [];
+    if (!items.length) { host.innerHTML = '<div class="empty">Inbox is empty.</div>'; return; }
+    let html = '<table><thead><tr><th>#</th><th>Type</th><th>Fixture / ref</th><th>Submitter</th><th>Received (UTC)</th><th>Actions</th></tr></thead><tbody>';
+    items.forEach(function(s){
+      html += '<tr><td>' + esc(s.id) + '</td><td>' + esc(s.type) + '</td>' +
+              '<td>' + esc(s.reference_id||'') + '</td><td>' + esc(s.submitter||'') + '</td>' +
+              '<td>' + esc(s.received_utc||'') + '</td>' +
+              '<td class="actions"><button class="secondary" onclick="markProc(' + s.id + ')">Mark processed</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  } catch (e) { flash('Failed to load inbox: ' + e.message, 'err'); }
+}
+async function markProc(id){
+  try {
+    await api('/admin/mark-processed.php', { method:'POST',
+      body: JSON.stringify({ ids: [id], by: session.user && session.user.username, notes: 'processed from admin portal' }) });
+    flash('#' + id + ' marked processed.', 'ok'); loadInbox();
+  } catch (e) { flash('Failed: ' + e.message, 'err'); }
+}
+
+checkSession();
+</script>
+</body>
+</html>

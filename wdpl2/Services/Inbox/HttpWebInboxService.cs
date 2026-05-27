@@ -74,6 +74,28 @@ public sealed class HttpWebInboxService : IWebInboxService
         await EnsureOkAsync(resp).ConfigureAwait(false);
     }
 
+    public async Task ReopenFixtureAsync(Guid fixtureId, string? by = null, string? notes = null, CancellationToken ct = default)
+    {
+        if (fixtureId == Guid.Empty) return;
+
+        var settings = await WebInboxSettings.LoadAsync();
+        var body = JsonSerializer.Serialize(new
+        {
+            fixture_id = fixtureId.ToString(),
+            by         = by    ?? settings.AdminUser,
+            notes      = notes ?? ""
+        });
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, BuildUrl(settings, "admin/reopen-fixture.php"))
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        };
+        AddAuth(req, settings);
+
+        using var resp = await ClientFor(settings).SendAsync(req, ct).ConfigureAwait(false);
+        await EnsureOkAsync(resp).ConfigureAwait(false);
+    }
+
     private static Uri BuildUrl(WebInboxSettings s, string relative)
     {
         var baseUrl = string.IsNullOrWhiteSpace(s.BaseUrl) ? WebInboxSettings.DefaultBaseUrl : s.BaseUrl;

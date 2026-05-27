@@ -1,7 +1,9 @@
 <?php
 // admin/diag.php — diagnostic. Lists tables + row counts so we can see what's missing.
-// Behind admin .htaccess Basic-auth.
+// Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
+require __DIR__ . '/../_admin.php';
+require_admin();
 
 $want = array(
     'submissions',
