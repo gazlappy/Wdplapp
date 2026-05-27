@@ -428,9 +428,10 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
   <button id="installBtn" style="margin-left:10px; padding:4px 12px;">Install</button>
   <button onclick="document.getElementById('installBanner').style.display='none'" style="margin-left:6px; padding:4px 10px; background:transparent; color:#fff; border:1px solid #fff;">Dismiss</button>
 </div>
-<header>
-<h1>WDPL Captain Portal</h1>
+<header style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<h1 style="margin:0;flex:1;min-width:0">WDPL Captain Portal</h1>
 <div id="who" class="muted"></div>
+<button id="hdrLogout" class="secondary" onclick="logout()" style="display:none">Sign out</button>
 </header>
 <main>
 <div id="status" class="status" style="display:none"></div>
@@ -656,6 +657,7 @@ async function logout(){
          version:-1,server:null,currentIdx:0,pickerCtx:null,homeFinal:false,awayFinal:false,awayLocked:false,
          pollTimer:null,sendInflight:false,pendingOps:[]};
   $('loginCard').style.display='block'; $('dash').style.display='none'; $('cardCard').style.display='none'; $('who').textContent='';
+  var hl=$('hdrLogout'); if(hl) hl.style.display='none';
 }
 async function loadDash(){
 
@@ -809,6 +811,7 @@ function renderAllFixtures(){
   state.settings=data.settings||{default_frames_per_match:15};
   $('loginCard').style.display='none'; $('dash').style.display='block';
   $('who').textContent=state.captain.team_name+(state.captain.division_name?' - '+state.captain.division_name:'');
+  var hl=$('hdrLogout'); if(hl) hl.style.display='inline-block';
   renderFixtures();
   loadHistory().catch(function(){});
   loadRoster().catch(function(){});

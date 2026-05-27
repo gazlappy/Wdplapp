@@ -111,6 +111,7 @@
     <button data-tab="export">Export</button>
   </nav>
   <div class="grow"></div>
+  <span class="who" id="curSeason" title="Current season (set in Seasons tab)"></span>
   <span class="who" id="who"></span>
   <button class="secondary" id="logout">Sign out</button>
 </header>
@@ -444,7 +445,27 @@ function showLogin(needsBootstrap){
 function showApp(){
   $('loginScreen').style.display = 'none';
   $('app').style.display = 'block';
+  refreshCurrentSeason();
   loadScorecards();
+}
+let _currentSeason = { id: null, name: null };
+async function refreshCurrentSeason(){
+  try {
+    const d = await api('/admin/seasons.php');
+    const cur = (d.items||[]).find(function(s){ return s.season_id === d.current_id; });
+    _currentSeason.id   = d.current_id || null;
+    _currentSeason.name = cur ? cur.name : null;
+    const el = $('curSeason');
+    if (_currentSeason.id) {
+      el.textContent = 'Season: ' + (_currentSeason.name || _currentSeason.id);
+      el.style.color = '';
+    } else {
+      el.textContent = 'No current season set';
+      el.style.color = '#c62828';
+    }
+  } catch (e) {
+    $('curSeason').textContent = 'Season: ?';
+  }
 }
 async function checkSession(){
   session.token = loadToken();
@@ -728,6 +749,7 @@ async function genRun(){
 /* Standings */
 async function loadStandings(){
   await loadSeasonOptions('stSeason');
+  if (!$('stSeason').value && _currentSeason.id) $('stSeason').value = _currentSeason.id;
   const sid = $('stSeason').value;
   const inc = $('stInclude').checked ? '&include_unfinalized=1' : '';
   try {
@@ -975,7 +997,7 @@ async function ssSave(btn){
 async function ssMakeCurrent(btn){
   const tr = btn.closest('tr');
   try { await api('/admin/seasons.php', { method:'POST', body: JSON.stringify({ action:'set_current', season_id: tr.dataset.sid }) });
-    flash('Current set.', 'ok'); loadSeasons();
+    flash('Current set.', 'ok'); loadSeasons(); refreshCurrentSeason();
   } catch (e) { flash(e.message,'err'); }
 }
 async function ssDel(btn){

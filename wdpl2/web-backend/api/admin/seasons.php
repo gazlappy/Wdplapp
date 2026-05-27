@@ -27,7 +27,26 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $rows = $pdo->query('SELECT * FROM league_seasons ORDER BY starts_on DESC, name')->fetchAll();
     $cur  = $pdo->query("SELECT setting_value FROM league_settings WHERE setting_key='season_id'")->fetch();
-    json_response(array('items' => $rows, 'current_id' => $cur ? $cur['setting_value'] : null));
+    $currentId = $cur ? $cur['setting_value'] : null;
+    // Fallback: if no league_settings row, use is_active=1 (and self-heal by writing it).
+    if (!$currentId) {
+        foreach ($rows as $r) {
+            if ((int)$r['is_active'] === 1) { $currentId = $r['season_id']; break; }
+        }
+        if (!$currentId && count($rows) > 0) {
+            // last resort: most recent season by start date
+            $currentId = $rows[0]['season_id'];
+        }
+        if ($currentId) {
+            try {
+                $pdo->prepare(
+                    "INSERT INTO league_settings (setting_key, setting_value) VALUES ('season_id', :v)
+                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")
+                    ->execute(array(':v' => $currentId));
+            } catch (Exception $e) {}
+        }
+    }
+    json_response(array('items' => $rows, 'current_id' => $currentId));
 }
 
 require_post();
