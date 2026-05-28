@@ -5,7 +5,7 @@
 //   * Everything else (assets)       → cache-first, fall back to network.
 //   * Bump CACHE_VERSION whenever the shell changes so old clients refresh.
 
-const CACHE_VERSION = 'wdpl-captain-v6';
+const CACHE_VERSION = 'wdpl-captain-v8';
 const SHELL = [
   './',
   './index.html',

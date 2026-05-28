@@ -453,10 +453,16 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 </div>
 
 <div class="card" id="cardCard" style="display:none">
-<h2 style="display:flex; justify-content:space-between; align-items:center;">
+<h2 style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
   <span>Shared scorecard</span>
-  <span id="livePill" class="live-pill">offline</span>
+  <span style="display:flex; gap:8px; align-items:center;">
+    <button id="soloBtn" type="button" class="secondary" onclick="toggleSolo()" title="Fill both home and away cards from this one phone (use when the other captain has no signal)." style="display:none; padding:4px 10px; font-size:12px;">Solo: off</button>
+    <span id="livePill" class="live-pill">offline</span>
+  </span>
 </h2>
+<div id="soloBanner" style="display:none; margin:6px 0 8px; padding:8px 10px; background:#3a2a0d; color:#ffd166; border:1px solid #FFD166; border-radius:8px; font-size:13px;">
+  Solo mode is ON. You can edit BOTH home and away cards on this phone. Finalize will submit one agreed card for both sides.
+</div>
 <div id="fxHeader" class="muted" style="margin-bottom:10px"></div>
 <div id="sideHint" class="muted" style="margin-bottom:8px"></div>
 
@@ -607,16 +613,30 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 </div>
 
 <script>
+// OFFLINE_SCORECARD_V1 - persistent op queue + optimistic local apply.
 const API = '../api';
 const VOID_ID = 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF';
+const OFFLINE_KEY = 'wdpl_offline_sc';      // single-fixture persisted offline state
+const FLUSH_INTERVAL_MS = 15000;             // periodic flush attempt while queue non-empty
+const POLL_INTERVAL_MS  = 2000;              // server poll while online
+const MAX_CONFLICT_STRIKES = 3;              // drop a queued batch after this many consecutive 409s
 
+// SOLO_MODE_V1 - "fill both sides on one phone" for low-signal venues.
 let state = {
   captain:null, fixtures:[], allFixtures:[], players:[], roster:[], availability:[], thisWeek:null, inbox:[], recipients:[], settings:null,
   selectedFixture:null, yourSide:null,
-  version:-1, server:null,                 // server-authoritative state
+  version:-1, server:null,
   currentIdx:0, pickerCtx:null,
   homeFinal:false, awayFinal:false, awayLocked:false,
-  pollTimer:null, sendInflight:false, pendingOps:[]
+  pollTimer:null, sendInflight:false, pendingOps:[],
+  online: (typeof navigator!=='undefined' ? navigator.onLine !== false : true),
+  queue:[], queuedFinalize:false, finalizeInflight:false,
+  flushTimer:null, conflictStrikes:0,
+  // Solo mode: ONE captain captures BOTH sides locally and uploads as a
+  // single agreed card via submit-result.php (also_other_side:true).
+  // While solo is on we skip live ops entirely - no scorecard.php POSTs -
+  // because the server would reject edits to the other side's slots.
+  solo:false
 };
 function $(id){ return document.getElementById(id); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"'']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -835,6 +855,8 @@ function renderFixtures(){
   });
 }
 function closeCard(){
+  // Persist before tearing down so any queued work survives a "Back to list" tap.
+  saveOfflineSnapshot();
   stopPolling();
   state.selectedFixture=null; state.server=null; state.version=-1;
   $('cardCard').style.display='none';
@@ -843,6 +865,23 @@ function closeCard(){
 async function selectFixture(f, el){
   stopPolling();
   state.selectedFixture=f;
+  // Rehydrate any queued offline work for THIS fixture so the captain sees
+  // exactly the card they left, even if the device was rebooted.
+  state.queue=[]; state.queuedFinalize=false; state.conflictStrikes=0; state.server=null; state.version=-1;
+  const snap = loadOfflineSnapshot(f.fixture_id);
+  if (snap){
+    state.server         = snap.server_state || null;
+    state.version        = (typeof snap.server_version==='number') ? snap.server_version : -1;
+    state.yourSide       = snap.your_side || null;
+    state.homeFinal      = !!snap.home_final;
+    state.awayFinal      = !!snap.away_final;
+    state.awayLocked     = !!snap.away_locked;
+    state.queue          = Array.isArray(snap.queue) ? snap.queue.slice() : [];
+    state.queuedFinalize = !!snap.queued_finalize;
+    state.solo           = !!snap.solo;
+    // Replay queue on top of last-known server state so UI reflects local intent.
+    if (state.server) state.queue.forEach(applyOpLocally);
+  }
   Array.from(document.querySelectorAll('.fixture-list .item')).forEach(function(x){ x.classList.remove('selected'); });
   if (el) el.classList.add('selected');
   $('cardCard').style.display='block';
@@ -859,26 +898,82 @@ async function selectFixture(f, el){
 
 function setLive(on){
   const p=$('livePill');
-  if(on){ p.classList.add('live'); p.textContent='live - v'+state.version; }
-  else  { p.classList.remove('live'); p.textContent='reconnecting...'; }
+  // Show the Solo toggle whenever we are offline OR already in solo mode.
+  // Hide it as soon as we're back online and NOT in solo, to keep the UI clean.
+  const sb = document.getElementById('soloBtn');
+  if (sb){
+    const showSolo = state.solo || !state.online;
+    sb.style.display = showSolo ? 'inline-block' : 'none';
+    sb.textContent   = state.solo ? 'Solo: ON' : 'Solo: off';
+    sb.style.background = state.solo ? '#FFD166' : '';
+    sb.style.color      = state.solo ? '#1f2937' : '';
+  }
+  const sBan = document.getElementById('soloBanner');
+  if (sBan) sBan.style.display = state.solo ? 'block' : 'none';
+
+  if (!p) return;
+  p.classList.remove('live');
+  const q = state.queue.length;
+  if (state.finalizeInflight){ p.textContent = state.solo ? 'submitting solo...' : 'submitting final...'; return; }
+  if (state.solo){
+    p.textContent = state.online ? (state.queuedFinalize ? 'solo - ready to upload' : 'solo - editing')
+                                 : (state.queuedFinalize ? 'solo - waiting for signal' : 'solo - offline');
+    return;
+  }
+  if (!state.online){
+    p.textContent = q>0 ? ('offline - '+q+' queued') : 'offline';
+    if (state.queuedFinalize) p.textContent += ' + final';
+    return;
+  }
+  if (state.sendInflight && q>0){ p.textContent='syncing '+q+'...'; return; }
+  if (q>0){ p.textContent='pending '+q; return; }
+  if (!on){ p.textContent='reconnecting...'; return; }
+  p.classList.add('live'); p.textContent='live - v'+state.version + (state.queuedFinalize?' + final':'');
+}
+
+// User-facing Solo mode toggle.
+function toggleSolo(){
+  if (!state.solo){
+    if (state.queue.length>0){
+      if (!confirm('You have '+state.queue.length+' pending change(s) waiting to upload. Switching to Solo will keep them local and submit the final card as both sides. Continue?')) return;
+    } else if (!confirm('Turn Solo mode ON?\n\nUse this only when the other captain cannot log in (e.g. no signal on their phone). You will fill BOTH home and away cards on this phone, then Finalize submits one agreed card for both sides.')) return;
+    state.solo = true;
+    stopPolling(); // server-side live edits are not used in solo mode
+  } else {
+    if (!confirm('Turn Solo mode OFF?\n\nYou will be restricted again to editing only your own side. Any solo edits you have made stay on the card.')) return;
+    state.solo = false;
+    if (state.online) startPolling();
+  }
+  saveOfflineSnapshot();
+  renderAll(); updateFinalBanner(); setLive(state.online);
 }
 function startPolling(){
   stopPolling();
-  state.pollTimer=setInterval(function(){ fetchScorecard().catch(function(){ setLive(false); }); }, 2000);
+  state.pollTimer=setInterval(function(){
+    if (!state.online) { setLive(false); return; }
+    fetchScorecard().catch(function(){ setLive(false); });
+  }, POLL_INTERVAL_MS);
 }
 function stopPolling(){ if(state.pollTimer){ clearInterval(state.pollTimer); state.pollTimer=null; } }
 
 async function fetchScorecard(){
   const f=state.selectedFixture; if(!f) return;
-  const data=await api('/captain/scorecard.php?fixture_id='+encodeURIComponent(f.fixture_id));
+  let data;
+  try { data=await api('/captain/scorecard.php?fixture_id='+encodeURIComponent(f.fixture_id)); }
+  catch(e){ setLive(false); throw e; }
   state.yourSide=data.your_side;
   state.homeFinal=!!data.home_finalized;
   state.awayFinal=!!data.away_finalized;
   state.awayLocked=!!data.away_locked;
-  if (data.version !== state.version || !state.server){
+  // Only adopt server state if we have no pending local ops; otherwise the
+  // optimistic local view is more up-to-date and will be reconciled by flush().
+  if ((state.queue.length===0) && (data.version !== state.version || !state.server)){
     state.server=data.state; state.version=data.version;
     renderAll();
+  } else if (state.queue.length===0 && state.server===null){
+    state.server=data.state; state.version=data.version; renderAll();
   }
+  saveOfflineSnapshot();
   setLive(true);
   updateFinalBanner();
   let hint='You are the '+(state.yourSide==='home'?'HOME':'AWAY')+' captain. You can edit '+state.yourSide.toUpperCase()+' players; either side records winners; 8-balls need both captains to agree.';
@@ -888,55 +983,184 @@ async function fetchScorecard(){
       : ' Away picks are locked until the HOME captain nominates a home player in each of the LAST 5 frames.';
   }
   $('sideHint').textContent=hint;
+  // Opportunistic flush in case we came back online between polls.
+  if (state.queue.length>0 || state.queuedFinalize) flushQueue();
 }
 
-// Queue ops so we never lose a click while a request is in flight.
-async function sendOps(ops){
-  if (!ops || !ops.length) return;
-  state.pendingOps = state.pendingOps.concat(ops);
-  if (state.sendInflight) return;
-  state.sendInflight=true;
+// Persist queue + last-known server snapshot so the card survives reloads
+// while the captain is in low-signal areas. Single fixture at a time.
+function saveOfflineSnapshot(){
   try{
-    while (state.pendingOps.length){
-      const batch=state.pendingOps; state.pendingOps=[];
-      const data=await api('/captain/scorecard.php',{
+    if (!state.selectedFixture) return;
+    const payload = {
+      fixture_id: state.selectedFixture.fixture_id,
+      server_version: state.version,
+      server_state: state.server,
+      your_side: state.yourSide,
+      home_final: state.homeFinal, away_final: state.awayFinal, away_locked: state.awayLocked,
+      queue: state.queue, queued_finalize: state.queuedFinalize,
+      solo: state.solo,
+      saved_utc: new Date().toISOString()
+    };
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(payload));
+  }catch(_){}
+}
+function clearOfflineSnapshot(){ try{ localStorage.removeItem(OFFLINE_KEY); }catch(_){} }
+function loadOfflineSnapshot(fixtureId){
+  try{
+    const raw = localStorage.getItem(OFFLINE_KEY); if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.fixture_id !== fixtureId) return null;
+    return obj;
+  }catch(_){ return null; }
+}
+
+// Apply a single op LOCALLY to state.server so the UI updates without the
+// network. Mirrors the rules in scorecard.php (kept intentionally minimal -
+// the server is still authoritative on conflict / strict validation).
+function applyOpLocally(op){
+  if (!state.server || !op || !op.kind) return;
+  const frames = state.server.frames || [];
+  const idx = (typeof op.frame==='number') ? op.frame : -1;
+  const f = (idx>=0 && idx<frames.length) ? frames[idx] : null;
+  const side = state.yourSide;
+  const isHomeSide = (side==='home');
+  if (op.kind==='set_player' && f){
+    const allowed = state.solo ? ['home','home2','away','away2']
+                               : (isHomeSide ? ['home','home2'] : ['away','away2']);
+    if (allowed.indexOf(op.slot)===-1) return;
+    const prefix = (op.slot==='home2')?'home_player2':(op.slot==='away2')?'away_player2':(op.slot==='home')?'home_player':'away_player';
+    f[prefix+'_id']   = (typeof op.player_id  !=='undefined') ? op.player_id  : null;
+    f[prefix+'_name'] = (typeof op.player_name!=='undefined') ? op.player_name: null;
+  } else if (op.kind==='set_doubles' && f){
+    f.is_doubles = !!op.value;
+    if (!f.is_doubles){
+      f.home_player2_id=null; f.home_player2_name=null;
+      f.away_player2_id=null; f.away_player2_name=null;
+    }
+  } else if (op.kind==='set_winner' && f){
+    const w = (op.value==='home'||op.value==='away') ? op.value : null;
+    if (f.winner===w){ f.winner=null; f.eight_ball=false; f.pending_eight=null; }
+    else f.winner=w;
+  } else if (op.kind==='propose_eight' && f){
+    if (!f.winner) return;
+    const v = !!op.value;
+    if (v === !!f.eight_ball) return;
+    if (state.solo){ f.eight_ball = v; f.pending_eight = null; }
+    else            { f.pending_eight = { by: side, value: v }; }
+  } else if (op.kind==='agree_eight' && f){
+    const pe = f.pending_eight; if (!pe) return;
+    if (!state.solo && pe.by===side) return;
+    f.eight_ball = !!pe.value; f.pending_eight=null;
+  } else if (op.kind==='decline_eight' && f){
+    const pe = f.pending_eight; if (!pe) return;
+    if (!state.solo && pe.by===side) return;
+    f.pending_eight=null;
+  } else if (op.kind==='set_notes'){
+    state.server.notes = (op.value==null) ? '' : String(op.value);
+  }
+  // Any edit invalidates prior finalizations (locally too, mirroring server).
+  if (state.homeFinal || state.awayFinal){ state.homeFinal=false; state.awayFinal=false; }
+}
+
+// Enqueue ops, apply optimistically, then attempt to flush.
+function sendOps(ops){
+  if (!ops || !ops.length) return;
+  if (!state.server){ state.pendingOps = state.pendingOps.concat(ops); return; }
+  ops.forEach(applyOpLocally);
+  // Solo mode: do NOT queue ops for /scorecard.php - the server would reject
+  // edits to the other side's slots. Everything is captured locally and
+  // uploaded as a single completed card on Finalize.
+  if (!state.solo){
+    state.queue = state.queue.concat(ops);
+  }
+  // A new edit supersedes any earlier finalize intent (must re-finalize the new card).
+  state.queuedFinalize = false;
+  saveOfflineSnapshot();
+  renderAll(); updateFinalBanner(); setLive(state.online);
+  if (!state.solo) scheduleFlush();
+}
+
+// Drain queue against the server. Safe to call any time; no-op if offline / busy.
+async function flushQueue(){
+  if (!state.selectedFixture) return;
+  if (state.sendInflight) return;
+  if (!state.online) return;
+  if (state.queue.length===0 && !state.queuedFinalize) return;
+  state.sendInflight = true; setLive(true);
+  try {
+    while (state.queue.length){
+      const batch = state.queue.slice(); // send everything we know about
+      let data;
+      try { data = await api('/captain/scorecard.php', {
         method:'POST',
         body: JSON.stringify({ fixture_id: state.selectedFixture.fixture_id, if_version: state.version, ops: batch })
-      });
+      }); }
+      catch(e){
+        // Network error - keep queue, mark offline, try later.
+        state.online = false; setLive(false); flash('No signal - changes saved on this phone and will upload when back online.', true);
+        return;
+      }
       if (data.__status===409){
-        // Conflict: take server's version and retry queued ops (after the user's next action).
+        // Server moved on. Adopt its state and replay our queued ops on top.
+        state.conflictStrikes++;
         state.server=data.state; state.version=data.version;
         if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
         if (typeof data.home_finalized !== 'undefined') state.homeFinal=!!data.home_finalized;
         if (typeof data.away_finalized !== 'undefined') state.awayFinal=!!data.away_finalized;
-        renderAll(); updateFinalBanner(); setLive(true);
-        flash('Other captain edited at the same time - refreshed.', true);
-        // Drop the batch (we'll re-issue if user repeats action).
+        if (state.conflictStrikes >= MAX_CONFLICT_STRIKES){
+          flash('Other captain edited the same frames - dropped '+state.queue.length+' local change(s). Please review.', false);
+          state.queue = []; state.queuedFinalize=false; state.conflictStrikes=0;
+          saveOfflineSnapshot(); renderAll(); updateFinalBanner(); return;
+        }
+        // Re-apply locally so the UI shows our intent layered on top of new server state.
+        state.queue.forEach(applyOpLocally);
+        renderAll(); updateFinalBanner();
+        flash('Other captain edited at the same time - reconciling...', true);
         continue;
       }
+      state.conflictStrikes = 0;
       const prevHome = state.homeFinal, prevAway = state.awayFinal;
       state.server=data.state; state.version=data.version;
       if (typeof data.away_locked !== 'undefined') state.awayLocked=!!data.away_locked;
       if (typeof data.home_finalized !== 'undefined') state.homeFinal=!!data.home_finalized;
       if (typeof data.away_finalized !== 'undefined') state.awayFinal=!!data.away_finalized;
-      renderAll(); updateFinalBanner(); setLive(true);
+      // Drop the ops we just successfully sent.
+      state.queue = state.queue.slice(batch.length);
+      saveOfflineSnapshot(); renderAll(); updateFinalBanner();
       if (data.rejections && data.rejections.length){
-        // Show the first rejection (others are usually duplicates of the same root cause).
         flash(data.rejections[0].reason, false);
-      }
-      // If a previous finalization (by either captain) was just invalidated by this edit,
-      // surface a clear notice so the affected captain knows they must re-finalize.
-      else if ((prevHome && !state.homeFinal) || (prevAway && !state.awayFinal)){
+      } else if ((prevHome && !state.homeFinal) || (prevAway && !state.awayFinal)){
         const mineCleared = (state.yourSide==='home') ? (prevHome && !state.homeFinal) : (prevAway && !state.awayFinal);
         flash(mineCleared
           ? 'Your finalization was cleared because the card changed. Please review and finalize again.'
           : 'The other captain had finalized - their finalization was cleared by this edit.', true);
       }
     }
-  }catch(e){ setLive(false); flash('Save failed: '+e.message,false); }
-  finally{ state.sendInflight=false; }
-  updateFinalBanner();
+    // Queue drained - if a finalize was queued, fire it now.
+    if (state.queuedFinalize && !state.finalizeInflight){
+      await submitFinalize();
+    }
+  } finally {
+    state.sendInflight = false; setLive(state.online);
+  }
 }
+
+// Schedule a flush soon (debounced) and ensure the periodic timer is running.
+let _flushDebounce = null;
+function scheduleFlush(){
+  clearTimeout(_flushDebounce);
+  _flushDebounce = setTimeout(function(){ flushQueue().catch(function(){}); }, 250);
+  if (!state.flushTimer){
+    state.flushTimer = setInterval(function(){
+      if ((state.queue.length>0 || state.queuedFinalize) && state.online) flushQueue().catch(function(){});
+    }, FLUSH_INTERVAL_MS);
+  }
+}
+
+// Browser online/offline events drive a flush attempt or status update.
+window.addEventListener('online',  function(){ state.online=true;  setLive(true);  if (state.solo){ /* solo: just enable finalize upload */ } flushQueue().catch(function(){}); });
+window.addEventListener('offline', function(){ state.online=false; setLive(false); });
 
 // --- Rendering driven from state.server ---
 function frames(){ return (state.server && state.server.frames) ? state.server.frames : []; }
@@ -991,10 +1215,10 @@ function renderFrames(){
 
     const hl=homeLabel(f);
     const hc=document.createElement('div');
-    const lockedH = !ownSideHome;
+    const lockedH = !ownSideHome && !state.solo;
     hc.className='sc-pill home '+hl.cls+(f.is_doubles && hl.cls!=='void' && hl.cls!=='empty'?' dbl-h':'')+(lockedH?' locked':'');
     hc.textContent=hl.text;
-    hc.onclick=function(){ if (lockedH){ flash('Only the HOME captain can edit home players.', false); return; } openPicker(i,'home'); };
+    hc.onclick=function(){ if (lockedH && !state.solo){ flash('Only the HOME captain can edit home players.', false); return; } openPicker(i,'home'); };
     hr.appendChild(hc);
     homeWrap.appendChild(hr);
 
@@ -1006,12 +1230,12 @@ function renderFrames(){
     const total = frames().length;
     const isLast5 = (total >= 5 && i >= total - 5);
     const awayBlocked = (!ownSideHome && state.awayLocked && isLast5);
-    const lockedA = ownSideHome || awayBlocked;
+    const lockedA = (ownSideHome || awayBlocked) && !state.solo;
     ac.className='sc-pill away '+al.cls+(f.is_doubles && al.cls!=='void' && al.cls!=='empty'?' dbl-a':'')+(lockedA?' locked':'');
     ac.textContent=al.text;
     ac.onclick=function(){
-      if (ownSideHome){ flash('Only the AWAY captain can edit away players.', false); return; }
-      if (awayBlocked){ flash('Wait for the HOME captain to nominate their lead player in the last 5 frames before picking away players for those frames.', false); return; }
+      if (ownSideHome && !state.solo){ flash('Only the AWAY captain can edit away players.', false); return; }
+      if (awayBlocked && !state.solo){ flash('Wait for the HOME captain to nominate their lead player in the last 5 frames before picking away players for those frames.', false); return; }
       openPicker(i,'away');
     };
     ar.appendChild(ac);
@@ -1095,10 +1319,12 @@ function onNotesChange(){
 
 // --- Player picker ---
 function openPicker(frameIdx, slot){
-  // Lock check.
+  // Lock check (bypassed in solo mode).
   const ownSideHome = (state.yourSide==='home');
-  if ((slot==='home'||slot==='home2') && !ownSideHome) return;
-  if ((slot==='away'||slot==='away2') && ownSideHome) return;
+  if (!state.solo){
+    if ((slot==='home'||slot==='home2') && !ownSideHome) return;
+    if ((slot==='away'||slot==='away2') && ownSideHome) return;
+  }
   state.pickerCtx={frameIdx:frameIdx, slot:slot};
   state.currentIdx=frameIdx;
   renderPickerList();
@@ -1167,7 +1393,16 @@ function allScored(){ const fr=frames(); return fr.length>0 && fr.every(function
 function updateFinalBanner(){
   const fr=frames();
   const btn=$('finalizeBtn');
-  btn.disabled = !allScored();
+  btn.disabled = !allScored() || state.finalizeInflight;
+  if (state.queuedFinalize && !state.finalizeInflight){
+    btn.disabled = true;
+    const banner=$('finalBanner');
+    banner.style.display='block';
+    banner.textContent = (state.queue.length>0 || !state.online)
+      ? 'Finalize is queued. It will submit automatically once your '+(state.queue.length>0?(state.queue.length+' pending change(s) upload'):'phone is back online')+'.'
+      : 'Submitting finalize...';
+    return;
+  }
   const banner=$('finalBanner');
   const mine = (state.yourSide==='home') ? state.homeFinal : state.awayFinal;
   const other= (state.yourSide==='home') ? state.awayFinal : state.homeFinal;
@@ -1190,17 +1425,71 @@ function updateFinalBanner(){
 }
 async function finalizeCard(){
   if (!allScored()){ flash('All frames must have a winner first.', false); return; }
-  if (!confirm('Submit YOUR view of this card as final?')) return;
+  const soloMsg = 'Submit BOTH home and away cards from this phone?\n\nThe admin Inbox will receive matching cards for both sides (auto-agreed) and import the result.';
+  const normMsg = (state.queue.length>0 || !state.online)
+    ? 'Submit YOUR view of this card as final?\n\nThere are unsent changes on this phone - the final submission will be sent automatically once they upload.'
+    : 'Submit YOUR view of this card as final?';
+  if (!confirm(state.solo ? soloMsg : normMsg)) return;
+  state.queuedFinalize = true; saveOfflineSnapshot(); updateFinalBanner(); setLive(state.online);
+  if (state.online && state.queue.length===0){
+    await submitFinalize();
+  } else {
+    flash(state.solo
+      ? 'Solo card queued - will upload when back online.'
+      : 'Finalize queued - will submit when all changes are uploaded.', true);
+    flushQueue().catch(function(){});
+  }
+}
+
+async function submitFinalize(){
+  if (state.finalizeInflight || !state.selectedFixture) return;
+  state.finalizeInflight = true; setLive(state.online);
   try{
-    const data = await api('/captain/finalize.php',{
-      method:'POST',
-      body: JSON.stringify({ fixture_id: state.selectedFixture.fixture_id })
-    });
-    state.homeFinal=!!data.home_finalized; state.awayFinal=!!data.away_finalized;
-    updateFinalBanner();
-    flash('Card #'+data.id+' submitted. Admin inbox will reconcile both captains cards.', true);
+    let data;
+    if (state.solo){
+      // Solo phone: send the completed card as BOTH sides in one shot.
+      const frames = (state.server && state.server.frames) ? state.server.frames.map(function(f){
+        return {
+          number: f.number,
+          home_player_id:  f.home_player_id  || null,  home_player_name:  f.home_player_name  || null,
+          away_player_id:  f.away_player_id  || null,  away_player_name:  f.away_player_name  || null,
+          home_player2_id: f.home_player2_id || null,  away_player2_id:   f.away_player2_id   || null,
+          winner: f.winner || null,
+          eight_ball: !!f.eight_ball,
+          is_doubles: !!f.is_doubles
+        };
+      }) : [];
+      data = await api('/captain/submit-result.php',{
+        method:'POST',
+        body: JSON.stringify({
+          fixture_id: state.selectedFixture.fixture_id,
+          frames: frames,
+          notes: (state.server && state.server.notes) || '',
+          also_other_side: true
+        })
+      });
+      state.homeFinal = true; state.awayFinal = true; // for UI - both sides submitted
+      flash('Solo card submitted (#'+(data.ids && data.ids.home?data.ids.home:data.id)+'/'+(data.ids && data.ids.away?data.ids.away:'-')+'). Admin will import.', true);
+    } else {
+      data = await api('/captain/finalize.php',{
+        method:'POST',
+        body: JSON.stringify({ fixture_id: state.selectedFixture.fixture_id })
+      });
+      state.homeFinal=!!data.home_finalized; state.awayFinal=!!data.away_finalized;
+      flash('Card #'+data.id+' submitted. Admin inbox will reconcile both captains cards.', true);
+    }
+    state.queuedFinalize = false;
+    // Done with this card - clear local snapshot so next fixture starts fresh.
+    if (state.solo){ clearOfflineSnapshot(); state.queue=[]; state.solo=false; }
+    saveOfflineSnapshot(); updateFinalBanner();
     loadHistory().catch(function(){});
-  }catch(e){ flash(e.message,false); }
+  }catch(e){
+    state.online = (typeof navigator!=='undefined') ? navigator.onLine !== false : true;
+    flash(state.online ? ('Finalize failed: '+e.message+' - will retry.') : 'No signal - finalize will submit when back online.', false);
+    saveOfflineSnapshot();
+  } finally {
+    state.finalizeInflight = false; setLive(state.online);
+  }
 }
 
 // --- History (unchanged from previous version) ---
