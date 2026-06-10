@@ -562,70 +562,118 @@ public partial class SeasonSetupPage : ContentPage
 
         await _dataStore.AddSeasonAsync(_newSeason);
 
-        int copiedCount = 0;
+        // Build everything in memory with fresh IDs, remapping cross-entity
+        // references (division/venue/table/team/captain) so the copied season
+        // keeps its multi-division, multi-venue structure intact.
+        var divisionIdMap = new Dictionary<Guid, Guid>();
+        var venueIdMap = new Dictionary<Guid, Guid>();
+        var tableIdMap = new Dictionary<Guid, Guid>();
+        var teamIdMap = new Dictionary<Guid, Guid>();
+        var playerIdMap = new Dictionary<Guid, Guid>();
 
-        // Copy data based on selections
+        var newDivisions = new List<Division>();
+        var newVenues = new List<Venue>();
+        var newTeams = new List<Team>();
+        var newPlayers = new List<Player>();
+
         if (_copyDivisions)
         {
-            foreach (var div in _dataStore.GetData().Divisions.Where(d => d.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var div in _dataStore.GetData().Divisions.Where(d => d.SeasonId == _sourceSeason.Id))
             {
-                await _dataStore.AddDivisionAsync(new Division
+                var copy = new Division
                 {
+                    Id = Guid.NewGuid(),
                     SeasonId = _newSeason.Id,
                     Name = div.Name,
                     Notes = div.Notes
-                });
-                copiedCount++;
+                };
+                divisionIdMap[div.Id] = copy.Id;
+                newDivisions.Add(copy);
             }
         }
 
         if (_copyVenues)
         {
-            foreach (var venue in _dataStore.GetData().Venues.Where(v => v.SeasonId == _sourceSeason.Id).ToList())
+            foreach (var venue in _dataStore.GetData().Venues.Where(v => v.SeasonId == _sourceSeason.Id))
             {
-                await _dataStore.AddVenueAsync(new Venue
+                var copy = new Venue
                 {
+                    Id = Guid.NewGuid(),
                     SeasonId = _newSeason.Id,
                     Name = venue.Name,
                     Address = venue.Address,
-                    Notes = venue.Notes
-                });
-                copiedCount++;
+                    Notes = venue.Notes,
+                    Tables = venue.Tables.Select(t =>
+                    {
+                        var tableCopy = new VenueTable { Id = Guid.NewGuid(), Label = t.Label, MaxTeams = t.MaxTeams };
+                        tableIdMap[t.Id] = tableCopy.Id;
+                        return tableCopy;
+                    }).ToList()
+                };
+                venueIdMap[venue.Id] = copy.Id;
+                newVenues.Add(copy);
             }
         }
 
-        // Copy selected teams
         if (_selectedTeamIds.Count > 0)
         {
-            foreach (var team in _dataStore.GetData().Teams.Where(t => t.SeasonId == _sourceSeason.Id && _selectedTeamIds.Contains(t.Id)).ToList())
+            foreach (var team in _dataStore.GetData().Teams.Where(t => t.SeasonId == _sourceSeason.Id && _selectedTeamIds.Contains(t.Id)))
             {
-                await _dataStore.AddTeamAsync(new Team
+                var copy = new Team
                 {
+                    Id = Guid.NewGuid(),
                     SeasonId = _newSeason.Id,
+                    GlobalTeamId = team.GlobalTeamId,
                     Name = team.Name,
+                    DivisionId = team.DivisionId.HasValue && divisionIdMap.TryGetValue(team.DivisionId.Value, out var newDivId) ? newDivId : null,
+                    VenueId = team.VenueId.HasValue && venueIdMap.TryGetValue(team.VenueId.Value, out var newVenueId) ? newVenueId : null,
+                    TableId = team.TableId.HasValue && tableIdMap.TryGetValue(team.TableId.Value, out var newTableId) ? newTableId : null,
                     Captain = team.Captain,
+                    CaptainEmail = team.CaptainEmail,
+                    CaptainPhone = team.CaptainPhone,
                     ProvidesFood = team.ProvidesFood,
-                    Notes = team.Notes
-                });
-                copiedCount++;
+                    Notes = team.Notes,
+                    LogoCatalogId = team.LogoCatalogId
+                };
+                teamIdMap[team.Id] = copy.Id;
+                newTeams.Add(copy);
             }
         }
 
-        // Copy selected players
         if (_selectedPlayerIds.Count > 0)
         {
-            foreach (var player in _dataStore.GetData().Players.Where(p => p.SeasonId == _sourceSeason.Id && _selectedPlayerIds.Contains(p.Id)).ToList())
+            foreach (var player in _dataStore.GetData().Players.Where(p => p.SeasonId == _sourceSeason.Id && _selectedPlayerIds.Contains(p.Id)))
             {
-                await _dataStore.AddPlayerAsync(new Player
+                var copy = new Player
                 {
+                    Id = Guid.NewGuid(),
                     SeasonId = _newSeason.Id,
+                    GlobalPlayerId = player.GlobalPlayerId,
                     FirstName = player.FirstName,
                     LastName = player.LastName,
+                    TeamId = player.TeamId.HasValue && teamIdMap.TryGetValue(player.TeamId.Value, out var newTeamId) ? newTeamId : null,
                     Notes = player.Notes
-                });
-                copiedCount++;
+                };
+                playerIdMap[player.Id] = copy.Id;
+                newPlayers.Add(copy);
             }
         }
+
+        // Remap captain references now that player IDs are known
+        var sourceTeamsById = _dataStore.GetData().Teams
+            .Where(t => t.SeasonId == _sourceSeason.Id)
+            .ToDictionary(t => t.Id);
+        foreach (var (oldTeamId, newTeamId) in teamIdMap)
+        {
+            var oldCaptainId = sourceTeamsById[oldTeamId].CaptainPlayerId;
+            if (oldCaptainId.HasValue && playerIdMap.TryGetValue(oldCaptainId.Value, out var newCaptainId))
+                newTeams.First(t => t.Id == newTeamId).CaptainPlayerId = newCaptainId;
+        }
+
+        // Single transactional batch insert
+        await _dataStore.AddSeasonEntitiesAsync(newDivisions, newVenues, newTeams, newPlayers);
+
+        int copiedCount = newDivisions.Count + newVenues.Count + newTeams.Count + newPlayers.Count;
 
         await DisplayAlert("Success", $"\u2705 Season '{_newSeason.Name}' created!\nCopied {copiedCount} items from '{_sourceSeason.Name}'.", "OK");
         await Navigation.PopAsync();

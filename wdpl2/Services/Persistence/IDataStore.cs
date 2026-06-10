@@ -128,6 +128,24 @@ public interface IDataStore
     /// Delete a fixture
     /// </summary>
     Task DeleteFixtureAsync(Fixture fixture, CancellationToken ct = default);
+
+    /// <summary>
+    /// Atomically replace all fixtures for a season with the supplied set.
+    /// Used by fixture generation so the whole batch persists in one transaction.
+    /// </summary>
+    Task ReplaceFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk-insert a season's entities (divisions, venues, teams, players) in a single
+    /// transaction. Used by the season setup wizard when copying a previous season.
+    /// Any null collection is skipped.
+    /// </summary>
+    Task AddSeasonEntitiesAsync(
+        IReadOnlyList<Division>? divisions = null,
+        IReadOnlyList<Venue>? venues = null,
+        IReadOnlyList<Team>? teams = null,
+        IReadOnlyList<Player>? players = null,
+        CancellationToken ct = default);
     
     /// <summary>
     /// Get all seasons

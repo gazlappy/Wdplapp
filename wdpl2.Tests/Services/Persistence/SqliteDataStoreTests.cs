@@ -586,13 +586,19 @@ public class SqliteDataStoreTests
     [Fact]
     public async Task UpdateVenueAsync_UpdatesAndSavesVenue()
     {
-        // Arrange
-        var venue = new Venue { Id = Guid.NewGuid(), Name = "Original", SeasonId = Guid.NewGuid() };
+        // Arrange — UpdateVenueAsync uses raw SQL + a transaction (JSON-owned
+        // collection workaround), so it needs a relational provider.
+        var season = new Season { Id = Guid.NewGuid(), Name = "S1" };
+        var venue = new Venue { Id = Guid.NewGuid(), Name = "Original", SeasonId = season.Id };
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+        connection.Open();
         var options = new DbContextOptionsBuilder<LeagueContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseSqlite(connection)
             .Options;
 
         using var context = new LeagueContext(options);
+        await context.Database.EnsureCreatedAsync();
+        await context.Seasons.AddAsync(season);
         await context.Venues.AddAsync(venue);
         await context.SaveChangesAsync();
 
@@ -859,13 +865,29 @@ public class SqliteDataStoreTests
     [Fact]
     public async Task UpdateFixtureAsync_UpdatesAndSavesFixture()
     {
-        // Arrange
-        var fixture = new Fixture { Id = Guid.NewGuid(), SeasonId = Guid.NewGuid(), Date = DateTime.UtcNow };
+        // Arrange — UpdateFixtureAsync uses raw SQL + a transaction (JSON-owned
+        // collection workaround), so it needs a relational provider.
+        var season = new Season { Id = Guid.NewGuid(), Name = "S1" };
+        var home = new Team { Id = Guid.NewGuid(), SeasonId = season.Id, Name = "Home" };
+        var away = new Team { Id = Guid.NewGuid(), SeasonId = season.Id, Name = "Away" };
+        var fixture = new Fixture
+        {
+            Id = Guid.NewGuid(),
+            SeasonId = season.Id,
+            HomeTeamId = home.Id,
+            AwayTeamId = away.Id,
+            Date = DateTime.UtcNow
+        };
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+        connection.Open();
         var options = new DbContextOptionsBuilder<LeagueContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseSqlite(connection)
             .Options;
 
         using var context = new LeagueContext(options);
+        await context.Database.EnsureCreatedAsync();
+        await context.Seasons.AddAsync(season);
+        await context.Teams.AddRangeAsync(home, away);
         await context.Fixtures.AddAsync(fixture);
         await context.SaveChangesAsync();
 

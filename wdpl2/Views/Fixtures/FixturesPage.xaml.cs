@@ -3449,8 +3449,9 @@ public partial class FixturesPage : ContentPage
             if (activeSeason != null)
             {
                 seasonId = activeSeason.Id;
-                _dataStore.GetData().ActiveSeasonId = seasonId;
-                try { await _dataStore.SaveAsync(); }
+                // ActiveSeasonId is a JSON-only field; persist via legacy JSON store
+                DataStore.Data.ActiveSeasonId = seasonId;
+                try { DataStore.SaveJsonOnly(); }
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"FixturesPage: failed to persist recovered ActiveSeasonId: {ex.Message}"); }
             }
         }
@@ -3507,9 +3508,9 @@ public partial class FixturesPage : ContentPage
                 endDate: season.EndDate,
                 blackoutDates: season.BlackoutDates);
 
-            _dataStore.GetData().Fixtures.RemoveAll(f => f.SeasonId == seasonId);
-            _dataStore.GetData().Fixtures.AddRange(fixtures);
-            await _dataStore.SaveAsync();
+            // Atomic replace via the typed store — mutating the GetData()
+            // snapshot then calling SaveAsync() never persisted anything.
+            await _dataStore.ReplaceFixturesForSeasonAsync(seasonId.Value, fixtures);
 
             // Detect any scheduling conflicts across the generated fixtures
             var allConflictWarnings = new List<string>();

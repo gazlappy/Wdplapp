@@ -54,10 +54,25 @@ namespace Wdpl2.Services
                 return d;
             }
 
-            var venueTables = league.Venues?.ToDictionary(
+            // Venues are season-scoped entities: only consider this season's venues,
+            // otherwise stale VenueIds from other seasons leak into the schedule.
+            // A venue with no defined tables is treated as having one implicit
+            // table (sentinel Id = Guid.Empty) so it can still host one match
+            // per night instead of being unschedulable.
+            var seasonVenues = league.Venues?
+                .Where(v => v.SeasonId == seasonId)
+                .OrderBy(v => v.Name)
+                .ToList() ?? new List<Venue>();
+
+            var venueTables = seasonVenues.ToDictionary(
                 v => v.Id,
-                v => (IReadOnlyList<VenueTable>)(v.Tables?.OrderBy(t => t.Label).ToList() ?? new List<VenueTable>())
-            ) ?? new Dictionary<Guid, IReadOnlyList<VenueTable>>();
+                v => (IReadOnlyList<VenueTable>)(v.Tables is { Count: > 0 }
+                    ? v.Tables.OrderBy(t => t.Label).ToList()
+                    : new List<VenueTable> { new VenueTable { Id = Guid.Empty, Label = "" } })
+            );
+
+            // Deterministic venue fallback order (dictionary key order is not guaranteed)
+            var orderedVenueIds = (IReadOnlyList<Guid>)seasonVenues.Select(v => v.Id).ToList();
 
             var bookedByDate = new Dictionary<DateTime, HashSet<(Guid venueId, Guid tableId)>>();
             var teamBookedByDate = new Dictionary<DateTime, HashSet<Guid>>();
@@ -145,7 +160,7 @@ namespace Wdpl2.Services
                             teamBookedByDate[dateKey].Contains(away.Id))
                         {
                             allFixtures.Add(AllocateOnNextNight(
-                                league, seasonId, division, home, away, venueTables,
+                                league, seasonId, division, home, away, venueTables, orderedVenueIds,
                                 bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick,
                                 endDateOnly, blackouts));
                             continue;
@@ -153,10 +168,10 @@ namespace Wdpl2.Services
 
                         var (fx, placed) = TryCreateFixtureAtHomeVenue(
                             league, seasonId, division, home, away, dateKey, kick,
-                            venueTables, bookedByDate, teamBookedByDate);
+                            venueTables, orderedVenueIds, bookedByDate, teamBookedByDate);
 
                         allFixtures.Add(placed ? fx : AllocateOnNextNight(
-                            league, seasonId, division, home, away, venueTables,
+                            league, seasonId, division, home, away, venueTables, orderedVenueIds,
                             bookedByDate, teamBookedByDate, currentRoundDate, matchNight, kick,
                             endDateOnly, blackouts));
                     }
@@ -177,19 +192,41 @@ namespace Wdpl2.Services
             DateTime dateKey,
             TimeSpan kickoff,
             IReadOnlyDictionary<Guid, IReadOnlyList<VenueTable>> venueTables,
+            IReadOnlyList<Guid> orderedVenueIds,
             Dictionary<DateTime, HashSet<(Guid venueId, Guid tableId)>> bookedByDate,
             Dictionary<DateTime, HashSet<Guid>> teamBookedByDate)
         {
             Guid? homeVenueId = home.VenueId ?? away.VenueId;
 
             var venueCandidates = new List<Guid>();
-            if (homeVenueId.HasValue) venueCandidates.Add(homeVenueId.Value);
-            foreach (var v in league.Venues.Select(v => v.Id))
-                if (!venueCandidates.Contains(v) && venueTables.TryGetValue(v, out var tbls) && tbls.Count > 0)
+            if (homeVenueId.HasValue && venueTables.ContainsKey(homeVenueId.Value))
+                venueCandidates.Add(homeVenueId.Value);
+            foreach (var v in orderedVenueIds)
+                if (!venueCandidates.Contains(v))
                     venueCandidates.Add(v);
 
             var bookings = bookedByDate[dateKey];
             var teamBookings = teamBookedByDate[dateKey];
+
+            // No venues defined for this season at all: schedule the match at the
+            // home team's nominal venue without table tracking rather than failing.
+            if (venueCandidates.Count == 0)
+            {
+                var fallbackFx = new Fixture
+                {
+                    Id = Guid.NewGuid(),
+                    SeasonId = seasonId,
+                    DivisionId = division.Id,
+                    Date = dateKey.Add(kickoff),
+                    HomeTeamId = home.Id,
+                    AwayTeamId = away.Id,
+                    VenueId = homeVenueId,
+                    TableId = home.TableId
+                };
+                teamBookings.Add(home.Id);
+                teamBookings.Add(away.Id);
+                return (fallbackFx, true);
+            }
 
             foreach (var venueId in venueCandidates)
             {
@@ -217,7 +254,8 @@ namespace Wdpl2.Services
                         HomeTeamId = home.Id,
                         AwayTeamId = away.Id,
                         VenueId = venueId,
-                        TableId = table.Id
+                        // Guid.Empty is the implicit "venue has no defined tables" sentinel
+                        TableId = table.Id == Guid.Empty ? null : table.Id
                     };
 
                     bookings.Add(key);
@@ -237,6 +275,7 @@ namespace Wdpl2.Services
             Team home,
             Team away,
             IReadOnlyDictionary<Guid, IReadOnlyList<VenueTable>> venueTables,
+            IReadOnlyList<Guid> orderedVenueIds,
             Dictionary<DateTime, HashSet<(Guid venueId, Guid tableId)>> bookedByDate,
             Dictionary<DateTime, HashSet<Guid>> teamBookedByDate,
             DateTime currentRoundDate,
@@ -246,9 +285,11 @@ namespace Wdpl2.Services
             HashSet<DateTime>? blackouts = null)
         {
             int safety = 0;
+            DateTime lastTried = currentRoundDate;
             while (safety++ < 52)
             {
                 var dateKey = currentRoundDate.AddDays(7 * safety).Date;
+                lastTried = dateKey;
 
                 if (blackouts != null && blackouts.Contains(dateKey)) continue;
                 if (endDateOnly.HasValue && dateKey > endDateOnly.Value) break;
@@ -256,19 +297,27 @@ namespace Wdpl2.Services
                 if (!bookedByDate.ContainsKey(dateKey)) bookedByDate[dateKey] = new();
                 if (!teamBookedByDate.ContainsKey(dateKey)) teamBookedByDate[dateKey] = new();
 
+                if (teamBookedByDate[dateKey].Contains(home.Id) ||
+                    teamBookedByDate[dateKey].Contains(away.Id))
+                    continue;
+
                 var (fx, ok) = TryCreateFixtureAtHomeVenue(
                     league, seasonId, division, home, away, dateKey, kickoff,
-                    venueTables, bookedByDate, teamBookedByDate);
+                    venueTables, orderedVenueIds, bookedByDate, teamBookedByDate);
 
                 if (ok) return fx;
             }
 
+            // Could not place within the season window: schedule on the next match
+            // night after the last tried date (unplaced, but visible and editable)
+            // instead of pushing it a year out.
+            var overflow = lastTried.AddDays(7).Date;
             return new Fixture
             {
                 Id = Guid.NewGuid(),
                 SeasonId = seasonId,
                 DivisionId = division.Id,
-                Date = currentRoundDate.AddDays(365).Date.Add(kickoff),
+                Date = overflow.Add(kickoff),
                 HomeTeamId = home.Id,
                 AwayTeamId = away.Id,
                 VenueId = home.VenueId,

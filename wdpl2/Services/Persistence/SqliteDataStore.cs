@@ -456,6 +456,55 @@ public class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
+    public async Task ReplaceFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default)
+    {
+        // Delete + insert inside a single SaveChanges call so the whole batch is
+        // atomic (EF wraps one SaveChanges in an implicit transaction on relational
+        // providers, and this also works on the InMemory provider used in tests).
+        await _gate.WaitAsync(ct);
+        try
+        {
+            _context.ChangeTracker.Clear();
+
+            var existing = await _context.Fixtures
+                .Where(f => f.SeasonId == seasonId)
+                .ToListAsync(ct);
+            _context.Fixtures.RemoveRange(existing);
+
+            _context.Fixtures.AddRange(fixtures);
+
+            await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task AddSeasonEntitiesAsync(
+        IReadOnlyList<Division>? divisions = null,
+        IReadOnlyList<Venue>? venues = null,
+        IReadOnlyList<Team>? teams = null,
+        IReadOnlyList<Player>? players = null,
+        CancellationToken ct = default)
+    {
+        // Single SaveChanges so the copy is all-or-nothing and the snapshot
+        // cache is only invalidated once (the old per-entity Add*Async loop
+        // refreshed the entire JSON cache for every row inserted).
+        await _gate.WaitAsync(ct);
+        try
+        {
+            _context.ChangeTracker.Clear();
+
+            if (divisions is { Count: > 0 }) _context.Divisions.AddRange(divisions);
+            if (venues is { Count: > 0 }) _context.Venues.AddRange(venues);
+            if (teams is { Count: > 0 }) _context.Teams.AddRange(teams);
+            if (players is { Count: > 0 }) _context.Players.AddRange(players);
+
+            await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
+        }
+        finally { _gate.Release(); }
+    }
+
     // ====== SEASONS ======
     public async Task<List<Season>> GetSeasonsAsync(CancellationToken ct = default)
     {
@@ -487,6 +536,11 @@ public class SqliteDataStore : IDataStore
         await _gate.WaitAsync(ct);
         try
         {
+            // Callers pass detached snapshot instances; a different instance of
+            // the same Season may still be tracked from a previous update, which
+            // makes Update() throw "another instance with the same key value is
+            // already being tracked". Clear the tracker so each update is clean.
+            _context.ChangeTracker.Clear();
             _context.Seasons.Update(season);
             await _context.SaveChangesAsync(ct);
             InvalidateSnapshot();

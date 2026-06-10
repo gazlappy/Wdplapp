@@ -21,6 +21,9 @@ namespace Wdpl2.Views
         private readonly Dictionary<string, string> _exclusionTitles = new();
         private Season? _selected;
         private bool _isFlyoutOpen = false;
+        private bool _isRefreshingList;
+        private Guid? _pendingActivationId;
+        private bool _activationRunning;
 
         public SeasonsPage(IDataStore dataStore)
         {
@@ -46,18 +49,21 @@ namespace Wdpl2.Views
             StartPicker.DateSelected += OnSeasonDateChanged;
             EndPicker.DateSelected += OnSeasonDateChanged;
 
-            RefreshList(selectFirst: true);
+            // Open on the app's current season (falls back to first if none)
+            RefreshList(selectId: SeasonService.Current?.CurrentSeasonId, selectFirst: true);
         }
 
         protected override void OnAppearing()
         {
             base.OnAppearing();
             // The Season Setup wizard may have added a new season; reflect it here.
-            var previouslySelectedId = _selected?.Id;
-            RefreshList(selectId: previouslySelectedId, selectFirst: previouslySelectedId == null);
+            // The service ID is authoritative (another page may have switched
+            // season); fall back to this page's previous selection.
+            var selectId = SeasonService.Current?.CurrentSeasonId ?? _selected?.Id;
+            RefreshList(selectId: selectId, selectFirst: true);
         }
 
-        private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selected = e.CurrentSelection?.FirstOrDefault() as Season;
 
@@ -67,35 +73,90 @@ namespace Wdpl2.Views
                 HideSeasonInfo();
 
             PopulateEditor(_selected);
+
+            // Ignore programmatic selection (page load / list rebuilds) so only
+            // a real user click changes app state.
+            if (_isRefreshingList || _selected == null)
+                return;
+
+            // Switch the app's working season so every other tab (fixtures,
+            // teams, players…) follows the clicked season immediately.
+            var seasonService = SeasonService.Current;
+            if (seasonService != null && seasonService.CurrentSeasonId != _selected.Id)
+            {
+                seasonService.CurrentSeasonId = _selected.Id;
+                StatusLabel.Text = $"Switched to \"{_selected.Name}\"";
+            }
+
+            // Keep the green "active" dot in sync: the clicked season becomes
+            // the active one (deactivates the rest in place and persists).
+            await SetActiveSeasonAsync(_selected);
         }
 
         /// <summary>
         /// Make the given season the active one. Deactivates all others, persists, and notifies SeasonService.
+        /// Rapid successive calls are coalesced: only the latest target wins and writes never
+        /// interleave. The bound items are mutated in place (IsActive raises PropertyChanged),
+        /// so the green dot updates instantly without rebuilding the list. Rebuilding mid-click
+        /// recycled row containers and made the highlight/dot land on 0 or 2 rows.
         /// </summary>
         private async Task SetActiveSeasonAsync(Season season)
         {
+            _pendingActivationId = season.Id;
+            if (_activationRunning)
+                return; // the in-flight loop below picks up the new target
+
+            _activationRunning = true;
             try
             {
-                // Deactivate any other seasons currently flagged active
-                foreach (var s in League.Seasons.Where(s => s.IsActive && s.Id != season.Id).ToList())
+                while (_pendingActivationId is Guid targetId)
                 {
-                    s.IsActive = false;
-                    await _dataStore.UpdateSeasonAsync(s);
+                    _pendingActivationId = null;
+
+                    // Work directly on the bound list items so the dots reflect
+                    // exactly what we persist - no stale snapshot mismatch.
+                    var target = _items.FirstOrDefault(s => s.Id == targetId);
+                    if (target == null)
+                        continue;
+
+                    // Deactivate any other seasons currently flagged active
+                    foreach (var s in _items.Where(s => s.IsActive && s.Id != targetId).ToList())
+                    {
+                        s.IsActive = false;
+                        await _dataStore.UpdateSeasonAsync(s);
+                    }
+
+                    if (!target.IsActive)
+                    {
+                        target.IsActive = true;
+                        await _dataStore.UpdateSeasonAsync(target);
+                    }
+
+                    // ActiveSeasonId is a JSON-only field; persist via legacy JSON store
+                    if (DataStore.Data.ActiveSeasonId != targetId)
+                    {
+                        DataStore.Data.ActiveSeasonId = targetId;
+                        DataStore.SaveJsonOnly();
+                    }
+
+                    SeasonService.Current.CurrentSeasonId = targetId;
+
+                    // Keep the info panel/editor in sync if this row is still selected
+                    if (_selected?.Id == targetId)
+                    {
+                        ShowSeasonInfo(target);
+                        ActiveSwitch.IsToggled = true;
+                    }
                 }
-
-                season.IsActive = true;
-                await _dataStore.UpdateSeasonAsync(season);
-
-                // ActiveSeasonId is a JSON-only field; persist via legacy JSON store
-                DataStore.Data.ActiveSeasonId = season.Id;
-                DataStore.SaveJsonOnly();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SetActiveSeasonAsync save error: {ex.Message}");
             }
-
-            SeasonService.Current.CurrentSeasonId = season.Id;
+            finally
+            {
+                _activationRunning = false;
+            }
         }
 
         private void OnNewClicked(object sender, EventArgs e)
@@ -250,12 +311,19 @@ namespace Wdpl2.Views
 
             if (!confirm) return;
 
-            // Cascade delete all data for this season
-            _dataStore.GetData().DeleteSeasonCascade(_selected.Id);
+            // Cascade delete all season data in SQLite (single transaction)
+            var deletedId = _selected.Id;
+            await _dataStore.DeleteSeasonAsync(_selected);
 
-            // Also clean up any orphaned entities (null or invalid SeasonId)
-            _dataStore.GetData().CleanupOrphans();
-            await _dataStore.SaveAsync();
+            // Clean up JSON-only data (doubles pairings, active season pointer)
+            DataStore.Data.DoublesPairings.RemoveAll(dp => dp.SeasonId == deletedId);
+            if (DataStore.Data.ActiveSeasonId == deletedId)
+                DataStore.Data.ActiveSeasonId = League.Seasons.FirstOrDefault(s => s.IsActive)?.Id;
+            DataStore.SaveJsonOnly();
+
+            // Don't leave the rest of the app pointing at a deleted season
+            if (SeasonService.Current.CurrentSeasonId == deletedId)
+                SeasonService.Current.CurrentSeasonId = DataStore.Data.ActiveSeasonId;
 
             _selected = null;
             RefreshList(selectFirst: true);
@@ -271,7 +339,6 @@ namespace Wdpl2.Views
             }
 
             await SetActiveSeasonAsync(_selected);
-            RefreshList(selectId: _selected.Id);
             StatusLabel.Text = $"\u2705 \"{_selected.Name}\" set as active.";
         }
 
@@ -321,10 +388,18 @@ namespace Wdpl2.Views
                               $"Save changes now?";
 
                 var confirm = await DisplayAlert("Fix Data", message, "Yes, Save", "Cancel");
-                
+
                 if (confirm)
                 {
-                    await _dataStore.SaveAsync();
+                    // Persist each reassigned entity through the typed store
+                    // (mutating the GetData() snapshot alone is never saved).
+                    // Parent entities before children to respect FK order.
+                    foreach (var division in fixedDivisions) await _dataStore.UpdateDivisionAsync(division);
+                    foreach (var venue in fixedVenues) await _dataStore.UpdateVenueAsync(venue);
+                    foreach (var team in fixedTeams) await _dataStore.UpdateTeamAsync(team);
+                    foreach (var player in fixedPlayers) await _dataStore.UpdatePlayerAsync(player);
+                    foreach (var fixture in fixedFixtures) await _dataStore.UpdateFixtureAsync(fixture);
+
                     StatusLabel.Text = $"\u2705 Fixed {totalFixed} items and saved!";
 
                     // Trigger a refresh on all pages by updating the season service
@@ -366,8 +441,11 @@ namespace Wdpl2.Views
                 return;
             }
 
-            var divCount = League.Divisions?.Count ?? 0;
+            // Scope pre-checks to the selected season so other seasons' data
+            // doesn't mask a missing-division/team problem here.
+            var divCount = League.Divisions?.Count(d => d.SeasonId == _selected.Id) ?? 0;
             var teamCounts = League.Teams
+                .Where(t => t.SeasonId == _selected.Id)
                 .GroupBy(t => t.DivisionId)
                 .Select(g => new { DivisionId = g.Key, Count = g.Count() })
                 .ToList();
@@ -379,6 +457,16 @@ namespace Wdpl2.Views
                     "You need at least one division with 2+ teams (with DivisionId set) before fixtures can be generated.",
                     "OK");
                 return;
+            }
+
+            var existingCount = League.Fixtures.Count(f => f.SeasonId == _selected.Id);
+            if (existingCount > 0)
+            {
+                var replace = await DisplayAlert(
+                    "Generate Fixtures",
+                    $"{existingCount} existing fixture(s) for \"{_selected.Name}\" will be replaced. Continue?",
+                    "Generate", "Cancel");
+                if (!replace) return;
             }
 
             try
@@ -397,10 +485,9 @@ namespace Wdpl2.Views
                     endDate: _selected.EndDate,
                     blackoutDates: _selected.BlackoutDates);
 
-                League.Fixtures.RemoveAll(f => f.SeasonId == _selected.Id);
-                League.Fixtures.AddRange(fixtures);
-
-                try { await _dataStore.SaveAsync(); } catch { }
+                // Atomic replace via the typed store (mutating the GetData()
+                // snapshot then calling SaveAsync() never persisted anything).
+                await _dataStore.ReplaceFixturesForSeasonAsync(_selected.Id, fixtures);
 
                 StatusLabel.Text = $"Generated {fixtures.Count} fixtures for \"{_selected.Name}\".";
                 await DisplayAlert("Fixtures", StatusLabel.Text, "OK");
@@ -530,24 +617,32 @@ namespace Wdpl2.Views
 
         private void RefreshList(bool selectFirst = false, Guid? selectId = null)
         {
-            _items.Clear();
-            foreach (var s in League.Seasons.OrderBy(s => s.Name)) // Alphabetical order
-                _items.Add(s);
-
-            Season? toSelect = null;
-            if (selectId.HasValue)
-                toSelect = _items.FirstOrDefault(s => s.Id == selectId.Value);
-            else if (selectFirst)
-                toSelect = _items.FirstOrDefault();
-
-            if (toSelect != null)
+            _isRefreshingList = true;
+            try
             {
-                SeasonsList.SelectedItem = toSelect;
-                PopulateEditor(toSelect);
+                _items.Clear();
+                foreach (var s in League.Seasons.OrderBy(s => s.Name)) // Alphabetical order
+                    _items.Add(s);
+
+                Season? toSelect = null;
+                if (selectId.HasValue)
+                    toSelect = _items.FirstOrDefault(s => s.Id == selectId.Value);
+                if (toSelect == null && selectFirst)
+                    toSelect = _items.FirstOrDefault();
+
+                if (toSelect != null)
+                {
+                    SeasonsList.SelectedItem = toSelect;
+                    PopulateEditor(toSelect);
+                }
+                else
+                {
+                    PopulateEditor(null);
+                }
             }
-            else
+            finally
             {
-                PopulateEditor(null);
+                _isRefreshingList = false;
             }
         }
 
@@ -772,7 +867,7 @@ namespace Wdpl2.Views
                 _selected.IsLocked = true;
             }
 
-            await _dataStore.SaveAsync();
+            await _dataStore.UpdateSeasonAsync(_selected);
             UpdateLockUI(_selected);
 
             // Refresh list to update lock icon

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -9,9 +10,25 @@ namespace Wdpl2.Models
     /// <summary>
     /// A league season with weekly match rules and blackout dates.
     /// </summary>
-    public sealed class Season
+    public sealed class Season : INotifyPropertyChanged
     {
-        public bool IsActive { get; set; } = true;
+        /// <summary>
+        /// Raised when <see cref="IsActive"/> changes so bound UI (the green
+        /// active dot on the Seasons list) refreshes without rebuilding the list.
+        /// </summary>
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private bool _isActive = true;
+        public bool IsActive
+        {
+            get => _isActive;
+            set
+            {
+                if (_isActive == value) return;
+                _isActive = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+            }
+        }
 
         /// <summary>When true, the season and all its data are read-only and cannot be deleted.</summary>
         public bool IsLocked { get; set; }
