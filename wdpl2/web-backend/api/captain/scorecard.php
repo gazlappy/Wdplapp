@@ -65,6 +65,24 @@ function away_locked_until_home_last5($state) {
     return false;
 }
 
+// WDPL rule (frame-for-frame): in the early frames the away captain cannot pick
+// an away player for a frame until the home captain has nominated that frame's
+// own lead home player. The LAST 5 frames keep the blind-nomination rule above
+// (all five home leads must be set first). Returns true if away slot $idx is locked.
+function away_slot_locked($state, $idx) {
+    $frames = isset($state['frames']) ? $state['frames'] : array();
+    $n = count($frames);
+    if ($idx < 0 || $idx >= $n) return false;
+    if ($n >= 5 && $idx >= $n - 5) {
+        // Last 5 frames: blind nomination - locked until all 5 home leads are set.
+        return away_locked_until_home_last5($state);
+    }
+    // Early frames: locked until THIS frame's home lead is nominated.
+    $f = $frames[$idx];
+    $hasHome = (!empty($f['home_player_id']) || !empty($f['home_player_name']));
+    return !$hasHome;
+}
+
 function empty_state($fixture) {
     $s = default_settings();
     $n = $s['default_frames_per_match']; if ($n <= 0 || $n > 50) $n = 15;
@@ -80,6 +98,7 @@ function empty_state($fixture) {
             'winner'         => null,
             'eight_ball'     => false,
             'pending_eight'  => null, // { by:'home'|'away', value:true/false }
+            'eight_declined' => null, // { by:'home'|'away', value:true/false, at: iso }
         );
     }
     return array(
@@ -298,18 +317,22 @@ try {
             $pid = isset($op['player_id'])   ? $op['player_id']   : null;
             $pnm = isset($op['player_name']) ? $op['player_name'] : null;
 
-            // WDPL rule: away captain may not pick into the LAST 5 frames until
-            // the home captain has nominated the lead home player in each of
-            // those last 5 frames. The first frames are unaffected.
+            // WDPL rule: the away captain picks frame-for-frame. For the early
+            // frames an away slot is locked until the home captain nominates THAT
+            // frame's own lead home player. For the LAST 5 frames the home captain
+            // nominates all five leads blind first, then the away slots unlock.
             // Clearing a slot (null pick) is always allowed.
             $isAwaySlot = ($slot === 'away' || $slot === 'away2');
             $isClearing = ($pid === null && ($pnm === null || $pnm === ''));
             $nFrames    = count($state['frames']);
             $isLast5    = ($nFrames >= 5 && $idx >= $nFrames - 5);
-            if ($isAwaySlot && !$isClearing && $isLast5 && away_locked_until_home_last5($state)) {
+            if ($isAwaySlot && !$isClearing && away_slot_locked($state, $idx)) {
+                $reason = $isLast5
+                    ? 'Away picks for the last 5 frames are locked until the home captain has nominated all of theirs.'
+                    : 'This away slot is locked until the home captain nominates their player for frame ' . $f['number'] . '.';
                 $rejections[] = array(
                     'op_index' => $opIdx, 'frame' => $f['number'], 'slot' => $slot,
-                    'reason'   => 'Away picks for the last 5 frames are locked until the home captain has nominated all of theirs.',
+                    'reason'   => $reason,
                 );
                 unset($f);
                 continue;
@@ -346,7 +369,7 @@ try {
             // Either captain may record winner.
             $w = isset($op['value']) ? $op['value'] : null;
             if ($w !== 'home' && $w !== 'away' && $w !== null) continue;
-            if ($f['winner'] === $w) { $f['winner'] = null; $f['eight_ball'] = false; $f['pending_eight'] = null; }
+            if ($f['winner'] === $w) { $f['winner'] = null; $f['eight_ball'] = false; $f['pending_eight'] = null; $f['eight_declined'] = null; }
             else                     { $f['winner'] = $w; }
             $changed = true;
         }
@@ -356,6 +379,7 @@ try {
             $val = !empty($op['value']);
             if ($val === (bool)$f['eight_ball']) continue; // already in that state
             $f['pending_eight'] = array('by' => $side, 'value' => $val);
+            $f['eight_declined'] = null; // a fresh proposal clears any prior disagreement notice
             $changed = true;
         }
         else if ($kind === 'agree_eight') {
@@ -363,11 +387,15 @@ try {
             if (!$pe || $pe['by'] === $side) continue; // only the OTHER side can agree
             $f['eight_ball'] = !empty($pe['value']);
             $f['pending_eight'] = null;
+            $f['eight_declined'] = null;
             $changed = true;
         }
         else if ($kind === 'decline_eight') {
             $pe = isset($f['pending_eight']) ? $f['pending_eight'] : null;
             if (!$pe || $pe['by'] === $side) continue;
+            // Record WHO disagreed and with WHAT, so the proposing captain's
+            // client can surface a notice on its next poll. Scoring is unchanged.
+            $f['eight_declined'] = array('by' => $side, 'value' => !empty($pe['value']), 'at' => gmdate('c'));
             $f['pending_eight'] = null;
             $changed = true;
         }

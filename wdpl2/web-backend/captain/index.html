@@ -326,6 +326,8 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 .sc-eight.pending { background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; }
 .eight-banner { background:linear-gradient(90deg, #FEF3C7, #FDE68A); border:1px solid #F59E0B; color:#92400E; border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13px; display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; box-shadow:0 2px 6px rgba(245,158,11,0.25); }
 .eight-banner button { padding:5px 12px; font-size:12px; }
+.eight-banner button.secondary { background:#FFFBEB; color:#92400E; border:1px solid #F59E0B; box-shadow:none; }
+.eight-banner button.secondary:hover:not(:disabled) { background:#FDE68A; border-color:#B45309; }
 .final-banner { background:linear-gradient(90deg, var(--panel), var(--panel-2)); color:#dbeafe; border-radius:8px; padding:12px 14px; margin-top:12px; font-size:13px; border:1px solid var(--line); }
 .final-banner.done { background:linear-gradient(90deg, var(--ok-bg), #0e5d3e); color:var(--ok-fg); border-color:rgba(34,197,94,0.4); }
 
@@ -490,8 +492,13 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 
 <div id="eightBanner" class="eight-banner" style="display:none"></div>
 
-<div class="row" style="margin-top:10px">
+<div class="row" style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
   <span class="muted" id="frameCount"></span>
+  <span id="randomFillBar" style="display:flex; gap:6px;">
+    <button type="button" class="secondary" onclick="randomFill(1)" title="Randomly fill 1 empty player slot on your side" style="padding:4px 9px; font-size:12px;">&#127922; +1</button>
+    <button type="button" class="secondary" onclick="randomFill(5)" title="Randomly fill up to 5 empty player slots on your side" style="padding:4px 9px; font-size:12px;">&#127922; +5</button>
+    <button type="button" class="secondary" onclick="randomFill('all')" title="Randomly fill all empty player slots on your side" style="padding:4px 9px; font-size:12px;">&#127922; All</button>
+  </span>
 </div>
 
 <label style="margin-top:14px">Notes (optional)</label>
@@ -626,7 +633,7 @@ let state = {
   captain:null, fixtures:[], allFixtures:[], players:[], roster:[], availability:[], thisWeek:null, inbox:[], recipients:[], settings:null,
   selectedFixture:null, yourSide:null,
   version:-1, server:null,
-  currentIdx:0, pickerCtx:null,
+  currentIdx:0, pickerCtx:null, seenDeclines:{},
   homeFinal:false, awayFinal:false, awayLocked:false,
   pollTimer:null, sendInflight:false, pendingOps:[],
   online: (typeof navigator!=='undefined' ? navigator.onLine !== false : true),
@@ -867,7 +874,7 @@ async function selectFixture(f, el){
   state.selectedFixture=f;
   // Rehydrate any queued offline work for THIS fixture so the captain sees
   // exactly the card they left, even if the device was rebooted.
-  state.queue=[]; state.queuedFinalize=false; state.conflictStrikes=0; state.server=null; state.version=-1;
+  state.queue=[]; state.queuedFinalize=false; state.conflictStrikes=0; state.server=null; state.version=-1; state.seenDeclines={};
   const snap = loadOfflineSnapshot(f.fixture_id);
   if (snap){
     state.server         = snap.server_state || null;
@@ -976,12 +983,11 @@ async function fetchScorecard(){
   saveOfflineSnapshot();
   setLive(true);
   updateFinalBanner();
+  checkDeclineNotices();
   let hint='You are the '+(state.yourSide==='home'?'HOME':'AWAY')+' captain. You can edit '+state.yourSide.toUpperCase()+' players; either side records winners; 8-balls need both captains to agree.';
-  if (state.awayLocked){
-    hint += state.yourSide==='home'
-      ? ' Away picks are locked until you nominate a home player in each of the LAST 5 frames.'
-      : ' Away picks are locked until the HOME captain nominates a home player in each of the LAST 5 frames.';
-  }
+  hint += state.yourSide==='home'
+    ? ' The away captain follows you frame by frame: pick each home player and they unlock that frame. For the LAST 5 frames, nominate all your leads first before away unlocks.'
+    : ' You pick frame by frame: each away player unlocks only after the HOME captain has picked theirs for that frame. The LAST 5 frames stay locked until the HOME captain nominates all of theirs.';
   $('sideHint').textContent=hint;
   // Opportunistic flush in case we came back online between polls.
   if (state.queue.length>0 || state.queuedFinalize) flushQueue();
@@ -1040,21 +1046,23 @@ function applyOpLocally(op){
     }
   } else if (op.kind==='set_winner' && f){
     const w = (op.value==='home'||op.value==='away') ? op.value : null;
-    if (f.winner===w){ f.winner=null; f.eight_ball=false; f.pending_eight=null; }
+    if (f.winner===w){ f.winner=null; f.eight_ball=false; f.pending_eight=null; f.eight_declined=null; }
     else f.winner=w;
   } else if (op.kind==='propose_eight' && f){
     if (!f.winner) return;
     const v = !!op.value;
     if (v === !!f.eight_ball) return;
+    f.eight_declined = null; // fresh proposal clears any prior disagreement notice
     if (state.solo){ f.eight_ball = v; f.pending_eight = null; }
     else            { f.pending_eight = { by: side, value: v }; }
   } else if (op.kind==='agree_eight' && f){
     const pe = f.pending_eight; if (!pe) return;
     if (!state.solo && pe.by===side) return;
-    f.eight_ball = !!pe.value; f.pending_eight=null;
+    f.eight_ball = !!pe.value; f.pending_eight=null; f.eight_declined=null;
   } else if (op.kind==='decline_eight' && f){
     const pe = f.pending_eight; if (!pe) return;
     if (!state.solo && pe.by===side) return;
+    f.eight_declined = { by: side, value: !!pe.value, at: new Date().toISOString() };
     f.pending_eight=null;
   } else if (op.kind==='set_notes'){
     state.server.notes = (op.value==null) ? '' : String(op.value);
@@ -1164,6 +1172,17 @@ window.addEventListener('offline', function(){ state.online=false; setLive(false
 
 // --- Rendering driven from state.server ---
 function frames(){ return (state.server && state.server.frames) ? state.server.frames : []; }
+// Client mirror of away_slot_locked() in scorecard.php. The away captain picks
+// frame-for-frame: an early-frame away slot is locked until the home lead for
+// that SAME frame is set; the last 5 frames stay locked until all five home
+// leads are nominated (state.awayLocked).
+function awaySlotLocked(i){
+  const fr=frames(); const n=fr.length;
+  if (i<0 || i>=n) return false;
+  if (n>=5 && i>=n-5) return !!state.awayLocked;
+  const f=fr[i];
+  return !(f.home_player_id || f.home_player_name);
+}
 function setBgClass(i){ const setIdx=Math.floor(i/5); const even=(i%2===0); const letter=['a','b','c'][setIdx%3]; return 'set-'+letter+(even?'1':'2'); }
 function homeLabel(f){
   if (f.home_player_id===VOID_ID) return {text:'VOID', cls:'void'};
@@ -1229,13 +1248,18 @@ function renderFrames(){
     const ac=document.createElement('div');
     const total = frames().length;
     const isLast5 = (total >= 5 && i >= total - 5);
-    const awayBlocked = (!ownSideHome && state.awayLocked && isLast5);
+    const awayBlocked = (!ownSideHome && awaySlotLocked(i));
     const lockedA = (ownSideHome || awayBlocked) && !state.solo;
     ac.className='sc-pill away '+al.cls+(f.is_doubles && al.cls!=='void' && al.cls!=='empty'?' dbl-a':'')+(lockedA?' locked':'');
     ac.textContent=al.text;
     ac.onclick=function(){
       if (ownSideHome && !state.solo){ flash('Only the AWAY captain can edit away players.', false); return; }
-      if (awayBlocked && !state.solo){ flash('Wait for the HOME captain to nominate their lead player in the last 5 frames before picking away players for those frames.', false); return; }
+      if (awayBlocked && !state.solo){
+        flash(isLast5
+          ? 'Wait for the HOME captain to nominate their lead player in the last 5 frames before picking away players for those frames.'
+          : 'Wait for the HOME captain to pick their player for frame '+f.number+' before you pick yours.', false);
+        return;
+      }
       openPicker(i,'away');
     };
     ar.appendChild(ac);
@@ -1276,7 +1300,7 @@ function renderEightBanner(){
     banner.innerHTML='<span><strong>Frame '+f.number+':</strong> '+esc(theirs.pe.by.toUpperCase())+
                      ' captain says '+(theirs.pe.value?'<strong>8-ball / dish</strong>':'<strong>no 8-ball</strong>')+'. Agree?</span>'+
                      '<span><button onclick="agreeEight('+theirs.idx+')">Agree</button> '+
-                     '<button class="secondary" onclick="declineEight('+theirs.idx+')">Decline</button></span>';
+                     '<button class="secondary" onclick="declineEight('+theirs.idx+')">Disagree</button></span>';
   } else if (mine){
     const f=fr[mine.idx];
     banner.style.display='flex';
@@ -1294,6 +1318,35 @@ function cancelEight(i){ sendOps([{kind:'decline_eight', frame:i}]); /* same eff
   const f=frames()[i]; if(!f||!f.pending_eight) return;
   sendOps([{kind:'propose_eight', frame:i, value: !f.pending_eight.value}]);
   // Then immediately re-propose original -> too noisy. Simpler: just send a propose to the CURRENT eight_ball value to clear.
+}
+
+// When the OTHER captain disagrees with an 8-ball call I proposed, the server
+// records an `eight_declined` marker on the frame. We surface it once to the
+// proposing captain (toast + optional background notification), de-duped via
+// state.seenDeclines so it fires a single time per disagreement.
+function checkDeclineNotices(){
+  try {
+    if (state.solo) return;                 // no two-captain flow in solo mode
+    const fr = frames();
+    if (!state.seenDeclines) state.seenDeclines = {};
+    for (let i=0;i<fr.length;i++){
+      const d = fr[i].eight_declined;
+      if (!d || !d.by) continue;
+      if (d.by === state.yourSide) continue; // I'm the decliner, not the proposer
+      const key = fr[i].number + '|' + (d.at || '');
+      if (state.seenDeclines[key]) continue; // already shown
+      state.seenDeclines[key] = true;
+      const other = (state.yourSide==='home' ? 'AWAY' : 'HOME');
+      const what  = d.value ? '8-ball / dish' : 'no 8-ball';
+      const msg   = 'Frame ' + fr[i].number + ': ' + other +
+                    ' captain disagreed with your "' + what + '" call.';
+      flash(msg, false);
+      if (('Notification' in window) && Notification.permission === 'granted'
+          && (document.hidden || document.visibilityState === 'hidden')) {
+        try { new Notification('WDPL Captain - 8-ball disagreed', { body: msg, tag: 'wdpl-8ball-'+fr[i].number }); } catch(_){}
+      }
+    }
+  } catch(_){}
 }
 
 // --- User actions ---
@@ -1388,6 +1441,111 @@ function pickPlayer(id, name){
   closePicker({target:$('pickerBg')});
 }
 
+// --- Random fill (auto-pick players for empty slots on your side) ---
+function rfSlotFields(slot){
+  if(slot==='home')  return ['home_player_id','home_player_name'];
+  if(slot==='home2') return ['home_player2_id','home_player2_name'];
+  if(slot==='away')  return ['away_player_id','away_player_name'];
+  if(slot==='away2') return ['away_player2_id','away_player2_name'];
+  return null;
+}
+function rfKey(id, name){
+  if(id!=null && id!=='') return 'id:'+String(id).toLowerCase();
+  if(name!=null && name!=='') return 'nm:'+String(name).trim().toLowerCase();
+  return null;
+}
+function rfSlotKey(frame, slot){
+  const ff=rfSlotFields(slot); if(!ff) return null;
+  return rfKey(frame[ff[0]], frame[ff[1]]);
+}
+// Client-side mirror of validate_player_pick() in scorecard.php. Returns true if
+// the pick would break a card rule, so we never queue an op the server rejects.
+function localPickViolates(fr, idx, slot, id, name, maxPerPlayer){
+  const candKey=rfKey(id, name); if(candKey===null) return true;
+  const isHomeSide=(slot==='home'||slot==='home2');
+  const isPartner=(slot==='home2'||slot==='away2');
+  const thisFrame=fr[idx];
+  if(isPartner){
+    const mk=rfSlotKey(thisFrame, isHomeSide?'home':'away');
+    if(mk!==null && mk===candKey) return true;
+  } else {
+    const pk=rfSlotKey(thisFrame, slot+'2');
+    if(pk!==null && pk===candKey) return true;
+  }
+  const opp=isHomeSide?['away','away2']:['home','home2'];
+  for(let o=0;o<opp.length;o++){ const ok=rfSlotKey(thisFrame, opp[o]); if(ok!==null && ok===candKey) return true; }
+  let cnt=0; const sideSlots=isHomeSide?['home','home2']:['away','away2'];
+  for(let i=0;i<fr.length;i++){
+    for(let s=0;s<sideSlots.length;s++){
+      if(i===idx && sideSlots[s]===slot) continue;
+      const k=rfSlotKey(fr[i], sideSlots[s]);
+      if(k!==null && k===candKey){ cnt++; break; }
+    }
+  }
+  if(maxPerPlayer>0 && cnt>=maxPerPlayer) return true;
+  const homeMain=(slot==='home')?candKey:rfSlotKey(thisFrame,'home');
+  const awayMain=(slot==='away')?candKey:rfSlotKey(thisFrame,'away');
+  if(homeMain!==null && awayMain!==null){
+    for(let i=0;i<fr.length;i++){
+      if(i===idx) continue;
+      if(rfSlotKey(fr[i],'home')===homeMain && rfSlotKey(fr[i],'away')===awayMain) return true;
+    }
+  }
+  return false;
+}
+// Auto-fill up to `count` (or 'all') empty player slots on YOUR side with random
+// active roster players, honouring every card rule the server enforces.
+function randomFill(count){
+  if(!state.selectedFixture || !state.server){ flash('Open a scorecard first.', false); return; }
+  const side=state.yourSide;
+  if(side!=='home' && side!=='away'){ flash('Your side is not set yet - reopen the card.', false); return; }
+  const isHomeSide=(side==='home');
+  const teamId=isHomeSide ? state.selectedFixture.home_team_id : state.selectedFixture.away_team_id;
+  const pool=(state.players||[]).filter(function(p){ return p.team_id===teamId; });
+  if(pool.length===0){ flash('No active roster players found for your team.', false); return; }
+  let maxPerPlayer=3;
+  if(state.settings && typeof state.settings.max_frames_per_player!=='undefined' && state.settings.max_frames_per_player!==null){
+    const m=parseInt(state.settings.max_frames_per_player,10); if(!isNaN(m)) maxPerPlayer=m;
+  }
+  const fr=frames(); const total=fr.length;
+  const targets=[];
+  for(let i=0;i<total;i++){
+    const f=fr[i];
+    if(!isHomeSide && awaySlotLocked(i)) continue; // away pick locked until home leads this frame (or all last-5 leads)
+    const lead=isHomeSide?'home':'away';
+    const lf=rfSlotFields(lead);
+    if(!f[lf[0]] && !f[lf[1]]) targets.push({idx:i, slot:lead});
+    if(f.is_doubles){
+      const partner=isHomeSide?'home2':'away2';
+      const pf=rfSlotFields(partner);
+      if(!f[pf[0]] && !f[pf[1]]) targets.push({idx:i, slot:partner});
+    }
+  }
+  if(targets.length===0){ flash('No empty slots to fill on your side.', false); return; }
+  const want=(count==='all') ? targets.length : Math.min(count, targets.length);
+  const live=state.server.frames; const ops=[]; let filled=0;
+  for(let t=0; t<targets.length && filled<want; t++){
+    const tg=targets[t];
+    const order=pool.slice();
+    for(let a=order.length-1;a>0;a--){ const b=Math.floor(Math.random()*(a+1)); const tmp=order[a]; order[a]=order[b]; order[b]=tmp; }
+    let chosen=null;
+    for(let c=0;c<order.length;c++){
+      if(!localPickViolates(live, tg.idx, tg.slot, order[c].player_id, order[c].full_name, maxPerPlayer)){ chosen=order[c]; break; }
+    }
+    if(!chosen) continue;
+    const ff=rfSlotFields(tg.slot);
+    live[tg.idx][ff[0]]=chosen.player_id; live[tg.idx][ff[1]]=chosen.full_name;
+    ops.push({kind:'set_player', frame:tg.idx, slot:tg.slot, player_id:chosen.player_id, player_name:chosen.full_name});
+    filled++;
+  }
+  if(ops.length===0){ flash('Could not fill any slot without breaking card rules (roster too small?).', false); return; }
+  sendOps(ops);
+  if(filled<want){
+    flash('Filled '+filled+' slot(s). The rest need manual picks to keep the card legal.', true);
+  } else {
+    flash('Filled '+filled+' slot(s).', true);
+  }
+}
 // --- Finalize ---
 function allScored(){ const fr=frames(); return fr.length>0 && fr.every(function(f){ return !!f.winner; }); }
 function updateFinalBanner(){
