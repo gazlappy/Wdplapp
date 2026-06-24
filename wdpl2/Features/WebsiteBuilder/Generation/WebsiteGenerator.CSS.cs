@@ -900,6 +900,59 @@ nav a:hover, nav a.active {{
     font-weight: 600;
 }}
 
+.scorecard {{
+    background: rgba(0,0,0,0.02);
+    border-radius: calc(var(--border-radius) / 2);
+    margin-bottom: 12px;
+    overflow: hidden;
+}}
+
+.scorecard[open] {{
+    background: rgba(0,0,0,0.04);
+}}
+
+.scorecard-summary {{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: clamp(6px, 1.5vw, 12px);
+    padding: clamp(10px, 2vw, 16px);
+    cursor: pointer;
+    font-weight: 600;
+}}
+
+.scorecard-date {{
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}}
+
+.scorecard-teams {{
+    flex: 1;
+}}
+
+.scorecard-teams strong {{
+    color: var(--primary-color);
+    padding: 0 6px;
+    white-space: nowrap;
+}}
+
+.scorecard-table {{
+    margin: 0 clamp(10px, 2vw, 16px) clamp(10px, 2vw, 16px);
+    width: calc(100% - clamp(20px, 4vw, 32px));
+}}
+
+.scorecard-table .frame-winner {{
+    font-weight: 700;
+    color: var(--primary-color);
+}}
+
+.scorecard-table .frame-result {{
+    text-align: center;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}}
+
 .leaders-list {{
     display: flex;
     flex-direction: column;

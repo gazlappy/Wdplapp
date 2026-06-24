@@ -101,8 +101,13 @@ namespace Wdpl2.Services
                 files["fixtures.html"] = GenerateFixturesPage(season, template);
             
             if (_settings.ShowResults)
+            {
                 files["results.html"] = GenerateResultsPage(season, template);
-            
+
+                if (_settings.ResultsShowFrameDetails)
+                    files["scorecards.html"] = GenerateScorecardsPage(season, template);
+            }
+
             if (_settings.ShowPlayerStats)
             {
                 files["players.html"] = GeneratePlayersPage(season, template);
@@ -1339,7 +1344,12 @@ namespace Wdpl2.Services
             html.AppendLine($"                <h2>&#127937; {Esc(_settings.ResultsPageTitle)}</h2>");
             html.AppendLine($"                <p class=\"hero-dates\">Latest Results</p>");
             html.AppendLine("            </div>");
-            
+
+            if (_settings.ResultsShowFrameDetails)
+            {
+                html.AppendLine("            <p class=\"view-all\"><a href=\"scorecards.html\">&#128203; View Full Season Scorecards &#8594;</a></p>");
+            }
+
             var completedFixtures = fixtures
                 .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
                 .OrderByDescending(f => f.Date)
@@ -1426,10 +1436,155 @@ namespace Wdpl2.Services
             
             html.AppendLine("</body>");
             html.AppendLine("</html>");
-            
+
             return html.ToString();
         }
-        
+
+        private string GenerateScorecardsPage(Season season, WebsiteTemplate template)
+        {
+            var html = new StringBuilder();
+            var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
+            var playerById = players.ToDictionary(p => p.Id, p => p);
+
+            AppendDocumentHead(html, $"Scorecards - {_settings.LeagueName}", season);
+            html.AppendLine("<body>");
+
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyStartHtml))
+                html.AppendLine(_settings.CustomBodyStartHtml);
+
+            AppendHeader(html, season);
+            AppendNavigation(html, "Results");
+
+            html.AppendLine("    <div class=\"content-area\">");
+            html.AppendLine("        <div class=\"container\">");
+            html.AppendLine("            <div class=\"hero\">");
+            html.AppendLine("                <h2>&#128203; Season Scorecards</h2>");
+            html.AppendLine($"                <p class=\"hero-dates\">Frame-by-frame results for every completed match</p>");
+            html.AppendLine("            </div>");
+
+            html.AppendLine("            <div class=\"section\" style=\"text-align: center;\">");
+            html.AppendLine("                <a href=\"results.html\" class=\"back-link\">&#8592; Back to Results</a>");
+            html.AppendLine("            </div>");
+
+            var completedFixtures = fixtures
+                .Where(f => f.Frames.Any(fr => fr.Winner != FrameWinner.None))
+                .OrderByDescending(f => f.Date)
+                .ToList();
+
+            var groupedScorecards = _settings.ResultsGroupByWeek
+                ? completedFixtures.GroupBy(f => GetWeekStart(f.Date)).ToList()
+                : (_settings.ResultsGroupByDate
+                    ? completedFixtures.GroupBy(f => f.Date.Date).ToList()
+                    : new List<IGrouping<DateTime, Fixture>> { new SingleGrouping<DateTime, Fixture>(DateTime.Today, completedFixtures) });
+
+            if (completedFixtures.Count != 0)
+            {
+                foreach (var dateGroup in groupedScorecards)
+                {
+                    if (!dateGroup.Any()) continue;
+
+                    html.AppendLine("            <div class=\"section\">");
+
+                    if (_settings.ResultsGroupByWeek)
+                        html.AppendLine($"                <h3>Week of {dateGroup.Key:dd MMMM yyyy}</h3>");
+                    else if (_settings.ResultsGroupByDate)
+                        html.AppendLine($"                <h3>{dateGroup.Key:dddd, dd MMMM yyyy}</h3>");
+
+                    foreach (var fixture in dateGroup.OrderByDescending(f => f.Date))
+                    {
+                        var homeTeam = teams.FirstOrDefault(t => t.Id == fixture.HomeTeamId);
+                        var awayTeam = teams.FirstOrDefault(t => t.Id == fixture.AwayTeamId);
+                        var division = fixture.DivisionId.HasValue ? divisions.FirstOrDefault(d => d.Id == fixture.DivisionId.Value) : null;
+
+                        var homeName = Esc(homeTeam?.Name ?? "Home");
+                        var awayName = Esc(awayTeam?.Name ?? "Away");
+
+                        html.AppendLine("                <details class=\"scorecard\">");
+                        html.AppendLine("                    <summary class=\"scorecard-summary\">");
+                        html.AppendLine($"                        <span class=\"scorecard-date\">{fixture.Date.ToString(_settings.ResultsDateFormat)}</span>");
+                        html.AppendLine($"                        <span class=\"scorecard-teams\">{homeName} <strong>{fixture.HomeScore} - {fixture.AwayScore}</strong> {awayName}</span>");
+                        if (division != null)
+                            html.AppendLine($"                        <span class=\"division-badge\">{Esc(division.Name)}</span>");
+                        html.AppendLine("                    </summary>");
+
+                        html.AppendLine("                    <div class=\"table-responsive\">");
+                        html.AppendLine($"                    <table class=\"{GetTableClasses()} scorecard-table\">");
+                        html.AppendLine("                        <thead>");
+                        html.AppendLine("                            <tr>");
+                        html.AppendLine("                                <th>#</th>");
+                        html.AppendLine($"                                <th>{homeName}</th>");
+                        html.AppendLine("                                <th>Result</th>");
+                        html.AppendLine($"                                <th>{awayName}</th>");
+                        html.AppendLine("                            </tr>");
+                        html.AppendLine("                        </thead>");
+                        html.AppendLine("                        <tbody>");
+
+                        foreach (var frame in fixture.Frames.OrderBy(fr => fr.Number))
+                        {
+                            var homePlayer = FormatFramePlayer(frame.HomePlayerId, frame.HomePlayer2Id, playerById);
+                            var awayPlayer = FormatFramePlayer(frame.AwayPlayerId, frame.AwayPlayer2Id, playerById);
+                            var homeWon = frame.Winner == FrameWinner.Home;
+                            var awayWon = frame.Winner == FrameWinner.Away;
+                            var eight = frame.EightBall ? " &#127921;" : "";
+
+                            html.AppendLine("                            <tr>");
+                            html.AppendLine($"                                <td>{frame.Number}</td>");
+                            html.AppendLine($"                                <td class=\"{(homeWon ? "frame-winner" : "")}\">{homePlayer}{(homeWon ? eight : "")}</td>");
+                            html.AppendLine($"                                <td class=\"frame-result\">{(homeWon ? "&#9664;" : awayWon ? "&#9654;" : "&#8211;")}</td>");
+                            html.AppendLine($"                                <td class=\"{(awayWon ? "frame-winner" : "")}\">{awayPlayer}{(awayWon ? eight : "")}</td>");
+                            html.AppendLine("                            </tr>");
+                        }
+
+                        html.AppendLine("                        </tbody>");
+                        html.AppendLine("                    </table>");
+                        html.AppendLine("                    </div>");
+                        html.AppendLine("                </details>");
+                    }
+
+                    html.AppendLine("            </div>");
+                }
+            }
+            else
+            {
+                html.AppendLine("            <div class=\"section\">");
+                html.AppendLine("                <p class=\"empty-message\">No scorecards available yet.</p>");
+                html.AppendLine("            </div>");
+            }
+
+            html.AppendLine("        </div>");
+            html.AppendLine("    </div>");
+
+            AppendFooter(html);
+
+            if (!string.IsNullOrWhiteSpace(_settings.CustomBodyEndHtml))
+                html.AppendLine(_settings.CustomBodyEndHtml);
+
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private static string FormatFramePlayer(Guid? playerId, Guid? player2Id, Dictionary<Guid, Player> playerById)
+        {
+            string NameFor(Guid? id)
+            {
+                if (!id.HasValue) return "";
+                if (FrameResult.IsVoidPlayer(id)) return "Walkover";
+                return playerById.TryGetValue(id.Value, out var p)
+                    ? Esc(p.Name)
+                    : "Unknown";
+            }
+
+            var first = NameFor(playerId);
+            var second = NameFor(player2Id);
+
+            if (!string.IsNullOrEmpty(second))
+                return string.IsNullOrEmpty(first) ? second : $"{first} &amp; {second}";
+
+            return string.IsNullOrEmpty(first) ? "&#8211;" : first;
+        }
+
         private string GeneratePlayersPage(Season season, WebsiteTemplate template, Division? singleDivision = null)
         {
             var html = new StringBuilder();

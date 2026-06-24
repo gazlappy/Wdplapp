@@ -256,6 +256,62 @@ public class WebsiteGeneratorTests
     }
 
     [Fact]
+    public void GenerateWebsite_ResultsShowFrameDetails_GeneratesScorecardsPage()
+    {
+        // Arrange
+        var league = CreateTestLeagueData();
+        var settings = CreateTestSettings();
+        settings.ShowResults = true;
+        settings.ResultsShowFrameDetails = true;
+        settings.GenerateSitemap = false;
+        var generator = new WebsiteGenerator(league, settings);
+
+        // Act
+        var files = generator.GenerateWebsite();
+
+        // Assert
+        Assert.Contains("scorecards.html", files.Keys);
+        Assert.Contains("scorecards.html", files["results.html"]);
+    }
+
+    [Fact]
+    public void GenerateWebsite_ResultsShowFrameDetailsDisabled_DoesNotGenerateScorecardsPage()
+    {
+        // Arrange
+        var league = CreateTestLeagueData();
+        var settings = CreateTestSettings();
+        settings.ShowResults = true;
+        settings.ResultsShowFrameDetails = false;
+        settings.GenerateSitemap = false;
+        var generator = new WebsiteGenerator(league, settings);
+
+        // Act
+        var files = generator.GenerateWebsite();
+
+        // Assert
+        Assert.DoesNotContain("scorecards.html", files.Keys);
+        Assert.DoesNotContain("scorecards.html", files["results.html"]);
+    }
+
+    [Fact]
+    public void GenerateWebsite_ShowResultsDisabled_DoesNotGenerateScorecardsPage()
+    {
+        // Arrange
+        var league = CreateTestLeagueData();
+        var settings = CreateTestSettings();
+        settings.ShowResults = false;
+        settings.ResultsShowFrameDetails = true;
+        settings.GenerateSitemap = false;
+        var generator = new WebsiteGenerator(league, settings);
+
+        // Act
+        var files = generator.GenerateWebsite();
+
+        // Assert
+        Assert.DoesNotContain("scorecards.html", files.Keys);
+    }
+
+    [Fact]
     public void GenerateWebsite_ShowPlayerStats_GeneratesPlayerPages()
     {
         // Arrange
