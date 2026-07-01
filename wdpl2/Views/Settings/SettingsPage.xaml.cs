@@ -56,6 +56,7 @@ namespace Wdpl2.Views
         private Entry? _pointsForWinEntry;
         private Entry? _pointsForDrawEntry;
         private Entry? _framesPerMatchEntry;
+        private Entry? _captainWeeksAheadEntry;
         private Picker? _matchDayPicker;
         private TimePicker? _matchTimePicker;
         private Entry? _roundsPerOpponentEntry;
@@ -559,8 +560,12 @@ namespace Wdpl2.Views
 
             var (r4, roundsEntry) = NumericRow("Rounds per opponent", Settings.DefaultRoundsPerOpponent);
 
+            var (r5, captainWeeksEntry) = NumericRow("Captain portal: weeks of fixtures", Settings.CaptainScorecardWeeksAhead,
+                "How many weeks of fixtures captains see on the online scorecard list (1 = this week only)");
+
             _framesPerMatchEntry = framesEntry;
             _roundsPerOpponentEntry = roundsEntry;
+            _captainWeeksAheadEntry = captainWeeksEntry;
             _statusLabel = new Label { FontSize = 12, Margin = new Thickness(0, 8, 0, 0) };
 
             var saveBtn = new Button { Text = "Save Settings" };
@@ -592,11 +597,14 @@ namespace Wdpl2.Views
                     r1,
                     SettingRow("Default match day", _matchDayPicker),
                     SettingRow("Default match time", _matchTimePicker),
-                    r4
+                    r4,
+                    r5
                 }
             }));
 
             root.Children.Add(InfoBanner("These defaults are used when generating fixtures for a season. You can override them when creating a specific season."));
+
+            root.Children.Add(InfoBanner("Captain portal: after changing 'weeks of fixtures', publish the league to the web server for it to take effect on captains' scorecard lists."));
 
             root.Children.Add(buttons);
             root.Children.Add(_statusLabel);
@@ -2542,6 +2550,16 @@ namespace Wdpl2.Views
 
                 if (_roundsPerOpponentEntry != null && int.TryParse(_roundsPerOpponentEntry.Text, out var rounds) && rounds >= 1)
                     Settings.DefaultRoundsPerOpponent = rounds;
+
+                if (_captainWeeksAheadEntry != null)
+                {
+                    if (!int.TryParse(_captainWeeksAheadEntry.Text, out var captainWeeks) || captainWeeks < 1 || captainWeeks > 52)
+                    {
+                        await DisplayAlert("Invalid Input", "Captain portal weeks of fixtures must be between 1 and 52.", "OK");
+                        return;
+                    }
+                    Settings.CaptainScorecardWeeksAhead = captainWeeks;
+                }
 
                 await _dataStore.SaveAsync();
 

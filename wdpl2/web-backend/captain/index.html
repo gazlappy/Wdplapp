@@ -300,28 +300,34 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 .sc-phase.away-active { background:#FEF2F2; color:#991B1B; border-bottom-color:#FECACA; }
 .sc-phase.away-active .badge { background:#FECACA; color:#D32F2F; }
 
-.sc-cols { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.sc-cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0; }
 .sc-col-head { background:#F1F5F9; padding:6px 4px; display:grid; gap:2px; font-size:11px; font-weight:700; text-align:center; }
-.sc-col-head.home { grid-template-columns:30px 40px 1fr; }
+.sc-col-head.home { grid-template-columns:30px 40px minmax(0,1fr); }
 .sc-col-head.home .h0 { color:#64748B; }
 .sc-col-head.home .h1 { color:#16A34A; }
 .sc-col-head.home .h2 { color:#1976D2; }
-.sc-col-head.away { grid-template-columns:1fr 40px 30px; }
+.sc-col-head.away { grid-template-columns:minmax(0,1fr) 40px 30px; }
 .sc-col-head.away .a0 { color:#D32F2F; }
 .sc-col-head.away .a1 { color:#DC2626; }
 .sc-col-head.away .a2 { color:#E65100; }
 
 .sc-rows-home, .sc-rows-away { display:flex; flex-direction:column; }
 .sc-row { display:grid; gap:2px; padding:3px 4px; min-height:34px; align-items:center; }
-.sc-row.home { grid-template-columns:30px 40px 1fr; }
-.sc-row.away { grid-template-columns:1fr 40px 30px; }
+.sc-row.home { grid-template-columns:30px 40px minmax(0,1fr); }
+.sc-row.away { grid-template-columns:minmax(0,1fr) 40px 30px; }
 .sc-row.set-a1 { background:#ffffff; }
 .sc-row.set-a2 { background:#f8fafc; }
 .sc-row.set-b1 { background:#eff6ff; }
 .sc-row.set-b2 { background:#dbeafe; }
 .sc-row.set-c1 { background:#f0fdf4; }
 .sc-row.set-c2 { background:#dcfce7; }
-.sc-row.current { background:#FEF9C3 !important; box-shadow:inset 3px 0 0 #EAB308; }
+.sc-row.current { background:#FEF3C7 !important; }
+.sc-row.home.current { box-shadow:inset 4px 0 0 #F59E0B, inset 0 2px 0 #F59E0B, inset 0 -2px 0 #F59E0B; }
+.sc-row.away.current { box-shadow:inset -4px 0 0 #F59E0B, inset 0 2px 0 #F59E0B, inset 0 -2px 0 #F59E0B; }
+.sc-row.current .sc-num { color:#B45309; font-size:13px; }
+.sc-row.current .sc-pill:not(.locked) { border-color:#F59E0B; }
+.sc-row.current .sc-win:not(.on) { background:#FDE68A; color:#92400E; animation:scPulse 1.6s ease-in-out infinite; }
+@keyframes scPulse { 0%,100% { box-shadow:0 0 0 0 rgba(245,158,11,0.55); } 50% { box-shadow:0 0 0 6px rgba(245,158,11,0); } }
 .sc-pill.locked { opacity:0.55; cursor:not-allowed; }
 .sc-eight.pending { background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; }
 .eight-banner { background:linear-gradient(90deg, #FEF3C7, #FDE68A); border:1px solid #F59E0B; color:#92400E; border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13px; display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; box-shadow:0 2px 6px rgba(245,158,11,0.25); }
@@ -334,8 +340,9 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 .sc-num { font-weight:700; color:#64748B; font-size:12px; text-align:center; }
 .sc-pill {
   border-radius:6px; padding:5px 6px; min-height:30px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; text-align:center;
-  font-size:13px; line-height:1.15; border:1px solid transparent; user-select:none;
+  display:block; text-align:center;
+  min-width:0; max-width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  font-size:13px; line-height:18px; border:1px solid transparent; user-select:none;
   background:#EFF6FF; border-color:#BFDBFE; color:#1E293B;
   transition:transform .08s ease, box-shadow .15s ease;
 }
@@ -449,7 +456,7 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
 
 <div id="dash" style="display:none">
 <div class="card">
-<h2>Your fixtures this week</h2>
+<h2 id="fxHeading">Your fixtures this week</h2>
 <div id="fxList" class="fixture-list"></div>
 <div id="noFx" class="muted" style="display:none">No fixtures this week, or all of this week's scorecards have been finalized.</div>
 </div>
@@ -839,6 +846,12 @@ function renderAllFixtures(){
   $('loginCard').style.display='none'; $('dash').style.display='block';
   $('who').textContent=state.captain.team_name+(state.captain.division_name?' - '+state.captain.division_name:'');
   var hl=$('hdrLogout'); if(hl) hl.style.display='inline-block';
+  // Heading reflects how many weeks of fixtures the league shows for cards.
+  const fxWeeksAhead=Math.max(1,parseInt(state.settings.captain_fixture_weeks_ahead||'1',10)||1);
+  $('fxHeading').textContent=(fxWeeksAhead<=1)?'Your fixtures this week':'Your fixtures - next '+fxWeeksAhead+' weeks';
+  $('noFx').textContent=(fxWeeksAhead<=1)
+	? 'No fixtures this week, or all of this week\'s scorecards have been finalized.'
+	: 'No fixtures in the next '+fxWeeksAhead+' weeks, or all of those scorecards have been finalized.';
   renderFixtures();
   loadHistory().catch(function(){});
   loadRoster().catch(function(){});
@@ -1196,7 +1209,14 @@ function awayLabel(f){
   if (f.is_doubles) return {text:(f.away_player_name||'?')+' / '+(f.away_player2_name||'(tap)'), cls:''};
   return {text:f.away_player_name||'?', cls:''};
 }
-function renderAll(){ renderFrames(); renderScore(); renderPhaseInfoBar(); renderEightBanner(); updateCount(); }
+// The "current" frame is the first one without a winner; the highlight moves
+// on automatically as soon as a score goes in (and returns if one is cleared).
+function computeCurrentIdx(){
+  const fr=frames();
+  for (let i=0;i<fr.length;i++){ if(!fr[i].winner) return i; }
+  return -1;
+}
+function renderAll(){ state.currentIdx=computeCurrentIdx(); renderFrames(); renderScore(); renderPhaseInfoBar(); renderEightBanner(); updateCount(); }
 function renderPhaseInfoBar(){
   const bar=$('phaseInfo'); if(!bar) return;
   bar.classList.remove('home-active','away-active');
@@ -1236,7 +1256,7 @@ function renderFrames(){
     const hc=document.createElement('div');
     const lockedH = !ownSideHome && !state.solo;
     hc.className='sc-pill home '+hl.cls+(f.is_doubles && hl.cls!=='void' && hl.cls!=='empty'?' dbl-h':'')+(lockedH?' locked':'');
-    hc.textContent=hl.text;
+    hc.textContent=hl.text; hc.title=hl.text;
     hc.onclick=function(){ if (lockedH && !state.solo){ flash('Only the HOME captain can edit home players.', false); return; } openPicker(i,'home'); };
     hr.appendChild(hc);
     homeWrap.appendChild(hr);
@@ -1251,7 +1271,7 @@ function renderFrames(){
     const awayBlocked = (!ownSideHome && awaySlotLocked(i));
     const lockedA = (ownSideHome || awayBlocked) && !state.solo;
     ac.className='sc-pill away '+al.cls+(f.is_doubles && al.cls!=='void' && al.cls!=='empty'?' dbl-a':'')+(lockedA?' locked':'');
-    ac.textContent=al.text;
+    ac.textContent=al.text; ac.title=al.text;
     ac.onclick=function(){
       if (ownSideHome && !state.solo){ flash('Only the AWAY captain can edit away players.', false); return; }
       if (awayBlocked && !state.solo){
@@ -1353,7 +1373,6 @@ function checkDeclineNotices(){
 function setWinner(i, who){
   const f=frames()[i]; if(!f) return;
   const val = (f.winner===who) ? null : who;
-  state.currentIdx=i;
   sendOps([{kind:'set_winner', frame:i, value: val}]);
 }
 function toggleEight(i){
@@ -1379,7 +1398,6 @@ function openPicker(frameIdx, slot){
     if ((slot==='away'||slot==='away2') && ownSideHome) return;
   }
   state.pickerCtx={frameIdx:frameIdx, slot:slot};
-  state.currentIdx=frameIdx;
   renderPickerList();
   const f=frames()[frameIdx];
   $('pickerTitle').textContent=pickerTitleFor(slot, f);

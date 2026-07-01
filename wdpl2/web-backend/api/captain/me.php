@@ -1,18 +1,27 @@
 <?php
-// captain/me.php — GET current captain + this week's fixtures + roster.
+// captain/me.php — GET current captain + upcoming fixtures (configurable window) + roster.
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_captain.php';
 
 $c = require_captain();
 $team_id = $c['team_id'];
 
-// "This week" = Monday 00:00 UTC of the current ISO week .. following Monday 00:00.
-// A fixture only appears on the week it's actually being played; once BOTH
-// captains have finalized the shared scorecard the fixture drops off the list
-// (it's then on the admin's web inbox awaiting reconciliation).
+// Fixture window = Monday 00:00 UTC of the current ISO week .. N weeks later,
+// where N comes from the league setting `captain_fixture_weeks_ahead`
+// (published by the desktop app, default 1 = this week only). A fixture only
+// appears within that window; once BOTH captains have finalized the shared
+// scorecard the fixture drops off the list (it's then on the admin's web
+// inbox awaiting reconciliation).
+$weeksAhead = 1;
+try {
+    $ws = db()->prepare("SELECT setting_value FROM league_settings WHERE setting_key = 'captain_fixture_weeks_ahead' LIMIT 1");
+    $ws->execute();
+    $wv = $ws->fetchColumn();
+    if ($wv !== false && (int)$wv >= 1) $weeksAhead = min(52, (int)$wv);
+} catch (Exception $e) { /* league_settings may not exist yet - default to 1 */ }
 $now    = time();
 $start  = strtotime('monday this week 00:00:00', $now);
-$end    = $start + 7 * 86400;
+$end    = $start + $weeksAhead * 7 * 86400;
 
 $fixtures = array();
 try {
@@ -62,6 +71,7 @@ try {
 $settings = array(
     'default_frames_per_match' => 15,
     'max_frames_per_player'    => 3,
+    'captain_fixture_weeks_ahead' => $weeksAhead,
 );
 try {
     $s = db()->query('SELECT setting_key, setting_value FROM league_settings')->fetchAll();

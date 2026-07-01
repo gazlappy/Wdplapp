@@ -85,6 +85,7 @@ public sealed class HttpWebPublishService : IWebPublishService
             {
                 default_frames_per_match = appSettings.DefaultFramesPerMatch,
                 max_frames_per_player    = appSettings.MaxFramesPerPlayer,
+                captain_fixture_weeks_ahead = appSettings.CaptainScorecardWeeksAhead,
             },
             teams = teams.Select(t => new {
                 team_id       = t.Id.ToString(),

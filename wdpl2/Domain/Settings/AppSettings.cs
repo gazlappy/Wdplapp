@@ -112,6 +112,12 @@ namespace Wdpl2.Models
         /// <summary>Default number of times teams play each other (default 2).</summary>
         public int DefaultRoundsPerOpponent { get; set; } = 2;
 
+        /// <summary>
+        /// How many weeks of fixtures the captain portal shows on the online scorecard
+        /// list, starting from Monday of the current week (default 1 = this week only).
+        /// </summary>
+        public int CaptainScorecardWeeksAhead { get; set; } = 1;
+
         // ========== League Table Settings ==========
 
         /// <summary>Number of promotion places per division (0 = disabled).</summary>
@@ -207,6 +213,7 @@ namespace Wdpl2.Models
             DefaultMatchDay = source.DefaultMatchDay;
             DefaultMatchTime = source.DefaultMatchTime;
             DefaultRoundsPerOpponent = source.DefaultRoundsPerOpponent;
+            CaptainScorecardWeeksAhead = source.CaptainScorecardWeeksAhead;
 
             // League Table
             PromotionSlots = source.PromotionSlots;
