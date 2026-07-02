@@ -369,8 +369,9 @@ try {
             // Either captain may record winner.
             $w = isset($op['value']) ? $op['value'] : null;
             if ($w !== 'home' && $w !== 'away' && $w !== null) continue;
-            if ($f['winner'] === $w) { $f['winner'] = null; $f['eight_ball'] = false; $f['pending_eight'] = null; $f['eight_declined'] = null; }
-            else                     { $f['winner'] = $w; }
+            if ($f['winner'] === $w && $w !== null) { $f['winner'] = null; $f['eight_ball'] = false; $f['pending_eight'] = null; $f['eight_declined'] = null; }
+            else if ($w === null)                   { $f['winner'] = null; $f['eight_ball'] = false; $f['pending_eight'] = null; $f['eight_declined'] = null; }
+            else                                    { $f['winner'] = $w; }
             $changed = true;
         }
         else if ($kind === 'propose_eight') {

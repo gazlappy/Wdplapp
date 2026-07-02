@@ -62,11 +62,15 @@ public sealed class MatchResultImporter : IMatchResultImporter
             .GroupBy(p => PlayerKey(p.FullName, p.TeamId))
             .ToDictionary(g => g.Key, g => g.First());
 
-        int created = 0;
+        var createdPlayers = new List<Player>();
         Guid? ResolveOrCreate(Guid? id, string? name, Guid teamId)
         {
+            // VOID / walkover picks pass straight through - never create a player for them.
+            if (FrameResult.IsVoidPlayer(id)) return id;
             if (id.HasValue && byId.ContainsKey(id.Value)) return id;
             if (string.IsNullOrWhiteSpace(name)) return null;
+            if (string.Equals(name.Trim(), "VOID", StringComparison.OrdinalIgnoreCase))
+                return FrameResult.VoidPlayerId;
 
             var key = PlayerKey(name, teamId);
             if (byKey.TryGetValue(key, out var existing)) return existing.Id;
@@ -85,18 +89,28 @@ public sealed class MatchResultImporter : IMatchResultImporter
             players.Add(p);
             byId[p.Id]  = p;
             byKey[key]  = p;
-            created++;
+            createdPlayers.Add(p);
             return p.Id;
         }
 
-        // Persist any newly-created players first.
+        // Pre-register any players the portal explicitly flagged as new, so they
+        // exist even when they only appear in a doubles slot or the payload's
+        // frame data was trimmed.
+        foreach (var np in payload.NewPlayers)
+        {
+            if (string.IsNullOrWhiteSpace(np.Name)) continue;
+            var teamId = np.TeamId ?? payload.SubmittedBy?.TeamId;
+            if (teamId is null || teamId == Guid.Empty) continue;
+            ResolveOrCreate(null, np.Name, teamId.Value);
+        }
+
         var newFrames = new List<FrameResult>();
         foreach (var f in payload.Frames.OrderBy(x => x.Number))
         {
             var homeId  = ResolveOrCreate(f.HomePlayerId,  f.HomePlayerName,  fixture.HomeTeamId);
             var awayId  = ResolveOrCreate(f.AwayPlayerId,  f.AwayPlayerName,  fixture.AwayTeamId);
-            var home2Id = f.HomePlayer2Id;
-            var away2Id = f.AwayPlayer2Id;
+            var home2Id = ResolveOrCreate(f.HomePlayer2Id, f.HomePlayer2Name, fixture.HomeTeamId);
+            var away2Id = ResolveOrCreate(f.AwayPlayer2Id, f.AwayPlayer2Name, fixture.AwayTeamId);
 
             newFrames.Add(new FrameResult
             {
@@ -111,15 +125,12 @@ public sealed class MatchResultImporter : IMatchResultImporter
             });
         }
 
-        // Save any created players.
-        if (created > 0)
+        // Save only the players created during THIS import.
+        foreach (var p in createdPlayers)
         {
-            foreach (var p in players.Where(p => string.Equals(p.Notes, "Created from captain submission", StringComparison.Ordinal)))
-            {
-                // Only save the ones we just added (they won't exist in the store yet).
-                try { await _store.AddPlayerAsync(p, ct).ConfigureAwait(false); } catch { /* ignore duplicates */ }
-            }
+            try { await _store.AddPlayerAsync(p, ct).ConfigureAwait(false); } catch { /* ignore duplicates */ }
         }
+        int created = createdPlayers.Count;
 
         fixture.Frames = newFrames;
         fixture.ModifiedDate = DateTime.UtcNow;

@@ -505,6 +505,7 @@ button:disabled { opacity:0.4; cursor:not-allowed; }
     <button type="button" class="secondary" onclick="randomFill(1)" title="Randomly fill 1 empty player slot on your side" style="padding:4px 9px; font-size:12px;">&#127922; +1</button>
     <button type="button" class="secondary" onclick="randomFill(5)" title="Randomly fill up to 5 empty player slots on your side" style="padding:4px 9px; font-size:12px;">&#127922; +5</button>
     <button type="button" class="secondary" onclick="randomFill('all')" title="Randomly fill all empty player slots on your side" style="padding:4px 9px; font-size:12px;">&#127922; All</button>
+    <button type="button" class="secondary" onclick="clearAll()" title="Clear all your player picks and all frame winners (solo mode clears both sides)" style="padding:4px 9px; font-size:12px; color:#ff6b6b;">&#10006; Clear all</button>
   </span>
 </div>
 
@@ -1059,7 +1060,7 @@ function applyOpLocally(op){
     }
   } else if (op.kind==='set_winner' && f){
     const w = (op.value==='home'||op.value==='away') ? op.value : null;
-    if (f.winner===w){ f.winner=null; f.eight_ball=false; f.pending_eight=null; f.eight_declined=null; }
+    if (f.winner===w || w===null){ f.winner=null; f.eight_ball=false; f.pending_eight=null; f.eight_declined=null; }
     else f.winner=w;
   } else if (op.kind==='propose_eight' && f){
     if (!f.winner) return;
@@ -1446,6 +1447,31 @@ function renderPickerList(){
     o.onclick=function(){ pickPlayer(p.player_id, p.full_name); };
     list.appendChild(o);
   });
+
+  // New names already typed on this card (not in the roster yet) - lets the
+  // captain pick the same new player for more frames without retyping.
+  const rosterNames={};
+  state.players.forEach(function(p){ if(p.team_id===teamId) rosterNames[String(p.full_name).trim().toLowerCase()]=true; });
+  const cardFields = isHomeSide
+    ? [["home_player_id","home_player_name"],["home_player2_id","home_player2_name"]]
+    : [["away_player_id","away_player_name"],["away_player2_id","away_player2_name"]];
+  const seenNew={};
+  frames().forEach(function(f){
+    cardFields.forEach(function(ff){
+      const id=f[ff[0]], nm=f[ff[1]];
+      if (id!=null && id!=="") return;
+      if (nm==null || String(nm).trim()==="") return;
+      const t=String(nm).trim();
+      if (t.toUpperCase()==="VOID") return;
+      const k=t.toLowerCase();
+      if (rosterNames[k] || seenNew[k]) return;
+      seenNew[k]=true;
+      const o=document.createElement("div"); o.className="player-opt";
+      o.innerHTML="<span>"+esc(t)+"</span><span class=\"badge\">new</span>";
+      o.onclick=function(){ pickPlayer(null, t); };
+      list.appendChild(o);
+    });
+  });
 }
 function pickerAddNew(){
   const name=$('pickerNewName').value.trim(); if(!name) return;
@@ -1457,6 +1483,61 @@ function pickPlayer(id, name){
   const ctx=state.pickerCtx; if(!ctx) return;
   sendOps([{kind:'set_player', frame:ctx.frameIdx, slot:ctx.slot, player_id:id, player_name:name}]);
   closePicker({target:$('pickerBg')});
+}
+
+// Name-only picks on this card (players typed via "Add new") -> sent with the
+// solo submission so the app creates them on import. finalize.php computes the
+// same list server-side for the normal two-captain flow.
+function collectNewPlayers(){
+  if (!state.selectedFixture) return [];
+  const fr=frames(); const out=[]; const seen={};
+  const ht=state.selectedFixture.home_team_id, at=state.selectedFixture.away_team_id;
+  function add(id,name,teamId){
+    if (id!=null && id!=="") return;
+    if (name==null || String(name).trim()==="") return;
+    const nm=String(name).trim();
+    if (nm.toUpperCase()==="VOID") return;
+    const k=nm.toLowerCase()+"|"+String(teamId).toLowerCase();
+    if (seen[k]) return; seen[k]=true;
+    out.push({name:nm, team_id:teamId});
+  }
+  fr.forEach(function(f){
+    add(f.home_player_id,  f.home_player_name,  ht);
+    add(f.away_player_id,  f.away_player_name,  at);
+    add(f.home_player2_id, f.home_player2_name, ht);
+    add(f.away_player2_id, f.away_player2_name, at);
+  });
+  return out;
+}
+
+// --- Clear all (wipe picks + scores) ---
+// Normal mode: clears YOUR side player picks plus every frame winner/8-ball.
+// Solo mode: clears both sides, winners and doubles flags.
+function clearAll(){
+  if(!state.selectedFixture || !state.server){ flash("Open a scorecard first.", false); return; }
+  const side=state.yourSide, solo=state.solo;
+  if(!solo && side!=="home" && side!=="away"){ flash("Your side is not set yet - reopen the card.", false); return; }
+  const msg = solo
+    ? "Clear EVERYTHING on this card (both sides, winners and 8-balls)?"
+    : "Clear all YOUR player picks and ALL frame winners?\n\nThe other captain's picks stay. Both captains must re-finalize afterwards.";
+  if(!confirm(msg)) return;
+  const fr=frames(); const ops=[];
+  for(let i=0;i<fr.length;i++){
+    const f=fr[i];
+    if (solo || side==="home"){
+      if (f.home_player_id || f.home_player_name)   ops.push({kind:"set_player", frame:i, slot:"home",  player_id:null, player_name:null});
+      if (f.home_player2_id || f.home_player2_name) ops.push({kind:"set_player", frame:i, slot:"home2", player_id:null, player_name:null});
+    }
+    if (solo || side==="away"){
+      if (f.away_player_id || f.away_player_name)   ops.push({kind:"set_player", frame:i, slot:"away",  player_id:null, player_name:null});
+      if (f.away_player2_id || f.away_player2_name) ops.push({kind:"set_player", frame:i, slot:"away2", player_id:null, player_name:null});
+    }
+    if (f.winner) ops.push({kind:"set_winner", frame:i, value:null});
+    if (solo && f.is_doubles) ops.push({kind:"set_doubles", frame:i, value:false});
+  }
+  if(ops.length===0){ flash("Nothing to clear.", false); return; }
+  sendOps(ops);
+  flash(solo ? "Card cleared." : "Your picks and all frame winners cleared.", true);
 }
 
 // --- Random fill (auto-pick players for empty slots on your side) ---
@@ -1629,7 +1710,8 @@ async function submitFinalize(){
           number: f.number,
           home_player_id:  f.home_player_id  || null,  home_player_name:  f.home_player_name  || null,
           away_player_id:  f.away_player_id  || null,  away_player_name:  f.away_player_name  || null,
-          home_player2_id: f.home_player2_id || null,  away_player2_id:   f.away_player2_id   || null,
+          home_player2_id: f.home_player2_id || null,  home_player2_name: f.home_player2_name || null,
+          away_player2_id: f.away_player2_id || null,  away_player2_name: f.away_player2_name || null,
           winner: f.winner || null,
           eight_ball: !!f.eight_ball,
           is_doubles: !!f.is_doubles
@@ -1640,6 +1722,7 @@ async function submitFinalize(){
         body: JSON.stringify({
           fixture_id: state.selectedFixture.fixture_id,
           frames: frames,
+          new_players: collectNewPlayers(),
           notes: (state.server && state.server.notes) || '',
           also_other_side: true
         })

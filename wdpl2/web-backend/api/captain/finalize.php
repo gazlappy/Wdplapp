@@ -41,19 +41,46 @@ foreach ($state['frames'] as $f) {
 // Build a per-side payload matching submit-result.php's shape so the existing
 // MatchResultImporter / inbox can reconcile both captains' submissions.
 $frames = array();
+$new_players = array();
+$np_seen = array();
+$collect_new = function($id, $name, $team_id) use (&$new_players, &$np_seen) {
+    // A name-only pick (no id) is a brand-new player typed on the portal.
+    if ($id !== null && $id !== '') return;
+    if ($name === null || trim((string)$name) === '') return;
+    $nm = trim((string)$name);
+    if (strcasecmp($nm, 'VOID') === 0) return;
+    $k = strtolower($nm) . '|' . strtolower((string)$team_id);
+    if (isset($np_seen[$k])) return;
+    $np_seen[$k] = true;
+    $new_players[] = array('name' => $nm, 'team_id' => $team_id);
+};
 foreach ($state['frames'] as $f) {
     $frames[] = array(
-        'number'           => (int)$f['number'],
-        'home_player_id'   => isset($f['home_player_id'])   ? $f['home_player_id']   : null,
-        'home_player_name' => isset($f['home_player_name']) ? $f['home_player_name'] : null,
-        'away_player_id'   => isset($f['away_player_id'])   ? $f['away_player_id']   : null,
-        'away_player_name' => isset($f['away_player_name']) ? $f['away_player_name'] : null,
-        'home_player2_id'  => isset($f['home_player2_id'])  ? $f['home_player2_id']  : null,
-        'away_player2_id'  => isset($f['away_player2_id'])  ? $f['away_player2_id']  : null,
-        'winner'           => $f['winner'],
-        'eight_ball'       => !empty($f['eight_ball']),
-        'is_doubles'       => !empty($f['is_doubles']),
+        'number'            => (int)$f['number'],
+        'home_player_id'    => isset($f['home_player_id'])    ? $f['home_player_id']    : null,
+        'home_player_name'  => isset($f['home_player_name'])  ? $f['home_player_name']  : null,
+        'away_player_id'    => isset($f['away_player_id'])    ? $f['away_player_id']    : null,
+        'away_player_name'  => isset($f['away_player_name'])  ? $f['away_player_name']  : null,
+        'home_player2_id'   => isset($f['home_player2_id'])   ? $f['home_player2_id']   : null,
+        'home_player2_name' => isset($f['home_player2_name']) ? $f['home_player2_name'] : null,
+        'away_player2_id'   => isset($f['away_player2_id'])   ? $f['away_player2_id']   : null,
+        'away_player2_name' => isset($f['away_player2_name']) ? $f['away_player2_name'] : null,
+        'winner'            => $f['winner'],
+        'eight_ball'        => !empty($f['eight_ball']),
+        'is_doubles'        => !empty($f['is_doubles']),
     );
+    $collect_new(isset($f['home_player_id'])  ? $f['home_player_id']  : null,
+                 isset($f['home_player_name'])? $f['home_player_name']: null,
+                 $fixture['home_team_id']);
+    $collect_new(isset($f['away_player_id'])  ? $f['away_player_id']  : null,
+                 isset($f['away_player_name'])? $f['away_player_name']: null,
+                 $fixture['away_team_id']);
+    $collect_new(isset($f['home_player2_id'])  ? $f['home_player2_id']  : null,
+                 isset($f['home_player2_name'])? $f['home_player2_name']: null,
+                 $fixture['home_team_id']);
+    $collect_new(isset($f['away_player2_id'])  ? $f['away_player2_id']  : null,
+                 isset($f['away_player2_name'])? $f['away_player2_name']: null,
+                 $fixture['away_team_id']);
 }
 
 $payload = array(
@@ -75,7 +102,7 @@ $payload = array(
         'fixture_date'   => $fixture['fixture_date'],
     ),
     'frames'       => $frames,
-    'new_players'  => array(),
+    'new_players'  => $new_players,
     'notes'        => $notes !== '' ? $notes : (isset($state['notes']) ? (string)$state['notes'] : ''),
 );
 

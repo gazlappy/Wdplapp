@@ -56,7 +56,9 @@ public sealed class MatchResultFrame
     [JsonPropertyName("away_player_id")]    public Guid? AwayPlayerId { get; set; }
     [JsonPropertyName("away_player_name")]  public string? AwayPlayerName { get; set; }
     [JsonPropertyName("home_player2_id")]   public Guid? HomePlayer2Id { get; set; }
+    [JsonPropertyName("home_player2_name")] public string? HomePlayer2Name { get; set; }
     [JsonPropertyName("away_player2_id")]   public Guid? AwayPlayer2Id { get; set; }
+    [JsonPropertyName("away_player2_name")] public string? AwayPlayer2Name { get; set; }
     [JsonPropertyName("winner")]            public string? Winner { get; set; } // "home" | "away" | null
     [JsonPropertyName("eight_ball")]        public bool EightBall { get; set; }
     [JsonPropertyName("is_doubles")]        public bool IsDoubles { get; set; }
