@@ -1425,6 +1425,8 @@ function togglePickerDoubles(){
   const ctx=state.pickerCtx; if(!ctx) return;
   sendOps([{kind:'set_doubles', frame:ctx.frameIdx, value:$('doublesChk').checked}]);
 }
+// True when the captain unticked this player on the roster card this week.
+function playerUnavailable(p){ return p.available===0 || p.available==='0' || p.available===false; }
 function renderPickerList(){
   const ctx=state.pickerCtx; if(!ctx) return;
   const isHomeSide=(ctx.slot==='home'||ctx.slot==='home2');
@@ -1441,7 +1443,7 @@ function renderPickerList(){
   voidOpt.onclick=function(){ pickPlayer(VOID_ID,'VOID'); };
   list.appendChild(voidOpt);
 
-  state.players.filter(function(p){ return p.team_id===teamId; }).forEach(function(p){
+  state.players.filter(function(p){ return p.team_id===teamId && !playerUnavailable(p); }).forEach(function(p){
     const o=document.createElement('div'); o.className='player-opt';
     o.innerHTML='<span>'+esc(p.full_name)+'</span><span class="badge">roster</span>';
     o.onclick=function(){ pickPlayer(p.player_id, p.full_name); };
@@ -1600,7 +1602,7 @@ function randomFill(count){
   if(side!=='home' && side!=='away'){ flash('Your side is not set yet - reopen the card.', false); return; }
   const isHomeSide=(side==='home');
   const teamId=isHomeSide ? state.selectedFixture.home_team_id : state.selectedFixture.away_team_id;
-  const pool=(state.players||[]).filter(function(p){ return p.team_id===teamId; });
+  const pool=(state.players||[]).filter(function(p){ return p.team_id===teamId && !playerUnavailable(p); });
   if(pool.length===0){ flash('No active roster players found for your team.', false); return; }
   let maxPerPlayer=3;
   if(state.settings && typeof state.settings.max_frames_per_player!=='undefined' && state.settings.max_frames_per_player!==null){
@@ -1824,6 +1826,9 @@ async function loadRoster(){
     state.thisWeek=mon.toISOString().split('T')[0];
     const av=await api('/captain/availability.php?week='+state.thisWeek);
     state.availability=(av && av.players)?av.players:[];
+    // Mirror availability onto the picker pool so unticked players drop out of pickers.
+    const avm={}; state.availability.forEach(function(a){ avm[a.player_id]=Number(a.available); });
+    (state.players||[]).forEach(function(p){ if(avm[p.player_id]!==undefined) p.available=avm[p.player_id]; });
     renderRoster();
   }catch(e){ flash('Failed to load roster: '+e.message,false); }
 }
@@ -1843,7 +1848,7 @@ function renderRoster(){
     players.forEach(function(p){
       const row=document.createElement('div'); row.className='item'; row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center';
       const left=document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
-      const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=(avMap[p.player_id]===1 || avMap[p.player_id]===true || avMap[p.player_id]===undefined);
+      const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=!(avMap[p.player_id]===0 || avMap[p.player_id]==='0' || avMap[p.player_id]===false);
       chk.onchange=function(){ toggleAvailability(p.player_id, chk.checked); };
       left.appendChild(chk);
       const nm=document.createElement('span'); nm.textContent=p.full_name; left.appendChild(nm);
@@ -1856,6 +1861,9 @@ function renderRoster(){
       if(p.is_active){
         const rb=document.createElement('button'); rb.className='secondary'; rb.textContent='Retire'; rb.style.fontSize='11px'; rb.style.padding='3px 8px';
         rb.onclick=function(){ retirePlayer(p); }; btns.appendChild(rb);
+      } else {
+        const ab=document.createElement('button'); ab.className='secondary'; ab.textContent='Reactivate'; ab.style.fontSize='11px'; ab.style.padding='3px 8px';
+        ab.onclick=function(){ reactivatePlayer(p); }; btns.appendChild(ab);
       }
       row.appendChild(btns); sec.appendChild(row);
     });
@@ -1868,7 +1876,9 @@ async function addPlayer(){
   const nm=$('newPlayerName').value.trim();
   if(!nm){ flash('Enter player name',false); return; }
   try{
-    await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'add',full_name:nm})});
+    const r=await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'add',full_name:nm})});
+    if(r && r.player_id && state.captain && !(state.players||[]).some(function(x){ return x.player_id===r.player_id; }))
+      state.players.push({player_id:r.player_id, team_id:state.captain.team_id, full_name:r.full_name||nm, available:1});
     $('newPlayerName').value='';
     flash('Player added',true);
     await loadRoster();
@@ -1879,14 +1889,27 @@ async function editPlayer(p){
   if(!nm || nm===p.full_name)return;
   try{
     await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'update',player_id:p.player_id,full_name:nm})});
+    (state.players||[]).forEach(function(x){ if(x.player_id===p.player_id) x.full_name=nm; });
     flash('Player updated',true);
     await loadRoster();
   }catch(e){ flash(e.message,false); }
 }
+function setLocalAvailability(pid, av){
+  let found=false;
+  (state.availability||[]).forEach(function(a){ if(a.player_id===pid){ a.available=av; found=true; } });
+  if(!found){ state.availability=state.availability||[]; state.availability.push({player_id:pid, available:av}); }
+  (state.players||[]).forEach(function(p){ if(p.player_id===pid) p.available=av; });
+}
 async function toggleAvailability(pid, avail){
+  // Optimistic: update the picker pool immediately, revert if the save fails.
+  setLocalAvailability(pid, avail?1:0);
   try{
     await api('/captain/availability.php',{method:'POST',body:JSON.stringify({player_id:pid,week_start:state.thisWeek,available:avail})});
-  }catch(e){ flash(e.message,false); }
+  }catch(e){
+    setLocalAvailability(pid, avail?0:1);
+    renderRoster();
+    flash('Could not save availability: '+e.message,false);
+  }
 }
 async function retirePlayer(p){
   if(!confirm('Retire '+p.full_name+'? (They will no longer appear in the player picker.)'))return;
@@ -1895,6 +1918,15 @@ async function retirePlayer(p){
     flash('Player retired',true);
     await loadRoster();
     if(state.captain) state.players=state.players.filter(function(x){ return x.player_id!==p.player_id; });
+  }catch(e){ flash(e.message,false); }
+}
+async function reactivatePlayer(p){
+  try{
+    await api('/captain/roster.php',{method:'POST',body:JSON.stringify({action:'reactivate',player_id:p.player_id})});
+    flash('Player reactivated',true);
+    await loadRoster();
+    if(state.captain && !(state.players||[]).some(function(x){ return x.player_id===p.player_id; }))
+      state.players.push({player_id:p.player_id, team_id:state.captain.team_id, full_name:p.full_name, available:1});
   }catch(e){ flash(e.message,false); }
 }
 

@@ -54,6 +54,11 @@ public sealed class WebSubmission
         (string.IsNullOrWhiteSpace(ReferenceId) ? "" : $" · ref {ReferenceId}") +
         (string.IsNullOrWhiteSpace(Submitter)    ? "" : $" · by {Submitter}") +
         (string.IsNullOrWhiteSpace(ReceivedUtc)  ? "" : $" · {ReceivedUtc} UTC");
+
+    /// <summary>True when this row is a captain roster edit (add/rename/retire).</summary>
+    [JsonIgnore]
+    public bool IsRosterChange =>
+        string.Equals(Type, "roster_change", StringComparison.OrdinalIgnoreCase);
 }
 
 internal sealed class PendingResponse

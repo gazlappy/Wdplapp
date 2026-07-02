@@ -8,6 +8,20 @@ require __DIR__ . '/../_captain.php';
 $c = require_captain();
 $team_id = $c['team_id'];
 
+// player_availability may not exist on a fresh install.
+function ensure_availability_schema() {
+    try {
+        db()->exec(
+            "CREATE TABLE IF NOT EXISTS player_availability (
+                player_id      VARCHAR(64) NOT NULL,
+                week_start_utc DATETIME NOT NULL,
+                available      TINYINT(1) NOT NULL DEFAULT 1,
+                updated_utc    DATETIME NULL,
+                PRIMARY KEY (player_id, week_start_utc)
+             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (Exception $e) { /* non-fatal */ }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $week = isset($_GET['week']) ? trim($_GET['week']) : '';
     if ($week === '') {
@@ -20,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
     // Get all active players for this team + their availability for this week.
     try {
+        ensure_availability_schema();
         $stmt = db()->prepare(
             'SELECT p.player_id, p.full_name, COALESCE(a.available, 1) AS available
                FROM league_players p
@@ -28,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
               ORDER BY p.full_name ASC');
         $stmt->execute(array(':t' => $team_id, ':w' => $week . ' 00:00:00'));
         $rows = $stmt->fetchAll();
+        // Cast for JS strict comparisons — some hosts return all columns as strings.
+        foreach ($rows as $i => $r) { $rows[$i]['available'] = (int)$r['available']; }
         json_response(array('week' => $week, 'players' => $rows));
     } catch (Exception $e) {
         json_response(array('week' => $week, 'players' => array()));
@@ -35,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 require_post();
+ensure_availability_schema();
 $body = read_json_body();
 $pid   = trim((string)(isset($body['player_id']) ? $body['player_id'] : ''));
 $week  = trim((string)(isset($body['week_start']) ? $body['week_start'] : ''));
@@ -43,11 +61,14 @@ $avail = isset($body['available']) ? (bool)$body['available'] : true;
 if ($pid === '' || $week === '') {
     json_response(array('error' => 'player_id and week_start required'), 400);
 }
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $week)) {
+    json_response(array('error' => 'invalid week_start format'), 400);
+}
 // Validate the player belongs to this captain's team.
-$row = db()->prepare(
-    'SELECT player_id FROM league_players WHERE player_id = :p AND team_id = :t LIMIT 1')
-    ->execute(array(':p' => $pid, ':t' => $team_id));
-$row = db()->query("SELECT player_id FROM league_players WHERE player_id='$pid' AND team_id='$team_id' LIMIT 1")->fetch();
+$sel = db()->prepare(
+    'SELECT player_id FROM league_players WHERE player_id = :p AND team_id = :t LIMIT 1');
+$sel->execute(array(':p' => $pid, ':t' => $team_id));
+$row = $sel->fetch();
 if (!$row) {
     json_response(array('error' => 'player not found or not yours'), 404);
 }

@@ -16,6 +16,7 @@ public partial class InboxViewModel : BaseViewModel
     private readonly IWebInboxService _service;
     private readonly IWebPublishService _publish;
     private readonly IMatchResultImporter _importer;
+    private readonly IRosterChangeImporter _rosterImporter;
     private readonly BackendDeployService _backend;
 
     public InboxViewModel(
@@ -23,12 +24,14 @@ public partial class InboxViewModel : BaseViewModel
         IWebInboxService service,
         IWebPublishService publish,
         IMatchResultImporter importer,
+        IRosterChangeImporter rosterImporter,
         BackendDeployService backend)
         : base(seasonService)
     {
         _service = service;
         _publish = publish;
         _importer = importer;
+        _rosterImporter = rosterImporter;
         _backend = backend;
     }
 
@@ -282,12 +285,84 @@ public partial class InboxViewModel : BaseViewModel
         {
             await _service.MarkProcessedAsync(new[] { submission.Id }, AdminUser);
             Items.Remove(submission);
+            OtherItems.Remove(submission);
             HasItems = Items.Count > 0;
+            HasOtherItems = OtherItems.Count > 0;
             SetStatus($"Marked #{submission.Id} as processed.");
         }
         catch (Exception ex)
         {
             SetStatus($"Mark-processed failed: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ApplyRosterChangeAsync(WebSubmission? submission)
+    {
+        if (submission is null || !submission.IsRosterChange) return;
+        IsLoading = true;
+        try
+        {
+            var result = await _rosterImporter.ImportAsync(submission);
+            if (!result.Success)
+            {
+                SetStatus($"Roster change failed: {result.Message}");
+                return;
+            }
+            try { await _service.MarkProcessedAsync(new[] { submission.Id }, AdminUser, "roster applied"); }
+            catch { /* surfaced below via refresh */ }
+            Items.Remove(submission);
+            OtherItems.Remove(submission);
+            HasItems = Items.Count > 0;
+            HasOtherItems = OtherItems.Count > 0;
+            SetStatus(result.Message);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Roster change failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ApplyAllRosterChangesAsync()
+    {
+        var rosterSubs = OtherItems.Where(s => s.IsRosterChange).ToList();
+        if (rosterSubs.Count == 0)
+        {
+            SetStatus("No roster changes to apply.");
+            return;
+        }
+        IsLoading = true;
+        int ok = 0, failed = 0;
+        try
+        {
+            foreach (var sub in rosterSubs)
+            {
+                try
+                {
+                    var result = await _rosterImporter.ImportAsync(sub);
+                    if (result.Success)
+                    {
+                        try { await _service.MarkProcessedAsync(new[] { sub.Id }, AdminUser, "roster applied"); } catch { }
+                        Items.Remove(sub);
+                        OtherItems.Remove(sub);
+                        ok++;
+                    }
+                    else failed++;
+                }
+                catch { failed++; }
+            }
+            HasItems = Items.Count > 0;
+            HasOtherItems = OtherItems.Count > 0;
+            SetStatus($"Applied {ok} roster change(s)" + (failed > 0 ? $", {failed} failed." : "."));
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 

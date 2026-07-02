@@ -66,6 +66,7 @@ public sealed class MatchResultFrame
 
 public sealed class MatchResultNewPlayer
 {
-    [JsonPropertyName("name")]    public string? Name { get; set; }
-    [JsonPropertyName("team_id")] public Guid? TeamId { get; set; }
+    [JsonPropertyName("player_id")] public Guid? PlayerId { get; set; }
+    [JsonPropertyName("name")]      public string? Name { get; set; }
+    [JsonPropertyName("team_id")]   public Guid? TeamId { get; set; }
 }

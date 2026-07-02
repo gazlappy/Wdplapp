@@ -78,7 +78,9 @@ public sealed class MatchResultImporter : IMatchResultImporter
             var split = SplitName(name);
             var p = new Player
             {
-                Id        = Guid.NewGuid(),
+                // Keep the portal-generated id (captain roster additions) so the
+                // app and website agree on player identity across republishes.
+                Id        = (id.HasValue && id.Value != Guid.Empty) ? id.Value : Guid.NewGuid(),
                 SeasonId  = seasonId,
                 TeamId    = teamId,
                 FirstName = split.first,
@@ -101,7 +103,7 @@ public sealed class MatchResultImporter : IMatchResultImporter
             if (string.IsNullOrWhiteSpace(np.Name)) continue;
             var teamId = np.TeamId ?? payload.SubmittedBy?.TeamId;
             if (teamId is null || teamId == Guid.Empty) continue;
-            ResolveOrCreate(null, np.Name, teamId.Value);
+            ResolveOrCreate(np.PlayerId, np.Name, teamId.Value);
         }
 
         var newFrames = new List<FrameResult>();

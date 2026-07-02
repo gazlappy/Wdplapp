@@ -54,17 +54,37 @@ foreach ($fixtures as $f) {
 $teamIds = array_values(array_unique($teamIds));
 
 $players = array();
+// Current ISO week Monday (matches the portal's state.thisWeek computation) so
+// the scorecard picker can hide players marked unavailable on the roster card.
+$dow = (int)gmdate('N'); // 1=Mon .. 7=Sun
+$weekMonday = gmdate('Y-m-d', time() - ($dow - 1) * 86400) . ' 00:00:00';
 try {
     $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
     $prStmt = db()->prepare(
-        'SELECT player_id, team_id, full_name
-           FROM league_players
-          WHERE team_id IN (' . $placeholders . ')
-            AND is_active = 1
-          ORDER BY full_name');
-    $prStmt->execute($teamIds);
+        'SELECT p.player_id, p.team_id, p.full_name, COALESCE(a.available, 1) AS available
+           FROM league_players p
+      LEFT JOIN player_availability a
+             ON a.player_id = p.player_id AND a.week_start_utc = ?
+          WHERE p.team_id IN (' . $placeholders . ')
+            AND p.is_active = 1
+          ORDER BY p.full_name');
+    $prStmt->execute(array_merge(array($weekMonday), $teamIds));
     $players = $prStmt->fetchAll();
-} catch (Exception $e) { /* league_players may not exist yet */ }
+    foreach ($players as $i => $p) { $players[$i]['available'] = (int)$p['available']; }
+} catch (Exception $e) {
+    // player_availability may not exist yet — fall back to the plain roster.
+    try {
+        $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+        $prStmt = db()->prepare(
+            'SELECT player_id, team_id, full_name
+               FROM league_players
+              WHERE team_id IN (' . $placeholders . ')
+                AND is_active = 1
+              ORDER BY full_name');
+        $prStmt->execute($teamIds);
+        $players = $prStmt->fetchAll();
+    } catch (Exception $e2) { /* league_players may not exist yet */ }
+}
 
 // League settings (populated by the desktop app via admin/publish-league.php).
 // Falls back to WDPL defaults if the table doesn't exist yet.

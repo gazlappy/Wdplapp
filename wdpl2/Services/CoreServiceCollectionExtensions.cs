@@ -17,6 +17,7 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IWebInboxService, HttpWebInboxService>();
         services.AddSingleton<IWebPublishService, HttpWebPublishService>();
         services.AddSingleton<IMatchResultImporter, MatchResultImporter>();
+        services.AddSingleton<IRosterChangeImporter, RosterChangeImporter>();
         services.AddSingleton<BackendDeployService>();
 
         return services;

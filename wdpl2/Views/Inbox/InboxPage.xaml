@@ -166,9 +166,15 @@
                         </CollectionView.ItemTemplate>
                     </CollectionView>
 
-                    <Label Text="Other submissions"
-                           FontAttributes="Bold" FontSize="14"
-                           IsVisible="{Binding HasOtherItems}" />
+                    <HorizontalStackLayout Spacing="8" IsVisible="{Binding HasOtherItems}">
+                        <Label Text="Other submissions"
+                               FontAttributes="Bold" FontSize="14"
+                               VerticalOptions="Center" />
+                        <Button Text="Apply all roster changes"
+                                FontSize="12" Padding="8,4"
+                                BackgroundColor="{AppThemeBinding Light=#047857, Dark=#065F46}"
+                                Command="{Binding ApplyAllRosterChangesCommand}" />
+                    </HorizontalStackLayout>
 
                     <CollectionView ItemsSource="{Binding OtherItems}" SelectionMode="None"
                                     IsVisible="{Binding HasOtherItems}">
@@ -183,10 +189,16 @@
                                         <Label Text="{Binding PayloadPretty}"
                                                FontFamily="Consolas" FontSize="12"
                                                LineBreakMode="WordWrap" />
-                                        <Button Text="Mark processed"
-                                                HorizontalOptions="Start"
-                                                Command="{Binding BindingContext.MarkProcessedCommand, Source={x:Reference PageRoot}}"
-                                                CommandParameter="{Binding .}" />
+                                        <FlexLayout Wrap="Wrap" JustifyContent="Start">
+                                            <Button Text="Apply roster change" Margin="0,0,6,6"
+                                                    IsVisible="{Binding IsRosterChange}"
+                                                    BackgroundColor="{AppThemeBinding Light=#047857, Dark=#065F46}"
+                                                    Command="{Binding BindingContext.ApplyRosterChangeCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            <Button Text="Mark processed" Margin="0,0,6,6"
+                                                    Command="{Binding BindingContext.MarkProcessedCommand, Source={x:Reference PageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                        </FlexLayout>
                                     </VerticalStackLayout>
                                 </Border>
                             </DataTemplate>

@@ -44,10 +44,15 @@ try {
             season_id  VARCHAR(64) NULL,
             full_name  VARCHAR(160) NOT NULL,
             is_active  TINYINT(1) NOT NULL DEFAULT 1,
+            added_by_captain TINYINT(1) NOT NULL DEFAULT 0,
+            updated_utc DATETIME NULL,
             PRIMARY KEY (player_id),
             KEY ix_player_team   (team_id),
             KEY ix_player_season (season_id)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Older installs created league_players without the captain-roster columns.
+    try { $pdo->exec("ALTER TABLE league_players ADD COLUMN added_by_captain TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) { /* already there */ }
+    try { $pdo->exec("ALTER TABLE league_players ADD COLUMN updated_utc DATETIME NULL"); } catch (Exception $e) { /* already there */ }
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS league_fixtures (
             fixture_id     VARCHAR(64) NOT NULL,
@@ -78,14 +83,15 @@ try {
 
 $pdo->beginTransaction();
 try {
-    // Wipe everything for this season (or all if null).
+    // Wipe everything for this season (or all if null) - but KEEP captain-added
+    // players so a publish from the app never destroys the online rosters.
     if ($season_id !== null && $season_id !== '') {
         $pdo->prepare('DELETE FROM league_fixtures WHERE season_id = :s')->execute(array(':s' => $season_id));
-        $pdo->prepare('DELETE FROM league_players  WHERE season_id = :s')->execute(array(':s' => $season_id));
+        $pdo->prepare('DELETE FROM league_players  WHERE season_id = :s AND added_by_captain = 0')->execute(array(':s' => $season_id));
         $pdo->prepare('DELETE FROM league_teams    WHERE season_id = :s')->execute(array(':s' => $season_id));
     } else {
         $pdo->exec('DELETE FROM league_fixtures');
-        $pdo->exec('DELETE FROM league_players');
+        $pdo->exec('DELETE FROM league_players WHERE added_by_captain = 0');
         $pdo->exec('DELETE FROM league_teams');
     }
 
@@ -104,8 +110,12 @@ try {
     }
 
     $ins = $pdo->prepare(
-        'INSERT INTO league_players (player_id, team_id, season_id, full_name, is_active)
-         VALUES (:id, :tid, :sid, :n, :a)');
+        'INSERT INTO league_players (player_id, team_id, season_id, full_name, is_active, added_by_captain, updated_utc)
+         VALUES (:id, :tid, :sid, :n, :a, 0, UTC_TIMESTAMP())
+         ON DUPLICATE KEY UPDATE
+            team_id = VALUES(team_id), season_id = VALUES(season_id),
+            full_name = VALUES(full_name), is_active = VALUES(is_active),
+            added_by_captain = 0, updated_utc = UTC_TIMESTAMP()');
     foreach ($players as $p) {
         $ins->execute(array(
             ':id'  => isset($p['player_id']) ? $p['player_id'] : null,
@@ -115,6 +125,20 @@ try {
             ':a'   => !empty($p['is_active']) ? 1 : 0,
         ));
     }
+
+    // A captain-added player becomes app-managed once the app imports the match
+    // and republishes them (same name, same team, different id). Drop the stale
+    // captain row so the roster doesn't show duplicates.
+    try {
+        $pdo->exec(
+            "DELETE cp FROM league_players cp
+              INNER JOIN league_players ap
+                      ON ap.added_by_captain = 0
+                     AND cp.added_by_captain = 1
+                     AND ap.team_id = cp.team_id
+                     AND ap.player_id <> cp.player_id
+                     AND LOWER(TRIM(ap.full_name)) = LOWER(TRIM(cp.full_name))");
+    } catch (Exception $e) { /* non-fatal */ }
 
     $ins = $pdo->prepare(
         'INSERT INTO league_fixtures
