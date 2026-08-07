@@ -16,13 +16,21 @@ public partial class SeasonScenarioPage : ContentPage
     private readonly DatePicker _startPicker;
     private readonly DatePicker _endPicker;
     private readonly Picker _dayPicker;
-    private readonly Entry _teamsEntry;
     private readonly Picker _roundsPicker;
     private readonly Entry _bufferEntry;
     private readonly Switch _skipHolidaysSwitch;
     private readonly VerticalStackLayout _results;
     private readonly VerticalStackLayout _compList;
     private readonly VerticalStackLayout _skipList;
+    private readonly VerticalStackLayout _divList;
+
+    private sealed class DivisionEntry
+    {
+        public string Name = "";
+        public int Teams = 8;
+    }
+
+    private readonly List<DivisionEntry> _divisions = [];
 
     private sealed class SkipDate
     {
@@ -87,14 +95,51 @@ public partial class SeasonScenarioPage : ContentPage
             ? ((int)activeSeason.MatchDayOfWeek + 6) % 7
             : 1; // Tuesday
 
-        _teamsEntry = new Entry
+        _divList = new VerticalStackLayout { Spacing = 6 };
+
+        // Seed divisions from the active season, falling back to one default division
+        if (activeSeason != null)
         {
-            Keyboard = Keyboard.Numeric,
-            Placeholder = "e.g. 10",
-            Text = activeSeason != null
-                ? Math.Max(2, League.Teams.Count(t => t.SeasonId == activeSeason.Id)).ToString()
-                : "10",
-            WidthRequest = 80
+            foreach (var div in League.Divisions.Where(d => d.SeasonId == activeSeason.Id))
+            {
+                var teamCount = League.Teams.Count(t => t.SeasonId == activeSeason.Id && t.DivisionId == div.Id);
+                _divisions.Add(new DivisionEntry
+                {
+                    Name = string.IsNullOrWhiteSpace(div.Name) ? $"Division {_divisions.Count + 1}" : div.Name,
+                    Teams = Math.Max(2, teamCount)
+                });
+            }
+        }
+        if (_divisions.Count == 0)
+        {
+            var totalTeams = activeSeason != null
+                ? Math.Max(2, League.Teams.Count(t => t.SeasonId == activeSeason.Id))
+                : 10;
+            _divisions.Add(new DivisionEntry { Name = "Division 1", Teams = totalTeams });
+        }
+
+        var addDivButton = new Button
+        {
+            Text = "\uFF0B Add division",
+            BackgroundColor = Color.FromArgb("#2563EB"),
+            TextColor = Colors.White,
+            FontSize = 12,
+            CornerRadius = 6,
+            Padding = new Thickness(10, 4),
+            HeightRequest = 32,
+            HorizontalOptions = LayoutOptions.Start
+        };
+        addDivButton.Clicked += async (_, _) =>
+        {
+            var name = await DisplayPromptAsync("Add Division",
+                "Division name:", initialValue: $"Division {_divisions.Count + 1}", maxLength: 40);
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var teamsStr = await DisplayPromptAsync("Add Division",
+                $"How many teams in '{name.Trim()}'?", initialValue: "8",
+                maxLength: 2, keyboard: Keyboard.Numeric);
+            if (!int.TryParse(teamsStr, out var t) || t < 2) t = 2;
+            _divisions.Add(new DivisionEntry { Name = name.Trim(), Teams = t });
+            RebuildDivList();
         };
 
         _roundsPicker = new Picker { Title = "Rounds" };
@@ -199,8 +244,7 @@ public partial class SeasonScenarioPage : ContentPage
             [
                 new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Auto)
+                new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto)
             ],
             ColumnSpacing = 12,
             RowSpacing = 10
@@ -218,12 +262,35 @@ public partial class SeasonScenarioPage : ContentPage
         AddRow(0, "Season start", _startPicker);
         AddRow(1, "Season end", _endPicker);
         AddRow(2, "Match night", _dayPicker);
-        AddRow(3, "Number of teams", _teamsEntry);
-        AddRow(4, "League format", _roundsPicker);
-        AddRow(5, "Spare/buffer nights", _bufferEntry);
-        AddRow(6, "Skip bank holidays", _skipHolidaysSwitch);
+        AddRow(3, "League format", _roundsPicker);
+        AddRow(4, "Spare/buffer nights", _bufferEntry);
+        AddRow(5, "Skip bank holidays", _skipHolidaysSwitch);
 
+        RebuildDivList();
         RebuildCompList();
+
+        var divSection = new VerticalStackLayout
+        {
+            Spacing = 6,
+            Children =
+            {
+                new Label
+                {
+                    Text = "Divisions",
+                    FontSize = 14,
+                    FontAttributes = FontAttributes.Bold,
+                    TextColor = isDark ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#1F2937")
+                },
+                new Label
+                {
+                    Text = "Divisions play in parallel on the same nights — the largest division sets how many league nights are needed.",
+                    FontSize = 12,
+                    TextColor = labelColor
+                },
+                _divList,
+                addDivButton
+            }
+        };
 
         var compSection = new VerticalStackLayout
         {
@@ -286,6 +353,7 @@ public partial class SeasonScenarioPage : ContentPage
                         TextColor = labelColor
                     },
                     inputGrid,
+                    divSection,
                     compSection,
                     skipSection,
                     calcButton,
@@ -293,6 +361,91 @@ public partial class SeasonScenarioPage : ContentPage
                 }
             }
         };
+    }
+
+    private void RebuildDivList()
+    {
+        _divList.Children.Clear();
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        var textColor = isDark ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#1F2937");
+        var mutedColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280");
+
+        foreach (var div in _divisions)
+        {
+            var row = new Grid
+            {
+                ColumnDefinitions =
+                [
+                    new ColumnDefinition(GridLength.Star),   // name
+                    new ColumnDefinition(GridLength.Auto),   // teams stepper
+                    new ColumnDefinition(GridLength.Auto),   // teams label
+                    new ColumnDefinition(GridLength.Auto)    // remove
+                ],
+                ColumnSpacing = 8
+            };
+
+            var nameLabel = new Label
+            {
+                Text = div.Name,
+                FontSize = 13,
+                VerticalOptions = LayoutOptions.Center,
+                TextColor = textColor,
+                LineBreakMode = LineBreakMode.TailTruncation
+            };
+            Grid.SetColumn(nameLabel, 0);
+            row.Children.Add(nameLabel);
+
+            var teamsLabel = new Label
+            {
+                Text = $"{div.Teams} teams",
+                FontSize = 12,
+                VerticalOptions = LayoutOptions.Center,
+                TextColor = mutedColor,
+                WidthRequest = 62
+            };
+
+            var stepper = new Stepper
+            {
+                Minimum = 2,
+                Maximum = 30,
+                Increment = 1,
+                Value = div.Teams,
+                Scale = 0.8,
+                VerticalOptions = LayoutOptions.Center
+            };
+            stepper.ValueChanged += (_, e) =>
+            {
+                div.Teams = (int)e.NewValue;
+                teamsLabel.Text = $"{div.Teams} teams";
+            };
+            Grid.SetColumn(stepper, 1);
+            row.Children.Add(stepper);
+            Grid.SetColumn(teamsLabel, 2);
+            row.Children.Add(teamsLabel);
+
+            var removeBtn = new Button
+            {
+                Text = "\u2715",
+                FontSize = 11,
+                Padding = new Thickness(6, 2),
+                HeightRequest = 26,
+                WidthRequest = 30,
+                CornerRadius = 4,
+                BackgroundColor = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#F3F4F6"),
+                TextColor = Color.FromArgb("#DC2626"),
+                VerticalOptions = LayoutOptions.Center
+            };
+            removeBtn.Clicked += (_, _) =>
+            {
+                if (_divisions.Count <= 1) return; // always keep at least one division
+                _divisions.Remove(div);
+                RebuildDivList();
+            };
+            Grid.SetColumn(removeBtn, 3);
+            row.Children.Add(removeBtn);
+
+            _divList.Children.Add(row);
+        }
     }
 
     private void RebuildCompList()
@@ -477,9 +630,9 @@ public partial class SeasonScenarioPage : ContentPage
             return;
         }
 
-        if (!int.TryParse(_teamsEntry.Text?.Trim(), out int teams) || teams < 2)
+        if (_divisions.Count == 0)
         {
-            AddResult("⚠️ Enter a valid number of teams (2 or more).", Color.FromArgb("#DC2626"), true);
+            AddResult("⚠️ Add at least one division with 2 or more teams.", Color.FromArgb("#DC2626"), true);
             return;
         }
 
@@ -497,11 +650,14 @@ public partial class SeasonScenarioPage : ContentPage
         bool doubleRound = _roundsPicker.SelectedIndex != 0;
         bool skipHolidays = _skipHolidaysSwitch.IsToggled;
 
-        // Round-robin structure: with an even number of teams there are (n-1) rounds
-        // per half; an odd count needs n rounds (one team sits out each night).
-        int roundsPerHalf = teams % 2 == 0 ? teams - 1 : teams;
+        // Round-robin structure per division (divisions play in parallel, so the
+        // largest division determines the number of league nights needed).
+        // Even team count: n-1 rounds per half; odd: n rounds (one team sits out).
+        int RoundsPerHalf(int t) => t % 2 == 0 ? t - 1 : t;
+        int roundsPerHalf = _divisions.Max(d => RoundsPerHalf(d.Teams));
         int leagueNights = doubleRound ? roundsPerHalf * 2 : roundsPerHalf;
-        int matchesPerNight = teams / 2;
+        int totalTeams = _divisions.Sum(d => d.Teams);
+        int matchesPerNight = _divisions.Sum(d => d.Teams / 2);
 
         var holidays = skipHolidays ? GetBankHolidays(start.Year, end.Year) : [];
         var skipMap = _skipDates.ToDictionary(s => s.Date,
@@ -523,8 +679,14 @@ public partial class SeasonScenarioPage : ContentPage
 
         // ── Summary ──
         AddResult("── Projection Summary ──", mutedColor, true, 15);
-        AddResult($"{teams} teams · {matchesPerNight} match{(matchesPerNight != 1 ? "es" : "")} per night · {(doubleRound ? "home & away" : "single round")}");
-        AddResult($"League nights needed: {leagueNights}" + (teams % 2 != 0 ? $" (odd team count — one team sits out each night)" : ""));
+        AddResult($"{totalTeams} teams in {_divisions.Count} division{(_divisions.Count != 1 ? "s" : "")} · up to {matchesPerNight} match{(matchesPerNight != 1 ? "es" : "")} per night · {(doubleRound ? "home & away" : "single round")}");
+        foreach (var div in _divisions)
+        {
+            int divNights = doubleRound ? RoundsPerHalf(div.Teams) * 2 : RoundsPerHalf(div.Teams);
+            AddResult($"   \u2022 {div.Name}: {div.Teams} teams → {divNights} league night{(divNights != 1 ? "s" : "")}" +
+                      (div.Teams % 2 != 0 ? " (odd — one team sits out each night)" : ""), mutedColor);
+        }
+        AddResult($"League nights needed (longest division): {leagueNights}");
         if (competitionNights > 0)
         {
             AddResult($"Competition nights: {competitionNights}");
