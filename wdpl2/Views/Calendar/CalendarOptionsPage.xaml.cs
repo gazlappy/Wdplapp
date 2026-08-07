@@ -442,11 +442,8 @@ public partial class CalendarOptionsPage : ContentPage
     private View CreatePresetEventsPanel()
     {
         var presets = Settings.PresetHolidays;
-        if (presets.Count == 0)
-        {
-            presets.AddRange(PresetHoliday.CreateDefaults());
+        if (PresetHoliday.EnsureBuiltIns(presets))
             SaveSettings();
-        }
 
         var builtIn = presets.Where(h => h.IsBuiltIn).ToList();
         var custom = presets.Where(h => h.IsCustom).ToList();

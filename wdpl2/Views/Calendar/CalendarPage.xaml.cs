@@ -21,6 +21,7 @@ public partial class CalendarPage : ContentPage
     private HashSet<DateTime> _competitionDateSet = [];
     private Dictionary<DateTime, string> _bankHolidays = [];
     private List<CalendarEvent> _calendarEvents = [];
+    private Dictionary<DateTime, List<string>> _dateConflicts = [];
 
     private enum CalendarView { Month, Year, Day }
     private CalendarView _currentView = CalendarView.Month;
@@ -207,6 +208,8 @@ public partial class CalendarPage : ContentPage
     private async void OnCalendarOptionsClicked(object? sender, EventArgs e)
     {
         var action = await DisplayActionSheet("Calendar Options", "Cancel", null,
+            "\U0001f4ca Season Planning Summary",
+            "\U0001f52e Season Scenario Planner",
             "\U0001f4cc Add Event",
             "\U0001f4c5 Jump to Date",
             "\U0001f4cb View All Events",
@@ -217,6 +220,16 @@ public partial class CalendarPage : ContentPage
 
         switch (action)
         {
+            case "\U0001f4ca Season Planning Summary":
+                await ShowSeasonPlanningSummary();
+                break;
+
+            case "\U0001f52e Season Scenario Planner":
+                var scenarioPage = Application.Current?.Handler?.MauiContext?.Services.GetService<SeasonScenarioPage>()
+                    ?? throw new InvalidOperationException("SeasonScenarioPage not registered");
+                await Navigation.PushModalAsync(new NavigationPage(scenarioPage));
+                break;
+
             case "\U0001f4cc Add Event":
                 var targetDate = _currentView == CalendarView.Day ? _viewDate : DateTime.Today;
                 await ShowAddEventDialog(targetDate);
@@ -284,6 +297,79 @@ public partial class CalendarPage : ContentPage
                 await Navigation.PushModalAsync(new NavigationPage(optionsPage));
                 break;
         }
+    }
+
+    /// <summary>
+    /// Shows a season-planning overview: fixture progress, conflicts,
+    /// free match weeks, and the busiest venues.
+    /// </summary>
+    private async Task ShowSeasonPlanningSummary()
+    {
+        if (SeasonPicker.SelectedItem is not Season season)
+        {
+            await DisplayAlert("No Season", "Select a season first.", "OK");
+            return;
+        }
+
+        var lines = new List<string>();
+
+        // Overall fixture progress
+        int total = _seasonFixtures.Count;
+        int played = _seasonFixtures.Count(f => f.Frames.Count > 0);
+        lines.Add($"Fixtures: {played} played / {total} scheduled");
+        lines.Add($"Season: {season.StartDate:dd MMM yyyy} \u2013 {season.EndDate:dd MMM yyyy} ({season.MatchDayOfWeek}s)");
+        lines.Add($"Blackouts: {_blackoutDates.Count}   Competitions dates: {_competitionDates.Count}");
+        lines.Add("");
+
+        // Free match weeks (match-day dates inside season with no fixtures, no blackout, no competition)
+        var fixtureDates = _seasonFixtures.Select(f => f.Date.Date).ToHashSet();
+        var freeMatchDays = new List<DateTime>();
+        for (var d = season.StartDate.Date; d <= season.EndDate.Date; d = d.AddDays(1))
+        {
+            if (d.DayOfWeek != season.MatchDayOfWeek) continue;
+            if (fixtureDates.Contains(d) || _blackoutDates.ContainsKey(d) || _competitionDateSet.Contains(d)) continue;
+            freeMatchDays.Add(d);
+        }
+        lines.Add($"Free {season.MatchDayOfWeek}s: {freeMatchDays.Count}");
+        foreach (var d in freeMatchDays.Take(8))
+            lines.Add($"   \u2022 {d:ddd dd MMM yyyy}");
+        if (freeMatchDays.Count > 8)
+            lines.Add($"   +{freeMatchDays.Count - 8} more");
+        lines.Add("");
+
+        // Conflicts
+        var conflictDates = _dateConflicts.OrderBy(kv => kv.Key).ToList();
+        if (conflictDates.Count == 0)
+        {
+            lines.Add("\u2705 No scheduling conflicts detected");
+        }
+        else
+        {
+            lines.Add($"\u26A0\uFE0F Conflicts ({conflictDates.Sum(kv => kv.Value.Count)}):");
+            foreach (var (date, msgs) in conflictDates.Take(10))
+                foreach (var m in msgs)
+                    lines.Add($"   \u2022 {date:dd MMM}: {m}");
+            if (conflictDates.Count > 10)
+                lines.Add($"   +more on {conflictDates.Count - 10} other dates");
+        }
+        lines.Add("");
+
+        // Busiest venues
+        var venueLoad = _seasonFixtures
+            .Where(f => f.VenueId.HasValue)
+            .GroupBy(f => f.VenueId!.Value)
+            .Select(g => (Name: _seasonVenues.FirstOrDefault(v => v.Id == g.Key)?.Name ?? "Unknown", Count: g.Count()))
+            .OrderByDescending(x => x.Count)
+            .Take(5)
+            .ToList();
+        if (venueLoad.Count > 0)
+        {
+            lines.Add("Busiest venues:");
+            foreach (var (name, count) in venueLoad)
+                lines.Add($"   \u2022 {name}: {count} fixtures");
+        }
+
+        await DisplayAlert($"\U0001f4ca {season.Name} \u2014 Planning Summary", string.Join("\n", lines), "Close");
     }
 
     private void SetAllFilters(bool value)
@@ -583,6 +669,9 @@ public partial class CalendarPage : ContentPage
         // Load user-created calendar events
         ReloadCalendarEvents();
 
+        // Detect scheduling conflicts for season planning
+        ComputeConflicts();
+
         _divisions.Clear();
         _divisions.Add(new Division { Name = "All Divisions", Id = Guid.Empty });
         foreach (var d in League.Divisions.Where(d => d.SeasonId == id))
@@ -598,6 +687,118 @@ public partial class CalendarPage : ContentPage
         var div = DivisionPicker.SelectedItem as Division;
         _divisionFilter = div != null && div.Id != Guid.Empty ? div.Id : null;
         Refresh();
+    }
+
+    /// <summary>
+    /// Adds or removes a blackout on the given date for the selected season,
+    /// persists the change, and refreshes the calendar including conflicts.
+    /// </summary>
+    private async Task ToggleBlackoutAsync(DateTime date, bool hasBlackout)
+    {
+        if (SeasonPicker.SelectedItem is not Season season)
+        {
+            await DisplayAlert("No Season", "Select a season first.", "OK");
+            return;
+        }
+
+        var key = date.ToString("yyyy-MM-dd");
+        if (hasBlackout)
+        {
+            var confirm = await DisplayAlert("Remove Blackout",
+                $"Remove the blackout on {date:ddd dd MMM yyyy}?", "Remove", "Cancel");
+            if (!confirm) return;
+
+            season.BlackoutDates.RemoveAll(d => d.Date == date);
+            season.BlackoutDateTitles?.Remove(key);
+            _blackoutDates.Remove(date);
+        }
+        else
+        {
+            var title = await DisplayPromptAsync("Mark as Blackout",
+                $"Reason for the blackout on {date:ddd dd MMM yyyy} (optional):",
+                maxLength: 60);
+            if (title == null) return; // cancelled
+
+            if (!season.BlackoutDates.Contains(date))
+                season.BlackoutDates.Add(date);
+            season.BlackoutDateTitles ??= new();
+            if (!string.IsNullOrWhiteSpace(title))
+                season.BlackoutDateTitles[key] = title.Trim();
+            _blackoutDates[date] = title.Trim();
+        }
+
+        await _dataStore.SaveAsync();
+        ComputeConflicts();
+        Refresh();
+    }
+
+    /// <summary>
+    /// Builds a per-date list of scheduling problems: fixtures on blackout dates,
+    /// bank holidays or competition dates, and venues double-booked on one night.
+    /// </summary>
+    private void ComputeConflicts()
+    {
+        _dateConflicts = [];
+
+        void AddConflict(DateTime date, string message)
+        {
+            if (!_dateConflicts.TryGetValue(date, out var list))
+                _dateConflicts[date] = list = [];
+            if (!list.Contains(message))
+                list.Add(message);
+        }
+
+        string TeamName(Guid id) => _seasonTeams.FirstOrDefault(t => t.Id == id)?.Name ?? "?";
+
+        foreach (var group in _seasonFixtures.GroupBy(f => f.Date.Date))
+        {
+            var date = group.Key;
+
+            if (_blackoutDates.ContainsKey(date))
+            {
+                foreach (var f in group)
+                    AddConflict(date, $"Fixture on blackout date: {TeamName(f.HomeTeamId)} v {TeamName(f.AwayTeamId)}");
+            }
+
+            if (_bankHolidays.TryGetValue(date, out var holName))
+                AddConflict(date, $"{group.Count()} fixture{(group.Count() != 1 ? "s" : "")} on bank holiday ({holName})");
+
+            if (_competitionDateSet.Contains(date))
+            {
+                var compName = _competitionDates.FirstOrDefault(c => c.Date == date).Name;
+                AddConflict(date, $"{group.Count()} fixture{(group.Count() != 1 ? "s" : "")} clash with {compName ?? "a competition"}");
+            }
+
+            // Table/venue capacity: a venue can host one match per table per night.
+            foreach (var venueGroup in group.Where(f => f.VenueId.HasValue)
+                                            .GroupBy(f => f.VenueId!.Value))
+            {
+                var venue = _seasonVenues.FirstOrDefault(v => v.Id == venueGroup.Key);
+                var venueName = venue?.Name ?? "Unknown venue";
+                int tableCapacity = Math.Max(1, venue?.Tables.Count ?? 1);
+
+                // Specific table double-booked (two fixtures assigned to the same table)
+                foreach (var tableGroup in venueGroup.Where(f => f.TableId.HasValue)
+                                                     .GroupBy(f => f.TableId!.Value)
+                                                     .Where(g => g.Count() > 1))
+                {
+                    var tableLabel = venue?.Tables.FirstOrDefault(t => t.Id == tableGroup.Key)?.Label;
+                    AddConflict(date, $"{tableGroup.Count()} fixtures on {(string.IsNullOrWhiteSpace(tableLabel) ? "the same table" : $"table '{tableLabel}'")} at {venueName}");
+                }
+
+                // Venue over capacity: more fixtures than tables available
+                if (venueGroup.Count() > tableCapacity)
+                    AddConflict(date, $"{venueGroup.Count()} fixtures at {venueName} but only {tableCapacity} table{(tableCapacity != 1 ? "s" : "")}");
+            }
+
+            // Team double-booking: a team playing twice on the same night
+            foreach (var teamGroup in group.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId })
+                                           .GroupBy(id => id)
+                                           .Where(g => g.Count() > 1))
+            {
+                AddConflict(date, $"{TeamName(teamGroup.Key)} plays {teamGroup.Count()} matches on the same night");
+            }
+        }
     }
 
     private IEnumerable<Fixture> FilteredFixtures()
@@ -713,6 +914,19 @@ public partial class CalendarPage : ContentPage
             Grid.SetColumn(label, i);
             DayHeaders.Children.Add(label);
         }
+
+        var wkLabel = new Label
+        {
+            Text = "Wk",
+            FontSize = 12,
+            FontAttributes = FontAttributes.Bold,
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center,
+            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
+                ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
+        };
+        Grid.SetColumn(wkLabel, 7);
+        DayHeaders.Children.Add(wkLabel);
     }
 
     private void RenderMonth()
@@ -745,6 +959,102 @@ public partial class CalendarPage : ContentPage
             Grid.SetColumn(cell, col);
             MonthGrid.Children.Add(cell);
         }
+
+        // Week summary column
+        int totalRows = (startCol + daysInMonth + 6) / 7;
+        for (int row = 0; row < totalRows; row++)
+        {
+            var weekStart = firstOfMonth.AddDays(row * 7 - startCol);
+            var summary = BuildWeekSummaryCell(weekStart, fixturesByDate, season);
+            Grid.SetRow(summary, row);
+            Grid.SetColumn(summary, 7);
+            MonthGrid.Children.Add(summary);
+        }
+    }
+
+    /// <summary>
+    /// Slim summary cell at the end of each month row: fixture count for the week,
+    /// a FREE marker for in-season match-day weeks with no fixtures, and conflict count.
+    /// </summary>
+    private Border BuildWeekSummaryCell(DateTime weekStart, Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season)
+    {
+        var weekEnd = weekStart.AddDays(6);
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+
+        int fixtureCount = 0;
+        int conflictCount = 0;
+        bool weekInSeason = false;
+        for (var d = weekStart; d <= weekEnd; d = d.AddDays(1))
+        {
+            if (fixturesByDate.TryGetValue(d, out var fx)) fixtureCount += fx.Count;
+            if (_dateConflicts.TryGetValue(d, out var cf)) conflictCount += cf.Count;
+            if (season != null && d >= season.StartDate.Date && d <= season.EndDate.Date) weekInSeason = true;
+        }
+
+        bool isFreeMatchWeek = weekInSeason && fixtureCount == 0;
+
+        var stack = new VerticalStackLayout { Spacing = 2, Padding = new Thickness(2, 3) };
+
+        if (fixtureCount > 0)
+        {
+            stack.Children.Add(new Label
+            {
+                Text = fixtureCount.ToString(),
+                FontSize = 14,
+                FontAttributes = FontAttributes.Bold,
+                HorizontalTextAlignment = TextAlignment.Center,
+                TextColor = FixtureColor
+            });
+            stack.Children.Add(new Label
+            {
+                Text = fixtureCount == 1 ? "match" : "matches",
+                FontSize = 8,
+                HorizontalTextAlignment = TextAlignment.Center,
+                TextColor = isDark ? Color.FromArgb("#9CA3AF") : Color.FromArgb("#6B7280")
+            });
+        }
+        else if (isFreeMatchWeek)
+        {
+            stack.Children.Add(new Label
+            {
+                Text = "FREE",
+                FontSize = 10,
+                FontAttributes = FontAttributes.Bold,
+                HorizontalTextAlignment = TextAlignment.Center,
+                TextColor = Color.FromArgb("#10B981")
+            });
+        }
+
+        if (conflictCount > 0)
+        {
+            stack.Children.Add(new Label
+            {
+                Text = $"\u26A0\uFE0F{conflictCount}",
+                FontSize = 9,
+                FontAttributes = FontAttributes.Bold,
+                HorizontalTextAlignment = TextAlignment.Center,
+                TextColor = Color.FromArgb("#DC2626")
+            });
+        }
+
+        var border = new Border
+        {
+            Content = stack,
+            BackgroundColor = isFreeMatchWeek
+                ? Color.FromArgb(isDark ? "#052E1B" : "#ECFDF5")
+                : isDark ? Color.FromArgb("#111827") : Color.FromArgb("#F9FAFB"),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Stroke = isDark ? Color.FromArgb("#374151") : Color.FromArgb("#E5E7EB"),
+            StrokeThickness = 1,
+            MinimumHeightRequest = CalSettings.MonthCellMinHeight
+        };
+
+        var tipLines = new List<string> { $"Week {weekStart:dd MMM} \u2013 {weekEnd:dd MMM}" };
+        tipLines.Add(fixtureCount > 0 ? $"{fixtureCount} fixture{(fixtureCount != 1 ? "s" : "")}" : weekInSeason ? "No fixtures \u2014 free week" : "Outside season");
+        if (conflictCount > 0) tipLines.Add($"{conflictCount} conflict{(conflictCount != 1 ? "s" : "")}");
+        ToolTipProperties.SetText(border, string.Join("\n", tipLines));
+
+        return border;
     }
 
     private Border BuildMonthCell(DateTime date, Dictionary<DateTime, List<Fixture>> fixturesByDate, Season? season)
@@ -776,6 +1086,20 @@ public partial class CalendarPage : ContentPage
                     ? Color.FromArgb("#E5E7EB") : Color.FromArgb("#1F2937")
         };
         stack.Children.Add(dayLabel);
+
+        // Conflict warning badge
+        if (_dateConflicts.TryGetValue(date, out var conflicts) && conflicts.Count > 0)
+        {
+            stack.Children.Add(new Label
+            {
+                Text = conflicts.Count == 1 ? "\u26A0\uFE0F Conflict" : $"\u26A0\uFE0F {conflicts.Count} conflicts",
+                FontSize = 9,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Color.FromArgb("#DC2626"),
+                LineBreakMode = LineBreakMode.TailTruncation,
+                MaxLines = 1
+            });
+        }
 
         // Season boundary marker
         if (isSeasonBound)
@@ -950,7 +1274,9 @@ public partial class CalendarPage : ContentPage
         tap.Tapped += async (_, _) =>
         {
             var dayEvents = _calendarEvents.Where(e => e.Date == date).ToList();
-            var options = new List<string> { "\U0001f4c5 View Day", "\U0001f4cc Add Event" };
+            bool hasBlackout = _blackoutDates.ContainsKey(date);
+            var blackoutOption = hasBlackout ? "\U0001f6ab Remove Blackout" : "\U0001f6ab Mark as Blackout";
+            var options = new List<string> { "\U0001f4c5 View Day", "\U0001f4cc Add Event", blackoutOption };
             foreach (var evt in dayEvents.Take(3))
                 options.Add($"\u270f\ufe0f {evt.Title}");
 
@@ -965,6 +1291,10 @@ public partial class CalendarPage : ContentPage
             else if (action == "\U0001f4cc Add Event")
             {
                 await ShowAddEventDialog(date);
+            }
+            else if (action == blackoutOption)
+            {
+                await ToggleBlackoutAsync(date, hasBlackout);
             }
             else if (action != null && action.StartsWith("\u270f\ufe0f "))
             {
@@ -1974,6 +2304,13 @@ public partial class CalendarPage : ContentPage
     {
         var lines = new List<string> { date.ToString("dddd, dd MMMM yyyy") };
 
+        // Conflicts
+        if (_dateConflicts.TryGetValue(date, out var conflicts))
+        {
+            foreach (var c in conflicts)
+                lines.Add($"\u26A0\uFE0F {c}");
+        }
+
         // Season info
         if (season != null)
         {
@@ -2055,12 +2392,9 @@ public partial class CalendarPage : ContentPage
         var holidays = new Dictionary<DateTime, string>();
         var presets = CalSettings.PresetHolidays;
 
-        // Seed defaults if the list is empty (first launch or after clearing)
-        if (presets.Count == 0)
-        {
-            presets.AddRange(PresetHoliday.CreateDefaults());
+        // Seed defaults / top-up any newly introduced built-in holidays
+        if (PresetHoliday.EnsureBuiltIns(presets))
             _ = _dataStore.SaveAsync();
-        }
 
         for (int y = startYear; y <= endYear; y++)
         {
@@ -2089,6 +2423,20 @@ public partial class CalendarPage : ContentPage
                 "summer-bank" => LastMonday(year, 8),
                 "christmas" => ResolveChristmas(year),
                 "boxing-day" => ResolveBoxingDay(year),
+                "christmas-eve" => new DateTime(year, 12, 24),
+                "new-years-eve" => new DateTime(year, 12, 31),
+                "easter-sunday" => CalculateEaster(year),
+                "valentines" => new DateTime(year, 2, 14),
+                "halloween" => new DateTime(year, 10, 31),
+                "bonfire-night" => new DateTime(year, 11, 5),
+                "remembrance-sunday" => RemembranceSunday(year),
+                "mothers-day" => CalculateEaster(year).AddDays(-21),
+                "fathers-day" => ThirdSunday(year, 6),
+                "st-david" => new DateTime(year, 3, 1),
+                "st-patrick" => new DateTime(year, 3, 17),
+                "st-george" => new DateTime(year, 4, 23),
+                "st-andrew" => new DateTime(year, 11, 30),
+                "burns-night" => new DateTime(year, 1, 25),
                 _ => null
             };
         }
@@ -2101,6 +2449,21 @@ public partial class CalendarPage : ContentPage
         }
 
         return null;
+    }
+
+    /// <summary>Remembrance Sunday: the second Sunday of November.</summary>
+    private static DateTime RemembranceSunday(int year)
+    {
+        var d = new DateTime(year, 11, 1);
+        while (d.DayOfWeek != DayOfWeek.Sunday) d = d.AddDays(1);
+        return d.AddDays(7);
+    }
+
+    private static DateTime ThirdSunday(int year, int month)
+    {
+        var d = new DateTime(year, month, 1);
+        while (d.DayOfWeek != DayOfWeek.Sunday) d = d.AddDays(1);
+        return d.AddDays(14);
     }
 
     private static DateTime ResolveChristmas(int year)

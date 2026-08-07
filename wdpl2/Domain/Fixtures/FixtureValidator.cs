@@ -345,25 +345,32 @@ public static class FixtureValidator
             }
         }
 
-        // Venue/table double-booking
+        // Venue/table double-booking (capacity-aware: a venue can host one match per table)
         if (fixture.VenueId.HasValue)
         {
             var venue = venues.FirstOrDefault(v => v.Id == fixture.VenueId);
             var venueName = venue?.Name ?? "Venue";
+            int tableCapacity = Math.Max(1, venue?.Tables?.Count ?? 1);
 
-            foreach (var other in sameDate.Where(f => f.VenueId == fixture.VenueId))
+            var othersAtVenue = sameDate.Where(f => f.VenueId == fixture.VenueId).ToList();
+
+            if (fixture.TableId.HasValue)
             {
-                if (fixture.TableId.HasValue && other.TableId.HasValue &&
-                    fixture.TableId == other.TableId)
+                // A specific table only hosts one match per night
+                if (othersAtVenue.Any(other => other.TableId.HasValue && other.TableId == fixture.TableId))
                 {
                     var tableLabel = venue?.Tables.FirstOrDefault(t => t.Id == fixture.TableId)?.Label ?? "Table";
                     result.Warnings.Add(
                         $"{venueName} — {tableLabel} is already booked on {fixture.Date:dd MMM yyyy}");
                 }
-                else if (!fixture.TableId.HasValue && !other.TableId.HasValue)
+            }
+            else
+            {
+                // No table assigned: warn only if the venue is already at table capacity
+                if (othersAtVenue.Count + 1 > tableCapacity)
                 {
                     result.Warnings.Add(
-                        $"{venueName} has another fixture on {fixture.Date:dd MMM yyyy}");
+                        $"{venueName} would have {othersAtVenue.Count + 1} fixtures on {fixture.Date:dd MMM yyyy} but only has {tableCapacity} table{(tableCapacity != 1 ? "s" : "")}");
                 }
             }
         }

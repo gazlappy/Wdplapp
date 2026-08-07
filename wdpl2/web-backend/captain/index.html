@@ -825,11 +825,18 @@ function renderAllFixtures(){
       const div=document.createElement('div'); div.className='item';
       const opp=(f.home_team_id===state.captain.team_id)?f.away_team_name:f.home_team_name;
       const side=(f.home_team_id===state.captain.team_id)?'HOME vs':'away at';
-      const fin=f.finalized?'<span class="muted" style="font-size:11px"> [finalized]</span>':'';
+      const isHome=(f.home_team_id===state.captain.team_id);
+      const mineFin=isHome?Number(f.home_finalized):Number(f.away_finalized);
+      const theirsFin=isHome?Number(f.away_finalized):Number(f.home_finalized);
+      let tag='', hint='open';
+      if(f.finalized){ tag=' [finalized]'; hint=''; }
+      else if(mineFin && !theirsFin){ tag=' [waiting on opponent]'; hint='view / edit'; }
+      else if(!mineFin && theirsFin){ tag=' [waiting on YOU]'; hint='finalize your side'; }
+      const fin=tag?'<span class="muted" style="font-size:11px">'+tag+'</span>':'';
       div.innerHTML='<div><strong>'+side+' '+esc(opp||'')+'</strong>'+fin+'<br><span class="muted">'+
                     esc(f.fixture_date)+(f.venue_name?' - '+esc(f.venue_name):'')+'</span></div>';
       if(!f.finalized){
-        div.innerHTML+='<div class="muted">open</div>';
+        div.innerHTML+='<div class="muted">'+hint+'</div>';
         div.onclick=function(){ selectFixture(f, div); };
         div.style.cursor='pointer';
       }else{
@@ -864,11 +871,14 @@ function renderFixtures(){
   const list=$('fxList'); list.innerHTML='';
   if(!state.fixtures.length){ $('noFx').style.display='block'; return; }
   $('noFx').style.display='none';
+  const wkStart=(function(){ const n=new Date(); const m=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())); m.setUTCDate(m.getUTCDate()-(m.getUTCDay()||7)+1); return m.toISOString().split('T')[0]; })();
   state.fixtures.forEach(function(f){
     const div=document.createElement('div'); div.className='item';
     const opp=(f.home_team_id===state.captain.team_id)?f.away_team_name:f.home_team_name;
     const side=(f.home_team_id===state.captain.team_id)?'HOME vs':'away at';
-    div.innerHTML='<div><strong>'+side+' '+esc(opp||'')+'</strong><br><span class="muted">'+
+    const overdue=String(f.fixture_date).split(' ')[0]<wkStart;
+    const late=overdue?'<span style="color:#DC2626; font-size:11px; font-weight:600"> [needs finalizing]</span>':'';
+    div.innerHTML='<div><strong>'+side+' '+esc(opp||'')+'</strong>'+late+'<br><span class="muted">'+
                   esc(f.fixture_date)+(f.venue_name?' - '+esc(f.venue_name):'')+'</span></div>'+
                   '<div class="muted">open shared</div>';
     div.onclick=function(){ selectFixture(f, div); };

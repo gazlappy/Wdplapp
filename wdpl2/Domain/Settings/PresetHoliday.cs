@@ -35,10 +35,12 @@ public sealed class PresetHoliday
     public bool IsBuiltIn => !string.IsNullOrEmpty(Rule);
 
     /// <summary>
-    /// Returns the default UK bank holiday preset list.
+    /// Returns the default UK bank holiday and common observance preset list.
+    /// Bank holidays are enabled by default; other observances start disabled.
     /// </summary>
     public static List<PresetHoliday> CreateDefaults() =>
     [
+        // England & Wales bank holidays
         new() { Name = "New Year's Day", Rule = "new-year" },
         new() { Name = "Good Friday", Rule = "good-friday" },
         new() { Name = "Easter Monday", Rule = "easter-monday" },
@@ -47,5 +49,39 @@ public sealed class PresetHoliday
         new() { Name = "Summer Bank Holiday", Rule = "summer-bank" },
         new() { Name = "Christmas Day", Rule = "christmas" },
         new() { Name = "Boxing Day", Rule = "boxing-day" },
+        // Common observances (off by default — enable as needed)
+        new() { Name = "Christmas Eve", Rule = "christmas-eve", IsEnabled = false },
+        new() { Name = "New Year's Eve", Rule = "new-years-eve", IsEnabled = false },
+        new() { Name = "Easter Sunday", Rule = "easter-sunday", IsEnabled = false },
+        new() { Name = "Valentine's Day", Rule = "valentines", IsEnabled = false },
+        new() { Name = "Halloween", Rule = "halloween", IsEnabled = false },
+        new() { Name = "Bonfire Night", Rule = "bonfire-night", IsEnabled = false },
+        new() { Name = "Remembrance Sunday", Rule = "remembrance-sunday", IsEnabled = false },
+        new() { Name = "Mother's Day", Rule = "mothers-day", IsEnabled = false },
+        new() { Name = "Father's Day", Rule = "fathers-day", IsEnabled = false },
+        new() { Name = "St David's Day", Rule = "st-david", IsEnabled = false },
+        new() { Name = "St Patrick's Day", Rule = "st-patrick", IsEnabled = false },
+        new() { Name = "St George's Day", Rule = "st-george", IsEnabled = false },
+        new() { Name = "St Andrew's Day", Rule = "st-andrew", IsEnabled = false },
+        new() { Name = "Burns Night", Rule = "burns-night", IsEnabled = false },
     ];
+
+    /// <summary>
+    /// Adds any built-in presets that are missing from the supplied list
+    /// (e.g. after an app update introduces new rules). Preserves user
+    /// enable/disable choices for existing entries. Returns true if anything was added.
+    /// </summary>
+    public static bool EnsureBuiltIns(List<PresetHoliday> presets)
+    {
+        bool added = false;
+        foreach (var def in CreateDefaults())
+        {
+            if (!presets.Any(p => string.Equals(p.Rule, def.Rule, StringComparison.OrdinalIgnoreCase)))
+            {
+                presets.Add(def);
+                added = true;
+            }
+        }
+        return added;
+    }
 }

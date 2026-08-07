@@ -11,6 +11,9 @@ namespace Wdpl2.Services;
 /// A clash occurs when two or more unplayed fixtures on the same date have home teams
 /// that share the same registered home venue+table (team.VenueId + team.TableId).
 /// This is the real constraint: a physical pool table can only host one match per night.
+/// When a home team has NO specific table assigned (TableId == null), the venue's
+/// total table count is used as the capacity instead — e.g. a venue with 3 tables
+/// can host 3 unassigned matches on the same night without clashing.
 ///
 /// The fixture's own VenueId/TableId is NOT used for detection because the generator
 /// can hand out different table IDs to fixtures even when the home teams both claim
@@ -20,6 +23,17 @@ namespace Wdpl2.Services;
 /// </summary>
 public static class FixtureClashResolverService
 {
+    /// <summary>
+    /// How many concurrent matches a (venue, table) slot can host per night.
+    /// A specific table = 1. No table specified = the venue's table count (min 1).
+    /// </summary>
+    private static int SlotCapacity(Guid venueId, Guid? tableId, List<Venue>? venues)
+    {
+        if (tableId.HasValue) return 1;
+        var venue = venues?.FirstOrDefault(v => v.Id == venueId);
+        return Math.Max(1, venue?.Tables?.Count ?? 1);
+    }
+
     public sealed class ClashResolution
     {
         public Fixture Fixture { get; init; } = null!;
@@ -65,7 +79,8 @@ public static class FixtureClashResolverService
     /// </summary>
     public static FullRescheduleResult RescheduleRemaining(
         List<Fixture> allFixtures,
-        List<Team> teams)
+        List<Team> teams,
+        List<Venue>? venues = null)
     {
         var result     = new FullRescheduleResult();
         var teamLookup = teams.ToDictionary(t => t.Id);
@@ -186,7 +201,7 @@ public static class FixtureClashResolverService
         {
             var scheduled    = new List<Fixture>();
             var teamsThisNight  = new HashSet<Guid>();
-            var tablesThisNight = new HashSet<(Guid, Guid?)>();
+            var tablesThisNight = new Dictionary<(Guid, Guid?), int>();
 
             foreach (var fx in remaining.ToList())
             {
@@ -198,8 +213,9 @@ public static class FixtureClashResolverService
                 if (homeTeam?.VenueId != null)
                 {
                     var tKey = (homeTeam.VenueId.Value, homeTeam.TableId);
-                    if (tablesThisNight.Contains(tKey)) continue;
-                    tablesThisNight.Add(tKey);
+                    tablesThisNight.TryGetValue(tKey, out var used);
+                    if (used >= SlotCapacity(tKey.Item1, tKey.Item2, venues)) continue;
+                    tablesThisNight[tKey] = used + 1;
                 }
 
                 scheduled.Add(fx);
@@ -240,11 +256,11 @@ public static class FixtureClashResolverService
         // Per-second-half-night occupancy, seeded from any already-played fixtures that
         // happen to fall on a second-half night.
         var secondHalfTeams  = new Dictionary<DateTime, HashSet<Guid>>();
-        var secondHalfTables = new Dictionary<DateTime, HashSet<(Guid, Guid?)>>();
+        var secondHalfTables = new Dictionary<DateTime, Dictionary<(Guid, Guid?), int>>();
         foreach (var night in secondHalfSeasonNights)
         {
             secondHalfTeams[night]  = new HashSet<Guid>();
-            secondHalfTables[night] = new HashSet<(Guid, Guid?)>();
+            secondHalfTables[night] = new Dictionary<(Guid, Guid?), int>();
 
             if (playedByNight.TryGetValue(night, out var pfx))
             {
@@ -253,7 +269,11 @@ public static class FixtureClashResolverService
                     secondHalfTeams[night].Add(pf.HomeTeamId);
                     secondHalfTeams[night].Add(pf.AwayTeamId);
                     if (teamLookup.TryGetValue(pf.HomeTeamId, out var pht) && pht.VenueId.HasValue)
-                        secondHalfTables[night].Add((pht.VenueId.Value, pht.TableId));
+                    {
+                        var tk = (pht.VenueId.Value, pht.TableId);
+                        secondHalfTables[night].TryGetValue(tk, out var used);
+                        secondHalfTables[night][tk] = used + 1;
+                    }
                 }
             }
         }
@@ -312,12 +332,17 @@ public static class FixtureClashResolverService
             if (teamLookup.TryGetValue(mirrorFx.HomeTeamId, out var mh) && mh.VenueId.HasValue)
             {
                 tableKey = (mh.VenueId.Value, mh.TableId);
-                if (tablesBooked.Contains(tableKey.Value)) return false;
+                tablesBooked.TryGetValue(tableKey.Value, out var used);
+                if (used >= SlotCapacity(tableKey.Value.Item1, tableKey.Value.Item2, venues)) return false;
             }
 
             teamsBooked.Add(mirrorFx.HomeTeamId);
             teamsBooked.Add(mirrorFx.AwayTeamId);
-            if (tableKey.HasValue) tablesBooked.Add(tableKey.Value);
+            if (tableKey.HasValue)
+            {
+                tablesBooked.TryGetValue(tableKey.Value, out var used);
+                tablesBooked[tableKey.Value] = used + 1;
+            }
             mirrorPlacements[night].Add(mirrorFx);
             return true;
         }
@@ -459,18 +484,22 @@ public static class FixtureClashResolverService
 
         foreach (var g in groups)
         {
-            if (g.Count() < 2) continue;
+            int capacity = SlotCapacity(g.Key.VenueId, g.Key.TableId, venues);
+            if (g.Count() <= capacity) continue;
 
             multiCount++;
             var venue     = venues.FirstOrDefault(v => v.Id == g.Key.VenueId);
             var venueName = venue?.Name ?? $"(id={g.Key.VenueId})";
             var tableLabel = g.Key.TableId.HasValue
                 ? (venue?.Tables?.FirstOrDefault(t => t.Id == g.Key.TableId)?.Label ?? g.Key.TableId.ToString()![..8])
-                : "BAR/unspecified";
+                : $"any table ({capacity} available)";
 
             var teamNames = string.Join(", ", g.Select(x => x.homeTeam?.Name ?? "?"));
-            var msg = $"{g.Key.Date:ddd dd MMM} — {venueName} / {tableLabel}: " +
-                      $"{g.Count()} home teams share this table ({teamNames})";
+            var msg = g.Key.TableId.HasValue
+                ? $"{g.Key.Date:ddd dd MMM} — {venueName} / {tableLabel}: " +
+                  $"{g.Count()} home teams share this table ({teamNames})"
+                : $"{g.Key.Date:ddd dd MMM} — {venueName}: " +
+                  $"{g.Count()} home matches but only {capacity} table{(capacity != 1 ? "s" : "")} ({teamNames})";
 
             messages.Add(msg);
             diagLines.AppendLine($"  CLASH: {msg}");
@@ -515,9 +544,9 @@ public static class FixtureClashResolverService
         // Build home-table bookings keyed on home team's registered venue+table
         var homeTableBookings = BuildHomeTableBookings(unplayed, teamLookup);
 
-        // Find all clashing groups (home teams sharing same table on same night)
+        // Find all clashing groups (more home matches than the venue/table can host)
         var clashGroups = homeTableBookings
-            .Where(kvp => kvp.Value.Count > 1)
+            .Where(kvp => kvp.Value.Count > SlotCapacity(kvp.Key.VenueId, kvp.Key.TableId, venues))
             .ToList();
 
         foreach (var kvp in clashGroups)
@@ -529,10 +558,11 @@ public static class FixtureClashResolverService
                 ? (venue?.Tables?.FirstOrDefault(t => t.Id == tableId)?.Label ?? "table")
                 : "unspecified table";
 
-            // Keep the earliest-created fixture; try to move the rest
+            // Keep the earliest-created fixtures up to capacity; try to move the rest
+            int keep = SlotCapacity(venueId, tableId, venues);
             var ordered = kvp.Value.OrderBy(f => f.CreatedDate).ThenBy(f => f.Id).ToList();
 
-            for (int i = 1; i < ordered.Count; i++)
+            for (int i = keep; i < ordered.Count; i++)
             {
                 var fx       = ordered[i];
                 var homeTeam = teamLookup.TryGetValue(fx.HomeTeamId, out var ht) ? ht : null;
@@ -555,9 +585,12 @@ public static class FixtureClashResolverService
                         IsTeamBooked(teamBookings, candidate, fx.AwayTeamId))
                         continue;
 
-                    // Home team's registered table must be free that night
-                    var candidateHomeKey = (candidate, homeTeam?.VenueId ?? venueId, homeTeam?.TableId ?? tableId);
-                    if (homeTableBookings.TryGetValue(candidateHomeKey, out var occupants) && occupants.Count > 0)
+                    // Home team's registered table must have room that night
+                    var candVenueId = homeTeam?.VenueId ?? venueId;
+                    var candTableId = homeTeam?.TableId ?? tableId;
+                    var candidateHomeKey = (candidate, candVenueId, candTableId);
+                    if (homeTableBookings.TryGetValue(candidateHomeKey, out var occupants) &&
+                        occupants.Count >= SlotCapacity(candVenueId, candTableId, venues))
                         continue;
 
                     var oldDate = fx.Date;

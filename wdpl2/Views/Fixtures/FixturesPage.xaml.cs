@@ -2745,7 +2745,7 @@ public partial class FixturesPage : ContentPage
 
         if (!warn) return;
 
-        var reschedResult = FixtureClashResolverService.RescheduleRemaining(fixtures, teams);
+        var reschedResult = FixtureClashResolverService.RescheduleRemaining(fixtures, teams, league.Venues.ToList());
 
         if (reschedResult.ScheduledCount == 0)
         {

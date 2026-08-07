@@ -26,6 +26,7 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<PlayerResultsPage>();
         services.AddTransient<SeasonComparisonPage>();
         services.AddTransient<CalendarOptionsPage>();
+        services.AddTransient<SeasonScenarioPage>();
         services.AddTransient<CareerStatsPage>();
         services.AddTransient<MatchDayDashboardPage>();
         services.AddTransient<SmartImportPage>();

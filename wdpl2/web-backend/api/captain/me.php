@@ -22,6 +22,10 @@ try {
 $now    = time();
 $start  = strtotime('monday this week 00:00:00', $now);
 $end    = $start + $weeksAhead * 7 * 86400;
+// Look back too: an unfinished (or admin-reopened) scorecard from a previous
+// week must stay visible until BOTH captains have finalized it, otherwise it
+// is stuck in limbo with no way to open it.
+$lookback = $start - 8 * 7 * 86400;
 
 $fixtures = array();
 try {
@@ -31,14 +35,14 @@ try {
            FROM league_fixtures f
       LEFT JOIN live_scorecards s ON s.fixture_id = f.fixture_id
           WHERE (f.home_team_id = :th OR f.away_team_id = :ta)
-            AND f.fixture_date >= :s
+            AND f.fixture_date >= :lb
             AND f.fixture_date <  :e
             AND NOT (s.home_finalized_at IS NOT NULL AND s.away_finalized_at IS NOT NULL)
           ORDER BY f.fixture_date ASC');
     $fxStmt->execute(array(
         ':th' => $team_id,
         ':ta' => $team_id,
-        ':s'  => gmdate('Y-m-d H:i:s', $start),
+        ':lb' => gmdate('Y-m-d H:i:s', $lookback),
         ':e'  => gmdate('Y-m-d H:i:s', $end),
     ));
     $fixtures = $fxStmt->fetchAll();

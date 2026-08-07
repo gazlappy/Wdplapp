@@ -16,11 +16,14 @@ $start = strtotime("monday this week 00:00:00", $now) - (int)($weeks / 2) * 7 * 
 $end   = $start + $weeks * 7 * 86400;
 
 try {
-    // Join with live_scorecards to determine finalized status.
+    // Join with live_scorecards to determine finalized status (per side too,
+    // so the portal can show 'waiting on you / waiting on opponent').
     $stmt = db()->prepare(
         'SELECT f.fixture_id, f.season_id, f.division_id, f.home_team_id, f.away_team_id,
                 f.home_team_name, f.away_team_name, f.venue_name, f.fixture_date,
-                IF(s.home_finalized_at IS NOT NULL AND s.away_finalized_at IS NOT NULL, 1, 0) AS finalized
+                IF(s.home_finalized_at IS NOT NULL AND s.away_finalized_at IS NOT NULL, 1, 0) AS finalized,
+                IF(s.home_finalized_at IS NOT NULL, 1, 0) AS home_finalized,
+                IF(s.away_finalized_at IS NOT NULL, 1, 0) AS away_finalized
            FROM league_fixtures f
       LEFT JOIN live_scorecards s ON s.fixture_id = f.fixture_id
           WHERE (f.home_team_id = :th OR f.away_team_id = :ta)
@@ -34,6 +37,11 @@ try {
         ':e'  => gmdate('Y-m-d H:i:s', $end),
     ));
     $fixtures = $stmt->fetchAll();
+    foreach ($fixtures as $i => $f) {
+        $fixtures[$i]['finalized']      = (int)$f['finalized'];
+        $fixtures[$i]['home_finalized'] = (int)$f['home_finalized'];
+        $fixtures[$i]['away_finalized'] = (int)$f['away_finalized'];
+    }
 } catch (Exception $e) {
     $fixtures = array();
 }
