@@ -24,6 +24,7 @@ public partial class SmartImportPage : ContentPage
     private CancellationTokenSource? _scanCts;
     private int _currentStep = 1;
     private string? _activeYearFilter;
+    private bool _initialized;
 
     public SmartImportPage(IDataStore dataStore)
     {
@@ -35,7 +36,14 @@ public partial class SmartImportPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        ResetWizard();
+
+        // Only reset on first appearance. OnAppearing also fires when returning
+        // from a modal (e.g. the file preview), which must not wipe the wizard.
+        if (!_initialized)
+        {
+            _initialized = true;
+            ResetWizard();
+        }
     }
 
     // ── Initialisation ─────────────────────────────────────────────
@@ -90,6 +98,7 @@ public partial class SmartImportPage : ContentPage
         _allSeasonGroups.Clear();
         _activeYearFilter = null;
         _scanCts?.Cancel();
+        _scanCts?.Dispose();
         _scanCts = null;
         UpdateStepDisplay();
     }
@@ -389,7 +398,7 @@ public partial class SmartImportPage : ContentPage
         checkbox.CheckedChanged += (s, e) =>
         {
             group.IsSelected = e.Value;
-            NextButton.IsVisible = _seasonGroups.Any(g => g.IsSelected);
+            UpdateStepDisplay();
         };
 
         var nameStack = new VerticalStackLayout { VerticalOptions = LayoutOptions.Center, Spacing = 2 };
@@ -1313,12 +1322,12 @@ public partial class SmartImportPage : ContentPage
                 !teamMap.TryGetValue(matchResult.AwayTeam, out var awayTeamId))
                 continue;
 
-            // Check for duplicate fixture (same date, same teams)
+            // Check for duplicate fixture (same date, same teams in either orientation)
             var existingFixture = data.Fixtures.FirstOrDefault(f =>
                 f.SeasonId == sid &&
-                f.HomeTeamId == homeTeamId &&
-                f.AwayTeamId == awayTeamId &&
-                f.Date.Date == matchResult.Date.Date);
+                f.Date.Date == matchResult.Date.Date &&
+                ((f.HomeTeamId == homeTeamId && f.AwayTeamId == awayTeamId) ||
+                 (f.HomeTeamId == awayTeamId && f.AwayTeamId == homeTeamId)));
             if (existingFixture != null) continue;
 
             // Resolve division from result (fuzzy lookup against existing divisions)
@@ -1734,8 +1743,8 @@ public partial class SmartImportPage : ContentPage
     {
         // Parse year from display name to set reasonable dates
         int startYear = DateTime.Now.Year;
-        var yearMatch = System.Text.RegularExpressions.Regex.Match(displayName, @"\b(20\d{2})\b");
-        if (yearMatch.Success && int.TryParse(yearMatch.Groups[1].Value, out var parsed))
+        var yearMatch = System.Text.RegularExpressions.Regex.Match(displayName, @"\b(19|20)\d{2}\b");
+        if (yearMatch.Success && int.TryParse(yearMatch.Value, out var parsed))
             startYear = parsed;
 
         var season = new Season

@@ -26,6 +26,14 @@ public partial class LeagueFileDiscoveryService
         "player", "team", "venue", "standing", "singles", "doubles"
     };
 
+    // Keywords that indicate a file is almost certainly NOT league data
+    private static readonly string[] NegativeKeywords =
+    {
+        "invoice", "receipt", "statement", "payslip", "tax", "insurance",
+        "cv", "resume", "recipe", "holiday", "booking", "ticket", "manual",
+        "warranty", "newsletter"
+    };
+
     // ── Discovered file ────────────────────────────────────────────
 
     public class DiscoveredFile
@@ -295,6 +303,11 @@ public partial class LeagueFileDiscoveryService
 
                     file.Confidence = CalculateConfidence(file);
 
+                    // For text-based files near the threshold, sniff actual content
+                    // to confirm/deny league data (reduces false positives/negatives)
+                    if (file.FileType is "HTML" or "CSV" && file.Confidence < 0.7)
+                        file.Confidence = AdjustConfidenceByContent(file);
+
                     if (file.Confidence >= 0.2)
                     {
                         DetectSeason(file);
@@ -532,7 +545,53 @@ public partial class LeagueFileDiscoveryService
             lowerPath.Contains("poolleague"))
             confidence += 0.3;
 
-        return Math.Min(confidence, 1.0);
+        // Penalize names that suggest non-league documents
+        foreach (var negative in NegativeKeywords)
+        {
+            if (lowerName.Contains(negative))
+            {
+                confidence -= 0.4;
+                break;
+            }
+        }
+
+        return Math.Clamp(confidence, 0.0, 1.0);
+    }
+
+    /// <summary>
+    /// Read the first few KB of a text-based file and adjust confidence based on
+    /// whether real league keywords appear in the actual content.
+    /// </summary>
+    private static double AdjustConfidenceByContent(DiscoveredFile file)
+    {
+        try
+        {
+            using var stream = new FileStream(file.FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+            var buffer = new char[8192];
+            var read = reader.Read(buffer, 0, buffer.Length);
+            if (read <= 0) return file.Confidence;
+
+            var content = new string(buffer, 0, read).ToLowerInvariant();
+
+            int hits = 0;
+            foreach (var keyword in LeagueKeywords)
+            {
+                if (content.Contains(keyword)) hits++;
+            }
+
+            // Strong signals from typical WDPL page content
+            if (content.Contains("pld") || content.Contains("played") ||
+                content.Contains("pts") || content.Contains("points"))
+                hits++;
+
+            if (hits >= 4) return Math.Min(file.Confidence + 0.4, 1.0);
+            if (hits >= 2) return Math.Min(file.Confidence + 0.2, 1.0);
+            if (hits == 0) return Math.Max(file.Confidence - 0.3, 0.0);
+        }
+        catch { /* unreadable — keep name-based confidence */ }
+
+        return file.Confidence;
     }
 
     /// <summary>
@@ -567,6 +626,17 @@ public partial class LeagueFileDiscoveryService
         {
             var word = seasonWordMatch.Groups[1].Value;
             var year = seasonWordMatch.Groups[2].Value;
+            file.DetectedSeason = $"{char.ToUpper(word[0])}{word[1..].ToLower()} {year}";
+            file.SeasonSortKey = year;
+            return;
+        }
+
+        // Year-first season word patterns (e.g., "2023 Winter")
+        var yearFirstMatch = YearFirstSeasonWordPattern().Match(pathToCheck);
+        if (yearFirstMatch.Success)
+        {
+            var year = yearFirstMatch.Groups[1].Value;
+            var word = yearFirstMatch.Groups[2].Value;
             file.DetectedSeason = $"{char.ToUpper(word[0])}{word[1..].ToLower()} {year}";
             file.SeasonSortKey = year;
             return;
@@ -610,6 +680,16 @@ public partial class LeagueFileDiscoveryService
             return;
         }
 
+        // Apostrophe year patterns (e.g., "Results '23")
+        var apostropheMatch = ApostropheYearPattern().Match(pathToCheck);
+        if (apostropheMatch.Success)
+        {
+            var year = "20" + apostropheMatch.Groups[1].Value;
+            file.DetectedSeason = year;
+            file.SeasonSortKey = year;
+            return;
+        }
+
         // Fallback: modification year
         file.DetectedSeason = $"Unknown ({file.LastModified.Year})";
         file.SeasonSortKey = file.LastModified.Year.ToString();
@@ -640,18 +720,23 @@ public partial class LeagueFileDiscoveryService
                 return;
             }
 
-            // Match by start year
-            if (lowerKey.Length >= 4 && int.TryParse(lowerKey[..4], out var keyYear))
-            {
-                if (season.StartDate.Year == keyYear || season.EndDate.Year == keyYear)
+                }
+
+                // Match by start year only when exactly one season matches that year,
+                // otherwise (e.g. Winter 2023 + Summer 2023) the link would be a guess
+                if (lowerKey.Length >= 4 && int.TryParse(lowerKey[..4], out var keyYear))
                 {
-                    group.ExistingSeasonId = season.Id;
-                    group.ExistingSeasonName = season.Name;
-                    return;
+                    var yearMatches = DataStore.Data.Seasons
+                        .Where(s => s.StartDate.Year == keyYear || s.EndDate.Year == keyYear)
+                        .ToList();
+
+                    if (yearMatches.Count == 1)
+                    {
+                        group.ExistingSeasonId = yearMatches[0].Id;
+                        group.ExistingSeasonName = yearMatches[0].Name;
+                    }
                 }
             }
-        }
-    }
 
     // ── Regex patterns ─────────────────────────────────────────────
 
@@ -663,6 +748,12 @@ public partial class LeagueFileDiscoveryService
 
     [GeneratedRegex(@"\b(winter|summer|spring|autumn|fall)\s*(20\d{2})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex SeasonWordPattern();
+
+    [GeneratedRegex(@"\b(20\d{2})\s*(winter|summer|spring|autumn|fall)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex YearFirstSeasonWordPattern();
+
+    [GeneratedRegex(@"'(\d{2})\b", RegexOptions.Compiled)]
+    private static partial Regex ApostropheYearPattern();
 
     // ── Pre-analysis ───────────────────────────────────────────────
 
