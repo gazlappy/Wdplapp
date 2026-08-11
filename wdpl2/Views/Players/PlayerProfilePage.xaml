@@ -135,7 +135,7 @@
             <Label Text="Performance Stats" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,0" />
             <Border Style="{StaticResource CardBorderStyle}">
                 <VerticalStackLayout Padding="12" Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto" RowSpacing="4">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                         <Label Text="Recent Form:" />
                         <Label Grid.Column="1" x:Name="FormLabel" Text="-" FontAttributes="Bold" FontSize="16" />
 

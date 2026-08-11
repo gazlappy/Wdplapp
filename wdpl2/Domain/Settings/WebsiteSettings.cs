@@ -146,7 +146,8 @@ namespace Wdpl2.Models
         public string YouTubeUrl { get; set; } = "";
         public string TikTokUrl { get; set; } = "";
         public string WebsiteUrl { get; set; } = "";
-        
+
+
         // Theme Colors
         public string PrimaryColor { get; set; } = "#3B82F6";
         public string SecondaryColor { get; set; } = "#10B981";

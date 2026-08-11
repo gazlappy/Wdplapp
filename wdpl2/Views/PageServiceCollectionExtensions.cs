@@ -39,6 +39,9 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<BatchImportPreviewPage>();
         services.AddTransient<CalendarPage>();
         services.AddTransient<Inbox.InboxPage>();
+        services.AddTransient<PlayerProfilePage>();
+        services.AddTransient<WhatIfSimulatorPage>();
+        services.AddTransient<ImportPreviewPage>();
 
         return services;
     }
