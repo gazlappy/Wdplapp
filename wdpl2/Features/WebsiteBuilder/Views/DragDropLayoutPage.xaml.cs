@@ -47,7 +47,7 @@ public partial class DragDropLayoutPage : ContentPage
         if (settings.ShowResults) items.Add("Results");
         if (settings.ShowPlayerStats) items.Add("Players");
         if (settings.ShowDivisions) items.Add("Divisions");
-        if (settings.ShowHistory && settings.HistoricHonours.Count > 0) items.Add("History");
+        if (settings.ShowHistory && !string.IsNullOrWhiteSpace(settings.HistoryHtmlContent)) items.Add("History");
         PagePicker.ItemsSource = items;
         PagePicker.SelectedIndex = 0;
     }

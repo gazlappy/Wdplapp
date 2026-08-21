@@ -750,7 +750,7 @@ public class WebsiteGeneratorTests
         settings.ShowEntryForms = false;
         settings.ShowPoolGame = false;
         settings.ShowHistory = true;
-        settings.HistoricHonours.Add(new HistoricHonour { Season = "2020", Title = "Champion" });
+        settings.HistoryHtmlContent = "<html><body><h1>Roll of Honour</h1></body></html>";
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
 
@@ -1136,7 +1136,7 @@ public class WebsiteGeneratorTests
         settings.ShowEntryForms = false;
         settings.ShowPoolGame = false;
         settings.ShowHistory = true;
-        settings.HistoricHonours.Clear();
+        settings.HistoryHtmlContent = "";
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
 

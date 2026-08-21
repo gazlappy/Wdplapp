@@ -20,6 +20,7 @@ public partial class ContentSettingsPage : ContentPage
         
         ShowStandingsCheck.IsToggled = settings.ShowStandings;
         ShowFixturesCheck.IsToggled = settings.ShowFixtures;
+        ShowLiveScoresCheck.IsToggled = settings.ShowLiveScores;
         ShowResultsCheck.IsToggled = settings.ShowResults;
         ShowPlayerStatsCheck.IsToggled = settings.ShowPlayerStats;
         ShowDivisionsCheck.IsToggled = settings.ShowDivisions;
@@ -81,6 +82,9 @@ public partial class ContentSettingsPage : ContentPage
     private async void OnFixturesSettingsClicked(object sender, EventArgs e)
         => await Navigation.PushAsync(new FixturesSettingsPage());
     
+    private async void OnLiveScoresSettingsClicked(object sender, EventArgs e)
+        => await Navigation.PushAsync(new LiveScoresSettingsPage());
+
     private async void OnResultsSettingsClicked(object sender, EventArgs e)
         => await Navigation.PushAsync(new ResultsSettingsPage());
     
@@ -101,6 +105,7 @@ public partial class ContentSettingsPage : ContentPage
             
             settings.ShowStandings = ShowStandingsCheck.IsToggled;
             settings.ShowFixtures = ShowFixturesCheck.IsToggled;
+            settings.ShowLiveScores = ShowLiveScoresCheck.IsToggled;
             settings.ShowResults = ShowResultsCheck.IsToggled;
             settings.ShowPlayerStats = ShowPlayerStatsCheck.IsToggled;
             settings.ShowDivisions = ShowDivisionsCheck.IsToggled;

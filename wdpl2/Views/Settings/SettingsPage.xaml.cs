@@ -2192,7 +2192,6 @@ namespace Wdpl2.Views
                 "discovery service indexes them all into one preview.\n" +
                 $"{Emojis.Bullet} Paradox Pipeline: dedicated importers for Paradox players, teams, divisions, " +
                 "venues, matches, singles, doubles — orchestrated so foreign keys are resolved correctly.\n" +
-                $"{Emojis.Bullet} Honours Excel Importer: bulk-import end-of-season award winners.\n" +
                 $"{Emojis.Bullet} Score Card Recognition: snap a photo of a paper score card and the OCR service " +
                 "(Plugin.Maui.OCR + Azure Vision fallback) extracts the frame results.\n" +
                 $"{Emojis.Bullet} Always take a backup from Data Management before a large import."));

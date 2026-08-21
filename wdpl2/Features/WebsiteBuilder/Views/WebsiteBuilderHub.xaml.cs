@@ -227,10 +227,10 @@ public partial class WebsiteBuilderHub : ContentPage
 
     private void UpdateHistorySummary()
     {
-        var honours = League.WebsiteSettings.HistoricHonours;
-        HistorySummaryLabel.Text = honours.Count == 0
-            ? "Import historic winners and runners-up"
-            : $"{honours.Count} honours across {honours.Select(h => h.Season).Distinct().Count()} seasons";
+        var s = League.WebsiteSettings;
+        HistorySummaryLabel.Text = string.IsNullOrWhiteSpace(s.HistoryHtmlContent)
+            ? "Choose an HTML page for your Roll of Honour"
+            : $"Custom HTML page loaded ({(string.IsNullOrWhiteSpace(s.HistoryHtmlFileName) ? "history.html" : s.HistoryHtmlFileName)})";
     }
 
     private void UpdateSummaryLabels()

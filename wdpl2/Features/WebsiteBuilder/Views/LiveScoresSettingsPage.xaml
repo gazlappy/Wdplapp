@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebsiteBuilder.LiveScoresSettingsPage"
+             Title="Live Scores Settings">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label Text="Live Scores" FontSize="24" FontAttributes="Bold" TextColor="#3B82F6"/>
+            <Label Text="Publish frame-by-frame scores while captains are filling in their online scorecards. Requires the Captain Portal backend to be deployed."
+                   FontSize="14" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+
+            <!-- Main toggle -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Page" FontSize="14" FontAttributes="Bold"/>
+
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="EnableCheck" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show Live Scores page (live.html)" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="ShowOnHomeCheck" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show a live scores strip on the home page" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                        <CheckBox x:Name="ShowFrameDetailCheck" VerticalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Show completed frames (players revealed only after a frame is won)" VerticalOptions="Center" LineBreakMode="WordWrap"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Labels -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Labels" FontSize="14" FontAttributes="Bold"/>
+
+                    <Label Text="Navigation label" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="NavLabelEntry" Placeholder="Live Scores"/>
+
+                    <Label Text="Page title" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="PageTitleEntry" Placeholder="Live Scores"/>
+
+                    <Label Text="Message shown when no match is in progress" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="EmptyMessageEntry" Placeholder="No matches are being played right now."/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Connection -->
+            <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Connection" FontSize="14" FontAttributes="Bold"/>
+
+                    <Label Text="Refresh interval (seconds, 5-300)" FontSize="12" TextColor="#6B7280"/>
+                    <Entry x:Name="RefreshSecondsEntry" Keyboard="Numeric" Placeholder="20"/>
+
+                    <Label Text="Live scores API URL (leave blank to auto-detect ../api/public/live.php)"
+                           FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
+                    <Entry x:Name="ApiUrlEntry" Placeholder="https://example.com/api/public/live.php"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Button Text="Save Changes"
+                    Clicked="OnSaveClicked"
+                    BackgroundColor="#10B981"
+                    Margin="0,10,0,0"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

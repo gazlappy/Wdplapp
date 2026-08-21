@@ -69,6 +69,7 @@ public sealed class BackendDeployService
         "api/captain/messages.php",
         "api/public/_pub.php",
         "api/public/fixtures.php",
+        "api/public/live.php",
         "api/public/results.php",
         "api/public/standings.php",
         "api/public/team.php",

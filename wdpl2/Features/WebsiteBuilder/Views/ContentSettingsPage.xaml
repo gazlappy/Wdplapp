@@ -45,6 +45,16 @@
                     <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
 
                     <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="&#128308;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Column="1" Text="Live Scores" VerticalOptions="Center" FontSize="14"/>
+                        <Switch Grid.Column="2" x:Name="ShowLiveScoresCheck" IsToggled="False" VerticalOptions="Center"/>
+                        <Button Grid.Column="3" Text="⚙" Clicked="OnLiveScoresSettingsClicked" 
+                                BackgroundColor="#EFF6FF" TextColor="#3B82F6" 
+                                FontSize="16" WidthRequest="36" HeightRequest="36" Padding="0" CornerRadius="8"/>
+                    </Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
+
+                    <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="8">
                         <Label Text="&#127937;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
                         <Label Grid.Column="1" Text="Results" VerticalOptions="Center" FontSize="14"/>
                         <Switch Grid.Column="2" x:Name="ShowResultsCheck" IsToggled="True" VerticalOptions="Center"/>

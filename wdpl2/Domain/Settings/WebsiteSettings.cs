@@ -247,6 +247,28 @@ namespace Wdpl2.Models
         public bool ShowContactPage { get; set; } = false;
         public bool ShowPoolGame { get; set; } = true;
 
+        // Live Scores (public page fed by the captains' shared online scorecards)
+        public bool ShowLiveScores { get; set; } = false;
+
+        /// <summary>
+        /// URL of the public live scores endpoint. Leave blank to auto-resolve
+        /// <c>../api/public/live.php</c> relative to the generated site (falling back
+        /// to <c>/api/public/live.php</c> when the site sits at the web root).
+        /// </summary>
+        public string LiveScoresApiBaseUrl { get; set; } = "";
+
+        /// <summary>How often the live page polls the endpoint, in seconds.</summary>
+        public int LiveScoresRefreshSeconds { get; set; } = 20;
+
+        /// <summary>Show the per-frame breakdown for decided frames on the live page.</summary>
+        public bool LiveScoresShowFrameDetail { get; set; } = true;
+
+        /// <summary>Show a compact live scores widget on the home page.</summary>
+        public bool LiveScoresShowOnHome { get; set; } = true;
+
+        /// <summary>Message shown when no matches are currently being scored.</summary>
+        public string LiveScoresEmptyMessage { get; set; } = "No matches are being scored right now. Check back on match night!";
+
         // Captains Area (private, PIN-gated section for team captains)
         public bool EnableCaptainsArea { get; set; } = false;
         public string CaptainsAreaNavLabel { get; set; } = "\U0001F510 Captains";
@@ -300,6 +322,8 @@ namespace Wdpl2.Models
         public string RulesNavLabel { get; set; } = "Rules";
         public string EntryFormsNavLabel { get; set; } = "Entry Forms";
         public string ContactNavLabel { get; set; } = "Contact";
+        public string LiveScoresNavLabel { get; set; } = "\U0001F534 Live";
+        public string LiveScoresPageTitle { get; set; } = "Live Scores";
 
         // Home Page Options
         public bool HomeShowWelcomeSection { get; set; } = true;
@@ -768,9 +792,10 @@ namespace Wdpl2.Models
         // Custom Pages
         public List<CustomPage> CustomPages { get; set; } = new();
 
-        // Historic Honours (Roll of Honour)
+        // History (Roll of Honour) — custom HTML page supplied by the user
         public bool ShowHistory { get; set; } = false;
-        public List<HistoricHonour> HistoricHonours { get; set; } = new();
+        public string HistoryHtmlContent { get; set; } = "";
+        public string HistoryHtmlFileName { get; set; } = "";
         public string HistoryPageTitle { get; set; } = "Roll of Honour";
         public string HistoryNavLabel { get; set; } = "History";
         
@@ -929,6 +954,11 @@ namespace Wdpl2.Models
             ShowSponsors = false;
             ShowRules = false;
             ShowContactPage = false;
+            ShowLiveScores = false;
+            LiveScoresApiBaseUrl = "";
+            LiveScoresRefreshSeconds = 20;
+            LiveScoresShowFrameDetail = true;
+            LiveScoresShowOnHome = true;
 
             // Navigation labels
             HomeNavLabel = "Home";
@@ -1375,19 +1405,6 @@ namespace Wdpl2.Models
         public bool IsRequired { get; set; } = true;
         public string Placeholder { get; set; } = "";
         public string Options { get; set; } = ""; // for select: comma-separated options
-        public int SortOrder { get; set; }
-    }
-
-    /// <summary>
-    /// A historic honour/achievement (e.g. Singles Cup winner 1994)
-    /// </summary>
-    public sealed class HistoricHonour
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public string Season { get; set; } = ""; // e.g. "1994", "1988 - 1991"
-        public string Title { get; set; } = ""; // e.g. "Singles", "Premier Division"
-        public string Winner { get; set; } = "";
-        public string RunnerUp { get; set; } = "";
         public int SortOrder { get; set; }
     }
 

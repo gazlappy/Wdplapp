@@ -8,16 +8,29 @@
 
         <!-- Toolbar -->
         <HorizontalStackLayout Padding="16,12" Spacing="8" BackgroundColor="#F8FAFC">
-            <Button x:Name="ImportBtn" Text="📥 Import from Excel" Clicked="OnImportClicked"
+            <Button x:Name="PickBtn" Text="📄 Choose HTML File" Clicked="OnPickHtmlClicked"
                     BackgroundColor="#3B82F6" TextColor="White" FontSize="13" CornerRadius="8" Padding="12,8"/>
-            <Button x:Name="ClearBtn" Text="🗑 Clear All" Clicked="OnClearClicked"
+            <Button x:Name="ClearBtn" Text="🗑 Clear" Clicked="OnClearClicked"
                     BackgroundColor="#EF4444" TextColor="White" FontSize="13" CornerRadius="8" Padding="12,8"/>
             <Label x:Name="StatusLabel" Text="" FontSize="12" TextColor="#6B7280" VerticalOptions="Center" Margin="8,0,0,0"/>
         </HorizontalStackLayout>
 
-        <!-- Honours list -->
+        <!-- Info / preview -->
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout x:Name="HonoursList" Padding="16" Spacing="16"/>
+            <VerticalStackLayout Padding="16" Spacing="16">
+                <Label Text="Pick an HTML file to use as your Roll of Honour page. It will be published as-is to history.html when the website is generated."
+                       FontSize="14" TextColor="#6B7280"/>
+                <Border x:Name="PreviewBorder" IsVisible="False"
+                        Stroke="#E5E7EB" Padding="16" BackgroundColor="White">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="6">
+                        <Label x:Name="FileNameLabel" FontSize="15" FontAttributes="Bold" TextColor="#1E293B"/>
+                        <Label x:Name="FileInfoLabel" FontSize="12" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
         </ScrollView>
     </Grid>
 </ContentPage>

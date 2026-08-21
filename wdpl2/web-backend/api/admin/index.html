@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -1194,7 +1194,7 @@ async function loadTopScorers(){
       try { const ss = await api('/admin/seasons.php'); const sel = document.getElementById('tsSeason');
         (ss.items||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.season_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
       try { const ts = await api('/admin/teams.php'); const sel = document.getElementById('tsTeam');
-        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.team_name||x.name; sel.appendChild(o); }); } catch(e){}
     }
   } catch(e){ flash('Top scorers: '+e.message,'err'); }
 }
@@ -1222,7 +1222,7 @@ async function loadAvailability(){
     if (!window._avTeamsLoaded) {
       window._avTeamsLoaded = true;
       try { const ts = await api('/admin/teams.php'); const sel = document.getElementById('avTeam');
-        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.name; sel.appendChild(o); }); } catch(e){}
+        (ts.items||ts.teams||[]).forEach(function(x){ const o=document.createElement('option'); o.value=x.team_id; o.textContent=x.team_name||x.name; sel.appendChild(o); }); } catch(e){}
     }
   } catch(e){ flash('Availability: '+e.message,'err'); }
 }
@@ -1243,7 +1243,7 @@ async function cupShowNew(){
   try { const ts = await api('/admin/teams.php');
     const host = document.getElementById('cupNewTeams');
     host.innerHTML = (ts.items||ts.teams||[]).map(function(t){
-      return '<label><input type="checkbox" class="cup-t" value="'+t.team_id+'"> '+esc(t.name)+'</label>';
+      return '<label><input type="checkbox" class="cup-t" value="'+t.team_id+'"> '+esc(t.team_name||t.name)+'</label>';
     }).join('');
   } catch(e){}
   try { const ss = await api('/admin/seasons.php'); const sel = document.getElementById('cupNewSeason');
@@ -1263,9 +1263,11 @@ document.addEventListener('submit', function(ev){
       .catch(function(e){ flash(e.message,'err'); });
   }
 });
+let _openCupId = null;
 async function cupOpen(cid){
   try {
     const r = await api('/admin/cup.php?cup_id=' + encodeURIComponent(cid));
+    _openCupId = cid;
     document.getElementById('cupDetailCard').style.display = 'block';
     document.getElementById('cupDetailTitle').textContent = 'Cup: ' + (r.cup ? r.cup.name : cid);
     const byRound = {};
@@ -1289,10 +1291,7 @@ async function cupOpen(cid){
 async function cupAdvance(mid, wid){
   try { await api('/admin/cup.php', { method:'POST', body: JSON.stringify({ action:'advance', match_id:mid, winner_team_id:wid }) });
     flash('Winner set.','ok');
-    // refresh open cup
-    const t = document.getElementById('cupDetailTitle').textContent;
-    const cups = await api('/admin/cup.php'); const match = (cups.items||[]).find(function(c){ return ('Cup: '+c.name) === t; });
-    if (match) cupOpen(match.cup_id);
+    if (_openCupId) cupOpen(_openCupId);
   } catch(e){ flash(e.message,'err'); }
 }
 async function cupSchedule(mid, date, venue, notes){

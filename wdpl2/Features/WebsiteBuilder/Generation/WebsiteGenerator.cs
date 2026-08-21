@@ -99,7 +99,10 @@ namespace Wdpl2.Services
             
             if (_settings.ShowFixtures)
                 files["fixtures.html"] = GenerateFixturesPage(season, template);
-            
+
+            if (_settings.ShowLiveScores)
+                files["live.html"] = GenerateLiveScoresPage(season, template);
+
             if (_settings.ShowResults)
             {
                 files["results.html"] = GenerateResultsPage(season, template);
@@ -177,8 +180,8 @@ namespace Wdpl2.Services
             if (_settings.ShowPoolGame)
                 files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
 
-            if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
-                files["history.html"] = GenerateHistoryPage(season, template);
+            if (_settings.ShowHistory && !string.IsNullOrWhiteSpace(_settings.HistoryHtmlContent))
+                files["history.html"] = _settings.HistoryHtmlContent;
 
             // Captains Area - now just a static landing page that links to the
             // server-backed Captain Portal (deployed separately by BackendDeployService).
@@ -289,6 +292,10 @@ namespace Wdpl2.Services
             }
 
             html.AppendLine("    </div>");
+
+            // Live scores strip sits in normal flow below the absolutely-positioned
+            // canvas blocks so it can never overlap them.
+            AppendHomeLiveScoresWidget(html);
 
             // Footer rendered outside canvas in normal document flow for sticky footer
             if (footerBlock != null)
@@ -3429,58 +3436,6 @@ namespace Wdpl2.Services
             html.AppendLine("</html>");
 
             return html.ToString();
-        }
-
-        private string GenerateHistoryPage(Season season, WebsiteTemplate template)
-        {
-            return GenerateFullPage($"{_settings.HistoryPageTitle} - {_settings.LeagueName}", season, "History", html =>
-            {
-                html.AppendLine("            <div class=\"hero\">");
-                html.AppendLine($"                <h2>&#127942; {Esc(_settings.HistoryPageTitle)}</h2>");
-                html.AppendLine("                <p class=\"hero-dates\">Historic winners and runners-up</p>");
-                html.AppendLine("            </div>");
-
-                // Group honours by season, preserving import order
-                var seasons = _settings.HistoricHonours
-                    .GroupBy(h => h.Season)
-                    .OrderByDescending(g => g.Key)
-                    .ToList();
-
-                if (seasons.Count > 0)
-                {
-                    foreach (var group in seasons)
-                    {
-                        html.AppendLine("            <div class=\"section\">");
-                        html.AppendLine($"                <h3>{Esc(group.Key)}</h3>");
-                        html.AppendLine($"                <table class=\"{GetTableClasses()}\">");
-                        html.AppendLine("                    <thead><tr>");
-                        html.AppendLine("                        <th>Competition</th>");
-                        html.AppendLine("                        <th>Winner</th>");
-                        html.AppendLine("                        <th>Runner-Up</th>");
-                        html.AppendLine("                    </tr></thead>");
-                        html.AppendLine("                    <tbody>");
-
-                        foreach (var honour in group.OrderBy(h => h.SortOrder))
-                        {
-                            html.AppendLine("                    <tr>");
-                            html.AppendLine($"                        <td><strong>{Esc(honour.Title)}</strong></td>");
-                            html.AppendLine($"                        <td>{Esc(honour.Winner)}</td>");
-                            html.AppendLine($"                        <td>{Esc(honour.RunnerUp)}</td>");
-                            html.AppendLine("                    </tr>");
-                        }
-
-                        html.AppendLine("                    </tbody>");
-                        html.AppendLine("                </table>");
-                        html.AppendLine("            </div>");
-                    }
-                }
-                else
-                {
-                    html.AppendLine("            <div class=\"section\">");
-                    html.AppendLine("                <p class=\"empty-message\">No historic honours data available yet.</p>");
-                    html.AppendLine("            </div>");
-                }
-            });
         }
 
         private string GenerateCustomPage(Season season, WebsiteTemplate template, CustomPage page)

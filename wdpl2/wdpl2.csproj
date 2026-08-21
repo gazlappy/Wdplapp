@@ -47,8 +47,7 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 		<MauiAsset Include="Resources\Rules\**" LogicalName="Rules/%(Filename)%(Extension)" />
 		<!-- PHP/HTML backend bundled as assets so the app can FTP-push them. -->
-		<MauiAsset Include="web-backend\**\*.php;web-backend\**\*.html;web-backend\**\*.js;web-backend\**\*.webmanifest;web-backend\**\.htaccess"
-				   LogicalName="backend/%(RecursiveDir)%(Filename)%(Extension)" />
+		<MauiAsset Include="web-backend\**\*.php;web-backend\**\*.html;web-backend\**\*.js;web-backend\**\*.webmanifest;web-backend\**\.htaccess" LogicalName="backend/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<!-- Exclude legacy data and sample folders from the build -->
@@ -77,6 +76,9 @@
 	  </MauiImage>
 	</ItemGroup>
 	<ItemGroup>
+	  <MauiXaml Update="Features\WebsiteBuilder\Views\LiveScoresSettingsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
@@ -326,6 +328,7 @@
 	</ItemGroup>
 	
 	<ItemGroup>
+	  <Folder Include="Features\Import\Excel\" />
 	  <Folder Include="ViewModels\Fixtures\" />
 	  <Folder Include="ViewModels\LeagueTables\" />
 	</ItemGroup>

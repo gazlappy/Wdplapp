@@ -1,4 +1,4 @@
-using Microsoft.Maui.Controls;
+﻿using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -11,191 +11,76 @@ public partial class HistorySettingsPage : ContentPage
     public HistorySettingsPage()
     {
         InitializeComponent();
-        RefreshList();
+        RefreshStatus();
     }
 
-    private void RefreshList()
+    private void RefreshStatus()
     {
-        HonoursList.Children.Clear();
-        var honours = League.WebsiteSettings.HistoricHonours;
+        var settings = League.WebsiteSettings;
 
-        if (honours.Count == 0)
+        if (string.IsNullOrWhiteSpace(settings.HistoryHtmlContent))
         {
-            HonoursList.Children.Add(new Label
-            {
-                Text = "No historic honours imported yet.\nTap 'Import from Excel' to load your Roll of Honour spreadsheet.",
-                FontSize = 14,
-                TextColor = Color.FromArgb("#6B7280"),
-                HorizontalTextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 40, 0, 0)
-            });
-            StatusLabel.Text = "";
+            PreviewBorder.IsVisible = false;
+            StatusLabel.Text = "No HTML page selected";
             return;
         }
 
-        StatusLabel.Text = $"{honours.Count} honours across {honours.Select(h => h.Season).Distinct().Count()} seasons";
-
-        var seasons = honours
-            .GroupBy(h => h.Season)
-            .OrderByDescending(g => g.Key)
-            .ToList();
-
-        foreach (var group in seasons)
-        {
-            var border = new Border
-            {
-                Stroke = Color.FromArgb("#E5E7EB"),
-                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
-                Padding = new Thickness(16),
-                BackgroundColor = Colors.White
-            };
-
-            var stack = new VerticalStackLayout { Spacing = 6 };
-
-            // Season header with delete button
-            var headerGrid = new Grid
-            {
-                ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)]
-            };
-            headerGrid.Add(new Label
-            {
-                Text = $"🏆 {group.Key}",
-                FontSize = 18,
-                FontAttributes = FontAttributes.Bold,
-                TextColor = Color.FromArgb("#1E293B")
-            });
-
-            var deleteSeasonBtn = new Button
-            {
-                Text = "✕",
-                FontSize = 12,
-                BackgroundColor = Color.FromArgb("#FEE2E2"),
-                TextColor = Color.FromArgb("#DC2626"),
-                WidthRequest = 32,
-                HeightRequest = 32,
-                Padding = 0,
-                CornerRadius = 6,
-                CommandParameter = group.Key
-            };
-            deleteSeasonBtn.Clicked += OnDeleteSeasonClicked;
-            Grid.SetColumn(deleteSeasonBtn, 1);
-            headerGrid.Add(deleteSeasonBtn);
-
-            stack.Add(headerGrid);
-            stack.Add(new BoxView { HeightRequest = 1, BackgroundColor = Color.FromArgb("#E5E7EB") });
-
-            // Column headers
-            var colHeader = new Grid
-            {
-                ColumnDefinitions =
-                [
-                    new ColumnDefinition(new GridLength(2, GridUnitType.Star)),
-                    new ColumnDefinition(new GridLength(2, GridUnitType.Star)),
-                    new ColumnDefinition(new GridLength(2, GridUnitType.Star))
-                ],
-                Padding = new Thickness(0, 4)
-            };
-            colHeader.Add(new Label { Text = "Competition", FontSize = 11, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#9CA3AF") });
-            colHeader.Add(new Label { Text = "Winner", FontSize = 11, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#9CA3AF") });
-            Grid.SetColumn((BindableObject)colHeader.Children[1], 1);
-            colHeader.Add(new Label { Text = "Runner-Up", FontSize = 11, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#9CA3AF") });
-            Grid.SetColumn((BindableObject)colHeader.Children[2], 2);
-            stack.Add(colHeader);
-
-            foreach (var honour in group.OrderBy(h => h.SortOrder))
-            {
-                var row = new Grid
-                {
-                    ColumnDefinitions =
-                    [
-                        new ColumnDefinition(new GridLength(2, GridUnitType.Star)),
-                        new ColumnDefinition(new GridLength(2, GridUnitType.Star)),
-                        new ColumnDefinition(new GridLength(2, GridUnitType.Star))
-                    ],
-                    Padding = new Thickness(0, 2)
-                };
-                row.Add(new Label { Text = honour.Title, FontSize = 13, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#374151") });
-                row.Add(new Label { Text = honour.Winner, FontSize = 13, TextColor = Color.FromArgb("#374151") });
-                Grid.SetColumn((BindableObject)row.Children[1], 1);
-                row.Add(new Label { Text = honour.RunnerUp, FontSize = 13, TextColor = Color.FromArgb("#6B7280") });
-                Grid.SetColumn((BindableObject)row.Children[2], 2);
-                stack.Add(row);
-            }
-
-            border.Content = stack;
-            HonoursList.Children.Add(border);
-        }
+        PreviewBorder.IsVisible = true;
+        FileNameLabel.Text = string.IsNullOrWhiteSpace(settings.HistoryHtmlFileName)
+            ? "history.html"
+            : settings.HistoryHtmlFileName;
+        FileInfoLabel.Text = $"{settings.HistoryHtmlContent.Length:N0} characters - published as history.html";
+        StatusLabel.Text = "HTML page loaded";
     }
 
-    private async void OnImportClicked(object? sender, EventArgs e)
+    private async void OnPickHtmlClicked(object? sender, EventArgs e)
     {
         try
         {
             var result = await FilePicker.PickAsync(new PickOptions
             {
-                PickerTitle = "Select Honours Excel File",
+                PickerTitle = "Select HTML File",
                 FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
                 {
-                    { DevicePlatform.WinUI, [".xlsx"] },
-                    { DevicePlatform.macOS, ["xlsx"] },
-                    { DevicePlatform.iOS, ["org.openxmlformats.spreadsheetml.sheet"] },
-                    { DevicePlatform.Android, ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] }
+                    { DevicePlatform.WinUI, [".html", ".htm"] },
+                    { DevicePlatform.macOS, ["html", "htm"] },
+                    { DevicePlatform.iOS, ["public.html"] },
+                    { DevicePlatform.Android, ["text/html"] }
                 })
             });
 
             if (result == null) return;
 
-            StatusLabel.Text = "Importing...";
-            var importResult = await HonoursExcelImporter.ImportAsync(result.FullPath);
-
-            if (importResult.Success)
+            var content = await File.ReadAllTextAsync(result.FullPath);
+            if (string.IsNullOrWhiteSpace(content))
             {
-                DataStore.Save();
-                StatusLabel.Text = $"Imported {importResult.HonoursImported} honours";
-                RefreshList();
+                await DisplayAlert("Empty File", "The selected file has no content.", "OK");
+                return;
+            }
 
-                if (importResult.Warnings.Count > 0)
-                    await DisplayAlert("Import Warnings", string.Join("\n", importResult.Warnings), "OK");
-            }
-            else
-            {
-                await DisplayAlert("Import Failed", importResult.Error ?? "Unknown error", "OK");
-                StatusLabel.Text = "Import failed";
-            }
+            League.WebsiteSettings.HistoryHtmlContent = content;
+            League.WebsiteSettings.HistoryHtmlFileName = result.FileName;
+            League.WebsiteSettings.ShowHistory = true;
+            DataStore.Save();
+            RefreshStatus();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", $"Failed to import: {ex.Message}", "OK");
+            await DisplayAlert("Error", $"Failed to load HTML file: {ex.Message}", "OK");
         }
     }
 
     private async void OnClearClicked(object? sender, EventArgs e)
     {
-        if (League.WebsiteSettings.HistoricHonours.Count == 0) return;
+        if (string.IsNullOrWhiteSpace(League.WebsiteSettings.HistoryHtmlContent)) return;
 
-        bool confirm = await DisplayAlert("Clear All Honours",
-            $"This will remove all {League.WebsiteSettings.HistoricHonours.Count} historic honours. Continue?",
-            "Clear All", "Cancel");
-
+        bool confirm = await DisplayAlert("Clear History Page",
+            "Remove the custom Roll of Honour HTML page?", "Clear", "Cancel");
         if (!confirm) return;
 
-        League.WebsiteSettings.HistoricHonours.Clear();
+        League.WebsiteSettings.HistoryHtmlContent = "";
+        League.WebsiteSettings.HistoryHtmlFileName = "";
         DataStore.Save();
-        StatusLabel.Text = "All honours cleared";
-        RefreshList();
-    }
-
-    private async void OnDeleteSeasonClicked(object? sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.CommandParameter is string season)
-        {
-            bool confirm = await DisplayAlert("Delete Season",
-                $"Remove all honours for '{season}'?", "Delete", "Cancel");
-            if (!confirm) return;
-
-            League.WebsiteSettings.HistoricHonours.RemoveAll(h => h.Season == season);
-            DataStore.Save();
-            RefreshList();
-        }
+        RefreshStatus();
     }
 }

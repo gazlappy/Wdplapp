@@ -324,6 +324,9 @@ namespace Wdpl2.Services
             if (_settings.ShowFixtures)
                 NavLink("fixtures.html", _settings.FixturesNavLabel, "Fixtures");
 
+            if (_settings.ShowLiveScores)
+                NavLink("live.html", _settings.LiveScoresNavLabel, "Live Scores");
+
             if (_settings.ShowResults)
                 NavLink("results.html", _settings.ResultsNavLabel, "Results");
 
@@ -378,7 +381,7 @@ namespace Wdpl2.Services
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
                 NavLink("entry-forms.html", _settings.EntryFormsNavLabel, "Entry Forms");
 
-            if (_settings.ShowHistory && _settings.HistoricHonours.Count > 0)
+            if (_settings.ShowHistory && !string.IsNullOrWhiteSpace(_settings.HistoryHtmlContent))
                 NavLink("history.html", _settings.HistoryNavLabel, "History");
 
             if (_settings.ShowContactPage && _settings.HasContactInfo)

@@ -402,8 +402,58 @@ header .logo {{
                 "minimal" => GenerateModernCSS(),
                 _ => GenerateModernCSS()
             };
-            return templateCSS + GetCompetitionCSS() + GetCaptainsAreaCSS();
+            return templateCSS + GetCompetitionCSS() + GetCaptainsAreaCSS() + GetLiveScoresCSS();
         }
+
+        private string GetLiveScoresCSS() => @"
+/* ── Live Scores ── */
+.live-dot {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+    background: #DC2626; margin-right: 8px; vertical-align: middle;
+    animation: livePulse 1.6s ease-in-out infinite;
+}
+@keyframes livePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }
+    50% { opacity: 0.65; box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+}
+.live-subtitle { color: var(--text-secondary, #475569); font-size: 0.95rem; }
+.live-status { color: #64748B; font-size: 0.85rem; margin: 12px 0; text-align: center; }
+.live-board { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.live-card {
+    background: var(--card-bg); border-radius: var(--border-radius);
+    padding: 16px 18px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border-left: 4px solid #DC2626;
+}
+.live-card-final { border-left-color: #16A34A; }
+.live-card-confirming { border-left-color: #F59E0B; }
+.live-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.live-badge {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 8px; border-radius: 999px; background: #FEE2E2; color: #B91C1C;
+}
+.live-card-final .live-badge { background: #DCFCE7; color: #15803D; }
+.live-card-confirming .live-badge { background: #FEF3C7; color: #B45309; }
+.live-division { font-size: 0.8rem; color: #64748B; }
+.live-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+.live-team { font-weight: 600; color: var(--text-color); }
+.live-home { text-align: right; }
+.live-away { text-align: left; }
+.live-score { font-size: 1.5rem; font-weight: 800; color: var(--primary-color); white-space: nowrap; }
+.live-meta { margin: 8px 0 0; font-size: 0.82rem; color: #64748B; text-align: center; }
+.live-frames { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid rgba(100,116,139,0.2); }
+.live-frame {
+    display: grid; grid-template-columns: 34px 1fr 18px 1fr auto;
+    align-items: center; gap: 6px; padding: 3px 0; font-size: 0.85rem;
+}
+.live-frame-no { color: #94A3B8; font-size: 0.75rem; }
+.live-frame-home { text-align: right; }
+.live-frame-vs { color: #94A3B8; font-size: 0.7rem; text-align: center; }
+.live-frame-home .live-frame-home, .live-frame-away .live-frame-away { font-weight: 700; color: var(--primary-color); }
+.live-frame-eight { font-size: 0.8rem; }
+@media (min-width: 800px) {
+    .live-board { grid-template-columns: 1fr 1fr; }
+}
+";
 
         private string GetCaptainsAreaCSS() => @"
 /* ── Captains Area ── */
