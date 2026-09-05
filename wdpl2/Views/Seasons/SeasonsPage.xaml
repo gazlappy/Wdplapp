@@ -4,32 +4,26 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:models="clr-namespace:Wdpl2.Models"
+    xmlns:vm="clr-namespace:Wdpl2.ViewModels"
     Title="Seasons"
+    BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}"
     SemanticProperties.Description="Seasons management page">
 
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+    <Grid x:Name="PageLayout" ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto" Padding="20" ColumnSpacing="12" RowSpacing="16">
         
-        <!-- Header with Burger Menu Button -->
-        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
-            <Button 
-                x:Name="BurgerMenuBtn"
-                Text="☰"
-                FontSize="24"
-                WidthRequest="50"
-                HeightRequest="50"
-                Padding="0"
-                Margin="0,0,12,0"
-                BackgroundColor="{StaticResource PrimaryColor}"
-                TextColor="White"
-                SemanticProperties.Description="Open menu"
-                SemanticProperties.Hint="Opens the season controls menu" />
-            
-            <Label 
-                Grid.Column="1"
-                Text="Manage Seasons" 
-                Style="{StaticResource PageTitleStyle}"
-                VerticalOptions="Center"
-                SemanticProperties.Description="Manage Seasons" />
+        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Button x:Name="BackToLibraryBtn" Text="‹ Seasons" IsVisible="False"
+                    Clicked="OnBackToLibraryClicked" VerticalOptions="Center"
+                    BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}"
+                    SemanticProperties.Description="Back to season library" />
+            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label x:Name="PageHeading" Text="Seasons" FontSize="28" FontAttributes="Bold" Margin="0" />
+                <Label x:Name="PageSubtitle" Text="Your league, season by season." FontSize="13" Margin="0"
+                       TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+            </VerticalStackLayout>
+            <Button Grid.Column="2" Text="+ New season" Clicked="OnNewClicked"
+                    BackgroundColor="#16634B" TextColor="White" VerticalOptions="Center"
+                    SemanticProperties.Description="Create a new season" />
         </Grid>
 
         <!-- Flyout Menu Overlay -->
@@ -69,7 +63,7 @@
                     RowSpacing="{StaticResource StandardSpacing}">
 
                     <HorizontalStackLayout Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
-                        <Label Text="Controls" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
+                        <Label Text="Edit season" Style="{StaticResource SectionHeaderStyle}" VerticalOptions="Center" Margin="0" />
                         <Button 
                             x:Name="CloseFlyoutBtn"
                             Text="✕"
@@ -96,8 +90,8 @@
                     <Label Grid.Row="5" Grid.Column="0" Text="End date:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
                     <DatePicker x:Name="EndPicker" Grid.Row="5" Grid.Column="1" SemanticProperties.Description="Season end date" />
 
-                    <Label Grid.Row="6" Grid.Column="0" Text="Active:" Style="{StaticResource FieldLabelStyle}" Margin="0"/>
-                    <Switch x:Name="ActiveSwitch" Grid.Row="6" Grid.Column="1" SemanticProperties.Description="Season is active" />
+                    <Label Grid.Row="6" Grid.ColumnSpan="2" Text="Saving details will not change your working season."
+                           Style="{StaticResource CaptionStyle}" />
 
                     <BoxView Grid.Row="7" Grid.ColumnSpan="2" HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" Margin="0,8,0,0" />
 
@@ -121,7 +115,6 @@
                     </HorizontalStackLayout>
 
                     <HorizontalStackLayout Grid.Row="14" Grid.ColumnSpan="2" Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SetActiveBtn" Text="Set Active" Clicked="OnSetActiveClicked" Style="{StaticResource SuccessButtonStyle}" SemanticProperties.Description="Set as active season" />
                         <Button x:Name="GenerateBtn" Text="Generate Fixtures" Clicked="OnGenerateClicked" SemanticProperties.Description="Generate fixtures" />
                     </HorizontalStackLayout>
 
@@ -215,105 +208,120 @@
                             </CollectionView>
                         </Border>
 
-                        <Label x:Name="StatusLabel" Style="{StaticResource StatusTextStyle}" SemanticProperties.Description="Status message" />
                     </VerticalStackLayout>
                     
                 </Grid>
             </ScrollView>
         </Border>
 
-        <!-- LEFT: Season list -->
-        <Border 
-            Grid.Row="1"
-            Grid.Column="0"
-            StrokeShape="RoundRectangle 12" 
-            Padding="{StaticResource MediumPadding}"
-            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
-            Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
-            StrokeThickness="1"
-            SemanticProperties.Description="Seasons list panel">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
-                <Label Text="Seasons" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
-                <CollectionView
-                    Grid.Row="1"
-                    x:Name="SeasonsList"
-                    SelectionMode="Single"
-                    SelectionChanged="OnSelectionChanged"
-                    VerticalScrollBarVisibility="Always"
-                    SemanticProperties.Description="Seasons list">
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="models:Season">
-                            <Border
-                                Padding="{StaticResource StandardPadding}"
-                                Margin="0,0,0,4"
-                                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}"
-                                Stroke="Transparent"
-                                StrokeThickness="2"
-                                StrokeShape="RoundRectangle 8">
-                                <VisualStateManager.VisualStateGroups>
-                                    <VisualStateGroupList>
-                                        <VisualStateGroup x:Name="CommonStates">
-                                            <VisualState x:Name="Normal" />
-                                            <VisualState x:Name="Selected">
-                                                <VisualState.Setters>
-                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#DBEAFE, Dark=#1E3A5F}" />
-                                                    <Setter Property="Stroke" Value="{AppThemeBinding Light=#3B82F6, Dark=#60A5FA}" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                        </VisualStateGroup>
-                                    </VisualStateGroupList>
-                                </VisualStateManager.VisualStateGroups>
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                    <Label
-                                        Text="🔒"
-                                        FontSize="12"
-                                        VerticalOptions="Center"
-                                        IsVisible="{Binding IsLocked}" />
-                                    <Label
-                                        Grid.Column="1"
-                                        Text="{Binding Name}"
-                                        FontSize="14"
-                                        FontAttributes="Bold"
-                                        LineBreakMode="TailTruncation"
-                                        VerticalOptions="Center" />
-                                    <Ellipse
-                                        Grid.Column="2"
-                                        WidthRequest="12"
-                                        HeightRequest="12"
-                                        VerticalOptions="Center">
-                                        <Ellipse.Fill>
-                                            <SolidColorBrush Color="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}" />
-                                        </Ellipse.Fill>
-                                    </Ellipse>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-                <HorizontalStackLayout Grid.Row="2" Spacing="8">
-                    <Button 
-                        x:Name="RefreshListBtn"
-                        Text="🔄 Refresh" 
-                        Clicked="OnRefreshListClicked"
-                        HorizontalOptions="FillAndExpand"
-                        SemanticProperties.Description="Refresh seasons list" />
-                    <Button 
-                        Text="+ New Season" 
-                        Clicked="OnNewClicked" 
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        HorizontalOptions="FillAndExpand"
-                        SemanticProperties.Description="Create new season" />
-                </HorizontalStackLayout>
+        <Grid x:Name="LibraryPanel" Grid.Row="1" Grid.ColumnSpan="2"
+              RowDefinitions="Auto,*" RowSpacing="12">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <SearchBar x:Name="SeasonSearch" Placeholder="Search seasons or years"
+                           TextChanged="OnLibraryFilterChanged" SemanticProperties.Description="Search seasons" />
+                <Picker x:Name="SeasonFilter" Grid.Column="1" Title="Filter" WidthRequest="110"
+                        SelectedIndexChanged="OnLibraryFilterChanged" SemanticProperties.Description="Filter seasons">
+                    <Picker.Items>
+                        <x:String>All seasons</x:String>
+                        <x:String>Current</x:String>
+                        <x:String>Locked</x:String>
+                    </Picker.Items>
+                </Picker>
             </Grid>
-        </Border>
+            <CollectionView x:Name="SeasonsList" Grid.Row="1" IsGrouped="True" SelectionMode="None"
+                            SemanticProperties.Description="Season library. Open a season to preview it without switching.">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout x:Name="SeasonCardsLayout" Orientation="Vertical" Span="2"
+                                     HorizontalItemSpacing="14" VerticalItemSpacing="14" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.Header>
+                    <VerticalStackLayout Spacing="12" Padding="0,0,0,12">
+                        <Border x:Name="CurrentSeasonCard" Padding="20" Stroke="#398567" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="{AppThemeBinding Light=#E6F3EC, Dark=#19382B}" IsVisible="False">
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="CURRENT WORKING SEASON" FontSize="11" FontAttributes="Bold" Margin="0"
+                                       TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}" />
+                                <Label x:Name="CurrentSeasonName" FontSize="22" FontAttributes="Bold" Margin="0" />
+                                <Label x:Name="CurrentSeasonSummary" FontSize="13" Margin="0" />
+                                <Button Text="Preview season →" Clicked="OnPreviewCurrentClicked" HorizontalOptions="Start"
+                                        BackgroundColor="#16634B" TextColor="White" Margin="0,4,0,0" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="LibraryCountLabel" FontSize="13" VerticalOptions="Center"
+                                   TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+                            <Button Grid.Column="1" Text="Refresh" Clicked="OnRefreshListClicked"
+                                    BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </CollectionView.Header>
+                <CollectionView.GroupHeaderTemplate>
+                    <DataTemplate x:DataType="vm:SeasonYearGroup">
+                        <Label Text="{Binding Title}" FontSize="20" FontAttributes="Bold" Margin="0,16,0,10" />
+                    </DataTemplate>
+                </CollectionView.GroupHeaderTemplate>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SeasonCard">
+                        <Border Padding="18" StrokeShape="RoundRectangle 16"
+                                Stroke="{AppThemeBinding Light=#DCE5DF, Dark=#354B40}"
+                                BackgroundColor="{AppThemeBinding Light=White, Dark=#1C2922}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnSeasonCardTapped" CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsCurrent}" Value="True">
+                                    <Setter Property="Stroke" Value="#398567" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <VerticalStackLayout Spacing="10">
+                                <HorizontalStackLayout Spacing="8">
+                                    <Border IsVisible="{Binding IsCurrent}" BackgroundColor="#16634B" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6" Padding="8,3">
+                                        <Label Text="Current" TextColor="White" FontSize="11" Margin="0" />
+                                    </Border>
+                                    <Border IsVisible="{Binding IsLocked}" BackgroundColor="{AppThemeBinding Light=#EDF0EE, Dark=#354B40}"
+                                            StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="8,3">
+                                        <Label Text="Locked" FontSize="11" Margin="0" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="{Binding Name}" FontSize="20" FontAttributes="Bold" MaxLines="2" Margin="0" />
+                                <Label Text="{Binding Dates}" FontSize="12" Margin="0"
+                                       TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+                                <Label Text="{Binding Summary}" FontSize="13" Margin="0" />
+                                <ProgressBar Progress="{Binding Progress}" ProgressColor="#398567"
+                                             BackgroundColor="{AppThemeBinding Light=#E4EBE6, Dark=#354B40}"
+                                             SemanticProperties.Description="{Binding ProgressText}" />
+                                <Label Text="{Binding ProgressText}" FontSize="12" Margin="0"
+                                       TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+                                <Button Text="Preview season →" Clicked="OnPreviewSeasonClicked" CommandParameter="{Binding .}"
+                                        BackgroundColor="{AppThemeBinding Light=#EDF5F0, Dark=#263F31}"
+                                        TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Preview {0} without switching seasons'}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="24" Spacing="8" VerticalOptions="Center" HorizontalOptions="Center">
+                        <Label Text="No seasons to show" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="Try another search or filter, or create your first season."
+                               HorizontalTextAlignment="Center" />
+                        <Button Text="+ New season" Clicked="OnNewClicked" BackgroundColor="#16634B" TextColor="White" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </Grid>
 
-        <!-- RIGHT: Season Info Panel -->
         <Border 
+            x:Name="PreviewPanel"
             Grid.Row="1" 
-            Grid.Column="1"
-            StrokeShape="RoundRectangle 12" 
-            Padding="{StaticResource MediumPadding}"
-            BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
+            Grid.ColumnSpan="2"
+            IsVisible="False"
+            MaximumWidthRequest="1000"
+            StrokeShape="RoundRectangle 16" 
+            Padding="20"
+            BackgroundColor="{AppThemeBinding Light=White, Dark=#1C2922}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
             SemanticProperties.Description="Season details panel">
@@ -351,12 +359,14 @@
                         
                         <!-- Header -->
                         <VerticalStackLayout Spacing="4">
+                            <Label Text="SEASON PREVIEW" FontSize="11" FontAttributes="Bold"
+                                   TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}" />
                             <Label x:Name="SelectedSeasonName" 
                                    Style="{StaticResource PageTitleStyle}" 
                                    Margin="0" />
                             <Label x:Name="SelectedSeasonDates" 
                                    Style="{StaticResource BodyTextStyle}"
-                                   TextColor="{StaticResource Gray600}" />
+                                   TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
                             <Border x:Name="SelectedSeasonStatusBadge"
                                     Style="{StaticResource SuccessBadgeStyle}"
                                     HorizontalOptions="Start"
@@ -364,6 +374,10 @@
                                 <Label x:Name="SelectedSeasonStatus" 
                                        Style="{StaticResource BadgeTextStyle}" />
                             </Border>
+                            <Label x:Name="PreviewHintLabel" FontSize="13" Margin="0,8,0,0" />
+                            <Button x:Name="SetActiveBtn" Text="Use this season" Clicked="OnSetActiveClicked"
+                                    BackgroundColor="#16634B" TextColor="White" Margin="0,8,0,0"
+                                    SemanticProperties.Description="Switch the whole app to this season" />
                         </VerticalStackLayout>
 
                         <BoxView HeightRequest="1" Color="{StaticResource Gray200}" />
@@ -380,11 +394,10 @@
                             <Border Grid.Column="0" Grid.Row="0"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="📊" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="DivisionsCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="{StaticResource PrimaryColor}"
                                            HorizontalOptions="Center" />
@@ -398,11 +411,10 @@
                             <Border Grid.Column="1" Grid.Row="0"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="👥" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="TeamsCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="{StaticResource InfoColor}"
                                            HorizontalOptions="Center" />
@@ -416,11 +428,10 @@
                             <Border Grid.Column="0" Grid.Row="1"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="🎯" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="PlayersCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="{StaticResource SuccessColor}"
                                            HorizontalOptions="Center" />
@@ -434,11 +445,10 @@
                             <Border Grid.Column="1" Grid.Row="1"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="📅" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="FixturesCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="{StaticResource WarningColor}"
                                            HorizontalOptions="Center" />
@@ -452,11 +462,10 @@
                             <Border Grid.Column="0" Grid.Row="2"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="🏠" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="VenuesCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="#8B5CF6"
                                            HorizontalOptions="Center" />
@@ -470,11 +479,10 @@
                             <Border Grid.Column="1" Grid.Row="2"
                                     Style="{StaticResource CardBorderStyle}"
                                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#2A2A2A}">
-                                <VerticalStackLayout Padding="16" Spacing="4">
-                                    <Label Text="🏆" FontSize="24" HorizontalOptions="Center" />
+                                <VerticalStackLayout Padding="8" Spacing="2">
                                     <Label x:Name="CompetitionsCount" 
                                            Text="0"
-                                           FontSize="32"
+                                           FontSize="22"
                                            FontAttributes="Bold"
                                            TextColor="#EC4899"
                                            HorizontalOptions="Center" />
@@ -510,7 +518,7 @@
                                 HorizontalOptions="Fill"
                                 SemanticProperties.Description="Edit season details" />
 
-                        <Button Text="Generate Fixtures"
+                        <Button x:Name="GeneratePreviewBtn" Text="Generate Fixtures"
                                 Clicked="OnGenerateClicked"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 HorizontalOptions="Fill"
@@ -529,5 +537,8 @@
                 </VerticalStackLayout>
             </ScrollView>
         </Border>
+        <Label x:Name="StatusLabel" Grid.Row="2" Grid.ColumnSpan="2" FontSize="12"
+               TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}"
+               SemanticProperties.Description="Season status message" />
     </Grid>
 </ContentPage>

@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using Wdpl2.ViewModels;
 
 namespace Wdpl2.Views
 {
@@ -19,9 +20,9 @@ namespace Wdpl2.Views
         private readonly ObservableCollection<Season> _items = new();
         private readonly ObservableCollection<string> _exclusionDates = new();
         private readonly Dictionary<string, string> _exclusionTitles = new();
-        private Season? _selected;
+        private readonly SeasonLibraryViewModel _library = new();
+        private Season? _selected => _library.PreviewedSeason;
         private bool _isFlyoutOpen = false;
-        private bool _isRefreshingList;
         private Guid? _pendingActivationId;
         private bool _activationRunning;
 
@@ -32,13 +33,9 @@ namespace Wdpl2.Views
 
             StartPicker.Date = DateTime.Today;
             EndPicker.Date = DateTime.Today.AddMonths(6);
-            ActiveSwitch.IsToggled = true;
 
-            SeasonsList.ItemsSource = _items;
             ExclusionDatesList.ItemsSource = _exclusionDates;
 
-            // Wire up burger menu and flyout
-            BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
             CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
             OverlayTap.Tapped += (_, __) => CloseFlyout();
 
@@ -49,56 +46,84 @@ namespace Wdpl2.Views
             StartPicker.DateSelected += OnSeasonDateChanged;
             EndPicker.DateSelected += OnSeasonDateChanged;
 
-            // Open on the app's current season (falls back to first if none)
-            RefreshList(selectId: SeasonService.Current?.CurrentSeasonId, selectFirst: true);
+            SeasonFilter.SelectedIndex = 0;
+            SizeChanged += (_, _) => UpdateLibraryLayout();
+            RefreshList();
         }
 
         protected override void OnAppearing()
         {
             base.OnAppearing();
-            // The Season Setup wizard may have added a new season; reflect it here.
-            // The service ID is authoritative (another page may have switched
-            // season); fall back to this page's previous selection.
-            var selectId = SeasonService.Current?.CurrentSeasonId ?? _selected?.Id;
-            RefreshList(selectId: selectId, selectFirst: true);
+            RefreshList(selectId: _selected?.Id);
         }
 
-        private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OnPreviewSeasonClicked(object sender, EventArgs e)
         {
-            _selected = e.CurrentSelection?.FirstOrDefault() as Season;
+            if (sender is Button { CommandParameter: SeasonCard card })
+                PreviewSeason(card.Season);
+        }
 
-            if (_selected != null)
-                ShowSeasonInfo(_selected);
-            else
-                HideSeasonInfo();
+        private void OnSeasonCardTapped(object sender, TappedEventArgs e)
+        {
+            if (e.Parameter is SeasonCard card)
+                PreviewSeason(card.Season);
+        }
 
-            PopulateEditor(_selected);
+        private void OnPreviewCurrentClicked(object sender, EventArgs e)
+        {
+            if (_library.CurrentSeason != null)
+                PreviewSeason(_library.CurrentSeason.Season);
+        }
 
-            // Ignore programmatic selection (page load / list rebuilds) so only
-            // a real user click changes app state.
-            if (_isRefreshingList || _selected == null)
-                return;
+        private void PreviewSeason(Season season)
+        {
+            _library.Preview(season);
+            PopulateEditor(season);
+            ShowSeasonInfo(season);
+            StatusLabel.Text = "Preview only - your working season has not changed.";
+        }
 
-            // Switch the app's working season so every other tab (fixtures,
-            // teams, players…) follows the clicked season immediately.
-            var seasonService = SeasonService.Current;
-            if (seasonService != null && seasonService.CurrentSeasonId != _selected.Id)
+        private void OnBackToLibraryClicked(object sender, EventArgs e)
+        {
+            if (_isFlyoutOpen) CloseFlyout();
+            _library.ClosePreview();
+            HideSeasonInfo();
+            StatusLabel.Text = "";
+        }
+
+        protected override bool OnBackButtonPressed()
+        {
+            if (_isFlyoutOpen)
             {
-                seasonService.CurrentSeasonId = _selected.Id;
-                StatusLabel.Text = $"Switched to \"{_selected.Name}\"";
+                CloseFlyout();
+                return true;
             }
+            if (_selected != null)
+            {
+                OnBackToLibraryClicked(this, EventArgs.Empty);
+                return true;
+            }
+            return base.OnBackButtonPressed();
+        }
 
-            // Keep the green "active" dot in sync: the clicked season becomes
-            // the active one (deactivates the rest in place and persists).
-            await SetActiveSeasonAsync(_selected);
+        private void OnLibraryFilterChanged(object sender, EventArgs e)
+        {
+            if (SeasonsList != null && SeasonFilter != null)
+                RefreshLibraryCards();
+        }
+
+        private void UpdateLibraryLayout()
+        {
+            SeasonCardsLayout.Span = Width >= 1150 ? 3 : Width >= 740 ? 2 : 1;
+            PageLayout.Padding = Width < 600 ? 12 : 20;
+            FlyoutPanel.WidthRequest = Math.Max(280, Math.Min(440, Width - 24));
+            PageSubtitle.IsVisible = Width >= 600;
+            PageHeading.IsVisible = _selected == null || Width >= 600;
         }
 
         /// <summary>
         /// Make the given season the active one. Deactivates all others, persists, and notifies SeasonService.
-        /// Rapid successive calls are coalesced: only the latest target wins and writes never
-        /// interleave. The bound items are mutated in place (IsActive raises PropertyChanged),
-        /// so the green dot updates instantly without rebuilding the list. Rebuilding mid-click
-        /// recycled row containers and made the highlight/dot land on 0 or 2 rows.
+        /// Called only by the explicit Use this season action, never by preview navigation.
         /// </summary>
         private async Task SetActiveSeasonAsync(Season season)
         {
@@ -145,13 +170,13 @@ namespace Wdpl2.Views
                     if (_selected?.Id == targetId)
                     {
                         ShowSeasonInfo(target);
-                        ActiveSwitch.IsToggled = true;
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SetActiveSeasonAsync save error: {ex.Message}");
+                throw;
             }
             finally
             {
@@ -175,7 +200,7 @@ namespace Wdpl2.Views
                 DataStore.Load();
                 
                 // Refresh the list
-                RefreshList(selectFirst: false);
+                RefreshList(selectId: _selected?.Id);
                 
                 // Update status
                 StatusLabel.Text = "? Seasons list refreshed";
@@ -215,9 +240,6 @@ namespace Wdpl2.Views
             model.StartDate = StartPicker.Date;
             model.EndDate = EndPicker.Date;
             
-            bool willBeActive = ActiveSwitch.IsToggled;
-            model.IsActive = willBeActive;
-
             model.BlackoutDates = _exclusionDates
                 .Select(s =>
                 {
@@ -237,26 +259,14 @@ namespace Wdpl2.Views
             {
                 var isNew = League.Seasons.All(s => s.Id != model.Id);
 
-                // If turning this season on, deactivate any other currently-active seasons first
-                if (willBeActive)
-                {
-                    foreach (var s in League.Seasons.Where(s => s.IsActive && s.Id != model.Id).ToList())
-                    {
-                        s.IsActive = false;
-                        await _dataStore.UpdateSeasonAsync(s);
-                    }
-                }
-
                 if (isNew)
                     await _dataStore.AddSeasonAsync(model);
                 else
                     await _dataStore.UpdateSeasonAsync(model);
 
-                // ActiveSeasonId is JSON-only; persist via legacy JSON store
-                if (willBeActive)
-                    DataStore.Data.ActiveSeasonId = model.Id;
-                else if (DataStore.Data.ActiveSeasonId == model.Id)
-                    DataStore.Data.ActiveSeasonId = League.Seasons.FirstOrDefault(s => s.IsActive && s.Id != model.Id)?.Id;
+                var jsonSeason = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == model.Id);
+                if (jsonSeason != null)
+                    jsonSeason.BlackoutDateTitles = new Dictionary<string, string>(_exclusionTitles);
                 DataStore.SaveJsonOnly();
 
                 System.Diagnostics.Debug.WriteLine($"Season saved: {model.Name} IsActive={model.IsActive} ActiveSeasonId={DataStore.Data.ActiveSeasonId?.ToString() ?? "NULL"}");
@@ -268,13 +278,12 @@ namespace Wdpl2.Views
                 return;
             }
 
-            // Notify the rest of the app
-            SeasonService.Current.CurrentSeasonId = DataStore.Data.ActiveSeasonId;
+            if (SeasonService.Current.CurrentSeasonId == model.Id)
+                SeasonService.Current.ForceRefresh();
 
             RefreshList(selectId: model.Id);
-            
-            var activeStatus = model.IsActive ? "? Active" : "? Inactive";
-            StatusLabel.Text = $"Saved \"{model.Name}\" - {activeStatus}";
+            CloseFlyout();
+            StatusLabel.Text = $"Saved \"{model.Name}\". Working season unchanged.";
         }
 
         private async void OnDeleteClicked(object sender, EventArgs e)
@@ -325,21 +334,32 @@ namespace Wdpl2.Views
             if (SeasonService.Current.CurrentSeasonId == deletedId)
                 SeasonService.Current.CurrentSeasonId = DataStore.Data.ActiveSeasonId;
 
-            _selected = null;
-            RefreshList(selectFirst: true);
+            _library.ClosePreview();
+            CloseFlyout();
+            RefreshList();
             StatusLabel.Text = "Season and all associated data deleted.";
         }
 
         private async void OnSetActiveClicked(object sender, EventArgs e)
         {
-            if (_selected == null)
+            if (_selected == null || _activationRunning) return;
+            var season = _selected;
+            SetActiveBtn.IsEnabled = false;
+            try
             {
-                await DisplayAlert("Set Active", "Select a season first.", "OK");
-                return;
+                await SetActiveSeasonAsync(season);
+                RefreshList(selectId: _selected?.Id);
+                StatusLabel.Text = $"Now using \"{season.Name}\" across the app.";
             }
-
-            await SetActiveSeasonAsync(_selected);
-            StatusLabel.Text = $"\u2705 \"{_selected.Name}\" set as active.";
+            catch (Exception ex)
+            {
+                StatusLabel.Text = "Could not switch seasons.";
+                await DisplayAlert("Switch season", ex.Message, "OK");
+            }
+            finally
+            {
+                if (_selected != null) ShowSeasonInfo(_selected);
+            }
         }
 
         private async void OnFixMissingSeasonIdsClicked(object sender, EventArgs e)
@@ -402,8 +422,8 @@ namespace Wdpl2.Views
 
                     StatusLabel.Text = $"\u2705 Fixed {totalFixed} items and saved!";
 
-                    // Trigger a refresh on all pages by updating the season service
-                    SeasonService.Current.CurrentSeasonId = _selected.Id;
+                    if (SeasonService.Current.CurrentSeasonId == _selected.Id)
+                        SeasonService.Current.ForceRefresh();
 
                     await DisplayAlert("Success!", $"Successfully fixed and saved {totalFixed} items.", "OK");
                 }
@@ -499,7 +519,7 @@ namespace Wdpl2.Views
             }
             finally
             {
-                GenerateBtn.IsEnabled = true;
+                RefreshList(selectId: _selected?.Id);
             }
         }
 
@@ -615,35 +635,36 @@ namespace Wdpl2.Views
                 _exclusionDates.Add(item);
         }
 
-        private void RefreshList(bool selectFirst = false, Guid? selectId = null)
+        private void RefreshList(Guid? selectId = null)
         {
-            _isRefreshingList = true;
-            try
+            RefreshLibraryCards();
+            var season = selectId.HasValue ? _items.FirstOrDefault(s => s.Id == selectId) : null;
+            if (season != null)
             {
-                _items.Clear();
-                foreach (var s in League.Seasons.OrderBy(s => s.Name)) // Alphabetical order
-                    _items.Add(s);
-
-                Season? toSelect = null;
-                if (selectId.HasValue)
-                    toSelect = _items.FirstOrDefault(s => s.Id == selectId.Value);
-                if (toSelect == null && selectFirst)
-                    toSelect = _items.FirstOrDefault();
-
-                if (toSelect != null)
-                {
-                    SeasonsList.SelectedItem = toSelect;
-                    PopulateEditor(toSelect);
-                }
-                else
-                {
-                    PopulateEditor(null);
-                }
+                _library.Preview(season);
+                PopulateEditor(season);
+                ShowSeasonInfo(season);
             }
-            finally
+            else
             {
-                _isRefreshingList = false;
+                _library.ClosePreview();
+                PopulateEditor(null);
             }
+        }
+
+        private void RefreshLibraryCards()
+        {
+            var data = League;
+            _items.Clear();
+            foreach (var season in data.Seasons) _items.Add(season);
+            _library.Refresh(data, SeasonService.Current?.CurrentSeasonId, SeasonSearch.Text,
+                (SeasonLibraryFilter)Math.Max(0, SeasonFilter.SelectedIndex));
+            SeasonsList.ItemsSource = _library.Groups;
+            LibraryCountLabel.Text = $"{_library.VisibleCount} season(s) · open a card to preview";
+            CurrentSeasonCard.IsVisible = _library.CurrentSeason != null;
+            CurrentSeasonName.Text = _library.CurrentSeason?.Name;
+            CurrentSeasonSummary.Text = _library.CurrentSeason == null ? "" :
+                $"{_library.CurrentSeason.Dates}\n{_library.CurrentSeason.Summary}";
         }
 
         private void PopulateEditor(Season? s)
@@ -653,7 +674,6 @@ namespace Wdpl2.Views
                 NameEntry.Text = string.Empty;
                 StartPicker.Date = DateTime.Today;
                 EndPicker.Date = DateTime.Today.AddMonths(6);
-                ActiveSwitch.IsToggled = false;
                 DoublesSwitch.IsToggled = false;
                 SinglesFramesEntry.Text = string.Empty;
                 DoublesFramesEntry.Text = string.Empty;
@@ -670,8 +690,6 @@ namespace Wdpl2.Views
             NameEntry.Text = s.Name;
             StartPicker.Date = s.StartDate == default ? DateTime.Today : s.StartDate;
             EndPicker.Date = s.EndDate == default ? DateTime.Today.AddMonths(6) : s.EndDate;
-            ActiveSwitch.IsToggled = s.IsActive;
-
             DoublesSwitch.IsToggled = s.IncludeDoubles;
             SinglesFramesEntry.Text = s.SinglesFrameCount > 0 ? s.SinglesFrameCount.ToString() : "";
             DoublesFramesEntry.Text = s.DoublesFrameCount > 0 ? s.DoublesFrameCount.ToString() : "";
@@ -694,8 +712,6 @@ namespace Wdpl2.Views
                         if (matchingEvent != null && !string.IsNullOrWhiteSpace(matchingEvent.Title))
                         {
                             title = matchingEvent.Title;
-                            s.BlackoutDateTitles ??= new();
-                            s.BlackoutDateTitles[dateKey] = title;
                         }
                     }
 
@@ -752,19 +768,20 @@ namespace Wdpl2.Views
 
         private async void OpenFlyout()
         {
+            if (_selected == null) return;
             _isFlyoutOpen = true;
             FlyoutOverlay.IsVisible = true;
             FlyoutPanel.IsVisible = true;
 
             // Animate flyout sliding in
-            FlyoutPanel.TranslationX = -400;
+            FlyoutPanel.TranslationX = -FlyoutPanel.WidthRequest;
             await FlyoutPanel.TranslateTo(0, 0, 250, Easing.CubicOut);
         }
 
         private async void CloseFlyout()
         {
             // Animate flyout sliding out
-            await FlyoutPanel.TranslateTo(-400, 0, 250, Easing.CubicIn);
+            await FlyoutPanel.TranslateTo(-FlyoutPanel.WidthRequest, 0, 250, Easing.CubicIn);
             
             FlyoutOverlay.IsVisible = false;
             FlyoutPanel.IsVisible = false;
@@ -773,17 +790,29 @@ namespace Wdpl2.Views
 
         private void ShowSeasonInfo(Season season)
         {
+            LibraryPanel.IsVisible = false;
+            PreviewPanel.IsVisible = true;
+            BackToLibraryBtn.IsVisible = true;
+            PageHeading.Text = "Season overview";
+            PageSubtitle.Text = "Browse first. Switch when you're ready.";
+            UpdateLibraryLayout();
             EmptyStatePanel.IsVisible = false;
             SeasonInfoPanel.IsVisible = true;
 
             SelectedSeasonName.Text = season.Name;
             SelectedSeasonDates.Text = $"{season.StartDate:MMM d, yyyy} - {season.EndDate:MMM d, yyyy}";
-            SelectedSeasonStatus.Text = season.IsActive ? "Active Season" : "Inactive";
+            var isCurrent = SeasonService.Current?.CurrentSeasonId == season.Id;
+            SelectedSeasonStatus.Text = isCurrent ? "Current working season" : "Preview only";
+            SetActiveBtn.Text = isCurrent ? "Already using this season" : "Use this season";
+            SetActiveBtn.IsEnabled = !isCurrent && !_activationRunning;
+            PreviewHintLabel.Text = isCurrent
+                ? "Teams, players, fixtures, and tables are using this season."
+                : "Your working season is unchanged. Use this season to switch the rest of the app.";
 
             // Update badge color by setting background directly instead of style
-            SelectedSeasonStatusBadge.BackgroundColor = season.IsActive 
-                ? Color.FromArgb("#10B981") // SuccessColor
-                : Color.FromArgb("#06B6D4"); // InfoColor
+            SelectedSeasonStatusBadge.BackgroundColor = isCurrent
+                ? Color.FromArgb("#16634B")
+                : Color.FromArgb("#52665D");
 
             // Lock status
             UpdateLockUI(season);
@@ -816,6 +845,7 @@ namespace Wdpl2.Views
                 SaveBtn.IsEnabled = false;
                 DeleteBtn.IsEnabled = false;
                 GenerateBtn.IsEnabled = false;
+                GeneratePreviewBtn.IsEnabled = false;
                 ImportHistoricalBtn.IsEnabled = false;
                 FixDataBtn.IsEnabled = false;
             }
@@ -830,6 +860,7 @@ namespace Wdpl2.Views
                 SaveBtn.IsEnabled = true;
                 DeleteBtn.IsEnabled = true;
                 GenerateBtn.IsEnabled = true;
+                GeneratePreviewBtn.IsEnabled = true;
                 ImportHistoricalBtn.IsEnabled = true;
                 FixDataBtn.IsEnabled = true;
             }
@@ -870,13 +901,7 @@ namespace Wdpl2.Views
             await _dataStore.UpdateSeasonAsync(_selected);
             UpdateLockUI(_selected);
 
-            // Refresh list to update lock icon
-            var selectedId = _selected.Id;
-            var tempList = _items.ToList();
-            _items.Clear();
-            foreach (var season in tempList)
-                _items.Add(season);
-            SeasonsList.SelectedItem = _items.FirstOrDefault(s => s.Id == selectedId);
+            RefreshList(selectId: _selected.Id);
 
             StatusLabel.Text = _selected.IsLocked
                 ? $"{Helpers.Emojis.Lock} \"{_selected.Name}\" locked"
@@ -916,6 +941,12 @@ namespace Wdpl2.Views
 
         private void HideSeasonInfo()
         {
+            LibraryPanel.IsVisible = true;
+            PreviewPanel.IsVisible = false;
+            BackToLibraryBtn.IsVisible = false;
+            PageHeading.Text = "Seasons";
+            PageSubtitle.Text = "Your league, season by season.";
+            UpdateLibraryLayout();
             EmptyStatePanel.IsVisible = true;
             SeasonInfoPanel.IsVisible = false;
         }
