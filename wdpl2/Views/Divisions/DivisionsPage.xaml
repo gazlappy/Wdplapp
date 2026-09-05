@@ -6,12 +6,13 @@
     xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
     xmlns:models="clr-namespace:Wdpl2.Models"
     Title="Divisions"
+    BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}"
     SemanticProperties.Description="Divisions management page">
 
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto" Padding="20" ColumnSpacing="12" RowSpacing="16">
         
         <!-- Header with Burger Menu Button -->
-        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*">
+        <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto">
             <Button 
                 x:Name="BurgerMenuBtn"
                 Text="☰"
@@ -25,13 +26,15 @@
                 SemanticProperties.Description="Open menu"
                 SemanticProperties.Hint="Opens the division controls menu" />
             
-            <Label 
-                Grid.Column="1"
-                Text="Manage Divisions" 
-                Style="{StaticResource PageTitleStyle}"
-                VerticalOptions="Center"
-                SemanticProperties.Description="Manage Divisions" />
+            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label Text="Divisions" FontSize="28" FontAttributes="Bold" />
+                <Label Text="Set up divisions, season by season." FontSize="13"
+                       TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+            </VerticalStackLayout>
+            <Button x:Name="NewDivisionBtn" Grid.Column="2" Text="+ New division" Clicked="OnNewDivision"
+                    BackgroundColor="#16634B" TextColor="White" VerticalOptions="Center" />
         </Grid>
+        <Label x:Name="PageStatusLbl" Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource StatusTextStyle}" />
 
         <!-- Flyout Menu Overlay -->
         <Border 
@@ -83,6 +86,7 @@
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
 
                     <Label Text="Division Details" Style="{StaticResource SubsectionHeaderStyle}" Margin="0" />
+                    <Label x:Name="EditorSeasonLbl" Style="{StaticResource CaptionStyle}" />
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Division Name" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
@@ -110,7 +114,6 @@
                     <Label Text="Data Management" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
 
                     <HorizontalStackLayout Spacing="{StaticResource StandardSpacing}">
-                        <Button x:Name="SaveBtn" Text="Save" SemanticProperties.Description="Save changes" />
                         <Button x:Name="ReloadBtn" Text="Reload" SemanticProperties.Description="Reload data" />
                     </HorizontalStackLayout>
 
@@ -135,13 +138,22 @@
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1"
             SemanticProperties.Description="Divisions list panel">
-            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
-                <Entry x:Name="SearchEntry" Placeholder="Search divisions..." SemanticProperties.Description="Search divisions" />
+            <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="{StaticResource StandardSpacing}">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Season to configure" FontAttributes="Bold" />
+                    <Picker x:Name="ConfigurationSeasonPicker" Title="Choose a season"
+                            ItemDisplayBinding="{Binding Name}" SelectedIndexChanged="OnConfigurationSeasonChanged"
+                            SemanticProperties.Description="Season to configure without activating it" />
+                    <Label x:Name="SeasonContextLbl" FontSize="12" />
+                    <Label Text="Includes new, inactive seasons. Choosing here does not change your working season."
+                           Style="{StaticResource CaptionStyle}" />
+                </VerticalStackLayout>
+                <Entry x:Name="SearchEntry" Grid.Row="1" Placeholder="Search divisions..." SemanticProperties.Description="Search divisions" />
                 
-                <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="4,0">
+                <HorizontalStackLayout Grid.Row="2" Spacing="8" Padding="4,0">
                     <CheckBox x:Name="ShowAllSeasonsCheck" SemanticProperties.Description="Show divisions from all seasons" />
                     <Label 
-                        Text="Show all seasons" 
+                        Text="Browse all seasons (read-only)"
                         VerticalOptions="Center"
                         FontSize="14">
                         <Label.GestureRecognizers>
@@ -152,10 +164,14 @@
                 
                 <CollectionView 
                     x:Name="DivisionsList" 
-                    Grid.Row="2"
+                    Grid.Row="3"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always"
                     SemanticProperties.Description="Divisions list">
+                    <CollectionView.EmptyView>
+                        <Label Text="No divisions found. Choose a season above, then select + New division to get started."
+                               Padding="16" Style="{StaticResource CaptionStyle}" />
+                    </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:Division">
                             <Border

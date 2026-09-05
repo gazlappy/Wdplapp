@@ -5,28 +5,24 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
     Title="Venues"
+    BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}"
     SemanticProperties.Description="Venues management page">
 
-    <Grid ColumnDefinitions="*,Auto,1.5*" RowDefinitions="Auto,*" Padding="12" ColumnSpacing="12" RowSpacing="12">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto" Padding="20" ColumnSpacing="12" RowSpacing="16">
 
         <!-- Header -->
-        <Grid Grid.ColumnSpan="3" ColumnDefinitions="*,Auto">
-            <Label 
-                Text="Manage Venues" 
-                FontSize="20" 
-                FontAttributes="Bold"
-                VerticalOptions="Center"
-                SemanticProperties.Description="Manage Venues" />
-            <Label 
-                x:Name="StatusLbl" 
-                Grid.Column="1"
-                Text="" 
-                FontAttributes="Italic" 
-                FontSize="12" 
-                TextColor="#666" 
-                VerticalOptions="Center"
-                SemanticProperties.Description="Status message" />
-        </Grid>
+        <VerticalStackLayout Grid.ColumnSpan="2" Spacing="8">
+            <Label Text="Venues" FontSize="28" FontAttributes="Bold" />
+            <Label Text="Your league's venues, season by season." FontSize="13"
+                   TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+            <FlexLayout Wrap="Wrap" Direction="Row">
+                <Button x:Name="NewVenueBtn" Text="+ New venue" Clicked="OnNewVenue" Margin="0,0,8,4" BackgroundColor="#16634B" TextColor="White" />
+                <Button x:Name="CopyVenuesBtn" Text="Copy previous-season venues" Clicked="OnCopyHistoricalVenues" Margin="0,0,8,4" BackgroundColor="#16634B" TextColor="White" />
+                <Button Text="Manage venues" Clicked="OnOpenEditor" Margin="0,0,8,4" />
+            </FlexLayout>
+        </VerticalStackLayout>
+        <Label x:Name="StatusLbl" Grid.Row="2" Grid.ColumnSpan="2" FontSize="12"
+               TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" SemanticProperties.Description="Status message" />
 
         <!-- Left: search + list -->
         <Border 
@@ -37,15 +33,25 @@
             Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
             StrokeThickness="1"
             SemanticProperties.Description="Venues list panel">
-            <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                <Entry x:Name="SearchEntry" Placeholder="Search venues..." SemanticProperties.Description="Search venues" />
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Season to configure" FontAttributes="Bold" />
+                    <Picker x:Name="ConfigurationSeasonPicker" Title="Choose a season" ItemDisplayBinding="{Binding Name}"
+                            SelectedIndexChanged="OnConfigurationSeasonChanged" />
+                    <Label x:Name="SeasonContextLbl" FontSize="12" />
+                    <Label Text="Includes inactive seasons. Choosing here does not change your working season." FontSize="12" />
+                </VerticalStackLayout>
+                <Entry x:Name="SearchEntry" Grid.Row="1" Placeholder="Search venues..." SemanticProperties.Description="Search venues" />
 
                 <CollectionView 
                     x:Name="VenuesList" 
-                    Grid.Row="1"
+                    Grid.Row="2"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always"
                     SemanticProperties.Description="Venues list">
+                    <CollectionView.EmptyView>
+                        <Label Text="No venues found. Choose a season, then add a new venue or copy venues from previous seasons." Padding="16" />
+                    </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border
@@ -61,8 +67,8 @@
                                             <VisualState x:Name="Normal" />
                                             <VisualState x:Name="Selected">
                                                 <VisualState.Setters>
-                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#DBEAFE, Dark=#1E3A5F}" />
-                                                    <Setter Property="Stroke" Value="{AppThemeBinding Light=#3B82F6, Dark=#60A5FA}" />
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#E1F0E8, Dark=#193C2E}" />
+                                                    <Setter Property="Stroke" Value="{AppThemeBinding Light=#16634B, Dark=#82DDB6}" />
                                                 </VisualState.Setters>
                                             </VisualState>
                                         </VisualStateGroup>
@@ -76,7 +82,7 @@
                                         VerticalOptions="Center" />
                                     <Border
                                         Grid.Column="1"
-                                        BackgroundColor="#3B82F6"
+                                        BackgroundColor="#16634B"
                                         StrokeThickness="0"
                                         Padding="8,2"
                                         StrokeShape="RoundRectangle 10"
@@ -101,10 +107,17 @@
             </Grid>
         </Border>
 
-        <!-- Middle: Venue Editor (always visible) -->
+        <BoxView x:Name="EditorOverlay" Grid.Row="1" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" ZIndex="100">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnCloseEditor" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- Venue editor -->
         <Border 
+            x:Name="EditorPanel" IsVisible="False" ZIndex="101" HorizontalOptions="Start"
             Grid.Row="1" 
-            Grid.Column="1"
+            Grid.ColumnSpan="2"
             WidthRequest="320"
             StrokeShape="RoundRectangle 12" 
             Padding="12"
@@ -115,7 +128,11 @@
             <ScrollView>
                 <VerticalStackLayout Spacing="10">
 
-                    <Label Text="⚙️ Venue Details" FontSize="16" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Venue details" FontSize="18" FontAttributes="Bold" />
+                        <Button Grid.Column="1" Text="Close" Clicked="OnCloseEditor" />
+                    </Grid>
+                    <Label x:Name="EditorSeasonLbl" FontSize="12" />
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Venue Name" FontSize="12" />
@@ -143,7 +160,7 @@
                         Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#333333}"
                         StrokeThickness="1"
                         BackgroundColor="{AppThemeBinding Light=White, Dark=#2A2A2A}">
-                        <CollectionView x:Name="TablesList" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables list">
+                        <CollectionView x:Name="TablesList" SelectionMode="Single" VerticalScrollBarVisibility="Always" SemanticProperties.Description="Tables list">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Padding="8" ColumnDefinitions="*,Auto">
@@ -185,7 +202,6 @@
                     <Label Text="Data" FontSize="14" FontAttributes="Bold" />
 
                     <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center" Direction="Row">
-                        <Button x:Name="SaveBtn" Text="💾 Save" Margin="0,0,6,6" SemanticProperties.Description="Save changes" />
                         <Button x:Name="ReloadBtn" Text="🔄 Reload" Margin="0,0,6,6" SemanticProperties.Description="Reload data" />
                         <Button x:Name="ExportBtn" Text="📤 Export" Margin="0,0,6,6" SemanticProperties.Description="Export venues to CSV" />
                     </FlexLayout>
@@ -199,7 +215,7 @@
         <!-- Right: Venue Details Panel -->
         <Border 
             Grid.Row="1" 
-            Grid.Column="2"
+            Grid.Column="1"
             StrokeShape="RoundRectangle 12" 
             Padding="12"
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
@@ -248,7 +264,7 @@
                             </VerticalStackLayout>
                             <Border
                                 Grid.Column="1"
-                                BackgroundColor="#3B82F6"
+                                BackgroundColor="#16634B"
                                 StrokeThickness="0"
                                 Padding="12,6"
                                 StrokeShape="RoundRectangle 16"

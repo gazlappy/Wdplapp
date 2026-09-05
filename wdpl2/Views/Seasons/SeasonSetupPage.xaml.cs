@@ -16,6 +16,7 @@ public partial class SeasonSetupPage : ContentPage
     private Season? _newSeason;
     private SeasonTemplate? _selectedTemplate;
     private Season? _sourceSeason;
+    private bool _creatingSeason;
     
     private enum SetupMethod
     {
@@ -400,6 +401,7 @@ public partial class SeasonSetupPage : ContentPage
 
     private View CreateManualSetupContent()
     {
+        _manualRoster = new ManualSeasonRoster();
         var nameEntry = new Entry { Placeholder = "Season name (e.g., Spring 2025)" };
         var startDatePicker = new DatePicker { Date = DateTime.Today };
         var endDatePicker = new DatePicker { Date = DateTime.Today.AddMonths(3) };
@@ -479,12 +481,13 @@ public partial class SeasonSetupPage : ContentPage
                     Margin = new Thickness(0, 20, 0, 0),
                     Content = new Label
                     {
-                        Text = "\u2139\uFE0F After creating the season, you'll need to add divisions, teams, and players manually through their respective pages.",
+                        Text = "Choose previous-season venues, returning teams and players below, or create an empty season. Selected venues include addresses, notes and tables. Divisions, team venue/table assignments, captain assignments and past results are not copied; configure new-season placements separately.",
                         FontSize = 12,
                         FontFamily = "Segoe UI Emoji",
                         LineBreakMode = LineBreakMode.WordWrap
                     }
-                }
+                },
+                CreateManualRosterContent()
             }
         };
     }
@@ -503,6 +506,10 @@ public partial class SeasonSetupPage : ContentPage
 
     private async void OnContinue(object? sender, EventArgs e)
     {
+        if (_creatingSeason) return;
+        _creatingSeason = true;
+        ActionButtons.IsEnabled = false;
+        ContentPanel.IsEnabled = false;
         try
         {
             switch (_selectedMethod)
@@ -522,6 +529,12 @@ public partial class SeasonSetupPage : ContentPage
         {
             await DisplayAlert("Error", $"Failed to create season: {ex.Message}", "OK");
             SetStatus($"Error: {ex.Message}");
+        }
+        finally
+        {
+            _creatingSeason = false;
+            ActionButtons.IsEnabled = true;
+            ContentPanel.IsEnabled = true;
         }
     }
 
@@ -739,13 +752,24 @@ public partial class SeasonSetupPage : ContentPage
             return;
         }
 
-        SetStatus("Creating season...");
-
         var startDate = FindDatePickerInContent();
         var endDate = FindDatePickerInContent(1);
         var matchDay = FindPickerInContent();
         var matchTime = FindTimePickerInContent();
         var framesEntry = FindEntryInContent("10");
+
+        var frames = 10;
+        if (!string.IsNullOrWhiteSpace(framesEntry?.Text) &&
+            (!int.TryParse(framesEntry.Text, out frames) || frames < 0))
+        {
+            await DisplayAlert("Invalid frame count", "Enter a non-negative whole number (0 uses the app default).", "OK");
+            return;
+        }
+        if ((endDate?.Date ?? DateTime.Today.AddMonths(3)) < (startDate?.Date ?? DateTime.Today))
+        {
+            await DisplayAlert("Invalid dates", "The end date must be on or after the start date.", "OK");
+            return;
+        }
 
         _newSeason = new Season
         {
@@ -754,15 +778,20 @@ public partial class SeasonSetupPage : ContentPage
             EndDate = endDate?.Date ?? DateTime.Today.AddMonths(3),
             MatchDayOfWeek = matchDay?.SelectedIndex >= 0 ? (DayOfWeek)matchDay.SelectedIndex : DayOfWeek.Tuesday,
             MatchStartTime = matchTime?.Time ?? new TimeSpan(19, 30, 0),
-            FramesPerMatch = int.TryParse(framesEntry?.Text, out var frames) ? frames : 10,
+            FramesPerMatch = frames,
             IsActive = false
         };
 
-        await _dataStore.AddSeasonAsync(_newSeason);
+        if (!await DisplayAlert("Create season?",
+            $"Create '{_newSeason.Name}' with {_manualRoster.Venues.Count} venues, {_manualRoster.Teams.Count} teams and {_manualRoster.Players.Count} players?\n\n" +
+            "Previous seasons will remain unchanged. The new season will not be activated automatically.", "Create", "Cancel")) return;
 
-        await DisplayAlert("Success", 
-            $"\u2705 Season '{_newSeason.Name}' created!\n\n" +
-            "Next steps:\n\u2022 Add divisions\n\u2022 Add venues\n\u2022 Add teams\n\u2022 Add players", 
+        SetStatus("Creating season and roster...");
+        await _manualRoster.SaveAsync(_dataStore, _newSeason);
+
+        await DisplayAlert("Success",
+            $"Season '{_newSeason.Name}' created with {_manualRoster.Venues.Count} venues, {_manualRoster.Teams.Count} teams and {_manualRoster.Players.Count} players.\n\n" +
+            "Next: configure divisions, assign teams to venues/tables and set captains. Activate the season from the Seasons page when ready.",
             "OK");
         await Navigation.PopAsync();
     }

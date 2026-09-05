@@ -21,6 +21,9 @@ public partial class VenuesPage : ContentPage
     private Venue? _selectedVenue;
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
+    private bool _hasConfigurationSelection;
+    private bool _refreshingSeasons;
+    private bool _openingCopy;
 
     public VenuesPage(IDataStore dataStore)
     {
@@ -42,22 +45,8 @@ public partial class VenuesPage : ContentPage
         MultiSelectBtn.Clicked += OnToggleMultiSelect;
         BulkDeleteBtn.Clicked += OnBulkDelete;
 
-        SaveBtn.Clicked += async (_, __) =>
-        {
-            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
-            {
-                await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                    "Cannot save changes — this season is locked.", "OK");
-                return;
-            }
-            await _dataStore.SaveAsync();
-            await DisplayAlert("Saved", "All changes saved.", "OK");
-            SetStatus("Saved.");
-        };
-
         ReloadBtn.Clicked += (_, __) =>
         {
-            DataStore.Load();
             RefreshAll();
             SetStatus("Reloaded.");
         };
@@ -97,9 +86,7 @@ public partial class VenuesPage : ContentPage
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                _currentSeasonId = e.NewSeasonId;
-                RefreshVenues(SearchEntry?.Text);
-                SetStatus($"Season changed to: {e.NewSeason?.Name ?? "None"}");
+                RefreshAll();
             });
         }
         catch (Exception ex)
@@ -116,20 +103,19 @@ public partial class VenuesPage : ContentPage
     {
         try
         {
-            // Use global season from SeasonService
-            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
-
-            // If no season is set, try to use the active season
-            if (!_currentSeasonId.HasValue)
+            var targetId = _hasConfigurationSelection ? _currentSeasonId : SeasonService.Current.CurrentSeasonId;
+            var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ThenBy(s => s.Name).ToList();
+            _refreshingSeasons = true;
+            try
             {
-                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
-                if (activeSeason != null)
-                {
-                    _currentSeasonId = activeSeason.Id;
-                }
+                ConfigurationSeasonPicker.ItemsSource = seasons;
+                ConfigurationSeasonPicker.SelectedItem = seasons.FirstOrDefault(s => s.Id == targetId);
+                _currentSeasonId = (ConfigurationSeasonPicker.SelectedItem as Season)?.Id;
             }
-
+            finally { _refreshingSeasons = false; }
+            ResetSelection();
             RefreshVenues(SearchEntry?.Text);
+            UpdateActions();
         }
         catch (Exception ex)
         {
@@ -149,7 +135,7 @@ public partial class VenuesPage : ContentPage
 
             if (!_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected - activate a season to see venues");
+                SetStatus("Choose a season to configure, including a new inactive season.");
                 System.Diagnostics.Debug.WriteLine("   ? No active season - returning early (list cleared)");
                 System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
                 return; // List is already cleared
@@ -185,8 +171,7 @@ public partial class VenuesPage : ContentPage
 
             var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
             var seasonInfo = season != null ? $" in {season.Name}" : "";
-            var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-            SetStatus($"{_venues.Count} venue(s){seasonInfo}{importedTag}");
+            SetStatus($"{_venues.Count} venue(s){seasonInfo}. Add, Update and table changes save immediately.");
             
             System.Diagnostics.Debug.WriteLine($"Added {_venues.Count} venues to list");
             System.Diagnostics.Debug.WriteLine("=== RefreshVenues END ===");
@@ -195,6 +180,86 @@ public partial class VenuesPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"RefreshVenues Error: {ex}");
             SetStatus($"Error loading venues: {ex.Message}");
+        }
+    }
+
+    private void OnConfigurationSeasonChanged(object? sender, EventArgs e)
+    {
+        if (_refreshingSeasons) return;
+        _hasConfigurationSelection = true;
+        _currentSeasonId = (ConfigurationSeasonPicker.SelectedItem as Season)?.Id;
+        ResetSelection();
+        OnCloseEditor(null, EventArgs.Empty);
+        RefreshVenues(SearchEntry.Text);
+        UpdateActions();
+    }
+
+    private bool CanEdit() => _dataStore.GetData().Seasons.Any(s => s.Id == _currentSeasonId && !s.IsLocked);
+
+    private void UpdateActions()
+    {
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var editable = CanEdit();
+        var selected = editable && !_isMultiSelectMode && _selectedVenue != null && _selectedVenue.SeasonId == _currentSeasonId;
+        SeasonContextLbl.Text = season == null ? "No season selected." :
+            $"{season.Name} · {(season.IsLocked ? "Locked · read-only" : season.IsActive ? "Active" : "Inactive · available for setup")}";
+        EditorSeasonLbl.Text = $"Configuring: {season?.Name ?? "Choose a season first"}";
+        CopyVenuesBtn.IsEnabled = editable && !_openingCopy;
+        NewVenueBtn.IsEnabled = AddVenueBtn.IsEnabled = editable && !_isMultiSelectMode;
+        UpdateVenueBtn.IsEnabled = DeleteVenueBtn.IsEnabled = AddTableBtn.IsEnabled = selected;
+        RemoveTableBtn.IsEnabled = selected && TablesList.SelectedItem is VenueTable;
+        BulkDeleteBtn.IsEnabled = editable;
+        VenuesImport.IsEnabled = editable;
+        VenueNameEntry.IsEnabled = AddressEntry.IsEnabled = NotesEntry.IsEnabled = editable && !_isMultiSelectMode;
+        NewTableEntry.IsEnabled = selected;
+    }
+
+    private void ResetSelection()
+    {
+        _selectedVenue = null;
+        VenuesList.SelectedItem = null;
+        VenuesList.SelectedItems?.Clear();
+        TablesList.SelectedItem = null;
+        ClearEditor();
+        HideVenueInfo();
+    }
+
+    private void OnNewVenue(object? sender, EventArgs e)
+    {
+        if (!CanEdit()) return;
+        ResetSelection();
+        UpdateActions();
+        OnOpenEditor(sender, e);
+        VenueNameEntry.Focus();
+    }
+
+    private void OnOpenEditor(object? sender, EventArgs e)
+    {
+        UpdateActions();
+        EditorPanel.IsVisible = EditorOverlay.IsVisible = true;
+    }
+
+    private void OnCloseEditor(object? sender, EventArgs e) => EditorPanel.IsVisible = EditorOverlay.IsVisible = false;
+
+    private async void OnCopyHistoricalVenues(object? sender, EventArgs e)
+    {
+        if (!CanEdit() || _openingCopy || _currentSeasonId is not Guid destinationId) return;
+        _openingCopy = true;
+        _hasConfigurationSelection = true;
+        UpdateActions();
+        try
+        {
+            OnCloseEditor(null, EventArgs.Empty);
+            await Navigation.PushAsync(new HistoricalVenueCopyPage(_dataStore, destinationId));
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Cannot copy venues", ex.Message, "OK");
+        }
+        finally
+        {
+            _openingCopy = false;
+            UpdateActions();
         }
     }
 
@@ -208,12 +273,14 @@ public partial class VenuesPage : ContentPage
             _selectedVenue = null;  // This is setting _selectedVenue to null!
             ClearEditor();
             HideVenueInfo();
+            UpdateActions();
             return;
         }
 
         _selectedVenue = item;
         LoadEditor(_selectedVenue);
         ShowVenueInfo(_selectedVenue);
+        UpdateActions();
     }
 
     private void LoadEditor(Venue venue)
@@ -229,6 +296,7 @@ public partial class VenuesPage : ContentPage
 
     private void ClearEditor()
     {
+        TablesList.SelectedItem = null;
         VenueNameEntry.Text = "";
         AddressEntry.Text = "";
         NotesEntry.Text = "";
@@ -382,7 +450,7 @@ public partial class VenuesPage : ContentPage
 
     private void OnTableSelected(object? sender, SelectionChangedEventArgs e)
     {
-        // Just for selection tracking
+        UpdateActions();
     }
 
     private void OnToggleMultiSelect(object? sender, EventArgs e)
@@ -416,6 +484,8 @@ public partial class VenuesPage : ContentPage
             RemoveTableBtn.IsEnabled = true;
         }
 
+        ResetSelection();
+        UpdateActions();
         SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
@@ -490,9 +560,9 @@ public partial class VenuesPage : ContentPage
 
     private async Task ImportVenuesCsvAsync(Stream stream, string fileName)
     {
-        if (!_currentSeasonId.HasValue)
+        if (!CanEdit())
         {
-            await DisplayAlert("No Season", "Please select a season on the Seasons page before importing.", "OK");
+            await DisplayAlert("Cannot import", "Choose an unlocked season to configure before importing.", "OK");
             return;
         }
 

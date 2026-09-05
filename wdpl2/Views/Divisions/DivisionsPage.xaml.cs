@@ -23,10 +23,15 @@ public partial class DivisionsPage : ContentPage
     private Guid? _currentSeasonId;
     private bool _isFlyoutOpen = false;
     private bool _showAllSeasons = false;
+    private bool _refreshingSeasons;
+    private bool _hasConfigurationSelection;
+    private bool _saving;
+    private readonly DivisionEditorService _editor;
 
     public DivisionsPage(IDataStore dataStore)
     {
         _dataStore = dataStore;
+        _editor = new DivisionEditorService(dataStore);
         InitializeComponent();
 
         DivisionsList.ItemsSource = _divisions;
@@ -45,7 +50,9 @@ public partial class DivisionsPage : ContentPage
         ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
         {
             _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+            ResetSelection();
             RefreshDivisions(SearchEntry?.Text);
+            UpdateActions();
         };
 
         AddBtn.Clicked += OnAdd;
@@ -54,16 +61,8 @@ public partial class DivisionsPage : ContentPage
         MultiSelectBtn.Clicked += OnToggleMultiSelect;
         BulkDeleteBtn.Clicked += OnBulkDelete;
 
-        SaveBtn.Clicked += async (_, __) =>
-        {
-            await _dataStore.SaveAsync();
-            await DisplayAlert("Saved", "All changes saved.", "OK");
-            SetStatus("Saved.");
-        };
-
         ReloadBtn.Clicked += (_, __) =>
         {
-            DataStore.Load();
             RefreshAll();
             SetStatus("Reloaded.");
         };
@@ -104,9 +103,7 @@ public partial class DivisionsPage : ContentPage
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                _currentSeasonId = e.NewSeasonId;
-                RefreshDivisions(SearchEntry?.Text);
-                SetStatus($"Season changed to: {e.NewSeason?.Name ?? "None"}");
+                if (!_saving) RefreshAll();
             });
         }
         catch (Exception ex)
@@ -123,18 +120,19 @@ public partial class DivisionsPage : ContentPage
     {
         try
         {
-            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
-
-            if (!_currentSeasonId.HasValue)
+            var targetId = _hasConfigurationSelection ? _currentSeasonId : SeasonService.Current.CurrentSeasonId;
+            var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ThenBy(s => s.Name).ToList();
+            _refreshingSeasons = true;
+            try
             {
-                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
-                if (activeSeason != null)
-                {
-                    _currentSeasonId = activeSeason.Id;
-                }
+                ConfigurationSeasonPicker.ItemsSource = seasons;
+                ConfigurationSeasonPicker.SelectedItem = seasons.FirstOrDefault(s => s.Id == targetId);
+                _currentSeasonId = (ConfigurationSeasonPicker.SelectedItem as Season)?.Id;
             }
-
+            finally { _refreshingSeasons = false; }
+            ResetSelection();
             RefreshDivisions(SearchEntry?.Text);
+            UpdateActions();
         }
         catch (Exception ex)
         {
@@ -151,7 +149,7 @@ public partial class DivisionsPage : ContentPage
 
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected - check 'Show all seasons' to see all data");
+                SetStatus("Choose a season to configure, including a new inactive season.");
                 return;
             }
 
@@ -191,25 +189,7 @@ public partial class DivisionsPage : ContentPage
             {
                 var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
-                var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
-
-                if (_divisions.Count == 0 && _dataStore.GetData().Divisions.Count > 0)
-                {
-                    var otherSeasons = _dataStore.GetData().Divisions
-                        .Where(d => d.SeasonId != _currentSeasonId)
-                        .GroupBy(d => d.SeasonId)
-                        .Select(g => new { SeasonId = g.Key, Count = g.Count() })
-                        .ToList();
-
-                    if (otherSeasons.Count != 0)
-                    {
-                        var otherSeasonInfo = string.Join(", ", otherSeasons.Select(s => $"{s.Count} in season {s.SeasonId}"));
-                        SetStatus($"No divisions in current season. Found: {otherSeasonInfo}. Check 'Show all seasons' or go to Seasons page to switch.");
-                        return;
-                    }
-                }
-
-                SetStatus($"{_divisions.Count} division(s){seasonInfo}{importedTag}");
+                SetStatus($"{_divisions.Count} division(s){seasonInfo}. Changes save automatically after Add or Update.");
             }
         }
         catch (Exception ex)
@@ -224,6 +204,82 @@ public partial class DivisionsPage : ContentPage
         ShowAllSeasonsCheck.IsChecked = !ShowAllSeasonsCheck.IsChecked;
     }
 
+    private void OnConfigurationSeasonChanged(object? sender, EventArgs e)
+    {
+        if (_refreshingSeasons || _saving) return;
+        _hasConfigurationSelection = true;
+        _currentSeasonId = (ConfigurationSeasonPicker.SelectedItem as Season)?.Id;
+        ShowAllSeasonsCheck.IsChecked = false;
+        ResetSelection();
+        RefreshDivisions(SearchEntry.Text);
+        UpdateActions();
+    }
+
+    private void ResetSelection()
+    {
+        _selected = null;
+        DivisionsList.SelectedItem = null;
+        DivisionsList.SelectedItems?.Clear();
+        ClearEditor();
+        HideDivisionInfo();
+    }
+
+    private void OnNewDivision(object? sender, EventArgs e)
+    {
+        if (!CanEdit()) return;
+        ResetSelection();
+        UpdateActions();
+        OpenFlyout();
+        NameEntry.Focus();
+    }
+
+    private bool CanEdit() => !_saving && !_showAllSeasons &&
+        _dataStore.GetData().Seasons.Any(s => s.Id == _currentSeasonId && !s.IsLocked);
+
+    private void UpdateActions()
+    {
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var editable = CanEdit();
+        var selectedEditable = editable && _selected?.SeasonId == _currentSeasonId;
+        SeasonContextLbl.Text = season == null ? "No season selected." :
+            $"{season.Name} · {(season.IsLocked ? "Locked · read-only" : season.IsActive ? "Active" : "Inactive · available for setup")}";
+        EditorSeasonLbl.Text = _showAllSeasons ? "Browsing all seasons — read-only." : $"Saving to: {season?.Name ?? "Choose a season first"}";
+        AddBtn.IsEnabled = NewDivisionBtn.IsEnabled = editable && !_isMultiSelectMode;
+        UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = selectedEditable && !_isMultiSelectMode;
+        BulkDeleteBtn.IsEnabled = editable;
+        DivisionsImport.IsEnabled = editable;
+        NameEntry.IsEnabled = NotesEntry.IsEnabled = editable && !_isMultiSelectMode;
+        ConfigurationSeasonPicker.IsEnabled = ShowAllSeasonsCheck.IsEnabled = ReloadBtn.IsEnabled = !_saving;
+        DivisionsList.IsEnabled = SearchEntry.IsEnabled = MultiSelectBtn.IsEnabled = !_saving;
+    }
+
+    private async Task ApplyEditAsync(Func<Task> save, string success)
+    {
+        if (!CanEdit())
+        {
+            SetStatus("Choose an unlocked season to configure. All-seasons browsing is read-only.");
+            return;
+        }
+        _saving = true;
+        UpdateActions();
+        try
+        {
+            await save();
+            RefreshAll();
+            SetStatus(success);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not save: {ex.Message}");
+            await DisplayAlert("Division changes not saved", ex.Message, "OK");
+        }
+        finally
+        {
+            _saving = false;
+            UpdateActions();
+        }
+    }
+
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_isMultiSelectMode) return;
@@ -234,12 +290,14 @@ public partial class DivisionsPage : ContentPage
             _selected = null;
             ClearEditor();
             HideDivisionInfo();
+            UpdateActions();
             return;
         }
 
         _selected = item;
         LoadEditor(_selected);
         ShowDivisionInfo(_selected);
+        UpdateActions();
     }
 
     private void LoadEditor(Division division)
@@ -254,35 +312,15 @@ public partial class DivisionsPage : ContentPage
         NotesEntry.Text = "";
     }
 
-    private void OnAdd(object? sender, EventArgs e)
+    private async void OnAdd(object? sender, EventArgs e)
     {
-        if (!_currentSeasonId.HasValue)
-        {
-            SetStatus("Please select a season on the Seasons page first");
-            return;
-        }
-
         var name = NameEntry.Text?.Trim();
-        if (string.IsNullOrEmpty(name))
-        {
-            SetStatus("Division name required");
-            return;
-        }
-
-        var division = new Division
-        {
-            SeasonId = _currentSeasonId.Value,
-            Name = name,
-            Notes = NotesEntry.Text?.Trim()
-        };
-
-        _dataStore.GetData().Divisions.Add(division);
-        _ = _dataStore.SaveAsync();
-        RefreshDivisions(SearchEntry.Text);
-        SetStatus($"Added: {name}");
+        var seasonId = _currentSeasonId ?? Guid.Empty;
+        var notes = NotesEntry.Text;
+        await ApplyEditAsync(() => _editor.SaveAsync(seasonId, null, name ?? "", notes), $"Added: {name}");
     }
 
-    private void OnUpdate(object? sender, EventArgs e)
+    private async void OnUpdate(object? sender, EventArgs e)
     {
         if (_selected == null)
         {
@@ -290,13 +328,11 @@ public partial class DivisionsPage : ContentPage
             return;
         }
 
-        _selected.Name = NameEntry.Text?.Trim() ?? "";
-        _selected.Notes = NotesEntry.Text?.Trim();
-
-        _ = _dataStore.SaveAsync();
-        RefreshDivisions(SearchEntry.Text);
-        ShowDivisionInfo(_selected); // Refresh the info panel
-        SetStatus($"Updated: {_selected.Name}");
+        var divisionId = _selected.Id;
+        var seasonId = _currentSeasonId ?? Guid.Empty;
+        var name = NameEntry.Text?.Trim() ?? "";
+        var notes = NotesEntry.Text;
+        await ApplyEditAsync(() => _editor.SaveAsync(seasonId, divisionId, name, notes), $"Updated: {name}");
     }
 
     private async void OnDelete(object? sender, EventArgs e)
@@ -307,16 +343,11 @@ public partial class DivisionsPage : ContentPage
             return;
         }
 
+        var divisionId = _selected.Id;
+        var seasonId = _currentSeasonId ?? Guid.Empty;
         var confirm = await DisplayAlert("Delete Division", $"Delete '{_selected.Name}'?", "Yes", "No");
-        if (!confirm) return;
-
-        _dataStore.GetData().Divisions.Remove(_selected);
-        _selected = null;
-        await _dataStore.SaveAsync();
-        RefreshDivisions(SearchEntry.Text);
-        ClearEditor();
-        HideDivisionInfo();
-        SetStatus("Deleted");
+        if (!confirm || seasonId != _currentSeasonId) return;
+        await ApplyEditAsync(() => _editor.DeleteAsync(seasonId, new[] { divisionId }), "Deleted division.");
     }
 
     private void OnToggleMultiSelect(object? sender, EventArgs e)
@@ -346,6 +377,8 @@ public partial class DivisionsPage : ContentPage
             AddBtn.IsEnabled = true;
         }
 
+        ResetSelection();
+        UpdateActions();
         SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
@@ -359,32 +392,23 @@ public partial class DivisionsPage : ContentPage
             return;
         }
 
+        var seasonId = _currentSeasonId ?? Guid.Empty;
+        var ids = selectedItems.Select(d => d.Id).ToArray();
         var confirm = await DisplayAlert(
             "Bulk Delete",
             $"Delete {selectedItems.Count} division(s)?",
             "Yes, Delete",
             "Cancel");
 
-        if (!confirm) return;
-
-        int deleted = 0;
-        foreach (var item in selectedItems)
-        {
-            _dataStore.GetData().Divisions.Remove(item);
-            deleted++;
-        }
-
-        await _dataStore.SaveAsync();
-        RefreshDivisions(SearchEntry.Text);
-        HideDivisionInfo();
-        SetStatus($"Deleted {deleted} division(s)");
+        if (!confirm || seasonId != _currentSeasonId) return;
+        await ApplyEditAsync(() => _editor.DeleteAsync(seasonId, ids), $"Deleted {ids.Length} division(s).");
     }
 
     private async Task ExportDivisionsAsync()
     {
         if (!_currentSeasonId.HasValue)
         {
-            await DisplayAlert("No Season", "Please select a season on the Seasons page first.", "OK");
+            await DisplayAlert("No Season", "Choose a season to configure first.", "OK");
             return;
         }
 
@@ -414,50 +438,17 @@ public partial class DivisionsPage : ContentPage
 
     private async Task ImportDivisionsCsvAsync(Stream stream, string fileName)
     {
-        if (!_currentSeasonId.HasValue)
+        if (!CanEdit())
         {
-            await DisplayAlert("No Season", "Please select a season on the Seasons page before importing.", "OK");
+            SetStatus("Choose an unlocked season to configure before importing.");
             return;
         }
-
-        var rows = Csv.Read(stream);
-        int added = 0, updated = 0;
-
-        foreach (var r in rows)
-        {
-            var name = r.Get("Name");
-            if (string.IsNullOrWhiteSpace(name)) continue;
-
-            var existing = _dataStore.GetData().Divisions.FirstOrDefault(d =>
-                d.SeasonId == _currentSeasonId &&
-                string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
-
-            var notes = r.Get("Notes");
-
-            if (existing == null)
-            {
-                var division = new Division
-                {
-                    SeasonId = _currentSeasonId.Value,
-                    Name = name.Trim(),
-                    Notes = notes
-                };
-                _dataStore.GetData().Divisions.Add(division);
-                added++;
-            }
-            else
-            {
-                existing.Notes = notes;
-                updated++;
-            }
-        }
-
-        await _dataStore.SaveAsync();
-        RefreshDivisions(SearchEntry.Text);
-        SetStatus($"Imported: {added} added, {updated} updated");
+        var seasonId = _currentSeasonId!.Value;
+        await ApplyEditAsync(() => _editor.ImportAsync(seasonId,
+            Csv.Read(stream).Select(r => (r.Get("Name"), (string?)r.Get("Notes")))), $"Imported divisions from {fileName}.");
     }
 
-    private void SetStatus(string msg) => StatusLbl.Text = $"{DateTime.Now:HH:mm:ss} {msg}";
+    private void SetStatus(string msg) => PageStatusLbl.Text = StatusLbl.Text = $"{DateTime.Now:HH:mm:ss} {msg}";
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)
     {
