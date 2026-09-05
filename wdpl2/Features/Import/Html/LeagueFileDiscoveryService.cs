@@ -46,6 +46,7 @@ public partial class LeagueFileDiscoveryService
         public DateTime LastModified { get; set; }
         public string DetectedSeason { get; set; } = "Unknown";
         public string? DetectedDivision { get; set; }
+        public string? SeasonReviewReason { get; set; }
         public double Confidence { get; set; }
         public bool IsFolder { get; set; }
         public string SeasonSortKey { get; set; } = "9999";
@@ -86,6 +87,8 @@ public partial class LeagueFileDiscoveryService
         public bool IsSelected { get; set; } = true;
 
         // Pre-analysis entity counts (populated by AnalyzeGroupsAsync)
+        public string? ReviewReason { get; set; }
+        public bool RequiresReview => !string.IsNullOrEmpty(ReviewReason);
         public int AnalyzedTeams { get; set; }
         public int AnalyzedPlayers { get; set; }
         public int AnalyzedResults { get; set; }
@@ -361,24 +364,23 @@ public partial class LeagueFileDiscoveryService
     /// </summary>
     public static string NormalizeSeasonKey(string key)
     {
-        if (string.IsNullOrWhiteSpace(key)) return key;
-
-        // Match range patterns: 2023-24, 2023/24, 2023-2024, 2023_2024, etc.
-        var rangeMatch = Regex.Match(key, @"(20\d{2})[-_/\\](20)?(\d{2})\b");
+        if (string.IsNullOrWhiteSpace(key)) return "Unknown";
+        key = Regex.Replace(key.Trim(), @"\s+", " ");
+        if (key.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase)) return key;
+        var rangeMatch = Regex.Match(key, @"\b((?:19|20)\d{2})\s*[-_/\\]\s*((?:19|20)?\d{2})\b");
+        string year;
         if (rangeMatch.Success)
         {
-            var startYear = rangeMatch.Groups[1].Value;
-            var endShort = rangeMatch.Groups[3].Value;
-            if (endShort.Length == 4) endShort = endShort[2..];
-            return $"{startYear}-{endShort}";
+            year = $"{rangeMatch.Groups[1].Value}-{rangeMatch.Groups[2].Value[^2..]}";
         }
-
-        // Match bare year: "2023" → keep as-is
-        var yearMatch = Regex.Match(key, @"\b(20\d{2})\b");
-        if (yearMatch.Success)
-            return yearMatch.Groups[1].Value;
-
-        return key;
+        else
+        {
+            var match = Regex.Match(key, @"\b(?:19|20)\d{2}\b");
+            if (!match.Success) return key;
+            year = match.Value;
+        }
+        var term = Regex.Match(key, @"\b(winter|summer|spring|autumn|fall)\b", RegexOptions.IgnoreCase);
+        return term.Success ? $"{char.ToUpperInvariant(term.Value[0])}{term.Value[1..].ToLowerInvariant()} {year}" : year;
     }
 
     public List<SeasonGroup> GroupBySeason(List<DiscoveredFile> files)
@@ -391,15 +393,18 @@ public partial class LeagueFileDiscoveryService
 
         var groups = files
             .Where(f => f.IsSelected)
-            .GroupBy(f => f.DetectedSeason)
+            .GroupBy(f => f.DetectedSeason, StringComparer.OrdinalIgnoreCase)
             .Select(g =>
             {
                 var group = new SeasonGroup
                 {
                     SeasonKey = g.Key,
                     DisplayName = g.Key,
-                    Files = g.OrderByDescending(f => f.Confidence).ToList()
+                    Files = g.OrderByDescending(f => f.Confidence).ToList(),
+                    ReviewReason = g.Select(f => f.SeasonReviewReason).FirstOrDefault(r => r != null)
+                        ?? (!HasSeasonTerm(g.Key) ? "Season is uncertain. Separate summer and winter source folders before importing." : null)
                 };
+                if (group.RequiresReview) group.IsSelected = false;
 
                 var typeCounts = group.Files.GroupBy(f => f.FileType).Where(t => t.Count() > 1);
                 group.HasDuplicateTypes = typeCounts.Any();
@@ -408,9 +413,6 @@ public partial class LeagueFileDiscoveryService
                 return group;
             })
             .ToList();
-
-        // Merge groups that resolve to the same existing season
-        groups = MergeDuplicateGroups(groups);
 
         return groups.OrderBy(g => g.Files.FirstOrDefault()?.SeasonSortKey ?? "9999").ToList();
     }
@@ -619,6 +621,13 @@ public partial class LeagueFileDiscoveryService
     {
         // Only check filename + nearest 2 parent folders — not the entire path
         var pathToCheck = GetRelevantPathSegments(file.FilePath);
+        var normalized = NormalizeSeasonKey(pathToCheck.Replace('_', ' '));
+        if (Regex.IsMatch(normalized, @"^(Winter|Summer|Spring|Autumn|Fall) ", RegexOptions.IgnoreCase))
+        {
+            file.DetectedSeason = normalized;
+            file.SeasonSortKey = Regex.Match(normalized, @"(?:19|20)\d{2}").Value;
+            return;
+        }
 
         // Season word patterns (e.g., "Winter 2023")
         var seasonWordMatch = SeasonWordPattern().Match(pathToCheck);
@@ -697,59 +706,31 @@ public partial class LeagueFileDiscoveryService
 
     private static void FindMatchingSeason(string seasonKey, SeasonGroup group)
     {
-        if (string.IsNullOrEmpty(seasonKey) || seasonKey.StartsWith("Unknown"))
-            return;
+        group.ExistingSeasonId = null;
+        group.ExistingSeasonName = null;
+        if (!HasSeasonTerm(seasonKey)) return;
+        var matches = DataStore.Data.Seasons.Where(s =>
+            string.Equals(NormalizeSeasonKey(s.Name), NormalizeSeasonKey(seasonKey), StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count != 1) return;
+        group.ExistingSeasonId = matches[0].Id;
+        group.ExistingSeasonName = matches[0].Name;
+    }
 
-        var lowerKey = seasonKey.ToLower().Trim();
-
-        foreach (var season in DataStore.Data.Seasons)
-        {
-            var lowerName = season.Name.ToLower().Trim();
-
-            if (lowerName == lowerKey)
-            {
-                group.ExistingSeasonId = season.Id;
-                group.ExistingSeasonName = season.Name;
-                return;
-            }
-
-            if (lowerName.Contains(lowerKey) || lowerKey.Contains(lowerName))
-            {
-                group.ExistingSeasonId = season.Id;
-                group.ExistingSeasonName = season.Name;
-                return;
-            }
-
-                }
-
-                // Match by start year only when exactly one season matches that year,
-                // otherwise (e.g. Winter 2023 + Summer 2023) the link would be a guess
-                if (lowerKey.Length >= 4 && int.TryParse(lowerKey[..4], out var keyYear))
-                {
-                    var yearMatches = DataStore.Data.Seasons
-                        .Where(s => s.StartDate.Year == keyYear || s.EndDate.Year == keyYear)
-                        .ToList();
-
-                    if (yearMatches.Count == 1)
-                    {
-                        group.ExistingSeasonId = yearMatches[0].Id;
-                        group.ExistingSeasonName = yearMatches[0].Name;
-                    }
-                }
-            }
+    public static bool HasSeasonTerm(string key) => Regex.IsMatch(key,
+        @"\b(winter|summer|spring|autumn|fall)\b.*\b(?:19|20)\d{2}\b", RegexOptions.IgnoreCase);
 
     // ── Regex patterns ─────────────────────────────────────────────
 
-    [GeneratedRegex(@"(20\d{2})[-_/\\](20)?(\d{2})\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"((?:19|20)\d{2})[-_/\\](19|20)?(\d{2})\b", RegexOptions.Compiled)]
     private static partial Regex SeasonYearRangePattern();
 
-    [GeneratedRegex(@"\b(20\d{2})\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b((?:19|20)\d{2})\b", RegexOptions.Compiled)]
     private static partial Regex SingleYearPattern();
 
-    [GeneratedRegex(@"\b(winter|summer|spring|autumn|fall)\s*(20\d{2})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b(winter|summer|spring|autumn|fall)\s*((?:19|20)\d{2})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex SeasonWordPattern();
 
-    [GeneratedRegex(@"\b(20\d{2})\s*(winter|summer|spring|autumn|fall)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b((?:19|20)\d{2})\s*(winter|summer|spring|autumn|fall)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex YearFirstSeasonWordPattern();
 
     [GeneratedRegex(@"'(\d{2})\b", RegexOptions.Compiled)]
@@ -767,6 +748,19 @@ public partial class LeagueFileDiscoveryService
         IProgress<ScanProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var files = groups.SelectMany(g => g.Files).ToList();
+        var parsedFiles = new Dictionary<string, HtmlLeagueParser.HtmlParseResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in files.Where(f => f.FileType == "HTML"))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var parsed = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
+            parsedFiles[file.FilePath] = parsed;
+            if (parsed.Success) RefineSeason(file, parsed);
+            progress?.Report(new ScanProgress { CurrentPath = file.FileName, FilesScanned = parsedFiles.Count, FilesFound = files.Count(f => f.FileType == "HTML") });
+        }
+        var refinedGroups = new LeagueFileDiscoveryService().GroupBySeason(files);
+        groups.Clear();
+        groups.AddRange(refinedGroups);
         int totalFiles = groups.Sum(g => g.Files.Count(f => f.FileType == "HTML"));
         int processed = 0;
 
@@ -796,7 +790,7 @@ public partial class LeagueFileDiscoveryService
                         FilesFound = totalFiles
                     });
 
-                    var result = await HtmlLeagueParser.ParseHtmlFileAsync(file.FilePath);
+                    var result = parsedFiles[file.FilePath];
                     if (!result.Success) continue;
 
                     foreach (var team in result.Teams)
@@ -841,10 +835,51 @@ public partial class LeagueFileDiscoveryService
             group.AnalyzedDoublesPairings = doublesCount;
             group.AnalyzedDivisions = divisionNames.Count;
             group.IsAnalyzed = true;
+            var schemes = divisionNames.Select(DivisionSeasonTerm).Where(t => t != null).Distinct().ToList();
+            if (schemes.Count > 1)
+            {
+                group.ReviewReason = "Numbered winter divisions and colored summer divisions occur together. Separate the source seasons before importing.";
+                group.IsSelected = false;
+                group.ExistingSeasonId = null;
+                group.ExistingSeasonName = null;
+            }
 
             // Auto-deselect groups with no detectable data
             if (!group.HasData && group.Files.All(f => f.FileType == "HTML"))
                 group.IsSelected = false;
         }
+    }
+
+    public static void RefineSeason(DiscoveredFile file, HtmlLeagueParser.HtmlParseResult parsed)
+    {
+        var key = NormalizeSeasonKey(file.DetectedSeason);
+        var year = Regex.Match(key, @"\b(?:19|20)\d{2}(?:-\d{2})?\b");
+        if (!year.Success || key.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase)) return;
+        var terms = Regex.Matches(parsed.PageTitle + " " + parsed.PageHeading, @"\b(winter|summer|spring|autumn|fall)\b", RegexOptions.IgnoreCase)
+            .Select(m => m.Value.ToLowerInvariant()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var division in parsed.Teams.Select(t => t.Division)
+            .Concat(parsed.Players.Select(p => p.Division))
+            .Concat(parsed.Results.Select(r => r.Division))
+            .Append(parsed.DetectedDivision ?? ""))
+        {
+            var term = DivisionSeasonTerm(division);
+            if (term != null) terms.Add(term);
+        }
+        if (HasSeasonTerm(key)) terms.Add(key.Split(' ')[0].ToLowerInvariant());
+        if (terms.Count > 1)
+        {
+            file.SeasonReviewReason = "Conflicting season or division evidence in source files. Separate summer and winter before importing.";
+            return;
+        }
+        if (terms.Count == 1)
+            file.DetectedSeason = NormalizeSeasonKey($"{terms.Single()} {year.Value}");
+    }
+
+    private static string? DivisionSeasonTerm(string division)
+    {
+        var core = Wdpl2.Helpers.DivisionHelper.StripDivisionSuffix(division).Trim();
+        if (Regex.IsMatch(core, @"^(red|green|yellow|blue|white|black|orange|purple)$", RegexOptions.IgnoreCase)) return "summer";
+        if (Regex.IsMatch(core, @"^(first|second|third|fourth|fifth|sixth|[1-6](?:st|nd|rd|th)?)$", RegexOptions.IgnoreCase)) return "winter";
+        return null;
     }
 }

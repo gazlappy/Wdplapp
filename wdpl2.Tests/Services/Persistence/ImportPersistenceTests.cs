@@ -107,6 +107,34 @@ public class ImportPersistenceTests
         Assert.Equal("Someone else's edit", (await context.Seasons.AsNoTracking().SingleAsync()).Name);
     }
 
+    [Fact]
+    public async Task Commit_CrossSeasonDivision_RollsBackWithoutChangingExistingData()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        using var context = CreateContext(connection);
+        await context.Database.EnsureCreatedAsync();
+        var first = new Season { Name = "First" };
+        var second = new Season { Name = "Second" };
+        var division = new Division { Name = "Second division", SeasonId = second.Id };
+        context.AddRange(first, second, division);
+        await context.SaveChangesAsync();
+        var baseline = new LeagueData
+        {
+            Seasons = [ImportWorkspace.Clone(first), ImportWorkspace.Clone(second)],
+            Divisions = [ImportWorkspace.Clone(division)]
+        };
+        var imported = ImportWorkspace.Clone(baseline);
+        imported.Teams.Add(new Team { Name = "Wrong placement", SeasonId = first.Id, DivisionId = division.Id });
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => new SqliteDataStore(context).CommitImportAsync(baseline, imported));
+
+        Assert.Contains("another season", error.Message);
+        Assert.Empty(await context.Teams.AsNoTracking().ToListAsync());
+        Assert.Equal(2, await context.Seasons.CountAsync());
+        Assert.Equal(second.Id, (await context.Divisions.AsNoTracking().SingleAsync()).SeasonId);
+    }
+
     private static LeagueContext CreateContext(SqliteConnection connection) =>
         new(new DbContextOptionsBuilder<LeagueContext>().UseSqlite(connection).Options);
 }

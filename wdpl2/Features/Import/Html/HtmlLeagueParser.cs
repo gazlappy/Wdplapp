@@ -368,8 +368,8 @@ public static partial class HtmlLeagueParser
     private static void ProcessLeagueTable(HtmlParseResult result)
     {
         if (result.Tables.Count == 0) return;
-
-        var table = result.Tables.First();
+        var table = FindEntityTable(result, 1, "team", 2);
+        if (table == null) return;
         var division = result.DetectedDivision ?? "Unknown Division";
 
         // Skip header row
@@ -462,8 +462,8 @@ public static partial class HtmlLeagueParser
     private static void ProcessPlayerRatings(HtmlParseResult result, string html)
     {
         if (result.Tables.Count == 0) return;
-
-        var table = result.Tables.First();
+        var table = FindEntityTable(result, 1, "player", 3);
+        if (table == null || !IsHeader(table.Rows[0][2], "team")) return;
         var division = result.DetectedDivision ?? "Unknown Division";
 
         // Pre-extract profile links from raw HTML so we can match them to players
@@ -485,8 +485,7 @@ public static partial class HtmlLeagueParser
             if (position <= 0) continue;
 
             // Validate: name must exist and not be purely numeric
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            if (int.TryParse(name, out _)) continue;
+            if (!IsValidPlayerName(name)) continue;
 
             // Validate: must have a team name (not a summary row)
             if (string.IsNullOrWhiteSpace(teamName)) continue;
@@ -529,6 +528,7 @@ public static partial class HtmlLeagueParser
             PlayerName = headingMatch.Groups[1].Value.Trim(),
             TeamName = headingMatch.Groups[2].Value.Trim()
         };
+        if (!IsValidPlayerName(profile.PlayerName)) return;
 
         if (result.Tables.Count >= 1)
         {
@@ -602,7 +602,7 @@ public static partial class HtmlLeagueParser
                 if (profileLinks.TryGetValue(opponentName, out var link))
                     matchRecord.OpponentProfileLink = link;
 
-                if (!string.IsNullOrWhiteSpace(matchRecord.OpponentName))
+                if (IsValidPlayerName(matchRecord.OpponentName))
                 {
                     profile.MatchHistory.Add(matchRecord);
                 }
@@ -619,8 +619,8 @@ public static partial class HtmlLeagueParser
     private static void ProcessDoublesRatings(HtmlParseResult result, string html)
     {
         if (result.Tables.Count == 0) return;
-
-        var table = result.Tables.First();
+        var table = FindEntityTable(result, 5, "team", 6);
+        if (table == null) return;
         var division = result.DetectedDivision ?? "Unknown Division";
 
         // Pre-extract profile links from raw HTML
@@ -646,7 +646,7 @@ public static partial class HtmlLeagueParser
             var currentRating = ParseInt(row[11]);
 
             if (position <= 0) continue;
-            if (string.IsNullOrWhiteSpace(player1Name) && string.IsNullOrWhiteSpace(player2Name)) continue;
+            if (!IsValidPlayerName(player1Name) || !IsValidPlayerName(player2Name)) continue;
 
             var entry = new ExtractedDoublesEntry
             {
@@ -682,7 +682,7 @@ public static partial class HtmlLeagueParser
     /// </summary>
     private static void AddDoublePlayerAsExtracted(HtmlParseResult result, string playerName, string teamName, string division, Dictionary<string, string> profileLinks)
     {
-        if (string.IsNullOrWhiteSpace(playerName)) return;
+        if (!IsValidPlayerName(playerName)) return;
 
         // Check if player already exists in the list
         if (result.Players.Any(p => string.Equals(p.Name, playerName, StringComparison.OrdinalIgnoreCase)))
@@ -714,8 +714,7 @@ public static partial class HtmlLeagueParser
         {
             var profileLink = match.Groups[1].Value;
             var name = CleanText(StripHtmlTags(match.Groups[2].Value));
-
-            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (!IsValidPlayerName(name)) continue;
 
             result.PlayerListEntries.Add(new ExtractedPlayerListEntry
             {
@@ -798,6 +797,25 @@ public static partial class HtmlLeagueParser
     /// <summary>
     /// Extract page title from HTML
     /// </summary>
+    public static bool IsValidPlayerName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        name = CleanText(name);
+        if (name.Count(char.IsLetter) < 2) return false;
+        return !Regex.IsMatch(name, @"^(?:bye|byes|unknown|player|players|name|total|totals|home|next|previous|index|a\s*[-–]\s*z)$", RegexOptions.IgnoreCase);
+    }
+
+    private static bool IsHeader(string value, string entity) =>
+        Regex.IsMatch(value, $@"^{entity}(?:\s+name)?$", RegexOptions.IgnoreCase);
+
+    private static HtmlTable? FindEntityTable(HtmlParseResult result, int nameColumn, string entity, int playedColumn)
+    {
+        return result.Tables.FirstOrDefault(t => t.Rows.Count > 1 &&
+            t.Rows[0].Count > Math.Max(nameColumn, playedColumn) &&
+            IsHeader(t.Rows[0][nameColumn], entity) &&
+            Regex.IsMatch(t.Rows[0][playedColumn], @"^(played|p|pld)$", RegexOptions.IgnoreCase));
+    }
+
     private static string ExtractPageTitle(string html)
     {
         var titleMatch = Regex.Match(html, @"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
@@ -857,7 +875,7 @@ public static partial class HtmlLeagueParser
                 var cells = new List<string>();
 
                 // Extract cells
-                var cellMatches = Regex.Matches(rowHtml, @"<td[^>]*>(.*?)</td>", 
+                var cellMatches = Regex.Matches(rowHtml, @"<t[dh]\b[^>]*>(.*?)</t[dh]>", 
                     RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
                 foreach (Match cellMatch in cellMatches)

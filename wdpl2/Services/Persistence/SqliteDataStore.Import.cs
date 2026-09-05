@@ -18,6 +18,7 @@ public partial class SqliteDataStore
             try
             {
                 _context.ChangeTracker.Clear();
+                var placementBefore = await ReadImportPlacementAsync(ct);
                 var locked = await _context.Seasons.AsNoTracking().Where(s => s.IsLocked).Select(s => s.Id).ToListAsync(ct);
                 var seasons = await ValidateDeltaAsync(baseline.Seasons, imported.Seasons, s => s.Id, s => s.Id, locked, ct);
                 var divisions = await ValidateDeltaAsync(baseline.Divisions, imported.Divisions, s => s.Id, s => s.SeasonId, locked, ct);
@@ -45,6 +46,8 @@ public partial class SqliteDataStore
                 await DeleteImportAsync(divisions.Deleted, ct);
                 await DeleteImportAsync(seasons.Deleted, ct);
 
+                ImportPlacementValidator.ThrowIfNewIssues(placementBefore, await ReadImportPlacementAsync(ct));
+
                 if (!ImportWorkspace.Equal(baseline.DoublesPairings, imported.DoublesPairings))
                 {
                     if (!ImportWorkspace.Equal(baseline.DoublesPairings, metadataBefore.DoublesPairings))
@@ -70,6 +73,17 @@ public partial class SqliteDataStore
         }
         finally { _gate.Release(); }
     }
+
+    private async Task<LeagueData> ReadImportPlacementAsync(CancellationToken ct) => new()
+    {
+        Seasons = await _context.Seasons.AsNoTracking().ToListAsync(ct),
+        Divisions = await _context.Divisions.AsNoTracking().ToListAsync(ct),
+        Venues = await _context.Venues.AsNoTracking().ToListAsync(ct),
+        Teams = await _context.Teams.AsNoTracking().ToListAsync(ct),
+        Players = await _context.Players.AsNoTracking().ToListAsync(ct),
+        Fixtures = await _context.Fixtures.AsNoTracking().ToListAsync(ct),
+        Competitions = await _context.Competitions.AsNoTracking().ToListAsync(ct)
+    };
 
     private async Task<(List<T> Upserts, List<T> Deleted)> ValidateDeltaAsync<T>(List<T> before, List<T> after,
         Func<T, Guid> id, Func<T, Guid?> seasonId, List<Guid> locked, CancellationToken ct) where T : class

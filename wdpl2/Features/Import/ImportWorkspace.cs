@@ -16,6 +16,12 @@ public sealed class ImportWorkspace
 
     public ImportWorkspace(IDataStore store) => _store = store;
 
+    public bool IsExistingSeason(Guid seasonId)
+    {
+        GetData();
+        return _baseline!.Seasons.Any(s => s.Id == seasonId);
+    }
+
     public LeagueData GetData()
     {
         if (_data == null)

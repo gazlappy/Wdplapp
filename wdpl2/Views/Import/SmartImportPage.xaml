@@ -77,7 +77,7 @@
         </Border>
 
         <!-- Content Area -->
-        <ScrollView Grid.Row="1">
+        <ScrollView x:Name="WizardScrollView" Grid.Row="1">
             <VerticalStackLayout Padding="0">
 
                 <!-- STEP 1: Scan Locations -->
@@ -174,33 +174,6 @@
                             Padding="20,14"
                             HorizontalOptions="Fill"/>
 
-                    <!-- Scanning Progress (hidden initially) -->
-                    <Border x:Name="ScanProgressPanel"
-                            Style="{StaticResource CardBorderStyle}"
-                            IsVisible="False">
-                        <VerticalStackLayout Padding="20" Spacing="12">
-                            <ActivityIndicator x:Name="ScanSpinner"
-                                               IsRunning="True"
-                                               Color="{StaticResource PrimaryColor}"
-                                               HeightRequest="40"/>
-                            <Label x:Name="ScanProgressLabel"
-                                   Text="Scanning..."
-                                   HorizontalOptions="Center"
-                                   FontSize="14"/>
-                            <Label x:Name="ScanCountLabel"
-                                   Text="0 files found"
-                                   HorizontalOptions="Center"
-                                   FontSize="12"
-                                   TextColor="{StaticResource Gray600}"/>
-                            <Button x:Name="CancelScanButton"
-                                    Text="Cancel Scan"
-                                    Clicked="OnCancelScanClicked"
-                                    BackgroundColor="{StaticResource Gray400}"
-                                    TextColor="White"
-                                    HorizontalOptions="Center"
-                                    Padding="16,10"/>
-                        </VerticalStackLayout>
-                    </Border>
                 </VerticalStackLayout>
 
                 <!-- STEP 2: Review Discovered Files -->
@@ -305,6 +278,48 @@
 
             </VerticalStackLayout>
         </ScrollView>
+
+        <!-- Keep live progress outside the scrollable, content-sized wizard. -->
+        <Border x:Name="ScanProgressPanel"
+                Grid.Row="1"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="20"
+                IsVisible="False">
+            <Grid RowDefinitions="40,Auto,Auto,Auto,*" RowSpacing="12" Padding="8">
+                <ActivityIndicator x:Name="ScanSpinner"
+                                   IsRunning="False"
+                                   WidthRequest="40"
+                                   HeightRequest="40"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   Color="{StaticResource PrimaryColor}"/>
+                <Label x:Name="ScanProgressLabel"
+                       Grid.Row="1"
+                       Text="Scanning..."
+                       HorizontalOptions="Fill"
+                       HorizontalTextAlignment="Center"
+                       LineBreakMode="MiddleTruncation"
+                       MaxLines="1"
+                       FontSize="14"/>
+                <Label x:Name="ScanCountLabel"
+                       Grid.Row="2"
+                       Text="0 files found"
+                       HorizontalOptions="Fill"
+                       HorizontalTextAlignment="Center"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="1"
+                       FontSize="12"
+                       TextColor="{StaticResource Gray600}"/>
+                <Button x:Name="CancelScanButton"
+                        Grid.Row="3"
+                        Text="Cancel Scan"
+                        Clicked="OnCancelScanClicked"
+                        BackgroundColor="{StaticResource Gray400}"
+                        TextColor="White"
+                        HorizontalOptions="Center"
+                        Padding="16,10"/>
+            </Grid>
+        </Border>
 
         <!-- Navigation Buttons -->
         <Border Grid.Row="2"

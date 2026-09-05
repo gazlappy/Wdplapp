@@ -711,6 +711,20 @@ public partial class BatchImportPreviewPage : ContentPage
                 return;
             }
 
+            _aggregatedDivisions.Clear();
+            _aggregatedTeams.Clear();
+            _aggregatedPlayers.Clear();
+            _aggregatedResults.Clear();
+            _aggregatedFrameResults.Clear();
+            _aggregatedDoublesPairings.Clear();
+            _playerMergeSuggestions.Clear();
+            foreach (var file in _batchPreview.Files.Where(f => f.Include))
+            {
+                var refreshed = await ProcessFileAndAggregateAsync(file.FilePath);
+                if (refreshed.HasErrors)
+                    throw new InvalidDataException($"{file.FileName}: {string.Join("; ", refreshed.Errors)}");
+            }
+
             var confirm = await DisplayAlert(
                 "Confirm Batch Import",
                 $"Import data into {selectedSeason.Name}?\n\n" +
@@ -780,6 +794,17 @@ public partial class BatchImportPreviewPage : ContentPage
             var divisionMap = new System.Collections.Generic.Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
             var teamMap = new System.Collections.Generic.Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
             var playerMap = new System.Collections.Generic.Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in data.Divisions.Where(d => d.SeasonId == seasonId).GroupBy(d => d.Name.ToLowerInvariant()))
+            {
+                if (group.Count() == 1) divisionMap[group.Key] = group.Single().Id;
+            }
+            foreach (var group in data.Teams.Where(t => t.SeasonId == seasonId).GroupBy(t => GetTeamKey(t.Name ?? "")))
+            {
+                if (group.Count() != 1)
+                    throw new InvalidDataException($"Multiple teams match '{group.Key}'. Resolve their names before importing.");
+                teamMap[group.Key] = group.Single().Id;
+            }
 
             // 1. Import Divisions
             ProgressLabel.Text = "Importing divisions...";
@@ -865,8 +890,15 @@ public partial class BatchImportPreviewPage : ContentPage
                 var playerPreview = playerEntry.Value;
                 var playerKey = playerEntry.Key;
                 
-                // Use fuzzy matching to find existing player
-                var existingPlayer = FindExistingPlayerFuzzy(data.Players, seasonId, playerPreview.FirstName, playerPreview.LastName);
+                Guid? teamId = null;
+                if (!string.IsNullOrWhiteSpace(playerPreview.TeamName))
+                {
+                    if (!teamMap.TryGetValue(GetTeamKey(playerPreview.TeamName), out var mappedTeamId))
+                        throw new InvalidDataException($"Player '{playerPreview.FirstName} {playerPreview.LastName}': team '{playerPreview.TeamName}' could not be resolved.");
+                    teamId = mappedTeamId;
+                }
+                var existingPlayer = Wdpl2.Services.Import.ImportIdentityMatcher.MatchPlayer(
+                    data.Players, seasonId, playerPreview.FirstName, playerPreview.LastName, teamId);
 
                 if (existingPlayer != null)
                 {
@@ -875,14 +907,6 @@ public partial class BatchImportPreviewPage : ContentPage
                 }
                 else
                 {
-                    Guid? teamId = null;
-                    if (!string.IsNullOrWhiteSpace(playerPreview.TeamName))
-                    {
-                        var teamKey = GetTeamKey(playerPreview.TeamName);
-                        teamMap.TryGetValue(teamKey, out var mappedTeamId);
-                        teamId = mappedTeamId != Guid.Empty ? mappedTeamId : null;
-                    }
-
                     var player = new Player
                     {
                         Id = Guid.NewGuid(),
@@ -915,8 +939,7 @@ public partial class BatchImportPreviewPage : ContentPage
 
                 if (homeTeamId == Guid.Empty || awayTeamId == Guid.Empty)
                 {
-                    result.FixturesSkipped++;
-                    continue;
+                    throw new InvalidDataException($"Result {matchResult.Date:dd MMM yyyy}: cannot link '{matchResult.HomeTeam}' against '{matchResult.AwayTeam}' to target-season teams.");
                 }
 
                 var existingFixture = data.Fixtures.FirstOrDefault(f =>
@@ -987,13 +1010,16 @@ public partial class BatchImportPreviewPage : ContentPage
                     playerMap.TryGetValue(oppKey, out var opponentId);
 
                     if (playerId == Guid.Empty || opponentId == Guid.Empty)
-                        continue;
+                        throw new InvalidDataException($"Frame {frameResult.Date:dd MMM yyyy}: cannot resolve '{frameResult.PlayerName}' or '{frameResult.OpponentName}'.");
 
                     // Find team IDs
                     var playerTeamKey = GetTeamKey(frameResult.PlayerTeam);
                     var oppTeamKey = GetTeamKey(frameResult.OpponentTeam);
                     teamMap.TryGetValue(playerTeamKey, out var playerTeamId);
                     teamMap.TryGetValue(oppTeamKey, out var oppTeamId);
+
+                    if (playerTeamId == Guid.Empty || oppTeamId == Guid.Empty || playerTeamId == oppTeamId)
+                        throw new InvalidDataException($"Frame {frameResult.Date:dd MMM yyyy}: two distinct teams must be identified for '{frameResult.PlayerName}' versus '{frameResult.OpponentName}'.");
 
                     // Try to find the fixture
                     Fixture? fixture = null;
@@ -1012,27 +1038,20 @@ public partial class BatchImportPreviewPage : ContentPage
                     // If no fixture found, try to find in existing fixtures
                     if (fixture == null)
                     {
-                        fixture = data.Fixtures.FirstOrDefault(f =>
+                        var candidates = data.Fixtures.Where(f =>
                             f.SeasonId == seasonId &&
                             f.Date.Date == frameResult.Date.Date &&
                             ((f.HomeTeamId == playerTeamId && f.AwayTeamId == oppTeamId) ||
-                             (f.HomeTeamId == oppTeamId && f.AwayTeamId == playerTeamId)));
+                             (f.HomeTeamId == oppTeamId && f.AwayTeamId == playerTeamId))).ToList();
+                        if (candidates.Count > 1)
+                            throw new InvalidDataException($"Multiple fixtures match {frameResult.Date:dd MMM yyyy}. Frame placement needs review.");
+                        fixture = candidates.SingleOrDefault();
                     }
 
-                    // If still no fixture, create one
+                    // Player profiles alone do not establish home/away orientation.
                     if (fixture == null)
                     {
-                        fixture = new Fixture
-                        {
-                            Id = Guid.NewGuid(),
-                            SeasonId = seasonId,
-                            Date = frameResult.Date,
-                            HomeTeamId = playerTeamId != Guid.Empty ? playerTeamId : oppTeamId,
-                            AwayTeamId = oppTeamId != Guid.Empty ? oppTeamId : playerTeamId
-                        };
-                        data.Fixtures.Add(fixture);
-                        fixtureMap[$"{frameResult.Date:yyyyMMdd}|{playerTeamKey}|{oppTeamKey}"] = fixture;
-                        result.FixturesCreated++;
+                        throw new InvalidDataException($"No fixture identifies home/away teams for {frameResult.Date:dd MMM yyyy}, '{frameResult.PlayerTeam}' versus '{frameResult.OpponentTeam}'. Include the fixture/results page before importing these frames.");
                     }
 
                     // Check if this frame already exists
@@ -1165,7 +1184,8 @@ public partial class BatchImportPreviewPage : ContentPage
             ProgressBar.Progress = 0.95;
             await Task.Delay(10);
             
-            UpdateSeasonDatesFromImportedResults(seasonId, data);
+            if (!_dataStore.IsExistingSeason(seasonId))
+                UpdateSeasonDatesFromImportedResults(seasonId, data);
 
             ProgressLabel.Text = "Complete!";
             ProgressBar.Progress = 1.0;
@@ -1433,6 +1453,11 @@ public partial class BatchImportPreviewPage : ContentPage
         // Check for exact match first
         if (_aggregatedPlayers.ContainsKey(playerKey))
         {
+            var existing = _aggregatedPlayers[playerKey];
+            if (!string.IsNullOrWhiteSpace(existing.TeamName) && !string.IsNullOrWhiteSpace(teamName) &&
+                GetTeamKey(existing.TeamName) != GetTeamKey(teamName))
+                throw new InvalidDataException($"Player '{normalizedFirst} {normalizedLast}' appears for different teams. Review the identity/transfer before combining these files.");
+            if (string.IsNullOrWhiteSpace(existing.TeamName)) existing.TeamName = NormalizeTeamName(teamName);
             return playerKey;
         }
         
@@ -1453,14 +1478,6 @@ public partial class BatchImportPreviewPage : ContentPage
                 SimilarityScore = CalculateSimilarity(similarKey, playerKey),
                 Reason = GetSimilarityReason(existingPlayer.FirstName, existingPlayer.LastName, normalizedFirst, normalizedLast)
             };
-            
-            // Auto-merge if very similar (same team or very close names)
-            if (suggestion.Team1 == suggestion.Team2 || suggestion.SimilarityScore >= 90)
-            {
-                suggestion.ShouldMerge = true;
-                System.Diagnostics.Debug.WriteLine($"Auto-merging player: {suggestion.Name2} -> {suggestion.Name1} ({suggestion.Reason})");
-                return similarKey;
-            }
             
             // Record for potential manual review
             if (!_playerMergeSuggestions.Any(s => 

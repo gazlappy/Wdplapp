@@ -25,6 +25,9 @@ public partial class SmartImportPage : ContentPage
     private int _currentStep = 1;
     private string? _activeYearFilter;
     private bool _initialized;
+    private Microsoft.Maui.Dispatching.IDispatcherTimer? _progressTimer;
+    private LatestProgress<LeagueFileDiscoveryService.ScanProgress>? _scanProgress;
+    private bool _analyzing;
 
     public SmartImportPage(IDataStore dataStore)
     {
@@ -44,6 +47,63 @@ public partial class SmartImportPage : ContentPage
             _initialized = true;
             ResetWizard();
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        _scanCts?.Cancel();
+        StopScanProgress();
+        base.OnDisappearing();
+    }
+
+    private LatestProgress<LeagueFileDiscoveryService.ScanProgress> StartScanProgress(bool analyzing)
+    {
+        StopScanProgress();
+        _analyzing = analyzing;
+        _scanProgress = new LatestProgress<LeagueFileDiscoveryService.ScanProgress>();
+        _progressTimer = Dispatcher.CreateTimer();
+        _progressTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _progressTimer.Tick += OnScanProgressTick;
+        _progressTimer.Start();
+        ScanSpinner.IsRunning = true;
+        System.Diagnostics.Debug.WriteLine($"[SmartImport] Phase: {(analyzing ? "Analyzing" : "Scanning")}");
+        return _scanProgress;
+    }
+
+    private void OnScanProgressTick(object? sender, EventArgs e)
+    {
+        if (_scanCts?.IsCancellationRequested != false || _currentStep != 1)
+            return;
+        var progress = _scanProgress?.TakeLatest();
+        if (progress == null) return;
+
+        var message = $"{(_analyzing ? "Analyzing" : "Scanning")}: {progress.CurrentPath.Replace('\r', ' ').Replace('\n', ' ')}";
+        var count = _analyzing
+            ? $"{progress.FilesScanned:N0}/{progress.FilesFound:N0} files analyzed"
+            : $"{progress.FilesFound:N0} league files found ({progress.FilesScanned:N0} files scanned)";
+        if (ScanProgressLabel.Text != message) ScanProgressLabel.Text = message;
+        if (ScanCountLabel.Text != count) ScanCountLabel.Text = count;
+    }
+
+    private void StopScanProgress()
+    {
+        ScanSpinner.IsRunning = false;
+        if (_progressTimer != null)
+        {
+            _progressTimer.Stop();
+            _progressTimer.Tick -= OnScanProgressTick;
+            _progressTimer = null;
+        }
+        _scanProgress?.Dispose();
+        _scanProgress = null;
+    }
+
+    private void SetScanSurfaceVisible(bool scanning)
+    {
+        WizardScrollView.IsVisible = !scanning;
+        ScanProgressPanel.IsVisible = scanning;
+        AddFolderButton.IsEnabled = !scanning;
+        ScanButton.IsEnabled = !scanning;
     }
 
     // ── Initialisation ─────────────────────────────────────────────
@@ -164,6 +224,7 @@ public partial class SmartImportPage : ContentPage
 
     private async void OnScanClicked(object? sender, EventArgs e)
     {
+        if (_scanCts != null) return;
         var selectedPaths = _scanLocations.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
 
         if (selectedPaths.Count == 0)
@@ -172,40 +233,26 @@ public partial class SmartImportPage : ContentPage
             return;
         }
 
-        ScanButton.IsVisible = false;
-        ScanProgressPanel.IsVisible = true;
-        AddFolderButton.IsEnabled = false;
+        SetScanSurfaceVisible(true);
         _scanCts = new CancellationTokenSource();
-
-        var progress = new Progress<LeagueFileDiscoveryService.ScanProgress>(p =>
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                var shortPath = p.CurrentPath;
-                if (shortPath.Length > 60)
-                    shortPath = "..." + shortPath[^57..];
-                ScanProgressLabel.Text = $"Scanning: {shortPath}";
-                ScanCountLabel.Text = $"{p.FilesFound} league files found ({p.FilesScanned:N0} files scanned)";
-            });
-        });
+        ScanProgressLabel.Text = "Scanning...";
+        ScanCountLabel.Text = "0 files found";
 
         try
         {
+            var progress = StartScanProgress(analyzing: false);
             _discoveredFiles = await _discoveryService.ScanAsync(selectedPaths, progress, _scanCts.Token);
+            System.Diagnostics.Debug.WriteLine($"[SmartImport] Discovery returned {_discoveredFiles.Count} files.");
 
             if (_scanCts.Token.IsCancellationRequested)
             {
-                ScanButton.IsVisible = true;
-                ScanProgressPanel.IsVisible = false;
-                AddFolderButton.IsEnabled = true;
                 return;
             }
 
             if (_discoveredFiles.Count == 0)
             {
-                ScanButton.IsVisible = true;
-                ScanProgressPanel.IsVisible = false;
-                AddFolderButton.IsEnabled = true;
+                StopScanProgress();
+                SetScanSurfaceVisible(false);
                 await DisplayAlert("No Files Found",
                     "No pool league files were found in the selected locations.\n\n" +
                     "Try adding a custom folder where your league data is stored.", "OK");
@@ -216,20 +263,14 @@ public partial class SmartImportPage : ContentPage
             _seasonGroups = _discoveryService.GroupBySeason(_discoveredFiles);
 
             // Analyze HTML files to count actual data per group
+            var analyzeProgress = StartScanProgress(analyzing: true);
             ScanProgressLabel.Text = "Analyzing file contents...";
             ScanCountLabel.Text = "Pre-parsing HTML files to detect teams, players, results...";
 
-            var analyzeProgress = new Progress<LeagueFileDiscoveryService.ScanProgress>(p =>
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    ScanProgressLabel.Text = $"Analyzing: {p.CurrentPath}";
-                    ScanCountLabel.Text = $"{p.FilesScanned}/{p.FilesFound} files analyzed";
-                });
-            });
-
             await LeagueFileDiscoveryService.AnalyzeGroupsAsync(
                 _seasonGroups, analyzeProgress, _scanCts.Token);
+            _scanCts.Token.ThrowIfCancellationRequested();
+            StopScanProgress();
 
             // Store unfiltered groups
             _allSeasonGroups = _seasonGroups;
@@ -242,6 +283,7 @@ public partial class SmartImportPage : ContentPage
             }
 
             _currentStep = 2;
+            System.Diagnostics.Debug.WriteLine("[SmartImport] Phase: Building review");
             UpdateStepDisplay();
             BuildReviewUI();
         }
@@ -255,15 +297,18 @@ public partial class SmartImportPage : ContentPage
         }
         finally
         {
-            ScanButton.IsVisible = true;
-            ScanProgressPanel.IsVisible = false;
-            AddFolderButton.IsEnabled = true;
+            StopScanProgress();
+            _scanCts?.Dispose();
+            _scanCts = null;
+            SetScanSurfaceVisible(false);
+            System.Diagnostics.Debug.WriteLine($"[SmartImport] Scan surface closed; wizard step {_currentStep}.");
         }
     }
 
     private void OnCancelScanClicked(object? sender, EventArgs e)
     {
         _scanCts?.Cancel();
+        StopScanProgress();
     }
 
     private void OnClearYearFilterClicked(object? sender, EventArgs e)
@@ -339,6 +384,7 @@ public partial class SmartImportPage : ContentPage
         if (newSeasons > 0) details.Add($"🆕 {newSeasons} new season{(newSeasons != 1 ? "s" : "")} to create");
         if (emptyGroups > 0) details.Add($"⚠️ {emptyGroups} season{(emptyGroups != 1 ? "s" : "")} with no detectable data (auto-skipped)");
         if (totalTeams > 0) details.Add($"👥 {totalTeams} teams, {totalPlayers} players, {totalResults} results detected");
+        details.Add("Paging only changes the display. Import uses selected seasons across all review pages.");
         SummaryDetailLabel.Text = string.Join("\n", details);
 
         SeasonGroupsPanel.Children.Clear();
@@ -349,10 +395,46 @@ public partial class SmartImportPage : ContentPage
             .ThenBy(g => g.Files.FirstOrDefault()?.SeasonSortKey ?? "9999")
             .ToList();
 
-        foreach (var group in orderedGroups)
-        {
+        ShowSeasonPage(orderedGroups, 0);
+    }
+
+    private void ShowSeasonPage(List<LeagueFileDiscoveryService.SeasonGroup> groups, int pageIndex)
+    {
+        var page = new ReviewPagination<LeagueFileDiscoveryService.SeasonGroup>(
+            groups, pageIndex, ReviewPagination<LeagueFileDiscoveryService.SeasonGroup>.SeasonPageSize);
+        SeasonGroupsPanel.Children.Clear();
+        SeasonGroupsPanel.Children.Add(BuildReviewPager(page.PageIndex, page.PageCount,
+            index => ShowSeasonPage(groups, index)));
+        foreach (var group in page.Items)
             SeasonGroupsPanel.Children.Add(BuildSeasonGroupCard(group));
-        }
+        System.Diagnostics.Debug.WriteLine($"[SmartImport] Review page {page.PageIndex + 1}/{page.PageCount}: {page.Items.Count} season cards; file rows deferred.");
+    }
+
+    private static View BuildReviewPager(int pageIndex, int pageCount, Action<int> navigate)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Star)
+            },
+            ColumnSpacing = 8
+        };
+        var previous = new Button { Text = "Previous", IsEnabled = pageIndex > 0 };
+        var next = new Button { Text = "Next", IsEnabled = pageIndex + 1 < pageCount };
+        previous.Clicked += (_, _) => navigate(pageIndex - 1);
+        next.Clicked += (_, _) => navigate(pageIndex + 1);
+        grid.Add(previous, 0, 0);
+        grid.Add(new Label
+        {
+            Text = $"Page {pageIndex + 1} of {pageCount}",
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalOptions = LayoutOptions.Center
+        }, 1, 0);
+        grid.Add(next, 2, 0);
+        return grid;
     }
 
     private View BuildSeasonGroupCard(LeagueFileDiscoveryService.SeasonGroup group)
@@ -393,6 +475,7 @@ public partial class SmartImportPage : ContentPage
         var checkbox = new CheckBox
         {
             IsChecked = group.IsSelected,
+            IsEnabled = !group.RequiresReview,
             Color = Color.FromArgb("#3B82F6"),
             VerticalOptions = LayoutOptions.Center
         };
@@ -462,6 +545,8 @@ public partial class SmartImportPage : ContentPage
         headerGrid.Add(nameStack, 1, 0);
         headerGrid.Add(countBadge, 2, 0);
         mainStack.Children.Add(headerGrid);
+        if (group.RequiresReview)
+            mainStack.Children.Add(new Label { Text = group.ReviewReason, TextColor = Color.FromArgb("#B45309"), FontSize = 12 });
 
         // Data summary line (teams, players, results)
         if (group.IsAnalyzed && hasData)
@@ -533,8 +618,51 @@ public partial class SmartImportPage : ContentPage
 
         // File list (collapsible)
         var filesStack = new VerticalStackLayout { Spacing = 2, IsVisible = false };
-        foreach (var file in group.Files)
+
+        void ShowFilePage(int pageIndex)
         {
+            var page = new ReviewPagination<LeagueFileDiscoveryService.DiscoveredFile>(
+                group.Files, pageIndex, ReviewPagination<LeagueFileDiscoveryService.DiscoveredFile>.FilePageSize);
+            filesStack.Children.Clear();
+            filesStack.Children.Add(BuildReviewPager(page.PageIndex, page.PageCount, ShowFilePage));
+            foreach (var file in page.Items)
+                filesStack.Children.Add(BuildDiscoveredFileRow(file));
+        }
+
+        var toggleButton = new Button
+        {
+            Text = $"▶ Show {group.Files.Count} file{(group.Files.Count != 1 ? "s" : "")}",
+            BackgroundColor = Colors.Transparent,
+            TextColor = Color.FromArgb("#3B82F6"),
+            FontSize = 12,
+            HorizontalOptions = LayoutOptions.Start,
+            Padding = new Thickness(0, 4)
+        };
+        toggleButton.Clicked += (s, e) =>
+        {
+            if (filesStack.IsVisible)
+            {
+                filesStack.IsVisible = false;
+                filesStack.Children.Clear();
+                toggleButton.Text = $"▶ Show {group.Files.Count} file{(group.Files.Count != 1 ? "s" : "")}";
+            }
+            else
+            {
+                ShowFilePage(0);
+                filesStack.IsVisible = true;
+                toggleButton.Text = "▼ Hide files";
+            }
+        };
+
+        mainStack.Children.Add(toggleButton);
+        mainStack.Children.Add(filesStack);
+
+        border.Content = mainStack;
+        return border;
+    }
+
+    private View BuildDiscoveredFileRow(LeagueFileDiscoveryService.DiscoveredFile file)
+    {
             var fileRow = new Grid
             {
                 ColumnDefinitions =
@@ -600,32 +728,7 @@ public partial class SmartImportPage : ContentPage
                 fileRow.Add(previewBtn, 4, 0);
             }
 
-            filesStack.Children.Add(fileRow);
-        }
-
-        // Toggle button
-        var toggleButton = new Button
-        {
-            Text = $"▶ Show {group.Files.Count} file{(group.Files.Count != 1 ? "s" : "")}",
-            BackgroundColor = Colors.Transparent,
-            TextColor = Color.FromArgb("#3B82F6"),
-            FontSize = 12,
-            HorizontalOptions = LayoutOptions.Start,
-            Padding = new Thickness(0, 4)
-        };
-        toggleButton.Clicked += (s, e) =>
-        {
-            filesStack.IsVisible = !filesStack.IsVisible;
-            toggleButton.Text = filesStack.IsVisible
-                ? $"▼ Hide files"
-                : $"▶ Show {group.Files.Count} file{(group.Files.Count != 1 ? "s" : "")}";
-        };
-
-        mainStack.Children.Add(toggleButton);
-        mainStack.Children.Add(filesStack);
-
-        border.Content = mainStack;
-        return border;
+            return fileRow;
     }
 
     // ── File Preview ───────────────────────────────────────────────
@@ -823,7 +926,7 @@ public partial class SmartImportPage : ContentPage
     {
         if (_currentStep != 2 || !NextButton.IsEnabled) return;
         NextButton.IsEnabled = false;
-        var selectedGroups = _seasonGroups.Where(g => g.IsSelected).ToList();
+        var selectedGroups = _seasonGroups.Where(g => g.IsSelected && !g.RequiresReview).ToList();
 
         if (selectedGroups.Count == 0)
         {
@@ -1706,46 +1809,6 @@ public partial class SmartImportPage : ContentPage
             }
         }
 
-        // ── 2. Remove teams that are actually player names ──
-        // Build a set of known player names for this season
-        var playerNames = new HashSet<string>(
-            data.Players.Where(p => p.SeasonId == seasonId && !string.IsNullOrWhiteSpace(p.Name))
-                .Select(p => p.Name!),
-            StringComparer.OrdinalIgnoreCase);
-
-        // Also build from FirstName + LastName
-        foreach (var p in data.Players.Where(p => p.SeasonId == seasonId))
-        {
-            var fullName = $"{p.FirstName} {p.LastName}".Trim();
-            if (!string.IsNullOrWhiteSpace(fullName))
-                playerNames.Add(fullName);
-        }
-
-        // Build a set of known venue names for this season
-        var venueNames = new HashSet<string>(
-            data.Venues.Where(v => v.SeasonId == seasonId && !string.IsNullOrWhiteSpace(v.Name))
-                .Select(v => v.Name!),
-            StringComparer.OrdinalIgnoreCase);
-
-        // Find teams that match player or venue names but have no fixtures
-        var suspectTeams = data.Teams
-            .Where(t => t.SeasonId == seasonId && !string.IsNullOrWhiteSpace(t.Name))
-            .Where(t => playerNames.Contains(t.Name!) || venueNames.Contains(t.Name!))
-            .ToList();
-
-        foreach (var suspect in suspectTeams)
-        {
-            // Only remove if this team has NO fixtures and NO players assigned to it
-            var hasFixtures = data.Fixtures.Any(f =>
-                f.SeasonId == seasonId &&
-                (f.HomeTeamId == suspect.Id || f.AwayTeamId == suspect.Id));
-            var hasPlayers = data.Players.Any(p => p.TeamId == suspect.Id);
-
-            if (!hasFixtures && !hasPlayers)
-            {
-                data.Teams.Remove(suspect);
-            }
-        }
     }
 
     private Guid CreateSeason(string displayName)
@@ -1963,6 +2026,7 @@ public partial class SmartImportPage : ContentPage
     private async void OnCancelClicked(object? sender, EventArgs e)
     {
         _scanCts?.Cancel();
+        StopScanProgress();
         await Navigation.PopAsync();
     }
 
