@@ -10,8 +10,9 @@ namespace Wdpl2.Views;
 
 public partial class ImportPreviewPage : ContentPage
 {
-    private readonly IDataStore _dataStore;
+    private readonly Wdpl2.Services.Import.ImportWorkspace _dataStore;
     private ImportPreview? _preview;
+    private bool _importRunning;
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<DivisionPreview> _divisions = new();
     private readonly ObservableCollection<TeamPreview> _teams = new();
@@ -20,7 +21,7 @@ public partial class ImportPreviewPage : ContentPage
 
     public ImportPreviewPage(IDataStore dataStore)
     {
-        _dataStore = dataStore;
+        _dataStore = new Wdpl2.Services.Import.ImportWorkspace(dataStore);
         InitializeComponent();
         
         SeasonPicker.ItemsSource = _seasons;
@@ -211,12 +212,11 @@ public partial class ImportPreviewPage : ContentPage
         };
 
         _dataStore.GetData().Seasons.Add(season);
-        await _dataStore.SaveAsync();
 
         _seasons.Add(season);
         SeasonPicker.SelectedItem = season;
 
-        await DisplayAlert("Success", $"Created season: {seasonName}", "OK");
+        await DisplayAlert("Season prepared", $"{seasonName} will be saved when you confirm the import.", "OK");
     }
 
     private void OnSelectAllDivisionsClicked(object? sender, EventArgs e)
@@ -270,6 +270,8 @@ public partial class ImportPreviewPage : ContentPage
 
     private async void OnImportClicked(object? sender, EventArgs e)
     {
+        if (_importRunning) return;
+        _importRunning = true;
         try
         {
             if (_preview == null)
@@ -313,7 +315,7 @@ public partial class ImportPreviewPage : ContentPage
             ImportButton.Text = "Importing...";
 
             // Create snapshot for rollback on failure
-            DataStore.CreatePreImportSnapshot();
+            _dataStore.CreatePreImportSnapshot();
 
             // Apply import
             var result = await ImportPreviewService.ApplyPreviewAsync(
@@ -325,7 +327,7 @@ public partial class ImportPreviewPage : ContentPage
             {
                 // Save changes
                 await _dataStore.SaveAsync();
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
 
                 await DisplayAlert(
                     "Import Complete!",
@@ -341,7 +343,7 @@ public partial class ImportPreviewPage : ContentPage
             }
             else
             {
-                DataStore.RestorePreImportSnapshot();
+                _dataStore.RestorePreImportSnapshot();
                 await DisplayAlert(
                     "Import Failed",
                     string.Join("\n", result.Errors),
@@ -353,11 +355,12 @@ public partial class ImportPreviewPage : ContentPage
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Error", $"Import failed: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ImportButton.IsEnabled = true;
             ImportButton.Text = "Import Selected";
         }
+        finally { _importRunning = false; }
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)

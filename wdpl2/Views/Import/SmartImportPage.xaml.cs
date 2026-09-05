@@ -15,7 +15,7 @@ namespace Wdpl2.Views;
 
 public partial class SmartImportPage : ContentPage
 {
-    private readonly IDataStore _dataStore;
+    private readonly ImportWorkspace _dataStore;
     private readonly LeagueFileDiscoveryService _discoveryService = new();
     private readonly Dictionary<string, bool> _scanLocations = new();
     private List<LeagueFileDiscoveryService.DiscoveredFile> _discoveredFiles = new();
@@ -28,7 +28,7 @@ public partial class SmartImportPage : ContentPage
 
     public SmartImportPage(IDataStore dataStore)
     {
-        _dataStore = dataStore;
+        _dataStore = new ImportWorkspace(dataStore);
         InitializeComponent();
         PopulateScanLocations();
     }
@@ -92,6 +92,7 @@ public partial class SmartImportPage : ContentPage
 
     private void ResetWizard()
     {
+        _dataStore.Reset();
         _currentStep = 1;
         _discoveredFiles.Clear();
         _seasonGroups.Clear();
@@ -820,11 +821,14 @@ public partial class SmartImportPage : ContentPage
 
     private async void OnImportClicked(object? sender, EventArgs e)
     {
+        if (_currentStep != 2 || !NextButton.IsEnabled) return;
+        NextButton.IsEnabled = false;
         var selectedGroups = _seasonGroups.Where(g => g.IsSelected).ToList();
 
         if (selectedGroups.Count == 0)
         {
             await DisplayAlert("Nothing Selected", "Please select at least one season group to import.", "OK");
+            NextButton.IsEnabled = true;
             return;
         }
 
@@ -833,6 +837,7 @@ public partial class SmartImportPage : ContentPage
         if (dataGroups.Count == 0)
         {
             await DisplayAlert("No Data", "None of the selected seasons contain importable data.", "OK");
+            NextButton.IsEnabled = true;
             return;
         }
 
@@ -845,7 +850,7 @@ public partial class SmartImportPage : ContentPage
 
         var confirm = await DisplayAlert("Confirm Import", confirmMsg, "Import", "Cancel");
 
-        if (!confirm) return;
+        if (!confirm) { NextButton.IsEnabled = true; return; }
 
         _currentStep = 3;
         UpdateStepDisplay();
@@ -919,7 +924,7 @@ public partial class SmartImportPage : ContentPage
                     try
                     {
                         var (_, sqlResult) = await SqlFileImporter.ImportFromSqlFileAsync(
-                            sqlFile.FilePath, _dataStore.GetData(), false, targetSeasonId: seasonId);
+                            sqlFile.FilePath, _dataStore.GetData(), false, targetSeasonId: seasonId, manageSnapshot: false);
 
                         if (sqlResult.Success)
                         {
@@ -962,7 +967,7 @@ public partial class SmartImportPage : ContentPage
                             totalCreated.Seasons++;
                         }
 
-                        var orchestrator = new ParadoxImportOrchestrator(paradoxFile.FilePath);
+                        var orchestrator = new ParadoxImportOrchestrator(paradoxFile.FilePath, _dataStore.GetData());
                         var pdxResult = await orchestrator.ImportAsync(seasonId.Value);
 
                         if (pdxResult.Success)
@@ -1009,6 +1014,8 @@ public partial class SmartImportPage : ContentPage
             }
 
             // Save all changes
+            if (errors.Count > 0)
+                throw new InvalidDataException("No changes were saved because some files failed:\n" + string.Join("\n", errors.Take(10)));
             await _dataStore.SaveAsync();
 
             // Build results
@@ -1020,6 +1027,7 @@ public partial class SmartImportPage : ContentPage
         {
             ImportProgressPanel.IsVisible = false;
             ImportTitle.Text = "Import Failed ❌";
+            _dataStore.RestorePreImportSnapshot();
 
             ResultsArea.Children.Add(new Label
             {
@@ -1031,6 +1039,7 @@ public partial class SmartImportPage : ContentPage
 
             AddStartOverButton();
         }
+        finally { NextButton.IsEnabled = true; }
     }
 
     /// <summary>

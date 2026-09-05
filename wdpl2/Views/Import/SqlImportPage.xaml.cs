@@ -27,11 +27,11 @@ public partial class SqlImportPage : ContentPage
 
     // Optional pre-selected file path (set before page appears)
     private string? _preSelectedFilePath;
-    private readonly IDataStore _dataStore;
+    private readonly Wdpl2.Services.Import.ImportWorkspace _dataStore;
 
     public SqlImportPage(IDataStore dataStore)
     {
-        _dataStore = dataStore;
+        _dataStore = new Wdpl2.Services.Import.ImportWorkspace(dataStore);
         InitializeComponent();
         BuildUI();
     }
@@ -1020,7 +1020,7 @@ public partial class SqlImportPage : ContentPage
 
     private async Task RunImportAsync()
     {
-        if (_selectedFilePath == null || _parsedData == null) return;
+        if (_isProcessing || _selectedFilePath == null || _parsedData == null) return;
 
         _isProcessing = true;
         _currentStep = 3;
@@ -1035,9 +1035,12 @@ public partial class SqlImportPage : ContentPage
             var (importedData, result) = await SqlFileImporter.ImportFromSqlFileAsync(
                 _selectedFilePath,
                 _dataStore.GetData(),
-                false);
+                false, manageSnapshot: false);
 
             _lastImportResult = result;
+
+            if (!result.Success)
+                throw new InvalidDataException(string.Join("\n", result.Errors));
 
             UpdateProgressStep("SeasonStep", true, $"Season: {result.DetectedSeason?.Name ?? "None"}");
             await Task.Delay(50);
@@ -1063,18 +1066,13 @@ public partial class SqlImportPage : ContentPage
             UpdateProgressStep("SaveStep", true, "Data saved!");
             await Task.Delay(100);
 
-            // Switch to the imported season so the user can see the data immediately
-            if (result.DetectedSeason != null)
-            {
-                SeasonService.Current.CurrentSeasonId = result.DetectedSeason.Id;
-            }
-
             // Show results
             ShowResults(result);
         }
         catch (Exception ex)
         {
             await DisplayAlert("Error", $"Import failed:\n\n{ex.Message}", "OK");
+            _dataStore.RestorePreImportSnapshot();
             _currentStep = 2;
             UpdateStepVisibility();
         }

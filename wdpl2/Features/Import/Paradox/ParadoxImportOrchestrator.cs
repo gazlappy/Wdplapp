@@ -80,6 +80,8 @@ public class ParadoxImportOrchestrator
     }
 
     private readonly string _folderPath;
+    private readonly LeagueData? _workspace;
+    private LeagueData Data => _workspace ?? DataStore.Data;
     private Guid _seasonId;
     
     // ID mapping dictionaries (Paradox ID -> App GUID)
@@ -92,9 +94,10 @@ public class ParadoxImportOrchestrator
 
     public event Action<ImportProgress>? ProgressChanged;
 
-    public ParadoxImportOrchestrator(string folderPath)
+    public ParadoxImportOrchestrator(string folderPath, LeagueData? workspace = null)
     {
         _folderPath = folderPath;
+        _workspace = workspace;
     }
 
     /// <summary>
@@ -106,7 +109,7 @@ public class ParadoxImportOrchestrator
         var summary = new ImportSummary();
 
         // Create snapshot so we can roll back on failure
-        DataStore.CreatePreImportSnapshot();
+        if (_workspace == null) DataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -119,7 +122,7 @@ public class ParadoxImportOrchestrator
             {
                 summary.Errors.AddRange(parseResult.Errors);
                 summary.Warnings.AddRange(parseResult.Warnings);
-                DataStore.ClearPreImportSnapshot();
+                if (_workspace == null) DataStore.ClearPreImportSnapshot();
                 return summary;
             }
 
@@ -167,10 +170,10 @@ public class ParadoxImportOrchestrator
             }
 
             // Save all changes
-            DataStore.Save();
+            if (_workspace == null) DataStore.Save();
 
             summary.Success = summary.Errors.Count == 0;
-            DataStore.ClearPreImportSnapshot();
+            if (_workspace == null) DataStore.ClearPreImportSnapshot();
         }
         catch (Exception ex)
         {
@@ -178,7 +181,7 @@ public class ParadoxImportOrchestrator
             summary.Success = false;
 
             // Roll back all changes on failure
-            DataStore.RestorePreImportSnapshot();
+            if (_workspace == null) DataStore.RestorePreImportSnapshot();
         }
 
         return summary;
@@ -204,7 +207,7 @@ public class ParadoxImportOrchestrator
         foreach (var div in divisions)
         {
             // Try exact match first
-            var existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+            var existing = Data.Divisions.FirstOrDefault(d =>
                 d.SeasonId == _seasonId &&
                 !string.IsNullOrWhiteSpace(d.Name) &&
                 d.Name.Equals(div.FullDivisionName, StringComparison.OrdinalIgnoreCase));
@@ -213,7 +216,7 @@ public class ParadoxImportOrchestrator
             if (existing == null)
             {
                 var normalizedInput = NormalizeDivisionName(div.FullDivisionName);
-                existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                existing = Data.Divisions.FirstOrDefault(d =>
                     d.SeasonId == _seasonId &&
                     !string.IsNullOrWhiteSpace(d.Name) &&
                     NormalizeDivisionName(d.Name).Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
@@ -223,7 +226,7 @@ public class ParadoxImportOrchestrator
             if (existing == null && !string.IsNullOrWhiteSpace(div.Abbreviated))
             {
                 var abbrevLower = div.Abbreviated.Trim().ToLower();
-                existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                existing = Data.Divisions.FirstOrDefault(d =>
                     d.SeasonId == _seasonId &&
                     !string.IsNullOrWhiteSpace(d.Name) &&
                     StripDivisionSuffix(d.Name).ToLower().StartsWith(abbrevLower));
@@ -245,7 +248,7 @@ public class ParadoxImportOrchestrator
                     SeasonId = _seasonId,
                     Name = div.FullDivisionName
                 };
-                DataStore.Data.Divisions.Add(newDiv);
+                Data.Divisions.Add(newDiv);
                 _divisionMap[div.ItemId] = newDiv.Id;
                 _divisionNameMap[div.FullDivisionName] = newDiv.Id;
                 if (!string.IsNullOrWhiteSpace(div.Abbreviated))
@@ -260,7 +263,7 @@ public class ParadoxImportOrchestrator
         {
             if (!_divisionNameMap.ContainsKey(divName))
             {
-                var existing = DataStore.Data.Divisions.FirstOrDefault(d =>
+                var existing = Data.Divisions.FirstOrDefault(d =>
                     d.SeasonId == _seasonId &&
                     d.Name != null &&
                     d.Name.Contains(divName, StringComparison.OrdinalIgnoreCase));
@@ -277,7 +280,7 @@ public class ParadoxImportOrchestrator
     {
         foreach (var venue in venues)
         {
-            var existing = DataStore.Data.Venues.FirstOrDefault(v =>
+            var existing = Data.Venues.FirstOrDefault(v =>
                 v.SeasonId == _seasonId &&
                 !string.IsNullOrWhiteSpace(v.Name) &&
                 v.Name.Equals(venue.VenueName, StringComparison.OrdinalIgnoreCase));
@@ -296,7 +299,7 @@ public class ParadoxImportOrchestrator
                     Name = venue.VenueName,
                     Address = venue.Address
                 };
-                DataStore.Data.Venues.Add(newVenue);
+                Data.Venues.Add(newVenue);
                 _venueMap[venue.ItemId] = newVenue.Id;
                 summary.VenuesImported++;
             }
@@ -307,7 +310,7 @@ public class ParadoxImportOrchestrator
     {
         foreach (var team in teams)
         {
-            var existing = DataStore.Data.Teams.FirstOrDefault(t =>
+            var existing = Data.Teams.FirstOrDefault(t =>
                 t.SeasonId == _seasonId &&
                 !string.IsNullOrWhiteSpace(t.Name) &&
                 t.Name.Equals(team.TeamName, StringComparison.OrdinalIgnoreCase));
@@ -340,7 +343,7 @@ public class ParadoxImportOrchestrator
                     VenueId = venueId,
                     Captain = team.Contact
                 };
-                DataStore.Data.Teams.Add(newTeam);
+                Data.Teams.Add(newTeam);
                 _teamMap[team.ItemId] = newTeam.Id;
                 summary.TeamsImported++;
             }
@@ -351,7 +354,7 @@ public class ParadoxImportOrchestrator
     {
         foreach (var player in players)
         {
-            var existing = DataStore.Data.Players.FirstOrDefault(p =>
+            var existing = Data.Players.FirstOrDefault(p =>
                 p.SeasonId == _seasonId &&
                 p.FirstName?.Equals(player.FirstName, StringComparison.OrdinalIgnoreCase) == true &&
                 p.LastName?.Equals(player.LastName, StringComparison.OrdinalIgnoreCase) == true);
@@ -377,7 +380,7 @@ public class ParadoxImportOrchestrator
                     LastName = player.LastName,
                     TeamId = teamId
                 };
-                DataStore.Data.Players.Add(newPlayer);
+                Data.Players.Add(newPlayer);
                 _playerMap[player.PlayerNo] = newPlayer.Id;
                 summary.PlayersImported++;
             }
@@ -411,7 +414,7 @@ public class ParadoxImportOrchestrator
             // Fallback: use home team's division if match doesn't specify one
             if (!divisionId.HasValue)
             {
-                var homeTeam = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+                var homeTeam = Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
                 if (homeTeam?.DivisionId.HasValue == true)
                 {
                     divisionId = homeTeam.DivisionId;
@@ -420,7 +423,7 @@ public class ParadoxImportOrchestrator
 
             // Find the home team's venue
             Guid? venueId = null;
-            var homeTeamForVenue = DataStore.Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
+            var homeTeamForVenue = Data.Teams.FirstOrDefault(t => t.Id == homeTeamId);
             if (homeTeamForVenue?.VenueId.HasValue == true)
             {
                 venueId = homeTeamForVenue.VenueId;
@@ -429,7 +432,7 @@ public class ParadoxImportOrchestrator
             // Only dedup if the match has a real date (not MinValue)
             if (match.MatchDate > DateTime.MinValue)
             {
-                var existingFixture = DataStore.Data.Fixtures.FirstOrDefault(f =>
+                var existingFixture = Data.Fixtures.FirstOrDefault(f =>
                     f.SeasonId == _seasonId &&
                     f.Date.Date == match.MatchDate.Date &&
                     f.HomeTeamId == homeTeamId &&
@@ -455,7 +458,7 @@ public class ParadoxImportOrchestrator
                 VenueId = venueId
             };
 
-            DataStore.Data.Fixtures.Add(fixture);
+            Data.Fixtures.Add(fixture);
             _matchMap[match.MatchNo] = fixtureId;
             summary.FixturesImported++;
 
@@ -480,7 +483,7 @@ public class ParadoxImportOrchestrator
                 continue;
             }
 
-            var fixture = DataStore.Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
+            var fixture = Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
             if (fixture == null)
             {
                 summary.SinglesSkipped++;
@@ -536,7 +539,7 @@ public class ParadoxImportOrchestrator
                 continue;
             }
 
-            var fixture = DataStore.Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
+            var fixture = Data.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
             if (fixture == null)
             {
                 summary.DoublesSkipped++;
@@ -616,7 +619,7 @@ public class ParadoxImportOrchestrator
         // Build reverse player map: GUID -> Paradox PlayerNo
         var reversePlayerMap = _playerMap.ToDictionary(kv => kv.Value, kv => kv.Key);
 
-        foreach (var fixture in DataStore.Data.Fixtures.Where(f => f.SeasonId == _seasonId))
+        foreach (var fixture in Data.Fixtures.Where(f => f.SeasonId == _seasonId))
         {
             var matchDate = fixture.Date.Date;
 
@@ -666,7 +669,7 @@ public class ParadoxImportOrchestrator
     /// </summary>
     private int GetWeekNumber(DateTime matchDate)
     {
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
+        var season = Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
         if (season == null) return 1;
 
         var daysSinceStart = (matchDate.Date - season.StartDate.Date).Days;
@@ -676,7 +679,7 @@ public class ParadoxImportOrchestrator
 
     private void UpdateSeasonDates(DateTime? startDate, DateTime? endDate)
     {
-        var season = DataStore.Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
+        var season = Data.Seasons.FirstOrDefault(s => s.Id == _seasonId);
         if (season == null) return;
 
         // For seasons that still have default dates (Today / Today+3months),

@@ -55,7 +55,7 @@ public static partial class DocumentParser
         return extension switch
         {
             ".docx" or ".doc" => DocumentFormat.Word,
-            ".xlsx" or ".xls" => DocumentFormat.Excel,
+            ".xlsx" or ".xls" or ".csv" => DocumentFormat.Excel,
             ".pptx" or ".ppt" => DocumentFormat.PowerPoint,
             ".pdf" => DocumentFormat.PDF,
             ".txt" => DocumentFormat.Text,
@@ -206,6 +206,10 @@ public static partial class DocumentParser
             if (extension == ".xlsx")
             {
                 result = await ParseXlsxAsync(filePath);
+            }
+            else if (extension == ".csv")
+            {
+                return await ParseCsvDocumentAsync(filePath);
             }
             else if (extension == ".xls")
             {

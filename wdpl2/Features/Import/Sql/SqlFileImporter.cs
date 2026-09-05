@@ -340,7 +340,8 @@ namespace Wdpl2.Services
             string sqlFilePath,
             LeagueData existingData,
             bool replaceExisting,
-            Guid? targetSeasonId = null)
+            Guid? targetSeasonId = null,
+            bool manageSnapshot = true)
         {
             var result = new SqlImportResult();
             var importedData = new LeagueData();
@@ -355,7 +356,7 @@ namespace Wdpl2.Services
             }
 
             // Create snapshot so we can roll back on failure
-            DataStore.CreatePreImportSnapshot();
+            if (manageSnapshot) DataStore.CreatePreImportSnapshot();
 
             try
             {
@@ -399,12 +400,12 @@ namespace Wdpl2.Services
 
                 if (result.Success)
                 {
-                    DataStore.ClearPreImportSnapshot();
+                    if (manageSnapshot) DataStore.ClearPreImportSnapshot();
                 }
                 else
                 {
                     // Partial import with errors - roll back to prevent corrupted state
-                    DataStore.RestorePreImportSnapshot();
+                    if (manageSnapshot) DataStore.RestorePreImportSnapshot();
                 }
             }
             catch (Exception ex)
@@ -413,7 +414,7 @@ namespace Wdpl2.Services
                 result.Success = false;
 
                 // Roll back on unhandled exception
-                DataStore.RestorePreImportSnapshot();
+                if (manageSnapshot) DataStore.RestorePreImportSnapshot();
             }
 
             return (importedData, result);

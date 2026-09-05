@@ -32,11 +32,11 @@ public partial class HistoricalImportPage : ContentPage
         SqlFile
     }
 
-    private readonly IDataStore _dataStore;
+    private readonly ImportWorkspace _dataStore;
 
     public HistoricalImportPage(IDataStore dataStore)
     {
-        _dataStore = dataStore;
+        _dataStore = new ImportWorkspace(dataStore);
         InitializeComponent();
         SelectedFilesList.ItemsSource = _selectedFiles;
     }
@@ -44,16 +44,28 @@ public partial class HistoricalImportPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        ResetWizard();
+        if (!_initialized || _returningFromPreview)
+        {
+            _initialized = true;
+            _returningFromPreview = false;
+            ResetWizard();
+        }
     }
 
     private void ResetWizard()
     {
+        _dataStore.Reset();
+        _intake?.Dispose();
+        _intake = null;
+        _targetSeasonId = null;
         _currentStep = 1;
         _selectedImportType = ImportType.None;
         _selectedFiles.Clear();
         _currentExtensions = Array.Empty<string>();
         _allowMultiple = false;
+        SelectedFilesPanel.IsVisible = false;
+        ProgressPanel.IsVisible = false;
+        ResultsArea.Children.Clear();
         UpdateStepDisplay();
     }
 
@@ -72,7 +84,7 @@ public partial class HistoricalImportPage : ContentPage
         // Update navigation buttons
         BackButton.IsVisible = _currentStep > 1 && _currentStep < 3;
         NextButton.IsVisible = _currentStep == 2 && _selectedFiles.Any();
-        CancelButton.IsVisible = _currentStep < 3;
+        CancelButton.IsVisible = _currentStep == 2;
     }
 
     private void UpdateStepIndicator(int stepNumber, bool isActive)
@@ -759,8 +771,14 @@ public partial class HistoricalImportPage : ContentPage
 
     private async void OnNextClicked(object? sender, EventArgs e)
     {
-        if (_currentStep == 2)
+        if (_isBusy || _currentStep != 2 || _selectedFiles.Count == 0) return;
+        _isBusy = true;
+        NextButton.IsEnabled = false;
+        try
         {
+            if (_selectedImportType == ImportType.BatchHTML && _selectedFiles.Count == 1)
+                _selectedImportType = ImportType.SingleHTML;
+            if (!await ConfirmTargetSeasonAsync()) return;
             _currentStep = 3;
             Step3Title.Text = "Processing Import...";
             ProgressPanel.IsVisible = true;
@@ -769,6 +787,15 @@ public partial class HistoricalImportPage : ContentPage
 
             // Process based on import type
             await ProcessImportAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Cannot start import", ex.Message, "OK");
+        }
+        finally
+        {
+            _isBusy = false;
+            NextButton.IsEnabled = true;
         }
     }
 
@@ -857,7 +884,7 @@ public partial class HistoricalImportPage : ContentPage
         try
         {
             // Create snapshot for rollback
-            DataStore.CreatePreImportSnapshot();
+            _dataStore.CreatePreImportSnapshot();
 
             var importer = new ActualDatabaseImporterV2(file.FilePath);
             var (data, summary) = await importer.ImportAllAsync();
@@ -866,6 +893,11 @@ public partial class HistoricalImportPage : ContentPage
 
             if (summary.Success)
             {
+                if (!await DisplayAlert("Import Access database", summary.Summary + "\n\nSave these imported records?", "Import", "Cancel"))
+                {
+                    ResetWizard();
+                    return;
+                }
                 // Merge imported data into the main DataStore
                 _dataStore.GetData().Seasons.AddRange(data.Seasons);
                 _dataStore.GetData().Divisions.AddRange(data.Divisions);
@@ -874,20 +906,20 @@ public partial class HistoricalImportPage : ContentPage
                 _dataStore.GetData().Players.AddRange(data.Players);
                 _dataStore.GetData().Fixtures.AddRange(data.Fixtures);
                 await _dataStore.SaveAsync();
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
 
                 ShowSuccessResult("Access Database Imported", summary.Summary);
             }
             else
             {
-                DataStore.RestorePreImportSnapshot();
+                _dataStore.RestorePreImportSnapshot();
                 await DisplayAlert("Import Failed", summary.Message, "OK");
                 ResetWizard();
             }
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Import Failed", $"Access import error: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
@@ -912,6 +944,7 @@ public partial class HistoricalImportPage : ContentPage
         // back when the user completes or cancels the import
         var previewPage = Application.Current?.Handler?.MauiContext?.Services.GetService<ImportPreviewPage>()
             ?? throw new InvalidOperationException("ImportPreviewPage not registered");
+        _returningFromPreview = true;
         await Navigation.PushAsync(previewPage);
         await previewPage.LoadPreviewAsync(file.FilePath);
     }
@@ -930,7 +963,7 @@ public partial class HistoricalImportPage : ContentPage
         }
 
         ProgressMessage.Text = "Processing spreadsheet...";
-        DataStore.CreatePreImportSnapshot();
+        _dataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -968,8 +1001,15 @@ public partial class HistoricalImportPage : ContentPage
                         }
                     }
 
+                    if (importStats.TeamsImported + importStats.PlayersImported + importStats.VenuesImported == 0)
+                    {
+                        _dataStore.RestorePreImportSnapshot();
+                        await DisplayAlert("No new records", "No supported new league records were found. The rows may already exist, or the headers are not recognized.", "OK");
+                        ResetWizard();
+                        return;
+                    }
                     await _dataStore.SaveAsync();
-                    DataStore.ClearPreImportSnapshot();
+                    _dataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("Spreadsheet Imported", 
                         $"Successfully processed {result.Tables.Count} tables:\n" +
                         $"� Teams: {importStats.TeamsImported}\n" +
@@ -978,13 +1018,13 @@ public partial class HistoricalImportPage : ContentPage
                 }
                 else
                 {
-                    DataStore.ClearPreImportSnapshot();
+                    _dataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
                 var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
                     : "No tables found in spreadsheet";
@@ -994,7 +1034,7 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Error", $"Failed to process spreadsheet: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
@@ -1014,7 +1054,7 @@ public partial class HistoricalImportPage : ContentPage
         }
 
         ProgressMessage.Text = "Parsing HTML file...";
-        DataStore.CreatePreImportSnapshot();
+        _dataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -1081,19 +1121,27 @@ public partial class HistoricalImportPage : ContentPage
                     if (importStats.FixturesImported > 0) resultSummary.AppendLine($"� Fixtures: {importStats.FixturesImported}");
                     if (importStats.CompetitionsImported > 0) resultSummary.AppendLine($"� Competitions: {importStats.CompetitionsImported}");
 
+                    if (importStats.TeamsImported + importStats.PlayersImported + importStats.VenuesImported +
+                        importStats.FixturesImported + importStats.CompetitionsImported == 0)
+                    {
+                        _dataStore.RestorePreImportSnapshot();
+                        await DisplayAlert("No new records", "No supported new records were found. Existing records were left unchanged.", "OK");
+                        ResetWizard();
+                        return;
+                    }
                     await _dataStore.SaveAsync();
-                    DataStore.ClearPreImportSnapshot();
+                    _dataStore.ClearPreImportSnapshot();
                     ShowSuccessResult("HTML Imported", resultSummary.ToString());
                 }
                 else
                 {
-                    DataStore.ClearPreImportSnapshot();
+                    _dataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
                 await DisplayAlert("No Data Found", 
                     "Could not find any league data in this HTML file.\n\n" +
                     "Make sure the file contains tables with standings, results, or fixtures.", 
@@ -1103,7 +1151,7 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Error", $"Failed to parse HTML: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
@@ -1117,6 +1165,7 @@ public partial class HistoricalImportPage : ContentPage
         var filePaths = _selectedFiles.Select(f => f.FilePath).ToList();
         var batchPreviewPage = Application.Current?.Handler?.MauiContext?.Services.GetService<BatchImportPreviewPage>()
             ?? throw new InvalidOperationException("BatchImportPreviewPage not registered");
+        _returningFromPreview = true;
         await Navigation.PushAsync(batchPreviewPage);
         
         // Load the preview - the page will handle its own navigation when import is complete or cancelled
@@ -1140,7 +1189,7 @@ public partial class HistoricalImportPage : ContentPage
         }
 
         ProgressMessage.Text = "Extracting data from PDF...";
-        DataStore.CreatePreImportSnapshot();
+        _dataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -1202,25 +1251,25 @@ public partial class HistoricalImportPage : ContentPage
                     if (importResult.success)
                     {
                         await _dataStore.SaveAsync();
-                        DataStore.ClearPreImportSnapshot();
+                        _dataStore.ClearPreImportSnapshot();
                         ShowSuccessResult("PDF Imported", importResult.message);
                     }
                     else
                     {
-                        DataStore.RestorePreImportSnapshot();
+                        _dataStore.RestorePreImportSnapshot();
                         await DisplayAlert("Import Issue", importResult.message, "OK");
                         ResetWizard();
                     }
                 }
                 else
                 {
-                    DataStore.ClearPreImportSnapshot();
+                    _dataStore.ClearPreImportSnapshot();
                     ResetWizard();
                 }
             }
             else
             {
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
                 // PDF parsing had errors or no content
                 var errorMsg = result.Errors.Count != 0
                     ? string.Join("\n", result.Errors) 
@@ -1238,7 +1287,7 @@ public partial class HistoricalImportPage : ContentPage
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Error", $"Failed to process PDF: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ResetWizard();
         }
@@ -1359,7 +1408,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportLeagueTableFromTable(DocumentParser.TableData table, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        var currentSeasonId = _targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         // Skip header row
@@ -1370,6 +1419,7 @@ public partial class HistoricalImportPage : ContentPage
         // Find column indices
         var teamCol = FindColumnIndex(headerRow, "team", "name", "club");
         var venueCol = FindColumnIndex(headerRow, "venue", "pub", "home");
+        if (teamCol < 0) return Task.CompletedTask;
 
         // Get or create a default division for this season
         var division = _dataStore.GetData().Divisions.FirstOrDefault(d => d.SeasonId == currentSeasonId);
@@ -1448,7 +1498,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportPlayersFromTable(DocumentParser.TableData table, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        var currentSeasonId = _targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         var dataRows = table.Rows.Skip(1).ToList();
@@ -1556,7 +1606,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportLeagueStandings(System.Collections.Generic.List<LeagueStandingRow> standings, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        var currentSeasonId = _targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         // Get or create a default division
@@ -1600,7 +1650,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private Task ImportMatchResults(System.Collections.Generic.List<MatchResultRow> results, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        var currentSeasonId = _targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue) return Task.CompletedTask;
 
         foreach (var matchResult in results)
@@ -1652,7 +1702,7 @@ public partial class HistoricalImportPage : ContentPage
     /// </summary>
     private Task ImportDetectedCompetitions(System.Collections.Generic.List<HtmlLeagueParser.DetectedCompetition> detectedCompetitions, ImportStats stats)
     {
-        var currentSeasonId = SeasonService.Current.CurrentSeasonId;
+        var currentSeasonId = _targetSeasonId ?? SeasonService.Current.CurrentSeasonId;
         if (!currentSeasonId.HasValue)
         {
             return Task.CompletedTask;
@@ -1971,6 +2021,7 @@ public partial class HistoricalImportPage : ContentPage
         // Navigate to the dedicated SQL Import Wizard page with the selected file
         var sqlImportPage = Application.Current?.Handler?.MauiContext?.Services.GetService<SqlImportPage>()
             ?? throw new InvalidOperationException("SqlImportPage not registered");
+        _returningFromPreview = true;
         await Navigation.PushAsync(sqlImportPage);
         await sqlImportPage.LoadFileAsync(file.FilePath);
     }
@@ -2047,7 +2098,14 @@ public partial class HistoricalImportPage : ContentPage
                 Margin = new Thickness(0, 12, 0, 6),
                 FontAttributes = FontAttributes.Bold
             };
-            importButton.Clicked += async (s, e) => await RunParadoxImportV2Async(folderPath);
+            importButton.Clicked += async (s, e) =>
+            {
+                if (_isBusy) return;
+                _isBusy = true;
+                importButton.IsEnabled = false;
+                try { await RunParadoxImportV2Async(folderPath); }
+                finally { _isBusy = false; importButton.IsEnabled = true; }
+            };
             ResultsArea.Children.Add(importButton);
 
             // Description
@@ -2116,7 +2174,7 @@ public partial class HistoricalImportPage : ContentPage
         Step3Title.Text = "Importing...";
 
         // Create snapshot for rollback
-        DataStore.CreatePreImportSnapshot();
+        _dataStore.CreatePreImportSnapshot();
 
         try
         {
@@ -2140,7 +2198,7 @@ public partial class HistoricalImportPage : ContentPage
                 _dataStore.GetData().Players.AddRange(data.Players);
                 _dataStore.GetData().Fixtures.AddRange(data.Fixtures);
                 await _dataStore.SaveAsync();
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
 
                 // Show summary
                 var resultText = new System.Text.StringBuilder();
@@ -2204,7 +2262,7 @@ public partial class HistoricalImportPage : ContentPage
             else
             {
                 // Rollback on failure
-                DataStore.RestorePreImportSnapshot();
+                _dataStore.RestorePreImportSnapshot();
                 Step3Title.Text = "ℹ️ Import Failed";
 
                 var errorLabel = new Label
@@ -2275,7 +2333,7 @@ public partial class HistoricalImportPage : ContentPage
         catch (Exception ex)
         {
             // Rollback on unhandled exception
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
 
             ProgressPanel.IsVisible = false;
             Step3Title.Text = "Import Failed";
@@ -2332,7 +2390,7 @@ public partial class HistoricalImportPage : ContentPage
             HorizontalOptions = LayoutOptions.Center,
             Margin = new Thickness(0, 16)
         };
-        doneButton.Clicked += async (s, e) => await Navigation.PopAsync();
+        doneButton.Clicked += (s, e) => ResetWizard();
         ResultsArea.Children.Add(doneButton);
 
         var newImportButton = new Button
@@ -2349,13 +2407,7 @@ public partial class HistoricalImportPage : ContentPage
 
     private void OnBackClicked(object? sender, EventArgs e)
     {
-        if (_currentStep > 1)
-        {
-            _currentStep--;
-            _selectedFiles.Clear();
-            SelectedFilesPanel.IsVisible = false;
-            UpdateStepDisplay();
-        }
+        if (!_isBusy) ResetWizard();
     }
 
     private async void OnCancelClicked(object? sender, EventArgs e)
@@ -2366,7 +2418,7 @@ public partial class HistoricalImportPage : ContentPage
         
         if (confirm)
         {
-            await Navigation.PopAsync();
+            if (!_isBusy) ResetWizard();
         }
     }
 

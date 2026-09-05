@@ -11,8 +11,9 @@ namespace Wdpl2.Views;
 
 public partial class BatchImportPreviewPage : ContentPage
 {
-    private readonly IDataStore _dataStore;
+    private readonly Wdpl2.Services.Import.ImportWorkspace _dataStore;
     private BatchImportPreview? _batchPreview;
+    private bool _importRunning;
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<ImportFilePreview> _files = new();
     
@@ -69,7 +70,7 @@ public partial class BatchImportPreviewPage : ContentPage
 
     public BatchImportPreviewPage(IDataStore dataStore)
     {
-        _dataStore = dataStore;
+        _dataStore = new Wdpl2.Services.Import.ImportWorkspace(dataStore);
         InitializeComponent();
 
         SeasonPicker.ItemsSource = _seasons;
@@ -654,10 +655,9 @@ public partial class BatchImportPreviewPage : ContentPage
 
         var season = new Season { Id = Guid.NewGuid(), Name = seasonName, StartDate = DateTime.Now, IsActive = false };
         _dataStore.GetData().Seasons.Add(season);
-        await _dataStore.SaveAsync();
         _seasons.Add(season);
         SeasonPicker.SelectedItem = season;
-        await DisplayAlert("Success", $"Created season: {seasonName}", "OK");
+        await DisplayAlert("Season prepared", $"{seasonName} will be saved when you confirm the import.", "OK");
     }
 
     private void OnSelectAllFilesClicked(object? sender, EventArgs e)
@@ -687,6 +687,8 @@ public partial class BatchImportPreviewPage : ContentPage
 
     private async void OnImportClicked(object? sender, EventArgs e)
     {
+        if (_importRunning) return;
+        _importRunning = true;
         try
         {
             if (_batchPreview == null)
@@ -731,7 +733,7 @@ public partial class BatchImportPreviewPage : ContentPage
             ProgressLabel.Text = "Importing data...";
 
             // Create snapshot for rollback on failure
-            DataStore.CreatePreImportSnapshot();
+            _dataStore.CreatePreImportSnapshot();
 
             // Import all aggregated data at once
             var result = await ImportAggregatedDataAsync(selectedSeason.Id);
@@ -741,13 +743,13 @@ public partial class BatchImportPreviewPage : ContentPage
             if (result.Success)
             {
                 await _dataStore.SaveAsync();
-                DataStore.ClearPreImportSnapshot();
+                _dataStore.ClearPreImportSnapshot();
                 await DisplayAlert("Batch Import Complete!", result.Summary, "OK");
                 await Navigation.PopAsync();
             }
             else
             {
-                DataStore.RestorePreImportSnapshot();
+                _dataStore.RestorePreImportSnapshot();
                 await DisplayAlert("Import Failed", result.Summary + "\n\n" + string.Join("\n", result.Errors.Take(5)), "OK");
                 ImportButton.IsEnabled = true;
                 ImportButton.Text = "Import All Selected";
@@ -755,12 +757,13 @@ public partial class BatchImportPreviewPage : ContentPage
         }
         catch (Exception ex)
         {
-            DataStore.RestorePreImportSnapshot();
+            _dataStore.RestorePreImportSnapshot();
             await DisplayAlert("Error", $"Batch import failed: {ex.Message}\n\nYour data has been restored to its previous state.", "OK");
             ImportButton.IsEnabled = true;
             ImportButton.Text = "Import All Selected";
             ProgressBorder.IsVisible = false;
         }
+        finally { _importRunning = false; }
     }
 
     /// <summary>

@@ -171,6 +171,8 @@ public interface IDataStore
     /// Save all changes to disk
     /// </summary>
     Task SaveAsync(CancellationToken ct = default);
+
+    Task CommitImportAsync(LeagueData baseline, LeagueData imported, CancellationToken ct = default);
     
     /// <summary>
     /// Get the underlying data (for backward compatibility)

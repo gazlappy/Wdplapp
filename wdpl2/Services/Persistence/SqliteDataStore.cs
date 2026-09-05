@@ -8,7 +8,7 @@ namespace Wdpl2.Services;
 /// SQLite-based implementation of IDataStore using Entity Framework Core.
 /// Provides high-performance data access with automatic relationship management.
 /// </summary>
-public class SqliteDataStore : IDataStore
+public partial class SqliteDataStore : IDataStore
 {
     private readonly LeagueContext _context;
     private readonly SemaphoreSlim _gate = new(1, 1);
