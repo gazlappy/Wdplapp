@@ -12,6 +12,7 @@ using Microsoft.Maui.Storage;
 using Wdpl2.Helpers;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using Wdpl2.Services.Import;
 
 namespace Wdpl2.Views;
 
@@ -81,6 +82,9 @@ public partial class PlayersPage : ContentPage
     private bool _showAllSeasons = false;
     private bool _showUnassigned = false;
     private bool _hideInactive = false;
+    private readonly SeasonConfigurationSelection _configuration = new();
+    private bool _refreshingConfiguration;
+    private bool _saving;
     private string _sortOption = "A ? Z";
 
     private static readonly string[] SortOptions = ["A ? Z", "Z ? A", "By Team", "Newest First"];
@@ -105,7 +109,9 @@ public partial class PlayersPage : ContentPage
             ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
             {
                 _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+                ResetSelection();
                 SafeRefreshPlayers(SearchEntry?.Text);
+                UpdateActions();
             };
 
             ShowUnassignedCheck.CheckedChanged += (_, __) =>
@@ -138,32 +144,10 @@ public partial class PlayersPage : ContentPage
             BulkAssignTeamBtn.Clicked += OnBulkAssignTeam;
             BulkDeleteBtn.Clicked += OnBulkDelete;
 
-            SaveBtn.Clicked += async (_, __) =>
-            {
-                try
-                {
-                    if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
-                    {
-                        await DisplayAlert($"{Emojis.Lock} Season Locked",
-                            "Cannot save changes � this season is locked.", "OK");
-                        return;
-                    }
-                    await _dataStore.SaveAsync();
-                    await DisplayAlert($"{Emojis.Success} Saved", "All changes saved successfully!", "OK");
-                    SetStatus("Saved.");
-                }
-                catch (Exception ex)
-                {
-                    await DisplayAlert($"{Emojis.Error} Error", $"Failed to save: {ex.Message}", "OK");
-                    SetStatus($"Save failed: {ex.Message}");
-                }
-            };
-
             ReloadBtn.Clicked += (_, __) =>
             {
                 try
                 {
-                    DataStore.Load();
                     RefreshAll();
                     SetStatus("Reloaded.");
                 }
@@ -345,16 +329,7 @@ public partial class PlayersPage : ContentPage
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                _currentSeasonId = e.NewSeasonId;
-                _items.Clear();
-                SafeRefreshPlayers(SearchEntry?.Text);
-                SafeRefreshTeams();
-                RefreshH2HSeasons();
-
-                var statusMsg = e.NewSeason != null
-                    ? $"Season: {e.NewSeason.Name}{(e.NewSeason.IsActive ? "" : " (Imported)")}"
-                    : "No active season - data cleared";
-                SetStatus(statusMsg);
+                if (!_saving) RefreshAll();
             });
         }
         catch (Exception ex)
@@ -367,15 +342,21 @@ public partial class PlayersPage : ContentPage
     {
         try
         {
-            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
-            if (!_currentSeasonId.HasValue)
+            var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ThenBy(s => s.Name).ToList();
+            _configuration.Refresh(seasons, SeasonService.Current.CurrentSeasonId);
+            _currentSeasonId = _configuration.SeasonId;
+            _refreshingConfiguration = true;
+            try
             {
-                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
-                if (activeSeason != null) _currentSeasonId = activeSeason.Id;
+                ConfigurationSeasonPicker.ItemsSource = seasons;
+                ConfigurationSeasonPicker.SelectedItem = seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
             }
+            finally { _refreshingConfiguration = false; }
+            ResetSelection();
             SafeRefreshPlayers(SearchEntry?.Text);
             SafeRefreshTeams();
             RefreshH2HSeasons();
+            UpdateActions();
         }
         catch (Exception ex)
         {
@@ -411,9 +392,7 @@ public partial class PlayersPage : ContentPage
             if (!_showAllSeasons && !_currentSeasonId.HasValue) return;
             if (_dataStore.GetData()?.Teams == null) return;
 
-            var teams = _showAllSeasons
-                ? _dataStore.GetData().Teams.Where(t => t != null).OrderBy(t => t.Name ?? "").ToList()
-                : _dataStore.GetData().Teams.Where(t => t != null && t.SeasonId == _currentSeasonId).OrderBy(t => t.Name ?? "").ToList();
+            var teams = _dataStore.GetData().Teams.Where(t => t.SeasonId == (_showAllSeasons ? _selected?.SeasonId : _currentSeasonId)).OrderBy(t => t.Name ?? "").ToList();
 
             foreach (var t in teams) _teams.Add(t);
         }
@@ -430,7 +409,7 @@ public partial class PlayersPage : ContentPage
             _items.Clear();
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected - check 'Show all seasons' or activate a season");
+                SetStatus("Choose a season to configure, including inactive seasons.");
                 return;
             }
             if (_dataStore.GetData()?.Players == null)
@@ -488,7 +467,7 @@ public partial class PlayersPage : ContentPage
             else if (players.Count != 0)
             {
                 var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
-                SetStatus($"{_items.Count} player(s){(season != null ? $" in {season.Name}" : "")}{(season != null && !season.IsActive ? " (Imported)" : "")}");
+                SetStatus($"{_items.Count} player(s){(season != null ? $" in {season.Name}" : "")}{(season != null && !season.IsActive ? " (Inactive)" : "")}");
             }
             else
                 SetStatus("No players found for the current season");
@@ -516,6 +495,7 @@ public partial class PlayersPage : ContentPage
                 _selected = null;
                 ClearEditor();
                 RefreshHeadToHead();
+                UpdateActions();
                 return;
             }
             _selected = _dataStore.GetData()?.Players?.FirstOrDefault(p => p.Id == item.Id);
@@ -527,6 +507,7 @@ public partial class PlayersPage : ContentPage
             }
             LoadEditor(_selected);
             RefreshHeadToHead();
+            UpdateActions();
         }
         catch (Exception ex)
         {
@@ -602,6 +583,7 @@ public partial class PlayersPage : ContentPage
 
     private async void OnAdd(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         try
         {
             if (!_currentSeasonId.HasValue) { SetStatus("Please select a season first"); return; }
@@ -621,17 +603,17 @@ public partial class PlayersPage : ContentPage
                 FirstName = first,
                 LastName = last,
                 TeamId = (TeamPicker.SelectedItem as Team)?.Id,
+                IsActive = IsActiveSwitch.IsToggled,
                 Notes = NotesEntry.Text?.Trim()
             };
-            await _dataStore.AddPlayerAsync(player);
-            SafeRefreshPlayers(SearchEntry?.Text);
-            SetStatus($"Added: {player.FullName}");
+            await SavePlayerChangesAsync(new[] { player }, Array.Empty<Guid>(), $"Added: {player.FullName}");
         }
         catch (Exception ex) { SetStatus($"Add failed: {ex.Message}"); }
     }
 
     private async void OnUpdate(object? sender, EventArgs e)
     {
+        if (!CanEdit() || _selected?.SeasonId != _currentSeasonId) return;
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
@@ -642,18 +624,19 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            _selected.FirstName = FirstNameEntry.Text?.Trim() ?? "";
-            _selected.LastName = LastNameEntry.Text?.Trim() ?? "";
-            _selected.Notes = NotesEntry.Text?.Trim();
+            var player = ImportWorkspace.Clone(_selected);
+            player.FirstName = FirstNameEntry.Text?.Trim() ?? "";
+            player.LastName = LastNameEntry.Text?.Trim() ?? "";
+            player.Notes = NotesEntry.Text?.Trim();
 
-            var wasActive = _selected.IsActive;
-            _selected.IsActive = IsActiveSwitch.IsToggled;
-            if (wasActive && !_selected.IsActive)
-                _selected.DeactivatedDate = DateTime.Now;
-            else if (!wasActive && _selected.IsActive)
+            var wasActive = player.IsActive;
+            player.IsActive = IsActiveSwitch.IsToggled;
+            if (wasActive && !player.IsActive)
+                player.DeactivatedDate = DateTime.Now;
+            else if (!wasActive && player.IsActive)
             {
-                _selected.DeactivatedDate = null;
-                _selected.DeactivationReason = null;
+                player.DeactivatedDate = null;
+                player.DeactivationReason = null;
             }
 
             var selectedTeam = TeamPicker.SelectedItem as Team;
@@ -663,20 +646,15 @@ public partial class PlayersPage : ContentPage
                     $"The team '{selectedTeam.Name}' belongs to a different season. Please select a team from this player's season.", "OK");
                 return;
             }
-            _selected.TeamId = selectedTeam?.Id;
-            var updatedName = _selected.FullName;
-            // _selected is a detached snapshot from GetData(); use the typed
-            // update so EF actually persists the changes (IsActive toggle etc).
-            await _dataStore.UpdatePlayerAsync(_selected);
-            SafeRefreshPlayers(SearchEntry?.Text);
-            RefreshHeadToHead();
-            SetStatus($"Updated: {updatedName}");
+            player.TeamId = selectedTeam?.Id;
+            await SavePlayerChangesAsync(new[] { player }, Array.Empty<Guid>(), $"Updated: {player.FullName}");
         }
         catch (Exception ex) { SetStatus($"Update failed: {ex.Message}"); }
     }
 
     private async void OnDelete(object? sender, EventArgs e)
     {
+        if (!CanEdit() || _selected?.SeasonId != _currentSeasonId) return;
         try
         {
             if (_selected == null) { SetStatus("No player selected"); return; }
@@ -686,14 +664,9 @@ public partial class PlayersPage : ContentPage
                     "Cannot delete players � this season is locked.", "OK");
                 return;
             }
+            var id = _selected.Id;
             if (!await DisplayAlert($"{Emojis.Warning} Delete Player", $"Delete '{_selected.FullName}'?", "Yes", "No")) return;
-
-            await _dataStore.DeletePlayerAsync(_selected);
-            _selected = null;
-            SafeRefreshPlayers(SearchEntry?.Text);
-            ClearEditor();
-            RefreshHeadToHead();
-            SetStatus($"{Emojis.Success} Deleted");
+            await SavePlayerChangesAsync(Array.Empty<Player>(), new[] { id }, "Deleted player.");
         }
         catch (Exception ex)
         {
@@ -722,11 +695,14 @@ public partial class PlayersPage : ContentPage
             BulkDeleteBtn.IsVisible = false;
             UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = AddBtn.IsEnabled = true;
         }
+        ResetSelection();
+        UpdateActions();
         SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         try
         {
             if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
@@ -743,15 +719,7 @@ public partial class PlayersPage : ContentPage
             }
             if (!await DisplayAlert($"{Emojis.Warning} Bulk Delete", $"Delete {selectedItems.Count} player(s)?", "Yes, Delete", "Cancel")) return;
 
-            int deleted = 0;
-            foreach (var item in selectedItems)
-            {
-                var player = _dataStore.GetData()?.Players?.FirstOrDefault(p => p.Id == item.Id);
-                if (player != null) { _dataStore.GetData()?.Players?.Remove(player); deleted++; }
-            }
-            await _dataStore.SaveAsync();
-            SafeRefreshPlayers(SearchEntry?.Text);
-            SetStatus($"{Emojis.Success} Deleted {deleted} player(s)");
+            await SavePlayerChangesAsync(Array.Empty<Player>(), selectedItems.Select(p => p.Id).ToArray(), $"Deleted {selectedItems.Count} player(s)");
         }
         catch (Exception ex)
         {
@@ -796,6 +764,7 @@ public partial class PlayersPage : ContentPage
 
     private async Task ImportPlayersCsvAsync(Stream stream, string fileName)
     {
+        if (!CanEdit()) return;
         try
         {
             if (!_currentSeasonId.HasValue)
@@ -806,6 +775,7 @@ public partial class PlayersPage : ContentPage
 
             var rows = Csv.Read(stream);
             int added = 0, updated = 0;
+            var changes = new List<Player>();
             var teams = _dataStore.GetData()?.Teams?.Where(t => t != null && t.SeasonId == _currentSeasonId && !string.IsNullOrWhiteSpace(t.Name))
                 .ToDictionary(t => t.Name!.Trim(), t => t, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, Team>(StringComparer.OrdinalIgnoreCase);
 
@@ -815,9 +785,10 @@ public partial class PlayersPage : ContentPage
                 var last = r.Get("LastName") ?? "";
                 if (string.IsNullOrWhiteSpace(first) && string.IsNullOrWhiteSpace(last)) continue;
 
-                var existing = _dataStore.GetData()?.Players?.FirstOrDefault(p => p != null && p.SeasonId == _currentSeasonId &&
+                var original = changes.Concat(_dataStore.GetData().Players).FirstOrDefault(p => p != null && p.SeasonId == _currentSeasonId &&
                     string.Equals(p.FirstName, first, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(p.LastName, last, StringComparison.OrdinalIgnoreCase));
+                var existing = original == null ? null : ImportWorkspace.Clone(original);
 
                 var teamName = r.Get("Team");
                 var notes = r.Get("Notes");
@@ -835,19 +806,19 @@ public partial class PlayersPage : ContentPage
                         Notes = notes,
                         IsActive = isActive
                     };
-                    _dataStore.GetData()?.Players?.Add(player);
+                    changes.Add(player);
                     added++;
                 }
                 else
                 {
                     existing.TeamId = !string.IsNullOrWhiteSpace(teamName) && teams.TryGetValue(teamName, out var team) ? team.Id : null;
                     existing.Notes = notes;
+                    changes.RemoveAll(p => p.Id == existing.Id);
+                    changes.Add(existing);
                     updated++;
                 }
             }
-            await _dataStore.SaveAsync();
-            SafeRefreshPlayers(SearchEntry?.Text);
-            SetStatus($"{Emojis.Success} Imported: {added} added, {updated} updated");
+            await SavePlayerChangesAsync(changes, Array.Empty<Guid>(), $"Imported: {added} added, {updated} updated");
         }
         catch (Exception ex)
         {
@@ -857,6 +828,7 @@ public partial class PlayersPage : ContentPage
 
     private async Task OnTransferPlayerAsync()
     {
+        if (!CanEdit() || _selected?.SeasonId != _currentSeasonId) return;
         try
         {
             if (_selected == null)
@@ -864,6 +836,8 @@ public partial class PlayersPage : ContentPage
                 await DisplayAlert($"{Emojis.Info} No Player Selected", "Please select a player to transfer.", "OK");
                 return;
             }
+
+            var player = ImportWorkspace.Clone(_selected);
             if (_dataStore.GetData().IsSeasonLocked(_selected.SeasonId))
             {
                 await DisplayAlert($"{Emojis.Lock} Season Locked",
@@ -959,20 +933,15 @@ public partial class PlayersPage : ContentPage
                 LossesAtTransfer = losses
             };
 
-            _selected.TransferHistory ??= new List<PlayerTransfer>();
-            _selected.TransferHistory.Add(transfer);
-            _selected.TeamId = newTeam.Id;
+            player.TransferHistory ??= new List<PlayerTransfer>();
+            player.TransferHistory.Add(transfer);
+            player.TeamId = newTeam.Id;
 
             // Cache values before refresh (which clears selection and sets _selected to null)
-            var playerName = _selected.FullName;
+            var playerName = player.FullName;
             var newTeamName = newTeam.Name ?? "Unknown";
 
-            await _dataStore.SaveAsync();
-            SafeRefreshPlayers(SearchEntry?.Text);
-            LoadEditor(_selected);
-            RefreshHeadToHead();
-
-            SetStatus($"? Transferred {playerName} to {newTeamName}");
+            if (!await SavePlayerChangesAsync(new[] { player }, Array.Empty<Guid>(), $"Transferred {playerName} to {newTeamName}")) return;
             await DisplayAlert($"{Emojis.Success} Transfer Complete",
                 $"{playerName} has been transferred to {newTeamName}.\n\nTheir rating ({currentRating}) and previous results have been preserved.", "OK");
         }
@@ -986,6 +955,7 @@ public partial class PlayersPage : ContentPage
 
     private async void OnBulkAssignTeam(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         try
         {
             if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
@@ -1030,20 +1000,18 @@ public partial class PlayersPage : ContentPage
                 teamLabel = "no team";
             }
 
-            int count = 0;
+            var changes = new List<Player>();
             foreach (var item in selectedItems)
             {
                 var player = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == item.Id);
                 if (player != null)
                 {
-                    player.TeamId = newTeamId;
-                    count++;
+                    var copy = ImportWorkspace.Clone(player);
+                    copy.TeamId = newTeamId;
+                    changes.Add(copy);
                 }
             }
-
-            await _dataStore.SaveAsync();
-            SafeRefreshPlayers(SearchEntry?.Text);
-            SetStatus($"{Emojis.Success} Assigned {count} player(s) to {teamLabel}");
+            await SavePlayerChangesAsync(changes, Array.Empty<Guid>(), $"Assigned {changes.Count} player(s) to {teamLabel}");
         }
         catch (Exception ex)
         {
@@ -1053,6 +1021,7 @@ public partial class PlayersPage : ContentPage
 
     private async void OnPlayerTeamLabelTapped(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         try
         {
             if (_isMultiSelectMode) return;
@@ -1068,8 +1037,9 @@ public partial class PlayersPage : ContentPage
                 return;
             }
 
-            var player = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == item.Id);
-            if (player == null) return;
+            var original = _dataStore.GetData().Players?.FirstOrDefault(p => p.Id == item.Id);
+            if (original == null || original.SeasonId != _currentSeasonId) return;
+            var player = ImportWorkspace.Clone(original);
 
             var availableTeams = _dataStore.GetData().Teams?
                 .Where(t => t != null && t.SeasonId == player.SeasonId)
@@ -1097,19 +1067,106 @@ public partial class PlayersPage : ContentPage
                 player.TeamId = team.Id;
             }
 
-            await _dataStore.SaveAsync();
-            SafeRefreshPlayers(SearchEntry?.Text);
-
-            // Re-select in editor if this was the active player
-            if (_selected?.Id == player.Id)
-                LoadEditor(player);
-
-            SetStatus($"Assigned {player.FullName} to {chosen}");
+            await SavePlayerChangesAsync(new[] { player }, Array.Empty<Guid>(), $"Assigned {player.FullName} to {chosen}");
         }
         catch (Exception ex)
         {
             SetStatus($"Quick assign failed: {ex.Message}");
         }
+    }
+
+    private bool CanEdit() => !_saving && _configuration.CanEdit(_dataStore.GetData().Seasons, _showAllSeasons);
+
+    private void OnConfigurationSeasonChanged(object? sender, EventArgs e)
+    {
+        if (_refreshingConfiguration || _saving) return;
+        _configuration.Select((ConfigurationSeasonPicker.SelectedItem as Season)?.Id);
+        ShowAllSeasonsCheck.IsChecked = false;
+        OnCloseEditor(null, EventArgs.Empty);
+        RefreshAll();
+    }
+
+    private void ResetSelection()
+    {
+        _selected = null;
+        PlayersList.SelectedItem = null;
+        PlayersList.SelectedItems?.Clear();
+        ClearEditor();
+        RefreshHeadToHead();
+    }
+
+    private void UpdateActions()
+    {
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var editable = CanEdit();
+        var selected = editable && !_isMultiSelectMode && _selected != null && _selected.SeasonId == _currentSeasonId;
+        SeasonContextLbl.Text = season == null ? "No season selected." : $"{season.Name} · {(season.IsLocked ? "Locked · read-only" : season.IsActive ? "Active" : "Inactive · available for setup")}";
+        EditorSeasonLbl.Text = _showAllSeasons ? "Browsing all seasons — read-only." : $"Configuring: {season?.Name ?? "Choose a season first"}";
+        NewPlayerBtn.IsEnabled = AddBtn.IsEnabled = editable && !_isMultiSelectMode;
+        UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = selected;
+        TransferBtn.IsEnabled = selected && _selected?.TeamId != null;
+        BulkAssignTeamBtn.IsEnabled = BulkDeleteBtn.IsEnabled = PlayersImport.IsEnabled = editable;
+        FirstNameEntry.IsEnabled = LastNameEntry.IsEnabled = NotesEntry.IsEnabled = TeamPicker.IsEnabled = IsActiveSwitch.IsEnabled = editable && !_isMultiSelectMode;
+        ConfigurationSeasonPicker.IsEnabled = ShowAllSeasonsCheck.IsEnabled = PlayersList.IsEnabled = SearchEntry.IsEnabled = ReloadBtn.IsEnabled = MultiSelectBtn.IsEnabled = !_saving;
+        ShowUnassignedCheck.IsEnabled = HideInactiveCheck.IsEnabled = SortPicker.IsEnabled = !_saving;
+    }
+
+    private void OnNewPlayer(object? sender, EventArgs e)
+    {
+        if (!CanEdit()) return;
+        ResetSelection();
+        SafeRefreshTeams();
+        OnOpenEditor(sender, e);
+        FirstNameEntry.Focus();
+    }
+
+    private void OnOpenEditor(object? sender, EventArgs e)
+    {
+        UpdateActions();
+        EditorPanel.IsVisible = EditorOverlay.IsVisible = true;
+    }
+
+    private void OnCloseEditor(object? sender, EventArgs e) => EditorPanel.IsVisible = EditorOverlay.IsVisible = false;
+
+    private async Task<bool> SavePlayerChangesAsync(IEnumerable<Player> changes, IReadOnlyCollection<Guid> deleted, string success)
+    {
+        if (!CanEdit()) return false;
+        _saving = true;
+        UpdateActions();
+        try
+        {
+            var workspace = new ImportWorkspace(_dataStore);
+            var data = workspace.GetData();
+            foreach (var player in changes)
+            {
+                if (player.SeasonId != _currentSeasonId || (string.IsNullOrWhiteSpace(player.FirstName) && string.IsNullOrWhiteSpace(player.LastName)))
+                    throw new InvalidOperationException("Choose named players from the configured season only.");
+                var previous = data.Players.FirstOrDefault(p => p.Id == player.Id);
+                if (previous != null && previous.SeasonId != _currentSeasonId)
+                    throw new InvalidOperationException("Players cannot be moved between seasons here.");
+                data.Players.RemoveAll(p => p.Id == player.Id);
+                data.Players.Add(ImportWorkspace.Clone(player));
+            }
+            if (deleted.Any(id => !data.Players.Any(p => p.Id == id && p.SeasonId == _currentSeasonId)))
+                throw new InvalidOperationException("Select players from the configured season only.");
+            if (data.Teams.Any(t => t.CaptainPlayerId.HasValue && deleted.Contains(t.CaptainPlayerId.Value)) ||
+                data.Fixtures.SelectMany(f => f.Frames).Any(f =>
+                    (f.HomePlayerId.HasValue && deleted.Contains(f.HomePlayerId.Value)) ||
+                    (f.AwayPlayerId.HasValue && deleted.Contains(f.AwayPlayerId.Value))))
+                throw new InvalidOperationException("Players with captain assignments or recorded frames cannot be deleted here. Mark them inactive instead.");
+            data.Players.RemoveAll(p => deleted.Contains(p.Id));
+            await workspace.SaveAsync();
+            RefreshAll();
+            SetStatus(success);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Changes not saved: {ex.Message}");
+            await DisplayAlert("Player changes not saved", ex.Message, "OK");
+            return false;
+        }
+        finally { _saving = false; UpdateActions(); }
     }
 
     private void SetStatus(string msg)

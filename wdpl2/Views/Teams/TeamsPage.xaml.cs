@@ -8,6 +8,7 @@ using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using Wdpl2.Services.Import;
 
 namespace Wdpl2.Views;
 
@@ -121,6 +122,10 @@ public partial class TeamsPage : ContentPage
     private bool _isMultiSelectMode = false;
     private Guid? _currentSeasonId;
     private bool _showAllSeasons = false;
+    private readonly SeasonConfigurationSelection _configuration = new();
+    private bool _refreshingConfiguration;
+    private bool _saving;
+    private bool _openingHistoricalPlayers;
 
     private readonly IDataStore _dataStore;
 
@@ -152,22 +157,8 @@ public partial class TeamsPage : ContentPage
         BulkDeleteBtn.Clicked += OnBulkDelete;
         RandomDivisionBtn.Clicked += OnRandomDivisionAssign;
 
-        SaveBtn.Clicked += async (_, __) =>
-        {
-            if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
-            {
-                await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
-                    "Cannot save changes � this season is locked.", "OK");
-                return;
-            }
-            await _dataStore.SaveAsync();
-            await DisplayAlert("Saved", "All changes have been saved.", "OK");
-            SetStatus("Saved.");
-        };
-
         ReloadBtn.Clicked += (_, __) =>
         {
-            DataStore.Load();
             RefreshAll();
             SetStatus("Reloaded.");
         };
@@ -179,7 +170,9 @@ public partial class TeamsPage : ContentPage
         ShowAllSeasonsCheck.CheckedChanged += (_, __) =>
         {
             _showAllSeasons = ShowAllSeasonsCheck.IsChecked;
+            ResetSelection();
             RefreshTeamList(SearchEntry?.Text);
+            UpdateActions();
         };
 
         // NEW: Debug check button
@@ -617,21 +610,7 @@ public partial class TeamsPage : ContentPage
             
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                _currentSeasonId = e.NewSeasonId;
-                System.Diagnostics.Debug.WriteLine($"Teams Page _currentSeasonId updated to: {_currentSeasonId?.ToString() ?? "NULL"}");
-                
-                // Force clear the list first
-                System.Diagnostics.Debug.WriteLine($"?? Clearing team list...");
-                _teamItems.Clear();
-                
-                // Then refresh
-                RefreshTeamList(SearchEntry?.Text);
-                RefreshH2HSeasons();
-                
-                var statusMsg = e.NewSeason != null 
-                    ? $"Season changed to: {e.NewSeason.Name}" 
-                    : "No active season - data cleared";
-                SetStatus(statusMsg);
+                if (!_saving) RefreshAll();
                 
                 System.Diagnostics.Debug.WriteLine("=== TEAMS PAGE: Refresh Complete ===");
             });
@@ -650,21 +629,23 @@ public partial class TeamsPage : ContentPage
     {
         try
         {
-            // Use global season from SeasonService
-            _currentSeasonId = SeasonService.Current.CurrentSeasonId;
-
-            // If no season is set, try to use the active season
-            if (!_currentSeasonId.HasValue)
+            var seasons = _dataStore.GetData().Seasons.OrderByDescending(s => s.StartDate).ThenBy(s => s.Name).ToList();
+            _configuration.Refresh(seasons, SeasonService.Current.CurrentSeasonId);
+            _currentSeasonId = _configuration.SeasonId;
+            _refreshingConfiguration = true;
+            try
             {
-                var activeSeason = _dataStore.GetData()?.Seasons?.FirstOrDefault(s => s.IsActive);
-                if (activeSeason != null)
-                {
-                    _currentSeasonId = activeSeason.Id;
-                }
+                ConfigurationSeasonPicker.ItemsSource = seasons;
+                ConfigurationSeasonPicker.SelectedItem = seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
             }
-
+            finally { _refreshingConfiguration = false; }
+            ResetSelection();
+            RefreshDivisions();
+            RefreshVenues();
+            RefreshPlayers();
             RefreshTeamList(SearchEntry?.Text);
             RefreshH2HSeasons();
+            UpdateActions();
         }
         catch (Exception ex)
         {
@@ -714,7 +695,7 @@ public partial class TeamsPage : ContentPage
 
             if (!_showAllSeasons && !_currentSeasonId.HasValue)
             {
-                SetStatus("No season selected - check 'Show all seasons' or activate a season");
+                SetStatus("Choose a season to configure, including inactive seasons.");
                 System.Diagnostics.Debug.WriteLine("   ? No active season - returning early (list cleared)");
                 System.Diagnostics.Debug.WriteLine("=== RefreshTeamList END ===");
                 return; // This already clears the list since we called _teamItems.Clear() above
@@ -774,7 +755,7 @@ public partial class TeamsPage : ContentPage
             {
                 var season = _dataStore.GetData().Seasons?.FirstOrDefault(s => s.Id == _currentSeasonId);
                 var seasonInfo = season != null ? $" in {season.Name}" : "";
-                var importedTag = season != null && !season.IsActive ? " (Imported)" : "";
+                var importedTag = season != null && !season.IsActive ? " (Inactive)" : "";
                 SetStatus($"{_teamItems.Count} team(s){seasonInfo}{importedTag}");
             }
             else
@@ -847,10 +828,7 @@ public partial class TeamsPage : ContentPage
     {
         _divisions.Clear();
 
-        // If showing all seasons, include every division; otherwise only current season
-        var divisions = _showAllSeasons
-            ? _dataStore.GetData().Divisions.OrderBy(d => d.Name)
-            : _dataStore.GetData().Divisions.Where(d => d.SeasonId == _currentSeasonId).OrderBy(d => d.Name);
+        var divisions = _dataStore.GetData().Divisions.Where(d => d.SeasonId == (_showAllSeasons ? _selectedTeam?.SeasonId : _currentSeasonId)).OrderBy(d => d.Name);
 
         foreach (var d in divisions)
             _divisions.Add(d);
@@ -860,9 +838,7 @@ public partial class TeamsPage : ContentPage
     {
         _venues.Clear();
 
-        var venues = _showAllSeasons
-            ? _dataStore.GetData().Venues.OrderBy(v => v.Name)
-            : _dataStore.GetData().Venues.Where(v => v.SeasonId == _currentSeasonId).OrderBy(v => v.Name);
+        var venues = _dataStore.GetData().Venues.Where(v => v.SeasonId == (_showAllSeasons ? _selectedTeam?.SeasonId : _currentSeasonId)).OrderBy(v => v.Name);
 
         foreach (var v in venues)
             _venues.Add(v);
@@ -872,9 +848,7 @@ public partial class TeamsPage : ContentPage
     {
         _players.Clear();
 
-        var players = _showAllSeasons
-            ? _dataStore.GetData().Players.OrderBy(p => p.FullName)
-            : _dataStore.GetData().Players.Where(p => p.SeasonId == _currentSeasonId).OrderBy(p => p.FullName);
+        var players = _dataStore.GetData().Players.Where(p => p.SeasonId == (_showAllSeasons ? _selectedTeam?.SeasonId : _currentSeasonId) && p.TeamId == _selectedTeam?.Id).OrderBy(p => p.FullName);
 
         foreach (var p in players)
             _players.Add(p);
@@ -882,6 +856,7 @@ public partial class TeamsPage : ContentPage
 
     private async void OnAdd(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             SetStatus("Please select a season first on the Seasons page");
@@ -903,7 +878,7 @@ public partial class TeamsPage : ContentPage
         }
 
         var selectedDivision = DivisionPicker.SelectedItem as Division;
-        var seasonIdForTeam = selectedDivision?.SeasonId ?? _currentSeasonId ?? selectedDivision?.SeasonId;
+        var seasonIdForTeam = _currentSeasonId;
 
         var team = new Team
         {
@@ -916,14 +891,12 @@ public partial class TeamsPage : ContentPage
             ProvidesFood = FoodSwitch.IsToggled
         };
 
-        _dataStore.GetData().Teams.Add(team);
-        await _dataStore.SaveAsync();
-        RefreshTeamList(SearchEntry.Text);
-        SetStatus($"Added: {name}");
+        await SaveTeamChangesAsync(new[] { team }, Array.Empty<Guid>(), $"Added: {name}");
     }
 
     private async void OnUpdate(object? sender, EventArgs e)
     {
+        if (!CanEdit() || _selectedTeam?.SeasonId != _currentSeasonId) return;
         if (_selectedTeam == null)
         {
             SetStatus("No team selected");
@@ -939,24 +912,14 @@ public partial class TeamsPage : ContentPage
 
         var selectedDivision = DivisionPicker.SelectedItem as Division;
 
-        // If user selected a division from a different season, move the team to that season
-        if (selectedDivision != null && selectedDivision.SeasonId.HasValue && _selectedTeam.SeasonId != selectedDivision.SeasonId)
-        {
-            _selectedTeam.SeasonId = selectedDivision.SeasonId;
-        }
-
-        _selectedTeam.Name = TeamNameEntry.Text?.Trim();
-        _selectedTeam.DivisionId = selectedDivision?.Id;
-        _selectedTeam.VenueId = (VenuePicker.SelectedItem as Venue)?.Id;
-        _selectedTeam.TableId = (TablePicker.SelectedItem as VenueTable)?.Id;
-        _selectedTeam.CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id;
-        _selectedTeam.ProvidesFood = FoodSwitch.IsToggled;
-
-        await _dataStore.SaveAsync();
-        var updatedName = _selectedTeam.Name; // Store name before RefreshTeamList clears selection
-        RefreshTeamList(SearchEntry.Text);
-        RefreshHeadToHead(); // Refresh H2H with updated team info
-        SetStatus($"Updated: {updatedName}");
+        var team = ImportWorkspace.Clone(_selectedTeam);
+        team.Name = TeamNameEntry.Text?.Trim();
+        team.DivisionId = selectedDivision?.Id;
+        team.VenueId = (VenuePicker.SelectedItem as Venue)?.Id;
+        team.TableId = (TablePicker.SelectedItem as VenueTable)?.Id;
+        team.CaptainPlayerId = (CaptainPicker.SelectedItem as Player)?.Id;
+        team.ProvidesFood = FoodSwitch.IsToggled;
+        await SaveTeamChangesAsync(new[] { team }, Array.Empty<Guid>(), $"Updated: {team.Name}");
     }
 
     private void OnTeamSelected(object? sender, SelectionChangedEventArgs e)
@@ -969,6 +932,7 @@ public partial class TeamsPage : ContentPage
             _selectedTeam = null;
             ClearEditor();
             RefreshHeadToHead();
+            UpdateActions();
             return;
         }
 
@@ -981,6 +945,7 @@ public partial class TeamsPage : ContentPage
 
         LoadEditor(_selectedTeam);
         RefreshHeadToHead();
+        UpdateActions();
     }
 
     private void RefreshTablesForSelectedVenue()
@@ -993,6 +958,7 @@ public partial class TeamsPage : ContentPage
 
     private async void OnDelete(object? sender, EventArgs e)
     {
+        if (!CanEdit() || _selectedTeam?.SeasonId != _currentSeasonId) return;
         if (_selectedTeam == null)
         {
             SetStatus("No team selected");
@@ -1006,16 +972,11 @@ public partial class TeamsPage : ContentPage
             return;
         }
 
+        var id = _selectedTeam.Id;
+        var target = _currentSeasonId;
         var confirm = await DisplayAlert("Delete Team", $"Delete '{_selectedTeam.Name}'?", "Yes", "No");
-        if (!confirm) return;
-
-        _dataStore.GetData().Teams.Remove(_selectedTeam);
-        _selectedTeam = null;
-        await _dataStore.SaveAsync();
-        RefreshTeamList(SearchEntry.Text);
-        ClearEditor();
-        RefreshHeadToHead();
-        SetStatus("Deleted");
+        if (!confirm || target != _currentSeasonId) return;
+        await SaveTeamChangesAsync(Array.Empty<Team>(), new[] { id }, "Deleted team.");
     }
 
     private void OnToggleMultiSelect(object? sender, EventArgs e)
@@ -1047,11 +1008,14 @@ public partial class TeamsPage : ContentPage
             AddBtn.IsEnabled = true;
         }
 
+        ResetSelection();
+        UpdateActions();
         SetStatus(_isMultiSelectMode ? "Multi-select enabled" : "Multi-select disabled");
     }
 
     private async void OnBulkDelete(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
         {
             await DisplayAlert($"{Helpers.Emojis.Lock} Season Locked",
@@ -1070,24 +1034,12 @@ public partial class TeamsPage : ContentPage
         var confirm = await DisplayAlert("Bulk Delete", $"Delete {selectedItems.Count} team(s)?", "Yes, Delete", "Cancel");
         if (!confirm) return;
 
-        int deleted = 0;
-        foreach (var item in selectedItems)
-        {
-            var team = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == item.Id);
-            if (team != null)
-            {
-                _dataStore.GetData().Teams.Remove(team);
-                deleted++;
-            }
-        }
-
-        await _dataStore.SaveAsync();
-        RefreshTeamList(SearchEntry.Text);
-        SetStatus($"Deleted {deleted} team(s)");
+        await SaveTeamChangesAsync(Array.Empty<Team>(), selectedItems.Select(t => t.Id).ToArray(), $"Deleted {selectedItems.Count} team(s)");
     }
 
     private async void OnBulkAssignDivision(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         try
         {
             if (_dataStore.GetData().IsSeasonLocked(_currentSeasonId))
@@ -1134,24 +1086,18 @@ public partial class TeamsPage : ContentPage
                 divisionLabel = "no division";
             }
 
-            int count = 0;
+            var changes = new List<Team>();
             foreach (var item in selectedItems)
             {
                 var team = _dataStore.GetData().Teams.FirstOrDefault(t => t.Id == item.Id);
                 if (team != null)
                 {
-                    team.DivisionId = newDivisionId;
-                    count++;
+                    var copy = ImportWorkspace.Clone(team);
+                    copy.DivisionId = newDivisionId;
+                    changes.Add(copy);
                 }
             }
-
-            await _dataStore.SaveAsync();
-            RefreshTeamList(SearchEntry?.Text);
-
-            if (_selectedTeam != null)
-                LoadEditor(_selectedTeam);
-
-            SetStatus($"{Helpers.Emojis.Success} Assigned {count} team(s) to {divisionLabel}");
+            await SaveTeamChangesAsync(changes, Array.Empty<Guid>(), $"Assigned {changes.Count} team(s) to {divisionLabel}");
         }
         catch (Exception ex)
         {
@@ -1161,6 +1107,7 @@ public partial class TeamsPage : ContentPage
 
     private async void OnRandomDivisionAssign(object? sender, EventArgs e)
     {
+        if (!CanEdit()) return;
         if (!_currentSeasonId.HasValue)
         {
             await DisplayAlert("No Season", "Please select a season first.", "OK");
@@ -1210,7 +1157,7 @@ public partial class TeamsPage : ContentPage
 
         // Shuffle teams using Fisher-Yates
         var rng = new Random();
-        var shuffled = teams.ToList();
+        var shuffled = teams.Select(t => ImportWorkspace.Clone(t)).ToList();
         for (int i = shuffled.Count - 1; i > 0; i--)
         {
             int j = rng.Next(i + 1);
@@ -1236,13 +1183,7 @@ public partial class TeamsPage : ContentPage
         for (int i = 0; i < shuffled.Count; i++)
             shuffled[i].DivisionId = divisions[i % divisions.Count].Id;
 
-        await _dataStore.SaveAsync();
-        RefreshTeamList(SearchEntry.Text);
-
-        if (_selectedTeam != null)
-            LoadEditor(_selectedTeam);
-
-        SetStatus($"Randomly assigned {teams.Count} team(s) across {divisions.Count} division(s)");
+        await SaveTeamChangesAsync(shuffled, Array.Empty<Guid>(), $"Randomly assigned {teams.Count} team(s) across {divisions.Count} division(s)");
     }
 
     private async Task ExportTeamsAsync()
@@ -1283,6 +1224,7 @@ public partial class TeamsPage : ContentPage
 
     private async Task ImportTeamsCsvAsync(System.IO.Stream stream, string fileName)
     {
+        if (!CanEdit()) return;
         if (!_currentSeasonId.HasValue && !_showAllSeasons)
         {
             await DisplayAlert("No Season", "Please select a season on the Seasons page before importing.", "OK");
@@ -1291,6 +1233,7 @@ public partial class TeamsPage : ContentPage
 
         var rows = Csv.Read(stream);
         int added = 0, updated = 0;
+        var changes = new List<Team>();
 
         var divisions = _dataStore.GetData().Divisions.Where(d => d.SeasonId == _currentSeasonId).ToDictionary(d => (d.Name ?? "").Trim(), d => d, StringComparer.OrdinalIgnoreCase);
         var venues = _dataStore.GetData().Venues.Where(v => v.SeasonId == _currentSeasonId).ToDictionary(v => (v.Name ?? "").Trim(), v => v, StringComparer.OrdinalIgnoreCase);
@@ -1300,7 +1243,8 @@ public partial class TeamsPage : ContentPage
             var name = r.Get("Name");
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            var existing = _dataStore.GetData().Teams.FirstOrDefault(t => t.SeasonId == _currentSeasonId && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            var original = changes.Concat(_dataStore.GetData().Teams).FirstOrDefault(t => t.SeasonId == _currentSeasonId && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            var existing = original == null ? null : ImportWorkspace.Clone(original);
 
             var divName = r.Get("Division");
             var venueName = r.Get("Venue");
@@ -1316,21 +1260,141 @@ public partial class TeamsPage : ContentPage
                     VenueId = venues.TryGetValue(venueName ?? "", out var ven) ? ven.Id : null,
                     ProvidesFood = providesFood
                 };
-                _dataStore.GetData().Teams.Add(team);
+                changes.Add(team);
                 added++;
             }
             else
             {
                 existing.DivisionId = divisions.TryGetValue(divName ?? "", out var div) ? div.Id : null;
                 existing.VenueId = venues.TryGetValue(venueName ?? "", out var ven) ? ven.Id : null;
+                if (existing.VenueId != original?.VenueId) existing.TableId = null;
                 existing.ProvidesFood = providesFood;
+                changes.RemoveAll(t => t.Id == existing.Id);
+                changes.Add(existing);
                 updated++;
             }
         }
 
-        await _dataStore.SaveAsync();
-        RefreshTeamList(SearchEntry.Text);
-        SetStatus($"Imported: {added} added, {updated} updated");
+        await SaveTeamChangesAsync(changes, Array.Empty<Guid>(), $"Imported: {added} added, {updated} updated");
+    }
+
+    private bool CanEdit() => !_saving && _configuration.CanEdit(_dataStore.GetData().Seasons, _showAllSeasons);
+
+    private void OnConfigurationSeasonChanged(object? sender, EventArgs e)
+    {
+        if (_refreshingConfiguration || _saving) return;
+        _configuration.Select((ConfigurationSeasonPicker.SelectedItem as Season)?.Id);
+        ShowAllSeasonsCheck.IsChecked = false;
+        OnCloseEditor(null, EventArgs.Empty);
+        RefreshAll();
+    }
+
+    private void ResetSelection()
+    {
+        _selectedTeam = null;
+        TeamsList.SelectedItem = null;
+        TeamsList.SelectedItems?.Clear();
+        ClearEditor();
+        RefreshHeadToHead();
+    }
+
+    private void UpdateActions()
+    {
+        var season = _dataStore.GetData().Seasons.FirstOrDefault(s => s.Id == _currentSeasonId);
+        var editable = CanEdit();
+        var selected = editable && !_isMultiSelectMode && _selectedTeam != null && _selectedTeam.SeasonId == _currentSeasonId;
+        SeasonContextLbl.Text = season == null ? "No season selected." : $"{season.Name} · {(season.IsLocked ? "Locked · read-only" : season.IsActive ? "Active" : "Inactive · available for setup")}";
+        EditorSeasonLbl.Text = _showAllSeasons ? "Browsing all seasons — read-only." : $"Configuring: {season?.Name ?? "Choose a season first"}";
+        NewTeamBtn.IsEnabled = AddBtn.IsEnabled = editable && !_isMultiSelectMode;
+        UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = selected;
+        AddHistoricalPlayersBtn.IsEnabled = selected && !_openingHistoricalPlayers;
+        BulkAssignDivisionBtn.IsEnabled = BulkDeleteBtn.IsEnabled = RandomDivisionBtn.IsEnabled = TeamsImport.IsEnabled = editable;
+        TeamNameEntry.IsEnabled = DivisionPicker.IsEnabled = VenuePicker.IsEnabled = TablePicker.IsEnabled = FoodSwitch.IsEnabled = editable && !_isMultiSelectMode;
+        CaptainPicker.IsEnabled = selected;
+        ConfigurationSeasonPicker.IsEnabled = ShowAllSeasonsCheck.IsEnabled = TeamsList.IsEnabled = SearchEntry.IsEnabled = ReloadBtn.IsEnabled = MultiSelectBtn.IsEnabled = !_saving;
+    }
+
+    private async void OnAddHistoricalPlayers(object? sender, EventArgs e)
+    {
+        if (!CanEdit() || _isMultiSelectMode || _openingHistoricalPlayers ||
+            _selectedTeam == null || _selectedTeam.SeasonId != _currentSeasonId) return;
+        var teamId = _selectedTeam.Id;
+        _openingHistoricalPlayers = true;
+        UpdateActions();
+        try
+        {
+            var page = new HistoricalTeamPlayersPage(_dataStore, teamId);
+            _configuration.Select(_currentSeasonId);
+            _pendingTeamSelection = teamId;
+            OnCloseEditor(null, EventArgs.Empty);
+            await Navigation.PushAsync(page);
+        }
+        catch (Exception ex)
+        {
+            _pendingTeamSelection = null;
+            await DisplayAlert("Cannot add players", ex.Message, "OK");
+        }
+        finally
+        {
+            _openingHistoricalPlayers = false;
+            UpdateActions();
+        }
+    }
+
+    private void OnNewTeam(object? sender, EventArgs e)
+    {
+        if (!CanEdit()) return;
+        ResetSelection();
+        RefreshDivisions();
+        RefreshVenues();
+        RefreshPlayers();
+        OnOpenEditor(sender, e);
+        TeamNameEntry.Focus();
+    }
+
+    private void OnOpenEditor(object? sender, EventArgs e)
+    {
+        UpdateActions();
+        EditorPanel.IsVisible = EditorOverlay.IsVisible = true;
+    }
+
+    private void OnCloseEditor(object? sender, EventArgs e) => EditorPanel.IsVisible = EditorOverlay.IsVisible = false;
+
+    private async Task SaveTeamChangesAsync(IEnumerable<Team> changes, IReadOnlyCollection<Guid> deleted, string success)
+    {
+        if (!CanEdit()) return;
+        _saving = true;
+        UpdateActions();
+        try
+        {
+            var workspace = new ImportWorkspace(_dataStore);
+            var data = workspace.GetData();
+            foreach (var team in changes)
+            {
+                if (team.SeasonId != _currentSeasonId || string.IsNullOrWhiteSpace(team.Name) || team.Name.Length > 100)
+                    throw new InvalidOperationException("Choose teams from the configured season with names of 1 to 100 characters.");
+                var previous = data.Teams.FirstOrDefault(t => t.Id == team.Id);
+                if (previous != null && previous.SeasonId != _currentSeasonId)
+                    throw new InvalidOperationException("Teams cannot be moved between seasons here.");
+                data.Teams.RemoveAll(t => t.Id == team.Id);
+                data.Teams.Add(ImportWorkspace.Clone(team));
+            }
+            if (deleted.Any(id => !data.Teams.Any(t => t.Id == id && t.SeasonId == _currentSeasonId)))
+                throw new InvalidOperationException("Select teams from the configured season only.");
+            if (data.Players.Any(p => p.TeamId.HasValue && deleted.Contains(p.TeamId.Value)) ||
+                data.Fixtures.Any(f => deleted.Contains(f.HomeTeamId) || deleted.Contains(f.AwayTeamId)))
+                throw new InvalidOperationException("Move the team's players and fixtures before deleting it.");
+            data.Teams.RemoveAll(t => deleted.Contains(t.Id));
+            await workspace.SaveAsync();
+            RefreshAll();
+            SetStatus(success);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Changes not saved: {ex.Message}");
+            await DisplayAlert("Team changes not saved", ex.Message, "OK");
+        }
+        finally { _saving = false; UpdateActions(); }
     }
 
     private void SetStatus(string msg) => StatusLbl.Text = $"{DateTime.Now:HH:mm:ss} {msg}";
