@@ -65,6 +65,7 @@ public class FixtureGeneratorTests
                     SeasonId = sid,
                     DivisionId = division.Id,
                     VenueId = venue?.Id,
+                    TableId = venue?.Tables[(teamIndex / venueList.Count) % tablesPerVenue].Id,
                     Name = $"Team {d + 1}.{t + 1}"
                 });
                 teamIndex++;
@@ -79,6 +80,32 @@ public class FixtureGeneratorTests
     {
         Assert.Throws<ArgumentNullException>(() =>
             FixtureGenerator.Generate(null!, SeasonId, Start, DayOfWeek.Tuesday));
+    }
+
+    [Theory]
+    [InlineData(4, 4)]
+    [InlineData(8, 8)]
+    [InlineData(8, 7)]
+    [InlineData(8, 6)]
+    [InlineData(5, 3)]
+    public void Generate_SharedTables_AlwaysProducesSharedSheet(int largest, int smaller)
+    {
+        var league = BuildLeague(2, largest, largest);
+        var second = league.Divisions[1].Id;
+        foreach (var team in league.Teams.Where(t => t.DivisionId == second).Skip(smaller).ToList())
+            league.Teams.Remove(team);
+        var fixtures = FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday);
+        Assert.Equal(largest * (largest - 1) + smaller * (smaller - 1), fixtures.Count);
+        league.Fixtures.AddRange(fixtures);
+        var shared = SharedFixtureSheetSchedule.Create(league.Divisions, league.Teams, fixtures);
+        Assert.Equal(league.Teams.Count, shared.TeamNumbers.Count);
+        var html = new FixturesSheetGenerator(league, new FixturesSheetSettings()).GenerateEmbeddableContent(SeasonId);
+        Assert.DoesNotContain("sheet-error", html);
+        foreach (var night in fixtures.GroupBy(f => f.Date.Date))
+        {
+            Assert.Equal(night.Count() * 2, night.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId }).Distinct().Count());
+            Assert.Equal(night.Count(), night.Select(f => (f.VenueId, f.TableId)).Distinct().Count());
+        }
     }
 
     [Fact]
@@ -199,7 +226,7 @@ public class FixtureGeneratorTests
     }
 
     [Fact]
-    public void Generate_VenueWithNoTables_StillHostsFixtures()
+    public void Generate_VenueWithNoTables_BlocksGeneration()
     {
         var league = BuildLeague(divisions: 1, teamsPerDivision: 2, venues: 0);
 
@@ -209,27 +236,17 @@ public class FixtureGeneratorTests
         foreach (var team in league.Teams)
             team.VenueId = venue.Id;
 
-        var fixtures = FixtureGenerator.Generate(
-            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick);
-
-        Assert.Equal(2, fixtures.Count); // 2 teams, home & away
-        Assert.All(fixtures, f =>
-        {
-            Assert.Equal(venue.Id, f.VenueId);
-            Assert.Null(f.TableId); // implicit-table sentinel must not leak out
-        });
+        Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(
+            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick));
     }
 
     [Fact]
-    public void Generate_NoVenuesAtAll_StillProducesFixtures()
+    public void Generate_NoVenuesAtAll_BlocksGeneration()
     {
         var league = BuildLeague(divisions: 1, teamsPerDivision: 4, venues: 0);
 
-        var fixtures = FixtureGenerator.Generate(
-            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick);
-
-        Assert.Equal(12, fixtures.Count);
-        Assert.All(fixtures, f => Assert.Null(f.VenueId));
+        Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(
+            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick));
     }
 
     [Fact]
@@ -290,7 +307,7 @@ public class FixtureGeneratorTests
     }
 
     [Fact]
-    public void Generate_TeamsWithoutDivisionId_SingleDivision_AutoAssigned()
+    public void Generate_TeamsWithoutDivisionId_BlocksWithoutMutatingTeams()
     {
         var league = BuildLeague(divisions: 1, teamsPerDivision: 4, venues: 2, tablesPerVenue: 2);
         var division = league.Divisions[0];
@@ -299,11 +316,9 @@ public class FixtureGeneratorTests
         foreach (var team in league.Teams)
             team.DivisionId = null;
 
-        var fixtures = FixtureGenerator.Generate(
-            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick);
-
-        Assert.Equal(12, fixtures.Count);
-        Assert.All(league.Teams, t => Assert.Equal(division.Id, t.DivisionId));
+        Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(
+            league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick));
+        Assert.All(league.Teams, t => Assert.Null(t.DivisionId));
     }
 
     [Fact]
@@ -333,11 +348,100 @@ public class FixtureGeneratorTests
         var league = BuildLeague(divisions: 1, teamsPerDivision: 4, venues: 4, tablesPerVenue: 2);
         var endDate = Start.AddDays(14); // only 3 match nights available
 
-        var fixtures = FixtureGenerator.Generate(
+        var error = Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(
             league, SeasonId, Start, DayOfWeek.Tuesday, roundsPerOpponent: 2, kickoff: Kick,
-            endDate: endDate);
+            endDate: endDate));
+        Assert.Contains("6 match nights", error.Message);
+    }
 
-        // Rounds beyond the end date are not scheduled
-        Assert.True(fixtures.Count <= 6, $"Expected at most 6 fixtures, got {fixtures.Count}");
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void Generate_SharedTablesAcrossDivisions_CompleteNightsAndExactHomeTables(int legs)
+    {
+        var league = BuildLeague(2, 4, 4);
+        var fixtures = FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday, legs, Kick);
+        Assert.Equal(12 * legs, fixtures.Count);
+        Assert.Equal(3 * legs, fixtures.Select(f => f.Date.Date).Distinct().Count());
+        foreach (var night in fixtures.GroupBy(f => f.Date.Date))
+        {
+            Assert.Equal(4, night.Count());
+            Assert.Equal(8, night.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId }).Distinct().Count());
+            Assert.Equal(4, night.Select(f => (f.VenueId, f.TableId)).Distinct().Count());
+        }
+        Assert.All(fixtures, f =>
+        {
+            var home = league.Teams.Single(t => t.Id == f.HomeTeamId);
+            Assert.Equal(home.VenueId, f.VenueId);
+            Assert.Equal(home.TableId, f.TableId);
+        });
+    }
+
+    [Fact]
+    public void Generate_InsufficientHomeTableCapacity_RejectsWithoutUsingSpareVenue()
+    {
+        var league = BuildLeague(1, 4, 1);
+        league.Venues.Add(new Venue { SeasonId = SeasonId, Name = "Spare", Tables = new() { new VenueTable() } });
+        var existing = new Fixture { SeasonId = SeasonId };
+        league.Fixtures.Add(existing);
+        Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday));
+        Assert.Same(existing, Assert.Single(league.Fixtures));
+    }
+
+    [Theory]
+    [InlineData("table")]
+    [InlineData("venue")]
+    [InlineData("division")]
+    [InlineData("identity")]
+    [InlineData("locked")]
+    public void Generate_InvalidSetup_Blocks(string problem)
+    {
+        var league = BuildLeague(1, 4, 4);
+        switch (problem)
+        {
+            case "table": league.Teams[0].TableId = league.Teams[1].TableId; break;
+            case "venue": league.Venues[0].SeasonId = Guid.NewGuid(); break;
+            case "division": league.Divisions[0].SeasonId = Guid.NewGuid(); break;
+            case "identity": league.Teams[0].GlobalTeamId = league.Teams[1].GlobalTeamId = Guid.NewGuid(); break;
+            case "locked": league.Seasons[0].IsLocked = true; break;
+        }
+        Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday));
+    }
+
+    [Theory]
+    [InlineData("duplicate")]
+    [InlineData("missing")]
+    [InlineData("wrongTable")]
+    [InlineData("wrongNight")]
+    [InlineData("overflow")]
+    [InlineData("splitRound")]
+    public void Validator_RejectsCorruptedSchedule(string problem)
+    {
+        var league = BuildLeague(1, 4, 4);
+        var fixtures = FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday);
+        switch (problem)
+        {
+            case "duplicate": fixtures.Add(fixtures[0]); break;
+            case "missing": fixtures.RemoveAt(0); break;
+            case "wrongTable": fixtures[0].TableId = fixtures[1].TableId; break;
+            case "wrongNight": fixtures[0].Date = fixtures[0].Date.AddDays(1); break;
+            case "overflow": fixtures[0].Date = fixtures[0].Date.AddYears(1); break;
+            case "splitRound": fixtures[0].Date = fixtures[0].Date.AddDays(42); break;
+        }
+        Assert.Throws<InvalidOperationException>(() => GeneratedScheduleValidator.Validate(league, SeasonId,
+            fixtures, Start, league.Seasons[0].EndDate, DayOfWeek.Tuesday, Kick, 2, Array.Empty<DateTime>()));
+    }
+
+    [Fact]
+    public void Generate_MoreThan52Blackouts_NeverUsesExcludedDate()
+    {
+        var league = BuildLeague(1, 2, 2);
+        var excluded = Enumerable.Range(0, 60).Select(i => Start.AddDays(i * 7)).ToList();
+        var fixtures = FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday,
+            endDate: Start.AddDays(63 * 7), blackoutDates: excluded);
+        Assert.Equal(2, fixtures.Count);
+        Assert.Equal(Start.AddDays(60 * 7), fixtures[0].Date.Date);
     }
 }

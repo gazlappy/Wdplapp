@@ -5,6 +5,10 @@
 - WDPL has separate summer and winter seasons within a year, with division naming changing between numbered divisions (1st, 2nd) and colored divisions (red, green, yellow). Imports must not collapse these distinct seasonal division schemes into one season.
 - Summer and winter can share a calendar year but remain separate seasons. Preserve season terms and year ranges, including pre-2000 years. Do not merge seasons solely by overlapping year, substring, or start/end date. Automatic links require unambiguous season identity.
 
+## Fixture Scheduling
+- WDPL fixture scheduling requires all matches for a given week on the same night, no team playing more than one match that night, and no more than one home match on a venue/table that night. Shared-table conflicts must not be solved by moving matches to another night.
+- WDPL printable fixtures sheet should have one shared set of dates and numbered home/away pairings for all divisions, with each division's team-number key derived from actual fixtures rather than alphabetical ordering. Do not display separate division pairing grids or silently change saved matches to force alignment.
+
 ## Technology and Structure
 - Solution: `wdpl2.sln`. App: `wdpl2/wdpl2.csproj`. Tests: `wdpl2.Tests/wdpl2.Tests.csproj` (xUnit).
 - Persistence uses Entity Framework Core and SQLite.

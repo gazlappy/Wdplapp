@@ -17,6 +17,9 @@
             <Label Text="Your league's teams, season by season." FontSize="13" TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
             <FlexLayout Wrap="Wrap" Direction="Row">
                 <Button x:Name="NewTeamBtn" Text="+ New team" Clicked="OnNewTeam" Margin="0,0,8,4" BackgroundColor="#16634B" TextColor="White" />
+                <Button x:Name="AddHistoricalTeamsBtn" Text="Add teams from previous seasons" Clicked="OnAddHistoricalTeams"
+                        Margin="0,0,8,4" BackgroundColor="#16634B" TextColor="White"
+                        SemanticProperties.Description="Choose previous-season teams to add to the configured season" />
                 <Button Text="Manage teams" Clicked="OnOpenEditor" Margin="0,0,8,4" />
             </FlexLayout>
         </VerticalStackLayout>
@@ -58,7 +61,7 @@
                     VerticalScrollBarVisibility="Always"
                     SemanticProperties.Description="Teams list">
                     <CollectionView.EmptyView>
-                        <Label Text="No teams found. Choose a season, then select + New team to get started." Padding="16" />
+                        <Label Text="No teams found. Choose a season, then add a new team or add teams from previous seasons." Padding="16" />
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>

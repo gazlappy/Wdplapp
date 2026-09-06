@@ -507,9 +507,9 @@ namespace Wdpl2.Views
 
                 // Atomic replace via the typed store (mutating the GetData()
                 // snapshot then calling SaveAsync() never persisted anything).
-                await _dataStore.ReplaceFixturesForSeasonAsync(_selected.Id, fixtures);
+                await _dataStore.ReplaceGeneratedFixturesForSeasonAsync(_selected.Id, fixtures);
 
-                StatusLabel.Text = $"Generated {fixtures.Count} fixtures for \"{_selected.Name}\".";
+                StatusLabel.Text = $"Generated and validated {fixtures.Count} fixtures for \"{_selected.Name}\". No team or home-table double bookings.";
                 await DisplayAlert("Fixtures", StatusLabel.Text, "OK");
             }
             catch (Exception ex)

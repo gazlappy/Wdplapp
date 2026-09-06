@@ -3380,30 +3380,32 @@ public partial class FixturesPage : ContentPage
     private async System.Threading.Tasks.Task OnDeleteAllFixturesAsync()
     {
         var ok = await DisplayAlert($"{Emojis.Warning} Delete ALL",
-            "Delete every fixture in the database?", "Delete All", "Cancel");
+            "Delete every fixture in the database? This cannot be undone. If any affected season is locked, nothing will be deleted.", "Delete All", "Cancel");
         if (!ok) return;
 
-        int removed = _dataStore.GetData().Fixtures.Count;
-        
-        if (_reminderService != null)
+        try
         {
-            try { await _reminderService.CancelAllMatchRemindersAsync(); }
-            catch { }
+            int removed = await _dataStore.DeleteFixturesAsync(null);
+            if (_reminderService != null)
+            {
+                try { await _reminderService.CancelAllMatchRemindersAsync(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Reminder cleanup failed: {ex.Message}"); }
+            }
+            _selectedFixture = null;
+            ClearScorecard();
+            RefreshList();
+            await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s).", "OK");
         }
-        
-        _dataStore.GetData().Fixtures.Clear();
-        await _dataStore.SaveAsync();
-
-        _selectedFixture = null;
-        ClearScorecard();
-        RefreshList();
-
-        await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s).", "OK");
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Delete failed", ex.Message, "OK");
+        }
     }
 
     private async System.Threading.Tasks.Task OnDeleteActiveSeasonFixturesAsync()
     {
-        var seasonId = _dataStore.GetData().ActiveSeasonId;
+        var seasonId = _dataStore.GetData().ActiveSeasonId
+            ?? _dataStore.GetData().Seasons.FirstOrDefault(s => s.IsActive)?.Id;
         if (seasonId is null)
         {
             await DisplayAlert($"{Emojis.Info} No Active Season",
@@ -3422,20 +3424,28 @@ public partial class FixturesPage : ContentPage
             "Delete all fixtures in the active season?", "Delete", "Cancel");
         if (!ok) return;
 
-        int before = _dataStore.GetData().Fixtures.Count;
-        _dataStore.GetData().Fixtures.RemoveAll(f => f.SeasonId == seasonId);
-        int removed = before - _dataStore.GetData().Fixtures.Count;
-
-        await _dataStore.SaveAsync();
-
-        if (_selectedFixture?.SeasonId == seasonId)
+        try
         {
-            _selectedFixture = null;
-            ClearScorecard();
+            var fixtures = await _dataStore.GetFixturesAsync(seasonId);
+            int removed = await _dataStore.DeleteFixturesAsync(seasonId);
+            if (_reminderService != null)
+                foreach (var fixture in fixtures)
+                {
+                    try { await _reminderService.CancelMatchReminderAsync(fixture.Id); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Reminder cleanup failed: {ex.Message}"); }
+                }
+            if (_selectedFixture?.SeasonId == seasonId)
+            {
+                _selectedFixture = null;
+                ClearScorecard();
+            }
+            RefreshList();
+            await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s).", "OK");
         }
-
-        RefreshList();
-        await DisplayAlert($"{Emojis.Success} Done", $"Deleted {removed} fixture(s).", "OK");
+        catch (Exception ex)
+        {
+            await DisplayAlert($"{Emojis.Error} Delete failed", ex.Message, "OK");
+        }
     }
 
     private async System.Threading.Tasks.Task OnGenerateFixturesAsync()
@@ -3510,34 +3520,13 @@ public partial class FixturesPage : ContentPage
 
             // Atomic replace via the typed store — mutating the GetData()
             // snapshot then calling SaveAsync() never persisted anything.
-            await _dataStore.ReplaceFixturesForSeasonAsync(seasonId.Value, fixtures);
-
-            // Detect any scheduling conflicts across the generated fixtures
-            var allConflictWarnings = new List<string>();
-            var teams = _dataStore.GetData().Teams;
-            var venues = _dataStore.GetData().Venues;
-            foreach (var fix in fixtures)
-            {
-                var check = FixtureValidator.DetectScheduleConflicts(fix, fixtures, teams, venues);
-                allConflictWarnings.AddRange(check.Warnings);
-            }
-            // Deduplicate warnings
-            allConflictWarnings = allConflictWarnings.Distinct().ToList();
+            await _dataStore.ReplaceGeneratedFixturesForSeasonAsync(seasonId.Value, fixtures);
 
             _selectedFixture = null;
             ClearScorecard();
             RefreshList();
 
-            var successMsg = $"Generated {fixtures.Count} fixture(s).";
-            if (allConflictWarnings.Count > 0)
-            {
-                var top = allConflictWarnings.Take(10);
-                var extra = allConflictWarnings.Count > 10
-                    ? $"\n...and {allConflictWarnings.Count - 10} more"
-                    : "";
-                successMsg += $"\n\n{Emojis.Warning} Schedule conflicts detected:\n"
-                    + string.Join("\n", top) + extra;
-            }
+            var successMsg = $"Generated and validated {fixtures.Count} fixture(s).\n\nAll rounds are on the scheduled match night, with no team or home-table double bookings.";
 
             await DisplayAlert($"{Emojis.Success} Success", successMsg, "OK");
         }

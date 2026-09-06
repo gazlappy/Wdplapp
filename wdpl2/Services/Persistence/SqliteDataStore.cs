@@ -456,7 +456,41 @@ public partial class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
-    public async Task ReplaceFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default)
+    public async Task<int> DeleteFixturesAsync(Guid? seasonId, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            _context.ChangeTracker.Clear();
+            var query = _context.Fixtures.AsQueryable();
+            if (seasonId.HasValue) query = query.Where(f => f.SeasonId == seasonId);
+            var fixtures = await query.ToListAsync(ct);
+            var affectedSeasons = fixtures.Where(f => f.SeasonId.HasValue).Select(f => f.SeasonId!.Value).ToList();
+            if (seasonId.HasValue) affectedSeasons.Add(seasonId.Value);
+            var locked = await _context.Seasons.AsNoTracking()
+                .Where(s => s.IsLocked && affectedSeasons.Contains(s.Id)).Select(s => s.Name).ToListAsync(ct);
+            if (locked.Count > 0)
+                throw new InvalidOperationException($"No fixtures were deleted. Locked seasons are protected: {string.Join(", ", locked)}. Use Delete Season for an unlocked season.");
+            _context.Fixtures.RemoveRange(fixtures);
+            await _context.SaveChangesAsync(ct);
+            InvalidateSnapshot();
+            return fixtures.Count;
+        }
+        catch
+        {
+            _context.ChangeTracker.Clear();
+            throw;
+        }
+        finally { _gate.Release(); }
+    }
+
+    public Task ReplaceFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default)
+        => ReplaceFixturesAsync(seasonId, fixtures, false, ct);
+
+    public Task ReplaceGeneratedFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default)
+        => ReplaceFixturesAsync(seasonId, fixtures, true, ct);
+
+    private async Task ReplaceFixturesAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, bool validateGenerated, CancellationToken ct)
     {
         // Delete + insert inside a single SaveChanges call so the whole batch is
         // atomic (EF wraps one SaveChanges in an implicit transaction on relational
@@ -465,6 +499,19 @@ public partial class SqliteDataStore : IDataStore
         try
         {
             _context.ChangeTracker.Clear();
+
+            if (validateGenerated)
+            {
+                var current = new LeagueData();
+                current.Seasons.AddRange(await _context.Seasons.AsNoTracking().Where(s => s.Id == seasonId).ToListAsync(ct));
+                current.Teams.AddRange(await _context.Teams.AsNoTracking().Where(t => t.SeasonId == seasonId).ToListAsync(ct));
+                current.Divisions.AddRange(await _context.Divisions.AsNoTracking().Where(d => d.SeasonId == seasonId).ToListAsync(ct));
+                current.Venues.AddRange(await _context.Venues.AsNoTracking().Where(v => v.SeasonId == seasonId).ToListAsync(ct));
+                var season = current.Seasons.SingleOrDefault() ?? throw new InvalidOperationException("Season not found.");
+                var settings = GetData().GetSettingsForSeason(seasonId);
+                GeneratedScheduleValidator.Validate(current, seasonId, fixtures, season.StartDate, season.EndDate,
+                    settings.DefaultMatchDay, settings.DefaultMatchTime, settings.DefaultRoundsPerOpponent, season.BlackoutDates);
+            }
 
             var existing = await _context.Fixtures
                 .Where(f => f.SeasonId == seasonId)

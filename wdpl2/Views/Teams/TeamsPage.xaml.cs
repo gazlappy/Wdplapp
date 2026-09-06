@@ -126,6 +126,7 @@ public partial class TeamsPage : ContentPage
     private bool _refreshingConfiguration;
     private bool _saving;
     private bool _openingHistoricalPlayers;
+    private bool _openingHistoricalTeams;
 
     private readonly IDataStore _dataStore;
 
@@ -1306,6 +1307,7 @@ public partial class TeamsPage : ContentPage
         SeasonContextLbl.Text = season == null ? "No season selected." : $"{season.Name} · {(season.IsLocked ? "Locked · read-only" : season.IsActive ? "Active" : "Inactive · available for setup")}";
         EditorSeasonLbl.Text = _showAllSeasons ? "Browsing all seasons — read-only." : $"Configuring: {season?.Name ?? "Choose a season first"}";
         NewTeamBtn.IsEnabled = AddBtn.IsEnabled = editable && !_isMultiSelectMode;
+        AddHistoricalTeamsBtn.IsEnabled = editable && !_isMultiSelectMode && !_openingHistoricalTeams;
         UpdateBtn.IsEnabled = DeleteBtn.IsEnabled = selected;
         AddHistoricalPlayersBtn.IsEnabled = selected && !_openingHistoricalPlayers;
         BulkAssignDivisionBtn.IsEnabled = BulkDeleteBtn.IsEnabled = RandomDivisionBtn.IsEnabled = TeamsImport.IsEnabled = editable;
@@ -1337,6 +1339,29 @@ public partial class TeamsPage : ContentPage
         finally
         {
             _openingHistoricalPlayers = false;
+            UpdateActions();
+        }
+    }
+
+    private async void OnAddHistoricalTeams(object? sender, EventArgs e)
+    {
+        if (!CanEdit() || _isMultiSelectMode || _openingHistoricalTeams || _currentSeasonId is not Guid seasonId) return;
+        _openingHistoricalTeams = true;
+        UpdateActions();
+        try
+        {
+            var page = new HistoricalSeasonTeamsPage(_dataStore, seasonId);
+            _configuration.Select(seasonId);
+            OnCloseEditor(null, EventArgs.Empty);
+            await Navigation.PushAsync(page);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Cannot add teams", ex.Message, "OK");
+        }
+        finally
+        {
+            _openingHistoricalTeams = false;
             UpdateActions();
         }
     }

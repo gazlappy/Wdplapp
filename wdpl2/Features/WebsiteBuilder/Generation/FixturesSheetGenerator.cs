@@ -219,28 +219,25 @@ public class FixturesSheetGenerator
         }
 
         // Subtitle
-        var divNames = string.Join(" &amp; ", divisions.Select(d => d.Name.ToUpperInvariant()));
+        var divNames = string.Join(" &amp; ", divisions.Select(d => Esc(d.Name.ToUpperInvariant())));
         if (!string.IsNullOrEmpty(divNames))
             sb.AppendLine($"<div class=\"sheet-subtitle\">{divNames} FIXTURES</div>");
 
-        // Fixture grid + per-division team lists.
-        // When the user wants to show division team lists, render them side-by-side with
-        // each division's own fixtures (team list left, week-card grid right) so it's
-        // immediately obvious which numbers belong to which division.
-        if (_settings.ShowDivisionLists && divisions.Count > 0
-            && fixtures.Any(f => divisions.Any(d => d.Id == f.DivisionId)))
+        SharedFixtureSheetSchedule? shared = null;
+        if (_settings.ShowTeamNumbers && fixtures.Count > 0)
         {
-            GenerateDivisionBlocks(sb, divisions, teams, fixtures, venues, season);
+            try { shared = SharedFixtureSheetSchedule.Create(divisions, teams, fixtures); }
+            catch (InvalidOperationException ex)
+            {
+                sb.AppendLine($"<p class=\"sheet-error\" role=\"alert\">{Esc(ex.Message)}</p>");
+                sb.AppendLine("</div>");
+                return sb.ToString();
+            }
         }
-        else
-        {
-            // Fixture grid
-            GenerateFixtureGrid(sb, divisions, teams, fixtures, season);
-
-            // Division team lists (full-width, stacked under the grid)
-            if (_settings.ShowDivisionLists)
-                GenerateDivisionLists(sb, divisions, teams, venues);
-        }
+        var teamNumbers = shared?.TeamNumbers ?? BuildTeamNumbers(teams);
+        GenerateFixtureGridRows(sb, fixtures, teams, teamNumbers, divisions, shared);
+        if (_settings.ShowDivisionLists)
+            GenerateDivisionLists(sb, divisions, teams, venues, teamNumbers, shared?.SlotCount);
 
         // Special events / key dates
         if (_settings.ShowSpecialEvents && _settings.SpecialEvents.Count > 0)
@@ -260,99 +257,13 @@ public class FixturesSheetGenerator
 
     // ── Fixture Grid ─────────────────────────────────────────
 
-    private void GenerateFixtureGrid(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Fixture> fixtures, Season season)
-    {
-        if (fixtures.Count == 0) { sb.AppendLine("<p>No fixtures scheduled.</p>"); return; }
+    private static Dictionary<Guid, int> BuildTeamNumbers(List<Team> teams) => teams
+        .GroupBy(t => t.DivisionId)
+        .SelectMany(g => g.OrderBy(t => t.Name).ThenBy(t => t.Id)
+            .Select((team, index) => (team.Id, Number: index + 1)))
+        .ToDictionary(t => t.Id, t => t.Number);
 
-        // Build a per-division view of (date -> ordered list of fixtures) and (teamId -> 1..N number).
-        // Historically the sheet rendered ONLY the first division's grid because the original
-        // generator created an identical round-robin pattern in every division — so a single grid
-        // doubled as the key for all of them. After manual edits, plan imports, or per-division
-        // re-sorts, divisions can drift apart and the printed sheet then disagrees with the live
-        // fixtures. Detect that and either (a) keep printing the shared grid when every division
-        // truly does match, or (b) emit one grid per division so what you print is what's scheduled.
-
-        var divViews = new List<DivisionGridView>();
-        foreach (var d in divisions)
-        {
-            var divFixtures = fixtures.Where(f => f.DivisionId == d.Id).ToList();
-            if (divFixtures.Count == 0) continue;
-
-            var numbers = new Dictionary<Guid, int>();
-            int n = 1;
-            foreach (var t in teams.Where(t => t.DivisionId == d.Id).OrderBy(t => t.Name))
-                numbers[t.Id] = n++;
-
-            divViews.Add(new DivisionGridView
-            {
-                Division     = d,
-                Fixtures     = divFixtures,
-                TeamNumbers  = numbers,
-                Signature    = BuildPairingSignature(divFixtures, numbers),
-            });
-        }
-
-        if (divViews.Count == 0)
-        {
-            // Fallback: divisions list was empty (or no fixtures had DivisionId set) – render
-            // every fixture in one grid using whatever team numbers we can derive.
-            var numbers = new Dictionary<Guid, int>();
-            int n = 1;
-            foreach (var t in teams.OrderBy(t => t.Name))
-                numbers[t.Id] = n++;
-            GenerateFixtureGridRows(sb, fixtures, teams, numbers, season);
-            return;
-        }
-
-        // If every division has the same per-week pairing pattern, the shared grid is accurate –
-        // keep the classic compact output.
-        bool divisionsAligned = divViews.Skip(1).All(v => v.Signature == divViews[0].Signature);
-
-        if (divisionsAligned || divViews.Count == 1)
-        {
-            // Use the first division's fixtures + numbers (its key/numbering applies to all aligned divisions).
-            var primary = divViews[0];
-            GenerateFixtureGridRows(sb, primary.Fixtures, teams, primary.TeamNumbers, season);
-            return;
-        }
-
-        // Divisions diverge – render one grid per division so the sheet matches the actual fixtures.
-        foreach (var view in divViews)
-        {
-            sb.AppendLine($"<h3 class=\"sheet-subtitle\" style=\"margin-top:12px;\">{Esc((view.Division.Name ?? "Division").ToUpperInvariant())} FIXTURES</h3>");
-            GenerateFixtureGridRows(sb, view.Fixtures, teams, view.TeamNumbers, season);
-        }
-    }
-
-    /// <summary>
-    /// Builds a stable string describing all pairings (by team number) per match night so we can
-    /// quickly tell whether two divisions share an identical round-robin layout.
-    /// </summary>
-    private static string BuildPairingSignature(List<Fixture> fixtures, Dictionary<Guid, int> numbers)
-    {
-        var sb = new StringBuilder();
-        foreach (var grp in fixtures.GroupBy(f => f.Date.Date).OrderBy(g => g.Key))
-        {
-            sb.Append(grp.Key.ToString("yyyy-MM-dd")).Append(':');
-            var pairs = grp
-                .Select(f => (h: numbers.GetValueOrDefault(f.HomeTeamId), a: numbers.GetValueOrDefault(f.AwayTeamId)))
-                .OrderBy(p => p.h).ThenBy(p => p.a)
-                .Select(p => $"{p.h}v{p.a}");
-            sb.Append(string.Join(",", pairs));
-            sb.Append(';');
-        }
-        return sb.ToString();
-    }
-
-    private sealed class DivisionGridView
-    {
-        public Division Division { get; set; } = null!;
-        public List<Fixture> Fixtures { get; set; } = new();
-        public Dictionary<Guid, int> TeamNumbers { get; set; } = new();
-        public string Signature { get; set; } = "";
-    }
-
-    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, Season season, bool includeStandaloneEvents = true)
+    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, List<Division> divisions, SharedFixtureSheetSchedule? shared)
     {
         // Group fixtures by week date
         var weeks = fixtures
@@ -361,13 +272,14 @@ public class FixturesSheetGenerator
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Build event lookup from special events (includes synced season blackout dates)
-        var eventsByDate = _settings.SpecialEvents
+        var eventsByDate = _settings.SpecialEvents.Where(_ => _settings.ShowSpecialEvents)
             .GroupBy(e => e.Date.Date)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Merge all dates (fixture weeks + standalone events) into one timeline
         var allDates = weeks.Keys.Union(eventsByDate.Keys).OrderBy(d => d).ToList();
 
+        if (fixtures.Count == 0) sb.AppendLine("<p>No fixtures scheduled.</p>");
         sb.AppendLine("<div class=\"wk-grid\">");
 
         foreach (var date in allDates)
@@ -381,7 +293,7 @@ public class FixturesSheetGenerator
             if (hasFixtures)
             {
                 // Fixture week card (may also have an event annotation)
-                sb.AppendLine("<div class=\"wk-card\">");
+                sb.AppendLine($"<div class=\"wk-card\" data-date=\"{date:yyyy-MM-dd}\">");
                 sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{color};\">");
                 sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
                 sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
@@ -394,36 +306,48 @@ public class FixturesSheetGenerator
                 }
 
                 sb.AppendLine("<div class=\"wk-fixtures\">");
-                foreach (var f in weekFixtures!)
+                if (shared != null)
                 {
-                    int h = teamNumbers.GetValueOrDefault(f.HomeTeamId);
-                    int a = teamNumbers.GetValueOrDefault(f.AwayTeamId);
-                    if (_settings.ShowTeamNumbers && h > 0 && a > 0)
-                        sb.AppendLine($"<div class=\"wk-match\"><span class=\"wk-home\">{h}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{a}</span></div>");
-                    else
+                    foreach (var pair in shared.Pairings.Where(p => p.Date == date).OrderBy(p => p.Home))
+                        sb.AppendLine($"<div class=\"wk-match\" data-home-number=\"{pair.Home}\" data-away-number=\"{pair.Away}\"><span class=\"wk-home\">{pair.Home}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{pair.Away}</span></div>");
+                }
+                else foreach (var group in weekFixtures!.GroupBy(f => f.DivisionId)
+                    .OrderBy(g => divisions.FindIndex(d => d.Id == g.Key)))
+                {
+                    var division = divisions.FirstOrDefault(d => d.Id == group.Key);
+                    sb.AppendLine($"<div class=\"wk-division\" data-division-id=\"{group.Key}\">");
+                    sb.AppendLine($"<div class=\"wk-division-name\">{Esc(division?.Name ?? "Unassigned division")}</div>");
+                    foreach (var f in group.OrderBy(f => teamNumbers.GetValueOrDefault(f.HomeTeamId)).ThenBy(f => f.Id))
                     {
-                        var hn = Esc(teams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "?");
-                        var an = Esc(teams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "?");
-                        sb.AppendLine($"<div class=\"wk-match\"><span class=\"wk-home\">{hn}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{an}</span></div>");
+                        int h = teamNumbers.GetValueOrDefault(f.HomeTeamId);
+                        int a = teamNumbers.GetValueOrDefault(f.AwayTeamId);
+                        var hn = Esc(teams.FirstOrDefault(t => t.Id == f.HomeTeamId)?.Name ?? "Unknown team");
+                        var an = Esc(teams.FirstOrDefault(t => t.Id == f.AwayTeamId)?.Name ?? "Unknown team");
+                        sb.AppendLine($"<div class=\"wk-match\" data-fixture-id=\"{f.Id}\" title=\"{hn} v {an}\">");
+                        bool hasKey = _settings.ShowDivisionLists && division != null
+                            && teams.Any(t => t.Id == f.HomeTeamId && t.DivisionId == division.Id)
+                            && teams.Any(t => t.Id == f.AwayTeamId && t.DivisionId == division.Id);
+                        if (_settings.ShowTeamNumbers && h > 0 && a > 0 && hasKey)
+                            sb.AppendLine($"<a class=\"wk-home\" href=\"#fixture-team-{f.HomeTeamId}\">{h}</a><span class=\"wk-v\">v</span><a class=\"wk-away\" href=\"#fixture-team-{f.AwayTeamId}\">{a}</a>");
+                        else
+                            sb.AppendLine($"<span class=\"wk-home\">{hn}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{an}</span>");
+                        sb.AppendLine("</div>");
                     }
+                    sb.AppendLine("</div>");
                 }
                 sb.AppendLine("</div>");
                 sb.AppendLine("</div>");
             }
-            else if (hasEvents && includeStandaloneEvents)
+            else if (hasEvents)
             {
                 // Standalone event card (no fixtures on this date)
+                sb.AppendLine($"<div class=\"wk-card wk-card-event\" data-date=\"{date:yyyy-MM-dd}\">");
+                sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{color};\"><div class=\"wk-day\">{day}</div><div class=\"wk-month\">{monthName}</div></div>");
                 foreach (var evt in events!)
                 {
-                    var evtColor = !string.IsNullOrWhiteSpace(evt.Color) ? evt.Color : "#FDE68A";
-                    sb.AppendLine("<div class=\"wk-card wk-card-event\">");
-                    sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{evtColor};\">");
-                    sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
-                    sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
-                    sb.AppendLine("</div>");
                     sb.AppendLine($"<div class=\"wk-event-body\">{Esc(evt.Description)}</div>");
-                    sb.AppendLine("</div>");
                 }
+                sb.AppendLine("</div>");
             }
         }
 
@@ -450,103 +374,38 @@ public class FixturesSheetGenerator
 
     // ── Division Lists ───────────────────────────────────────
 
-    /// <summary>
-    /// Render each division as a side-by-side block: team list on the left,
-    /// that division's fixture week-card grid on the right.
-    /// </summary>
-    private void GenerateDivisionBlocks(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Fixture> fixtures, List<Venue> venues, Season season)
+    private void GenerateSingleDivisionList(StringBuilder sb, Division div, List<Team> teams, List<Venue> venues, Dictionary<Guid, int> teamNumbers, int? slotCount)
     {
-        var divsWithFixtures = divisions
-            .Where(d => fixtures.Any(f => f.DivisionId == d.Id))
-            .ToList();
-
-        // Any orphan fixtures (no matching division) – render them at the top in the classic full-width grid.
-        var orphanFixtures = fixtures.Where(f => !divsWithFixtures.Any(d => d.Id == f.DivisionId)).ToList();
-        if (orphanFixtures.Count > 0)
-            GenerateFixtureGrid(sb, new List<Division>(), teams, orphanFixtures, season);
-
-        foreach (var div in divsWithFixtures)
-        {
-            var divFixtures = fixtures.Where(f => f.DivisionId == div.Id).ToList();
-            var numbers = new Dictionary<Guid, int>();
-            int n = 1;
-            foreach (var t in teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name))
-                numbers[t.Id] = n++;
-
-            sb.AppendLine("<div class=\"div-block\">");
-            sb.AppendLine("<div class=\"div-block-list\">");
-            GenerateSingleDivisionList(sb, div, teams, venues);
-            sb.AppendLine("</div>");
-            sb.AppendLine("<div class=\"div-block-grid\">");
-            GenerateFixtureGridRows(sb, divFixtures, teams, numbers, season, includeStandaloneEvents: false);
-            sb.AppendLine("</div>");
-            sb.AppendLine("</div>");
-        }
-
-        // Standalone non-league event dates (blackout weeks etc.) – render once below all division blocks.
-        GenerateStandaloneEvents(sb, fixtures);
-    }
-
-    /// <summary>
-    /// Render any special-event dates that have no fixtures, in a single row
-    /// along the bottom of the main fixtures section.
-    /// </summary>
-    private void GenerateStandaloneEvents(StringBuilder sb, List<Fixture> fixtures)
-    {
-        if (_settings.SpecialEvents.Count == 0) return;
-
-        var fixtureDates = new HashSet<DateTime>(fixtures.Select(f => f.Date.Date));
-        var standalone = _settings.SpecialEvents
-            .Where(e => !fixtureDates.Contains(e.Date.Date))
-            .OrderBy(e => e.Date)
-            .ToList();
-        if (standalone.Count == 0) return;
-
-        sb.AppendLine("<div class=\"wk-grid wk-grid-events\">");
-        foreach (var evt in standalone)
-        {
-            var monthName = evt.Date.ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant();
-            var day = evt.Date.Day;
-            var evtColor = !string.IsNullOrWhiteSpace(evt.Color) ? evt.Color : "#FDE68A";
-            sb.AppendLine("<div class=\"wk-card wk-card-event\">");
-            sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{evtColor};\">");
-            sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
-            sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
-            sb.AppendLine("</div>");
-            sb.AppendLine($"<div class=\"wk-event-body\">{Esc(evt.Description)}</div>");
-            sb.AppendLine("</div>");
-        }
-        sb.AppendLine("</div>");
-    }
-
-    private void GenerateSingleDivisionList(StringBuilder sb, Division div, List<Team> teams, List<Venue> venues)
-    {
-        int num = 1;
-        var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => t.Name).ToList();
+        var divTeams = teams.Where(t => t.DivisionId == div.Id).OrderBy(t => teamNumbers[t.Id]).ToList();
         var divColor = GetDivisionColor(div.Name);
         sb.AppendLine("<div class=\"div-card\">");
         sb.AppendLine($"<div class=\"div-hdr\" style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 35%,{divColor}dd 50%,{divColor} 65%,{divColor}88 100%);\">{Esc(div.Name)}</div>");
-        sb.AppendLine("<table class=\"div-tbl\">");
-        foreach (var t in divTeams)
+        sb.AppendLine($"<table class=\"div-tbl\" data-division-id=\"{div.Id}\">");
+        for (int number = 1; number <= (slotCount ?? divTeams.Count); number++)
         {
+            var t = divTeams.FirstOrDefault(t => teamNumbers[t.Id] == number);
+            if (t == null)
+            {
+                sb.AppendLine($"<tr data-team-number=\"{number}\"><td class=\"div-num\"><span class=\"div-badge\">{number}</span></td><td class=\"div-name\">BYE</td><td class=\"div-venue\"></td></tr>");
+                continue;
+            }
             var venue = venues.FirstOrDefault(v => v.Id == t.VenueId);
             var venueName = venue?.Name ?? "";
             var table = t.TableId.HasValue && venue != null
                 ? venue.Tables.FirstOrDefault(vt => vt.Id == t.TableId.Value)
                 : null;
             var tableInfo = table != null ? $" ({Esc(table.Label)})" : "";
-            sb.AppendLine($"<tr><td class=\"div-num\"><span style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 40%,{divColor}dd 55%,{divColor}88 100%);\" class=\"div-badge\">{num}</span></td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
-            num++;
+            sb.AppendLine($"<tr id=\"fixture-team-{t.Id}\" data-team-number=\"{number}\"><td class=\"div-num\"><span style=\"background:linear-gradient(180deg,{divColor}cc 0%,{divColor} 40%,{divColor}dd 55%,{divColor}88 100%);\" class=\"div-badge\">{number}</span></td><td class=\"div-name\">{Esc(t.Name)}</td><td class=\"div-venue\">{Esc(venueName)}{tableInfo}</td></tr>");
         }
         sb.AppendLine("</table></div>");
     }
 
-    private void GenerateDivisionLists(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Venue> venues)
+    private void GenerateDivisionLists(StringBuilder sb, List<Division> divisions, List<Team> teams, List<Venue> venues, Dictionary<Guid, int> teamNumbers, int? slotCount)
     {
         sb.AppendLine("<div class=\"div-lists\">");
         foreach (var div in divisions)
         {
-            GenerateSingleDivisionList(sb, div, teams, venues);
+            GenerateSingleDivisionList(sb, div, teams, venues, teamNumbers, slotCount);
         }
         sb.AppendLine("</div>");
     }
@@ -610,6 +469,7 @@ html, body {
     font-size: 9pt; color: #1E293B; background: #0F172A;
 }
 .fixtures-sheet { max-width: 100%; padding: 4mm; }
+.sheet-error { background: #fff3cd; color: #664d03; padding: 16px; border: 2px solid #997404; }
 
 /* ── Title ── */
 .sheet-title {
@@ -700,10 +560,14 @@ html, body {
     text-shadow: 0 1px 1px rgba(0,0,0,0.2);
 }
 .wk-fixtures { padding: 4px 7px 6px; }
+.wk-division + .wk-division { border-top: 2px solid #999; margin-top: 5px; padding-top: 4px; }
+.wk-division-name { font-size: 7pt; font-weight: 800; text-align: center; overflow-wrap: anywhere; }
+.wk-match a { text-decoration: none; }
+.div-tbl tr:target { outline: 2px solid {{accent}}; }
 .wk-match {
     display: flex; align-items: center; justify-content: center;
     gap: 3px; font-size: 8pt; padding: 2px 0;
-    white-space: nowrap; font-variant-numeric: tabular-nums;
+    white-space: normal; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
 }
 .wk-match + .wk-match { border-top: 1px solid #C8C8C8; }
 .wk-home {

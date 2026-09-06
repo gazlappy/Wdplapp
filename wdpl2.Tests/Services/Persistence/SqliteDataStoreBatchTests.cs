@@ -27,6 +27,87 @@ public class SqliteDataStoreBatchTests
 
     // ====== ReplaceFixturesForSeasonAsync ======
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteFixtures_PersistsAndRefreshesSnapshot(bool all)
+    {
+        var options = new DbContextOptionsBuilder<LeagueContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var context = new LeagueContext(options);
+        var season = new Season { Name = "Current" };
+        var other = new Season { Name = "Other" };
+        context.Seasons.AddRange(season, other);
+        context.Fixtures.AddRange(MakeFixture(season.Id), MakeFixture(season.Id), MakeFixture(other.Id));
+        await context.SaveChangesAsync();
+        var store = new SqliteDataStore(context);
+        _ = store.GetData();
+        int removed = await store.DeleteFixturesAsync(all ? null : season.Id);
+        Assert.Equal(all ? 3 : 2, removed);
+        using var reloaded = new LeagueContext(options);
+        Assert.Equal(all ? 0 : 1, await reloaded.Fixtures.CountAsync());
+        Assert.DoesNotContain(store.GetData().Fixtures, f => f.SeasonId == season.Id);
+        Assert.Equal(0, await store.DeleteFixturesAsync(all ? null : season.Id));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteFixtures_LockedScope_LeavesEverythingUntouched(bool all)
+    {
+        using var context = CreateContext();
+        var locked = new Season { Name = "Locked", IsLocked = true };
+        var open = new Season { Name = "Open" };
+        context.Seasons.AddRange(locked, open);
+        context.Fixtures.AddRange(MakeFixture(locked.Id), MakeFixture(open.Id));
+        await context.SaveChangesAsync();
+        var store = new SqliteDataStore(context);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.DeleteFixturesAsync(all ? null : locked.Id));
+        await store.SaveAsync();
+        Assert.Equal(2, await context.Fixtures.CountAsync());
+        Assert.Equal(1, await store.DeleteFixturesAsync(open.Id));
+        Assert.Equal(locked.Id, (await context.Fixtures.SingleAsync()).SeasonId);
+    }
+
+    [Fact]
+    public async Task DeleteFixtures_Canceled_LeavesFixturesUntouched()
+    {
+        using var context = CreateContext();
+        context.Fixtures.Add(MakeFixture(Guid.NewGuid()));
+        await context.SaveChangesAsync();
+        var store = new SqliteDataStore(context);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.DeleteFixturesAsync(null, new CancellationToken(true)));
+        Assert.Equal(1, await context.Fixtures.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteFixtures_Sqlite_ReloadConfirmsDeletion(bool all)
+    {
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<LeagueContext>().UseSqlite(connection).Options;
+        using var context = new LeagueContext(options);
+        await context.Database.EnsureCreatedAsync();
+        var season = new Season { Name = "Current" };
+        var other = new Season { Name = "Other" };
+        context.Seasons.AddRange(season, other);
+        foreach (var s in new[] { season, other })
+        {
+            var home = new Team { Name = "Home", SeasonId = s.Id };
+            var away = new Team { Name = "Away", SeasonId = s.Id };
+            context.Teams.AddRange(home, away);
+            context.Fixtures.Add(new Fixture { SeasonId = s.Id, HomeTeamId = home.Id, AwayTeamId = away.Id });
+        }
+        await context.SaveChangesAsync();
+        var store = new SqliteDataStore(context);
+        Assert.Equal(all ? 2 : 1, await store.DeleteFixturesAsync(all ? null : season.Id));
+        using var reloaded = new LeagueContext(options);
+        Assert.Equal(all ? 0 : 1, await reloaded.Fixtures.CountAsync());
+        Assert.Equal(4, await reloaded.Teams.CountAsync());
+        Assert.Equal(2, await reloaded.Seasons.CountAsync());
+    }
+
     [Fact]
     public async Task ReplaceFixturesForSeason_RemovesOldAndInsertsNew()
     {
@@ -123,6 +204,57 @@ public class SqliteDataStoreBatchTests
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             async () => await store.ReplaceFixturesForSeasonAsync(seasonId, new List<Fixture>(), cts.Token));
+    }
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("duplicate")]
+    [InlineData("missing")]
+    [InlineData("placementChanged")]
+    [InlineData("locked")]
+    public async Task ReplaceGeneratedFixtures_ValidatesBeforeDeleting(string scenario)
+    {
+        using var context = CreateContext();
+        var league = new LeagueData();
+        var season = new Season { Name = "Schedule", StartDate = new DateTime(2025, 9, 2), EndDate = new DateTime(2026, 5, 1) };
+        var division = new Division { SeasonId = season.Id, Name = "Division" };
+        var venue = new Venue { SeasonId = season.Id, Name = "Home", Tables = new() { new VenueTable { Label = "1" } } };
+        league.Seasons.Add(season);
+        league.Divisions.Add(division);
+        league.Venues.Add(venue);
+        league.Teams.AddRange(Enumerable.Range(0, 2).Select(i => new Team
+        {
+            SeasonId = season.Id, DivisionId = division.Id, Name = $"Team {i}",
+            VenueId = venue.Id, TableId = venue.Tables[0].Id
+        }));
+        context.Seasons.Add(season);
+        context.Divisions.Add(division);
+        context.Venues.Add(venue);
+        context.Teams.AddRange(league.Teams);
+        var old = MakeFixture(season.Id);
+        context.Fixtures.Add(old);
+        await context.SaveChangesAsync();
+        var generated = FixtureGenerator.Generate(league, season.Id, season.StartDate, DayOfWeek.Tuesday);
+        switch (scenario)
+        {
+            case "duplicate": generated.Add(generated[0]); break;
+            case "missing": generated.Clear(); break;
+            case "placementChanged": league.Teams[0].TableId = null; break;
+            case "locked": season.IsLocked = true; break;
+        }
+        await context.SaveChangesAsync();
+        var store = new SqliteDataStore(context);
+        if (scenario == "valid")
+        {
+            await store.ReplaceGeneratedFixturesForSeasonAsync(season.Id, generated);
+            Assert.Equal(2, await context.Fixtures.CountAsync());
+            Assert.False(await context.Fixtures.AnyAsync(f => f.Id == old.Id));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => store.ReplaceGeneratedFixturesForSeasonAsync(season.Id, generated));
+            Assert.Equal(old.Id, (await context.Fixtures.AsNoTracking().SingleAsync()).Id);
+        }
     }
 
     // ====== AddSeasonEntitiesAsync ======
