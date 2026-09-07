@@ -101,6 +101,23 @@ public class FixtureGeneratorTests
         Assert.Equal(league.Teams.Count, shared.TeamNumbers.Count);
         var html = new FixturesSheetGenerator(league, new FixturesSheetSettings()).GenerateEmbeddableContent(SeasonId);
         Assert.DoesNotContain("sheet-error", html);
+        var rendered = System.Xml.Linq.XElement.Parse(html);
+        foreach (var table in league.Teams.GroupBy(t => (t.VenueId, t.TableId)).Where(g => g.Count() == 2))
+        {
+            int first = shared.TeamNumbers[table.First().Id], secondNumber = shared.TeamNumbers[table.Last().Id];
+            Assert.True(NumberedFixtureDraw.AreTablePartners(first, secondNumber));
+            foreach (var team in table)
+            {
+                var row = rendered.Descendants("tr").Single(e => (string?)e.Attribute("id") == $"fixture-team-{team.Id}");
+                Assert.Equal(shared.TeamNumbers[team.Id], (int)row.Attribute("data-team-number")!);
+            }
+        }
+        int week = 0;
+        foreach (var card in rendered.Descendants().Where(e => e.Attribute("data-date") != null))
+        {
+            var firstMatch = card.Descendants().First(e => e.Attribute("data-home-number") != null);
+            Assert.Equal(1, (int)firstMatch.Attribute(week++ % 2 == 0 ? "data-home-number" : "data-away-number")!);
+        }
         foreach (var night in fixtures.GroupBy(f => f.Date.Date))
         {
             Assert.Equal(night.Count() * 2, night.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId }).Distinct().Count());
@@ -124,6 +141,29 @@ public class FixtureGeneratorTests
         foreach (var a in teams)
             foreach (var b in teams.Where(b => b != a))
                 Assert.Equal(1, fixtures.Count(f => f.HomeTeamId == a && f.AwayTeamId == b));
+    }
+
+    [Fact]
+    public void Generate_TablePartnersWithinDivision_KeepOddEvenNumbers()
+    {
+        var league = BuildLeague(1, 8, 4);
+        var fixtures = FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday);
+        var sheet = SharedFixtureSheetSchedule.Create(league.Divisions, league.Teams, fixtures);
+        foreach (var table in league.Teams.GroupBy(t => (t.VenueId, t.TableId)))
+            Assert.True(NumberedFixtureDraw.AreTablePartners(sheet.TeamNumbers[table.First().Id], sheet.TeamNumbers[table.Last().Id]));
+    }
+
+    [Fact]
+    public void Generate_ThreeTablePartners_ReportsSetupError()
+    {
+        var league = BuildLeague(1, 4, 4);
+        foreach (var team in league.Teams.Take(3))
+        {
+            team.VenueId = league.Venues[0].Id;
+            team.TableId = league.Venues[0].Tables[0].Id;
+        }
+        var error = Assert.Throws<InvalidOperationException>(() => FixtureGenerator.Generate(league, SeasonId, Start, DayOfWeek.Tuesday));
+        Assert.Contains("at most two teams", error.Message);
     }
 
     [Fact]

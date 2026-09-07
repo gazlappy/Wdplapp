@@ -308,7 +308,7 @@ public class FixturesSheetGenerator
                 sb.AppendLine("<div class=\"wk-fixtures\">");
                 if (shared != null)
                 {
-                    foreach (var pair in shared.Pairings.Where(p => p.Date == date).OrderBy(p => p.Home))
+                    foreach (var pair in shared.Pairings.Where(p => p.Date == date))
                         sb.AppendLine($"<div class=\"wk-match\" data-home-number=\"{pair.Home}\" data-away-number=\"{pair.Away}\"><span class=\"wk-home\">{pair.Home}</span><span class=\"wk-v\">v</span><span class=\"wk-away\">{pair.Away}</span></div>");
                 }
                 else foreach (var group in weekFixtures!.GroupBy(f => f.DivisionId)

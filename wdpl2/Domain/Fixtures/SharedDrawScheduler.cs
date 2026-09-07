@@ -15,51 +15,16 @@ internal static class SharedDrawScheduler
         if (dates.Count < required)
             throw new InvalidOperationException($"The shared draw needs {required} match nights, but only {dates.Count} are available. Extend the season or review blackout dates. Existing fixtures have not been changed.");
 
-        var template = new List<(int round, int home, int away)>();
-        var rotation = Enumerable.Range(0, size).ToList();
-        for (int round = 0; round < rounds; round++)
-        {
-            // Opponent edges and fixed complementary slot pairs form even cycles.
-            // Opposite home roles let table-sharing teams use complementary slots.
-            var opponents = new int[size];
-            for (int i = 0; i < size / 2; i++)
-            {
-                int first = rotation[i], second = rotation[size - 1 - i];
-                opponents[first] = second;
-                opponents[second] = first;
-            }
-            var roles = new bool?[size];
-            for (int root = 0; root < size; root++)
-            {
-                if (roles[root].HasValue) continue;
-                roles[root] = round % 2 == 0;
-                var pending = new Queue<int>();
-                pending.Enqueue(root);
-                while (pending.TryDequeue(out int slot))
-                    foreach (int other in new[] { opponents[slot], slot ^ 1 })
-                    {
-                        if (roles[other].HasValue) continue;
-                        roles[other] = !roles[slot]!.Value;
-                        pending.Enqueue(other);
-                    }
-            }
-            for (int i = 0; i < size / 2; i++)
-            {
-                int first = rotation[i], second = rotation[size - 1 - i];
-                template.Add((round, roles[first]!.Value ? first : second, roles[first]!.Value ? second : first));
-            }
-            int last = rotation[^1];
-            rotation.RemoveAt(rotation.Count - 1);
-            rotation.Insert(1, last);
-        }
-        var expanded = Enumerable.Range(0, legs).SelectMany(leg => template.Select(p =>
-            (night: p.round + leg * rounds, home: leg % 2 == 0 ? p.home : p.away, away: leg % 2 == 0 ? p.away : p.home))).ToList();
+        var expanded = NumberedFixtureDraw.Create(size, legs)
+            .Select(p => (night: p.Round, home: p.Home - 1, away: p.Away - 1)).ToList();
         var placements = divisions.ToDictionary(g => g.Key, _ => new Team?[size]);
         var assigned = new HashSet<Guid>();
         var tableCounts = teams.GroupBy(t => (t.VenueId, t.TableId)).ToDictionary(g => g.Key, g => g.Count());
         // Each team must host at least floor(legs / 2) matches per opponent.
         foreach (var table in teams.GroupBy(t => (t.VenueId, t.TableId)))
         {
+            if (table.Count() > 2)
+                throw new InvalidOperationException($"The odd/even table-partner rule supports at most two teams on one table: {string.Join(", ", table.Select(t => t.Name))}. Review home-table assignments. Existing fixtures have not been changed.");
             int minimum = table.Sum(t => (divisions.Single(g => g.Key == t.DivisionId).Count() - 1) * (legs / 2));
             if (minimum > required)
                 throw new InvalidOperationException($"Home table capacity is insufficient for {string.Join(", ", table.Select(t => t.Name))}: at least {minimum} home matches need {required} nights. Existing fixtures have not been changed.");
@@ -79,6 +44,7 @@ internal static class SharedDrawScheduler
         }
         int attempts = 0;
         bool exhausted = false;
+        var assignedSlots = new Dictionary<Guid, int>();
         bool Search()
         {
             if (++attempts > 250000) { exhausted = true; return false; }
@@ -96,6 +62,8 @@ internal static class SharedDrawScheduler
                 for (int slot = 0; slot < maximum; slot++)
                 {
                     if (slots[slot] != null) continue;
+                    if (teams.Any(partner => partner.Id != team.Id && partner.VenueId == team.VenueId && partner.TableId == team.TableId
+                        && assignedSlots.TryGetValue(partner.Id, out int other) && !NumberedFixtureDraw.AreTablePartners(slot + 1, other + 1))) continue;
                     slots[slot] = team;
                     if (!HasClash()) available.Add(slot);
                     slots[slot] = null;
@@ -112,7 +80,9 @@ internal static class SharedDrawScheduler
             foreach (int slot in candidates!)
             {
                 target[slot] = next;
+                assignedSlots[next.Id] = slot;
                 if (Search()) return true;
+                assignedSlots.Remove(next.Id);
                 target[slot] = null;
                 if (exhausted) break;
             }

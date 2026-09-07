@@ -494,22 +494,30 @@ namespace Wdpl2.Views
                 StatusLabel.Text = "Generating fixtures…";
                 GenerateBtn.IsEnabled = false;
 
-                var settings = League.GetSettingsForSeason(_selected.Id);
+                var selectedSeason = _selected;
+                var seasonId = selectedSeason.Id;
+                var seasonName = selectedSeason.Name;
+                var savedFixtures = await _dataStore.GetFixturesAsync(seasonId);
+                FixtureNumberEditor.EnsureUnplayed(savedFixtures);
+                var settings = League.GetSettingsForSeason(seasonId);
                 var fixtures = FixtureGenerator.Generate(
                     league: League,
-                    seasonId: _selected.Id,
-                    startDate: _selected.StartDate,
+                    seasonId: seasonId,
+                    startDate: selectedSeason.StartDate,
                     matchNight: settings.DefaultMatchDay,
                     roundsPerOpponent: settings.DefaultRoundsPerOpponent,
                     kickoff: settings.DefaultMatchTime,
-                    endDate: _selected.EndDate,
-                    blackoutDates: _selected.BlackoutDates);
+                    endDate: selectedSeason.EndDate,
+                    blackoutDates: selectedSeason.BlackoutDates);
 
-                // Atomic replace via the typed store (mutating the GetData()
-                // snapshot then calling SaveAsync() never persisted anything).
-                await _dataStore.ReplaceGeneratedFixturesForSeasonAsync(_selected.Id, fixtures);
+                var editor = new FixtureNumberEditor(League, seasonId, fixtures, savedFixtures);
+                if (!await FixtureNumbersPage.ShowAsync(this, editor, _dataStore))
+                {
+                    StatusLabel.Text = "Generation canceled. Existing fixtures unchanged.";
+                    return;
+                }
 
-                StatusLabel.Text = $"Generated and validated {fixtures.Count} fixtures for \"{_selected.Name}\". No team or home-table double bookings.";
+                StatusLabel.Text = $"Generated and validated {fixtures.Count} fixtures for \"{seasonName}\". No team or home-table double bookings.";
                 await DisplayAlert("Fixtures", StatusLabel.Text, "OK");
             }
             catch (Exception ex)

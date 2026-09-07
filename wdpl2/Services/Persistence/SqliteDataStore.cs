@@ -484,6 +484,51 @@ public partial class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
+    public async Task SaveFixtureNumbersAsync(FixtureNumberEditor editor, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            _context.ChangeTracker.Clear();
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(ct) : null;
+            var seasonId = editor.SeasonId;
+            var current = new LeagueData
+            {
+                Seasons = await _context.Seasons.AsNoTracking().Where(s => s.Id == seasonId).ToListAsync(ct),
+                Teams = await _context.Teams.AsNoTracking().Where(t => t.SeasonId == seasonId).ToListAsync(ct),
+                Divisions = await _context.Divisions.AsNoTracking().Where(d => d.SeasonId == seasonId).ToListAsync(ct),
+                Venues = await _context.Venues.AsNoTracking().Where(v => v.SeasonId == seasonId).ToListAsync(ct),
+                Settings = GetData().GetSettingsForSeason(seasonId)
+            };
+            var existing = await _context.Fixtures.Where(f => f.SeasonId == seasonId).ToListAsync(ct);
+            var reviewed = editor.ValidateForSave(current, existing);
+            var byId = existing.ToDictionary(f => f.Id);
+            var keep = reviewed.Select(f => f.Id).ToHashSet();
+            _context.Fixtures.RemoveRange(existing.Where(f => !keep.Contains(f.Id)));
+            foreach (var fixture in reviewed)
+            {
+                if (byId.TryGetValue(fixture.Id, out var tracked))
+                {
+                    // Preserve IDs, result collections and metadata on unchanged matches.
+                    tracked.Date = fixture.Date;
+                    tracked.VenueId = fixture.VenueId;
+                    tracked.TableId = fixture.TableId;
+                }
+                else _context.Fixtures.Add(fixture);
+            }
+            await _context.SaveChangesAsync(ct);
+            if (transaction != null) await transaction.CommitAsync(ct);
+            InvalidateSnapshot();
+        }
+        catch
+        {
+            _context.ChangeTracker.Clear();
+            throw;
+        }
+        finally { _gate.Release(); }
+    }
+
     public Task ReplaceFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default)
         => ReplaceFixturesAsync(seasonId, fixtures, false, ct);
 

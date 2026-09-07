@@ -140,6 +140,8 @@ public interface IDataStore
 
     Task ReplaceGeneratedFixturesForSeasonAsync(Guid seasonId, IReadOnlyList<Fixture> fixtures, CancellationToken ct = default);
 
+    Task SaveFixtureNumbersAsync(FixtureNumberEditor editor, CancellationToken ct = default);
+
     /// <summary>
     /// Bulk-insert a season's entities (divisions, venues, teams, players) in a single
     /// transaction. Used by the season setup wizard when copying a previous season.

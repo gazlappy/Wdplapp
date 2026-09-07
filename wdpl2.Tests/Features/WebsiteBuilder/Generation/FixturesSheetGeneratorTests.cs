@@ -131,6 +131,24 @@ public class FixturesSheetGeneratorTests
         Assert.Contains(generator.GenerateEmbeddableContent(season.Id), generator.GenerateFixturesSheet(season.Id));
     }
 
+    [Fact]
+    public void SavedHomeTableClash_IsRejectedBeforeRenderingNumbers()
+    {
+        var (league, season) = CreateLeague();
+        var firstNight = league.Fixtures.Where(f => f.Date.Date == season.StartDate.Date).ToList();
+        var venue = Guid.NewGuid();
+        var table = Guid.NewGuid();
+        foreach (var fixture in firstNight)
+        {
+            var home = league.Teams.Single(t => t.Id == fixture.HomeTeamId);
+            home.VenueId = fixture.VenueId = venue;
+            home.TableId = fixture.TableId = table;
+        }
+        var html = Render(league, season);
+        Assert.Contains("home table is double-booked", html.Value);
+        Assert.Empty(html.Descendants().Where(e => e.Attribute("data-home-number") != null));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -157,7 +175,7 @@ public class FixturesSheetGeneratorTests
         var league = new LeagueData();
         var season = new Season { Name = "Winter", StartDate = new DateTime(2026, 9, 17) };
         league.Seasons.Add(season);
-        var pattern = new[] { (1, 2), (3, 4), (1, 3), (4, 2), (1, 4), (2, 3) };
+        var pattern = new[] { (1, 2), (3, 4), (4, 1), (2, 3), (1, 3), (4, 2) };
         for (int d = 0; d < 2; d++)
         {
             var division = new Division { SeasonId = season.Id, Name = $"Division {d}" };

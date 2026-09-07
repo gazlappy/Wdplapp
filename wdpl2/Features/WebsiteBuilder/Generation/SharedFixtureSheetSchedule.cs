@@ -29,33 +29,28 @@ public sealed class SharedFixtureSheetSchedule
         if (teams.Any(t => !divisions.Any(d => d.Id == t.DivisionId)))
             throw Invalid("A team has no valid division.");
 
-        var primary = divisions.OrderByDescending(d => teams.Count(t => t.DivisionId == d.Id))
-            .ThenBy(d => d.Name).ThenBy(d => d.Id).First();
-        var primaryTeams = teams.Where(t => t.DivisionId == primary.Id).ToList();
-        var primaryFixtures = fixtures.Where(f => f.DivisionId == primary.Id).ToList();
-        int count = primaryTeams.Count;
+        int count = teams.GroupBy(t => t.DivisionId).Max(g => g.Count());
         if (count < 2) throw Invalid("At least two teams are required in the template division.");
         var schedule = new SharedFixtureSheetSchedule { SlotCount = count + count % 2 };
-        // Seed the template from actual home/away fixtures, not a separately generated draw.
-        foreach (var f in primaryFixtures.OrderBy(f => f.Date).ThenBy(f => byId[f.HomeTeamId].Name).ThenBy(f => f.HomeTeamId))
-            foreach (var id in new[] { f.HomeTeamId, f.AwayTeamId })
-                if (!schedule.TeamNumbers.ContainsKey(id)) schedule.TeamNumbers[id] = schedule.TeamNumbers.Count + 1;
-        foreach (var t in primaryTeams.OrderBy(t => t.Name).ThenBy(t => t.Id))
-            if (!schedule.TeamNumbers.ContainsKey(t.Id)) schedule.TeamNumbers[t.Id] = schedule.TeamNumbers.Count + 1;
-        foreach (var date in fixtures.Select(f => f.Date.Date).Distinct().OrderBy(d => d))
+        var dates = fixtures.Select(f => f.Date.Date).Distinct().OrderBy(d => d).ToList();
+        int rounds = schedule.SlotCount - 1;
+        if (dates.Count % rounds != 0)
+            throw Invalid("The dates do not form complete legs of the numbered draw. Regenerate the fixtures with the corrected generator.");
+        schedule.Pairings.AddRange(NumberedFixtureDraw.Create(schedule.SlotCount, dates.Count / rounds)
+            .Select(p => new Pairing(dates[p.Round], p.Home, p.Away)));
+        var tableGroups = teams.Where(t => t.VenueId.HasValue && t.TableId.HasValue && t.TableId != Guid.Empty)
+            .GroupBy(t => (t.VenueId, t.TableId)).ToList();
+        foreach (var table in tableGroups)
         {
-            var matches = primaryFixtures.Where(f => f.Date.Date == date).ToList();
-            if (matches.Count != count / 2)
-                throw Invalid($"{primary.Name} does not have a complete template round on {date:dd MMM yyyy}.");
-            foreach (var f in matches)
-                schedule.Pairings.Add(new(date, schedule.TeamNumbers[f.HomeTeamId], schedule.TeamNumbers[f.AwayTeamId]));
-            if (count % 2 != 0)
-            {
-                var playing = matches.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId }).ToHashSet();
-                var idle = primaryTeams.Single(t => !playing.Contains(t.Id));
-                schedule.Pairings.Add(new(date, schedule.TeamNumbers[idle.Id], schedule.SlotCount));
-            }
+            if (table.Count() > 2)
+                throw Invalid($"More than two teams share a table: {string.Join(", ", table.Select(t => t.Name))}.");
         }
+        foreach (var date in fixtures.GroupBy(f => f.Date.Date))
+            if (date.Where(f => f.VenueId.HasValue && f.TableId.HasValue && f.TableId != Guid.Empty)
+                .GroupBy(f => (f.VenueId, f.TableId)).Any(g => g.Count() > 1)
+                || date.Select(f => byId[f.HomeTeamId]).Where(t => t.VenueId.HasValue && t.TableId.HasValue && t.TableId != Guid.Empty)
+                .GroupBy(t => (t.VenueId, t.TableId)).Any(g => g.Count() > 1))
+                throw Invalid($"A home table is double-booked on {date.Key:dd MMM yyyy}.");
 
         string Signature(IEnumerable<(DateTime date, bool home)> edges) => string.Join(";",
             edges.OrderBy(e => e.date).ThenBy(e => e.home).Select(e => $"{e.date:yyyy-MM-dd}:{e.home}"));
@@ -65,45 +60,44 @@ public sealed class SharedFixtureSheetSchedule
                 templateEdges[(x, y)] = Signature(schedule.Pairings
                     .Where(p => (p.Home == x && p.Away == y) || (p.Home == y && p.Away == x))
                     .Select(p => (p.Date, p.Home == x)));
-        foreach (var division in divisions.Where(d => d.Id != primary.Id))
-        {
-            var members = teams.Where(t => t.DivisionId == division.Id).OrderBy(t => t.Name).ThenBy(t => t.Id).ToList();
-            var matches = fixtures.Where(f => f.DivisionId == division.Id).ToList();
-            var edges = new Dictionary<(Guid, Guid), string>();
-            foreach (var x in members)
-                foreach (var y in members)
-                    edges[(x.Id, y.Id)] = Signature(matches
+        var edges = new Dictionary<(Guid, Guid), string>();
+        foreach (var x in teams)
+            foreach (var y in teams.Where(t => t.DivisionId == x.DivisionId))
+                edges[(x.Id, y.Id)] = Signature(fixtures
                         .Where(f => (f.HomeTeamId == x.Id && f.AwayTeamId == y.Id) || (f.HomeTeamId == y.Id && f.AwayTeamId == x.Id))
                         .Select(f => (f.Date.Date, f.HomeTeamId == x.Id)));
-            var domains = members.ToDictionary(t => t.Id, t => Enumerable.Range(1, schedule.SlotCount)
-                .Where(slot => matches.Where(f => f.HomeTeamId == t.Id || f.AwayTeamId == t.Id)
+        var domains = teams.ToDictionary(t => t.Id, t => Enumerable.Range(1, schedule.SlotCount)
+                .Where(slot => fixtures.Where(f => f.HomeTeamId == t.Id || f.AwayTeamId == t.Id)
                     .All(f => schedule.Pairings.Any(p => p.Date == f.Date.Date
                         && (f.HomeTeamId == t.Id ? p.Home == slot : p.Away == slot)))).ToList());
-            var assigned = new Dictionary<Guid, int>();
-            int attempts = 0;
-            bool exhausted = false;
-            bool Search()
+        var partners = tableGroups.Where(g => g.Count() == 2).SelectMany(g => new[]
+            { (g.First().Id, Other: g.Last().Id), (g.Last().Id, Other: g.First().Id) }).ToDictionary(p => p.Id, p => p.Other);
+        var assigned = schedule.TeamNumbers;
+        int attempts = 0;
+        bool exhausted = false;
+        bool Search()
+        {
+            if (++attempts > 200000) { exhausted = true; return false; }
+            if (assigned.Count == teams.Count) return true;
+            var next = teams.Where(t => !assigned.ContainsKey(t.Id))
+                .Select(t => (team: t, slots: domains[t.Id].Where(slot =>
+                    assigned.Where(a => byId[a.Key].DivisionId == t.DivisionId)
+                        .All(a => a.Value != slot && edges[(t.Id, a.Key)] == templateEdges[(slot, a.Value)])
+                    && (!partners.TryGetValue(t.Id, out var partner) || !assigned.TryGetValue(partner, out int other)
+                        || NumberedFixtureDraw.AreTablePartners(slot, other))).ToList()))
+                .OrderBy(t => t.slots.Count).ThenBy(t => t.team.Name).ThenBy(t => t.team.Id).First();
+            foreach (int slot in next.slots)
             {
-                if (++attempts > 200000) { exhausted = true; return false; }
-                if (assigned.Count == members.Count) return true;
-                var next = members.Where(t => !assigned.ContainsKey(t.Id))
-                    .Select(t => (team: t, slots: domains[t.Id].Where(slot => !assigned.ContainsValue(slot)
-                        && assigned.All(a => edges[(t.Id, a.Key)] == templateEdges[(slot, a.Value)])).ToList()))
-                    .OrderBy(t => t.slots.Count).First();
-                foreach (int slot in next.slots)
-                {
-                    assigned[next.team.Id] = slot;
-                    if (Search()) return true;
-                    assigned.Remove(next.team.Id);
-                    if (exhausted) break;
-                }
-                return false;
+                assigned[next.team.Id] = slot;
+                if (Search()) return true;
+                assigned.Remove(next.team.Id);
+                if (exhausted) break;
             }
-            if (!Search()) throw Invalid(exhausted
-                ? $"The numbering search limit was reached for {division.Name}; compatibility could not be established."
-                : $"{division.Name}'s saved home/away pairings cannot be matched to {primary.Name} by renumbering teams.");
-            foreach (var entry in assigned) schedule.TeamNumbers.Add(entry.Key, entry.Value);
+            return false;
         }
+        if (!Search()) throw Invalid(exhausted
+            ? "The numbering search limit was reached; compatibility could not be established."
+            : "The saved matches cannot fit the numbered draw with odd/even table partners. Regenerate the fixtures with the corrected generator.");
 
         // Independently expand the shared grid through each key. BYE slots create no match.
         foreach (var division in divisions)
@@ -116,6 +110,9 @@ public sealed class SharedFixtureSheetSchedule
             if (actual.Count != expected.Count || !expected.SetEquals(actual))
                 throw Invalid($"The shared grid does not reproduce every fixture in {division.Name}.");
         }
+        foreach (var pair in partners)
+            if (!NumberedFixtureDraw.AreTablePartners(assigned[pair.Key], assigned[pair.Value]))
+                throw Invalid("A shared-table team pair is not assigned consecutive odd/even numbers.");
         return schedule;
     }
 }

@@ -165,6 +165,7 @@ public partial class FixturesPage : ContentPage
         CancelPenaltyMinusBtn.Clicked += (_, __) => AdjustCancelPenalty(-1);
         DiagnosticsBtn.Clicked += async (_, __) => await OnDiagnosticsAsync();
         GenerateFixturesBtn.Clicked += async (_, __) => await OnGenerateFixturesAsync();
+        CustomizeNumbersBtn.Clicked += async (_, __) => await OnCustomizeNumbersAsync();
         FixClashesBtn.Clicked += async (_, __) => await OnFixVenueClashesAsync();
         RescheduleRemainingBtn.Clicked += async (_, __) => await OnRescheduleRemainingAsync();
         ExportSchedulePlanBtn.Clicked += async (_, __) => await OnExportSchedulePlanAsync();
@@ -3448,6 +3449,33 @@ public partial class FixturesPage : ContentPage
         }
     }
 
+    private async System.Threading.Tasks.Task OnCustomizeNumbersAsync()
+    {
+        try
+        {
+            var data = _dataStore.GetData();
+            var seasonId = data.ActiveSeasonId ?? data.Seasons.FirstOrDefault(s => s.IsActive)?.Id;
+            if (!seasonId.HasValue)
+            {
+                await DisplayAlert("Team numbers", "Select an active season first.", "OK");
+                return;
+            }
+            var fixtures = await _dataStore.GetFixturesAsync(seasonId.Value);
+            if (fixtures.Count == 0)
+            {
+                await DisplayAlert("Team numbers", "Generate fixtures first. Number customization is also available before saving a new draw.", "OK");
+                return;
+            }
+            var editor = new FixtureNumberEditor(data, seasonId.Value, fixtures, fixtures);
+            if (!await FixtureNumbersPage.ShowAsync(this, editor, _dataStore)) return;
+            _selectedFixture = null;
+            ClearScorecard();
+            RefreshList();
+            await DisplayAlert("Team numbers", "Reviewed numbers and fixtures saved. Regenerate the website sheet to publish the updated draw.", "OK");
+        }
+        catch (Exception ex) { await DisplayAlert("Cannot customize numbers", ex.Message, "OK"); }
+    }
+
     private async System.Threading.Tasks.Task OnGenerateFixturesAsync()
     {
         if (await CheckSeasonLockedAsync("generate fixtures")) return;
@@ -3507,6 +3535,8 @@ public partial class FixturesPage : ContentPage
 
         try
         {
+            var savedFixtures = await _dataStore.GetFixturesAsync(seasonId.Value);
+            FixtureNumberEditor.EnsureUnplayed(savedFixtures);
             var settings = _dataStore.GetData().GetSettingsForSeason(seasonId);
             var fixtures = Services.FixtureGenerator.Generate(
                 league: _dataStore.GetData(),
@@ -3518,9 +3548,8 @@ public partial class FixturesPage : ContentPage
                 endDate: season.EndDate,
                 blackoutDates: season.BlackoutDates);
 
-            // Atomic replace via the typed store — mutating the GetData()
-            // snapshot then calling SaveAsync() never persisted anything.
-            await _dataStore.ReplaceGeneratedFixturesForSeasonAsync(seasonId.Value, fixtures);
+            var editor = new FixtureNumberEditor(_dataStore.GetData(), seasonId.Value, fixtures, savedFixtures);
+            if (!await FixtureNumbersPage.ShowAsync(this, editor, _dataStore)) return;
 
             _selectedFixture = null;
             ClearScorecard();

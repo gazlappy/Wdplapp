@@ -165,6 +165,7 @@
                     <Button x:Name="ExportSchedulePlanBtn" Text="📤 Export Schedule Data (JSON)" BackgroundColor="#1E3A8A" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Export season schedule data to a JSON file for offline analysis" />
                     <Button x:Name="ApplySchedulePlanBtn" Text="📥 Apply Schedule Plan (JSON)" BackgroundColor="#1E40AF" TextColor="White" FontSize="12" HeightRequest="32" SemanticProperties.Description="Apply a JSON schedule plan to unplayed fixtures" />
                     <Button x:Name="GenerateFixturesBtn" Text="Generate Fixtures" Style="{StaticResource SuccessButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Generate fixtures" />
+                    <Button x:Name="CustomizeNumbersBtn" Text="Customize Team Numbers" Style="{StaticResource SuccessButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Review paired team-number swaps for the active unplayed season" />
                     <Button x:Name="DeleteSeasonBtn" Text="Delete (Season)" Style="{StaticResource WarningButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Delete season fixtures" />
                     <Button x:Name="DeleteAllBtn" Text="Delete ALL" Style="{StaticResource DangerButtonStyle}" FontSize="12" HeightRequest="32" SemanticProperties.Description="Delete all fixtures" />
                     
