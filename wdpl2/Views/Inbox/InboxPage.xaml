@@ -42,6 +42,7 @@
                 </HorizontalStackLayout>
                 <Label Text="Quick links" FontAttributes="Bold" FontSize="12" Margin="0,6,0,0" />
                 <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Center">
+                    <Button Text="Review website changes" Margin="0,0,6,6" Clicked="OnReviewWebsiteChangesClicked" />
                     <Button Text="Site home" Margin="0,0,6,6"
                             Command="{Binding OpenLinkCommand}" CommandParameter="/" />
                     <Button Text="Captain login" Margin="0,0,6,6"

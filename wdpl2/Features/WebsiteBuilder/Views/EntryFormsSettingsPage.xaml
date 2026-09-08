@@ -2,37 +2,44 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebsiteBuilder.EntryFormsSettingsPage"
-             Title="Entry Forms">
+             Title="Online Forms" BackgroundColor="#F1F5F9">
 
-    <Grid RowDefinitions="Auto,*" RowSpacing="0">
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="0" SizeChanged="OnWorkspaceSizeChanged">
 
         <!-- Header -->
-        <Grid Padding="20,16" ColumnDefinitions="*,Auto" BackgroundColor="#F8FAFC">
-            <VerticalStackLayout Spacing="4">
-                <Label Text="&#128203; Entry Forms" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
-                <Label Text="Create forms on the left, manage submitted records on the right" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
+        <Grid Padding="24,20" RowDefinitions="Auto,Auto" RowSpacing="12" BackgroundColor="#0F172A">
+            <VerticalStackLayout Spacing="5">
+                <Label Text="WEBSITE BUILDER / REGISTRATIONS" FontSize="10" CharacterSpacing="1.5" TextColor="#93C5FD"/>
+                <Label Text="Online forms" FontSize="28" FontAttributes="Bold" TextColor="White"/>
+                <Label Text="Design a form. Preview the experience. Review every entry." FontSize="13" TextColor="#CBD5E1" LineBreakMode="WordWrap"/>
             </VerticalStackLayout>
-            <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
-                <Label Text="Show on website" FontAttributes="Bold" FontSize="13" TextColor="#475569" VerticalOptions="Center"/>
+            <HorizontalStackLayout Grid.Row="1" Spacing="10">
+                <Label Text="Show forms on website" FontAttributes="Bold" FontSize="12" TextColor="#E2E8F0" VerticalOptions="Center"/>
                 <Switch x:Name="ShowEntryFormsSwitch" Toggled="OnShowToggled" VerticalOptions="Center"/>
             </HorizontalStackLayout>
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" ColumnSpacing="0">
+        <Grid Grid.Row="1" Padding="16,10" RowDefinitions="Auto,Auto" RowSpacing="8">
+            <Label x:Name="WorkspaceSummaryLabel" FontSize="12" TextColor="#475569" LineBreakMode="WordWrap"/>
+            <HorizontalStackLayout Grid.Row="1" x:Name="WorkspaceTabs" Spacing="8" IsVisible="False">
+                <Button Text="Design form" Clicked="OnDesignTabClicked" BackgroundColor="#2563EB" TextColor="White" CornerRadius="10" Padding="16,8"/>
+                <Button Text="Review entries" Clicked="OnRecordsTabClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" CornerRadius="10" Padding="16,8"/>
+            </HorizontalStackLayout>
+        </Grid>
+        <Grid Grid.Row="2" x:Name="WorkspaceGrid" ColumnDefinitions="*,Auto,*" ColumnSpacing="0">
 
             <!-- ═══════════════ LEFT: Forms ═══════════════ -->
-            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="0" BackgroundColor="#F8FAFC">
+            <Grid x:Name="DesignPane" RowDefinitions="Auto,Auto,*" RowSpacing="0" BackgroundColor="#F8FAFC">
 
                 <!-- Add buttons -->
-                <Grid Padding="16,10,16,8" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
-                    <Label Text="Forms" FontAttributes="Bold" FontSize="14" TextColor="#475569" VerticalOptions="Center"/>
-                    <Button Grid.Column="1" x:Name="AddTeamEntryBtn" Text="+ Team Entry"
+                <Grid Padding="16,10,16,8" ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                    <Button x:Name="AddTeamEntryBtn" Text="+ Team"
                             Clicked="OnAddTeamEntryClicked" BackgroundColor="#10B981" TextColor="White"
                             FontSize="11" Padding="10,7" CornerRadius="8"/>
-                    <Button Grid.Column="2" x:Name="AddCompEntryBtn" Text="+ Competition"
+                    <Button Grid.Column="1" x:Name="AddCompEntryBtn" Text="+ Competition"
                             Clicked="OnAddCompEntryClicked" BackgroundColor="#8B5CF6" TextColor="White"
                             FontSize="11" Padding="10,7" CornerRadius="8"/>
-                    <Button Grid.Column="3" x:Name="AddCustomBtn" Text="+ Custom"
+                    <Button Grid.Column="2" x:Name="AddCustomBtn" Text="+ Custom"
                             Clicked="OnAddCustomClicked" BackgroundColor="#3B82F6" TextColor="White"
                             FontSize="11" Padding="10,7" CornerRadius="8"/>
                 </Grid>
@@ -52,7 +59,7 @@
                                     <Label Grid.Column="1" Text="{Binding Title}" FontAttributes="Bold"
                                            FontSize="12" TextColor="#1E293B" LineBreakMode="TailTruncation" VerticalOptions="Center"/>
                                     <Label Grid.Column="2" Text="{Binding FieldCountLabel}" FontSize="10" TextColor="#64748B" VerticalOptions="Center"/>
-                                    <Label Grid.Column="3" Text="{Binding StatusIcon}" FontSize="14" VerticalOptions="Center"/>
+                                    <Label Grid.Column="3" Text="{Binding StatusIcon}" FontSize="11" TextColor="#475569" VerticalOptions="Center"/>
                                 </Grid>
                             </Frame>
                         </DataTemplate>
@@ -79,6 +86,12 @@
 
                         <!-- Editor form -->
                         <VerticalStackLayout x:Name="EditorForm" IsVisible="False" Spacing="12">
+                            <Border Stroke="#BFDBFE" BackgroundColor="#EFF6FF" Padding="12" StrokeShape="RoundRectangle 12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Private editing draft" FontSize="13" FontAttributes="Bold" TextColor="#1E40AF"/>
+                                    <Label Text="Changes stay here until Save. Preview never sends entries. Regenerate and publish your website to make saved changes live." FontSize="12" TextColor="#1E40AF" LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                            </Border>
 
                             <!-- Form Details -->
                             <Label Text="FORM DETAILS" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8" CharacterSpacing="1.5"/>
@@ -97,6 +110,10 @@
                                     <VerticalStackLayout Spacing="3">
                                         <Label Text="Submit Button Text" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
                                         <Entry x:Name="SubmitButtonEntry" Placeholder="Submit Entry" FontSize="13"/>
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="Message after confirmed online delivery" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                                        <Editor x:Name="ConfirmationEditor" Placeholder="Thank you for your entry!" AutoSize="TextChanges" FontSize="13"/>
                                     </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Frame>
@@ -130,20 +147,24 @@
                                 <VerticalStackLayout Spacing="10">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                         <Label Text="Published (visible on website)" FontSize="12" TextColor="#475569" VerticalOptions="Center"/>
-                                        <Switch x:Name="IsPublishedSwitch"/>
+                                        <Switch Grid.Column="1" x:Name="IsPublishedSwitch"/>
                                     </Grid>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                         <Label Text="Closed (no new entries)" FontSize="12" TextColor="#475569" VerticalOptions="Center"/>
-                                        <Switch x:Name="IsClosedSwitch"/>
+                                        <Switch Grid.Column="1" x:Name="IsClosedSwitch"/>
                                     </Grid>
                                     <VerticalStackLayout Spacing="3">
-                                        <Label Text="Closing Date (optional)" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Label Text="Set a closing date" FontSize="12" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
+                                            <Switch Grid.Column="1" x:Name="HasClosingDateSwitch" Toggled="OnHasClosingDateToggled"/>
+                                        </Grid>
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                             <DatePicker x:Name="ClosingDatePicker" FontSize="13"/>
-                                            <Button x:Name="ClearClosingDateBtn" Text="Clear" Clicked="OnClearClosingDate"
+                                            <Button Grid.Column="1" x:Name="ClearClosingDateBtn" Text="Clear" Clicked="OnClearClosingDate"
                                                     BackgroundColor="Transparent" TextColor="#EF4444" FontSize="11"
                                                     Padding="6,4" VerticalOptions="Center"/>
                                         </Grid>
+                                        <Label Text="Entries remain open through this date. The receiving service must also enforce the deadline." FontSize="11" TextColor="#64748B" LineBreakMode="WordWrap"/>
                                     </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Frame>
@@ -152,7 +173,7 @@
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                 <Label Text="FORM FIELDS" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"
                                        CharacterSpacing="1.5" VerticalOptions="Center"/>
-                                <Button x:Name="AddFieldBtn" Text="+ Add Field" Clicked="OnAddFieldClicked"
+                                <Button Grid.Column="1" x:Name="AddFieldBtn" Text="+ Add Field" Clicked="OnAddFieldClicked"
                                         BackgroundColor="#3B82F6" TextColor="White" FontSize="11"
                                         Padding="10,7" CornerRadius="8"/>
                             </Grid>
@@ -165,18 +186,20 @@
                             </VerticalStackLayout>
 
                             <!-- Bottom actions -->
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,4,0,0">
+                            <Label x:Name="FormValidationLabel" IsVisible="False" FontSize="12" TextColor="#B91C1C" LineBreakMode="WordWrap"/>
+                            <FlexLayout Wrap="Wrap" JustifyContent="Start" AlignItems="Center">
+                                <Button Text="Preview" Clicked="OnPreviewFormClicked" BackgroundColor="#EFF6FF" TextColor="#1D4ED8" CornerRadius="10" Padding="16,10" Margin="0,0,8,8"/>
                                 <Button x:Name="SaveFormBtn" Text="&#128190; Save Form"
                                         Clicked="OnSaveFormClicked"
                                         BackgroundColor="#10B981" TextColor="White" FontSize="13"
-                                        Padding="14,10" CornerRadius="8"/>
+                                        Padding="14,10" CornerRadius="8" Margin="0,0,8,8"/>
                                 <Button Grid.Column="1" x:Name="DuplicateFormBtn" Text="&#128203; Duplicate" IsEnabled="False"
                                         Clicked="OnDuplicateFormClicked" BackgroundColor="#EFF6FF" TextColor="#3B82F6"
-                                        FontSize="11" Padding="10,8" CornerRadius="8"/>
+                                        FontSize="11" Padding="10,8" CornerRadius="8" Margin="0,0,8,8"/>
                                 <Button Grid.Column="2" x:Name="DeleteFormBtn" Text="&#128465; Delete" IsEnabled="False"
                                         Clicked="OnDeleteFormClicked" BackgroundColor="#FEE2E2" TextColor="#DC2626"
                                         FontSize="11" Padding="10,8" CornerRadius="8"/>
-                            </Grid>
+                            </FlexLayout>
 
                         </VerticalStackLayout>
                     </VerticalStackLayout>
@@ -184,35 +207,61 @@
             </Grid>
 
             <!-- Divider -->
-            <BoxView Grid.Column="1" WidthRequest="1" BackgroundColor="#CBD5E1"/>
+            <BoxView x:Name="WorkspaceDivider" Grid.Column="1" WidthRequest="1" BackgroundColor="#CBD5E1"/>
 
             <!-- ═══════════════ RIGHT: Records ═══════════════ -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="0">
+            <Grid x:Name="RecordsPane" Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="0">
 
                 <!-- Form service settings (collapsible) -->
                 <Frame Padding="10,8" Margin="10,6,10,0" CornerRadius="8" BorderColor="#E2E8F0" BackgroundColor="#F8FAFC" HasShadow="False">
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="&#127760; FORM COLLECTION SERVICE" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8" CharacterSpacing="1.5"/>
-                        <Label Text="Uses jsonbin.io to collect form submissions. Sign up free at jsonbin.io, copy your X-Master-Key, paste it below, then click Create Bin."
-                               FontSize="10" TextColor="#94A3B8" LineBreakMode="WordWrap"/>
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="6">
-                            <Label Text="Bin URL" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
-                            <Entry Grid.Column="1" x:Name="FormServiceUrlEntry" Placeholder="https://api.jsonbin.io/v3/b/..." FontSize="11"/>
-                            <Label Grid.Row="1" Text="X-Master-Key" FontSize="11" FontAttributes="Bold" TextColor="#475569" VerticalOptions="Center"/>
-                            <Entry Grid.Row="1" Grid.Column="1" x:Name="FormServiceTokenEntry" Placeholder="$2a$10$..." FontSize="11" IsPassword="True"/>
-                        </Grid>
+                        <Button Text="Delivery and collection settings" Clicked="OnToggleServiceClicked" BackgroundColor="Transparent" TextColor="#1D4ED8" HorizontalOptions="Start" FontSize="12" Padding="4"/>
+                        <Label x:Name="DeliveryStatusLabel" FontSize="12" TextColor="#475569" LineBreakMode="WordWrap"/>
+                        <VerticalStackLayout x:Name="ServiceSettingsPanel" IsVisible="False" Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Use our own hosting" FontAttributes="Bold" FontSize="12" TextColor="#475569" VerticalOptions="Center"/>
+                                <Switch x:Name="UseHostedFormsSwitch" Grid.Column="1" Toggled="OnHostedModeToggled"/>
+                            </Grid>
+                            <VerticalStackLayout x:Name="HostedServicePanel" IsVisible="False" Spacing="6">
+                                <Label Text="Requires PHP, MySQL and HTTPS. Deploy the bundled backend using Web Inbox → Deploy backend. Save the API URL/admin login in Web Inbox settings. Credentials remain private."
+                                       FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                                <Label Text="Public Website URL" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                                <Entry x:Name="HostedWebsiteUrlEntry" Placeholder="HTTPS address visitors use to open the website" FontSize="12" Keyboard="Url"/>
+                                <Label Text="Use the published website address, not the /api/ address. Match the actual hostname, including www if used. This also updates the shared Website URL setting."
+                                       FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                                <Button x:Name="SaveHostedSettingsBtn" Text="Save hosting settings" Clicked="OnSaveHostedSettingsClicked"
+                                        BackgroundColor="#10B981" TextColor="White" FontSize="12" CornerRadius="8" HorizontalOptions="Start"/>
+                                <Label Text="Publish sends only saved, published forms. It also closes omitted forms on the server, without deleting entries. Repeat after changing fields, closing dates or publication status. London time applies."
+                                       FontSize="11" TextColor="#92400E" LineBreakMode="WordWrap"/>
+                                <Button x:Name="PublishHostedFormsBtn" Text="Publish saved forms to our hosting" Clicked="OnPublishHostedFormsClicked"
+                                        BackgroundColor="#2563EB" TextColor="White" FontSize="12" CornerRadius="8" HorizontalOptions="Start"/>
+                                <Label Text="The hosting switch saves immediately. Save hosting settings to keep the website address locally; Publish also saves this address. Online delivery is enabled only after the backend acknowledges publishing. Then regenerate/deploy the website. Fetch Submissions uses the saved Web Inbox admin login and still requires review."
+                                       FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout x:Name="ExternalServicePanel" Spacing="6">
+                            <Label Text="Public HTTPS POST endpoint (no secrets)" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                            <Entry x:Name="FormServiceUrlEntry" Placeholder="Optional public entry endpoint" FontSize="12" Keyboard="Url"/>
+                            <Label Text="Private collection URL (GET / legacy JSONBin)" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                            <Entry x:Name="FormServiceFetchUrlEntry" Placeholder="Private URL for fetching entries" FontSize="12" Keyboard="Url"/>
+                            <Label Text="Private token — used only by the app" FontSize="11" FontAttributes="Bold" TextColor="#475569"/>
+                            <Entry x:Name="FormServiceTokenEntry" Placeholder="Bearer token or JSONBin X-Master-Key" FontSize="12" IsPassword="True"/>
+                            <Label Text="Online delivery needs a compatible endpoint returning accepted: true and the entry id. See Docs/OnlineForms.md. Without one, visitors download and send entries manually. JSONBin master keys are never published. Rotate any key exposed by an older website." FontSize="11" TextColor="#92400E" LineBreakMode="WordWrap"/>
                         <HorizontalStackLayout Spacing="6">
                             <Button x:Name="SaveServiceBtn" Text="&#128190; Save" Clicked="OnSaveServiceSettingsClicked"
                                     BackgroundColor="#10B981" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"/>
-                            <Button x:Name="CreateBinBtn" Text="&#128259; Create Bin" Clicked="OnCreateBinClicked"
+                            <Button x:Name="CreateBinBtn" Text="Create legacy bin" Clicked="OnCreateBinClicked"
                                     BackgroundColor="#3B82F6" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"
                                     ToolTipProperties.Text="Create a new jsonbin.io bin using the API key above"/>
+                        </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                        <FlexLayout Wrap="Wrap" AlignItems="Center">
                             <Button x:Name="FetchSubmissionsBtn" Text="&#128229; Fetch Submissions" Clicked="OnFetchSubmissionsClicked"
                                     BackgroundColor="#8B5CF6" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"/>
                             <Button x:Name="ImportFileBtn" Text="&#128194; Import File" Clicked="OnImportSubmissionsClicked"
                                     BackgroundColor="#64748B" TextColor="White" FontSize="11" Padding="10,6" CornerRadius="6"
                                     ToolTipProperties.Text="Import a JSON file exported from the website _submissions.html page"/>
-                        </HorizontalStackLayout>
+                        </FlexLayout>
                         <Label x:Name="FetchStatusLabel" Text="" FontSize="10" TextColor="#64748B" IsVisible="False"/>
                     </VerticalStackLayout>
                 </Frame>
@@ -246,6 +295,11 @@
 
                         <!-- Records panel (shown when form is selected) -->
                         <VerticalStackLayout x:Name="RecordsPanel" IsVisible="False" Spacing="12">
+                            <Label Text="Review queue — importing does not create teams or confirm registrations." FontSize="12" TextColor="#475569" LineBreakMode="WordWrap"/>
+                            <SearchBar x:Name="EntrySearchBar" Placeholder="Search entries or field values" TextChanged="OnEntryFilterChanged"/>
+                            <Picker x:Name="EntryFilterPicker" Title="Status filter" SelectedIndexChanged="OnEntryFilterChanged" FontSize="12">
+                                <Picker.ItemsSource><x:Array Type="{x:Type x:String}"><x:String>All entries</x:String><x:String>Pending</x:String><x:String>Confirmed</x:String><x:String>Rejected</x:String></x:Array></Picker.ItemsSource>
+                            </Picker>
 
                             <!-- Entries list -->
                             <CollectionView x:Name="EntriesCollection" SelectionMode="Single"

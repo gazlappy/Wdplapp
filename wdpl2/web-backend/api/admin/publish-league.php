@@ -11,11 +11,14 @@
 // Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_admin_sync.php';
+require_once __DIR__ . '/../_publish_schema.php';
 require_admin();
 require_post();
 
 $body = read_json_body();
 $season_id = isset($body['season_id']) ? (string)$body['season_id'] : null;
+if ($season_id === null || trim($season_id) === '') json_response(array('error' => 'An explicit season_id is required; global replacement is not supported.'), 422);
 $teams     = isset($body['teams'])    && is_array($body['teams'])    ? $body['teams']    : array();
 $players   = isset($body['players'])  && is_array($body['players'])  ? $body['players']  : array();
 $fixtures  = isset($body['fixtures']) && is_array($body['fixtures']) ? $body['fixtures'] : array();
@@ -26,6 +29,8 @@ $pdo = db();
 
 // Ensure schemas exist (first-ever publish on a fresh DB).
 try {
+    admin_sync_ensure_schema();
+    publish_ensure_result_schema($pdo);
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS league_teams (
             team_id       VARCHAR(64) NOT NULL,
@@ -83,6 +88,12 @@ try {
 
 $pdo->beginTransaction();
 try {
+    $syncState = admin_sync_lock();
+    $conflicts = publish_pending_conflicts($season_id, $body, $syncState);
+    if (count($conflicts)) {
+        $pdo->rollBack();
+        json_response(array('error' => 'Review and synchronize outstanding web scorecard edits before publishing. Nothing was replaced.', 'conflicts' => $conflicts), 409);
+    }
     // Wipe everything for this season (or all if null) - but KEEP captain-added
     // players so a publish from the app never destroys the online rosters.
     if ($season_id !== null && $season_id !== '') {
@@ -126,19 +137,7 @@ try {
         ));
     }
 
-    // A captain-added player becomes app-managed once the app imports the match
-    // and republishes them (same name, same team, different id). Drop the stale
-    // captain row so the roster doesn't show duplicates.
-    try {
-        $pdo->exec(
-            "DELETE cp FROM league_players cp
-              INNER JOIN league_players ap
-                      ON ap.added_by_captain = 0
-                     AND cp.added_by_captain = 1
-                     AND ap.team_id = cp.team_id
-                     AND ap.player_id <> cp.player_id
-                     AND LOWER(TRIM(ap.full_name)) = LOWER(TRIM(cp.full_name))");
-    } catch (Exception $e) { /* non-fatal */ }
+    // Preserve distinct player IDs even when names match. Reconciliation is explicit.
 
     $ins = $pdo->prepare(
         'INSERT INTO league_fixtures
@@ -159,21 +158,10 @@ try {
         ));
     }
 
-    $pdo->commit();
-} catch (Exception $e) {
-    $pdo->rollBack();
-    json_response(array('error' => $e->getMessage()), 500);
-}
-
 // ---- league_settings (key/value) ---------------------------------------
 $settings_written = 0;
 if (!empty($settings)) {
     try {
-        $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS league_settings (
-                setting_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
-                setting_value VARCHAR(255) NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $up = $pdo->prepare(
             'INSERT INTO league_settings (setting_key, setting_value)
              VALUES (:k, :v)
@@ -183,33 +171,13 @@ if (!empty($settings)) {
             $up->execute(array(':k' => $k, ':v' => is_scalar($v) ? (string)$v : json_encode($v)));
             $settings_written++;
         }
-    } catch (Exception $e) { /* non-fatal */ }
+    } catch (Exception $e) { throw $e; }
 }
 
 // ---- league_frame_results (per-frame, source='app') --------------------
 $frames_written = 0;
 if (!empty($results)) {
     try {
-        $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS league_frame_results (
-                fixture_id       VARCHAR(64) NOT NULL,
-                frame_no         INT NOT NULL,
-                home_player_id   VARCHAR(64) NULL,
-                home_player_name VARCHAR(120) NULL,
-                home_player2_id  VARCHAR(64) NULL,
-                home_player2_name VARCHAR(120) NULL,
-                away_player_id   VARCHAR(64) NULL,
-                away_player_name VARCHAR(120) NULL,
-                away_player2_id  VARCHAR(64) NULL,
-                away_player2_name VARCHAR(120) NULL,
-                winner           ENUM('home','away','none') NOT NULL DEFAULT 'none',
-                eight_ball       TINYINT(1) NOT NULL DEFAULT 0,
-                is_doubles       TINYINT(1) NOT NULL DEFAULT 0,
-                source           VARCHAR(16) NOT NULL DEFAULT 'app',
-                updated_utc      DATETIME NOT NULL,
-                PRIMARY KEY (fixture_id, frame_no),
-                KEY ix_frame_updated (updated_utc)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
         $now = gmdate('Y-m-d H:i:s');
         $up = $pdo->prepare(
@@ -267,7 +235,13 @@ if (!empty($results)) {
                 $frames_written++;
             }
         }
-    } catch (Exception $e) { /* non-fatal — already committed league core data */ }
+    } catch (Exception $e) { throw $e; }
+}
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('WDPL publish failed: ' . get_class($e));
+    json_response(array('error' => 'Publication failed; no league changes were committed.'), 500);
 }
 
 json_response(array(

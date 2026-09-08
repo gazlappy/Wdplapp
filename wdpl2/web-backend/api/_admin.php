@@ -1,15 +1,16 @@
 <?php
-// _admin.php — admin session + login helpers. PHP 5.6 compatible.
+// _admin.php — admin session + login helpers. PHP 8.2 or newer.
 // Two auth paths are supported so the existing MAUI desktop app keeps working:
 //   1) Cookie / bearer session token (admin_sessions) - used by the web admin SPA.
 //   2) HTTP Basic auth (Authorization: Basic ...) - used by the MAUI Web Inbox.
 //      The username/password are looked up in the admin_users table.
-// If the admin_users table doesn't exist yet, it is auto-created. If it has
-// no rows, a one-off bootstrap login is allowed (see admin_login_check()).
+// Initial accounts must be provisioned explicitly, never by anonymous login.
 require_once __DIR__ . '/_db.php';
+require_once __DIR__ . '/_admin_security.php';
 
 define('ADMIN_COOKIE',  'wdpl_admin');
 define('ADMIN_TTL_HRS', 12);
+if (isset($_SERVER['REQUEST_METHOD'])) admin_guard_transport();
 
 function admin_ensure_schema() {
     $pdo = db();
@@ -91,8 +92,8 @@ function admin_issue_session($user_id) {
     $exp   = gmdate('Y-m-d H:i:s', time() + ADMIN_TTL_HRS * 3600);
     db()->prepare('INSERT INTO admin_sessions (token, user_id, expires_utc) VALUES (:t,:u,:e)')
         ->execute(array(':t' => $token, ':u' => $user_id, ':e' => $exp));
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-    setcookie(ADMIN_COOKIE, $token, time() + ADMIN_TTL_HRS * 3600, '/', '', $secure, true);
+    setcookie(ADMIN_COOKIE, $token, array('expires' => time() + ADMIN_TTL_HRS * 3600,
+        'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Strict'));
     db()->prepare('UPDATE admin_users SET last_login = UTC_TIMESTAMP() WHERE user_id = :u')
         ->execute(array(':u' => $user_id));
     return $token;
@@ -119,7 +120,8 @@ function admin_logout() {
     if ($t) {
         db()->prepare('DELETE FROM admin_sessions WHERE token = :t')->execute(array(':t' => $t));
     }
-    setcookie(ADMIN_COOKIE, '', time() - 3600, '/');
+    setcookie(ADMIN_COOKIE, '', array('expires' => time() - 3600,
+        'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Strict'));
 }
 
 /**
@@ -184,10 +186,11 @@ function admin_role_rank($role) {
     if ($r === 'superadmin') return 3;
     if ($r === 'admin')      return 2;
     if ($r === 'readonly')   return 1;
-    return 2; // legacy rows with no role -> treat as admin
+    return 0; // Unknown roles never acquire administrative privileges.
 }
 
 function require_admin($minRole = null) {
+    if ($minRole === null) $minRole = in_array($_SERVER['REQUEST_METHOD'], array('GET', 'HEAD'), true) ? 'readonly' : 'admin';
     $a = admin_current();
     if (!$a) {
         // Don't ask the browser for Basic-auth here - the SPA shows its own form.

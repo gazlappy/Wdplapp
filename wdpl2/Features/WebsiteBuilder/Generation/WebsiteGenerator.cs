@@ -55,7 +55,7 @@ namespace Wdpl2.Services
         /// <summary>
         /// Generate all HTML files for the website
         /// </summary>
-        public Dictionary<string, string> GenerateWebsite()
+        public Dictionary<string, string> GenerateWebsite(bool previewEntryForms = false)
         {
             var files = new Dictionary<string, string>();
             
@@ -172,8 +172,9 @@ namespace Wdpl2.Services
 
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
             {
-                files["entry-forms.html"] = GenerateEntryFormsPage(season, template);
-                files["_submissions.html"] = GenerateSubmissionsAdminPage(season, template);
+                files["entry-forms.html"] = GenerateEntryFormsPage(season, template, previewEntryForms);
+                if (!previewEntryForms)
+                    files["_submissions.html"] = GenerateSubmissionsAdminPage(season, template);
             }
 
             // Add UK 8-Ball Pool Game
@@ -689,106 +690,16 @@ namespace Wdpl2.Services
         private void AppendHomeActiveEntryForm(StringBuilder html)
         {
             var activeForm = _settings.EntryForms
-                .Where(f => f.IsPublished && !f.IsClosed && (!f.ClosingDate.HasValue || f.ClosingDate.Value >= DateTime.Now))
+                .Where(f => f.IsPublished && !EntryFormRules.IsClosed(f, DateTime.Today))
                 .OrderBy(f => f.SortOrder)
                 .ThenByDescending(f => f.DateCreated)
                 .FirstOrDefault();
 
             if (activeForm == null) return;
 
-            var formId = $"form-{activeForm.Id:N}";
-
-            html.AppendLine("            <section class=\"section entry-form-card\">");
-
-            if (activeForm.LogoImageData != null && activeForm.LogoImageData.Length > 0)
-            {
-                var imgOpt = new ImageOptimizationService();
-                var dataUrl = imgOpt.ToDataUrl(activeForm.LogoImageData, imgOpt.GetMimeType("logo.png"));
-                html.AppendLine($"                <div class=\"entry-form-logo\"><img src=\"{dataUrl}\" alt=\"{Esc(activeForm.Title)}\"></div>");
-            }
-
-            html.AppendLine("                <div class=\"entry-form-header\">");
-            html.AppendLine($"                    <h3>&#128203; {Esc(activeForm.Title)}</h3>");
-            html.AppendLine("                    <span class=\"entry-form-badge open\">Open</span>");
-            html.AppendLine("                </div>");
-
-            if (!string.IsNullOrWhiteSpace(activeForm.Description))
-                html.AppendLine($"                <p class=\"entry-form-desc\">{Esc(activeForm.Description)}</p>");
-
-            if (activeForm.ClosingDate.HasValue)
-                html.AppendLine($"                <p class=\"entry-form-deadline\">&#9200; Closing date: <strong>{activeForm.ClosingDate.Value:dddd dd MMMM yyyy}</strong></p>");
-
-            if (activeForm.Fields.Count != 0)
-            {
-                html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
-                html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
-                html.AppendLine($"                    <input type=\"hidden\" name=\"_formId\" value=\"{formId}\">");
-
-                foreach (var field in activeForm.Fields.OrderBy(f => f.SortOrder))
-                {
-                    var fieldId = $"field-{field.Id:N}";
-                    var fieldName = Esc(field.Label);
-                    var requiredAttr = field.IsRequired ? " required" : "";
-                    var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
-                    var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
-
-                    html.AppendLine("                    <div class=\"form-group\">");
-
-                    switch (field.FieldType)
-                    {
-                        case "textarea":
-                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldName}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
-                            break;
-                        case "select":
-                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}>");
-                            html.AppendLine("                            <option value=\"\">-- Select --</option>");
-                            if (!string.IsNullOrWhiteSpace(field.Options))
-                            {
-                                foreach (var opt in field.Options.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                    html.AppendLine($"                            <option value=\"{Esc(opt)}\">{Esc(opt)}</option>");
-                            }
-                            html.AppendLine("                        </select>");
-                            break;
-                        case "checkbox":
-                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
-                            break;
-                        default:
-                            var inputType = field.FieldType switch
-                            {
-                                "email" => "email",
-                                "phone" => "tel",
-                                "number" => "number",
-                                "date" => "date",
-                                _ => "text"
-                            };
-                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldName}\"{placeholder}{requiredAttr}>");
-                            break;
-                    }
-
-                    html.AppendLine("                    </div>");
-                }
-
-                var submitText = !string.IsNullOrWhiteSpace(activeForm.SubmitButtonText) ? Esc(activeForm.SubmitButtonText) : "Submit Entry";
-                html.AppendLine($"                    <button type=\"submit\" class=\"entry-form-submit\">{submitText}</button>");
-                html.AppendLine("                </form>");
-                html.AppendLine($"                <div class=\"entry-form-confirmation\" id=\"{formId}-confirm\" style=\"display:none;\">");
-                html.AppendLine("                    <p>&#9989; Your entry has been submitted successfully! The league secretary will review it shortly.</p>");
-                html.AppendLine("                </div>");
-
-                var fieldLabels = activeForm.Fields.OrderBy(f => f.SortOrder)
-                    .Select(f => $"{{\"id\":\"field-{f.Id:N}\",\"label\":\"{Esc(f.Label).Replace("\"", "\\\"")}\",\"type\":\"{f.FieldType}\"}}")
-                    .ToList();
-                html.AppendLine($"                <script>window.formFields = window.formFields || {{}}; window.formFields['{formId}'] = [{string.Join(",", fieldLabels)}];</script>");
-
-                // Include form submission JS
-                AppendEntryFormSubmitScript(html, "                ");
-            }
-
+            AppendEntryFormCard(html, activeForm);
+            AppendEntryFormSubmitScript(html, "");
             html.AppendLine("                <p class=\"view-all\"><a href=\"entry-forms.html\">View All Entry Forms &#8594;</a></p>");
-            html.AppendLine("            </section>");
         }
 
         private void AppendHomeStandingsSection(StringBuilder html, List<Division> divisions, List<Team> teams, List<Fixture> fixtures)
@@ -3121,7 +3032,7 @@ namespace Wdpl2.Services
             }
         }
 
-        private string GenerateEntryFormsPage(Season season, WebsiteTemplate template)
+        private string GenerateEntryFormsPage(Season season, WebsiteTemplate template, bool preview)
         {
             return GenerateFullPage($"{_settings.EntryFormsPageTitle} - {_settings.LeagueName}", season, "Entry Forms", html =>
             {
@@ -3129,6 +3040,8 @@ namespace Wdpl2.Services
                 html.AppendLine($"                <h2>&#128203; {Esc(_settings.EntryFormsPageTitle)}</h2>");
                 html.AppendLine("                <p class=\"hero-dates\">Season entries &amp; registrations</p>");
                 html.AppendLine("            </div>");
+                if (preview)
+                    html.AppendLine("<p class=\"entry-form-notice\">Preview only — entries will not be sent, downloaded or saved. Save forms and publish the website separately.</p>");
 
                 var publishedForms = _settings.EntryForms
                     .Where(f => f.IsPublished)
@@ -3138,130 +3051,16 @@ namespace Wdpl2.Services
 
                 if (publishedForms.Count != 0)
                 {
+                    html.AppendLine("<nav class=\"entry-form-directory\" aria-label=\"Choose an entry form\">");
                     foreach (var form in publishedForms)
                     {
-                        var formId = $"form-{form.Id:N}";
-                        var isClosed = form.IsClosed || (form.ClosingDate.HasValue && form.ClosingDate.Value < DateTime.Now);
-
-                        html.AppendLine($"            <div class=\"section entry-form-card\" id=\"{formId}\">");
-
-                        // Form logo
-                        if (form.LogoImageData != null && form.LogoImageData.Length > 0)
-                        {
-                            var imgOpt = new ImageOptimizationService();
-                            var dataUrl = imgOpt.ToDataUrl(form.LogoImageData, imgOpt.GetMimeType("logo.png"));
-                            html.AppendLine($"                <div class=\"entry-form-logo\"><img src=\"{dataUrl}\" alt=\"{Esc(form.Title)}\"></div>");
-                        }
-
-                        // Form header
-                        html.AppendLine("                <div class=\"entry-form-header\">");
-                        html.AppendLine($"                    <h3>{Esc(form.Title)}</h3>");
-                        if (isClosed)
-                            html.AppendLine("                    <span class=\"entry-form-badge closed\">Closed</span>");
-                        else
-                            html.AppendLine("                    <span class=\"entry-form-badge open\">Open</span>");
-                        html.AppendLine("                </div>");
-
-                        if (!string.IsNullOrWhiteSpace(form.Description))
-                            html.AppendLine($"                <p class=\"entry-form-desc\">{Esc(form.Description)}</p>");
-
-                        if (form.ClosingDate.HasValue)
-                            html.AppendLine($"                <p class=\"entry-form-deadline\">&#9200; Closing date: <strong>{form.ClosingDate.Value:dddd dd MMMM yyyy}</strong></p>");
-
-                        if (isClosed)
-                        {
-                            html.AppendLine("                <div class=\"entry-form-closed-msg\">");
-                            html.AppendLine("                    <p>&#128683; This form is now closed for entries.</p>");
-                            html.AppendLine("                </div>");
-                        }
-                        else
-                        {
-                            // Fillable form with print-based submission
-                            if (form.Fields.Count != 0)
-                            {
-                                html.AppendLine($"                <form class=\"entry-form\" id=\"{formId}-form\" onsubmit=\"return handleEntrySubmit(this)\">");
-                                html.AppendLine("                    <p style=\"margin-bottom:1rem;color:var(--text-secondary, #64748B);\"><em>Fill in the form below and click Submit to log your entry.</em></p>");
-                                html.AppendLine($"                    <input type=\"hidden\" name=\"_formId\" value=\"{formId}\">");
-
-                                foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
-                                {
-                                    var fieldId = $"field-{field.Id:N}";
-                                    var fieldName = Esc(field.Label);
-                                    var requiredAttr = field.IsRequired ? " required" : "";
-                                    var requiredStar = field.IsRequired ? " <span class=\"required\">*</span>" : "";
-                                    var placeholder = !string.IsNullOrWhiteSpace(field.Placeholder) ? $" placeholder=\"{Esc(field.Placeholder)}\"" : "";
-
-                                    html.AppendLine("                    <div class=\"form-group\">");
-
-                                    switch (field.FieldType)
-                                    {
-                                        case "textarea":
-                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <textarea id=\"{fieldId}\" name=\"{fieldName}\" rows=\"4\"{placeholder}{requiredAttr}></textarea>");
-                                            break;
-
-                                        case "select":
-                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <select id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}>");
-                                            html.AppendLine("                            <option value=\"\">-- Select --</option>");
-                                            if (!string.IsNullOrWhiteSpace(field.Options))
-                                            {
-                                                foreach (var opt in field.Options.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                                    html.AppendLine($"                            <option value=\"{Esc(opt)}\">{Esc(opt)}</option>");
-                                            }
-                                            html.AppendLine("                        </select>");
-                                            break;
-
-                                        case "checkbox":
-                                            html.AppendLine($"                        <label class=\"checkbox-label\"><input type=\"checkbox\" id=\"{fieldId}\" name=\"{fieldName}\"{requiredAttr}> {Esc(field.Label)}{requiredStar}</label>");
-                                            break;
-
-                                        default:
-                                            var inputType = field.FieldType switch
-                                            {
-                                                "email" => "email",
-                                                "phone" => "tel",
-                                                "number" => "number",
-                                                "date" => "date",
-                                                _ => "text"
-                                            };
-                                            html.AppendLine($"                        <label for=\"{fieldId}\">{Esc(field.Label)}{requiredStar}</label>");
-                                            html.AppendLine($"                        <input type=\"{inputType}\" id=\"{fieldId}\" name=\"{fieldName}\"{placeholder}{requiredAttr}>");
-                                            break;
-                                    }
-
-                                    html.AppendLine("                    </div>");
-                                }
-
-                                var submitText = !string.IsNullOrWhiteSpace(form.SubmitButtonText) ? Esc(form.SubmitButtonText) : "Submit Entry";
-                                html.AppendLine($"                    <button type=\"submit\" class=\"entry-form-submit\">{submitText}</button>");
-                                html.AppendLine("                </form>");
-                                html.AppendLine($"                <div class=\"entry-form-confirmation\" id=\"{formId}-confirm\" style=\"display:none;\">");
-                                html.AppendLine("                    <p>&#9989; Your entry has been submitted successfully! The league secretary will review it shortly.</p>");
-                                html.AppendLine("                </div>");
-
-                                // Embed field labels as JSON for JS to read
-                                var fieldLabels = form.Fields.OrderBy(f => f.SortOrder)
-                                    .Select(f => $"{{\"id\":\"field-{f.Id:N}\",\"label\":\"{Esc(f.Label).Replace("\"", "\\\"")}\",\"type\":\"{f.FieldType}\"}}")
-                                    .ToList();
-                                html.AppendLine($"                <script>window.formFields = window.formFields || {{}}; window.formFields['{formId}'] = [{string.Join(",", fieldLabels)}];</script>");
-                            }
-
-                            // Contact information
-                            var hasContact = !string.IsNullOrWhiteSpace(_settings.ContactEmail) || !string.IsNullOrWhiteSpace(_settings.ContactPhone);
-                            if (hasContact)
-                            {
-                                html.AppendLine("                <div class=\"entry-form-contact\">");
-                                html.AppendLine("                    <p><strong>&#128222; Contact the league secretary:</strong></p>");
-                                if (!string.IsNullOrWhiteSpace(_settings.ContactPhone))
-                                    html.AppendLine($"                    <p>Phone: <a href=\"tel:{Esc(_settings.ContactPhone)}\">{Esc(_settings.ContactPhone)}</a></p>");
-                                if (!string.IsNullOrWhiteSpace(_settings.ContactEmail))
-                                    html.AppendLine($"                    <p>Email: <a href=\"mailto:{Esc(_settings.ContactEmail)}\">{Esc(_settings.ContactEmail)}</a></p>");
-                                html.AppendLine("                </div>");
-                            }
-                        }
-
-                        html.AppendLine("            </div>");
+                        var closed = EntryFormRules.IsClosed(form, DateTime.Today);
+                        html.AppendLine($"<a class=\"entry-form-directory-link\" href=\"#form-{form.Id:N}\"><span class=\"entry-form-badge {(closed ? "closed" : "open")}\">{(closed ? "Closed" : "Open")}</span><strong>{Esc(form.Title)}</strong><span>{form.Fields.Count} fields · {(form.ClosingDate.HasValue ? $"Closes {form.ClosingDate:dd MMM yyyy}" : "No closing date set")}</span><span class=\"entry-form-directory-action\">{(closed ? "View details" : "Start your entry")} &rarr;</span></a>");
+                    }
+                    html.AppendLine("</nav>");
+                    foreach (var form in publishedForms)
+                    {
+                        AppendEntryFormCard(html, form, preview);
                     }
                 }
                 else
@@ -3274,91 +3073,6 @@ namespace Wdpl2.Services
                 // Form submission JavaScript
                 AppendEntryFormSubmitScript(html, "            ");
             });
-        }
-
-        /// <summary>
-        /// Emits the handleEntrySubmit(form) script block.
-        /// If a form service URL and API token are configured, submissions are sent to jsonbin.io;
-        /// otherwise they save to localStorage.
-        /// </summary>
-        private void AppendEntryFormSubmitScript(StringBuilder html, string indent)
-        {
-            var serviceUrl = _settings.FormServiceUrl?.Trim() ?? "";
-            var apiToken = _settings.FormServiceApiToken?.Trim() ?? "";
-            var useService = !string.IsNullOrEmpty(serviceUrl) && !string.IsNullOrEmpty(apiToken);
-
-            html.AppendLine($"{indent}<script>");
-            html.AppendLine($"{indent}function handleEntrySubmit(form) {{");
-            html.AppendLine($"{indent}    if (!form.checkValidity()) {{ form.reportValidity(); return false; }}");
-            html.AppendLine($"{indent}    var formId = form.id.replace('-form', '');");
-            html.AppendLine($"{indent}    var fields = window.formFields[formId] || [];");
-            html.AppendLine($"{indent}    var values = {{}};");
-            html.AppendLine($"{indent}    var entryName = '';");
-            html.AppendLine($"{indent}    for (var i = 0; i < fields.length; i++) {{");
-            html.AppendLine($"{indent}        var el = document.getElementById(fields[i].id);");
-            html.AppendLine($"{indent}        if (!el) continue;");
-            html.AppendLine($"{indent}        var val = fields[i].type === 'checkbox' ? (el.checked ? 'Yes' : 'No') : el.value;");
-            html.AppendLine($"{indent}        values[fields[i].label] = val;");
-            html.AppendLine($"{indent}        if (i === 0 && val) entryName = val;");
-            html.AppendLine($"{indent}    }}");
-
-            // Always save to localStorage as a backup
-            html.AppendLine($"{indent}    try {{");
-            html.AppendLine($"{indent}        var subs = JSON.parse(localStorage.getItem('wdpl2_submissions') || '[]');");
-            html.AppendLine($"{indent}        subs.push({{ formId: formId, name: entryName, values: values, submittedAt: new Date().toISOString() }});");
-            html.AppendLine($"{indent}        localStorage.setItem('wdpl2_submissions', JSON.stringify(subs));");
-            html.AppendLine($"{indent}    }} catch(e) {{}}");
-
-            if (useService)
-            {
-                // Submit to jsonbin.io: read current bin → append submission → write back
-                html.AppendLine($"{indent}    var binUrl = '{EscJs(serviceUrl)}';");
-                html.AppendLine($"{indent}    var apiKey = '{EscJs(apiToken)}';");
-                html.AppendLine($"{indent}    var subId = Date.now().toString(36) + Math.random().toString(36).slice(2,7);");
-                html.AppendLine($"{indent}    var newSub = {{ id: subId, formId: formId, name: entryName, values: values, submittedAt: new Date().toISOString() }};");
-                html.AppendLine($"{indent}    var btn = form.querySelector('button[type=submit]');");
-                html.AppendLine($"{indent}    if (btn) {{ btn.disabled = true; btn.textContent = 'Submitting\u2026'; }}");
-                html.AppendLine($"{indent}    fetch(binUrl + '/latest', {{");
-                html.AppendLine($"{indent}        headers: {{ 'X-Master-Key': apiKey, 'X-Bin-Meta': 'false' }}");
-                html.AppendLine($"{indent}    }}).then(function(r) {{ return r.ok ? r.json() : []; }})");
-                html.AppendLine($"{indent}    .then(function(arr) {{");
-                html.AppendLine($"{indent}        if (!Array.isArray(arr)) arr = [];");
-                html.AppendLine($"{indent}        arr.push(newSub);");
-                html.AppendLine($"{indent}        return fetch(binUrl, {{");
-                html.AppendLine($"{indent}            method: 'PUT',");
-                html.AppendLine($"{indent}            headers: {{ 'Content-Type': 'application/json', 'X-Master-Key': apiKey }},");
-                html.AppendLine($"{indent}            body: JSON.stringify(arr)");
-                html.AppendLine($"{indent}        }});");
-                html.AppendLine($"{indent}    }}).then(function(r) {{");
-                html.AppendLine($"{indent}        if (r.ok) {{");
-                html.AppendLine($"{indent}            var inputs = form.querySelectorAll('input,textarea,select');");
-                html.AppendLine($"{indent}            for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
-                html.AppendLine($"{indent}            if (btn) btn.style.display = 'none';");
-                html.AppendLine($"{indent}            var confirmDiv = document.getElementById(formId + '-confirm');");
-                html.AppendLine($"{indent}            if (confirmDiv) confirmDiv.style.display = 'block';");
-                html.AppendLine($"{indent}        }} else {{");
-                html.AppendLine($"{indent}            alert('Submission error. Please try again.');");
-                html.AppendLine($"{indent}            if (btn) {{ btn.disabled = false; btn.textContent = 'Submit Entry'; }}");
-                html.AppendLine($"{indent}        }}");
-                html.AppendLine($"{indent}    }}).catch(function(err) {{");
-                html.AppendLine($"{indent}        alert('Network error: ' + err.message);");
-                html.AppendLine($"{indent}        if (btn) {{ btn.disabled = false; btn.textContent = 'Submit Entry'; }}");
-                html.AppendLine($"{indent}    }});");
-            }
-            else
-            {
-                // No service configured — disable the form and show confirmation
-                html.AppendLine($"{indent}    var inputs = form.querySelectorAll('input,textarea,select');");
-                html.AppendLine($"{indent}    for (var j = 0; j < inputs.length; j++) inputs[j].disabled = true;");
-                html.AppendLine($"{indent}    var btn = form.querySelector('button[type=submit]');");
-                html.AppendLine($"{indent}    if (btn) btn.style.display = 'none';");
-                html.AppendLine($"{indent}    var confirmDiv = document.getElementById(formId + '-confirm');");
-                html.AppendLine($"{indent}    if (confirmDiv) confirmDiv.style.display = 'block';");
-            }
-
-            html.AppendLine($"{indent}    return false;");
-            html.AppendLine($"{indent}}}");
-            html.AppendLine($"{indent}</script>");
         }
 
         /// <summary>Escapes a string for safe use inside a JS string literal (single-quoted).</summary>
@@ -3380,8 +3094,8 @@ namespace Wdpl2.Services
             html.AppendLine("    <div class=\"content-area\">");
             html.AppendLine("        <div class=\"container\">");
             html.AppendLine("            <div class=\"hero\">");
-            html.AppendLine("                <h2>&#128203; Submission Collection</h2>");
-            html.AppendLine("                <p>Download pending form submissions to import into the league app</p>");
+            html.AppendLine("                <h2>Legacy browser entries</h2>");
+            html.AppendLine("                <p>This page only shows older entries saved in this browser on this device. It is not a shared inbox. Download and send them to the league secretary; browser storage is not proof of delivery.</p>");
             html.AppendLine("            </div>");
             html.AppendLine("            <div class=\"section\">");
             html.AppendLine("                <div style=\"display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;\">");
@@ -3397,6 +3111,7 @@ namespace Wdpl2.Services
             AppendFooter(html);
 
             html.AppendLine("    <script>");
+            html.AppendLine("    function safeCell(value) { var span = document.createElement('span'); span.textContent = String(value || ''); return span.innerHTML; }");
             html.AppendLine("    function loadSubmissions() {");
             html.AppendLine("        var subs = JSON.parse(localStorage.getItem('wdpl2_submissions') || '[]');");
             html.AppendLine("        var countEl = document.getElementById('sub-count');");
@@ -3411,7 +3126,7 @@ namespace Wdpl2.Services
             html.AppendLine("        html += '<thead><tr style=\"background:#F1F5F9;\"><th style=\"padding:8px;text-align:left;\">Name</th><th style=\"padding:8px;text-align:left;\">Form</th><th style=\"padding:8px;text-align:left;\">Date</th></tr></thead><tbody>';");
             html.AppendLine("        for (var i = 0; i < subs.length; i++) {");
             html.AppendLine("            var d = new Date(subs[i].submittedAt);");
-            html.AppendLine("            html += '<tr style=\"border-bottom:1px solid #E2E8F0;\"><td style=\"padding:8px;\">' + (subs[i].name || '(unnamed)') + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + (subs[i].formId || '') + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString() + '</td></tr>';");
+            html.AppendLine("            html += '<tr style=\"border-bottom:1px solid #E2E8F0;\"><td style=\"padding:8px;\">' + safeCell(subs[i].name || '(unnamed)') + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + safeCell(subs[i].formId) + '</td><td style=\"padding:8px;font-size:0.85em;color:#64748B;\">' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString() + '</td></tr>';");
             html.AppendLine("        }");
             html.AppendLine("        html += '</tbody></table>';");
             html.AppendLine("        listEl.innerHTML = html;");

@@ -8,7 +8,7 @@ $me = admin_current();
 if (!$me) {
     json_response(array(
         'ok'              => false,
-        'needs_bootstrap' => admin_users_count() === 0,
+        'needs_bootstrap' => false,
     ), 401);
 }
 

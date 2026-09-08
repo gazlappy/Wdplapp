@@ -52,6 +52,8 @@ function db() {
 }
 
 function send_cors_headers() {
+    if (defined('WDPL_ENTRY_FORMS')) return; // Entry endpoints enforce their own origin policy.
+    if (defined('ADMIN_COOKIE')) return; // Browser administration is same-origin only.
     header('Access-Control-Allow-Origin: *'); // tighten to your domain if you prefer
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Captain-Token');
@@ -59,7 +61,7 @@ function send_cors_headers() {
 }
 
 // Always answer the browser's CORS preflight request immediately.
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (!defined('WDPL_ENTRY_FORMS') && isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     send_cors_headers();
     http_response_code(204);
     exit;

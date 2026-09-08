@@ -771,10 +771,15 @@ namespace Wdpl2.Models
         // Entry Forms
         public bool ShowEntryForms { get; set; } = false;
         public List<EntryForm> EntryForms { get; set; } = new();
+        public bool UseHostedEntryForms { get; set; } = false;
+        // Null identifies older settings where hosted mode was saved only after a successful publish.
+        public bool? HostedEntryFormsPublished { get; set; }
 
-        // Form submission service (e.g. Getform.io)
+        // Public HTTPS POST endpoint; see Docs/OnlineForms.md for the acknowledgement contract.
         public string FormServiceUrl { get; set; } = "";
+        // Private collection credentials must never be embedded in generated website pages.
         public string FormServiceApiToken { get; set; } = "";
+        // Separate private GET/export URL, including legacy JSONBin collections.
         public string FormServiceFetchUrl { get; set; } = "";
 
         // Rules Content
@@ -1392,6 +1397,12 @@ namespace Wdpl2.Models
         public string Notes { get; set; } = "";
         public Dictionary<string, string> FieldValues { get; set; } = new();
         public Guid? LinkedTeamId { get; set; }
+        // Explicit hosted submission mapping; older imports must be linked after review.
+        public string? SourceBackendId { get; set; }
+        public string? SourceClientId { get; set; }
+        public long? SourceSubmissionSequence { get; set; }
+        public Guid? SourceReviewRequestId { get; set; }
+        public string? SourceReviewIntentHash { get; set; }
     }
 
     /// <summary>

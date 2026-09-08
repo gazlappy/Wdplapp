@@ -16,9 +16,11 @@ public partial class WebsiteBuilderHub : ContentPage
     private readonly ObservableCollection<Season> _seasons = new();
     private readonly ObservableCollection<WebsiteTemplate> _templates = new();
     private Dictionary<string, string>? _generatedFiles;
-    private string _currentPreviewPage = "index.html";
+    private string _currentPreviewPage = "home.html";
     private string? _currentQueryString;
     private bool _syncingPicker;
+    private bool _mobilePreview;
+    private bool _showPreview;
 
     public WebsiteBuilderHub()
     {
@@ -37,6 +39,36 @@ public partial class WebsiteBuilderHub : ContentPage
         };
 
         LoadData();
+    }
+
+    private void OnWorkspaceSizeChanged(object? sender, EventArgs e) => UpdateWorkspaceLayout();
+    private void OnSettingsTabClicked(object? sender, EventArgs e) { _showPreview = false; UpdateWorkspaceLayout(); }
+    private void OnPreviewTabClicked(object? sender, EventArgs e) { _showPreview = true; UpdateWorkspaceLayout(); }
+
+    private void UpdateWorkspaceLayout()
+    {
+        if (WorkspaceGrid == null || Width <= 0) return;
+        var compact = Width < 1000;
+        WorkspaceTabs.IsVisible = compact;
+        SettingsPane.IsVisible = !compact || !_showPreview;
+        PreviewPane.IsVisible = !compact || _showPreview;
+        WorkspaceDivider.IsVisible = !compact;
+        WorkspaceGrid.ColumnDefinitions[0].Width = compact ? GridLength.Star : new GridLength(380);
+        WorkspaceGrid.ColumnDefinitions[1].Width = compact ? new GridLength(0) : GridLength.Star;
+        Grid.SetColumn(PreviewPane, compact ? 0 : 1);
+    }
+
+    private void OnPreviewCanvasSizeChanged(object? sender, EventArgs e) => ResizePreview();
+    private void OnDesktopPreviewClicked(object? sender, EventArgs e) { _mobilePreview = false; ResizePreview(); }
+    private void OnMobilePreviewClicked(object? sender, EventArgs e) { _mobilePreview = true; ResizePreview(); }
+
+    private void ResizePreview()
+    {
+        if (PreviewCanvas == null || PreviewCanvas.Width <= 24) return;
+        PreviewWebView.WidthRequest = Math.Min(_mobilePreview ? 390 : 1100, PreviewCanvas.Width - 24);
+        DesktopPreviewBtn.BackgroundColor = Color.FromArgb(_mobilePreview ? "#334155" : "#2563EB");
+        MobilePreviewBtn.BackgroundColor = Color.FromArgb(_mobilePreview ? "#2563EB" : "#334155");
+        PreviewViewportLabel.Text = $"{(_mobilePreview ? "Mobile" : "Desktop")} · {PreviewWebView.WidthRequest:0}px available preview";
     }
 
     private void UpdatePreviewPagePicker()
@@ -63,6 +95,12 @@ public partial class WebsiteBuilderHub : ContentPage
         foreach (var key in _generatedFiles.Keys.Where(k => k.EndsWith(".html") && !IsKnownPage(k)))
             pages.Add(Path.GetFileNameWithoutExtension(key));
 
+        if (!_generatedFiles.ContainsKey(_currentPreviewPage))
+        {
+            _currentPreviewPage = "home.html";
+            _currentQueryString = null;
+        }
+
         _syncingPicker = true;
         PreviewPagePicker.ItemsSource = pages;
 
@@ -74,7 +112,7 @@ public partial class WebsiteBuilderHub : ContentPage
     }
 
     private static bool IsKnownPage(string fileName) =>
-        fileName is "index.html" or "standings.html" or "fixtures.html" or "results.html"
+        fileName is "index.html" or "home.html" or "standings.html" or "fixtures.html" or "results.html"
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
             or "rows-reports.html" or "entry-forms.html"
@@ -109,7 +147,7 @@ public partial class WebsiteBuilderHub : ContentPage
                 catch { }
 
                 var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-                _generatedFiles = generator.GenerateWebsite();
+                _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
                 UpdatePreviewPagePicker();
                 LoadPreviewPage(_currentPreviewPage);
 
@@ -538,6 +576,8 @@ public partial class WebsiteBuilderHub : ContentPage
 
             SaveSeasonAndTemplate();
 
+            _showPreview = true;
+            UpdateWorkspaceLayout();
             StatusLabel.Text = "Generating preview...";
             StatusLabel.TextColor = Color.FromArgb("#3B82F6");
             StatusLabel.IsVisible = true;
@@ -555,18 +595,15 @@ public partial class WebsiteBuilderHub : ContentPage
             catch { }
 
             var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-            _generatedFiles = generator.GenerateWebsite();
+            _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
 
             // Show WebView, hide placeholder
             PreviewPlaceholder.IsVisible = false;
             PreviewWebView.IsVisible = true;
 
             UpdatePreviewPagePicker();
-
-            if (PreviewPagePicker.SelectedIndex < 0)
-                PreviewPagePicker.SelectedIndex = 0;
-            else
-                LoadPreviewPage(GetSelectedFileName());
+            LoadPreviewPage(_currentPreviewPage);
+            ResizePreview();
 
             StatusLabel.Text = $"Preview ready ({_generatedFiles.Count} files)";
             StatusLabel.TextColor = Color.FromArgb("#10B981");
@@ -648,6 +685,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "sponsors" => "sponsors.html",
             "news" => "news.html",
             "rows reports" => "rows-reports.html",
+            "entry forms" => "entry-forms.html",
             "captains" => "captains.html",
             _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "home.html"
         };
@@ -670,6 +708,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "sponsors.html" => "Sponsors",
             "news.html" => "News",
             "rows-reports.html" => "Rows Reports",
+            "entry-forms.html" => "Entry Forms",
             "captains.html" => "Captains",
             _ => Path.GetFileNameWithoutExtension(fileName)
         };
@@ -686,67 +725,8 @@ public partial class WebsiteBuilderHub : ContentPage
             return;
         }
 
-        // Inline CSS (handle optional cache-buster query string)
-        if (_generatedFiles.TryGetValue("style.css", out var css))
-            html = System.Text.RegularExpressions.Regex.Replace(
-                html,
-                @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
-                _ => $"<style>{css}</style>");
-
-        // Inline JSON data so fetch() works in the WebView
-        html = InlineJsonData(html);
-
-        // Inject query string for template pages (player.html?id=xxx)
-        if (!string.IsNullOrEmpty(_currentQueryString))
-        {
-            var fakeQs = _currentQueryString.Replace("\\", "\\\\").Replace("'", "\\'");
-            var qsScript = $"<script>if(!window.location.search){{" +
-                           $"Object.defineProperty(window,'_editorQS',{{value:'{fakeQs}'}});" +
-                           $"var _origUSP=URLSearchParams;" +
-                           $"URLSearchParams=function(s){{return new _origUSP(window._editorQS||s);}};" +
-                           $"}}</script>";
-            html = html.Replace("<head>", "<head>" + qsScript);
-        }
-
+        html = WebsitePreviewContent.Prepare(html, _generatedFiles, _currentQueryString);
         WebViewHelper.LoadHtml(PreviewWebView, html);
-    }
-
-    private string InlineJsonData(string html)
-    {
-        if (_generatedFiles == null) return html;
-
-        if (_generatedFiles.TryGetValue("players-data.json", out var playersJson))
-        {
-            var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
-                .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchWithInline(html, "players-data.json", escaped);
-        }
-
-        if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
-        {
-            var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
-                .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
-        }
-
-        return html;
-    }
-
-    /// <summary>
-    /// Replaces fetch('file.json') or fetch('file.json?v=' + cacheBuster) plus
-    /// the following .then(function(r) { return r.json(); }) with an inline
-    /// Promise.resolve(JSON.parse('...')) so the preview works without HTTP.
-    /// </summary>
-    private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
-    {
-        // Match both plain fetch('file.json') and cache-busted fetch('file.json?v=' + cacheBuster)
-        var escapedFile = System.Text.RegularExpressions.Regex.Escape(fileName);
-        var pattern = @"fetch\((?:'" + escapedFile + @"'|'" + escapedFile
-            + @"\?v='\s*\+\s*cacheBuster)\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
-        return System.Text.RegularExpressions.Regex.Replace(
-            html,
-            pattern,
-            _ => $"Promise.resolve(JSON.parse('{escapedJson}'))");
     }
 
     private void OnPreviewNavigating(object? sender, WebNavigatingEventArgs e)
@@ -777,6 +757,10 @@ public partial class WebsiteBuilderHub : ContentPage
             _currentQueryString = queryString;
             SyncPagePicker(targetFile);
             LoadPreviewPage(targetFile);
+        }
+        else if (WebsitePreviewContent.ShouldBlockNavigation(url))
+        {
+            e.Cancel = true;
         }
     }
 

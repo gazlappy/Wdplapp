@@ -27,6 +27,12 @@ public partial class SqliteDataStore : IDataStore
     private static LeagueData? _cachedSnapshot;
     private static readonly object _snapshotLock = new();
 
+    internal static void RefreshAfterAdminSync()
+    {
+        lock (_snapshotLock) { _cachedSnapshot = null; }
+        DataStore.RefreshEntitiesFromDatabase();
+    }
+
     private void InvalidateSnapshot()
     {
         lock (_snapshotLock) { _cachedSnapshot = null; }

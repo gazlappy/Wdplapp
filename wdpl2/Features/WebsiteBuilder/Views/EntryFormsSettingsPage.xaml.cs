@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
+using Wdpl2.Services.Inbox;
 
 namespace Wdpl2.Views.WebsiteBuilder;
 
@@ -15,7 +16,13 @@ public partial class EntryFormsSettingsPage : ContentPage
     private readonly ObservableCollection<CrossRefItem> _crossRefItems = new();
     private Guid? _selectedFormId;
     private Guid? _selectedEntryId;
-    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private EntryForm? _draft;
+    private bool _isNewDraft;
+    private bool _changingSelection;
+    private bool _showRecords;
+    private bool _initializing = true;
+    private Dictionary<string, string> _entryValues = new();
+    private static readonly HttpClient _httpClient = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
 
     public EntryFormsSettingsPage()
     {
@@ -26,8 +33,15 @@ public partial class EntryFormsSettingsPage : ContentPage
         ShowEntryFormsSwitch.IsToggled = League.WebsiteSettings.ShowEntryForms;
         FormServiceUrlEntry.Text = League.WebsiteSettings.FormServiceUrl;
         FormServiceTokenEntry.Text = League.WebsiteSettings.FormServiceApiToken;
+        FormServiceFetchUrlEntry.Text = League.WebsiteSettings.FormServiceFetchUrl;
+        HostedWebsiteUrlEntry.Text = League.WebsiteSettings.WebsiteUrl;
+        UseHostedFormsSwitch.IsToggled = League.WebsiteSettings.UseHostedEntryForms;
+        UpdateHostedModeUi();
+        EntryFilterPicker.SelectedIndex = 0;
         LoadForms();
         UpdateRecordsHeader();
+        UpdateDeliveryStatus();
+        _initializing = false;
     }
 
     protected override void OnAppearing()
@@ -40,11 +54,243 @@ public partial class EntryFormsSettingsPage : ContentPage
         base.OnDisappearing();
     }
 
-    private void OnSaveServiceSettingsClicked(object sender, EventArgs e)
+    private void OnWorkspaceSizeChanged(object? sender, EventArgs e) => UpdateWorkspaceLayout();
+    private void OnDesignTabClicked(object? sender, EventArgs e) { _showRecords = false; UpdateWorkspaceLayout(); }
+    private void OnRecordsTabClicked(object? sender, EventArgs e) { _showRecords = true; UpdateWorkspaceLayout(); }
+
+    private void UpdateWorkspaceLayout()
     {
-        League.WebsiteSettings.FormServiceUrl = FormServiceUrlEntry.Text?.Trim() ?? "";
+        if (WorkspaceGrid == null || Width <= 0) return;
+        var compact = Width < 1100;
+        WorkspaceTabs.IsVisible = compact;
+        WorkspaceDivider.IsVisible = !compact;
+        DesignPane.IsVisible = !compact || !_showRecords;
+        RecordsPane.IsVisible = !compact || _showRecords;
+        WorkspaceGrid.ColumnDefinitions[0].Width = GridLength.Star;
+        WorkspaceGrid.ColumnDefinitions[1].Width = compact ? new GridLength(0) : GridLength.Auto;
+        WorkspaceGrid.ColumnDefinitions[2].Width = compact ? new GridLength(0) : GridLength.Star;
+        Grid.SetColumn(RecordsPane, compact ? 0 : 2);
+    }
+
+    private void OnToggleServiceClicked(object? sender, EventArgs e) => ServiceSettingsPanel.IsVisible = !ServiceSettingsPanel.IsVisible;
+
+    private void UpdateDeliveryStatus()
+    {
+        DeliveryStatusLabel.Text = League.WebsiteSettings.UseHostedEntryForms
+            ? EntryFormRules.IsHostedDeliveryReady(League.WebsiteSettings)
+                ? "Own-hosting delivery confirmed — republish saved form changes, then regenerate and deploy the website."
+                : "Own-hosting preference saved — setup/publishing still required. Online delivery is not enabled yet."
+            : EntryFormRules.PublicEndpoint(League.WebsiteSettings.FormServiceUrl) != null
+            ? "Online POST endpoint configured — verify delivery before publishing."
+            : "Download and send mode — no safe online delivery endpoint configured.";
+    }
+
+    private void OnHostedModeToggled(object? sender, ToggledEventArgs e)
+    {
+        UpdateHostedModeUi();
+        if (_initializing) return;
+        EntryFormRules.SetHostedMode(League.WebsiteSettings, e.Value);
+        DataStore.SaveJsonOnly();
+        UpdateDeliveryStatus();
+        FetchStatusLabel.IsVisible = false;
+    }
+
+    private void SaveHostedSettings()
+    {
+        var websiteUrl = HostedWebsiteUrlEntry.Text?.Trim() ?? "";
+        HostedEntryFormsService.ValidateWebsiteUri(websiteUrl);
+        EntryFormRules.SetHostedMode(League.WebsiteSettings, true);
+        if (!string.Equals(League.WebsiteSettings.WebsiteUrl, websiteUrl, StringComparison.Ordinal))
+            League.WebsiteSettings.HostedEntryFormsPublished = false;
+        League.WebsiteSettings.WebsiteUrl = websiteUrl;
+        DataStore.SaveJsonOnly();
+        UpdateDeliveryStatus();
+    }
+
+    private void OnSaveHostedSettingsClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            SaveHostedSettings();
+            FetchStatusLabel.Text = "Hosting settings saved locally. Publish saved forms to confirm backend delivery; saving alone does not publish.";
+            FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
+        }
+        catch (Exception ex)
+        {
+            FetchStatusLabel.Text = ex.Message;
+            FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
+        }
+        FetchStatusLabel.IsVisible = true;
+    }
+
+    private void UpdateHostedModeUi()
+    {
+        if (HostedServicePanel == null || ExternalServicePanel == null) return;
+        HostedServicePanel.IsVisible = UseHostedFormsSwitch.IsToggled;
+        ExternalServicePanel.IsVisible = !UseHostedFormsSwitch.IsToggled;
+    }
+
+    private async void OnPublishHostedFormsClicked(object? sender, EventArgs e)
+    {
+        PublishHostedFormsBtn.IsEnabled = false;
+        FetchSubmissionsBtn.IsEnabled = false;
+        UseHostedFormsSwitch.IsEnabled = false;
+        SaveHostedSettingsBtn.IsEnabled = false;
+        HostedWebsiteUrlEntry.IsEnabled = false;
+        try
+        {
+            SaveHostedSettings();
+            var connection = await WebInboxSettings.LoadAsync();
+            using var service = new HostedEntryFormsService(connection);
+            var payload = HostedEntryFormsService.BuildDefinitionPayload(League.WebsiteSettings);
+            using var definition = JsonDocument.Parse(payload);
+            var count = definition.RootElement.GetProperty("forms").GetArrayLength();
+            var origin = definition.RootElement.GetProperty("origin").GetString();
+            if (!await DisplayAlert("Publish saved forms to our hosting?",
+                $"Backend: {service.BaseUri}\nWebsite origin: {origin}\nSaved published forms: {count}\nDeadlines: Europe/London\n\nThis replaces the backend's active form set immediately. Omitted forms stop accepting new entries; existing entries remain. Unsaved editor changes are NOT included.\n\nDeploy the PHP backend first. After publishing, regenerate and deploy the website separately.",
+                "Publish saved forms", "Cancel")) return;
+
+            FetchStatusLabel.Text = "Publishing saved form definitions...";
+            FetchStatusLabel.IsVisible = true;
+            await service.PublishAsync(payload);
+            League.WebsiteSettings.UseHostedEntryForms = true;
+            League.WebsiteSettings.HostedEntryFormsPublished = true;
+            League.WebsiteSettings.FormServiceUrl = service.SubmissionUri.AbsoluteUri;
+            League.WebsiteSettings.FormServiceFetchUrl = service.CollectionUri.AbsoluteUri;
+            DataStore.SaveJsonOnly();
+            FormServiceUrlEntry.Text = service.SubmissionUri.AbsoluteUri;
+            FormServiceFetchUrlEntry.Text = service.CollectionUri.AbsoluteUri;
+            UseHostedFormsSwitch.IsToggled = true;
+            UpdateDeliveryStatus();
+            FetchStatusLabel.Text = $"Published {count} saved forms. Now regenerate/deploy the website and test one entry before opening registration.";
+            FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
+        }
+        catch (Exception ex)
+        {
+            FetchStatusLabel.Text = $"Publishing unconfirmed: {ex.Message}";
+            FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
+            FetchStatusLabel.IsVisible = true;
+        }
+        finally
+        {
+            PublishHostedFormsBtn.IsEnabled = true;
+            FetchSubmissionsBtn.IsEnabled = true;
+            UseHostedFormsSwitch.IsEnabled = true;
+            SaveHostedSettingsBtn.IsEnabled = true;
+            HostedWebsiteUrlEntry.IsEnabled = true;
+        }
+    }
+
+    private void OnHasClosingDateToggled(object? sender, ToggledEventArgs e)
+    {
+        if (ClosingDatePicker != null) ClosingDatePicker.IsEnabled = e.Value;
+    }
+
+    private void CaptureDraft()
+    {
+        if (_draft == null) return;
+        _draft.Title = TitleEntry.Text?.Trim() ?? "";
+        _draft.Description = DescriptionEditor.Text?.Trim() ?? "";
+        _draft.SubmitButtonText = string.IsNullOrWhiteSpace(SubmitButtonEntry.Text) ? "Submit entry" : SubmitButtonEntry.Text.Trim();
+        _draft.ConfirmationMessage = ConfirmationEditor.Text?.Trim() ?? "";
+        _draft.IsPublished = IsPublishedSwitch.IsToggled;
+        _draft.IsClosed = IsClosedSwitch.IsToggled;
+        _draft.ClosingDate = HasClosingDateSwitch.IsToggled ? ClosingDatePicker.Date.Date : null;
+    }
+
+    private async Task<bool> CanDiscardDraftAsync()
+    {
+        if (_draft == null) return true;
+        CaptureDraft();
+        var saved = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _draft.Id);
+        if (!_isNewDraft && saved != null && JsonSerializer.Serialize(_draft) == JsonSerializer.Serialize(EntryFormRules.CreateDraft(saved))) return true;
+        return await DisplayAlert("Unsaved form changes", "Discard changes to this form? Saved forms and entry records will be left unchanged.", "Discard changes", "Keep editing");
+    }
+
+    private bool ValidateDraft()
+    {
+        if (_draft == null) return false;
+        var errors = EntryFormRules.Validate(_draft);
+        FormValidationLabel.Text = string.Join("\n", errors);
+        FormValidationLabel.TextColor = Color.FromArgb("#B91C1C");
+        FormValidationLabel.IsVisible = errors.Count > 0;
+        return errors.Count == 0;
+    }
+
+    private async void OnPreviewFormClicked(object? sender, EventArgs e)
+    {
+        CaptureDraft();
+        if (_draft == null || !ValidateDraft()) return;
+        var preview = new WebView { Source = new HtmlWebViewSource { Html = new WebsiteGenerator(League, League.WebsiteSettings).GenerateEntryFormPreview(_draft) } };
+        // Preview cannot launch external navigation or contact links.
+        preview.Navigating += (_, args) =>
+        {
+            if (Uri.TryCreate(args.Url, UriKind.Absolute, out var uri) && uri.Scheme is not ("about" or "data")) args.Cancel = true;
+        };
+        var close = new Button { Text = "Close preview", BackgroundColor = Color.FromArgb("#334155"), TextColor = Colors.White, CornerRadius = 10 };
+        close.Clicked += async (_, _) => await Navigation.PopModalAsync();
+        var desktop = new Button { Text = "Desktop", CornerRadius = 10 };
+        var mobile = new Button { Text = "Mobile (390px)", CornerRadius = 10 };
+        bool mobileMode = false;
+        var canvas = new Grid { Padding = 12, BackgroundColor = Color.FromArgb("#E2E8F0") };
+        preview.HorizontalOptions = LayoutOptions.Center;
+        canvas.Add(preview);
+        void ResizePreview()
+        {
+            if (canvas.Width <= 24) return;
+            preview.WidthRequest = Math.Min(mobileMode ? 390 : 1100, canvas.Width - 24);
+            desktop.BackgroundColor = Color.FromArgb(mobileMode ? "#334155" : "#2563EB");
+            mobile.BackgroundColor = Color.FromArgb(mobileMode ? "#2563EB" : "#334155");
+            desktop.TextColor = mobile.TextColor = Colors.White;
+        }
+        desktop.Clicked += (_, _) => { mobileMode = false; ResizePreview(); };
+        mobile.Clicked += (_, _) => { mobileMode = true; ResizePreview(); };
+        canvas.SizeChanged += (_, _) => ResizePreview();
+        var toolbar = new VerticalStackLayout
+        {
+            Padding = 16, Spacing = 8, BackgroundColor = Color.FromArgb("#0F172A"),
+            Children =
+            {
+                new Label { Text = _draft.Title, FontSize = 22, FontAttributes = FontAttributes.Bold, TextColor = Colors.White },
+                new Label { Text = "Interactive preview • Complete, review and test. Nothing is sent, downloaded or saved. Save and publish separately.", TextColor = Color.FromArgb("#CBD5E1") },
+                new FlexLayout { Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap, Children = { desktop, mobile, close } }
+            }
+        };
+        var layout = new Grid { RowDefinitions = new RowDefinitionCollection { new(GridLength.Auto), new(GridLength.Star) } };
+        layout.Add(toolbar, 0, 0);
+        layout.Add(canvas, 0, 1);
+        await Navigation.PushModalAsync(new ContentPage { Title = "Form preview", Content = layout });
+    }
+
+    private void OnEntryFilterChanged(object? sender, EventArgs e)
+    {
+        if (_initializing || !_selectedFormId.HasValue) return;
+        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        if (form != null) RefreshEntries(form);
+    }
+
+    private async void OnSaveServiceSettingsClicked(object sender, EventArgs e)
+    {
+        var publicUrl = FormServiceUrlEntry.Text?.Trim() ?? "";
+        var fetchUrl = FormServiceFetchUrlEntry.Text?.Trim() ?? "";
+        if (publicUrl.Length > 0 && EntryFormRules.PublicEndpoint(publicUrl) == null)
+        {
+            await DisplayAlert("Public endpoint", "Use a public HTTPS POST endpoint without credentials. Move a legacy JSONBin URL to Private collection URL; leave the public endpoint blank for download-and-send entries.", "OK");
+            return;
+        }
+        if (fetchUrl.Length > 0 && (!Uri.TryCreate(fetchUrl, UriKind.Absolute, out var fetchUri) ||
+            fetchUri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(fetchUri.UserInfo)))
+        {
+            await DisplayAlert("Private collection", "Use an HTTPS collection URL without embedded credentials.", "OK");
+            return;
+        }
+        League.WebsiteSettings.FormServiceUrl = publicUrl;
+        League.WebsiteSettings.FormServiceFetchUrl = fetchUrl;
         League.WebsiteSettings.FormServiceApiToken = FormServiceTokenEntry.Text?.Trim() ?? "";
-        DataStore.Save();
+        League.WebsiteSettings.UseHostedEntryForms = false;
+        League.WebsiteSettings.HostedEntryFormsPublished = false;
+        DataStore.SaveJsonOnly();
+        UpdateDeliveryStatus();
         FetchStatusLabel.Text = "\u2705 Settings saved";
         FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
         FetchStatusLabel.IsVisible = true;
@@ -71,7 +317,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             request.Headers.TryAddWithoutValidation("X-Master-Key", apiKey);
             request.Content = new StringContent("{\"_init\":true}", System.Text.Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.SendAsync(request);
+            using var response = await _httpClient.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -98,10 +344,13 @@ public partial class EntryFormsSettingsPage : ContentPage
             var binId = doc.RootElement.GetProperty("metadata").GetProperty("id").GetString();
 
             var binUrl = $"https://api.jsonbin.io/v3/b/{binId}";
-            FormServiceUrlEntry.Text = binUrl;
-            League.WebsiteSettings.FormServiceUrl = binUrl;
+            FormServiceFetchUrlEntry.Text = binUrl;
+            League.WebsiteSettings.FormServiceFetchUrl = binUrl;
             League.WebsiteSettings.FormServiceApiToken = apiKey;
-            DataStore.Save();
+            League.WebsiteSettings.UseHostedEntryForms = false;
+            League.WebsiteSettings.HostedEntryFormsPublished = false;
+            DataStore.SaveJsonOnly();
+            UpdateDeliveryStatus();
 
             FetchStatusLabel.Text = "\u2705 Bin created and saved!";
             FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
@@ -119,12 +368,16 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     private async void OnFetchSubmissionsClicked(object sender, EventArgs e)
     {
-        var serviceUrl = League.WebsiteSettings.FormServiceUrl?.Trim() ?? "";
+        var serviceUrl = League.WebsiteSettings.FormServiceFetchUrl?.Trim() ?? "";
+        // Keep access to existing JSONBin records without publishing or silently migrating credentials.
+        if (string.IsNullOrWhiteSpace(serviceUrl) && IsJsonBinUrl(League.WebsiteSettings.FormServiceUrl))
+            serviceUrl = League.WebsiteSettings.FormServiceUrl.Trim();
         var apiToken = League.WebsiteSettings.FormServiceApiToken?.Trim() ?? "";
 
-        if (string.IsNullOrWhiteSpace(serviceUrl))
+        if (!League.WebsiteSettings.UseHostedEntryForms &&
+            (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var fetchUri) || fetchUri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(fetchUri.UserInfo)))
         {
-            await DisplayAlert("Not Configured", "Enter your form service endpoint URL first.", "OK");
+            await DisplayAlert("Not Configured", "Save a private HTTPS collection URL first, or import an entry JSON file.", "OK");
             return;
         }
 
@@ -135,23 +388,28 @@ public partial class EntryFormsSettingsPage : ContentPage
 
         try
         {
-            var baseUrl = BuildApiUrl(serviceUrl);
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
-            request.Headers.TryAddWithoutValidation("Accept", "application/json");
-
-            if (!string.IsNullOrWhiteSpace(apiToken))
+            string json;
+            if (League.WebsiteSettings.UseHostedEntryForms)
             {
-                if (baseUrl.Contains("jsonbin.io", StringComparison.OrdinalIgnoreCase))
-                    request.Headers.TryAddWithoutValidation("X-Master-Key", apiToken);
-                else
-                    request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiToken}");
+                using var service = new HostedEntryFormsService(await WebInboxSettings.LoadAsync());
+                json = await service.FetchAsync(League.WebsiteSettings);
             }
-
-            var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync();
+            else
+            {
+                var baseUrl = BuildApiUrl(serviceUrl);
+                using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
+                request.Headers.TryAddWithoutValidation("Accept", "application/json");
+                if (!string.IsNullOrWhiteSpace(apiToken))
+                {
+                    if (IsJsonBinUrl(baseUrl))
+                        request.Headers.TryAddWithoutValidation("X-Master-Key", apiToken);
+                    else
+                        request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiToken}");
+                }
+                using var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+                json = await response.Content.ReadAsStringAsync();
+            }
             var (allSubmissions, _) = ParseServiceResponse(json);
 
             if (allSubmissions.Count == 0)
@@ -161,7 +419,7 @@ public partial class EntryFormsSettingsPage : ContentPage
                 return;
             }
 
-            var imported = ImportSubmissions(allSubmissions);
+            var imported = await ReviewAndImportSubmissionsAsync(allSubmissions);
 
             if (imported > 0)
             {
@@ -175,7 +433,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             }
             else
             {
-                FetchStatusLabel.Text = $"\u2714 All {allSubmissions.Count} submission{(allSubmissions.Count != 1 ? "s" : "")} already imported";
+                FetchStatusLabel.Text = "No entries added. Review was canceled, or entries were duplicates/unmatched.";
                 FetchStatusLabel.TextColor = Color.FromArgb("#94A3B8");
             }
         }
@@ -193,7 +451,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     private static string BuildApiUrl(string serviceUrl)
     {
         // jsonbin.io: ensure /latest suffix for reading
-        if (serviceUrl.Contains("jsonbin.io", StringComparison.OrdinalIgnoreCase))
+        if (IsJsonBinUrl(serviceUrl))
         {
             var url = serviceUrl.TrimEnd('/');
             if (!url.EndsWith("/latest", StringComparison.OrdinalIgnoreCase))
@@ -203,6 +461,9 @@ public partial class EntryFormsSettingsPage : ContentPage
 
         return serviceUrl;
     }
+
+    private static bool IsJsonBinUrl(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        (uri.Host.Equals("jsonbin.io", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".jsonbin.io", StringComparison.OrdinalIgnoreCase));
 
     private static string AppendQuery(string url, string queryParams)
     {
@@ -215,6 +476,8 @@ public partial class EntryFormsSettingsPage : ContentPage
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var lastPage = 0;
+        if (root.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+            throw new JsonException("Expected an entries array or collection response.");
 
         // Try common response shapes: array, { data: { submissions: [] } }, { submissions: [] }, { data: [] }
         JsonElement array;
@@ -226,7 +489,7 @@ public partial class EntryFormsSettingsPage : ContentPage
         {
             if (data.ValueKind == JsonValueKind.Array)
                 array = data;
-            else if (data.TryGetProperty("submissions", out var subs) && subs.ValueKind == JsonValueKind.Array)
+            else if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("submissions", out var subs) && subs.ValueKind == JsonValueKind.Array)
             {
                 array = subs;
                 // Forminit pagination: { data: { pagination: { lastPage: N } } }
@@ -252,6 +515,7 @@ public partial class EntryFormsSettingsPage : ContentPage
         var result = new List<WebsiteSubmissionDto>();
         foreach (var item in array.EnumerateArray())
         {
+            if (item.ValueKind != JsonValueKind.Object) throw new JsonException("Each entry must be an object.");
             var dto = new WebsiteSubmissionDto { Values = new Dictionary<string, string>() };
 
             // Extract known meta fields
@@ -313,56 +577,50 @@ public partial class EntryFormsSettingsPage : ContentPage
             : v.ToString();
     }
 
-    private int ImportSubmissions(List<WebsiteSubmissionDto> submissions)
+    private async Task<int> ReviewAndImportSubmissionsAsync(List<WebsiteSubmissionDto> submissions)
     {
-        var imported = 0;
-
+        var candidates = new List<(EntryForm Form, WebsiteSubmissionDto Submission, string Key)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var unmatched = 0;
+        var duplicates = 0;
         foreach (var sub in submissions)
         {
             var rawId = sub.FormId ?? "";
-            if (rawId.StartsWith("form-", StringComparison.OrdinalIgnoreCase))
-                rawId = rawId[5..];
+            if (rawId.StartsWith("form-", StringComparison.OrdinalIgnoreCase)) rawId = rawId[5..];
+            var form = Guid.TryParse(rawId, out var id) ? League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == id) : null;
+            if (form == null) { unmatched++; continue; }
+            var key = EntryFormImportIdentity.GetKey(sub.ExternalId, sub.FormId, sub.Name, sub.SubmittedAt, sub.Values);
+            if (form.ImportedExternalIds.Contains(key) || !seen.Add($"{form.Id}:{key}")) { duplicates++; continue; }
+            candidates.Add((form, sub, key));
+        }
+        var summary = string.Join("\n", candidates.GroupBy(c => c.Form.Id).Select(g => $"{g.First().Form.Title}: {g.Count()} new entries"));
+        if (candidates.Count == 0)
+        {
+            await DisplayAlert("Entry review", $"No new entries to add.\n{duplicates} duplicates; {unmatched} missing or unknown form identities.\nUnknown forms are never assigned to the selected form automatically.", "OK");
+            return 0;
+        }
+        if (!await DisplayAlert("Review entry import", $"{summary}\n\n{duplicates} duplicates skipped; {unmatched} unmatched entries excluded.\n\nAdd {candidates.Count} entries as pending? No teams or players will be created or linked.", "Add pending entries", "Cancel")) return 0;
+        var imported = 0;
 
-            Guid formGuid;
-            if (!Guid.TryParse(rawId, out formGuid))
-            {
-                // No formId in submission — fall back to the currently selected form
-                if (_selectedFormId.HasValue)
-                    formGuid = _selectedFormId.Value;
-                else
-                    continue;
-            }
-
-            var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == formGuid);
-            if (form == null) continue;
-
-            // Skip if already imported (by external ID or by matching name+date)
-            var extId = sub.ExternalId ?? "";
-            if (!string.IsNullOrEmpty(extId) && form.ImportedExternalIds.Contains(extId))
-                continue;
-
+        foreach (var candidate in candidates)
+        {
+            var (form, sub, key) = candidate;
+            if (!League.WebsiteSettings.EntryForms.Contains(form) || form.ImportedExternalIds.Contains(key)) continue;
             var submission = new EntryFormSubmission
             {
                 EntryName = sub.Name ?? "",
-                Notes = "Fetched from form service",
+                Notes = "Imported after review",
                 SubmittedDate = sub.SubmittedAt ?? DateTime.Now,
+                FieldValues = sub.Values != null ? new Dictionary<string, string>(sub.Values) : new(),
             };
-
-            foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
-            {
-                submission.FieldValues[field.Label] =
-                    sub.Values != null && sub.Values.TryGetValue(field.Label, out var val) ? val : "";
-            }
-
             form.Submissions.Add(submission);
-            if (!string.IsNullOrEmpty(extId))
-                form.ImportedExternalIds.Add(extId);
+            form.ImportedExternalIds.Add(key);
             imported++;
         }
 
         if (imported > 0)
         {
-            DataStore.Save();
+            DataStore.SaveJsonOnly();
 
             if (_selectedFormId.HasValue)
             {
@@ -418,7 +676,7 @@ public partial class EntryFormsSettingsPage : ContentPage
                 return;
             }
 
-            var imported = ImportSubmissions(submissions);
+            var imported = await ReviewAndImportSubmissionsAsync(submissions);
 
             await DisplayAlert("Import Complete",
                 $"Imported {imported} of {submissions.Count} submission{(submissions.Count != 1 ? "s" : "")}.",
@@ -461,7 +719,7 @@ public partial class EntryFormsSettingsPage : ContentPage
         };
         public bool IsPublished { get; set; }
         public bool IsClosed { get; set; }
-        public string StatusIcon => IsClosed ? "\u26AA" : IsPublished ? "\u2705" : "\U0001F4DD";
+        public string StatusIcon => !IsPublished ? "Draft" : IsClosed ? "Closed" : "Open";
         public string DateLabel { get; set; } = "";
         public string FieldCountLabel { get; set; } = "";
 
@@ -471,7 +729,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             Title = form.Title,
             FormType = form.FormType,
             IsPublished = form.IsPublished,
-            IsClosed = form.IsClosed,
+            IsClosed = EntryFormRules.IsClosed(form, DateTime.Today),
             DateLabel = $"Created {form.DateCreated:dd MMM yyyy}",
             FieldCountLabel = $"{form.Fields.Count} field{(form.Fields.Count == 1 ? "" : "s")}"
         };
@@ -512,17 +770,27 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     private void LoadForms()
     {
+        _changingSelection = true;
         _forms.Clear();
         foreach (var form in League.WebsiteSettings.EntryForms.OrderBy(f => f.SortOrder).ThenByDescending(f => f.DateCreated))
             _forms.Add(FormDisplayItem.FromModel(form));
+        _changingSelection = false;
+        UpdateWorkspaceSummary();
+    }
+
+    private void UpdateWorkspaceSummary()
+    {
+        var forms = League.WebsiteSettings.EntryForms;
+        WorkspaceSummaryLabel.Text = $"{forms.Count} saved forms · {forms.Count(f => f.IsPublished && !EntryFormRules.IsClosed(f, DateTime.Today))} open · {forms.Sum(f => f.Submissions.Count(s => s.Status == "pending"))} pending entries";
     }
 
     // ── Form list events ────────────────────────────────────────────────
 
     private void OnShowToggled(object? sender, ToggledEventArgs e)
     {
+        if (_initializing) return;
         League.WebsiteSettings.ShowEntryForms = e.Value;
-        DataStore.Save();
+        DataStore.SaveJsonOnly();
     }
 
     private void OnAddTeamEntryClicked(object? sender, EventArgs e)
@@ -540,35 +808,50 @@ public partial class EntryFormsSettingsPage : ContentPage
         });
     }
 
-    private void AddFormAndSelect(EntryForm form)
+    private async void AddFormAndSelect(EntryForm form)
     {
+        if (!await CanDiscardDraftAsync()) return;
         form.SortOrder = League.WebsiteSettings.EntryForms.Count;
-        League.WebsiteSettings.EntryForms.Add(form);
-        DataStore.Save();
-
+        form.IsPublished = false;
+        LoadForms();
         var item = FormDisplayItem.FromModel(form);
         _forms.Add(item);
+        _changingSelection = true;
         FormsCollection.SelectedItem = item;
-        SelectForm(form.Id);
+        _changingSelection = false;
+        SelectForm(form.Id, form);
     }
 
-    private void OnFormSelected(object? sender, SelectionChangedEventArgs e)
+    private async void OnFormSelected(object? sender, SelectionChangedEventArgs e)
     {
-        if (e.CurrentSelection.FirstOrDefault() is FormDisplayItem item)
-            SelectForm(item.Id);
+        if (_changingSelection || e.CurrentSelection.FirstOrDefault() is not FormDisplayItem item || item.Id == _selectedFormId) return;
+        _changingSelection = true;
+        if (!await CanDiscardDraftAsync())
+        {
+            FormsCollection.SelectedItem = _forms.FirstOrDefault(f => f.Id == _selectedFormId);
+            _changingSelection = false;
+            return;
+        }
+        var oldNewId = _isNewDraft ? _selectedFormId : null;
+        SelectForm(item.Id);
+        if (oldNewId.HasValue && _forms.FirstOrDefault(f => f.Id == oldNewId) is { } unsaved) _forms.Remove(unsaved);
+        _changingSelection = false;
     }
 
     private async void OnDeleteFormClicked(object? sender, EventArgs e)
     {
         if (!_selectedFormId.HasValue) return;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        var form = _draft;
         if (form == null) return;
 
-        if (!await DisplayAlert("Delete Form", $"Delete '{form.Title}'? This will also delete all {form.Submissions.Count} logged entries.", "Delete", "Cancel"))
+        var saved = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == form.Id);
+        if (!await DisplayAlert("Delete Form", $"Delete '{form.Title}'? This will also delete all {saved?.Submissions.Count ?? 0} logged entries.", "Delete", "Cancel"))
             return;
 
-        League.WebsiteSettings.EntryForms.Remove(form);
-        DataStore.Save();
+        if (saved != null) League.WebsiteSettings.EntryForms.Remove(saved);
+        DataStore.SaveJsonOnly();
+        _draft = null;
+        _isNewDraft = false;
         _selectedFormId = null;
         _selectedEntryId = null;
         LoadForms();
@@ -586,7 +869,8 @@ public partial class EntryFormsSettingsPage : ContentPage
     private void OnDuplicateFormClicked(object? sender, EventArgs e)
     {
         if (!_selectedFormId.HasValue) return;
-        var original = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        CaptureDraft();
+        var original = _draft;
         if (original == null) return;
 
         var copy = new EntryForm
@@ -612,18 +896,25 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     // ── Form editor ─────────────────────────────────────────────────────
 
-    private void SelectForm(Guid formId)
+    private void SelectForm(Guid formId, EntryForm? newDraft = null)
     {
         _selectedFormId = formId;
         _selectedEntryId = null;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == formId);
+        var source = newDraft ?? League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == formId);
+        var form = source == null ? null : EntryFormRules.CreateDraft(source);
         if (form == null) return;
+        _draft = form;
+        _isNewDraft = newDraft != null;
+        FormValidationLabel.IsVisible = false;
 
         TitleEntry.Text = form.Title;
         DescriptionEditor.Text = form.Description;
         SubmitButtonEntry.Text = form.SubmitButtonText;
+        ConfirmationEditor.Text = form.ConfirmationMessage;
         IsPublishedSwitch.IsToggled = form.IsPublished;
         IsClosedSwitch.IsToggled = form.IsClosed;
+        HasClosingDateSwitch.IsToggled = form.ClosingDate.HasValue;
+        ClosingDatePicker.IsEnabled = form.ClosingDate.HasValue;
 
         if (form.ClosingDate.HasValue)
             ClosingDatePicker.Date = form.ClosingDate.Value;
@@ -641,12 +932,12 @@ public partial class EntryFormsSettingsPage : ContentPage
         // Right side: show records
         RecordsPlaceholder.IsVisible = false;
         RecordsPanel.IsVisible = true;
-        AddEntryBtn.IsEnabled = true;
-        RefreshEntriesBtn.IsEnabled = true;
+        AddEntryBtn.IsEnabled = !_isNewDraft;
+        RefreshEntriesBtn.IsEnabled = !_isNewDraft;
 
         RebuildFieldsPanel(form);
-        RefreshEntries(form);
-        RefreshCrossReference(form);
+        RefreshEntries(source!);
+        RefreshCrossReference(source!);
     }
 
     private void RebuildFieldsPanel(EntryForm form)
@@ -662,13 +953,12 @@ public partial class EntryFormsSettingsPage : ContentPage
             var capturedField = field;
             var capturedIdx = idx;
 
-            var card = new Frame
+            var card = new Border
             {
-                BorderColor = Color.FromArgb("#E2E8F0"),
+                Stroke = Color.FromArgb("#E2E8F0"),
                 Padding = new Thickness(12),
-                CornerRadius = 8,
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
                 BackgroundColor = Colors.White,
-                HasShadow = false,
             };
 
             var grid = new Grid
@@ -678,12 +968,11 @@ public partial class EntryFormsSettingsPage : ContentPage
                     new ColumnDefinition(GridLength.Auto),
                     new ColumnDefinition(GridLength.Star),
                     new ColumnDefinition(GridLength.Auto),
-                    new ColumnDefinition(GridLength.Auto),
-                    new ColumnDefinition(GridLength.Auto),
                 },
                 ColumnSpacing = 8,
                 RowDefinitions = new RowDefinitionCollection
                 {
+                    new RowDefinition(GridLength.Auto),
                     new RowDefinition(GridLength.Auto),
                     new RowDefinition(GridLength.Auto),
                 },
@@ -741,7 +1030,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             var typePicker = new Picker
             {
                 FontSize = 12,
-                WidthRequest = 110,
+                HorizontalOptions = LayoutOptions.Fill,
                 ItemsSource = new[] { "text", "email", "phone", "number", "date", "textarea", "select", "checkbox" },
                 SelectedItem = field.FieldType,
             };
@@ -750,14 +1039,17 @@ public partial class EntryFormsSettingsPage : ContentPage
                 if (typePicker.SelectedItem is string t)
                     capturedField.FieldType = t;
             };
-            grid.Add(typePicker, 2, 0);
 
             var requiredSwitch = new Switch { IsToggled = field.IsRequired };
             requiredSwitch.Toggled += (_, args) => capturedField.IsRequired = args.Value;
             var requiredStack = new HorizontalStackLayout { Spacing = 4 };
             requiredStack.Add(new Label { Text = "Req", FontSize = 11, TextColor = Color.FromArgb("#94A3B8"), VerticalOptions = LayoutOptions.Center });
             requiredStack.Add(requiredSwitch);
-            grid.Add(requiredStack, 3, 0);
+            var fieldSettings = new Grid { ColumnDefinitions = new ColumnDefinitionCollection { new(GridLength.Star), new(GridLength.Auto) }, ColumnSpacing = 8 };
+            fieldSettings.Add(typePicker, 0, 0);
+            fieldSettings.Add(requiredStack, 1, 0);
+            Grid.SetColumnSpan(fieldSettings, 3);
+            grid.Add(fieldSettings, 0, 1);
 
             var deleteBtn = new Button
             {
@@ -774,7 +1066,10 @@ public partial class EntryFormsSettingsPage : ContentPage
                 form.Fields.Remove(capturedField);
                 RebuildFieldsPanel(form);
             };
-            grid.Add(deleteBtn, 4, 0);
+            SemanticProperties.SetDescription(deleteBtn, $"Remove field {idx + 1}");
+            SemanticProperties.SetDescription(upBtn, $"Move field {idx + 1} up");
+            SemanticProperties.SetDescription(downBtn, $"Move field {idx + 1} down");
+            grid.Add(deleteBtn, 2, 0);
 
             var row1 = new Grid { ColumnDefinitions = new ColumnDefinitionCollection { new(GridLength.Star), new(GridLength.Star) }, ColumnSpacing = 8 };
             var placeholderEntry = new Entry
@@ -800,8 +1095,8 @@ public partial class EntryFormsSettingsPage : ContentPage
             };
             row1.Add(optionsEntry, 1, 0);
 
-            Grid.SetColumnSpan(row1, 5);
-            grid.Add(row1, 0, 1);
+            Grid.SetColumnSpan(row1, 3);
+            grid.Add(row1, 0, 2);
 
             card.Content = grid;
             FieldsPanel.Children.Add(card);
@@ -811,6 +1106,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     private static void SwapFieldOrder(EntryForm form, EntryFormField field, int direction)
     {
         var ordered = form.Fields.OrderBy(f => f.SortOrder).ToList();
+        for (var index = 0; index < ordered.Count; index++) ordered[index].SortOrder = index;
         var idx = ordered.IndexOf(field);
         var targetIdx = idx + direction;
         if (targetIdx < 0 || targetIdx >= ordered.Count) return;
@@ -840,7 +1136,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     private async void OnUploadFormLogoClicked(object? sender, EventArgs e)
     {
         if (!_selectedFormId.HasValue) return;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        var form = _draft;
         if (form == null) return;
 
         try
@@ -856,8 +1152,8 @@ public partial class EntryFormsSettingsPage : ContentPage
                 using var stream = await result.OpenReadAsync();
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms);
+                if (_draft != form) return;
                 form.LogoImageData = ms.ToArray();
-                DataStore.Save();
                 UpdateFormLogoPreview(form);
             }
         }
@@ -870,18 +1166,17 @@ public partial class EntryFormsSettingsPage : ContentPage
     private void OnClearFormLogoClicked(object? sender, EventArgs e)
     {
         if (!_selectedFormId.HasValue) return;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        var form = _draft;
         if (form == null) return;
 
         form.LogoImageData = null;
-        DataStore.Save();
         UpdateFormLogoPreview(form);
     }
 
     private void OnAddFieldClicked(object? sender, EventArgs e)
     {
         if (!_selectedFormId.HasValue) return;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
+        var form = _draft;
         if (form == null) return;
 
         form.Fields.Add(new EntryFormField
@@ -889,44 +1184,43 @@ public partial class EntryFormsSettingsPage : ContentPage
             Label = "",
             FieldType = "text",
             IsRequired = false,
-            SortOrder = form.Fields.Count,
+            SortOrder = form.Fields.Count == 0 ? 0 : form.Fields.Max(f => f.SortOrder) + 1,
         });
         RebuildFieldsPanel(form);
     }
 
     private void OnClearClosingDate(object? sender, EventArgs e)
     {
-        ClosingDatePicker.Date = DateTime.Now.AddDays(30);
-        if (_selectedFormId.HasValue)
-        {
-            var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
-            if (form != null)
-                form.ClosingDate = null;
-        }
+        HasClosingDateSwitch.IsToggled = false;
+        ClosingDatePicker.IsEnabled = false;
     }
 
     private void OnSaveFormClicked(object? sender, EventArgs e)
     {
-        if (!_selectedFormId.HasValue) return;
-        var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
-        if (form == null) return;
-
-        form.Title = TitleEntry.Text?.Trim() ?? "";
-        form.Description = DescriptionEditor.Text?.Trim() ?? "";
-        form.SubmitButtonText = SubmitButtonEntry.Text?.Trim() ?? "Submit Entry";
-        form.IsPublished = IsPublishedSwitch.IsToggled;
-        form.IsClosed = IsClosedSwitch.IsToggled;
-
-        var pickerDate = ClosingDatePicker.Date;
-        if (form.ClosingDate.HasValue || pickerDate.Date != DateTime.Now.AddDays(30).Date)
-            form.ClosingDate = pickerDate;
-
-        DataStore.Save();
+        CaptureDraft();
+        if (_draft == null || !ValidateDraft()) return;
+        var form = EntryFormRules.CreateDraft(_draft);
+        foreach (var field in form.Fields) field.Label = field.Label.Trim();
+        var saved = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == form.Id);
+        if (saved != null)
+        {
+            form.Submissions = saved.Submissions;
+            form.ImportedExternalIds = saved.ImportedExternalIds;
+            League.WebsiteSettings.EntryForms[League.WebsiteSettings.EntryForms.IndexOf(saved)] = form;
+        }
+        else if (_isNewDraft) League.WebsiteSettings.EntryForms.Add(form);
+        else return;
+        DataStore.SaveJsonOnly();
         LoadForms();
-
+        _changingSelection = true;
         var item = _forms.FirstOrDefault(f => f.Id == _selectedFormId);
         if (item != null)
             FormsCollection.SelectedItem = item;
+        SelectForm(form.Id);
+        _changingSelection = false;
+        FormValidationLabel.Text = "Saved locally. Regenerate and publish the website when ready.";
+        FormValidationLabel.TextColor = Color.FromArgb("#15803D");
+        FormValidationLabel.IsVisible = true;
     }
 
     // ── Entry (submission) management ───────────────────────────────────
@@ -939,8 +1233,13 @@ public partial class EntryFormsSettingsPage : ContentPage
         DeleteEntryBtn.IsEnabled = false;
 
         var teamLookup = GetSeasonTeamLookup();
+        var search = EntrySearchBar.Text?.Trim() ?? "";
+        var status = EntryFilterPicker.SelectedIndex switch { 1 => "pending", 2 => "confirmed", 3 => "rejected", _ => null };
 
-        foreach (var sub in form.Submissions.OrderByDescending(s => s.SubmittedDate))
+        foreach (var sub in form.Submissions
+            .Where(s => status == null || s.Status == status)
+            .Where(s => search.Length == 0 || s.EntryName.Contains(search, StringComparison.OrdinalIgnoreCase) || s.FieldValues.Values.Any(v => v.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(s => s.SubmittedDate))
         {
             var linkedLabel = "";
             if (sub.LinkedTeamId.HasValue && teamLookup.TryGetValue(sub.LinkedTeamId.Value, out var teamName))
@@ -961,11 +1260,12 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     private void UpdateRecordsHeader()
     {
+        UpdateWorkspaceSummary();
         if (_selectedFormId.HasValue)
         {
             var form = League.WebsiteSettings.EntryForms.FirstOrDefault(f => f.Id == _selectedFormId);
             var count = form?.Submissions.Count ?? 0;
-            EntriesHeaderLabel.Text = $"RECORDS ({count})";
+            EntriesHeaderLabel.Text = $"ENTRIES ({_entries.Count}/{count})";
         }
         else
         {
@@ -996,7 +1296,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             submission.FieldValues[field.Label] = "";
 
         form.Submissions.Add(submission);
-        DataStore.Save();
+        DataStore.SaveJsonOnly();
         RefreshEntries(form);
         RefreshCrossReference(form);
 
@@ -1028,6 +1328,7 @@ public partial class EntryFormsSettingsPage : ContentPage
 
         EntryNameEntry.Text = sub.EntryName;
         EntryNotesEditor.Text = sub.Notes;
+        _entryValues = new Dictionary<string, string>(sub.FieldValues);
 
         // Status picker
         EntryStatusPicker.SelectedItem = sub.Status;
@@ -1035,7 +1336,7 @@ public partial class EntryFormsSettingsPage : ContentPage
         // Team picker
         var seasonId = SeasonService.Current.CurrentSeasonId;
         var teams = League.Teams?
-            .Where(t => t != null && (seasonId == null || t.SeasonId == seasonId))
+            .Where(t => t != null && seasonId.HasValue && t.SeasonId == seasonId)
             .OrderBy(t => t.Name ?? "")
             .ToList() ?? [];
 
@@ -1053,8 +1354,6 @@ public partial class EntryFormsSettingsPage : ContentPage
     {
         EntryFieldsPanel.Children.Clear();
 
-        if (form.Fields.Count == 0) return;
-
         EntryFieldsPanel.Children.Add(new Label
         {
             Text = "FIELD VALUES",
@@ -1064,7 +1363,11 @@ public partial class EntryFormsSettingsPage : ContentPage
             CharacterSpacing = 1.5,
         });
 
-        foreach (var field in form.Fields.OrderBy(f => f.SortOrder))
+        // Preserve and display values from older versions of a form after field renames/removals.
+        var fields = form.Fields.OrderBy(f => f.SortOrder).ToList();
+        fields.AddRange(sub.FieldValues.Keys.Where(key => fields.All(f => f.Label != key))
+            .Select(key => new EntryFormField { Label = key, Placeholder = "Historical field value" }));
+        foreach (var field in fields)
         {
             var capturedLabel = field.Label;
             var currentValue = sub.FieldValues.TryGetValue(capturedLabel, out var val) ? val : "";
@@ -1084,7 +1387,7 @@ public partial class EntryFormsSettingsPage : ContentPage
                 Placeholder = field.Placeholder,
                 FontSize = 12,
             };
-            entry.TextChanged += (_, args) => sub.FieldValues[capturedLabel] = args.NewTextValue ?? "";
+            entry.TextChanged += (_, args) => _entryValues[capturedLabel] = args.NewTextValue ?? "";
             stack.Add(entry);
             EntryFieldsPanel.Children.Add(stack);
         }
@@ -1102,13 +1405,15 @@ public partial class EntryFormsSettingsPage : ContentPage
         sub.Status = EntryStatusPicker.SelectedItem as string ?? "pending";
         sub.Notes = EntryNotesEditor.Text?.Trim() ?? "";
         sub.LinkedTeamId = (EntryTeamPicker.SelectedItem as Team)?.Id;
+        sub.FieldValues = new Dictionary<string, string>(_entryValues);
 
-        DataStore.Save();
+        var selectedId = sub.Id;
+        DataStore.SaveJsonOnly();
         RefreshEntries(form);
         RefreshCrossReference(form);
 
         // Re-select
-        var item = _entries.FirstOrDefault(e => e.Id == _selectedEntryId);
+        var item = _entries.FirstOrDefault(e => e.Id == selectedId);
         if (item != null)
             EntriesCollection.SelectedItem = item;
     }
@@ -1127,7 +1432,7 @@ public partial class EntryFormsSettingsPage : ContentPage
 
         form.Submissions.Remove(sub);
         _selectedEntryId = null;
-        DataStore.Save();
+        DataStore.SaveJsonOnly();
         RefreshEntries(form);
         RefreshCrossReference(form);
     }
@@ -1140,7 +1445,7 @@ public partial class EntryFormsSettingsPage : ContentPage
 
         var seasonId = SeasonService.Current.CurrentSeasonId;
         var teams = League.Teams?
-            .Where(t => t != null && (seasonId == null || t.SeasonId == seasonId))
+            .Where(t => t != null && seasonId.HasValue && t.SeasonId == seasonId)
             .OrderBy(t => t.Name ?? "")
             .ToList() ?? [];
 
@@ -1156,7 +1461,7 @@ public partial class EntryFormsSettingsPage : ContentPage
             .Select(s => s.LinkedTeamId!.Value)
             .ToHashSet();
 
-        // Also try name-matching for unlinked entries
+        // Only explicit record links count as registrations; names are not identity.
         var entryNamesByTeam = new Dictionary<Guid, string>();
         foreach (var team in teams)
         {
@@ -1164,18 +1469,6 @@ public partial class EntryFormsSettingsPage : ContentPage
             {
                 var sub = form.Submissions.First(s => s.LinkedTeamId == team.Id && s.Status != "rejected");
                 entryNamesByTeam[team.Id] = sub.Status == "confirmed" ? "Confirmed" : "Pending";
-            }
-            else
-            {
-                // Try name matching (entry name vs team name)
-                var nameMatch = form.Submissions.FirstOrDefault(s =>
-                    s.Status != "rejected" &&
-                    !s.LinkedTeamId.HasValue &&
-                    !string.IsNullOrWhiteSpace(s.EntryName) &&
-                    string.Equals(s.EntryName.Trim(), team.Name?.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                if (nameMatch != null)
-                    entryNamesByTeam[team.Id] = $"Name match ({(nameMatch.Status == "confirmed" ? "Confirmed" : "Pending")})";
             }
         }
 
@@ -1201,7 +1494,7 @@ public partial class EntryFormsSettingsPage : ContentPage
     {
         var seasonId = SeasonService.Current.CurrentSeasonId;
         return League.Teams?
-            .Where(t => t != null && (seasonId == null || t.SeasonId == seasonId))
+            .Where(t => t != null && seasonId.HasValue && t.SeasonId == seasonId)
             .ToDictionary(t => t.Id, t => t.Name ?? "Unknown") ?? new Dictionary<Guid, string>();
     }
 }

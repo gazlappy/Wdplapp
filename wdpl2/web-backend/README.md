@@ -1,5 +1,13 @@
 # WDPL Web Backend (cPanel edition)
 
+## Current online entry-form setup
+
+The bundled receiver is `api/entry-forms/submit.php`, with authenticated definition publishing and collection in `api/admin/entry-form-definitions.php` and `api/admin/entry-form-submissions.php`. Follow [OnlineForms.md](../Docs/OnlineForms.md) for the current app-assisted deployment, form publishing, private collection and validation workflow.
+
+For this workflow, use the database sidecar `api/_db.config.php` and an existing backend admin account configured in the app's Web Inbox settings. Do not follow the older instructions below to edit `_db.php` or add cPanel Directory Privacy: current admin authentication is implemented in PHP. Entry-form tables are initialized by authenticated form-definition publishing and are separate from the older results inbox tables. FTP uploads files; actual submissions require PHP/MySQL hosting with HTTPS.
+
+The remainder of this README is older results-inbox setup material, not the entry-form contract.
+
 This folder contains everything you need to add a small **web inbox** to
 your existing wdpl.uk website so captains/players can submit data
 (match results, availability, entry forms) through the website.

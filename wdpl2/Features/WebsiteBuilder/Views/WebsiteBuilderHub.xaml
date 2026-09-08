@@ -3,12 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:ctrls="clr-namespace:Wdpl2.Views.Controls"
              x:Class="Wdpl2.Views.WebsiteBuilder.WebsiteBuilderHub"
-             Title="Website Builder">
+             Title="Website Builder" SizeChanged="OnWorkspaceSizeChanged">
 
-    <Grid ColumnDefinitions="380,*" ColumnSpacing="0">
+    <Grid RowDefinitions="Auto,*">
+        <FlexLayout x:Name="WorkspaceTabs" IsVisible="False" Wrap="Wrap" BackgroundColor="#F8FAFC" Padding="12,8">
+            <Button Text="Settings" Clicked="OnSettingsTabClicked" BackgroundColor="#334155" TextColor="White" CornerRadius="8" Margin="0,0,8,0"/>
+            <Button Text="Preview" Clicked="OnPreviewTabClicked" BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"/>
+        </FlexLayout>
+        <Grid x:Name="WorkspaceGrid" Grid.Row="1" ColumnDefinitions="380,*" ColumnSpacing="0">
 
         <!-- ═══ LEFT PANEL: Settings ═══ -->
-        <ScrollView Grid.Column="0" BackgroundColor="#F8FAFC">
+        <ScrollView x:Name="SettingsPane" Grid.Column="0" BackgroundColor="#F8FAFC">
             <VerticalStackLayout Padding="20,16" Spacing="10">
 
                 <Label Text="Website Builder" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
@@ -350,32 +355,41 @@
         </ScrollView>
 
         <!-- Divider line -->
-        <BoxView Grid.Column="0" WidthRequest="1" BackgroundColor="#E2E8F0" HorizontalOptions="End"/>
+        <BoxView x:Name="WorkspaceDivider" Grid.Column="0" WidthRequest="1" BackgroundColor="#E2E8F0" HorizontalOptions="End"/>
 
         <!-- ═══ RIGHT PANEL: Live Preview ═══ -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="0">
+        <Grid x:Name="PreviewPane" Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="0">
 
             <!-- Preview toolbar -->
-            <Grid BackgroundColor="#1E293B" Padding="14,10" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-                <Label Grid.Column="0" Text="Live Preview" FontAttributes="Bold" FontSize="14"
-                       TextColor="White" VerticalOptions="Center"/>
-                <Picker Grid.Column="2" x:Name="PreviewPagePicker" Title="Page"
-                        WidthRequest="150" SelectedIndexChanged="OnPreviewPageChanged"
-                        TextColor="White" TitleColor="#94A3B8"/>
-                <Button Grid.Column="3" x:Name="RefreshPreviewBtn" Text="&#128260; Refresh"
-                        Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" TextColor="White"
-                        FontSize="12" Padding="12,8" CornerRadius="6"/>
-            </Grid>
+            <VerticalStackLayout BackgroundColor="#1E293B" Padding="14,10" Spacing="6">
+                <Label Text="Website preview" FontAttributes="Bold" FontSize="14" TextColor="White"/>
+                <FlexLayout Wrap="Wrap" AlignItems="Center">
+                    <Picker x:Name="PreviewPagePicker" Title="Page" WidthRequest="150"
+                            SelectedIndexChanged="OnPreviewPageChanged" Margin="0,0,8,4"
+                            TextColor="White" TitleColor="#94A3B8"/>
+                    <Button x:Name="DesktopPreviewBtn" Text="Desktop" Clicked="OnDesktopPreviewClicked"
+                            BackgroundColor="#2563EB" TextColor="White" FontSize="12" Padding="12,8" CornerRadius="6" Margin="0,0,8,4"/>
+                    <Button x:Name="MobilePreviewBtn" Text="Mobile (390px)" Clicked="OnMobilePreviewClicked"
+                            BackgroundColor="#334155" TextColor="White" FontSize="12" Padding="12,8" CornerRadius="6" Margin="0,0,8,4"/>
+                    <Button x:Name="RefreshPreviewBtn" Text="&#128260; Refresh"
+                            Clicked="OnPreviewClicked" BackgroundColor="#3B82F6" TextColor="White"
+                            FontSize="12" Padding="12,8" CornerRadius="6" Margin="0,0,0,4"/>
+                </FlexLayout>
+                <Label x:Name="PreviewViewportLabel" Text="Desktop preview" FontSize="11" TextColor="#CBD5E1"/>
+                <Label Text="Entry forms are test-only here: nothing is sent, downloaded or saved. Refresh reloads saved settings; publishing is separate."
+                       FontSize="11" TextColor="#CBD5E1"/>
+            </VerticalStackLayout>
 
             <!-- Preview placeholder / WebView -->
-            <Grid Grid.Row="1" BackgroundColor="#F1F5F9">
+            <Grid x:Name="PreviewCanvas" Grid.Row="1" BackgroundColor="#F1F5F9" Padding="12"
+                  SizeChanged="OnPreviewCanvasSizeChanged">
                 <!-- Placeholder shown when no preview generated yet -->
                 <VerticalStackLayout x:Name="PreviewPlaceholder"
                                      VerticalOptions="Center" HorizontalOptions="Center" Spacing="16">
                     <Label Text="&#127760;" FontSize="56" HorizontalOptions="Center"/>
                     <Label Text="Click Preview to see your website" FontSize="18"
                            FontAttributes="Bold" TextColor="#475569" HorizontalOptions="Center"/>
-                    <Label Text="Configure your settings on the left, then hit Preview" FontSize="13"
+                    <Label Text="Configure your settings, then generate a preview" FontSize="13"
                            TextColor="#94A3B8" HorizontalOptions="Center"/>
                     <Button Text="&#128065; Generate Preview" Clicked="OnPreviewClicked" 
                             BackgroundColor="#3B82F6" TextColor="White" FontSize="13"
@@ -383,7 +397,7 @@
                 </VerticalStackLayout>
 
                 <!-- The WebView (hidden initially) -->
-                <WebView x:Name="PreviewWebView" IsVisible="False"
+                <WebView x:Name="PreviewWebView" IsVisible="False" HorizontalOptions="Center"
                          Navigating="OnPreviewNavigating"/>
 
                 <!-- Loading overlay -->
@@ -391,6 +405,7 @@
             </Grid>
         </Grid>
 
+        </Grid>
     </Grid>
 
 </ContentPage>

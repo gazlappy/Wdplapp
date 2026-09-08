@@ -173,7 +173,7 @@ async function del(teamId) {
   try {
     const r = await fetch(API, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-WDPL-Admin': '1' },
       credentials: 'include',
       body: JSON.stringify({ team_id: teamId })
     });
@@ -210,7 +210,7 @@ $('captainForm').onsubmit = async (ev) => {
   try {
     const r = await fetch(API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-WDPL-Admin': '1' },
       credentials: 'include',
       body: JSON.stringify(body)
     });

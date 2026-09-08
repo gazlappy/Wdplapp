@@ -66,6 +66,16 @@
   .pill-tab { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; background:#334155; }
   .checklist { max-height:300px; overflow:auto; border:1px solid #334155; border-radius:6px; padding:8px; }
   .checklist label { display:flex; align-items:center; gap:6px; padding:2px 0; font-size:13px; }
+  .entry-layout { display:grid; grid-template-columns:minmax(230px,1fr) minmax(0,2fr); gap:16px; }
+  .entry-list { display:flex; flex-direction:column; gap:8px; max-height:65vh; overflow:auto; }
+  .entry-list button { text-align:left; white-space:pre-wrap; overflow-wrap:anywhere; padding:12px; background:#0f172a; border-color:#475569; }
+  .entry-list button[aria-pressed=true] { border-color:#60a5fa; background:#1e3a8a; }
+  .entry-detail { min-width:0; }
+  .entry-detail pre, .entry-detail dd { white-space:pre-wrap; overflow-wrap:anywhere; margin:4px 0 14px; font:inherit; }
+  .entry-detail dt { color:#94a3b8; font-weight:600; }
+  .entry-detail label { display:block; margin:12px 0 4px; }
+  [hidden] { display:none !important; }
+  @media (max-width:720px) { .entry-layout { grid-template-columns:1fr; } .entry-list { max-height:35vh; } }
 </style>
 </head>
 <body>
@@ -75,7 +85,7 @@
     <h1>WDPL Admin</h1>
     <p class="lead" id="loginLead">Sign in to manage the league.</p>
     <div id="bootstrapNote" class="bootstrap-note" style="display:none">
-      No admin users exist yet. The credentials you enter below will be used to <strong>create the first admin account</strong> (as superadmin).
+      Ask an existing administrator to provision your account. Public login cannot create administrator accounts.
     </div>
     <label for="lu">Username</label>
     <input id="lu" autocomplete="username" required>
@@ -100,6 +110,7 @@
     <button data-tab="captains">Captains</button>
     <button data-tab="seasons">Seasons</button>
     <button data-tab="inbox">Inbox</button>
+    <button data-tab="entries">Entry forms</button>
     <button data-tab="broadcast">Broadcast</button>
     <button data-tab="email">Email</button>
     <button data-tab="topscorers">Top scorers</button>
@@ -136,6 +147,38 @@
       <button class="secondary" onclick="loadScorecards()">Refresh</button>
     </div>
     <div id="scList"></div>
+  </div>
+</section>
+
+<section id="tab-entries" style="display:none" aria-labelledby="entryHeading">
+  <div class="card">
+    <h2 id="entryHeading">Entry form reviews</h2>
+    <p>Review submitted entries without changing their original answers. Confirmation does not register teams or players; desktop reconciliation is separate.</p>
+    <div class="filterbar">
+      <button id="entryRefresh" class="secondary" type="button">Reload from first page</button>
+      <label for="entryFilter">Status on this page</label>
+      <select id="entryFilter"><option value="">All</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="rejected">Rejected</option></select>
+      <button id="entryNext" class="secondary" type="button" disabled>Next page</button>
+      <span id="entryCount" class="muted"></span>
+    </div>
+    <div id="entryMessage" class="status info" role="status" aria-live="polite">Open this tab to load submissions.</div>
+    <div class="entry-layout">
+      <div id="entryList" class="entry-list" aria-label="Submissions"></div>
+      <div id="entryDetail" class="entry-detail" hidden>
+        <h3 id="entryTitle"></h3>
+        <pre id="entryIdentity" class="muted"></pre>
+        <h4>Original answers (read-only)</h4>
+        <dl id="entryAnswers"></dl>
+        <form id="entryReviewForm">
+          <label for="entryStatus">Review status</label>
+          <select id="entryStatus"><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="rejected">Rejected</option></select>
+          <label for="entryNotes">Review notes (maximum 16,000 UTF-8 bytes)</label>
+          <textarea id="entryNotes" maxlength="16000"></textarea>
+          <button id="entrySave" type="submit">Save review</button>
+          <button id="entryDiscard" class="secondary" type="button" hidden>Discard draft and reload</button>
+        </form>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -399,6 +442,7 @@
   </div>
 </div>
 
+<script src="entry-reviews.js"></script>
 <script>
 const API = '..';
 let session = { user: null, token: null };
@@ -413,14 +457,14 @@ function flash(msg, kind){
   clearTimeout(flash._t);
   flash._t = setTimeout(function(){ el.style.display='none'; }, 5000);
 }
-function loadToken(){ try { return localStorage.getItem('wdpl_admin_token') || ''; } catch(e){ return ''; } }
-function saveToken(t){ try { if (t) localStorage.setItem('wdpl_admin_token', t); else localStorage.removeItem('wdpl_admin_token'); } catch(e){} }
+function loadToken(){ saveToken(''); return ''; }
+function saveToken(t){ try { localStorage.removeItem('wdpl_admin_token'); } catch(e){} }
 
 async function api(path, opts){
   opts = opts || {};
   opts.credentials = 'include';
-  const hdrs = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
-  if (session.token) hdrs['Authorization'] = 'Bearer ' + session.token;
+  const hdrs = Object.assign({'Content-Type':'application/json', 'X-WDPL-Admin':'1'}, opts.headers || {});
+  opts.cache = 'no-store';
   opts.headers = hdrs;
   const r = await fetch(API + path, opts);
   let body = null;
@@ -428,6 +472,10 @@ async function api(path, opts){
   if (!r.ok) {
     const err = new Error((body && body.error) || ('HTTP ' + r.status));
     err.status = r.status; err.body = body;
+    if (r.status === 401 && path !== '/admin/login.php') {
+      session.user = null;
+      showLogin(false);
+    }
     throw err;
   }
   return body;
@@ -436,6 +484,7 @@ async function api(path, opts){
 function isSuper(){ return session.user && session.user.role === 'superadmin'; }
 
 function showLogin(needsBootstrap){
+  EntryReviews.reset();
   $('app').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   $('bootstrapNote').style.display = needsBootstrap ? 'block' : 'none';
@@ -487,7 +536,7 @@ async function doLogin(ev){
   try {
     session.token = null;
     const r = await api('/admin/login.php', { method:'POST', body: JSON.stringify({ username: $('lu').value.trim(), password: $('lp').value }) });
-    session.token = r.token || null; saveToken(session.token);
+    session.token = null; saveToken(''); $('lp').value = '';
     session.user = r;
     $('who').textContent = 'Signed in as ' + (r.display_name || r.username) + ' (' + r.role + ')';
     showApp();
@@ -511,6 +560,7 @@ document.querySelectorAll('#tabs button').forEach(function(b){
     if (t === 'captains')   loadCaptains();
     if (t === 'seasons')    loadSeasons();
     if (t === 'inbox')      loadInbox();
+    if (t === 'entries')    EntryReviews.open();
     if (t === 'email')      loadEmailRecipients();
     if (t === 'topscorers') loadTopScorers();
     if (t === 'availability') loadAvailability();
@@ -522,7 +572,10 @@ document.querySelectorAll('#tabs button').forEach(function(b){
 });
 
 $('logout').onclick = async function(){
-  try { await api('/admin/logout.php', { method:'POST' }); } catch (e) {}
+  try { await api('/admin/logout.php', { method:'POST' }); }
+  catch (e) {
+    if (e.status !== 401) { flash('Sign out failed. Your session may still be active: ' + e.message, 'err'); return; }
+  }
   session.token = null; session.user = null; saveToken('');
   showLogin(false);
 };

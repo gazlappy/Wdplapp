@@ -21,4 +21,13 @@ public partial class InboxPage : ContentPage
         _initialized = true;
         await _vm.InitializeAsync();
     }
+
+    private async void OnReviewWebsiteChangesClicked(object sender, EventArgs e)
+    {
+        var button = (Button)sender;
+        button.IsEnabled = false;
+        try { await Navigation.PushAsync(new AdminReviewPage()); }
+        catch (Exception ex) { await DisplayAlert("Website review", ex.Message, "OK"); }
+        finally { button.IsEnabled = true; }
+    }
 }

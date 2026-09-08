@@ -1529,8 +1529,68 @@ nav a:hover, nav a.active {{
 }}
 
 /* Entry Forms */
+.entry-form-directory {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; max-width: 1100px; margin: 24px auto 40px; }}
+.entry-form-directory-link {{ display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); background: var(--card-bg); color: var(--text-color); text-decoration: none; overflow-wrap: anywhere; box-shadow: 0 8px 24px #0f172a08; }}
+.entry-form-directory-link strong {{ font-size: 1.2rem; }}
+.entry-form-directory-link > span:not(.entry-form-badge) {{ font-size: .9rem; }}
+.entry-form-directory-link:hover, .entry-form-directory-link:focus-visible {{ border-color: var(--primary-color); outline: 2px solid var(--primary-color); outline-offset: 3px; }}
+.entry-form-directory-action {{ margin-top: auto; padding-top: 8px; font-weight: 700; color: var(--primary-color); }}
 .entry-form-card {{
-    border-left: 4px solid var(--primary-color);
+    max-width: 960px;
+    margin: 24px auto;
+    padding: clamp(20px, 4vw, 40px);
+    border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+    border-top: 5px solid var(--primary-color);
+    border-radius: 24px;
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.07);
+    overflow-wrap: anywhere;
+    scroll-margin-top: 100px;
+}}
+
+.entry-form-intro {{ padding: 24px; border-radius: 18px; background: linear-gradient(125deg, color-mix(in srgb, var(--primary-color) 12%, var(--card-bg)), var(--card-bg)); border: 1px solid color-mix(in srgb, var(--primary-color) 18%, transparent); }}
+.entry-form-eyebrow {{ color: var(--primary-color); font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; }}
+.entry-form-steps {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; list-style: none; padding: 0; margin: 8px 0; }}
+.entry-form-steps li {{ display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); border-radius: 12px; font-size: .85rem; font-weight: 600; color: var(--text-secondary); }}
+.entry-form-steps li span {{ font-weight: 800; font-size: .75rem; }}
+.entry-form-steps li[aria-current=step] {{ border-color: var(--primary-color); color: var(--text-color); background: color-mix(in srgb, var(--primary-color) 14%, var(--card-bg)); box-shadow: inset 0 -3px var(--primary-color); }}
+.entry-form-steps li.is-complete {{ border-color: #15803D; color: var(--text-color); }}
+.entry-form-completion {{ display: grid; gap: 8px; color: var(--text-secondary); font-size: .85rem; }}
+.entry-form-completion progress {{ width: 100%; height: 8px; border: 0; border-radius: 20px; overflow: hidden; accent-color: var(--primary-color); }}
+.entry-form-completion progress::-webkit-progress-bar {{ background: color-mix(in srgb, var(--text-color) 12%, var(--card-bg)); border-radius: 20px; }}
+.entry-form-completion progress::-webkit-progress-value {{ background: var(--primary-color); border-radius: 20px; }}
+.entry-form-contact {{ margin-top: 24px; padding-top: 20px; border-top: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); color: var(--text-secondary); }}
+.entry-form-contact p {{ margin: 6px 0; }}
+.entry-form-card .form-group input, .entry-form-card .form-group select, .entry-form-card .form-group textarea {{ border-color: color-mix(in srgb, var(--text-color) 24%, transparent); border-radius: 12px; }}
+.entry-form-fields {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; border: 0; padding: 0; margin: 0; min-width: 0; }}
+.entry-form-fields .form-group {{ min-width: 0; }}
+.entry-form-wide {{ grid-column: 1 / -1; }}
+.entry-form-hint, .entry-form-optional {{ font-size: .85rem; color: var(--text-secondary); font-weight: 400; }}
+.entry-form-sr-only {{ position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }}
+.entry-form-notice {{ border: 1px solid #D97706; border-radius: 12px; padding: 16px; background: #FFFBEB; color: #78350F; line-height: 1.6; }}
+.entry-form-actions {{ display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding-top: 12px; }}
+.entry-form-secondary {{ background: var(--card-bg); color: var(--text-color); border: 1px solid currentColor; border-radius: 12px; padding: 12px 20px; font: inherit; font-weight: 600; cursor: pointer; min-height: 48px; }}
+.entry-form-card [hidden] {{ display: none !important; }}
+.entry-form-review {{ background: color-mix(in srgb, var(--primary-color) 5%, var(--card-bg)); border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); border-radius: 16px; padding: 24px; }}
+.entry-form-review h4 {{ font-size: 1.25rem; margin: 0 0 8px; }}
+.entry-form-review dl {{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px 24px; }}
+.entry-form-review dt {{ font-weight: 600; }}
+.entry-form-review dd {{ margin: 0; white-space: pre-wrap; }}
+.entry-form-feedback:not(:empty) {{ padding: 16px; border-radius: 12px; background: #F0FDF4; border: 1px solid #15803D; color: #14532D; line-height: 1.6; }}
+.entry-form-feedback.is-error {{ background: #FEF2F2; border-color: #B91C1C; color: #991B1B; }}
+.entry-form-card :focus-visible {{ outline: 3px solid var(--primary-color); outline-offset: 4px; }}
+.entry-form-card button:disabled {{ cursor: wait; opacity: .65; transform: none; }}
+.entry-form-fields input:not([type=checkbox]), .entry-form-fields select, .entry-form-fields textarea {{ width: 100%; box-sizing: border-box; min-height: 48px; font-size: 1rem; }}
+.entry-form-fields input:user-invalid, .entry-form-fields select:user-invalid, .entry-form-fields textarea:user-invalid {{ border-color: #B91C1C; }}
+@media (max-width: 640px) {{
+    .entry-form-steps li {{ flex-direction: column; align-items: flex-start; padding: 10px; }}
+    .entry-form-intro {{ padding: 16px; }}
+    .entry-form-fields, .entry-form-review dl {{ grid-template-columns: minmax(0, 1fr); }}
+    .entry-form-review dd {{ padding-bottom: 12px; }}
+    .entry-form-card {{ border-radius: 16px; }}
+    .entry-form-actions button {{ flex: 1 1 180px; }}
+}}
+@media (prefers-reduced-motion: reduce) {{
+    .entry-form-card *, .entry-form-card *:hover {{ transition: none; transform: none; }}
 }}
 
 .entry-form-logo {{
@@ -1556,7 +1616,8 @@ nav a:hover, nav a.active {{
 
 .entry-form-header h3 {{
     margin: 0;
-    font-size: 1.25rem;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -.03em;
 }}
 
 .entry-form-badge {{
@@ -1583,6 +1644,7 @@ nav a:hover, nav a.active {{
     color: var(--text-secondary);
     margin-bottom: 12px;
     line-height: 1.6;
+    white-space: pre-wrap;
 }}
 
 .entry-form-deadline {{
@@ -1680,6 +1742,7 @@ nav a:hover, nav a.active {{
     border-radius: 8px;
     font-size: 0.95rem;
     font-family: inherit;
+    min-height: 48px;
     background: var(--card-bg);
     color: var(--text-color);
     transition: border-color 0.2s, box-shadow 0.2s;

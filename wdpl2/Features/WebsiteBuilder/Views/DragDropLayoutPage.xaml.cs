@@ -28,6 +28,7 @@ public partial class DragDropLayoutPage : ContentPage
         ("players.html", "Players"),
         ("divisions.html", "Divisions"),
         ("history.html", "History"),
+        ("entry-forms.html", "Entry Forms"),
     ];
 
     public DragDropLayoutPage()
@@ -48,6 +49,7 @@ public partial class DragDropLayoutPage : ContentPage
         if (settings.ShowPlayerStats) items.Add("Players");
         if (settings.ShowDivisions) items.Add("Divisions");
         if (settings.ShowHistory && !string.IsNullOrWhiteSpace(settings.HistoryHtmlContent)) items.Add("History");
+        if (settings.ShowEntryForms && settings.EntryForms.Any(f => f.IsPublished)) items.Add("Entry Forms");
         PagePicker.ItemsSource = items;
         PagePicker.SelectedIndex = 0;
     }
@@ -58,7 +60,7 @@ public partial class DragDropLayoutPage : ContentPage
         {
             SaveBlocksToSettings();
             var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-            _generatedFiles = generator.GenerateWebsite();
+            _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
             StatusLabel.Text = $"{_generatedFiles.Count} files generated";
             LoadCurrentPage();
         }
@@ -73,27 +75,7 @@ public partial class DragDropLayoutPage : ContentPage
         if (_generatedFiles == null) return;
         if (!_generatedFiles.TryGetValue(_currentPage, out var html)) return;
 
-        if (_generatedFiles.TryGetValue("style.css", out var css))
-            html = System.Text.RegularExpressions.Regex.Replace(
-                html,
-                @"<link rel=""stylesheet"" href=""style\.css(\?v=[^""]*)?"">",
-                _ => $"<style>{css}</style>");
-
-        // For template pages (player.html, team.html), inline the JSON data
-        // so fetch() isn't needed, and inject the query string so URLSearchParams works
-        html = InlineJsonData(html);
-
-        if (!string.IsNullOrEmpty(_currentQueryString))
-        {
-            // Inject a script that sets the query string before the page JS runs
-            var fakeQs = _currentQueryString.Replace("\\", "\\\\").Replace("'", "\\'");
-            var qsScript = $"<script>if(!window.location.search){{" +
-                           $"Object.defineProperty(window,'_editorQS',{{value:'{fakeQs}'}});" +
-                           $"var _origUSP=URLSearchParams;" +
-                           $"URLSearchParams=function(s){{return new _origUSP(window._editorQS||s);}};" +
-                           $"}}</script>";
-            html = html.Replace("<head>", "<head>" + qsScript);
-        }
+        html = WebsitePreviewContent.Prepare(html, _generatedFiles, _currentQueryString);
 
         // Inject freeform editor JS on all pages
         if (_currentPage == "home.html")
@@ -116,42 +98,6 @@ public partial class DragDropLayoutPage : ContentPage
         WebViewHelper.LoadHtml(EditorWebView, html);
     }
 
-    private string InlineJsonData(string html)
-    {
-        if (_generatedFiles == null) return html;
-
-        // Replace fetch('players-data.json').then(parse) with inline data
-        if (_generatedFiles.TryGetValue("players-data.json", out var playersJson))
-        {
-            var escaped = playersJson.Replace("\\", "\\\\").Replace("'", "\\'")
-                .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchWithInline(html, "players-data.json", escaped);
-        }
-
-        if (_generatedFiles.TryGetValue("teams-data.json", out var teamsJson))
-        {
-            var escaped = teamsJson.Replace("\\", "\\\\").Replace("'", "\\'")
-                .Replace("\r", "").Replace("\n", "");
-            html = ReplaceFetchWithInline(html, "teams-data.json", escaped);
-        }
-
-        return html;
-    }
-
-    /// <summary>
-    /// Replaces a fetch('...').then(parse) pattern with Promise.resolve(inline data),
-    /// tolerant of any whitespace/newlines between the two parts.
-    /// </summary>
-    private static string ReplaceFetchWithInline(string html, string fileName, string escapedJson)
-    {
-        var pattern = @"fetch\('" + System.Text.RegularExpressions.Regex.Escape(fileName)
-            + @"(?:\?v='\s*\+\s*cacheBuster)?'\)\s*\.then\(function\(r\)\s*\{\s*return\s+r\.json\(\);\s*\}\)";
-        return System.Text.RegularExpressions.Regex.Replace(
-            html,
-            pattern,
-            _ => $"Promise.resolve(JSON.parse('{escapedJson}'))");
-    }
-
     private async void OnPageChanged(object? sender, EventArgs e)
     {
         if (_syncingPicker) return;
@@ -168,7 +114,7 @@ public partial class DragDropLayoutPage : ContentPage
         
         // Regenerate so the page we're switching to (and back) uses current positions
         var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-        _generatedFiles = generator.GenerateWebsite();
+        _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
         
         LoadCurrentPage();
     }
@@ -324,12 +270,16 @@ public partial class DragDropLayoutPage : ContentPage
             await CollectPositionsFromEditor();
             SaveBlocksToSettings();
             var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-            _generatedFiles = generator.GenerateWebsite();
+            _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
             
             _currentPage = targetFile;
             _currentQueryString = queryString;
             SyncPagePicker(targetFile);
             LoadCurrentPage();
+        }
+        else if (WebsitePreviewContent.ShouldBlockNavigation(url))
+        {
+            e.Cancel = true;
         }
     }
 
@@ -817,7 +767,7 @@ public partial class DragDropLayoutPage : ContentPage
             
             // Regenerate cached files so page switching uses saved positions
             var generator = new WebsiteGenerator(League, League.WebsiteSettings);
-            _generatedFiles = generator.GenerateWebsite();
+            _generatedFiles = generator.GenerateWebsite(previewEntryForms: true);
             
             StatusLabel.Text = "Layout saved!";
             await DisplayAlert("Saved", "Layout saved successfully.", "OK");
