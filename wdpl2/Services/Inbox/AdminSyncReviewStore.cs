@@ -61,6 +61,48 @@ public sealed class AdminSyncReviewStore(string filePath)
         finally { Gate.Release(); }
     }
 
+    public async Task RefreshLocalSnapshotAsync(string backendId, AdminSyncReviewItem expected, JsonElement snapshot, CancellationToken ct = default)
+    {
+        await Gate.WaitAsync(ct);
+        try
+        {
+            var state = await ReadAsync(ct);
+            var item = state.Pending.FirstOrDefault();
+            if (state.BackendId != backendId || item == null || item.Change.Sequence != state.AppliedThrough + 1 ||
+                item.ResolutionRequestId != expected.ResolutionRequestId || item.ResolutionMode != null || item.ResolutionPayload != null ||
+                !JsonElement.DeepEquals(JsonSerializer.SerializeToElement(item), JsonSerializer.SerializeToElement(expected)))
+                throw new InvalidOperationException("The saved review changed or a decision started. Reopen and compare it again.");
+            AdminReviewSnapshot.ValidateIdentity(backendId, item, snapshot);
+            item.LocalSnapshot = snapshot.Clone();
+            // Invalidate other open previews without reusing a request that could have been sent.
+            item.ResolutionRequestId = Guid.NewGuid();
+            await WriteAsync(state, ct);
+        }
+        finally { Gate.Release(); }
+    }
+
+    public async Task AttachLinkedEntryAsync(string backendId, Guid requestId, JsonElement snapshot, CancellationToken ct = default)
+    {
+        await Gate.WaitAsync(ct);
+        try
+        {
+            var state = await ReadAsync(ct);
+            var item = state.Pending.FirstOrDefault();
+            if (state.BackendId != backendId || item == null || item.ResolutionRequestId != requestId ||
+                item.Change.Kind != "entry_review" || item.Change.Sequence != state.AppliedThrough + 1 || item.ResolutionMode != null)
+                throw new InvalidOperationException("The entry review changed or a decision already started. Reload before linking.");
+            if (item.LocalSnapshot is { } existing && !JsonElement.DeepEquals(existing, snapshot))
+                throw new InvalidOperationException("A reviewed local snapshot already exists. Linking cannot replace it.");
+            var entry = snapshot.Deserialize<Wdpl2.Models.EntryFormSubmission>() ?? throw new InvalidOperationException("Missing linked entry.");
+            if (entry.SourceBackendId != backendId || entry.SourceClientId != item.Change.Payload.GetProperty("clientId").GetString() ||
+                entry.SourceSubmissionSequence != item.Change.Payload.GetProperty("submissionSequence").GetInt64())
+                throw new InvalidOperationException("The linked snapshot does not match the queued submission.");
+            item.LocalSnapshot = snapshot.Clone();
+            await WriteAsync(state, ct);
+        }
+        finally { Gate.Release(); }
+    }
+
     public async Task<AdminSyncReviewItem> PrepareResolutionAsync(long sequence, string mode, JsonElement payload, CancellationToken ct = default)
     {
         if (mode is not ("server" or "local")) throw new ArgumentException("Unknown resolution mode.", nameof(mode));

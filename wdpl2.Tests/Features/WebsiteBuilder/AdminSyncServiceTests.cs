@@ -10,6 +10,97 @@ public class AdminSyncServiceTests
 {
     private const string Backend = "00000000-0000-0000-0000-000000000001";
     [Theory]
+    [InlineData("same")]
+    [InlineData("newer")]
+    [InlineData("backend")]
+    [InlineData("identity")]
+    [InlineData("rewritten")]
+    [InlineData("sequence")]
+    public async Task Current_ValidatesHistoryAndSubmissionIdentity(string scenario)
+    {
+        var payload = JsonSerializer.SerializeToElement(new { formId = "form-1", clientId = "client-1", submissionSequence = 7, notes = "Old" });
+        var expected = new AdminSyncChange(3, "entry_review", "7", 2, null, "web", payload);
+        using var service = new AdminSyncService(Settings(), new Handler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Null(request.Content);
+            Assert.Equal("Basic", request.Headers.Authorization!.Scheme);
+            Assert.Contains("sync-current.php?backendId=" + Backend, request.RequestUri!.AbsoluteUri);
+            var newer = scenario is "newer" or "identity" or "sequence";
+            return new(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    protocol = 1, backendId = scenario == "backend" ? Guid.NewGuid().ToString() : Backend,
+                    liveMatchesJournal = true, live = (object?)null,
+                    item = new { sequence = newer && scenario != "sequence" ? 4 : 3, kind = "entry_review", id = "7",
+                        revision = newer ? 3 : 2, seasonId = (string?)null, source = "web",
+                        payload = new { formId = "form-1", clientId = scenario == "identity" ? "other" : "client-1", submissionSequence = 7,
+                            notes = newer || scenario == "rewritten" ? "New" : "Old" } }
+                }), Encoding.UTF8, "application/json")
+            };
+        }));
+        if (scenario is "same" or "newer")
+        {
+            var current = await service.FetchCurrentAsync(Backend, expected);
+            Assert.Equal(scenario == "same" ? 2 : 3, current.Change.Revision);
+            Assert.True(current.LiveMatchesJournal);
+            Assert.Null(current.Live);
+            Assert.Equal("Old", expected.Payload.GetProperty("notes").GetString());
+        }
+        else await Assert.ThrowsAsync<JsonException>(() => service.FetchCurrentAsync(Backend, expected));
+    }
+
+    [Fact]
+    public async Task Current_ReportsLiveDivergenceWithoutReplacingJournalPayload()
+    {
+        var payload = JsonSerializer.SerializeToElement(new { version = 1 });
+        var expected = new AdminSyncChange(1, "scorecard", "fixture-1", 1, "season-1", "web", payload);
+        using var service = new AdminSyncService(Settings(), new Handler(_ => new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new
+            {
+                protocol = 1, backendId = Backend, liveMatchesJournal = false, live = new { version = 2 },
+                item = new { sequence = 1, kind = "scorecard", id = "fixture-1", revision = 1, seasonId = "season-1", source = "web", payload }
+            }), Encoding.UTF8, "application/json")
+        }));
+        var current = await service.FetchCurrentAsync(Backend, expected);
+        Assert.False(current.LiveMatchesJournal);
+        Assert.Equal(2, current.Live!.Value.GetProperty("version").GetInt32());
+        Assert.Equal(1, current.Change.Payload.GetProperty("version").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("backend")]
+    [InlineData("client")]
+    [InlineData("form")]
+    [InlineData("sequence")]
+    public async Task LinkFetch_RequiresExactSubmissionIdentity(string fault)
+    {
+        var payload = JsonSerializer.SerializeToElement(new { submissionSequence = 7, formId = "form-1", clientId = "client-1" });
+        var change = new AdminSyncChange(1, "entry_review", "7", 1, null, "web", payload);
+        using var service = new AdminSyncService(Settings(), new Handler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("Basic", request.Headers.Authorization!.Scheme);
+            Assert.Contains("after=6&through=7&backendId=" + Backend, request.RequestUri!.Query);
+            return new(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    protocol = 1, backendId = fault == "backend" ? Guid.NewGuid().ToString() : Backend,
+                    through = 7, nextAfter = (long?)null,
+                    items = new[] { new { id = fault == "sequence" ? "8" : "7", review = payload,
+                        submission = new { id = fault == "client" ? "other" : "client-1", formId = fault == "form" ? "other" : "form-1", values = new { Answer = "Original" } } } }
+                }), Encoding.UTF8, "application/json")
+            };
+        }));
+        if (fault == "valid") Assert.Equal("Original", (await service.FetchEntryForLinkAsync(Backend, change)).GetProperty("values").GetProperty("Answer").GetString());
+        else await Assert.ThrowsAsync<JsonException>(() => service.FetchEntryForLinkAsync(Backend, change));
+    }
+
+    [Theory]
     [InlineData("server", "web", "valid")]
     [InlineData("local", "web", "valid")]
     [InlineData("server", "desktop", "valid")]

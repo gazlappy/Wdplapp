@@ -64,6 +64,7 @@ public sealed class BackendDeployService
         "api/admin/settings.php",
         "api/admin/standings.php",
         "api/admin/sync-changes.php",
+        "api/admin/sync-current.php",
         "api/admin/sync-accept.php",
         "api/admin/sync-keep-local.php",
         "api/admin/sync-entry-review.php",

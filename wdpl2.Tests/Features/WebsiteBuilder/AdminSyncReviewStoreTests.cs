@@ -100,5 +100,52 @@ public sealed class AdminSyncReviewStoreTests : IDisposable
         Assert.Equal(0, (await Store().LoadAsync()).AppliedThrough);
     }
 
+    [Fact]
+    public async Task RefreshLocal_PreservesCursorsAndRejectsOldPreviewAndStartedDecision()
+    {
+        var entry = new Wdpl2.Models.EntryFormSubmission { SourceBackendId = _backend, SourceClientId = "client-1", SourceSubmissionSequence = 7 };
+        var payload = JsonSerializer.SerializeToElement(new { clientId = "client-1", submissionSequence = 7 });
+        await Store().StageAsync(BaseUri, new(_backend, 0, 1, [new(1, "entry_review", "7", 1, null, "web", payload)]), _ => JsonSerializer.SerializeToElement(entry));
+        var expected = (await Store().LoadAsync()).Pending[0];
+        entry.Notes = "Updated locally";
+        var snapshot = JsonSerializer.SerializeToElement(entry);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().RefreshLocalSnapshotAsync(Guid.NewGuid().ToString(), expected, snapshot));
+        await Store().RefreshLocalSnapshotAsync(_backend, expected, snapshot);
+        var state = await Store().LoadAsync();
+        var current = Assert.Single(state.Pending);
+        Assert.Equal(0, state.AppliedThrough);
+        Assert.Equal(1, state.DownloadedThrough);
+        Assert.Empty(state.ReviewedRevisions);
+        Assert.Equal(expected.Change.Revision, current.Change.Revision);
+        Assert.True(JsonElement.DeepEquals(expected.Change.Payload, current.Change.Payload));
+        Assert.NotEqual(expected.ResolutionRequestId, current.ResolutionRequestId);
+        Assert.Equal("Updated locally", current.LocalSnapshot!.Value.GetProperty("Notes").GetString());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().RefreshLocalSnapshotAsync(_backend, expected, snapshot));
+        await Store().PrepareResolutionAsync(1, "local", payload);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().RefreshLocalSnapshotAsync(_backend, current, snapshot));
+        Assert.Equal("local", (await Store().LoadAsync()).Pending[0].ResolutionMode);
+    }
+
     public void Dispose() { if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true); }
+    [Fact]
+    public async Task Link_AttachesSnapshotWithoutAcknowledgmentAndRejectsReplacement()
+    {
+        var payload = JsonSerializer.SerializeToElement(new { submissionSequence = 7, clientId = "client-1" });
+        await Store().StageAsync(BaseUri, new(_backend, 0, 1, [new(1, "entry_review", "7", 1, null, "web", payload)]), _ => null);
+        var request = (await Store().LoadAsync()).Pending[0].ResolutionRequestId;
+        var entry = new Wdpl2.Models.EntryFormSubmission { SourceBackendId = _backend, SourceClientId = "client-1", SourceSubmissionSequence = 7 };
+        var snapshot = JsonSerializer.SerializeToElement(entry);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().AttachLinkedEntryAsync(_backend, Guid.NewGuid(), snapshot));
+        await Store().AttachLinkedEntryAsync(_backend, request, snapshot);
+        await Store().AttachLinkedEntryAsync(_backend, request, snapshot);
+        var state = await Store().LoadAsync();
+        Assert.Equal(0, state.AppliedThrough);
+        Assert.Equal(1, state.DownloadedThrough);
+        Assert.Equal(request, state.Pending[0].ResolutionRequestId);
+        Assert.Null(state.Pending[0].ResolutionMode);
+        entry.Notes = "Changed";
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().AttachLinkedEntryAsync(_backend, request, JsonSerializer.SerializeToElement(entry)));
+        await Store().PrepareResolutionAsync(1, "server", payload);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Store().AttachLinkedEntryAsync(_backend, request, snapshot));
+    }
 }

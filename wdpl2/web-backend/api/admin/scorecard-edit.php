@@ -10,7 +10,7 @@
 //                 home_player_id, home_player_name, home_player2_id, home_player2_name,
 //                 away_player_id, away_player_name, away_player2_id, away_player2_name
 require __DIR__ . '/../_db.php';
-require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_admin_sync.php';
 $me = require_admin();
 $pdo = db();
 
@@ -32,12 +32,22 @@ function ase_save($fid, $ver, $state) {
         ->execute(array(':v'=>$ver, ':s'=>json_encode($state), ':u'=>gmdate('Y-m-d H:i:s'), ':f'=>$fid));
 }
 
+admin_sync_ensure_schema();
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $fid = trim((string)(isset($_GET['fixture_id']) ? $_GET['fixture_id'] : ''));
     if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
-    $r = ase_load($fid);
-    if (!$r) json_response(array('error' => 'no live card'), 404);
-    json_response($r);
+    try {
+        $pdo->beginTransaction();
+        $backend = admin_sync_lock();
+        $r = ase_load($fid);
+        $record = admin_sync_read_record('scorecard', $fid);
+        $pdo->commit();
+        if (!$r) json_response(array('error' => 'no live card'), 404);
+        json_response($r + array('protocol' => 1, 'backendId' => $backend['backend_id'], 'revision' => $record ? $record['revision'] : 0));
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_response(array('error' => 'Scorecard unavailable.'), 500);
+    }
 }
 
 require_post();
@@ -46,13 +56,34 @@ $action = trim((string)(isset($body['action']) ? $body['action'] : ''));
 $fid    = trim((string)(isset($body['fixture_id']) ? $body['fixture_id'] : ''));
 if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
 
-$pdo->beginTransaction();
 try {
+    $expected = admin_sync_integer($body['expected_revision'] ?? null, 'expected_revision');
+    $expectedVersion = admin_sync_integer($body['expected_version'] ?? null, 'expected_version');
+    $requestId = admin_sync_request_id($body['request_id'] ?? '');
+    $pdo->beginTransaction();
+    $backend = admin_sync_lock();
+    if (($body['backend_id'] ?? '') !== $backend['backend_id']) {
+        $pdo->rollBack(); json_response(array('error' => 'Backend changed. Reload and review the card.'), 409);
+    }
+    $prepared = admin_sync_prepare_change($me, 'scorecard', $fid, $expected, $requestId, $body);
+    if (!empty($prepared['conflict'])) { $pdo->rollBack(); json_response($prepared, 409); }
+    if (!empty($prepared['replayed'])) {
+        $pdo->commit();
+        json_response(array('protocol' => 1, 'backendId' => $backend['backend_id'], 'id' => $fid,
+            'requestId' => $requestId, 'accepted' => true, 'revision' => $prepared['revision'], 'sequence' => $prepared['sequence']));
+    }
     $sel = $pdo->prepare('SELECT version, state_json FROM live_scorecards WHERE fixture_id = :f FOR UPDATE');
     $sel->execute(array(':f' => $fid));
     $row = $sel->fetch();
     if (!$row) { $pdo->rollBack(); json_response(array('error' => 'no live card'), 404); }
     $ver   = (int)$row['version'];
+    if ($ver !== $expectedVersion) {
+        $pdo->rollBack(); json_response(array('error' => 'Live card changed. Reload and compare before editing.'), 409);
+    }
+    $query = $pdo->prepare('SELECT season_id FROM league_fixtures WHERE fixture_id = ?');
+    $query->execute(array($fid));
+    $season = $query->fetchColumn();
+    if (!$season) throw new InvalidArgumentException('The fixture needs an explicit season before editing.');
     $state = json_decode($row['state_json'], true);
     if (!is_array($state)) $state = array('frames' => array());
     if (!isset($state['frames']) || !is_array($state['frames'])) $state['frames'] = array();
@@ -89,23 +120,25 @@ try {
             'winner' => null, 'eight_ball' => false, 'pending_eight' => null);
     }
     else if ($action === 'remove_frame') {
-        if (!count($state['frames'])) { $pdo->rollBack(); json_response(array('error' => 'no frames')); }
+        if (!count($state['frames'])) { $pdo->rollBack(); json_response(array('error' => 'no frames'), 422); }
         array_pop($state['frames']);
     }
     else if ($action === 'force_finalize') {
         $side = strtolower(trim((string)(isset($body['side']) ? $body['side'] : 'both')));
         $cols = '';
         $now = gmdate('Y-m-d H:i:s');
-        $params = array(':f' => $fid, ':u' => $now, ':v' => $ver);
-        if ($side === 'home' || $side === 'both') $cols .= 'home_finalized_at=:u, home_finalized_version=:v,';
-        if ($side === 'away' || $side === 'both') $cols .= 'away_finalized_at=:u, away_finalized_version=:v,';
+        $params = array(':f' => $fid);
+        if ($side === 'home' || $side === 'both') {
+            $cols .= 'home_finalized_at=:hu, home_finalized_version=:hv,';
+            $params[':hu'] = $now; $params[':hv'] = $ver + 1;
+        }
+        if ($side === 'away' || $side === 'both') {
+            $cols .= 'away_finalized_at=:au, away_finalized_version=:av,';
+            $params[':au'] = $now; $params[':av'] = $ver + 1;
+        }
         if ($cols === '') { $pdo->rollBack(); json_response(array('error' => 'bad side'), 400); }
         $cols = rtrim($cols, ',');
         $pdo->prepare("UPDATE live_scorecards SET $cols WHERE fixture_id=:f")->execute($params);
-        $pdo->commit();
-        audit_log($me, 'scorecard.force_finalize', $fid, array('side'=>$side));
-        $r = ase_load($fid);
-        json_response(array('ok' => true) + $r);
     }
     else {
         $pdo->rollBack();
@@ -114,13 +147,22 @@ try {
 
     $ver++;
     $state['last_edit'] = array('by' => 'admin:' . $me['username'], 'at' => gmdate('c'));
+    if ($action !== 'force_finalize') {
+        $pdo->prepare('UPDATE live_scorecards SET home_finalized_at = NULL, home_finalized_version = NULL,
+            away_finalized_at = NULL, away_finalized_version = NULL WHERE fixture_id = ?')->execute(array($fid));
+    }
     ase_save($fid, $ver, $state);
+    $receipt = admin_sync_commit_change($me, 'scorecard', $fid, $season, 'web', ase_load($fid), $prepared);
     $pdo->commit();
     audit_log($me, 'scorecard.' . $action, $fid, isset($body['frame']) ? array('frame'=>$body['frame']) : null);
-    $r = ase_load($fid);
-    json_response(array('ok' => true) + $r);
+    json_response($receipt + array('id' => $fid, 'requestId' => $requestId, 'accepted' => true));
+}
+catch (InvalidArgumentException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    json_response(array('error' => $e->getMessage()), 422);
 }
 catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    json_response(array('error' => $e->getMessage()), 500);
+    error_log('WDPL scorecard edit: ' . get_class($e));
+    json_response(array('error' => 'Scorecard edit unavailable. Retry the same saved request.'), 500);
 }

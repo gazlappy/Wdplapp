@@ -9,6 +9,7 @@ public sealed record AdminSyncChange(long Sequence, string Kind, string Id, long
     string? SeasonId, string Source, JsonElement Payload);
 
 public sealed record AdminSyncBatch(string BackendId, long After, long Through, IReadOnlyList<AdminSyncChange> Items);
+public sealed record AdminSyncCurrent(AdminSyncChange Change, bool LiveMatchesJournal, JsonElement? Live);
 
 /// <summary>Downloads a complete review batch without mutating local records or acknowledging changes.</summary>
 public sealed class AdminSyncService : IDisposable
@@ -185,6 +186,80 @@ public sealed class AdminSyncService : IDisposable
             (echo ? sequence != item.Change.Sequence : sequence <= item.Change.Sequence))
             throw new JsonException("Entry review receipt does not match the saved decision. The review queue must not advance.");
         return expectedRevision;
+    }
+
+    public async Task<JsonElement> FetchEntryForLinkAsync(string backendId, AdminSyncChange change, CancellationToken ct = default)
+    {
+        if (!Guid.TryParse(backendId, out _) || change.Kind != "entry_review" ||
+            !long.TryParse(change.Id, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) || id < 1 ||
+            change.Payload.GetProperty("submissionSequence").GetInt64() != id)
+            throw new InvalidOperationException("An explicit backend and submission identity are required.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri,
+            $"admin/entry-reviews.php?after={id - 1}&through={id}&backendId={Uri.EscapeDataString(backendId)}"));
+        request.Headers.Authorization = _authorization;
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentType?.MediaType != "application/json") throw new JsonException("Submission endpoint did not return JSON.");
+        await response.Content.LoadIntoBufferAsync(131072, timeout.Token);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
+        var root = document.RootElement;
+        if (root.GetProperty("protocol").GetInt32() != 1 || root.GetProperty("backendId").GetString() != backendId ||
+            root.GetProperty("through").GetInt64() != id || root.GetProperty("nextAfter").ValueKind != JsonValueKind.Null ||
+            root.GetProperty("items").GetArrayLength() != 1) throw new JsonException("The hosted submission is missing or its backend changed.");
+        var row = root.GetProperty("items")[0];
+        var review = row.GetProperty("review");
+        var submission = row.GetProperty("submission");
+        if (row.GetProperty("id").GetString() != change.Id || review.GetProperty("submissionSequence").GetInt64() != id ||
+            review.GetProperty("formId").GetString() != change.Payload.GetProperty("formId").GetString() ||
+            review.GetProperty("clientId").GetString() != change.Payload.GetProperty("clientId").GetString() ||
+            submission.GetProperty("formId").GetString() != review.GetProperty("formId").GetString() ||
+            submission.GetProperty("id").GetString() != review.GetProperty("clientId").GetString() ||
+            submission.GetProperty("values").ValueKind != JsonValueKind.Object)
+            throw new JsonException("The hosted submission identities do not match the queued review.");
+        return submission.Clone();
+    }
+
+    public async Task<AdminSyncCurrent> FetchCurrentAsync(string backendId, AdminSyncChange expected, CancellationToken ct = default)
+    {
+        if (!Guid.TryParse(backendId, out _) || expected.Kind is not ("scorecard" or "entry_review") || string.IsNullOrEmpty(expected.Id))
+            throw new InvalidOperationException("A saved backend and review identity are required.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri,
+            $"admin/sync-current.php?backendId={Uri.EscapeDataString(backendId)}&kind={expected.Kind}&id={Uri.EscapeDataString(expected.Id)}"));
+        request.Headers.Authorization = _authorization;
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentType?.MediaType != "application/json") throw new JsonException("Current comparison did not return JSON.");
+        await response.Content.LoadIntoBufferAsync(4 * 1024 * 1024, timeout.Token);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
+        var root = document.RootElement;
+        var item = root.GetProperty("item");
+        var current = new AdminSyncChange(item.GetProperty("sequence").GetInt64(), item.GetProperty("kind").GetString()!,
+            item.GetProperty("id").GetString()!, item.GetProperty("revision").GetInt64(), item.GetProperty("seasonId").GetString(),
+            item.GetProperty("source").GetString()!, item.GetProperty("payload").Clone());
+        if (root.GetProperty("protocol").GetInt32() != 1 || root.GetProperty("backendId").GetString() != backendId ||
+            current.Kind != expected.Kind || current.Id != expected.Id || current.SeasonId != expected.SeasonId ||
+            current.Revision < expected.Revision || current.Sequence < expected.Sequence || current.Payload.ValueKind != JsonValueKind.Object ||
+            current.Source is not ("web" or "desktop") ||
+            (current.Revision == expected.Revision && (current.Sequence != expected.Sequence || current.Source != expected.Source || !JsonElement.DeepEquals(current.Payload, expected.Payload))) ||
+            (current.Revision > expected.Revision && current.Sequence <= expected.Sequence))
+            throw new JsonException("Current comparison does not match the saved review identity or journal history.");
+        if (current.Kind == "entry_review")
+            foreach (var key in new[] { "formId", "clientId", "submissionSequence" })
+                if (!JsonElement.DeepEquals(current.Payload.GetProperty(key), expected.Payload.GetProperty(key)))
+                    throw new JsonException("The submission identity changed.");
+        var matches = root.GetProperty("liveMatchesJournal").GetBoolean();
+        var live = root.GetProperty("live");
+        if (live.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object) ||
+            (current.Kind == "entry_review" && (!matches || live.ValueKind != JsonValueKind.Null)) ||
+            (current.Kind == "scorecard" && matches && live.ValueKind != JsonValueKind.Object))
+            throw new JsonException("Invalid live comparison state.");
+        return new(current, matches, live.ValueKind == JsonValueKind.Null ? null : live.Clone());
     }
 
     public void Dispose() => _http.Dispose();

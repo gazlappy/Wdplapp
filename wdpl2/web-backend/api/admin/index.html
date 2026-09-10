@@ -438,6 +438,9 @@
   <div class="modal">
     <button class="secondary close" onclick="closeScModal()">Close</button>
     <h2 id="scModalTitle">Edit scorecard</h2>
+    <div id="scEditStatus" role="status" aria-live="polite"></div>
+    <button id="scRetry" type="button" hidden onclick="edRetry()">Retry saved edit</button>
+    <button id="scReload" type="button" onclick="edReloadReview()">Discard draft and reload card</button>
     <div id="scModalBody"></div>
   </div>
 </div>
@@ -485,6 +488,7 @@ function isSuper(){ return session.user && session.user.role === 'superadmin'; }
 
 function showLogin(needsBootstrap){
   EntryReviews.reset();
+  edReset();
   $('app').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   $('bootstrapNote').style.display = needsBootstrap ? 'block' : 'none';
@@ -645,17 +649,74 @@ async function scReset(fid){
 }
 
 /* Scorecard editor */
-let _edFid = null, _edState = null;
+let _edFid = null, _edState = null, _edMeta = null, _edPending = null, _edBusy = false, _edConflict = false, _edEpoch = 0;
+function edReset(){
+  _edEpoch++; _edFid=null; _edState=null; _edMeta=null; _edPending=null; _edBusy=false; _edConflict=false;
+  $('scModal').classList.remove('show'); $('scModalBody').innerHTML=''; $('scEditStatus').textContent='';
+  $('scRetry').hidden=true;
+}
+function edControls(){
+  const disabled = _edBusy || !!_edPending || _edConflict || !session.user || !['admin','superadmin'].includes(session.user.role);
+  document.querySelectorAll('#scModalBody input, #scModalBody textarea, #scModalBody select, #scModalBody button').forEach(x => { x.disabled=disabled; });
+  $('scRetry').hidden = !_edPending;
+  $('scRetry').disabled = _edBusy;
+  $('scReload').disabled = _edBusy;
+}
 async function scEdit(fid){
+  if (_edBusy || _edPending) { flash('Resolve the saved scorecard request before opening another card.','err'); return; }
+  const epoch = ++_edEpoch;
   try {
     const r = await api('/admin/scorecard-edit.php?fixture_id=' + encodeURIComponent(fid));
-    _edFid = fid; _edState = r.state;
+    if (epoch !== _edEpoch) return;
+    _edFid = fid; _edState = r.state; _edMeta = r; _edConflict = false;
+    $('scEditStatus').textContent = 'Content edits clear both finalizations. Changes are journaled for desktop review.';
     $('scModalTitle').textContent = 'Edit: ' + (r.state.home_team_name||'?') + ' vs ' + (r.state.away_team_name||'?');
     renderEditor(r);
     $('scModal').classList.add('show');
   } catch (e) { flash('Failed to load card: ' + e.message, 'err'); }
 }
-function closeScModal(){ $('scModal').classList.remove('show'); _edFid=null; _edState=null; }
+function closeScModal(){
+  if (_edBusy || _edPending) { flash('Keep this card open and retry the saved request, or explicitly discard and reload.','err'); return; }
+  edReset();
+}
+async function edReloadReview(){
+  if (_edBusy || !_edFid || !confirm('Discard this draft and reload? An uncertain request may already have been saved.')) return;
+  _edPending=null; _edConflict=true; edControls();
+  try { await edRefresh(); $('scEditStatus').textContent='Reloaded. Compare the latest card before editing.'; }
+  catch(e){ $('scEditStatus').textContent=e.message; }
+}
+async function edRetry(){ try { await edWrite(null); } catch(e){ $('scEditStatus').textContent=e.message; } }
+async function edWrite(change){
+  if (_edBusy || _edConflict || !_edMeta) throw new Error('Reload and review the card before editing.');
+  if (!session.user || !['admin','superadmin'].includes(session.user.role)) throw new Error('Read-only account.');
+  if (_edPending && change) throw new Error('Retry the original saved edit before making another change.');
+  if (!_edPending) {
+    if (!change || _edMeta.protocol !== 1 || !Number.isSafeInteger(_edMeta.version) || !Number.isSafeInteger(_edMeta.revision) || !_edMeta.backendId)
+      throw new Error('Reload the card from the updated backend before editing.');
+    _edPending = JSON.stringify(Object.assign({}, change, { fixture_id:_edFid, backend_id:_edMeta.backendId,
+      expected_version:_edMeta.version, expected_revision:_edMeta.revision, request_id:crypto.randomUUID() }));
+  }
+  const body = JSON.parse(_edPending), epoch = _edEpoch;
+  _edBusy=true; edControls();
+  try {
+    const receipt = await api('/admin/scorecard-edit.php', { method:'POST', body:_edPending });
+    if (epoch !== _edEpoch) return;
+    if (receipt.protocol !== 1 || receipt.accepted !== true || receipt.backendId !== body.backend_id || receipt.id !== body.fixture_id ||
+        receipt.requestId !== body.request_id || receipt.revision !== body.expected_revision + 1 || !Number.isSafeInteger(receipt.sequence) || receipt.sequence < 1)
+      throw new Error('Receipt mismatch. Retry the saved edit; do not assume it failed.');
+    _edPending=null; _edConflict=true;
+    await edRefresh();
+    if (epoch === _edEpoch) $('scEditStatus').textContent='Edit saved and journaled. Desktop reconciliation is still required.';
+  } catch(e) {
+    if (epoch !== _edEpoch) return;
+    if (e.status === 409) { _edPending=null; _edConflict=true; }
+    else if ([400,403,404,422].includes(e.status)) _edPending=null;
+    $('scEditStatus').textContent = e.status === 409 ? 'Card changed. Draft preserved; explicitly discard and reload to compare before editing again.' :
+      e.message + (_edPending ? ' Outcome uncertain: retry the same saved edit.' : '');
+    throw e;
+  } finally { if (epoch === _edEpoch) { _edBusy=false; edControls(); } }
+}
+window.addEventListener('beforeunload', event => { if (_edPending) { event.preventDefault(); event.returnValue=''; } });
 function renderEditor(r){
   const fr = r.state.frames || [];
   let h = '<div class="muted">Version: ' + r.version + ' &middot; ' +
@@ -689,10 +750,13 @@ function renderEditor(r){
        '<textarea id="ed-notes">' + esc(r.state.notes||'') + '</textarea>' +
        '<div><button onclick="edSaveNotes()" style="margin-top:8px">Save notes</button></div>';
   $('scModalBody').innerHTML = h;
+  edControls();
 }
 async function edRefresh(){
+  const epoch = _edEpoch;
   const r = await api('/admin/scorecard-edit.php?fixture_id=' + encodeURIComponent(_edFid));
-  _edState = r.state; renderEditor(r);
+  if (epoch !== _edEpoch) return;
+  _edState = r.state; _edMeta = r; _edConflict=false; renderEditor(r);
 }
 async function edSave(i){
   const tr = document.querySelector('#scModalBody tr[data-i="' + i + '"]');
@@ -710,17 +774,17 @@ async function edSave(i){
   fields.home_player2_id = fields.home_player2_name && fields.home_player2_name === cur.home_player2_name ? cur.home_player2_id : null;
   fields.away_player_id  = fields.away_player_name  && fields.away_player_name  === cur.away_player_name  ? cur.away_player_id  : null;
   fields.away_player2_id = fields.away_player2_name && fields.away_player2_name === cur.away_player2_name ? cur.away_player2_id : null;
-  try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'set_frame', fixture_id: _edFid, frame: i, fields: fields }) });
-    flash('Frame ' + (i+1) + ' saved.', 'ok'); edRefresh();
+  try { await edWrite({ action:'set_frame', frame:i, fields:fields });
+    flash('Frame ' + (i+1) + ' saved.', 'ok');
   } catch (e) { flash('Save failed: ' + e.message, 'err'); }
 }
-async function edAddFrame(){ try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'add_frame', fixture_id: _edFid }) }); edRefresh(); } catch(e){ flash(e.message,'err'); } }
-async function edRemoveFrame(){ if(!confirm('Remove the last frame?'))return; try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'remove_frame', fixture_id: _edFid }) }); edRefresh(); } catch(e){ flash(e.message,'err'); } }
-async function edSaveNotes(){ try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'set_notes', fixture_id: _edFid, value: $('ed-notes').value }) }); flash('Notes saved.','ok'); } catch(e){ flash(e.message,'err'); } }
+async function edAddFrame(){ try { await edWrite({ action:'add_frame' }); } catch(e){ flash(e.message,'err'); } }
+async function edRemoveFrame(){ if(!confirm('Remove the last frame?'))return; try { await edWrite({ action:'remove_frame' }); } catch(e){ flash(e.message,'err'); } }
+async function edSaveNotes(){ try { await edWrite({ action:'set_notes', value:$('ed-notes').value }); } catch(e){ flash(e.message,'err'); } }
 async function edForce(side){
   if (!confirm('Force-finalize ' + side.toUpperCase() + '?')) return;
-  try { await api('/admin/scorecard-edit.php', { method:'POST', body: JSON.stringify({ action:'force_finalize', fixture_id: _edFid, side: side }) });
-    flash('Finalized ' + side + '.', 'ok'); edRefresh(); loadScorecards();
+  try { await edWrite({ action:'force_finalize', side:side });
+    flash('Finalized ' + side + '.', 'ok'); loadScorecards();
   } catch (e) { flash(e.message,'err'); }
 }
 
