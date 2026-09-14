@@ -50,6 +50,6 @@ try {
     Http::fail($e->status, $e->errorCode, $e->getMessage());
 } catch (Throwable $e) {
     // Log server-side, return nothing identifying to the caller.
-    error_log('[wdpl] ' . $e::class . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    error_log('[wdpl] ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
     Http::fail(500, 'server_error', 'The server failed to handle that request.');
 }

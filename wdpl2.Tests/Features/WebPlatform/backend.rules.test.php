@@ -48,7 +48,7 @@ function check(bool $condition, string $message): void
     }
 }
 
-function same(mixed $expected, mixed $actual, string $message = ''): void
+function same($expected, $actual, string $message = ''): void
 {
     if ($expected !== $actual) {
         throw new RuntimeException(
@@ -175,7 +175,7 @@ test('unknown role is a programming error, not a silent pass', function () {
     $threw = false;
     try {
         Auth::gate('superuser');
-    } catch (LogicException) {
+    } catch (LogicException $ignored) {
         $threw = true;
     }
     check($threw, 'an unknown role was allowed through');
@@ -248,7 +248,7 @@ test('rejects anything that could break out of an identifier', function () {
         $threw = false;
         try {
             Db::identifier($bad);
-        } catch (LogicException) {
+        } catch (LogicException $ignored) {
             $threw = true;
         }
         check($threw, "unsafe identifier was accepted: {$bad}");

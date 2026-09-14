@@ -160,7 +160,7 @@ final class Auth
             return ['', ''];
         }
         $decoded = base64_decode(substr($header, 6), true);
-        if ($decoded === false || !str_contains($decoded, ':')) {
+        if ($decoded === false || strpos($decoded, ':') === false) {
             return ['', ''];
         }
         [$user, $pass] = explode(':', $decoded, 2);

@@ -75,7 +75,7 @@ final class Schema
     {
         try {
             $value = Db::value('SELECT applied_version FROM wdpl_schema WHERE module = ?', [$moduleId]);
-        } catch (PDOException) {
+        } catch (PDOException $ignored) {
             // wdpl_schema itself does not exist yet.
             return null;
         }

@@ -7,16 +7,20 @@ declare(strict_types=1);
  */
 final class ApiError extends RuntimeException
 {
+    /** HTTP status to return. */
+    public int $status;
+
     /**
-     * Named errorCode, not code: Exception already declares a non-readonly
-     * int $code, and redeclaring it as readonly is a fatal parse error.
+     * Machine-readable code. Named errorCode, not code, because Exception
+     * already declares its own int $code which cannot be redeclared.
      */
-    public function __construct(
-        public readonly int $status,
-        public readonly string $errorCode,
-        string $message
-    ) {
+    public string $errorCode;
+
+    public function __construct(int $status, string $errorCode, string $message)
+    {
         parent::__construct($message);
+        $this->status = $status;
+        $this->errorCode = $errorCode;
     }
 }
 
@@ -113,12 +117,12 @@ final class Http
         return self::$body = $decoded;
     }
 
-    public static function field(string $name, mixed $default = null): mixed
+    public static function field(string $name, $default = null)
     {
         return self::body()[$name] ?? $default;
     }
 
-    public static function requireField(string $name): mixed
+    public static function requireField(string $name)
     {
         $value = self::body()[$name] ?? null;
         if ($value === null || $value === '') {
@@ -127,14 +131,14 @@ final class Http
         return $value;
     }
 
-    public static function ok(mixed $data = null): never
+    public static function ok($data = null): void
     {
         http_response_code(200);
         echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_SLASHES);
         exit;
     }
 
-    public static function fail(int $status, string $code, string $message): never
+    public static function fail(int $status, string $code, string $message): void
     {
         http_response_code($status);
         echo json_encode(

@@ -33,21 +33,21 @@ final class Config
         self::$values = $values;
     }
 
-    public static function get(string $key, mixed $default = null): mixed
+    public static function get(string $key, $default = null)
     {
         // Header setup runs before the sidecar is required, so a missing file
         // must not be fatal here - the router reports it properly later.
         if (self::$values === null) {
             try {
                 self::load();
-            } catch (ApiError) {
+            } catch (ApiError $ignored) {
                 return $default;
             }
         }
         return self::$values[$key] ?? $default;
     }
 
-    public static function require(string $key): mixed
+    public static function require(string $key)
     {
         self::load();
         $value = self::$values[$key] ?? null;

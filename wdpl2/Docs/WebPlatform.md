@@ -70,6 +70,34 @@ api/
 Every response is `{"ok":true,"data":…}` or `{"ok":false,"error":{"code","message"}}`.
 Anything else means the front controller was not reached.
 
+### Runtime constraint: PHP 7.4
+
+The host (x10hosting, DirectAdmin, LiteSpeed, MariaDB 10.6) runs **PHP 7.4.33**
+with no version selector available on the plan. All backend PHP must parse and
+run on 7.4.
+
+Do not use, however natural it looks:
+
+| Feature | Introduced | Use instead |
+|---|---|---|
+| Constructor property promotion | 8.0 | declare properties, assign in the constructor |
+| `readonly` properties | 8.1 | a plain typed property |
+| `never` return type | 8.1 | `void` |
+| `mixed` type hint | 8.0 | omit the hint |
+| `catch (SomeType)` with no variable | 8.0 | `catch (SomeType $ignored)` |
+| `$object::class` | 8.0 | `get_class($object)` |
+| `str_contains` / `str_starts_with` | 8.0 | `strpos(...) !== false` |
+| `match`, enums, nullsafe `?->` | 8.0/8.1 | `switch`, class constants, explicit checks |
+
+Typed properties, arrow functions and `??=` are 7.4 features and are fine.
+
+Linting against 7.4 is the only reliable guard - PHP 8 accepts all of the above
+silently, so testing on 8.x alone proves nothing about the host.
+
+**PHP 7.4 reached end of life in November 2022 and receives no security
+updates.** That is a hosting risk, not a code style preference. Moving to a host
+with a supported PHP is the real fix; until then this constraint stands.
+
 ## Rule 3: two auth realms that never overlap
 
 | Realm | Who | How |
@@ -129,16 +157,22 @@ dotnet test wdpl2.Tests\wdpl2.Tests.csproj --filter FullyQualifiedName~Web
 Covers endpoint validation (`WebConnectionTests`), the response envelope and auth
 handling (`WebApiClientTests`), and the hash contract (`PasswordHashTests`).
 
-PHP 8.2 is installed via winget at
-`%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.2_*\php.exe` (a new shell
-picks it up as `php`). 8.2 deliberately matches the oldest version the backend
-supports, so syntax that would not deploy fails here first.
+**The host runs PHP 7.4.33**, so that is the target. See "Runtime constraint"
+below before writing any PHP.
+
+Two runtimes are installed locally:
+
+| Version | Where | Why |
+|---|---|---|
+| 7.4.33 | downloaded zip, kept in the session scratchpad | matches the host exactly; the one that must pass |
+| 8.2.33 | winget `PHP.PHP.8.2` | confirms the code is not accidentally 7.4-only |
 
 ```powershell
-# lint every backend file
-Get-ChildItem wdpl2\web-backend -Recurse -Filter *.php | ForEach-Object { php -l $_.FullName }
+# lint against the host's version - this is the one that matters
+Get-ChildItem wdpl2\web-backend -Recurse -Filter *.php | ForEach-Object { & <php74>\php.exe -l $_.FullName }
 
-# backend rules tests - no MySQL needed
+# rules tests - run under BOTH runtimes, no MySQL needed
+& <php74>\php.exe wdpl2.Tests/Features/WebPlatform/backend.rules.test.php
 php wdpl2.Tests/Features/WebPlatform/backend.rules.test.php
 ```
 

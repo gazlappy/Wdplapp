@@ -30,7 +30,7 @@ final class Db
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
-        } catch (PDOException) {
+        } catch (PDOException $ignored) {
             // Never surface the DSN or credentials.
             throw new ApiError(503, 'db_unavailable', 'Cannot connect to the database.');
         }
@@ -55,7 +55,7 @@ final class Db
         return $row === false ? null : $row;
     }
 
-    public static function value(string $sql, array $params = []): mixed
+    public static function value(string $sql, array $params = [])
     {
         $value = self::query($sql, $params)->fetchColumn();
         return $value === false ? null : $value;
@@ -67,7 +67,7 @@ final class Db
      * Ownership transitions must call this and take their row lock inside it,
      * so the check and the write cannot be separated by another request.
      */
-    public static function transaction(callable $fn): mixed
+    public static function transaction(callable $fn)
     {
         $pdo = self::pdo();
         $pdo->beginTransaction();
@@ -84,7 +84,7 @@ final class Db
     }
 
     /** Locks a single row for the rest of the current transaction. */
-    public static function lockRow(string $table, string $column, mixed $value): ?array
+    public static function lockRow(string $table, string $column, $value): ?array
     {
         if (!self::pdo()->inTransaction()) {
             throw new LogicException('lockRow must be called inside a transaction.');
