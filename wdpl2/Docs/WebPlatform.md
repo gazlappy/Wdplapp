@@ -120,7 +120,7 @@ with a supported PHP is the real fix; until then this constraint stands.
 | Realm | Who | How |
 |---|---|---|
 | `Role::Admin` | League secretary | Basic credentials (desktop) or session cookie (browser), against a PBKDF2 hash in `config.php` |
-| `Role::Captain` | One team captain | `Team.CaptainPin`, verified server-side, rate-limited, scoped to that team |
+| `Role::Captain` | One team captain | `Team.CaptainPin`, hashed by the app, verified server-side, rate-limited per caller **and per team**, scoped to that team |
 | `Role::Public` | Anyone | No credentials |
 
 A captain session must never grant admin access. Captain-scoped queries filter on
@@ -233,14 +233,17 @@ on this machine and proved nothing.
 |---|---|
 | M1 — spine (core, routing, auth, deploy, Web Control tab) | **Done and live.** Deployed to wdpl.uk, admin auth verified, schema installed. |
 | M2 — league data + public read | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
-| M3 — captains (server-side PIN) | Not started |
+| M3 — captains (server-side PIN) | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
 | M4 — live scorecards | Not started |
 
 Two known loose ends carried from the removal of the old backend, both closed by
 later milestones:
 
-- `WebsiteJsonDataGenerator.cs` still publishes hashed captain PINs into public
-  JSON — client-side auth, brute-forceable offline. M3 removes it.
+- ~~`WebsiteJsonDataGenerator.cs` published hashed captain PINs into public JSON~~
+  — removed in M3. It turned out to be dead code (`GenerateCaptainsJson` had no
+  caller outside tests, and `captains.json` 404s on the live site), so nothing
+  was ever exposed, but an unsalted single-round SHA-256 of a 4-digit PIN sat in
+  the codebase waiting to be re-enabled. Deleted along with its tests.
 - ~~`WebsiteGenerator.LiveScores.cs` pointed at the deleted `api/public/live.php`~~
   — repointed in M2 to `api/index.php?m=league&a=live`, which answers with an
   empty `items` list until M4 fills it.

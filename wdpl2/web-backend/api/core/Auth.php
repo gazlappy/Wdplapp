@@ -133,30 +133,15 @@ final class Auth
     }
 
     /**
-     * Verifies "pbkdf2-sha256$<iterations>$<base64 salt>$<base64 hash>".
+     * Verifies the stored administrator hash.
      *
-     * PBKDF2 rather than password_hash() because the desktop app writes this
-     * value, and PBKDF2-SHA256 is available natively in .NET and PHP alike -
-     * bcrypt would mean pulling a third-party library into the app purely to
-     * produce a string.
+     * Delegates to Passwords so the admin password and captain PINs cannot end
+     * up on different schemes. Kept as a method here because the rules tests
+     * reflect on it.
      */
     private static function verifyHash(string $password, string $stored): bool
     {
-        $parts = explode('$', $stored);
-        if (count($parts) !== 4 || $parts[0] !== 'pbkdf2-sha256') {
-            return false;
-        }
-
-        $iterations = (int)$parts[1];
-        $salt       = base64_decode($parts[2], true);
-        $expected   = base64_decode($parts[3], true);
-
-        if ($iterations < 1000 || $salt === false || $expected === false || $expected === '') {
-            return false;
-        }
-
-        $actual = hash_pbkdf2('sha256', $password, $salt, $iterations, strlen($expected), true);
-        return hash_equals($expected, $actual);
+        return Passwords::verify($password, $stored);
     }
 
     private static function basicFromHeader(): array
@@ -178,6 +163,18 @@ final class Auth
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
+
+        // A session cookie cannot be negotiated once output has begun. Rather
+        // than emit three warnings - which would land inside the JSON response
+        // body and corrupt it - fall back to a request-scoped array. Callers
+        // keep working; nothing is persisted, which is the correct outcome for
+        // a request that has already started replying.
+        if (headers_sent()) {
+            if (!isset($_SESSION)) {
+                $_SESSION = [];
+            }
+            return;
+        }
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',
@@ -197,9 +194,15 @@ final class Auth
  */
 final class RateLimit
 {
-    public static function check(string $bucket, int $limit, int $windowSeconds): void
+    /**
+     * @param string|null $subject Identity to count against. Defaults to the
+     *   caller's address. Pass an explicit value to limit something other than
+     *   one client - a captain login is limited per team as well as per
+     *   address, so guessing one team's PIN from many addresses still trips.
+     */
+    public static function check(string $bucket, int $limit, int $windowSeconds, $subject = null): void
     {
-        $client = self::client();
+        $client = $subject === null ? self::client() : self::subject($subject);
         self::withTable(function () use ($bucket, $limit, $windowSeconds, $client) {
             self::prune();
             $count = (int)Db::value(
@@ -212,9 +215,9 @@ final class RateLimit
         });
     }
 
-    public static function record(string $bucket): void
+    public static function record(string $bucket, $subject = null): void
     {
-        $client = self::client();
+        $client = $subject === null ? self::client() : self::subject($subject);
         self::withTable(function () use ($bucket, $client) {
             Db::query(
                 'INSERT INTO wdpl_auth_attempts (bucket, client, attempted_at) VALUES (?, ?, UTC_TIMESTAMP())',
@@ -244,9 +247,9 @@ final class RateLimit
         }
     }
 
-    public static function clear(string $bucket): void
+    public static function clear(string $bucket, $subject = null): void
     {
-        $client = self::client();
+        $client = $subject === null ? self::client() : self::subject($subject);
         self::withTable(function () use ($bucket, $client) {
             Db::query('DELETE FROM wdpl_auth_attempts WHERE bucket = ? AND client = ?', [$bucket, $client]);
         });
@@ -261,6 +264,13 @@ final class RateLimit
      * Forwarded-IP headers are not trusted - they are trivially spoofed, and
      * trusting them would let an attacker sidestep the limit entirely.
      */
+    /** Hashes an explicit subject the same way an address is hashed. */
+    private static function subject(string $value): string
+    {
+        $pepper = (string)Config::get('pepper', 'wdpl');
+        return hash_hmac('sha256', 'subject:' . $value, $pepper);
+    }
+
     private static function client(): string
     {
         $ip     = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');

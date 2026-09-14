@@ -76,6 +76,7 @@ try {
     require __DIR__ . '/core/Http.php';
     require __DIR__ . '/core/Config.php';
     require __DIR__ . '/core/Db.php';
+    require __DIR__ . '/core/Passwords.php';
     require __DIR__ . '/core/Auth.php';
     require __DIR__ . '/core/Captain.php';
     require __DIR__ . '/core/Module.php';

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.CaptainsPage"
+             Title="Captains">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="820" HorizontalOptions="Start">
+
+            <Label Text="Captains" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Give team captains their own sign-in for fixtures, roster and contacts."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Season" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Picker x:Name="SeasonPicker" FontSize="13" SelectedIndexChanged="OnSeasonChanged"/>
+                    <Label x:Name="SummaryLabel" FontSize="11" TextColor="#94A3B8"/>
+                    <Label x:Name="WeakLabel" FontSize="11" TextColor="#D97706" IsVisible="False" LineBreakMode="WordWrap"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Publish PINs" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="PINs are hashed on this machine before they are sent. The PIN itself never leaves the app and is never stored on the website."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Label Text="Teams left out lose their access — that is how you remove a captain."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Button x:Name="PushButton" Text="Publish captain PINs" Clicked="OnPushClicked"
+                            BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"
+                            FontSize="13" Margin="0,4,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Who can sign in" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Button x:Name="StatusButton" Text="Check website" Clicked="OnStatusClicked"
+                            BackgroundColor="#334155" TextColor="White" CornerRadius="8" FontSize="13"/>
+                    <Frame x:Name="StatusFrame" IsVisible="False" BorderColor="#E2E8F0" Padding="10"
+                           CornerRadius="8" BackgroundColor="#F8FAFC" HasShadow="False">
+                        <Label x:Name="StatusDetail" FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

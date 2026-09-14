@@ -16,6 +16,7 @@ $root = dirname(__DIR__, 3) . '/wdpl2/web-backend/api';
 require $root . '/core/Http.php';
 require $root . '/core/Config.php';
 require $root . '/core/Db.php';
+require $root . '/core/Passwords.php';
 require $root . '/core/Auth.php';
 require $root . '/core/Captain.php';
 require $root . '/core/Module.php';
@@ -120,6 +121,43 @@ test('round-trips a hash generated here', function () {
     check(verifyHash('fresh-password', $stored), 'freshly generated hash was rejected');
 });
 
+// --------------------------------------------------- shared password verifier
+
+echo "
+Shared password verifier
+";
+
+test('Passwords::verify accepts the shared vector', function () {
+    check(Passwords::verify('wdpl-shared-vector', SHARED_VECTOR), 'shared vector rejected');
+});
+
+test('Auth and captains use the SAME verifier', function () {
+    // If these ever diverge, one realm can end up weaker than the other without
+    // anything failing loudly. Auth::verifyHash must delegate to Passwords.
+    $method = new ReflectionMethod(Auth::class, 'verifyHash');
+    $method->setAccessible(true);
+    same(
+        Passwords::verify('wdpl-shared-vector', SHARED_VECTOR),
+        (bool)$method->invoke(null, 'wdpl-shared-vector', SHARED_VECTOR),
+        'Auth::verifyHash disagrees with Passwords::verify'
+    );
+});
+
+test('isHash rejects a plaintext PIN', function () {
+    // The captains push refuses anything that is not already hashed, so a
+    // plaintext PIN cannot be stored as though it were a hash.
+    check(!Passwords::isHash('1234'), 'plaintext accepted as a hash');
+    check(!Passwords::isHash(''), 'empty accepted as a hash');
+    check(!Passwords::isHash('sha256:abcdef'), 'foreign scheme accepted as a hash');
+    check(Passwords::isHash(SHARED_VECTOR), 'a real hash was rejected');
+});
+
+test('a weak unsalted SHA-256 is not accepted', function () {
+    // The scheme this replaced. hash('sha256', '1234') must never verify.
+    check(!Passwords::verify('1234', hash('sha256', '1234')), 'bare sha256 verified');
+    check(!Passwords::isHash(hash('sha256', '1234')), 'bare sha256 looked like a hash');
+});
+
 // ------------------------------------------------------------ module discovery
 
 echo "\nModule registry\n";
@@ -191,6 +229,35 @@ test('captain gate refuses a plaintext request', function () {
     $_SERVER['HTTPS'] = '';
     $_SERVER['SERVER_PORT'] = 80;
     throwsApiError('https_required', function () { return Auth::gate(Role::Captain); });
+});
+
+// ---------------------------------------------------------- captain scoping
+
+echo "
+Captain scoping
+";
+
+test('captains module exposes the expected roles', function () {
+    $actions = CaptainsModule::actions();
+
+    // Anything that reveals a team's data must be captain-gated; the sign-in
+    // flow itself must not be, or nobody could ever sign in.
+    foreach (['me', 'fixtures', 'roster', 'contacts'] as $private) {
+        check(isset($actions[$private]), "missing action {$private}");
+        same(Role::Captain, $actions[$private]['role'], "{$private} must require a captain");
+    }
+    foreach (['teams', 'login', 'logout'] as $open) {
+        same(Role::Public, $actions[$open]['role'], "{$open} must be reachable without a session");
+    }
+    foreach (['push', 'status'] as $admin) {
+        same(Role::Admin, $actions[$admin]['role'], "{$admin} must require admin");
+    }
+});
+
+test('no captain session means no team id', function () {
+    // Captain::requireTeamId is what every scoped query filters on, so it must
+    // refuse rather than return null and let a query run unfiltered.
+    throwsApiError('captain_required', function () { return Captain::requireTeamId(); });
 });
 
 // ------------------------------------------------------------ HTTPS detection

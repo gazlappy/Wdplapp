@@ -41,6 +41,7 @@ public partial class WebControlHub : ContentPage
     {
         "system" => _services.GetService<ConnectionPage>(),
         "league" => _services.GetService<LeagueDataPage>(),
+        "captains" => _services.GetService<CaptainsPage>(),
         _ => null,
     };
 
