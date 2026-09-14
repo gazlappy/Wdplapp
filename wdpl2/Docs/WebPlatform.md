@@ -201,6 +201,29 @@ To exercise the router for real, copy `web-backend/api` to a scratch folder, add
 `config.php` with `allow_insecure => true`, and run `php -S 127.0.0.1:8099 -t <that
 folder>`. Everything except database-backed actions works without MySQL.
 
+### Testing against a real database
+
+MariaDB **10.6.22** (matching the host's 10.6) runs from a zip in the session
+scratchpad - no installer, no service, no admin rights, bound to 127.0.0.1:3307
+so it cannot collide with anything else:
+
+```
+mariadb\mariadb-10.6.22-winx64in\mariadbd.exe --datadir=<scratch>\mariadb\data --port=3307 --bind-address=127.0.0.1
+```
+
+Database `wdpl_test`, user `wdpl` / `wdpltest`. The backend reaches it by setting
+`db_host` to `127.0.0.1;port=3307` in a scratch `config.php` (the DSN is built by
+string concatenation, so the extra `port=` clause rides along).
+
+Local PHP has no `php.ini`, so `pdo_mysql` must be enabled explicitly with
+`php -c <scratch>\phpini\php.ini`, whose `extension_dir` points at the winget
+package's `ext` folder.
+
+This is what makes the database paths testable at all. It has already caught a
+deadlock (authentication consulting a table that only the authenticated install
+action creates) that was invisible without a database, because every local test
+stopped at `db_unavailable` first.
+
 The old Docker MySQL harness is deliberately not reinstated. It was never runnable
 on this machine and proved nothing.
 

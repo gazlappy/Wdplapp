@@ -78,7 +78,11 @@ final class Auth
         RateLimit::check('admin-basic', 20, 900);
 
         $ok = self::verifyPassword($user, $pass);
-        if (!$ok) {
+        if ($ok) {
+            // Proving you know the password clears your own failures, so a few
+            // typos before getting it right do not cost a 15 minute lockout.
+            RateLimit::clear('admin-basic');
+        } else {
             RateLimit::record('admin-basic');
         }
 
@@ -95,6 +99,7 @@ final class Auth
             RateLimit::record('admin-login');
             throw new ApiError(401, 'bad_credentials', 'Incorrect username or password.');
         }
+        RateLimit::clear('admin-login');
 
         self::startSession();
         session_regenerate_id(true);
@@ -241,7 +246,10 @@ final class RateLimit
 
     public static function clear(string $bucket): void
     {
-        Db::query('DELETE FROM wdpl_auth_attempts WHERE bucket = ? AND client = ?', [$bucket, self::client()]);
+        $client = self::client();
+        self::withTable(function () use ($bucket, $client) {
+            Db::query('DELETE FROM wdpl_auth_attempts WHERE bucket = ? AND client = ?', [$bucket, $client]);
+        });
     }
 
     private static function prune(): void
