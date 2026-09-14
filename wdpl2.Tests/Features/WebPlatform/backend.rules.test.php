@@ -139,7 +139,7 @@ test('every module id matches its folder and class', function () {
 });
 
 test('unknown module is a 404, not a crash', function () {
-    throwsApiError('unknown_module', fn() => Registry::find('nope'));
+    throwsApiError('unknown_module', function () { return Registry::find('nope'); });
 });
 
 test('every declared action has a valid role and callable', function () {
@@ -184,13 +184,13 @@ test('unknown role is a programming error, not a silent pass', function () {
 test('admin gate refuses a plaintext request', function () {
     $_SERVER['HTTPS'] = '';
     $_SERVER['SERVER_PORT'] = 80;
-    throwsApiError('https_required', fn() => Auth::gate(Role::Admin));
+    throwsApiError('https_required', function () { return Auth::gate(Role::Admin); });
 });
 
 test('captain gate refuses a plaintext request', function () {
     $_SERVER['HTTPS'] = '';
     $_SERVER['SERVER_PORT'] = 80;
-    throwsApiError('https_required', fn() => Auth::gate(Role::Captain));
+    throwsApiError('https_required', function () { return Auth::gate(Role::Captain); });
 });
 
 // ------------------------------------------------------------ HTTPS detection
@@ -227,7 +227,7 @@ echo "\nConfiguration\n";
 
 test('a missing sidecar is reported, not fatal', function () {
     // config.php is deliberately absent from the repository.
-    throwsApiError('not_configured', fn() => Config::load());
+    throwsApiError('not_configured', function () { return Config::load(); });
 });
 
 test('get() falls back to a default when unconfigured', function () {

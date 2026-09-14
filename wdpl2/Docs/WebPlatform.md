@@ -72,9 +72,15 @@ Anything else means the front controller was not reached.
 
 ### Runtime constraint: PHP 7.4
 
-The host (x10hosting, DirectAdmin, LiteSpeed, MariaDB 10.6) runs **PHP 7.4.33**
-with no version selector available on the plan. All backend PHP must parse and
-run on 7.4.
+The host (x10hosting, DirectAdmin, LiteSpeed, MariaDB 10.6) has no PHP version
+selector on this plan. phpMyAdmin reports 7.4.33, but **that is the version
+phpMyAdmin runs under, not the one serving the domain** - a deploy failed on
+`public int $status;`, a 7.4 typed property, proving the domain runs something
+older.
+
+The floor is therefore **PHP 7.1** and the code is linted against 7.2, 7.4 and
+8.2. Boot failures report `PHP_VERSION` so the real version is visible in the
+error itself rather than inferred from a control panel.
 
 Do not use, however natural it looks:
 
@@ -88,8 +94,11 @@ Do not use, however natural it looks:
 | `$object::class` | 8.0 | `get_class($object)` |
 | `str_contains` / `str_starts_with` | 8.0 | `strpos(...) !== false` |
 | `match`, enums, nullsafe `?->` | 8.0/8.1 | `switch`, class constants, explicit checks |
+| Typed properties (`public int $x;`) | 7.4 | untyped property + `@var` docblock |
+| Arrow functions (`fn() => …`) | 7.4 | `function () { return …; }` |
+| `??=` | 7.4 | `$x = $x ?? …` |
 
-Typed properties, arrow functions and `??=` are 7.4 features and are fine.
+Nullable types (`?array`), return types and `??` are 7.1 and are fine.
 
 Linting against 7.4 is the only reliable guard - PHP 8 accepts all of the above
 silently, so testing on 8.x alone proves nothing about the host.
@@ -164,8 +173,9 @@ Two runtimes are installed locally:
 
 | Version | Where | Why |
 |---|---|---|
-| 7.4.33 | downloaded zip, kept in the session scratchpad | matches the host exactly; the one that must pass |
-| 8.2.33 | winget `PHP.PHP.8.2` | confirms the code is not accidentally 7.4-only |
+| 7.2.34 | downloaded zip, session scratchpad | the floor; if it passes here it runs on anything the host is likely to have |
+| 7.4.33 | downloaded zip, session scratchpad | what the panel advertises |
+| 8.2.33 | winget `PHP.PHP.8.2` | confirms the code is not accidentally old-only |
 
 ```powershell
 # lint against the host's version - this is the one that matters

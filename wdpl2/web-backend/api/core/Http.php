@@ -7,14 +7,14 @@ declare(strict_types=1);
  */
 final class ApiError extends RuntimeException
 {
-    /** HTTP status to return. */
-    public int $status;
+    /** @var int HTTP status to return. */
+    public $status;
 
     /**
      * Machine-readable code. Named errorCode, not code, because Exception
      * already declares its own int $code which cannot be redeclared.
      */
-    public string $errorCode;
+    public $errorCode;
 
     public function __construct(int $status, string $errorCode, string $message)
     {
@@ -30,7 +30,8 @@ final class ApiError extends RuntimeException
  */
 final class Http
 {
-    private static ?array $body = null;
+    /** @var array|null */
+    private static $body = null;
 
     public static function bootstrap(): void
     {

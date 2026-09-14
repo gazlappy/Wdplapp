@@ -10,7 +10,8 @@ declare(strict_types=1);
  */
 final class Db
 {
-    private static ?PDO $pdo = null;
+    /** @var PDO|null */
+    private static $pdo = null;
 
     public static function pdo(): PDO
     {

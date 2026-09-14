@@ -10,7 +10,7 @@ declare(strict_types=1);
 final class Registry
 {
     /** @var array<string, class-string<Module>>|null */
-    private static ?array $modules = null;
+    private static $modules = null;
 
     /** @return array<string, class-string<Module>> */
     public static function all(): array

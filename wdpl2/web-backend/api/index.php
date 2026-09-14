@@ -36,10 +36,18 @@ function wdpl_emit_error($status, $code, $message)
     ));
 }
 
-/** Base name and line only - enough to fix, without publishing server paths. */
+/**
+ * Base name and line only - enough to fix, without publishing server paths.
+ *
+ * The running PHP version is included because a boot failure is very often a
+ * version mismatch, and the version the host advertises elsewhere (phpMyAdmin,
+ * a control panel) is not always the one serving this directory.
+ */
 function wdpl_describe($type, $message, $file, $line)
 {
-    return $type . ': ' . $message . ' [' . basename($file) . ':' . $line . ']';
+    return $type . ': ' . $message
+        . ' [' . basename($file) . ':' . $line . ']'
+        . ' (PHP ' . PHP_VERSION . ')';
 }
 
 /*

@@ -21,7 +21,8 @@ final class Auth
 {
     private const SESSION_KEY = 'wdpl_admin';
 
-    private static ?bool $admin = null;
+    /** @var bool|null */
+    private static $admin = null;
 
     public static function gate(string $role): void
     {

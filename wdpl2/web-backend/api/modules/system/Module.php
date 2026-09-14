@@ -25,11 +25,14 @@ final class SystemModule implements Module
             // Unauthenticated: proves the front controller is reachable at all.
             'ping' => [
                 'role' => Role::Public,
-                'fn'   => static fn() => [
-                    'backend' => 'wdpl',
-                    'time'    => gmdate('c'),
-                    'secure'  => Http::isSecure(),
-                ],
+                'fn'   => static function () {
+                    return [
+                        'backend' => 'wdpl',
+                        'time'    => gmdate('c'),
+                        'secure'  => Http::isSecure(),
+                        'php'     => PHP_VERSION,
+                    ];
+                },
             ],
 
             'login' => [
@@ -53,10 +56,12 @@ final class SystemModule implements Module
 
             'whoami' => [
                 'role' => Role::Public,
-                'fn'   => static fn() => [
-                    'admin'        => Auth::isAdmin(),
-                    'captainTeamId'=> Captain::teamId(),
-                ],
+                'fn'   => static function () {
+                    return [
+                        'admin'         => Auth::isAdmin(),
+                        'captainTeamId' => Captain::teamId(),
+                    ];
+                },
             ],
 
             // Everything the app's status view needs, in one round trip.
@@ -76,7 +81,9 @@ final class SystemModule implements Module
 
             'install' => [
                 'role' => Role::Admin,
-                'fn'   => static fn() => ['applied' => Schema::installAll()],
+                'fn'   => static function () {
+                    return ['applied' => Schema::installAll()];
+                },
             ],
         ];
     }

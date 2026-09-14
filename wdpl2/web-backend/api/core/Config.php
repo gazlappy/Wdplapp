@@ -10,7 +10,8 @@ declare(strict_types=1);
  */
 final class Config
 {
-    private static ?array $values = null;
+    /** @var array|null */
+    private static $values = null;
 
     public static function load(): void
     {
