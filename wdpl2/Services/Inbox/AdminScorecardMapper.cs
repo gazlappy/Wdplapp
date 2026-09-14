@@ -47,6 +47,8 @@ public static class AdminScorecardMapper
         if (!JsonElement.DeepEquals(Capture(league, fixtureId), expectedLocal))
             throw new InvalidOperationException("The local fixture changed after review. Compare the latest values again.");
         var payload = change.Payload;
+        if (payload.TryGetProperty("deleted", out var deleted) && deleted.ValueKind == JsonValueKind.True)
+            throw new InvalidOperationException("The website scorecard was deleted or reset. Comparison only; local results have not been changed.");
         var state = payload.GetProperty("state");
         if (!Guid.TryParse(state.GetProperty("home_team_id").GetString(), out var home) || home != fixture.HomeTeamId ||
             !Guid.TryParse(state.GetProperty("away_team_id").GetString(), out var away) || away != fixture.AwayTeamId)

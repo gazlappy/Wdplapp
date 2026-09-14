@@ -5,6 +5,7 @@
 // finalizations surface there as usual).
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_captain.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 require_post();
 
 $c    = require_captain();
@@ -12,6 +13,13 @@ $body = read_json_body();
 $fid  = trim((string)(isset($body['fixture_id']) ? $body['fixture_id'] : ''));
 $notes= trim((string)(isset($body['notes']) ? $body['notes'] : ''));
 if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
+
+$pdo = db();
+$actor = array('user_id' => $c['team_id']);
+try {
+admin_sync_ensure_schema();
+$pdo->beginTransaction();
+admin_sync_lock();
 
 $fx = db()->prepare(
     'SELECT fixture_id, season_id, home_team_id, away_team_id,
@@ -25,7 +33,7 @@ if ($fixture['home_team_id'] !== $c['team_id'] && $fixture['away_team_id'] !== $
 
 $side = ($fixture['home_team_id'] === $c['team_id']) ? 'home' : 'away';
 
-$row = db()->prepare('SELECT version, state_json FROM live_scorecards WHERE fixture_id = :f LIMIT 1');
+$row = db()->prepare('SELECT version, state_json FROM live_scorecards WHERE fixture_id = :f FOR UPDATE');
 $row->execute(array(':f' => $fid));
 $live = $row->fetch();
 if (!$live) json_response(array('error' => 'no scorecard to finalize'), 400);
@@ -106,6 +114,7 @@ $payload = array(
     'notes'        => $notes !== '' ? $notes : (isset($state['notes']) ? (string)$state['notes'] : ''),
 );
 
+$prepared = scorecard_journal_prepare($actor, $fid, 'captain.finalize');
 $ins = db()->prepare(
     'INSERT INTO submissions
         (type, season_id, reference_id, payload_json, submitter, submitter_ip)
@@ -133,6 +142,8 @@ db()->prepare("UPDATE live_scorecards
 $row2 = db()->prepare('SELECT home_finalized_at, away_finalized_at FROM live_scorecards WHERE fixture_id = :f');
 $row2->execute(array(':f' => $fid));
 $st = $row2->fetch();
+scorecard_journal_commit($actor, $fid, $fixture['season_id'], $prepared);
+$pdo->commit();
 
 json_response(array(
     'ok'             => true,
@@ -141,3 +152,8 @@ json_response(array(
     'home_finalized' => !empty($st['home_finalized_at']),
     'away_finalized' => !empty($st['away_finalized_at']),
 ), 201);
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    error_log('WDPL captain finalize: ' . get_class($e));
+    json_response(array('error' => 'Finalization unavailable. Check the current card before retrying.'), 500);
+}

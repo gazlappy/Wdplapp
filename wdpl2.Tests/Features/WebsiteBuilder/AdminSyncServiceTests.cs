@@ -10,6 +10,38 @@ public class AdminSyncServiceTests
 {
     private const string Backend = "00000000-0000-0000-0000-000000000001";
     [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Current_DeletionComparisonRequiresAbsentLiveCard(bool deleted, bool missing)
+    {
+        var expected = new AdminSyncChange(1, "scorecard", "fixture-1", 1, "season-1", "web", JsonSerializer.SerializeToElement(new { version = 1 }));
+        var calls = 0;
+        using var service = new AdminSyncService(Settings(), new Handler(request =>
+        {
+            calls++;
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Null(request.Content);
+            return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
+            {
+                protocol = 1, backendId = Backend, liveMatchesJournal = true,
+                live = missing ? null : (object)new { version = 2 },
+                item = new { sequence = 2, kind = "scorecard", id = "fixture-1", revision = 2, seasonId = "season-1", source = "web", payload = new { deleted } }
+            }), Encoding.UTF8, "application/json") };
+        }));
+        if (deleted && missing)
+        {
+            var current = await service.FetchCurrentAsync(Backend, expected);
+            Assert.True(current.Change.Payload.GetProperty("deleted").GetBoolean());
+            Assert.Null(current.Live);
+        }
+        else await Assert.ThrowsAsync<JsonException>(() => service.FetchCurrentAsync(Backend, expected));
+        Assert.Equal(1, calls);
+        Assert.Equal(1, expected.Revision);
+        Assert.Equal(1, expected.Payload.GetProperty("version").GetInt32());
+    }
+
+    [Theory]
     [InlineData("same")]
     [InlineData("newer")]
     [InlineData("backend")]

@@ -1,6 +1,7 @@
 <?php
 // Browser and desktop review metadata; never mutates original submission payloads.
 require_once __DIR__ . '/../_entry_forms.php';
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 require_once __DIR__ . '/../_admin_entry_review_rules.php';
 $actor = require_admin();

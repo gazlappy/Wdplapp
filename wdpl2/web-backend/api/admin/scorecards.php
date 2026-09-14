@@ -9,6 +9,7 @@
 // Auth: admin login (session cookie / bearer) or HTTP Basic auth (MAUI app).
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 $me = require_admin();
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
@@ -44,6 +45,15 @@ $action = trim((string)(isset($body['action'])     ? $body['action']     : ''));
 $fid    = trim((string)(isset($body['fixture_id']) ? $body['fixture_id'] : ''));
 if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
 
+if (!in_array($action, array('clear', 'reset', 'delete'), true)) json_response(array('error' => 'unknown action'), 400);
+if ($action === 'reset' || $action === 'delete') require_admin('superadmin');
+try {
+admin_sync_ensure_schema();
+db()->beginTransaction();
+admin_sync_lock();
+$season = scorecard_journal_season($fid);
+$prepared = scorecard_journal_prepare($me, $fid, 'admin.' . $action);
+
 if ($action === 'clear') {
     $side = strtolower(trim((string)(isset($body['side']) ? $body['side'] : '')));
     if ($side !== 'home' && $side !== 'away') json_response(array('error' => 'side must be home or away'), 400);
@@ -51,16 +61,15 @@ if ($action === 'clear') {
     $colV = ($side === 'home') ? 'home_finalized_version' : 'away_finalized_version';
     $stmt = db()->prepare("UPDATE live_scorecards SET $col = NULL, $colV = NULL WHERE fixture_id = :f");
     $stmt->execute(array(':f' => $fid));
+    scorecard_journal_commit($me, $fid, $season, $prepared);
+    db()->commit();
     audit_log($me, 'scorecard.clear', $fid, array('side' => $side));
     json_response(array('ok' => true, 'cleared' => $side, 'rows' => $stmt->rowCount()));
 }
 
 if ($action === 'reset') {
-    require_admin('superadmin');
     // Drop the live state
     // they open the fixture. Also closes any pending match_result submissions.
-    db()->beginTransaction();
-    try {
         $d1 = db()->prepare('DELETE FROM live_scorecards WHERE fixture_id = :f');
         $d1->execute(array(':f' => $fid));
         $d2 = db()->prepare(
@@ -69,21 +78,23 @@ if ($action === 'reset') {
                     processed_by = 'admin', notes = 'reset by admin'
               WHERE processed = 0 AND type = 'match_result' AND reference_id = :f");
         $d2->execute(array(':f' => $fid));
+        scorecard_journal_commit($me, $fid, $season, $prepared, true);
         db()->commit();
         audit_log($me, 'scorecard.reset', $fid);
         json_response(array('ok' => true, 'live_deleted' => $d1->rowCount(), 'submissions_closed' => $d2->rowCount()));
-    } catch (Exception $e) {
-        if (db()->inTransaction()) db()->rollBack();
-        json_response(array('error' => $e->getMessage()), 500);
-    }
 }
 
 if ($action === 'delete') {
-    require_admin('superadmin');
     $stmt = db()->prepare('DELETE FROM live_scorecards WHERE fixture_id = :f');
     $stmt->execute(array(':f' => $fid));
+    scorecard_journal_commit($me, $fid, $season, $prepared, true);
+    db()->commit();
     audit_log($me, 'scorecard.delete', $fid);
     json_response(array('ok' => true, 'rows' => $stmt->rowCount()));
 }
 
-json_response(array('error' => 'unknown action'), 400);
+} catch (Exception $e) {
+    if (db()->inTransaction()) db()->rollBack();
+    error_log('WDPL scorecard action: ' . get_class($e));
+    json_response(array('error' => 'Scorecard action unavailable. Check the current card before retrying.'), 500);
+}

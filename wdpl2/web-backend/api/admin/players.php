@@ -8,6 +8,7 @@
 // DELETE {player_id}
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 $me = require_admin();
 $pdo = db();
 
@@ -95,12 +96,16 @@ if ($action === 'merge') {
     $keep = trim((string)(isset($body['keep_id']) ? $body['keep_id'] : ''));
     $drop = isset($body['drop_ids']) && is_array($body['drop_ids']) ? $body['drop_ids'] : array();
     if ($keep === '' || !count($drop)) json_response(array('error' => 'keep_id and drop_ids required'), 400);
+    try {
+    admin_sync_ensure_schema();
+    $pdo->beginTransaction();
+    admin_sync_lock();
     $keepRow = $pdo->prepare('SELECT * FROM league_players WHERE player_id = :p LIMIT 1');
     $keepRow->execute(array(':p' => $keep)); $keepRow = $keepRow->fetch();
     if (!$keepRow) json_response(array('error' => 'keep player not found'), 404);
 
     // Rewrite live scorecards JSON (replace dropped ids with keep_id, name with keep name).
-    $live = $pdo->query('SELECT fixture_id, state_json FROM live_scorecards')->fetchAll();
+    $live = $pdo->query('SELECT fixture_id, state_json FROM live_scorecards ORDER BY fixture_id FOR UPDATE')->fetchAll();
     $touched = 0;
     foreach ($live as $r) {
         $st = json_decode($r['state_json'], true);
@@ -117,8 +122,12 @@ if ($action === 'merge') {
         }
         unset($f);
         if ($changed) {
-            $pdo->prepare('UPDATE live_scorecards SET state_json=:s, updated_utc=:u WHERE fixture_id=:f')
+            $season = scorecard_journal_season($r['fixture_id']);
+            $prepared = scorecard_journal_prepare($me, $r['fixture_id'], 'player.merge');
+            $pdo->prepare('UPDATE live_scorecards SET state_json=:s, updated_utc=:u, version=version+1,
+                home_finalized_at=NULL, home_finalized_version=NULL, away_finalized_at=NULL, away_finalized_version=NULL WHERE fixture_id=:f')
                 ->execute(array(':s'=>json_encode($st), ':u'=>gmdate('Y-m-d H:i:s'), ':f'=>$r['fixture_id']));
+            scorecard_journal_commit($me, $r['fixture_id'], $season, $prepared);
             $touched++;
         }
     }
@@ -126,8 +135,14 @@ if ($action === 'merge') {
     $in = implode(',', array_fill(0, count($drop), '?'));
     $st = $pdo->prepare("DELETE FROM league_players WHERE player_id IN ($in)");
     $st->execute(array_values($drop));
+    $pdo->commit();
     audit_log($me, 'player.merge', $keep, array('dropped' => $drop, 'live_touched' => $touched));
     json_response(array('ok' => true, 'live_cards_updated' => $touched, 'players_removed' => $st->rowCount()));
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('WDPL player merge: ' . get_class($e));
+        json_response(array('error' => 'Player merge unavailable. No partial merge saved.'), 500);
+    }
 }
 
 json_response(array('error' => 'unknown action'), 400);

@@ -6,9 +6,12 @@
 //      Returns 200 { version, state } or 409 { error:'conflict', version, state }.
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_captain.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 
 $c = require_captain();
 $pdo = db();
+$actor = array('user_id' => $c['team_id']);
+admin_sync_ensure_schema();
 
 // Auto-provision storage.
 try {
@@ -112,7 +115,7 @@ function empty_state($fixture) {
     );
 }
 
-function load_or_init_row($fixture) {
+function load_or_init_row($fixture, $actor) {
     $pdo = db();
     $sel = $pdo->prepare('SELECT version, state_json,
                                  home_finalized_version, away_finalized_version
@@ -129,11 +132,13 @@ function load_or_init_row($fixture) {
             'away_finalized_version' => $row['away_finalized_version'] !== null ? (int)$row['away_finalized_version'] : null,
         );
     }
+    $prepared = scorecard_journal_prepare($actor, $fixture['fixture_id'], 'captain.initialize');
     $state = empty_state($fixture);
     $now = gmdate('Y-m-d H:i:s');
     $pdo->prepare('INSERT INTO live_scorecards (fixture_id, version, state_json, updated_utc)
                    VALUES (:f, 0, :s, :u)')
         ->execute(array(':f' => $fixture['fixture_id'], ':s' => json_encode($state), ':u' => $now));
+    scorecard_journal_commit($actor, $fixture['fixture_id'], $fixture['season_id'], $prepared);
     return array('version' => 0, 'state' => $state,
                  'home_finalized_version' => null, 'away_finalized_version' => null);
 }
@@ -247,8 +252,17 @@ $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET'
 if ($method === 'GET') {
     $fid = isset($_GET['fixture_id']) ? trim((string)$_GET['fixture_id']) : '';
     if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
-    $fixture = load_fixture_for_captain($fid, $c);
-    $row = load_or_init_row($fixture);
+    try {
+        $pdo->beginTransaction();
+        admin_sync_lock();
+        $fixture = load_fixture_for_captain($fid, $c);
+        $row = load_or_init_row($fixture, $actor);
+        $pdo->commit();
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('WDPL captain scorecard read: ' . get_class($e));
+        json_response(array('error' => 'Scorecard unavailable.'), 500);
+    }
     $side = ($fixture['home_team_id'] === $c['team_id']) ? 'home' : 'away';
     json_response(array(
         'fixture_id' => $fid,
@@ -262,27 +276,26 @@ if ($method === 'GET') {
 }
 
 // ---- POST: apply ops ----
+require_post();
 $body = read_json_body();
 $fid  = isset($body['fixture_id']) ? trim((string)$body['fixture_id']) : '';
 $if_v = isset($body['if_version']) ? (int)$body['if_version'] : -1;
 $ops  = isset($body['ops']) && is_array($body['ops']) ? $body['ops'] : array();
 if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
 
-$fixture = load_fixture_for_captain($fid, $c);
-$side = ($fixture['home_team_id'] === $c['team_id']) ? 'home' : 'away';
-
 $pdo->beginTransaction();
 try {
+    admin_sync_lock();
+    $fixture = load_fixture_for_captain($fid, $c);
+    $side = ($fixture['home_team_id'] === $c['team_id']) ? 'home' : 'away';
     // Lock row.
     $sel = $pdo->prepare('SELECT version, state_json FROM live_scorecards
                            WHERE fixture_id = :f FOR UPDATE');
     $sel->execute(array(':f' => $fid));
     $row = $sel->fetch();
     if (!$row) {
-        // No row yet — seed it then re-lock.
-        $pdo->commit();
-        load_or_init_row($fixture);
-        $pdo->beginTransaction();
+        // Seed under the same lock and transaction as the edit.
+        load_or_init_row($fixture, $actor);
         $sel->execute(array(':f' => $fid));
         $row = $sel->fetch();
     }
@@ -291,7 +304,7 @@ try {
     if (!is_array($state)) $state = empty_state($fixture);
 
     if ($if_v !== -1 && $if_v !== $version) {
-        $pdo->commit();
+        $pdo->rollBack();
         json_response(array('error' => 'conflict', 'version' => $version, 'state' => $state), 409);
     }
 
@@ -408,6 +421,7 @@ try {
     }
 
     if ($changed) {
+        $prepared = scorecard_journal_prepare($actor, $fid, 'captain.edit');
         $version++;
         $state['last_edit'] = array('by' => $side, 'at' => gmdate('c'));
         save_state($fid, $version, $state);
@@ -419,6 +433,7 @@ try {
                         WHERE fixture_id = :f
                           AND (home_finalized_version IS NOT NULL OR away_finalized_version IS NOT NULL)')
             ->execute(array(':f' => $fid));
+        scorecard_journal_commit($actor, $fid, $fixture['season_id'], $prepared);
     }
 
     // Re-read finalization status so the client can refresh banner/button state.
@@ -441,5 +456,6 @@ try {
 }
 catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    json_response(array('error' => $e->getMessage()), 500);
+    error_log('WDPL captain scorecard edit: ' . get_class($e));
+    json_response(array('error' => 'Scorecard edit unavailable. Reload and compare before retrying.'), 500);
 }

@@ -10,6 +10,7 @@
 //                 home_player_id, home_player_name, home_player2_id, home_player2_name,
 //                 away_player_id, away_player_name, away_player2_id, away_player2_name
 require __DIR__ . '/../_db.php';
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 $me = require_admin();
 $pdo = db();

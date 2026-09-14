@@ -9,6 +9,7 @@
 // PHP 5.6 compatible.
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 $me = require_admin();
 require_post();
 
@@ -22,8 +23,12 @@ if ($fid === '') {
 }
 
 $pdo = db();
+admin_sync_ensure_schema();
 $pdo->beginTransaction();
 try {
+    admin_sync_lock();
+    $season = scorecard_journal_season($fid);
+    $prepared = scorecard_journal_prepare($me, $fid, 'admin.reopen');
     // 1) Clear finalization on the live scorecard so the captain portal
     //    treats the fixture as in-progress again. Keep frames/state intact
     //    so the captains can edit + re-finalize on top of what's already there.
@@ -50,6 +55,7 @@ try {
     $ms->execute(array(':b' => $by, ':n' => $msg, ':f' => $fid));
     $subsCleared = (int)$ms->rowCount();
 
+    scorecard_journal_commit($me, $fid, $season, $prepared);
     $pdo->commit();
 
     audit_log($me, 'fixture.reopen', $fid, array('notes' => $note));
@@ -61,5 +67,6 @@ try {
     ));
 } catch (Exception $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    json_response(array('error' => $e->getMessage()), 500);
+    error_log('WDPL reopen: ' . get_class($e));
+    json_response(array('error' => 'Reopen unavailable. Check the current card before retrying.'), 500);
 }

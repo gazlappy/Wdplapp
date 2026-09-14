@@ -15,20 +15,19 @@ if (!defined('DB_NAME')) define('DB_NAME', 'youracct_inbox');   // <-- fallback 
 if (!defined('DB_USER')) define('DB_USER', 'youracct_wdpl');    // <-- fallback only
 if (!defined('DB_PASS')) define('DB_PASS', 'CHANGE-ME');        // <-- fallback only
 
-// Turn unexpected errors into a JSON 500 so the client sees the cause
-// instead of a blank Apache 500 page. Safe for a private admin tool.
+// Fail closed without returning database details, paths or request contents.
 set_exception_handler(function ($ex) {
+    error_log('WDPL unhandled exception: ' . get_class($ex));
     if (!headers_sent()) {
         http_response_code(500);
         header('Content-Type: application/json; charset=utf-8');
-        header('Access-Control-Allow-Origin: *');
+        header('Cache-Control: no-store');
     }
     echo json_encode(array(
         'error'   => 'server_exception',
-        'message' => $ex->getMessage(),
-        'where'   => basename($ex->getFile()) . ':' . $ex->getLine(),
+        'message' => 'Request failed. Check the current state before retrying.',
     ));
-    exit;
+    exit(1);
 });
 set_error_handler(function ($severity, $message, $file, $line) {
     if (!(error_reporting() & $severity)) return false;

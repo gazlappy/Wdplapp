@@ -6,6 +6,17 @@ namespace wdpl2.Tests;
 
 public class AdminScorecardMapperTests
 {
+    [Fact]
+    public void DeletedScorecard_IsComparisonOnlyAndLeavesLocalDataUntouched()
+    {
+        var (league, fixture, change) = Setup();
+        var snapshot = AdminScorecardMapper.Capture(league, fixture.Id);
+        change = change with { Payload = JsonSerializer.SerializeToElement(new { deleted = true }) };
+        var error = Assert.Throws<InvalidOperationException>(() => AdminScorecardMapper.CreateReviewedDraft(league, change, snapshot));
+        Assert.Contains("Comparison only", error.Message);
+        Assert.True(JsonElement.DeepEquals(snapshot, AdminScorecardMapper.Capture(league, fixture.Id)));
+    }
+
     private static (LeagueData League, Fixture Fixture, AdminSyncChange Change) Setup()
     {
         var season = new Season();

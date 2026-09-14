@@ -1,5 +1,6 @@
 <?php
 // Private bounded change feed. Reading is NOT an acknowledgement or conflict resolution.
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 require_admin('admin');
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_response(array('error' => 'GET required'), 405);

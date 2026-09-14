@@ -1,6 +1,7 @@
 <?php
 // Explicitly accept an unchanged server scorecard after durable desktop application.
 // This endpoint does not merge or replace captain data. Local-wins requires a separate reviewed edit.
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 $actor = require_admin('admin');
 require_post();
@@ -53,7 +54,7 @@ try {
 	$last->execute(array('scorecard', $id, $expected));
 	$previous = $last->fetch();
 	if ($previous && $previous['source'] === 'desktop') {
-		$receipt = array('protocol' => 1, 'backendId' => $backend['backend_id'], 'sequence' => (int)$previous['sequence_id'], 'revision' => $expected);
+		$receipt = admin_sync_acknowledge($actor, 'scorecard', $id, $prepared);
 	} else {
 		$receipt = admin_sync_commit_change($actor, 'scorecard', $id, $season, 'desktop', $record['payload'], $prepared);
 	}

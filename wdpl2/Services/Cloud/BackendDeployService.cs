@@ -27,6 +27,7 @@ public sealed class BackendDeployService
         "api/_admin_scorecard_rules.php",
         "api/_admin_entry_review_rules.php",
         "api/_admin_sync.php",
+        "api/_scorecard_journal.php",
         "api/_publish_schema.php",
         "api/_db.php",
         "api/_entry_form_rules.php",
@@ -141,6 +142,14 @@ public sealed class BackendDeployService
     {
         var missing = new List<string>();
         var files = await LoadBundledAsync(missing);
+
+        if (missing.Count > 0)
+            return new DeployResult
+            {
+                Success = false,
+                Message = "Backend package is incomplete. No files were uploaded. Rebuild the app before deploying.",
+                Failures = missing
+            };
 
         // Inject the DB credential sidecar (api/_db.config.php) so the deploy
         // configures the server without needing _db.php itself to carry secrets.

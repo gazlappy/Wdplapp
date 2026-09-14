@@ -1,5 +1,6 @@
 <?php
 // Version-checked resolution of review metadata. Original answers remain immutable.
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 require_once __DIR__ . '/../_admin_entry_review_rules.php';
 $actor = require_admin('admin');
@@ -41,7 +42,7 @@ try {
 	$query->execute(array('entry_review', (string)$id, $expected));
 	$last = $query->fetch();
 	if ($mode === 'server' && $last && $last['source'] === 'desktop') {
-		$receipt = array('protocol' => 1, 'backendId' => $backend['backend_id'], 'revision' => $expected, 'sequence' => (int)$last['sequence_id']);
+		$receipt = admin_sync_acknowledge($actor, 'entry_review', (string)$id, $prepared);
 	} else {
 		$receipt = admin_sync_commit_change($actor, 'entry_review', (string)$id, null, 'desktop', admin_entry_review_payload($row, $review), $prepared);
 	}

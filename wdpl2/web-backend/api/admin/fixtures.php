@@ -7,6 +7,7 @@
 // DELETE {fixture_id}                                -> delete row (and live_scorecards row)
 require __DIR__ . '/../_db.php';
 require __DIR__ . '/../_admin.php';
+require_once __DIR__ . '/../_scorecard_journal.php';
 $me = require_admin();
 $pdo = db();
 
@@ -43,11 +44,24 @@ if ($method === 'DELETE') {
     $fid = trim((string)(isset($body['fixture_id']) ? $body['fixture_id'] : ''));
     if ($fid === '') json_response(array('error' => 'fixture_id required'), 400);
     require_admin('superadmin');
+    try {
+    admin_sync_ensure_schema();
+    $pdo->beginTransaction();
+    admin_sync_lock();
+    $season = scorecard_journal_season($fid);
+    $prepared = scorecard_journal_prepare($me, $fid, 'fixture.delete');
     $pdo->prepare('DELETE FROM live_scorecards  WHERE fixture_id = :f')->execute(array(':f' => $fid));
     $d = $pdo->prepare('DELETE FROM league_fixtures WHERE fixture_id = :f');
     $d->execute(array(':f' => $fid));
+    scorecard_journal_commit($me, $fid, $season, $prepared, true);
+    $pdo->commit();
     audit_log($me, 'fixture.delete', $fid);
     json_response(array('ok' => true, 'rows' => $d->rowCount()));
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('WDPL fixture delete: ' . get_class($e));
+        json_response(array('error' => 'Fixture deletion unavailable.'), 500);
+    }
 }
 
 require_post();
@@ -89,6 +103,14 @@ if ($action === 'update') {
 }
 
 if ($action === 'swap') {
+    try {
+    admin_sync_ensure_schema();
+    $pdo->beginTransaction();
+    admin_sync_lock();
+    $cur->execute(array(':f' => $fid));
+    $row = $cur->fetch();
+    if (!$row) throw new InvalidArgumentException('Fixture no longer exists.');
+    $prepared = scorecard_journal_prepare($me, $fid, 'fixture.swap');
     $pdo->prepare(
         'UPDATE league_fixtures
             SET home_team_id = :a, away_team_id = :h,
@@ -100,8 +122,15 @@ if ($action === 'swap') {
            ':f' => $fid));
     // Live card teams are now backwards — drop it so it regenerates fresh.
     $pdo->prepare('DELETE FROM live_scorecards WHERE fixture_id = :f')->execute(array(':f' => $fid));
+    scorecard_journal_commit($me, $fid, $row['season_id'], $prepared, true);
+    $pdo->commit();
     audit_log($me, 'fixture.swap', $fid);
     json_response(array('ok' => true));
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('WDPL fixture swap: ' . get_class($e));
+        json_response(array('error' => 'Fixture swap unavailable.'), 500);
+    }
 }
 
 if ($action === 'postpone') {

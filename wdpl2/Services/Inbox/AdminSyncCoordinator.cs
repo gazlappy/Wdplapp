@@ -52,6 +52,8 @@ public sealed class AdminSyncCoordinator(AdminSyncReviewStore queue, AdminSyncSe
             await persistence.ApplyServerAsync(item, ct);
             refreshCaches();
             var revision = await client.AcceptAppliedScorecardAsync(state.BackendId, item, ct);
+            // The persisted application receipt verifies unchanged local data on retry.
+            await persistence.ApplyServerAsync(item, ct);
             await queue.CompleteAsync(item.Change.Sequence, item.ResolutionRequestId, revision, ct);
         }
         finally { Gate.Release(); }

@@ -1,6 +1,15 @@
 <?php
-require_once __DIR__ . '/_admin.php';
+require_once __DIR__ . '/_db.php';
 require_once __DIR__ . '/_admin_sync_rules.php';
+
+// Storage helpers are authentication-neutral; callers must authenticate first.
+function admin_sync_guid() {
+	$b = random_bytes(16);
+	$b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
+	$b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+	$h = bin2hex($b);
+	return substr($h,0,8).'-'.substr($h,8,4).'-'.substr($h,12,4).'-'.substr($h,16,4).'-'.substr($h,20,12);
+}
 
 // Schema creation must run before any data transaction: MySQL DDL implicitly commits.
 function admin_sync_ensure_schema() {
@@ -10,7 +19,7 @@ function admin_sync_ensure_schema() {
 		singleton_id INT PRIMARY KEY, backend_id CHAR(36) NOT NULL,
 		sequence_id BIGINT NOT NULL DEFAULT 0
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-	$pdo->prepare('INSERT IGNORE INTO admin_sync_state (singleton_id, backend_id) VALUES (1, ?)')->execute(array(admin_guid()));
+	$pdo->prepare('INSERT IGNORE INTO admin_sync_state (singleton_id, backend_id) VALUES (1, ?)')->execute(array(admin_sync_guid()));
 	$pdo->exec('CREATE TABLE IF NOT EXISTS admin_sync_records (
 		record_kind VARCHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 		record_id VARCHAR(160) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -27,6 +36,13 @@ function admin_sync_ensure_schema() {
 		source VARCHAR(16) NOT NULL, payload_json MEDIUMTEXT NOT NULL,
 		created_utc DATETIME NOT NULL,
 		INDEX ix_sync_record (record_kind, record_id, revision)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+	$pdo->exec('CREATE TABLE IF NOT EXISTS admin_sync_acknowledgements (
+		request_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+		request_hash CHAR(64) NOT NULL, actor_id CHAR(36) NOT NULL,
+		record_kind VARCHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+		record_id VARCHAR(160) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+		sequence_id BIGINT NOT NULL, revision BIGINT NOT NULL, created_utc DATETIME NOT NULL
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }
 
@@ -50,9 +66,12 @@ function admin_sync_prepare_change($actor, $kind, $id, $expected, $requestId, $r
 	$requestId = admin_sync_request_id($requestId);
 	admin_sync_lock();
 	$hash = hash('sha256', json_encode(array($kind, $id, $expected, $request), JSON_THROW_ON_ERROR));
-	$query = db()->prepare('SELECT sequence_id, revision, request_hash, actor_id FROM admin_sync_changes WHERE request_id = ?');
-	$query->execute(array($requestId));
-	$previous = $query->fetch();
+	$query = db()->prepare('SELECT sequence_id, revision, request_hash, actor_id FROM admin_sync_changes WHERE request_id = ?
+		UNION ALL SELECT sequence_id, revision, request_hash, actor_id FROM admin_sync_acknowledgements WHERE request_id = ?');
+	$query->execute(array($requestId, $requestId));
+	$receipts = $query->fetchAll();
+	if (count($receipts) > 1) throw new LogicException('Ambiguous synchronization receipt.');
+	$previous = $receipts ? $receipts[0] : null;
 	if ($previous) {
 		if ($previous['actor_id'] !== $actor['user_id'] || !hash_equals($previous['request_hash'], $hash)) {
 			return array('conflict' => true, 'error' => 'Request identity already used for a different change.');
@@ -64,6 +83,24 @@ function admin_sync_prepare_change($actor, $kind, $id, $expected, $requestId, $r
 		return array('conflict' => true, 'error' => 'Record changed. Review both versions before saving.', 'current' => $current);
 	}
 	return array('request_id' => $requestId, 'request_hash' => $hash, 'revision' => $expected + 1);
+}
+
+// Persist a no-op acceptance in the caller's transaction, without extending the feed.
+// Call only after the endpoint has checked the reviewed values against live data.
+function admin_sync_acknowledge($actor, $kind, $id, $prepared) {
+	if (!isset($prepared['request_hash'], $prepared['request_id'], $prepared['revision'])) throw new LogicException('Acknowledgement was not prepared.');
+	$backend = admin_sync_lock();
+	$current = admin_sync_read_record($kind, $id);
+	if (!$current || $current['revision'] + 1 !== $prepared['revision']) throw new LogicException('Acknowledgement revision changed.');
+	$query = db()->prepare('SELECT sequence_id, source FROM admin_sync_changes WHERE record_kind = ? AND record_id = ? AND revision = ?');
+	$query->execute(array($kind, $id, $current['revision']));
+	$last = $query->fetch();
+	if (!$last || $last['source'] !== 'desktop') throw new LogicException('Only an unchanged desktop revision can be acknowledged without a change.');
+	db()->prepare('INSERT INTO admin_sync_acknowledgements
+		(request_id, request_hash, actor_id, record_kind, record_id, sequence_id, revision, created_utc)
+		VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())')
+		->execute(array($prepared['request_id'], $prepared['request_hash'], $actor['user_id'], $kind, $id, $last['sequence_id'], $current['revision']));
+	return array('protocol' => 1, 'backendId' => $backend['backend_id'], 'sequence' => (int)$last['sequence_id'], 'revision' => $current['revision']);
 }
 
 // Write the domain record and this journal receipt in the SAME transaction.

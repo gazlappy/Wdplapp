@@ -1,5 +1,6 @@
 <?php
 // Explicit local-frame resolution. Reopens the card; never silently finalizes a match.
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 require_once __DIR__ . '/../_admin_scorecard_rules.php';
 $actor = require_admin('admin');

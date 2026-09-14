@@ -1,5 +1,6 @@
 <?php
 // Read-only comparison. Never acknowledges or replaces a queued revision.
+require_once __DIR__ . '/../_admin.php';
 require_once __DIR__ . '/../_admin_sync.php';
 require_admin('admin');
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_response(array('error' => 'GET required'), 405);
@@ -31,9 +32,10 @@ try {
 				'home_finalized' => $card['home_finalized_version'] !== null, 'away_finalized' => $card['away_finalized_version'] !== null);
 		}
 		$payload = $record['payload'];
-		$matches = $live !== null && isset($payload['version'], $payload['state'], $payload['home_finalized'], $payload['away_finalized']) &&
+		$matches = ($payload['deleted'] ?? false) === true ? $live === null :
+			($live !== null && isset($payload['version'], $payload['state'], $payload['home_finalized'], $payload['away_finalized']) &&
 			$live['version'] === $payload['version'] && $live['state'] == $payload['state'] &&
-			$live['home_finalized'] === $payload['home_finalized'] && $live['away_finalized'] === $payload['away_finalized'];
+			$live['home_finalized'] === $payload['home_finalized'] && $live['away_finalized'] === $payload['away_finalized']);
 	}
 	db()->commit();
 	json_response(array('protocol' => 1, 'backendId' => $backend['backend_id'], 'liveMatchesJournal' => $matches, 'live' => $live,

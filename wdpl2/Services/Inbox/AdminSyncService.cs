@@ -255,9 +255,11 @@ public sealed class AdminSyncService : IDisposable
                     throw new JsonException("The submission identity changed.");
         var matches = root.GetProperty("liveMatchesJournal").GetBoolean();
         var live = root.GetProperty("live");
+        var deleted = current.Kind == "scorecard" && current.Payload.TryGetProperty("deleted", out var deletion) &&
+            deletion.ValueKind == JsonValueKind.True;
         if (live.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object) ||
             (current.Kind == "entry_review" && (!matches || live.ValueKind != JsonValueKind.Null)) ||
-            (current.Kind == "scorecard" && matches && live.ValueKind != JsonValueKind.Object))
+            (current.Kind == "scorecard" && matches && live.ValueKind != (deleted ? JsonValueKind.Null : JsonValueKind.Object)))
             throw new JsonException("Invalid live comparison state.");
         return new(current, matches, live.ValueKind == JsonValueKind.Null ? null : live.Clone());
     }
