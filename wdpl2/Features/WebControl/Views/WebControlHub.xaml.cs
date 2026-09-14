@@ -40,6 +40,7 @@ public partial class WebControlHub : ContentPage
     private Page? PageFor(IWebModule module) => module.Id switch
     {
         "system" => _services.GetService<ConnectionPage>(),
+        "league" => _services.GetService<LeagueDataPage>(),
         _ => null,
     };
 

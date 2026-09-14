@@ -8,7 +8,7 @@ namespace Wdpl2.Services
     /// Live Scores page generation.
     ///
     /// The page is static HTML that polls the public backend endpoint
-    /// (<c>api/public/live.php</c>) so spectators see frame-by-frame scores while
+    /// (<c>api/index.php?m=league&amp;a=live</c>) so spectators see frame-by-frame scores while
     /// the team captains are still filling in their shared online scorecard.
     /// </summary>
     public sealed partial class WebsiteGenerator
@@ -47,7 +47,8 @@ namespace Wdpl2.Services
             html.AppendLine("        function resolveEndpoint() {");
             html.AppendLine("            if (configured) return configured;");
             html.AppendLine("            var segments = window.location.pathname.split('/').filter(function (s) { return s.length > 0; });");
-            html.AppendLine("            return segments.length <= 1 ? '/api/public/live.php' : '../api/public/live.php';");
+            html.AppendLine("            var base = segments.length <= 1 ? '/api/' : '../api/';");
+            html.AppendLine("            return base + 'index.php?m=league&a=live';");
             html.AppendLine("        }");
             html.AppendLine("        var endpoint = resolveEndpoint();");
             html.AppendLine($"        var intervalMs = {LiveScoresPollMs()};");
@@ -57,7 +58,11 @@ namespace Wdpl2.Services
             html.AppendLine("            var url = endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();");
             html.AppendLine("            fetch(url, { cache: 'no-store' })");
             html.AppendLine("                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })");
-            html.AppendLine("                .then(function (data) { render(data && data.items ? data.items : [], data); })");
+            html.AppendLine("                // The backend wraps every reply as {ok, data}; older builds returned the payload bare.");
+            html.AppendLine("                .then(function (body) {");
+            html.AppendLine("                    var payload = body && body.data ? body.data : body;");
+            html.AppendLine("                    render(payload && payload.items ? payload.items : [], payload);");
+            html.AppendLine("                })");
             html.AppendLine("                .catch(function (err) { if (onError) onError(err); });");
             html.AppendLine("        }");
             html.AppendLine();

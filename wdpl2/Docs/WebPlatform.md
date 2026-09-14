@@ -232,7 +232,7 @@ on this machine and proved nothing.
 | Milestone | State |
 |---|---|
 | M1 — spine (core, routing, auth, deploy, Web Control tab) | **Done and live.** Deployed to wdpl.uk, admin auth verified, schema installed. |
-| M2 — teams + public read | Not started |
+| M2 — league data + public read | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
 | M3 — captains (server-side PIN) | Not started |
 | M4 — live scorecards | Not started |
 
@@ -241,5 +241,6 @@ later milestones:
 
 - `WebsiteJsonDataGenerator.cs` still publishes hashed captain PINs into public
   JSON — client-side auth, brute-forceable offline. M3 removes it.
-- `WebsiteGenerator.LiveScores.cs` still points at the deleted
-  `api/public/live.php`. M2 repoints it.
+- ~~`WebsiteGenerator.LiveScores.cs` pointed at the deleted `api/public/live.php`~~
+  — repointed in M2 to `api/index.php?m=league&a=live`, which answers with an
+  empty `items` list until M4 fills it.

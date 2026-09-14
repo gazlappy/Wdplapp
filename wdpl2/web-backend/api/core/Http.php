@@ -33,6 +33,9 @@ final class Http
     /** @var array|null */
     private static $body = null;
 
+    /** @var int|null Overrides the configured body limit for one request. */
+    private static $maxBytes = null;
+
     public static function bootstrap(): void
     {
         header('Content-Type: application/json; charset=utf-8');
@@ -107,7 +110,9 @@ final class Http
         if ($raw === false || $raw === '') {
             return self::$body = [];
         }
-        $max = (int)Config::get('max_body_bytes', 262144);
+        $max = self::$maxBytes !== null
+            ? self::$maxBytes
+            : (int)Config::get('max_body_bytes', 262144);
         if (strlen($raw) > $max) {
             throw new ApiError(413, 'body_too_large', 'Request body is too large.');
         }
@@ -116,6 +121,19 @@ final class Http
             throw new ApiError(400, 'bad_json', 'Request body must be a JSON object.');
         }
         return self::$body = $decoded;
+    }
+
+    /**
+     * Raises the body limit for the current request only.
+     *
+     * The configured limit constrains anonymous callers. An authenticated
+     * admin pushing a whole season legitimately sends far more, so that action
+     * opts in explicitly rather than the limit being raised for everyone.
+     * Must be called before the body is first read.
+     */
+    public static function setMaxBytes(int $bytes): void
+    {
+        self::$maxBytes = $bytes;
     }
 
     public static function field(string $name, $default = null)

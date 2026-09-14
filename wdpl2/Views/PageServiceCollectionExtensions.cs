@@ -43,6 +43,7 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<ImportPreviewPage>();
         services.AddTransient<WebControl.WebControlHub>();
         services.AddTransient<WebControl.ConnectionPage>();
+        services.AddTransient<WebControl.LeagueDataPage>();
 
         return services;
     }

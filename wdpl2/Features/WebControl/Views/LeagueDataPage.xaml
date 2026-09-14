@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.LeagueDataPage"
+             Title="League data">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="820" HorizontalOptions="Start">
+
+            <Label Text="League data" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Publish a season to the website: teams, fixtures, results and tables."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Season to publish" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Picker x:Name="SeasonPicker" FontSize="13" SelectedIndexChanged="OnSeasonChanged"/>
+                    <Label x:Name="SummaryLabel" FontSize="11" TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Publish" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="Replaces everything the website holds for this season, in one step. Other seasons are untouched."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Button x:Name="PushButton" Text="Publish this season" Clicked="OnPushClicked"
+                            BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"
+                            FontSize="13" Margin="0,4,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="What the website currently holds" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Button x:Name="VerifyButton" Text="Check website" Clicked="OnVerifyClicked"
+                            BackgroundColor="#334155" TextColor="White" CornerRadius="8" FontSize="13"/>
+                    <Frame x:Name="VerifyFrame" IsVisible="False" BorderColor="#E2E8F0" Padding="10"
+                           CornerRadius="8" BackgroundColor="#F8FAFC" HasShadow="False">
+                        <Label x:Name="VerifyLabel" FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

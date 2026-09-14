@@ -74,7 +74,10 @@ public class WebsiteGeneratorLiveScoresTests
 
         var files = new WebsiteGenerator(CreateLeague(), settings).GenerateWebsite();
 
-        Assert.Contains("api/public/live.php", files["live.html"]);
+        // The auto-detected endpoint is the league module's live action on the
+        // single front controller, not the removed per-file endpoint.
+        Assert.Contains("index.php?m=league&a=live", files["live.html"]);
+        Assert.DoesNotContain("api/public/live.php", files["live.html"]);
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public static class CoreServiceCollectionExtensions
     private static IServiceCollection AddWebPlatform(this IServiceCollection services)
     {
         services.AddSingleton<IWebModule, SystemWebModule>();
+        services.AddSingleton<IWebModule, LeagueWebModule>();
 
         services.AddSingleton<WebModuleRegistry>();
         services.AddSingleton<WebDeployService>();
