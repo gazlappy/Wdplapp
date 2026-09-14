@@ -101,12 +101,15 @@ public partial class ConnectionPage : ContentPage
                 return;
             }
 
-            var who = await client.PublicAsync("system", "whoami");
+            // Must be the authenticated call: whoami reports whoever the request
+            // is authenticated as, so asking it anonymously always answers "no
+            // one" and would report a working password as a failure.
+            var who = await client.AdminAsync("system", "whoami");
             var admin = who.TryGetProperty("admin", out var a) && a.ValueKind == JsonValueKind.True;
 
             Report(admin
                 ? "Backend reachable over HTTPS and the administrator sign-in works."
-                : "Backend reachable over HTTPS, but the administrator sign-in was not accepted. Check the username and password, and that configuration has been deployed.",
+                : "Backend reachable over HTTPS, but it did not accept this username and password. Re-check them, then use \"Deploy with configuration\" to write them to the server.",
                 error: !admin);
         });
     }

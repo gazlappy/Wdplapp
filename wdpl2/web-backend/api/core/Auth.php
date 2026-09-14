@@ -194,22 +194,49 @@ final class RateLimit
 {
     public static function check(string $bucket, int $limit, int $windowSeconds): void
     {
-        self::prune();
-        $count = (int)Db::value(
-            'SELECT COUNT(*) FROM wdpl_auth_attempts WHERE bucket = ? AND client = ? AND attempted_at > (UTC_TIMESTAMP() - INTERVAL ? SECOND)',
-            [$bucket, self::client(), $windowSeconds]
-        );
-        if ($count >= $limit) {
-            throw new ApiError(429, 'too_many_attempts', 'Too many attempts. Wait a few minutes and try again.');
-        }
+        $client = self::client();
+        self::withTable(function () use ($bucket, $limit, $windowSeconds, $client) {
+            self::prune();
+            $count = (int)Db::value(
+                'SELECT COUNT(*) FROM wdpl_auth_attempts WHERE bucket = ? AND client = ? AND attempted_at > (UTC_TIMESTAMP() - INTERVAL ? SECOND)',
+                [$bucket, $client, $windowSeconds]
+            );
+            if ($count >= $limit) {
+                throw new ApiError(429, 'too_many_attempts', 'Too many attempts. Wait a few minutes and try again.');
+            }
+        });
     }
 
     public static function record(string $bucket): void
     {
-        Db::query(
-            'INSERT INTO wdpl_auth_attempts (bucket, client, attempted_at) VALUES (?, ?, UTC_TIMESTAMP())',
-            [$bucket, self::client()]
-        );
+        $client = self::client();
+        self::withTable(function () use ($bucket, $client) {
+            Db::query(
+                'INSERT INTO wdpl_auth_attempts (bucket, client, attempted_at) VALUES (?, ?, UTC_TIMESTAMP())',
+                [$bucket, $client]
+            );
+        });
+    }
+
+    /**
+     * Runs a counter query, creating the core tables first if they are missing.
+     *
+     * Without this a fresh install deadlocks: the first authenticated call is
+     * necessarily "install the tables", but authenticating consults this
+     * counter, whose table does not exist yet. Creating the core tables on
+     * demand breaks the cycle without ever skipping the limit.
+     *
+     * Only a database error triggers the retry. An ApiError - the 429 itself,
+     * or db_unavailable - propagates untouched.
+     */
+    private static function withTable(callable $fn)
+    {
+        try {
+            return $fn();
+        } catch (PDOException $missingTable) {
+            Schema::installCore();
+            return $fn();
+        }
     }
 
     public static function clear(string $bucket): void
