@@ -35,6 +35,7 @@ public partial class FixturesSettingsPage : ContentPage
         ShowCalendarDownloadCheck.IsChecked = settings.FixturesShowCalendarDownload;
         ShowPrintableSheetCheck.IsChecked = settings.FixturesShowPrintableSheet;
         SheetDefaultExpandedCheck.IsChecked = settings.FixturesSheetDefaultExpanded;
+        ShowSpecialEventsCheck.IsChecked = League.FixturesSheetSettings.ShowSpecialEvents;
         SheetTitleEntry.Text = settings.FixturesSheetTitle;
 
         GroupByDateCheck.IsChecked = settings.FixturesGroupByDate;
@@ -70,6 +71,7 @@ public partial class FixturesSettingsPage : ContentPage
             settings.FixturesShowCalendarDownload = ShowCalendarDownloadCheck.IsChecked;
             settings.FixturesShowPrintableSheet = ShowPrintableSheetCheck.IsChecked;
             settings.FixturesSheetDefaultExpanded = SheetDefaultExpandedCheck.IsChecked;
+            League.FixturesSheetSettings.ShowSpecialEvents = ShowSpecialEventsCheck.IsChecked;
             settings.FixturesSheetTitle = string.IsNullOrWhiteSpace(SheetTitleEntry.Text)
                 ? "Printable Fixtures Sheet" : SheetTitleEntry.Text;
 

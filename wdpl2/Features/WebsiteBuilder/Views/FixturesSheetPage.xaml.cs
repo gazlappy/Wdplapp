@@ -14,6 +14,7 @@ public partial class FixturesSheetPage : ContentPage
     private readonly ObservableCollection<DivisionItem> _divisions = new();
     private readonly ObservableCollection<EventItem> _events = new();
     private string? _generatedHtml;
+    private string _eventVisibilitySummary = "";
     private string? _logoBase64;
 
     public FixturesSheetPage()
@@ -44,6 +45,15 @@ public partial class FixturesSheetPage : ContentPage
         };
 
         LoadData();
+        ShowSpecialEventsCheck.CheckedChanged += (_, _) => UpdateEventVisibilityStatus();
+        UpdateEventVisibilityStatus();
+    }
+
+    private void UpdateEventVisibilityStatus()
+    {
+        if (SeasonPicker.SelectedItem is not Season season) return;
+        var generator = new FixturesSheetGenerator(League, BuildSettings());
+        SetStatus(generator.GetEventVisibilitySummary(season.Id), ShowSpecialEventsCheck.IsChecked);
     }
 
     private void LoadData()
@@ -103,6 +113,7 @@ public partial class FixturesSheetPage : ContentPage
             _divisions.Add(new DivisionItem { Id = d.Id, Name = d.Name, IsSelected = true });
 
         SyncExclusionDates(season);
+        UpdateEventVisibilityStatus();
     }
 
     private FixturesSheetSettings BuildSettings()
@@ -160,6 +171,7 @@ public partial class FixturesSheetPage : ContentPage
 
         var divIds = GetSelectedDivisionIds();
         var gen = new FixturesSheetGenerator(League, settings);
+        _eventVisibilitySummary = gen.GetEventVisibilitySummary(season.Id);
         return gen.GenerateFixturesSheet(season.Id, divIds.Count > 0 ? divIds : null);
     }
 
@@ -186,7 +198,7 @@ public partial class FixturesSheetPage : ContentPage
             if (_generatedHtml != null)
             {
                 WebViewHelper.LoadHtml(PreviewWebView, _generatedHtml);
-                SetStatus("Preview updated", true);
+                SetStatus("Preview updated. " + _eventVisibilitySummary, true);
             }
         }
         catch (Exception ex)

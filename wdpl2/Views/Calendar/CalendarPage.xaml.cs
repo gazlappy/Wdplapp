@@ -8,7 +8,7 @@ namespace Wdpl2.Views;
 public partial class CalendarPage : ContentPage
 {
     private readonly IDataStore _dataStore;
-    private LeagueData League => _dataStore.GetData();
+    private static LeagueData League => DataStore.Data;
     private CalendarSettings CalSettings => League.CalendarSettings;
 
     private readonly ObservableCollection<Season> _seasons = new();
@@ -479,7 +479,7 @@ public partial class CalendarPage : ContentPage
         };
 
         League.CalendarEvents.Add(evt);
-        await _dataStore.SaveAsync();
+        DataStore.SaveJsonOnly();
         ReloadCalendarEvents();
         Refresh();
     }
@@ -514,7 +514,7 @@ public partial class CalendarPage : ContentPage
             if (!string.IsNullOrWhiteSpace(newTitle))
             {
                 evt.Title = newTitle.Trim();
-                await _dataStore.SaveAsync();
+                DataStore.SaveJsonOnly();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -526,7 +526,7 @@ public partial class CalendarPage : ContentPage
             if (cat is not null and not "Cancel" && Enum.TryParse<CalendarEventCategory>(cat, out var parsed))
             {
                 evt.Category = parsed;
-                await _dataStore.SaveAsync();
+                DataStore.SaveJsonOnly();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -541,7 +541,7 @@ public partial class CalendarPage : ContentPage
                 null, System.Globalization.DateTimeStyles.None, out var newDate))
             {
                 evt.Date = newDate.Date;
-                await _dataStore.SaveAsync();
+                DataStore.SaveJsonOnly();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -565,7 +565,7 @@ public partial class CalendarPage : ContentPage
                 if (selected == "Remove Link")
                 {
                     evt.CompetitionId = null;
-                    await _dataStore.SaveAsync();
+                    DataStore.SaveJsonOnly();
                     ReloadCalendarEvents();
                     Refresh();
                 }
@@ -575,7 +575,7 @@ public partial class CalendarPage : ContentPage
                     if (comp != null)
                     {
                         evt.CompetitionId = comp.Id;
-                        await _dataStore.SaveAsync();
+                        DataStore.SaveJsonOnly();
                         ReloadCalendarEvents();
                         Refresh();
                     }
@@ -594,7 +594,7 @@ public partial class CalendarPage : ContentPage
             if (newNotes != null)
             {
                 evt.Notes = string.IsNullOrWhiteSpace(newNotes) ? null : newNotes.Trim();
-                await _dataStore.SaveAsync();
+                DataStore.SaveJsonOnly();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -606,7 +606,7 @@ public partial class CalendarPage : ContentPage
             if (confirm)
             {
                 League.CalendarEvents.Remove(evt);
-                await _dataStore.SaveAsync();
+                DataStore.SaveJsonOnly();
                 ReloadCalendarEvents();
                 Refresh();
             }
@@ -727,7 +727,8 @@ public partial class CalendarPage : ContentPage
             _blackoutDates[date] = title.Trim();
         }
 
-        await _dataStore.SaveAsync();
+        await _dataStore.UpdateSeasonAsync(season);
+        DataStore.SaveJsonOnly();
         ComputeConflicts();
         Refresh();
     }
@@ -2394,7 +2395,7 @@ public partial class CalendarPage : ContentPage
 
         // Seed defaults / top-up any newly introduced built-in holidays
         if (PresetHoliday.EnsureBuiltIns(presets))
-            _ = _dataStore.SaveAsync();
+            DataStore.SaveJsonOnly();
 
         for (int y = startYear; y <= endYear; y++)
         {

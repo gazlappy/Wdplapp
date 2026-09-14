@@ -15,6 +15,11 @@
                     <Button Grid.Column="3" Text="Print" Clicked="OnPrintClicked" BackgroundColor="#64748B" FontSize="12" Padding="8,10" CornerRadius="8"/>
                 </Grid>
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="#10B981" IsVisible="False"/>
+                <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                    <CheckBox x:Name="ShowSpecialEventsCheck" IsChecked="True" VerticalOptions="Center"/>
+                    <Label Grid.Column="1" Text="Show competition / event date cards" VerticalOptions="Center" FontSize="13" TextColor="#1E293B"/>
+                </Grid>
+                <Label Text="Includes Calendar competition dates, competition rounds and exclusion nights. Select the correct season, then press Preview. This also controls the website fixtures sheet." FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="Title" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
@@ -52,10 +57,6 @@
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
                             <CheckBox x:Name="ShowVenueInfoCheck" IsChecked="True" VerticalOptions="Center"/>
                             <Label Grid.Column="1" Text="Show venue info" VerticalOptions="Center" FontSize="13"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
-                            <CheckBox x:Name="ShowSpecialEventsCheck" IsChecked="True" VerticalOptions="Center"/>
-                            <Label Grid.Column="1" Text="Show key dates / events" VerticalOptions="Center" FontSize="13"/>
                         </Grid>
                         <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
                             <CheckBox x:Name="ShowFooterCheck" IsChecked="True" VerticalOptions="Center"/>

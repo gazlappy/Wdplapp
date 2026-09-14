@@ -49,6 +49,11 @@
                             <CheckBox x:Name="SheetDefaultExpandedCheck" IsChecked="False" VerticalOptions="Center"/>
                             <Label Grid.Column="1" Text="Sheet Expanded by Default" VerticalOptions="Center"/>
                         </Grid>
+                        <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                            <CheckBox x:Name="ShowSpecialEventsCheck" IsChecked="True" VerticalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Show competition / event date cards" VerticalOptions="Center"/>
+                        </Grid>
+                        <Label Text="Uses the same setting as Fixtures Sheet. Save, then regenerate the website preview or publish again to update existing pages." FontSize="12" TextColor="#6B7280" LineBreakMode="WordWrap"/>
                         <Label Text="Sheet Section Title" FontSize="11" TextColor="#6B7280"/>
                         <Entry x:Name="SheetTitleEntry" Text="Printable Fixtures Sheet" Placeholder="Title" FontSize="13"/>
                     </VerticalStackLayout>

@@ -15,6 +15,34 @@ namespace wdpl2.Tests;
 public class SqliteDataStoreTests
 {
     [Fact]
+    public async Task UpdateSeasonAsync_PersistsDetachedCalendarExclusionForSheet()
+    {
+        var options = new DbContextOptionsBuilder<LeagueContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var context = new LeagueContext(options);
+        var season = new Season { Name = "Winter", StartDate = new DateTime(2026, 9, 17), EndDate = new DateTime(2027, 6, 3) };
+        context.Seasons.Add(season);
+        await context.SaveChangesAsync();
+        var detached = await context.Seasons.AsNoTracking().SingleAsync();
+        var date = new DateTime(2026, 10, 1);
+        detached.BlackoutDates.Add(date);
+        detached.BlackoutDateTitles["2026-10-01"] = "TEAM KO";
+        var store = new SqliteDataStore(context);
+
+        await store.UpdateSeasonAsync(detached);
+
+        using var reloadedContext = new LeagueContext(options);
+        var reloaded = await reloadedContext.Seasons.AsNoTracking().SingleAsync();
+        Assert.Contains(date, reloaded.BlackoutDates);
+        var json = System.Text.Json.JsonSerializer.Serialize(new LeagueData { Seasons = [detached] });
+        var league = System.Text.Json.JsonSerializer.Deserialize<LeagueData>(json)!;
+        Assert.Equal("TEAM KO", league.Seasons.Single().BlackoutDateTitles["2026-10-01"]);
+        var html = new FixturesSheetGenerator(league, new FixturesSheetSettings()).GenerateEmbeddableContent(season.Id);
+        Assert.Contains("TEAM KO", html);
+        Assert.Contains("data-date=\"2026-10-01\"", html);
+    }
+
+    [Fact]
     public void Constructor_SetsContext()
     {
         // Arrange

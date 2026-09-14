@@ -235,13 +235,10 @@ public class FixturesSheetGenerator
             }
         }
         var teamNumbers = shared?.TeamNumbers ?? BuildTeamNumbers(teams);
-        GenerateFixtureGridRows(sb, fixtures, teams, teamNumbers, divisions, shared);
+        var specialEvents = GetSpecialEvents(season);
+        GenerateFixtureGridRows(sb, fixtures, teams, teamNumbers, divisions, shared, specialEvents, season);
         if (_settings.ShowDivisionLists)
             GenerateDivisionLists(sb, divisions, teams, venues, teamNumbers, shared?.SlotCount);
-
-        // Special events / key dates
-        if (_settings.ShowSpecialEvents && _settings.SpecialEvents.Count > 0)
-            GenerateKeyDates(sb);
 
         // Venue telephone numbers
         if (_settings.ShowVenueInfo)
@@ -257,29 +254,99 @@ public class FixturesSheetGenerator
 
     // ── Fixture Grid ─────────────────────────────────────────
 
+    public string GetEventVisibilitySummary(Guid seasonId)
+    {
+        var season = _league.Seasons.Single(s => s.Id == seasonId);
+        var count = GetSpecialEvents(season, includeHidden: true).Select(e => e.Date.Date).Distinct().Count();
+        if (!_settings.ShowSpecialEvents)
+            return $"{season.Name}: {count} event date(s) found but hidden. Enable 'Show competition / event date cards' and press Preview.";
+        if (count == 0)
+            return $"{season.Name}: no competition/event dates found. Check the selected season, Calendar event category and competition season links.";
+        return $"{season.Name}: {count} event date(s) included in the date-card grid; dates shared with league matches use the same card.";
+    }
+
+    private List<SpecialEvent> GetSpecialEvents(Season season, bool includeHidden = false)
+    {
+        if (!_settings.ShowSpecialEvents && !includeHidden) return [];
+        var events = _settings.SpecialEvents.Where(e => IsWithinSeason(e.Date, season)).ToList();
+        void AddEvent(DateTime date, string title, string color = "#FDE68A")
+        {
+            if (!IsWithinSeason(date, season) || string.IsNullOrWhiteSpace(title)) return;
+            title = title.Trim();
+            // Deduplicate displayed annotations, not calendar records or competition identities.
+            if (events.Any(e => e.Date.Date == date.Date &&
+                string.Equals(e.Description?.Trim(), title, StringComparison.OrdinalIgnoreCase))) return;
+            events.Add(new SpecialEvent
+            {
+                Date = date.Date,
+                Description = title,
+                DayOfWeek = date.ToString("dddd", CultureInfo.InvariantCulture),
+                Color = color
+            });
+        }
+
+        foreach (var date in season.BlackoutDates)
+        {
+            var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var title = season.BlackoutDateTitles?.GetValueOrDefault(key);
+            AddEvent(date, string.IsNullOrWhiteSpace(title) ? "No Fixtures" : title, "#FECACA");
+        }
+
+        foreach (var competition in _league.Competitions.Where(c => c.SeasonId == season.Id))
+        {
+            if (competition.StartDate is { } start) AddEvent(start, competition.Name);
+            foreach (var round in competition.Rounds.Where(r => r.Date.HasValue))
+                AddEvent(round.Date!.Value, $"{competition.Name} — {round.Name}");
+        }
+
+        foreach (var calendarEvent in _league.CalendarEvents)
+        {
+            if (calendarEvent.Category != CalendarEventCategory.Competition && calendarEvent.CompetitionId == null)
+                continue;
+            if (string.IsNullOrWhiteSpace(calendarEvent.Title)) continue;
+
+            var competition = calendarEvent.CompetitionId is { } competitionId
+                ? _league.Competitions.SingleOrDefault(c => c.Id == competitionId) : null;
+            if (calendarEvent.CompetitionId != null && competition == null) continue;
+            if (competition?.SeasonId is { } competitionSeason)
+            {
+                if (competitionSeason != season.Id) continue;
+            }
+            else if (calendarEvent.Date.Date < season.StartDate.Date || calendarEvent.Date.Date > season.EndDate.Date)
+                continue;
+
+            AddEvent(calendarEvent.Date, calendarEvent.Title);
+        }
+        return events;
+    }
+
     private static Dictionary<Guid, int> BuildTeamNumbers(List<Team> teams) => teams
         .GroupBy(t => t.DivisionId)
         .SelectMany(g => g.OrderBy(t => t.Name).ThenBy(t => t.Id)
             .Select((team, index) => (team.Id, Number: index + 1)))
         .ToDictionary(t => t.Id, t => t.Number);
 
-    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, List<Division> divisions, SharedFixtureSheetSchedule? shared)
+    private static bool IsWithinSeason(DateTime date, Season season) =>
+        date.Date >= season.StartDate.Date && date.Date <= season.EndDate.Date;
+
+    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, List<Division> divisions, SharedFixtureSheetSchedule? shared, List<SpecialEvent> specialEvents, Season season)
     {
         // Group fixtures by week date
         var weeks = fixtures
+            .Where(f => IsWithinSeason(f.Date, season))
             .GroupBy(f => f.Date.Date)
             .OrderBy(g => g.Key)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Build event lookup from special events (includes synced season blackout dates)
-        var eventsByDate = _settings.SpecialEvents.Where(_ => _settings.ShowSpecialEvents)
+        var eventsByDate = specialEvents
             .GroupBy(e => e.Date.Date)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Merge all dates (fixture weeks + standalone events) into one timeline
         var allDates = weeks.Keys.Union(eventsByDate.Keys).OrderBy(d => d).ToList();
 
-        if (fixtures.Count == 0) sb.AppendLine("<p>No fixtures scheduled.</p>");
+        if (weeks.Count == 0) sb.AppendLine("<p>No fixtures scheduled.</p>");
         sb.AppendLine("<div class=\"wk-grid\">");
 
         foreach (var date in allDates)
@@ -351,24 +418,6 @@ public class FixturesSheetGenerator
             }
         }
 
-        sb.AppendLine("</div>");
-    }
-
-    // ── Key Dates ────────────────────────────────────────────
-
-    private void GenerateKeyDates(StringBuilder sb)
-    {
-        sb.AppendLine("<div class=\"kd-grid\">");
-        foreach (var evt in _settings.SpecialEvents.OrderBy(e => e.Date))
-        {
-            sb.AppendLine($"<div class=\"kd-card\" style=\"border-left:4px solid {evt.Color};\">");
-            sb.AppendLine($"<div class=\"kd-date-block\">");
-            sb.AppendLine($"<div class=\"kd-day\">{evt.DayOfWeek}</div>");
-            sb.AppendLine($"<div class=\"kd-date\">{evt.Date:dd-MMM}</div>");
-            sb.AppendLine("</div>");
-            sb.AppendLine($"<div class=\"kd-desc\">{Esc(evt.Description)}</div>");
-            sb.AppendLine("</div>");
-        }
         sb.AppendLine("</div>");
     }
 

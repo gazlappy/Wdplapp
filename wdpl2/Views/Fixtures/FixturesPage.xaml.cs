@@ -16,6 +16,9 @@ public partial class FixturesPage : ContentPage
 {
     private readonly IDataStore _dataStore;
 
+    private async void OnFixturesSheetClicked(object sender, EventArgs e)
+        => await Navigation.PushAsync(new WebsiteBuilder.FixturesSheetPage());
+
     /// <summary>
     /// Set by other pages (e.g. MatchDayDashboardPage) before navigating to the Fixtures tab
     /// to request that a particular fixture be selected once the page appears.
