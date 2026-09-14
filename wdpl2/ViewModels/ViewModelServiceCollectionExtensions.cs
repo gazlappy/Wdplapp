@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Wdpl2.ViewModels.Inbox;
 
 namespace Wdpl2.ViewModels;
 
@@ -18,7 +17,6 @@ public static class ViewModelServiceCollectionExtensions
         services.AddTransient<TeamsViewModel>();
         services.AddTransient<SeasonsViewModel>();
         services.AddTransient<SettingsViewModel>();
-        services.AddTransient<InboxViewModel>();
 
         return services;
     }

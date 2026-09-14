@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
 using Wdpl2.Services;
-using Wdpl2.Services.Inbox;
 
 namespace Wdpl2.Views.WebsiteBuilder;
 
@@ -95,10 +94,19 @@ public partial class EntryFormsSettingsPage : ContentPage
         FetchStatusLabel.IsVisible = false;
     }
 
+    private static void ValidateWebsiteUri(string value)
+    {
+        if (!Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
+            !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+            throw new InvalidOperationException(
+                "Set the public Website URL in Online Forms delivery settings (or website settings). " +
+                "Use the HTTPS address visitors open, without credentials, a query or fragment.");
+    }
+
     private void SaveHostedSettings()
     {
         var websiteUrl = HostedWebsiteUrlEntry.Text?.Trim() ?? "";
-        HostedEntryFormsService.ValidateWebsiteUri(websiteUrl);
+        ValidateWebsiteUri(websiteUrl);
         EntryFormRules.SetHostedMode(League.WebsiteSettings, true);
         if (!string.Equals(League.WebsiteSettings.WebsiteUrl, websiteUrl, StringComparison.Ordinal))
             League.WebsiteSettings.HostedEntryFormsPublished = false;
@@ -132,53 +140,10 @@ public partial class EntryFormsSettingsPage : ContentPage
 
     private async void OnPublishHostedFormsClicked(object? sender, EventArgs e)
     {
-        PublishHostedFormsBtn.IsEnabled = false;
-        FetchSubmissionsBtn.IsEnabled = false;
-        UseHostedFormsSwitch.IsEnabled = false;
-        SaveHostedSettingsBtn.IsEnabled = false;
-        HostedWebsiteUrlEntry.IsEnabled = false;
-        try
-        {
-            SaveHostedSettings();
-            var connection = await WebInboxSettings.LoadAsync();
-            using var service = new HostedEntryFormsService(connection);
-            var payload = HostedEntryFormsService.BuildDefinitionPayload(League.WebsiteSettings);
-            using var definition = JsonDocument.Parse(payload);
-            var count = definition.RootElement.GetProperty("forms").GetArrayLength();
-            var origin = definition.RootElement.GetProperty("origin").GetString();
-            if (!await DisplayAlert("Publish saved forms to our hosting?",
-                $"Backend: {service.BaseUri}\nWebsite origin: {origin}\nSaved published forms: {count}\nDeadlines: Europe/London\n\nThis replaces the backend's active form set immediately. Omitted forms stop accepting new entries; existing entries remain. Unsaved editor changes are NOT included.\n\nDeploy the PHP backend first. After publishing, regenerate and deploy the website separately.",
-                "Publish saved forms", "Cancel")) return;
-
-            FetchStatusLabel.Text = "Publishing saved form definitions...";
-            FetchStatusLabel.IsVisible = true;
-            await service.PublishAsync(payload);
-            League.WebsiteSettings.UseHostedEntryForms = true;
-            League.WebsiteSettings.HostedEntryFormsPublished = true;
-            League.WebsiteSettings.FormServiceUrl = service.SubmissionUri.AbsoluteUri;
-            League.WebsiteSettings.FormServiceFetchUrl = service.CollectionUri.AbsoluteUri;
-            DataStore.SaveJsonOnly();
-            FormServiceUrlEntry.Text = service.SubmissionUri.AbsoluteUri;
-            FormServiceFetchUrlEntry.Text = service.CollectionUri.AbsoluteUri;
-            UseHostedFormsSwitch.IsToggled = true;
-            UpdateDeliveryStatus();
-            FetchStatusLabel.Text = $"Published {count} saved forms. Now regenerate/deploy the website and test one entry before opening registration.";
-            FetchStatusLabel.TextColor = Color.FromArgb("#10B981");
-        }
-        catch (Exception ex)
-        {
-            FetchStatusLabel.Text = $"Publishing unconfirmed: {ex.Message}";
-            FetchStatusLabel.TextColor = Color.FromArgb("#EF4444");
-            FetchStatusLabel.IsVisible = true;
-        }
-        finally
-        {
-            PublishHostedFormsBtn.IsEnabled = true;
-            FetchSubmissionsBtn.IsEnabled = true;
-            UseHostedFormsSwitch.IsEnabled = true;
-            SaveHostedSettingsBtn.IsEnabled = true;
-            HostedWebsiteUrlEntry.IsEnabled = true;
-        }
+        await DisplayAlert("Hosted delivery unavailable",
+            "The bundled PHP backend has been removed and hosted form delivery is being rebuilt. " +
+            "Forms stay in download-and-send mode, or use an external HTTPS endpoint.",
+            "OK");
     }
 
     private void OnHasClosingDateToggled(object? sender, ToggledEventArgs e)
@@ -389,12 +354,6 @@ public partial class EntryFormsSettingsPage : ContentPage
         try
         {
             string json;
-            if (League.WebsiteSettings.UseHostedEntryForms)
-            {
-                using var service = new HostedEntryFormsService(await WebInboxSettings.LoadAsync());
-                json = await service.FetchAsync(League.WebsiteSettings);
-            }
-            else
             {
                 var baseUrl = BuildApiUrl(serviceUrl);
                 using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
