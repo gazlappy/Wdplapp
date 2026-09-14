@@ -72,15 +72,23 @@ Anything else means the front controller was not reached.
 
 ### Runtime constraint: PHP 7.4
 
-The host (x10hosting, DirectAdmin, LiteSpeed, MariaDB 10.6) has no PHP version
-selector on this plan. phpMyAdmin reports 7.4.33, but **that is the version
-phpMyAdmin runs under, not the one serving the domain** - a deploy failed on
-`public int $status;`, a 7.4 typed property, proving the domain runs something
-older.
+**The host now runs PHP 8.4.17.** It previously served 5.6.40; the PHP Selector
+is under *Plugins -> PHP Selector* in the x10hosting panel, and the version must
+be set for the **domain** (wdpl.uk), not the account default.
 
-The floor is therefore **PHP 7.1** and the code is linted against 7.2, 7.4 and
-8.2. Boot failures report `PHP_VERSION` so the real version is visible in the
-error itself rather than inferred from a control panel.
+Getting there cost several deploy cycles because the version reported by
+phpMyAdmin (7.4.33) was the version phpMyAdmin itself ran under, not the one
+serving the domain. Two lessons are now baked in:
+
+- Boot failures report `PHP_VERSION`, so the running version comes from the
+  backend itself rather than from a panel that can disagree with it.
+- The code is kept portable and linted against **7.2, 7.4 and 8.4**. The floor
+  is PHP 7.1. Nothing needs that portability today, but it costs nothing and it
+  means a host or plan change cannot silently break the deployment again.
+
+Extensions confirmed enabled on the host: `pdo`, `pdo_mysql`, `json`, `session`,
+`hash`, `mbstring`, `filter`. Leave `opcache` **off** while iterating - it caches
+compiled PHP and can serve stale code after an FTP deploy.
 
 Do not use, however natural it looks:
 
@@ -200,7 +208,7 @@ on this machine and proved nothing.
 
 | Milestone | State |
 |---|---|
-| M1 — spine (core, routing, auth, deploy, Web Control tab) | Built; linted, unit-tested, and exercised over HTTP locally. Not yet deployed to real hosting. |
+| M1 — spine (core, routing, auth, deploy, Web Control tab) | **Done and live.** Deployed to wdpl.uk, admin auth verified, schema installed. |
 | M2 — teams + public read | Not started |
 | M3 — captains (server-side PIN) | Not started |
 | M4 — live scorecards | Not started |
