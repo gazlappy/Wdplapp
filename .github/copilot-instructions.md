@@ -88,7 +88,7 @@ The previous PHP backend, Web Inbox, browser admin and two-way sync were removed
 - **A module is one folder plus one DI registration**: `api/modules/<id>/Module.php` implementing `Module`, an `IWebModule` in `Services/Web/`, registered in `AddWebPlatform`. The Web Control tab, deploy file set and schema installer all read from the registry, so none of them need editing.
 - **Code and configuration deploy separately**, so redeploying code cannot clobber working server credentials. `api/config.php` is never committed and never bundled as an app asset.
 - Built so far: M1, the spine (core, routing, admin auth, deploy, Web Control tab). Teams, captains and live scorecards are not built. The generated site still publishes hashed captain PINs (`WebsiteJsonDataGenerator.cs`) and still points at the deleted `api/public/live.php` (`WebsiteGenerator.LiveScores.cs`); later milestones close both.
-- There is no PHP runtime on the development machine, so the PHP is unlinted and untested. Treat it as unverified until `php -l` and the rules tests can run.
+- PHP 8.2 is installed (winget, `PHP.PHP.8.2`). Lint with `php -l` and run `php wdpl2.Tests/Features/WebPlatform/backend.rules.test.php` after any backend change; neither needs MySQL. 8.2 matches the oldest supported deploy target on purpose.
 
 ## Games, Resources, and Validation
 - `wdpl2/Features/Games/` contains a games library, Pool, Breakout, Memory, Snake, and RetroFps. Pool generates embedded HTML/JavaScript from C# modules under `Pool/Engine/`, covering physics, rendering, input, AI, audio, replay, spin, and shot controls.

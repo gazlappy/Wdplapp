@@ -7,9 +7,13 @@ declare(strict_types=1);
  */
 final class ApiError extends RuntimeException
 {
+    /**
+     * Named errorCode, not code: Exception already declares a non-readonly
+     * int $code, and redeclaring it as readonly is a fatal parse error.
+     */
     public function __construct(
         public readonly int $status,
-        public readonly string $code,
+        public readonly string $errorCode,
         string $message
     ) {
         parent::__construct($message);

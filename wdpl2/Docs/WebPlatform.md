@@ -129,11 +129,25 @@ dotnet test wdpl2.Tests\wdpl2.Tests.csproj --filter FullyQualifiedName~Web
 Covers endpoint validation (`WebConnectionTests`), the response envelope and auth
 handling (`WebApiClientTests`), and the hash contract (`PasswordHashTests`).
 
-PHP is **not** currently linted or tested — there is no PHP runtime on the
-development machine. Installing PHP 8.2+ enables `php -l` on every file plus
-pure-PHP rules tests for the ownership state machine, neither of which needs MySQL.
-Until then the PHP is unvalidated: a missing runtime is an unverified environment,
-not a passing one.
+PHP 8.2 is installed via winget at
+`%LOCALAPPDATA%\Microsoft\WinGet\Packages\PHP.PHP.8.2_*\php.exe` (a new shell
+picks it up as `php`). 8.2 deliberately matches the oldest version the backend
+supports, so syntax that would not deploy fails here first.
+
+```powershell
+# lint every backend file
+Get-ChildItem wdpl2\web-backend -Recurse -Filter *.php | ForEach-Object { php -l $_.FullName }
+
+# backend rules tests - no MySQL needed
+php wdpl2.Tests/Features/WebPlatform/backend.rules.test.php
+```
+
+`backend.rules.test.php` covers the admin password format, module discovery, the
+auth gate, HTTPS detection, the config guard and the SQL identifier guard.
+
+To exercise the router for real, copy `web-backend/api` to a scratch folder, add a
+`config.php` with `allow_insecure => true`, and run `php -S 127.0.0.1:8099 -t <that
+folder>`. Everything except database-backed actions works without MySQL.
 
 The old Docker MySQL harness is deliberately not reinstated. It was never runnable
 on this machine and proved nothing.
@@ -142,7 +156,7 @@ on this machine and proved nothing.
 
 | Milestone | State |
 |---|---|
-| M1 — spine (core, routing, auth, deploy, Web Control tab) | Built, unverified against a live server |
+| M1 — spine (core, routing, auth, deploy, Web Control tab) | Built; linted, unit-tested, and exercised over HTTP locally. Not yet deployed to real hosting. |
 | M2 — teams + public read | Not started |
 | M3 — captains (server-side PIN) | Not started |
 | M4 — live scorecards | Not started |

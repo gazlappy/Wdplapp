@@ -47,7 +47,7 @@ try {
 
     Http::ok(($spec['fn'])());
 } catch (ApiError $e) {
-    Http::fail($e->status, $e->code, $e->getMessage());
+    Http::fail($e->status, $e->errorCode, $e->getMessage());
 } catch (Throwable $e) {
     // Log server-side, return nothing identifying to the caller.
     error_log('[wdpl] ' . $e::class . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());

@@ -79,6 +79,27 @@ public class PasswordHashTests
         Assert.False(PasswordHash.Verify("league-admin ", stored));
     }
 
+    /// <summary>
+    /// The cross-language contract, pinned to one shared vector.
+    /// </summary>
+    /// <remarks>
+    /// This exact string was produced by PHP's
+    /// <c>hash_pbkdf2('sha256', 'wdpl-shared-vector', str_repeat("*", 16), 210000, 32, true)</c>
+    /// and is asserted from both sides: here, and by
+    /// <c>wdpl2.Tests/Features/WebPlatform/backend.rules.test.php</c>.
+    /// If either assertion fails, the app and a deployed backend no longer agree
+    /// on the admin password format and the secretary cannot sign in.
+    /// </remarks>
+    [Fact]
+    public void Verify_AcceptsAVectorGeneratedByPhp()
+    {
+        const string stored =
+            "pbkdf2-sha256$210000$KioqKioqKioqKioqKioqKg==$idSuNmNd2D7SOvYi/JIjFbdSi8jexZuBGR/ccUlnu2Q=";
+
+        Assert.True(PasswordHash.Verify("wdpl-shared-vector", stored));
+        Assert.False(PasswordHash.Verify("wdpl-shared-vecto", stored));
+    }
+
     [Fact]
     public void CreatePepper_IsRandomAndLongEnough()
     {

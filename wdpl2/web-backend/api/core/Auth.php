@@ -66,10 +66,22 @@ final class Auth
             [$user, $pass] = self::basicFromHeader();
         }
         if ($user === '' || $pass === '') {
+            // No credentials offered: not an attempt, so nothing to throttle.
             return self::$admin = false;
         }
 
-        return self::$admin = self::verifyPassword($user, $pass);
+        // Credentials were offered, so this IS an authentication attempt and
+        // must be throttled exactly like the session login. The desktop app
+        // authenticates with Basic on every call, so leaving this path
+        // unlimited would make it an unthrottled brute-force channel.
+        RateLimit::check('admin-basic', 20, 900);
+
+        $ok = self::verifyPassword($user, $pass);
+        if (!$ok) {
+            RateLimit::record('admin-basic');
+        }
+
+        return self::$admin = $ok;
     }
 
     /** Establishes a browser session after verifying credentials. */
