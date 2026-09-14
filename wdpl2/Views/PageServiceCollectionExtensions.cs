@@ -41,6 +41,8 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<PlayerProfilePage>();
         services.AddTransient<WhatIfSimulatorPage>();
         services.AddTransient<ImportPreviewPage>();
+        services.AddTransient<WebControl.WebControlHub>();
+        services.AddTransient<WebControl.ConnectionPage>();
 
         return services;
     }

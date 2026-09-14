@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# WDPL backend credential sidecar. Holds database credentials and the admin
+# password hash; generated at deploy time and never committed.
+wdpl2/web-backend/api/config.php

@@ -1,0 +1,40 @@
+# index.php is the only public entry point. Everything else under api/ -
+# core/, modules/ and above all config.php - must never be fetchable directly,
+# whether PHP executes or (on a misconfigured host) serves it as plain text.
+
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+    # Apache 2.4
+    <FilesMatch "\.(php|sql|md)$">
+        Require all denied
+    </FilesMatch>
+    <Files "index.php">
+        Require all granted
+    </Files>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2 fallback
+    <FilesMatch "\.(php|sql|md)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <Files "index.php">
+        Order allow,deny
+        Allow from all
+    </Files>
+</IfModule>
+
+# config.php holds database credentials and the admin password hash. Deny it
+# unconditionally, outside the rules above, so a single misconfiguration cannot
+# expose it.
+<Files "config.php">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>

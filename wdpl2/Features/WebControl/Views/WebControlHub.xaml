@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.WebControlHub"
+             Title="Web Control">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="820" HorizontalOptions="Start">
+
+            <Label Text="Web Control" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Manage the online backend: teams, captains and live scorecards."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <!-- Backend status -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Backend" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                            <Label x:Name="EndpointLabel" FontSize="11" TextColor="#94A3B8"/>
+                        </VerticalStackLayout>
+                        <Button x:Name="CheckButton" Grid.Column="1" Text="Check"
+                                Clicked="OnCheckClicked"
+                                BackgroundColor="#2563EB" TextColor="White"
+                                CornerRadius="8" FontSize="12" Padding="16,6"/>
+                    </Grid>
+
+                    <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B"/>
+
+                    <Frame x:Name="DetailFrame" IsVisible="False" BorderColor="#E2E8F0"
+                           Padding="10" CornerRadius="8" BackgroundColor="#F8FAFC" HasShadow="False">
+                        <Label x:Name="DetailLabel" FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label Text="MODULES" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" Margin="4,8,0,0"/>
+
+            <!-- One tile per registered module. -->
+            <VerticalStackLayout x:Name="ModuleList" Spacing="8"/>
+
+            <Label Text="Modules are added in the app and deployed together. Each one owns its own server files and database tables."
+                   FontSize="11" TextColor="#94A3B8" Margin="4,8,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

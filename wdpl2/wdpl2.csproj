@@ -46,6 +46,20 @@
 		<MauiFont Include="Resources\Fonts\*" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 		<MauiAsset Include="Resources\Rules\**" LogicalName="Rules/%(Filename)%(Extension)" />
+
+		<!--
+			The PHP backend travels inside the app so Web Control can deploy it by
+			FTP. config.sample.php is excluded deliberately: the real config.php is
+			generated at deploy time and must never ship as an asset.
+		-->
+		<!--
+			Exclude by exact path, not a **\ glob: MSBuild globs are
+			case-insensitive on Windows, so **\config.php also matches
+			core\Config.php and would silently ship an unusable backend.
+		-->
+		<MauiAsset Include="web-backend\**\*.php;web-backend\**\*.htaccess;web-backend\**\*.sql"
+		           Exclude="web-backend\api\config.sample.php;web-backend\api\config.php"
+		           LogicalName="backend/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<!-- Exclude legacy data and sample folders from the build -->

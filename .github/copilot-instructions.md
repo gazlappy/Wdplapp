@@ -45,7 +45,7 @@
 ## App Architecture and Shared State
 - `wdpl2/MauiProgram.cs` configures MAUI Community Toolkit, local notifications, OCR, SkiaSharp, fonts, and DI. Registration is split into `AddPersistence`, `AddCoreAppServices`, `AddNotifications`, `AddViewModels`, and `AddPages` extension methods.
 - `wdpl2/App.xaml.cs` initializes the database, bridges the static datastore to DI, loads data, applies the saved theme, initializes season selection, then creates `AppShell`.
-- `wdpl2/AppShell.xaml` defines tab navigation for Dashboard, Seasons, Divisions, Teams, Players, Venues, Fixtures, Calendar, Competitions, Tables, Analytics, Import, Logos, Website, Settings, and Pool.
+- `wdpl2/AppShell.xaml` defines tab navigation for Dashboard, Seasons, Divisions, Teams, Players, Venues, Fixtures, Calendar, Competitions, Tables, Analytics, Import, Logos, Website, Web Control, Settings, and Pool.
 - The UI mixes XAML/code-behind with CommunityToolkit.Mvvm view models. Follow the local pattern rather than assuming every page is fully MVVM.
 - `wdpl2/ViewModels/BaseViewModel.cs` provides observable loading/status/season state, cancellation on season changes, and subscription cleanup. Preserve stale-load cancellation and event cleanup.
 - `ISeasonService`/`SeasonService` is the shared singleton for current season selection and `SeasonChanged` notifications; `SeasonService.Current` supports non-DI callers. Do not invent independent current-season state in individual pages.
@@ -77,8 +77,18 @@
 - Entry forms use private editor drafts and shared rendering in `WebsiteGenerator.EntryForms.cs` for public pages and non-submitting previews. `EntryFormRules` centralizes validation and inclusive closing dates. Delivery is download-and-send, or a credential-free HTTPS POST to an external endpoint that returns an explicit matching acknowledgement; private collection tokens never enter generated HTML. Forms never claim browser storage is a submission. Imports require explicit form identity and review, preserve historical field values, and link season teams only by explicit records.
 - Logo Studio uses `Views/Logos/` and `Features/WebsiteBuilder/Logo/`; SkiaSharp supports logo rendering, design recipes, layers, and shape/icon catalogs.
 - `wdpl2/Services/Cloud/` contains GitHub Pages publishing, optional GitHub data sync, and FTP upload. Do not assume credentials are configured or publishing is enabled, and never store credentials in instructions.
-- There is currently **no server-side backend**. The PHP/MySQL `web-backend/` tree, the Web Inbox (`Services/Inbox/`, `ViewModels/Inbox/`, `Views/Inbox/`), hosted entry-form delivery, the browser admin dashboard, the captain portal/live scoring, and two-way sync were all removed for a clean redesign. `wdpl2/Docs/WebAdmin.md` and `wdpl2/Docs/OnlineForms.md` went with them; recover them from git history if the old contracts are needed as reference.
-- The MAUI app is therefore the sole source of truth, and website publishing is one-way: generate static output and upload it. Do not reintroduce backend clients, endpoints or DI registrations piecemeal — agree the new contract first, then build it.
+
+## Web platform (online backend)
+
+The previous PHP backend, Web Inbox, browser admin and two-way sync were removed and are being rebuilt modularly. **`wdpl2/Docs/WebPlatform.md` is the contract — read it before changing `wdpl2/web-backend/` or `wdpl2/Services/Web/`.**
+
+- **Single-writer ownership.** A scorecard is owned by the desktop or by the server, never both, and ownership moves by explicit handoff. This is what makes conflict resolution unnecessary. Code that reconciles two versions of a record means an ownership boundary is wrong — do not add it.
+- **One front controller.** `api/index.php` is the only entry point and does routing, auth, CORS, body limits and error shaping. Module handlers hold feature logic only. Every response is `{ok:true,data}` or `{ok:false,error:{code,message}}`.
+- **Two auth realms that never overlap.** Admin (PBKDF2 hash in the `config.php` sidecar) and captain (`Team.CaptainPin`, server-side, scoped to one team). Captain-scoped queries filter on the session's team id, never on a team id taken from the request body.
+- **A module is one folder plus one DI registration**: `api/modules/<id>/Module.php` implementing `Module`, an `IWebModule` in `Services/Web/`, registered in `AddWebPlatform`. The Web Control tab, deploy file set and schema installer all read from the registry, so none of them need editing.
+- **Code and configuration deploy separately**, so redeploying code cannot clobber working server credentials. `api/config.php` is never committed and never bundled as an app asset.
+- Built so far: M1, the spine (core, routing, admin auth, deploy, Web Control tab). Teams, captains and live scorecards are not built. The generated site still publishes hashed captain PINs (`WebsiteJsonDataGenerator.cs`) and still points at the deleted `api/public/live.php` (`WebsiteGenerator.LiveScores.cs`); later milestones close both.
+- There is no PHP runtime on the development machine, so the PHP is unlinted and untested. Treat it as unverified until `php -l` and the rules tests can run.
 
 ## Games, Resources, and Validation
 - `wdpl2/Features/Games/` contains a games library, Pool, Breakout, Memory, Snake, and RetroFps. Pool generates embedded HTML/JavaScript from C# modules under `Pool/Engine/`, covering physics, rendering, input, AI, audio, replay, spin, and shot controls.

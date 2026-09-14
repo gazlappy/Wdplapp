@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.ConnectionPage"
+             Title="Connection &amp; Deploy">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="820" HorizontalOptions="Start">
+
+            <Label Text="Connection &amp; Deploy" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Where the backend lives, who administers it, and how it gets there."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <!-- Address and credentials -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="API address" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Entry x:Name="BaseUrlEntry" Placeholder="https://wdpl.uk/api/" FontSize="13"/>
+                    <Label Text="The api/ folder on your website. Must be HTTPS."
+                           FontSize="11" TextColor="#94A3B8"/>
+
+                    <Label Text="Administrator" FontAttributes="Bold" FontSize="13" TextColor="#475569" Margin="0,8,0,0"/>
+                    <Entry x:Name="AdminUserEntry" Placeholder="Username" FontSize="13"/>
+                    <Entry x:Name="AdminPasswordEntry" Placeholder="Password" IsPassword="True" FontSize="13"/>
+                    <Label Text="This is the backend administrator account, not your FTP or cPanel login."
+                           FontSize="11" TextColor="#94A3B8"/>
+
+                    <Button x:Name="SaveButton" Text="Save connection" Clicked="OnSaveClicked"
+                            BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                            FontSize="13" Margin="0,6,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Database -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Database" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="From cPanel → MySQL Databases. Both names usually start with your account name."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Entry x:Name="DbHostEntry" Placeholder="Host (usually localhost)" FontSize="13"/>
+                    <Entry x:Name="DbNameEntry" Placeholder="Database name" FontSize="13"/>
+                    <Entry x:Name="DbUserEntry" Placeholder="Database user" FontSize="13"/>
+                    <Entry x:Name="DbPasswordEntry" Placeholder="Database password" IsPassword="True" FontSize="13"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Deploy -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Deploy" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label x:Name="TargetLabel" FontSize="11" TextColor="#94A3B8"/>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,4,0,0">
+                        <Button x:Name="DeployCodeButton" Text="Deploy backend" Clicked="OnDeployCodeClicked"
+                                BackgroundColor="#2563EB" TextColor="White" CornerRadius="8" FontSize="13"/>
+                        <Button x:Name="DeployConfigButton" Grid.Column="1" Text="Deploy with configuration"
+                                Clicked="OnDeployConfigClicked"
+                                BackgroundColor="#7C3AED" TextColor="White" CornerRadius="8" FontSize="13"/>
+                    </Grid>
+
+                    <Label Text="&quot;Deploy backend&quot; uploads code only and leaves the server's existing credentials alone. Use &quot;with configuration&quot; for first-time setup, or after changing the database or administrator details."
+                           FontSize="11" TextColor="#94A3B8"/>
+
+                    <ProgressBar x:Name="DeployProgress" IsVisible="False" ProgressColor="#2563EB" HeightRequest="6"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Install / verify -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Database tables" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="Creates or updates the tables each deployed module needs. Safe to run repeatedly."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button x:Name="PingButton" Text="Test reachable" Clicked="OnPingClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8" FontSize="13"/>
+                        <Button x:Name="InstallButton" Grid.Column="1" Text="Install tables" Clicked="OnInstallClicked"
+                                BackgroundColor="#059669" TextColor="White" CornerRadius="8" FontSize="13"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:Wdpl2.Views"
-    xmlns:logos="clr-namespace:Wdpl2.Views.Logos">
+    xmlns:logos="clr-namespace:Wdpl2.Views.Logos"
+    xmlns:webcontrol="clr-namespace:Wdpl2.Views.WebControl">
 
     <TabBar>
         <Tab Title="Dashboard" Icon="stats.png">
@@ -65,6 +66,10 @@
         <!-- WEBSITE BUILDER -->
         <Tab Title="Website" Icon="globe.png">
             <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate views:WebsiteBuilderPage}" />
+        </Tab>
+
+        <Tab Title="Web Control" Icon="globe.png">
+            <ShellContent Title="Web Control" ContentTemplate="{DataTemplate webcontrol:WebControlHub}" />
         </Tab>
 
         <Tab Title="Settings">
