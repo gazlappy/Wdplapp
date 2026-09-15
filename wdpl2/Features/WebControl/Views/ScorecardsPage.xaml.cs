@@ -143,6 +143,25 @@ public partial class ScorecardsPage : ContentPage
                     VerticalOptions = LayoutOptions.Center,
                 });
             }
+            else if (state.Owner == CardOwner.Claimed)
+            {
+                // Collecting is idempotent, so a card that was collected but
+                // did not land - a crash, or the season restored from a backup
+                // taken before it - can simply be collected again.
+                var again = new Button
+                {
+                    Text = "Collect again",
+                    BackgroundColor = Colors.Transparent,
+                    TextColor = Color.FromArgb("#475569"),
+                    BorderColor = Color.FromArgb("#CBD5E1"),
+                    BorderWidth = 1,
+                    CornerRadius = 8,
+                    FontSize = 12,
+                    Padding = new Thickness(12, 6),
+                };
+                again.Clicked += async (_, _) => await ClaimAsync(captured);
+                actions.Add(again);
+            }
 
             // A card opened by mistake has no other way out: it cannot be
             // reopened, cannot be collected before it is finished, and blocks
@@ -227,9 +246,14 @@ public partial class ScorecardsPage : ContentPage
 
     private async Task ClaimAsync(ScorecardState state)
     {
-        if (!await DisplayAlert("Collect this card?",
+        var again = state.Owner == CardOwner.Claimed;
+
+        if (!await DisplayAlert(again ? "Collect this card again?" : "Collect this card?",
                 $"{state.HomeTeam} v {state.AwayTeam}\nFinished {state.HomeScore}–{state.AwayScore}\n\n" +
-                "The result will be written into this season and the website copy frozen.",
+                (again
+                    ? "This was collected before. Reading it again writes the same result into "
+                      + "the season; nothing is duplicated and the website copy stays frozen."
+                    : "The result will be written into this season and the website copy frozen."),
                 "Collect", "Cancel"))
             return;
 
@@ -238,11 +262,11 @@ public partial class ScorecardsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var (claimed, frames, already) = await ScorecardService.ClaimAsync(client, state.FixtureId);
+            var (claimed, frames, wasClaimed) = await ScorecardService.ClaimAsync(client, state.FixtureId);
 
             var applied = await ApplyToFixtureAsync(state.FixtureId, frames);
 
-            Report(already
+            Report(wasClaimed
                 ? $"Already collected previously; re-applied {applied} frames. Nothing was duplicated."
                 : $"Collected. {applied} frames written into the season.", error: false);
 
