@@ -344,10 +344,54 @@ final class LeagueModule implements Module
      */
     public static function live()
     {
+        $seasonId = self::currentSeasonId();
+
+        // Only live cards. A finalised card is no longer "in progress", and a
+        // claimed one belongs to the app again - neither should sit on the
+        // public board pretending a match is still being played.
+        //
+        // Deliberately NOT filtered by season. A card is only ever live because
+        // someone opened it deliberately, so season is not a useful filter here
+        // - and scoping by "current season" would silently hide a live match
+        // whenever that flag was wrong, which is the worst possible time to
+        // have an empty scoreboard.
+        $items = [];
+        try {
+            $items = Db::all(
+                "SELECT h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name,
+                        c.frames_total,
+                        SUM(CASE WHEN fr.winner = 'home' THEN 1 ELSE 0 END) AS home_score,
+                        SUM(CASE WHEN fr.winner = 'away' THEN 1 ELSE 0 END) AS away_score,
+                        SUM(CASE WHEN fr.winner <> 'none' THEN 1 ELSE 0 END) AS frames_played
+                 FROM wdpl_scorecards c
+                 JOIN wdpl_fixtures f ON f.id = c.fixture_id
+                 LEFT JOIN wdpl_teams  h ON h.id = f.home_team_id
+                 LEFT JOIN wdpl_teams  a ON a.id = f.away_team_id
+                 LEFT JOIN wdpl_venues v ON v.id = f.venue_id
+                 LEFT JOIN wdpl_scorecard_frames fr ON fr.fixture_id = c.fixture_id
+                 WHERE c.state = 'live'
+                 GROUP BY c.fixture_id
+                 ORDER BY f.match_date, h.name"
+            );
+        } catch (PDOException $noScorecards) {
+            // The scorecards module may not be installed yet. The public board
+            // polls this endpoint constantly, so answer "no live matches"
+            // rather than erroring on every request.
+            $items = [];
+        }
+
+        // The board shows whole numbers; MySQL returns SUM() as a string.
+        foreach ($items as $index => $item) {
+            $items[$index]['home_score']    = (int)$item['home_score'];
+            $items[$index]['away_score']    = (int)$item['away_score'];
+            $items[$index]['frames_played'] = (int)$item['frames_played'];
+            $items[$index]['frames_total']  = (int)$item['frames_total'];
+        }
+
         return [
-            'seasonId'     => self::currentSeasonId(),
+            'seasonId'     => $seasonId,
             'generatedUtc' => gmdate('c'),
-            'items'        => [],
+            'items'        => $items,
         ];
     }
 

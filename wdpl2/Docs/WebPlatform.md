@@ -234,7 +234,7 @@ on this machine and proved nothing.
 | M1 — spine (core, routing, auth, deploy, Web Control tab) | **Done and live.** Deployed to wdpl.uk, admin auth verified, schema installed. |
 | M2 — league data + public read | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
 | M3 — captains (server-side PIN) | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
-| M4 — live scorecards | Not started |
+| M4 — live scorecards | **Done**, ownership state machine tested against a local MariaDB including concurrent writes and claim retry. Not yet pushed to wdpl.uk. |
 
 Two known loose ends carried from the removal of the old backend, both closed by
 later milestones:
@@ -245,5 +245,10 @@ later milestones:
   was ever exposed, but an unsalted single-round SHA-256 of a 4-digit PIN sat in
   the codebase waiting to be re-enabled. Deleted along with its tests.
 - ~~`WebsiteGenerator.LiveScores.cs` pointed at the deleted `api/public/live.php`~~
-  — repointed in M2 to `api/index.php?m=league&a=live`, which answers with an
-  empty `items` list until M4 fills it.
+  — repointed in M2 to `api/index.php?m=league&a=live`, and populated by live
+  cards in M4.
+
+The live board is deliberately **not** filtered by season. A card is only live
+because someone opened it, so season adds nothing — and scoping to "the current
+season" would silently empty the scoreboard whenever that flag was wrong, which
+is exactly when you would not want an empty scoreboard.

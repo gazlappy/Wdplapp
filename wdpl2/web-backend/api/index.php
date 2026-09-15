@@ -103,6 +103,10 @@ try {
     Auth::gate($spec['role']);
 
     Http::ok(call_user_func($spec['fn']));
+} catch (ApiConflict $e) {
+    // A refusal that carries the current state, so the caller can see what
+    // actually happened instead of guessing.
+    Http::conflict($e->getMessage(), $e->current);
 } catch (ApiError $e) {
     Http::fail($e->status, $e->errorCode, $e->getMessage());
 } catch (Error $e) {

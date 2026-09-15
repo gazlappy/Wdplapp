@@ -260,6 +260,55 @@ test('no captain session means no team id', function () {
     throwsApiError('captain_required', function () { return Captain::requireTeamId(); });
 });
 
+// -------------------------------------------------- scorecard ownership
+
+echo "
+Scorecard ownership
+";
+
+test('only the app may hand cards out and take them back', function () {
+    $actions = ScorecardsModule::actions();
+
+    // Ownership transitions belong to the league, not to captains. If any of
+    // these became captain-reachable, a captain could seize or release a card.
+    foreach (['open', 'claim', 'reopen', 'state'] as $adminOnly) {
+        check(isset($actions[$adminOnly]), "missing action {$adminOnly}");
+        same(Role::Admin, $actions[$adminOnly]['role'], "{$adminOnly} must be admin-only");
+    }
+
+    // Scoring belongs to captains, and nothing here may be anonymous.
+    foreach (['mine', 'card', 'setFrame', 'finalise'] as $captainOnly) {
+        check(isset($actions[$captainOnly]), "missing action {$captainOnly}");
+        same(Role::Captain, $actions[$captainOnly]['role'], "{$captainOnly} must require a captain");
+    }
+});
+
+test('no scorecard action is reachable anonymously', function () {
+    foreach (ScorecardsModule::actions() as $name => $spec) {
+        check($spec['role'] !== Role::Public, "{$name} must not be public");
+    }
+});
+
+test('the three ownership states are distinct', function () {
+    $states = [
+        ScorecardsModule::STATE_LIVE,
+        ScorecardsModule::STATE_FINALISED,
+        ScorecardsModule::STATE_CLAIMED,
+    ];
+    same(3, count(array_unique($states)), 'ownership states collide');
+    foreach ($states as $state) {
+        check(is_string($state) && $state !== '', 'an ownership state is empty');
+    }
+});
+
+test('a conflict carries the current state back', function () {
+    // Telling a captain "that failed" is not enough - they need to see what the
+    // card says now, or they cannot tell whose entry won.
+    $conflict = new ApiConflict(['version' => 7, 'home_score' => 3]);
+    same(7, $conflict->current['version'], 'conflict lost its payload');
+    check($conflict->getMessage() !== '', 'conflict has no message');
+});
+
 // ------------------------------------------------------------ HTTPS detection
 
 echo "\nHTTPS detection\n";

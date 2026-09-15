@@ -25,6 +25,26 @@ final class ApiError extends RuntimeException
 }
 
 /**
+ * A refusal that carries the current state back with it.
+ *
+ * Used when two captains edit the same card at once: telling someone "that
+ * failed" is not enough, because they need to see what the card actually looks
+ * like now in order to decide what to do. The payload rides along with the
+ * error rather than forcing a second request that could itself be stale.
+ */
+final class ApiConflict extends RuntimeException
+{
+    /** @var array */
+    public $current;
+
+    public function __construct(array $current, string $message = 'Someone else updated this first.')
+    {
+        parent::__construct($message);
+        $this->current = $current;
+    }
+}
+
+/**
  * Request/response plumbing. Every response on every path goes through here so
  * there is exactly one error shape and one set of headers.
  */
@@ -162,6 +182,21 @@ final class Http
         http_response_code($status);
         echo json_encode(
             ['ok' => false, 'error' => ['code' => $code, 'message' => $message]],
+            JSON_UNESCAPED_SLASHES
+        );
+        exit;
+    }
+
+    /** A refusal that still returns the current state, so the caller can catch up. */
+    public static function conflict(string $message, array $current): void
+    {
+        http_response_code(409);
+        echo json_encode(
+            [
+                'ok'    => false,
+                'error' => ['code' => 'conflict', 'message' => $message],
+                'data'  => $current,
+            ],
             JSON_UNESCAPED_SLASHES
         );
         exit;

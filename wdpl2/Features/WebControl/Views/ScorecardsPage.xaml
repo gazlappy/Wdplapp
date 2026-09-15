@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.ScorecardsPage"
+             Title="Live scorecards">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="900" HorizontalOptions="Start">
+
+            <Label Text="Live scorecards" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Open a match for captains to score online, then collect the finished card."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <Frame BorderColor="#BFDBFE" Padding="12" CornerRadius="10" BackgroundColor="#EFF6FF">
+                <Label FontSize="11" TextColor="#1E40AF" LineBreakMode="WordWrap"
+                       Text="While a match is open online, the website owns that scorecard and this app will not change its frames. Collecting it hands ownership back."/>
+            </Frame>
+
+            <!-- Open a fixture -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Open a match for live scoring" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Picker x:Name="FixturePicker" FontSize="13"/>
+                    <Button x:Name="OpenButton" Text="Open for live scoring" Clicked="OnOpenClicked"
+                            BackgroundColor="#2563EB" TextColor="White" CornerRadius="8" FontSize="13"/>
+                    <Label Text="Only fixtures published to the website can be opened."
+                           FontSize="11" TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Current cards -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Cards on the website" FontAttributes="Bold" FontSize="13" TextColor="#475569"
+                               VerticalOptions="Center"/>
+                        <Button Grid.Column="1" x:Name="RefreshButton" Text="Refresh" Clicked="OnRefreshClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="14,6"/>
+                    </Grid>
+                    <VerticalStackLayout x:Name="CardList" Spacing="8"/>
+                    <Label x:Name="EmptyLabel" Text="No cards yet." FontSize="11" TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -45,6 +45,7 @@ public static class PageServiceCollectionExtensions
         services.AddTransient<WebControl.ConnectionPage>();
         services.AddTransient<WebControl.LeagueDataPage>();
         services.AddTransient<WebControl.CaptainsPage>();
+        services.AddTransient<WebControl.ScorecardsPage>();
 
         return services;
     }

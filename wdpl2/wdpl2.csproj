@@ -57,7 +57,7 @@
 			case-insensitive on Windows, so **\config.php also matches
 			core\Config.php and would silently ship an unusable backend.
 		-->
-		<MauiAsset Include="web-backend\**\*.php;web-backend\**\*.htaccess;web-backend\**\*.sql"
+		<MauiAsset Include="web-backend\**\*.php;web-backend\**\*.htaccess;web-backend\**\*.sql;web-backend\**\*.html"
 		           Exclude="web-backend\api\config.sample.php;web-backend\api\config.php"
 		           LogicalName="backend/%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>

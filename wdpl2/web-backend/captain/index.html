@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WDPL Captain</title>
+<style>
+  :root {
+    --bg: #f8fafc; --card: #ffffff; --ink: #1e293b; --muted: #64748b;
+    --line: #e2e8f0; --accent: #2563eb; --home: #059669; --away: #7c3aed;
+    --warn: #d97706; --bad: #ef4444;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --card: #1e293b; --ink: #f1f5f9; --muted: #94a3b8;
+      --line: #334155; --accent: #3b82f6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  select, input {
+    width: 100%; padding: 12px; font-size: 16px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  button {
+    padding: 12px 16px; font-size: 15px; font-weight: 600; border: 0;
+    border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .score { font-size: 30px; font-weight: 700; text-align: center; margin: 8px 0; }
+  .teams { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; }
+  .frame {
+    display: grid; grid-template-columns: 34px 1fr 1fr 1fr; gap: 6px;
+    align-items: center; padding: 6px 0; border-top: 1px solid var(--line);
+  }
+  .frame .no { color: var(--muted); font-size: 13px; }
+  .pick {
+    padding: 10px 4px; font-size: 13px; font-weight: 600; border-radius: 6px;
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+  }
+  .pick[aria-pressed="true"].h { background: var(--home); border-color: var(--home); color: #fff; }
+  .pick[aria-pressed="true"].a { background: var(--away); border-color: var(--away); color: #fff; }
+  .pick[aria-pressed="true"].n { background: var(--muted); border-color: var(--muted); color: #fff; }
+  .msg { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+  .msg.bad { background: #fee2e2; color: #991b1b; }
+  .msg.warn { background: #fef3c7; color: #92400e; }
+  .msg.ok { background: #d1fae5; color: #065f46; }
+  .hidden { display: none !important; }
+  .meta { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>WDPL Captain</h1>
+  <p class="sub" id="sub">Sign in to score your match.</p>
+
+  <div id="msg" class="msg hidden" role="status" aria-live="polite"></div>
+
+  <!-- Sign in -->
+  <div class="card" id="loginCard">
+    <label for="team">Your team</label>
+    <select id="team"><option value="">Loading…</option></select>
+    <label for="pin" style="margin-top:12px">PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
+    <div class="row" style="margin-top:12px">
+      <button id="loginBtn">Sign in</button>
+    </div>
+  </div>
+
+  <!-- No live match -->
+  <div class="card hidden" id="idleCard">
+    <p style="margin:0 0 8px"><strong id="idleTeam"></strong></p>
+    <p class="meta" style="margin:0">No match is open for live scoring right now. The league opens a card when your
+      match is about to start.</p>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost" id="refreshBtn">Check again</button>
+      <button class="ghost" id="logoutBtn">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Live card -->
+  <div class="card hidden" id="cardCard">
+    <div class="teams"><span id="homeName"></span><span id="awayName"></span></div>
+    <div class="score"><span id="homeScore">0</span> – <span id="awayScore">0</span></div>
+    <p class="meta" id="progress" style="text-align:center;margin:0 0 8px"></p>
+    <div id="frames"></div>
+    <div class="row" style="margin-top:16px">
+      <button id="finaliseBtn">Finish match</button>
+      <button class="ghost" id="logoutBtn2">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // The page is served from the same site as the API, so one folder up.
+  var API = '../api/index.php';
+
+  var state = { fixtureId: null, version: 0, busy: false };
+
+  function $(id) { return document.getElementById(id); }
+  function show(el, on) { el.classList.toggle('hidden', !on); }
+
+  function say(text, kind) {
+    var box = $('msg');
+    if (!text) { show(box, false); return; }
+    box.textContent = text;
+    box.className = 'msg ' + (kind || 'warn');
+    show(box, true);
+  }
+
+  function call(module, action, body) {
+    return fetch(API + '?m=' + module + '&a=' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify(body || {})
+    }).then(function (response) {
+      return response.json().catch(function () {
+        throw { code: 'not_json', message: 'The server sent an unexpected reply.' };
+      }).then(function (payload) {
+        if (payload.ok) return payload.data;
+        // A conflict carries the current card, so callers can catch up.
+        throw {
+          code: payload.error ? payload.error.code : 'error',
+          message: payload.error ? payload.error.message : 'Something went wrong.',
+          current: payload.data || null
+        };
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- sign in
+
+  function loadTeams() {
+    call('captains', 'teams').then(function (teams) {
+      var select = $('team');
+      select.innerHTML = '';
+      if (!teams.length) {
+        select.innerHTML = '<option value="">No teams are set up yet</option>';
+        return;
+      }
+      teams.forEach(function (team) {
+        var option = document.createElement('option');
+        option.value = team.id;
+        option.textContent = team.division_name ? team.name + ' (' + team.division_name + ')' : team.name;
+        select.appendChild(option);
+      });
+    }).catch(function (err) { say(err.message, 'bad'); });
+  }
+
+  $('loginBtn').addEventListener('click', function () {
+    var teamId = $('team').value;
+    var pin = $('pin').value;
+    if (!teamId || !pin) { say('Choose your team and enter your PIN.', 'warn'); return; }
+
+    $('loginBtn').disabled = true;
+    say('');
+    call('captains', 'login', { teamId: teamId, pin: pin })
+      .then(function (me) {
+        $('pin').value = '';
+        show($('loginCard'), false);
+        $('idleTeam').textContent = me.name;
+        $('sub').textContent = me.name + (me.division_name ? ' · ' + me.division_name : '');
+        return refresh();
+      })
+      .catch(function (err) { say(err.message, 'bad'); })
+      .then(function () { $('loginBtn').disabled = false; });
+  });
+
+  function signOut() {
+    call('captains', 'logout').then(function () { window.location.reload(); });
+  }
+  $('logoutBtn').addEventListener('click', signOut);
+  $('logoutBtn2').addEventListener('click', signOut);
+  $('refreshBtn').addEventListener('click', function () { refresh(); });
+
+  // ------------------------------------------------------------- live card
+
+  function refresh() {
+    return call('scorecards', 'mine').then(function (card) {
+      if (!card || !card.fixture_id) {
+        state.fixtureId = null;
+        show($('idleCard'), true);
+        show($('cardCard'), false);
+        return;
+      }
+      render(card);
+    }).catch(function (err) { say(err.message, 'bad'); });
+  }
+
+  function render(card) {
+    state.fixtureId = card.fixture_id;
+    state.version = parseInt(card.version, 10) || 0;
+
+    show($('idleCard'), false);
+    show($('cardCard'), true);
+
+    $('homeName').textContent = card.home_team_name || 'Home';
+    $('awayName').textContent = card.away_team_name || 'Away';
+    $('homeScore').textContent = card.home_score;
+    $('awayScore').textContent = card.away_score;
+    $('progress').textContent = card.frames_played + ' of ' + card.frames_total + ' frames';
+
+    var box = $('frames');
+    box.innerHTML = '';
+    (card.frames || []).forEach(function (frame) {
+      box.appendChild(frameRow(frame));
+    });
+
+    $('finaliseBtn').disabled = false;
+    $('finaliseBtn').textContent = card.frames_played < card.frames_total
+      ? 'Finish match early'
+      : 'Finish match';
+  }
+
+  function frameRow(frame) {
+    var row = document.createElement('div');
+    row.className = 'frame';
+
+    var no = document.createElement('span');
+    no.className = 'no';
+    no.textContent = frame.frame_no + (Number(frame.is_doubles) ? 'D' : '');
+    row.appendChild(no);
+
+    [['home', 'h', 'Home'], ['none', 'n', '—'], ['away', 'a', 'Away']].forEach(function (option) {
+      var button = document.createElement('button');
+      button.className = 'pick ' + option[1];
+      button.type = 'button';
+      button.textContent = option[2];
+      button.setAttribute('aria-pressed', frame.winner === option[0] ? 'true' : 'false');
+      button.setAttribute('aria-label', 'Frame ' + frame.frame_no + ': ' + option[2]);
+      button.addEventListener('click', function () { setFrame(frame.frame_no, option[0]); });
+      row.appendChild(button);
+    });
+
+    return row;
+  }
+
+  function setFrame(frameNo, winner) {
+    if (state.busy) return;
+    state.busy = true;
+    say('');
+
+    call('scorecards', 'setFrame', {
+      fixtureId: state.fixtureId,
+      frameNo: frameNo,
+      winner: winner,
+      version: state.version
+    })
+      .then(function (card) { render(card); })
+      .catch(function (err) {
+        if (err.code === 'conflict' && err.current) {
+          // The other captain got there first. Show what the card actually
+          // says now rather than silently overwriting their entry.
+          render(err.current);
+          say('Your team-mate updated the card at the same time. Showing the latest — check frame ' + frameNo + '.', 'warn');
+        } else {
+          say(err.message, 'bad');
+          if (err.code === 'not_live') refresh();
+        }
+      })
+      .then(function () { state.busy = false; });
+  }
+
+  $('finaliseBtn').addEventListener('click', function () {
+    if (!window.confirm('Finish this match? Captains can no longer change the score afterwards.')) return;
+
+    $('finaliseBtn').disabled = true;
+    call('scorecards', 'finalise', { fixtureId: state.fixtureId })
+      .then(function (card) {
+        render(card);
+        show($('cardCard'), false);
+        show($('idleCard'), true);
+        say('Match finished ' + card.home_score + '–' + card.away_score + '. The league will collect it.', 'ok');
+      })
+      .catch(function (err) {
+        say(err.message, 'bad');
+        $('finaliseBtn').disabled = false;
+      });
+  });
+
+  loadTeams();
+})();
+</script>
+</body>
+</html>
