@@ -301,6 +301,13 @@ button.go{background:var(--felt);}
       <span id="phaseText">—</span><span class="badge" id="phaseBadge">Phase 1 of 3</span>
     </div>
 
+    <div class="row" id="drawBar" style="margin:10px 0 2px; align-items:center">
+      <span class="sub" style="color:var(--muted); font-size:11px; font-weight:700">Draw players</span>
+      <button class="ghost" data-draw="1"   title="Draw one player into the next empty slot on your side">&#127922; +1</button>
+      <button class="ghost" data-draw="5"   title="Draw up to five players into empty slots on your side">&#127922; +5</button>
+      <button class="ghost" data-draw="all" title="Draw players into every empty slot on your side">&#127922; All</button>
+    </div>
+
     <div class="eight-bar hidden" id="eightBar"></div>
 
     <div class="sc-cols">
@@ -1226,6 +1233,71 @@ button.go{background:var(--felt);}
   $('frameClose').addEventListener('click', closeFrameSheet);
 
   // ------------------------------------------------------------ solo mode
+
+  /**
+   * Names out of a bag, the way the paper card did it.
+   *
+   * The server holds the playing rules, so the draw is asked for rather than
+   * worked out here: one op, expanded server-side into the picks it stands for,
+   * every one of them checked exactly as a manual pick would be. Fewer than
+   * asked for is a normal answer when a squad is small.
+   */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-draw]'), function(b){
+    b.addEventListener('click', function(){
+      if(!S.card){ say('Open a card first.','warn'); return; }
+
+      var raw = b.getAttribute('data-draw');
+
+      var before = emptySlots();
+      if(before===0){ say('No empty slots on your side to draw for.','warn'); return; }
+
+      // The picks come from the server, so unlike every other op there is
+      // nothing sensible to show until it answers.
+      if(!navigator.onLine){
+        say('A draw needs a connection - the players are picked on the server.','warn');
+        return;
+      }
+
+      var want = raw==='all' ? before : Math.min(parseInt(raw,10), before);
+
+      setDrawEnabled(false);
+      apply([{kind:'draw', count:raw, side:S.side}])
+        .then(function(){
+          var filled = before - emptySlots();
+
+          if(filled===0){
+            say('Could not draw anyone without breaking a card rule. '
+               +'A small squad runs out of legal picks - fill the rest by hand.','warn');
+          } else if(filled < want){
+            say('Drew '+filled+' of '+want+'. The rest need picking by hand to keep the card legal.','warn');
+          } else {
+            say('Drew '+filled+' player'+(filled===1?'':'s')+'.','ok');
+          }
+        })
+        .then(function(){ setDrawEnabled(true); });
+    });
+  });
+
+  function setDrawEnabled(on){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-draw]'), function(b){
+      b.disabled = !on;
+    });
+  }
+
+  /** Empty slots on the caller's own side, for telling them what a draw did. */
+  function emptySlots(){
+    if(!S.card || !S.card.frames) return 0;
+
+    var side = S.side==='away' ? 'away' : 'home';
+    var n = 0;
+
+    S.card.frames.forEach(function(f){
+      if(!f[side+'_player_id'] && !f[side+'_player_name']) n++;
+      if(Number(f.is_doubles) && !f[side+'_player2_id'] && !f[side+'_player2_name']) n++;
+    });
+
+    return n;
+  }
 
   $('soloBtn').addEventListener('click', function(){
     if(!window.confirm(

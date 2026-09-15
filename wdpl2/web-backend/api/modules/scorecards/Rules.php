@@ -190,6 +190,97 @@ final class ScorecardRules
      * VOID counts as named: a conceded frame genuinely has nobody on that side,
      * and saying so is the point.
      */
+    /**
+     * Picks players at random for the empty slots on one side.
+     *
+     * The draw is the paper card's habit kept: names out of a bag rather than a
+     * captain choosing an order. It only ever fills slots that are empty, never
+     * replaces a pick already made, and every candidate goes through the same
+     * rejectPick() the server applies to a manual pick - so a draw cannot
+     * produce a card a captain would have been refused.
+     *
+     * Returns the picks it managed to make. Fewer than asked for is a normal
+     * answer: a small squad runs out of legal players before the card is full.
+     *
+     * @param  int|null $limit  How many slots to fill, or null for as many as possible.
+     * @param  callable|null $shuffler  Injected so a test can make the draw predictable.
+     * @return array<int,array{frame:int,slot:string,playerId:string,playerName:string}>
+     */
+    public static function draw(
+        array $frames,
+        string $side,
+        array $pool,
+        int $maxPerPlayer,
+        bool $driving,
+        $limit = null,
+        ?callable $shuffler = null
+    ): array {
+        if (count($pool) === 0) {
+            return [];
+        }
+
+        $shuffler = $shuffler !== null ? $shuffler : static function (array $list): array {
+            shuffle($list);
+            return $list;
+        };
+
+        $lead    = $side === 'home' ? 'home' : 'away';
+        $partner = $lead . '2';
+
+        $picks = [];
+
+        foreach ($frames as $index => $frame) {
+            if ($limit !== null && count($picks) >= $limit) {
+                break;
+            }
+
+            // A slot the captain is not allowed to touch yet is not theirs to
+            // draw for either.
+            if (!$driving && $side === 'away' && self::awaySlotLocked($frames, $index)) {
+                continue;
+            }
+
+            $slots = [$lead];
+            if (!empty($frame['is_doubles'])) {
+                $slots[] = $partner;
+            }
+
+            foreach ($slots as $slot) {
+                if ($limit !== null && count($picks) >= $limit) {
+                    break;
+                }
+                if (self::slotIdentity($frames[$index], $slot) !== null) {
+                    continue;   // already picked; a draw never overwrites
+                }
+
+                foreach ($shuffler($pool) as $candidate) {
+                    $id   = isset($candidate['id']) ? (string)$candidate['id'] : '';
+                    $name = isset($candidate['name']) ? (string)$candidate['name'] : '';
+
+                    if (self::rejectPick($frames, $index, $slot, $id, $name, $maxPerPlayer) !== null) {
+                        continue;
+                    }
+
+                    // Written back as we go, so the next slot sees this pick
+                    // and the per-player limit counts it.
+                    $prefix = self::slotPrefix($slot);
+                    $frames[$index][$prefix . '_id']   = $id;
+                    $frames[$index][$prefix . '_name'] = $name;
+
+                    $picks[] = [
+                        'frame'      => $index,
+                        'slot'       => $slot,
+                        'playerId'   => $id,
+                        'playerName' => $name,
+                    ];
+                    break;
+                }
+            }
+        }
+
+        return $picks;
+    }
+
     public static function frameHasPlayers(array $frame): bool
     {
         if (self::slotIdentity($frame, 'home') === null) return false;

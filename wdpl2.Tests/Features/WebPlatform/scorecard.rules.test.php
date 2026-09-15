@@ -330,6 +330,122 @@ test('a captain is only offered their own slots', function () {
     same(['away', 'away2'], ScorecardRules::slotsFor('away'));
 });
 
+// ------------------------------------------------------------ random draw
+
+echo "\nThe draw (names out of a bag, as the paper card did it)\n";
+
+/** A squad of $n players. */
+function squad(int $n): array
+{
+    $out = [];
+    for ($i = 1; $i <= $n; $i++) {
+        $out[] = ['id' => player($i), 'name' => 'Player ' . $i];
+    }
+    return $out;
+}
+
+/** A shuffler that does not shuffle, so a draw can be asserted on. */
+function inOrder(): callable
+{
+    return static function (array $list): array { return $list; };
+}
+
+test('a draw fills only as many slots as asked for', function () {
+    $f = frames(15);
+    $picks = ScorecardRules::draw($f, 'home', squad(8), 3, false, 5, inOrder());
+
+    same(5, count($picks), 'should have drawn five');
+    foreach ($picks as $pick) {
+        same('home', $pick['slot']);
+    }
+});
+
+test('a draw never overwrites a pick already made', function () {
+    $f = frames(15);
+    put($f, 0, 'home', player(99), 'Already Chosen');
+
+    $picks = ScorecardRules::draw($f, 'home', squad(8), 3, false, 1, inOrder());
+
+    same(1, count($picks));
+    same(1, $picks[0]['frame'], 'should have skipped the frame already filled');
+});
+
+test('a draw obeys the frames-per-player limit', function () {
+    $f = frames(15);
+
+    // One player allowed three frames: the draw fills three slots and stops.
+    $picks = ScorecardRules::draw($f, 'home', squad(1), 3, false, null, inOrder());
+
+    same(3, count($picks), 'one player should fill exactly their three frames');
+});
+
+test('a draw will not repeat a pairing', function () {
+    $f = frames(3);
+
+    // The away side fielded the same player in the first two frames, so the one
+    // home player available can only meet them once. Frame 3 has no away player
+    // yet, so there is no pairing to repeat and it stays drawable.
+    put($f, 0, 'away', player(50), 'Away One');
+    put($f, 1, 'away', player(50), 'Away One');
+
+    $picks = ScorecardRules::draw($f, 'home', squad(1), 3, false, null, inOrder());
+
+    $drawn = [];
+    foreach ($picks as $pick) {
+        $drawn[] = $pick['frame'];
+    }
+
+    check(in_array(0, $drawn, true), 'frame 1 should have been drawn');
+    check(!in_array(1, $drawn, true), 'frame 2 would repeat the pairing and must be skipped');
+});
+
+test('the away captain cannot draw into slots still locked to them', function () {
+    $f = frames(15);
+
+    // No home leads named, so every away slot is locked.
+    same(0, count(ScorecardRules::draw($f, 'away', squad(8), 3, false, 5, inOrder())));
+
+    // Naming frame 1 unlocks that frame alone.
+    put($f, 0, 'home', player(1), 'Home One');
+    $picks = ScorecardRules::draw($f, 'away', squad(8), 3, false, 5, inOrder());
+
+    same(1, count($picks), 'only the unlocked frame should be drawable');
+    same(0, $picks[0]['frame']);
+});
+
+test('a captain driving both sides is not held up by the lock', function () {
+    $f = frames(15);
+
+    $picks = ScorecardRules::draw($f, 'away', squad(8), 3, true, 5, inOrder());
+
+    same(5, count($picks), 'solo mode sets the nomination order aside');
+});
+
+test('a draw fills the partner slot in a doubles frame', function () {
+    $f = frames(4);
+    $f[0]['is_doubles'] = 1;
+
+    $picks = ScorecardRules::draw($f, 'home', squad(8), 3, false, 2, inOrder());
+
+    same(2, count($picks));
+    same('home',  $picks[0]['slot']);
+    same('home2', $picks[1]['slot'], 'the doubles partner should be drawn too');
+});
+
+test('an empty squad draws nobody rather than failing', function () {
+    $f = frames(15);
+    same(0, count(ScorecardRules::draw($f, 'home', [], 3, false, 5, inOrder())));
+});
+
+test('a draw leaves the frames it was given alone', function () {
+    $f = frames(15);
+    $before = $f;
+
+    ScorecardRules::draw($f, 'home', squad(8), 3, false, 5, inOrder());
+
+    same($before, $f, 'a draw must not mutate the frames it was handed');
+});
+
 echo "\n";
 echo $failed === 0 ? "PASS  {$passed} checks\n" : "FAIL  {$failed} failed, {$passed} passed\n";
 exit($failed === 0 ? 0 : 1);

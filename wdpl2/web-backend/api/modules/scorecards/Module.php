@@ -397,6 +397,78 @@ final class ScorecardsModule implements Module
         ];
     }
 
+    /**
+     * Replaces any draw op with the individual picks it stands for.
+     *
+     * The pool is the side's own squad. VOID is never drawn - conceding a frame
+     * is a decision, not something to leave to chance.
+     */
+    private static function expandDraws(
+        array $ops,
+        string $fixtureId,
+        string $side,
+        array $frames,
+        int $maxPerPlayer,
+        bool $driving
+    ): array {
+        $expanded = [];
+
+        foreach ($ops as $op) {
+            if (!is_array($op) || !isset($op['kind']) || $op['kind'] !== 'draw') {
+                $expanded[] = $op;
+                continue;
+            }
+
+            $for = isset($op['side']) && $op['side'] === 'away' ? 'away' : 'home';
+            if (!$driving) {
+                $for = $side;   // only a captain driving both sides may draw for the other
+            }
+
+            $raw   = isset($op['count']) ? $op['count'] : null;
+            $limit = ($raw === null || $raw === 'all') ? null : max(1, (int)$raw);
+
+            $picks = ScorecardRules::draw(
+                $frames,
+                $for,
+                self::drawPool($fixtureId, $for),
+                $maxPerPlayer,
+                $driving,
+                $limit
+            );
+
+            foreach ($picks as $pick) {
+                $expanded[] = [
+                    'kind'       => 'set_player',
+                    'frame'      => $pick['frame'],
+                    'slot'       => $pick['slot'],
+                    'playerId'   => $pick['playerId'],
+                    'playerName' => $pick['playerName'],
+                ];
+            }
+        }
+
+        return $expanded;
+    }
+
+    /** The squad a draw picks from, for one side of a fixture. */
+    private static function drawPool(string $fixtureId, string $side): array
+    {
+        $fixture = Db::one(
+            'SELECT home_team_id, away_team_id FROM wdpl_fixtures WHERE id = ?',
+            [$fixtureId]
+        );
+
+        if ($fixture === null) {
+            return [];
+        }
+
+        $teamId = $side === 'home'
+            ? (string)$fixture['home_team_id']
+            : (string)$fixture['away_team_id'];
+
+        return self::playersOf($teamId);
+    }
+
     private static function playersOf(string $teamId): array
     {
         return Db::all(
@@ -457,6 +529,11 @@ final class ScorecardsModule implements Module
             // team's slots and the nomination order does not apply - one person
             // entering both line-ups has already set that aside by agreement.
             $driving = ($card['solo_by'] !== null && $card['solo_by'] === $side);
+
+            // A draw is shorthand for the picks it makes. Expanding it here
+            // means it goes through exactly the same rule checks, rejections
+            // and version bump as a captain tapping each slot by hand.
+            $ops = self::expandDraws($ops, $fixtureId, $side, $frames, $maxPerPlayer, $driving);
 
             foreach ($ops as $index => $op) {
                 if (!is_array($op) || empty($op['kind'])) {
