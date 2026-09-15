@@ -298,10 +298,45 @@ final class ScorecardsModule implements Module
         return self::readCard($fixtureId, $side);
     }
 
-    /** The captain's own players, for the picker. */
+    /**
+     * Both teams' players for a match, grouped by side.
+     *
+     * Both are returned, not just the caller's own, because solo mode has one
+     * captain recording the other team's players too. A team sheet is not a
+     * secret - the opposing captain watches each pick appear anyway - and this
+     * is scoped to a fixture the caller actually plays in.
+     */
     public static function roster()
     {
-        $teamId = Captain::requireTeamId();
+        $fixtureId = Http::field('fixtureId', null);
+
+        if ($fixtureId === null || $fixtureId === '') {
+            // No fixture named: just the caller's own squad.
+            $teamId = Captain::requireTeamId();
+            return [
+                'yourSide' => null,
+                'home'     => self::playersOf($teamId),
+                'away'     => [],
+            ];
+        }
+
+        $fixtureId = self::uuid($fixtureId, 'fixtureId');
+        $side = self::requireSide($fixtureId);
+
+        $fixture = Db::one(
+            'SELECT home_team_id, away_team_id FROM wdpl_fixtures WHERE id = ?',
+            [$fixtureId]
+        );
+
+        return [
+            'yourSide' => $side,
+            'home'     => self::playersOf((string)$fixture['home_team_id']),
+            'away'     => self::playersOf((string)$fixture['away_team_id']),
+        ];
+    }
+
+    private static function playersOf(string $teamId): array
+    {
         return Db::all(
             'SELECT id, name FROM wdpl_players WHERE team_id = ? AND is_active = 1 ORDER BY name',
             [$teamId]

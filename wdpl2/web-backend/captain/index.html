@@ -273,7 +273,7 @@ button.go{background:var(--felt);}
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
   var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
-            timer:null, pick:null,
+            timer:null, pick:null, rosters:{home:[],away:[]},
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
@@ -437,8 +437,8 @@ button.go{background:var(--felt);}
       $('who').textContent=me.name;
       $('idleTeam').textContent=me.name;
       show($('loginCard'),false);
-      return call('scorecards','roster').then(function(r){ S.roster=r||[]; });
-    }).then(function(){ return refresh(); })
+      return refresh();
+    }).then(function(){ return loadRosters(); })
       .catch(function(e){ say(e.message,'bad'); })
       .then(function(){ $('loginBtn').disabled=false; });
   });
@@ -447,6 +447,20 @@ button.go{background:var(--felt);}
   $('logoutBtn').addEventListener('click', signOut);
   $('logoutBtn2').addEventListener('click', signOut);
   $('refreshBtn').addEventListener('click', function(){ refresh(); });
+
+  /**
+   * Both teams' squads for this match.
+   *
+   * Both are needed because solo mode has one captain entering the other
+   * team's players as well as their own - picking from your own squad for the
+   * opposition is exactly the bug this replaced.
+   */
+  function loadRosters(){
+    if(!S.fixtureId) return Promise.resolve();
+    return call('scorecards','roster',{fixtureId:S.fixtureId})
+      .then(function(r){ S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]}; })
+      .catch(function(){ /* the picker still offers VOID and a typed name */ });
+  }
 
   // --------------------------------------------------------------- polling
 
@@ -457,6 +471,7 @@ button.go{background:var(--felt);}
         stopPolling(); return;
       }
       render(card);
+      if(!S.rosters.home.length && !S.rosters.away.length) loadRosters();
       loadQueue();
       netBadge();
       startPolling();
@@ -757,7 +772,14 @@ button.go{background:var(--felt);}
       list.appendChild(head);
     }
 
-    S.roster.forEach(function(p){
+    var squad = S.rosters[side] || [];
+    if(!squad.length){
+      var none=document.createElement('div');
+      none.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
+      none.textContent='No players listed for this team. Type a name below.';
+      list.appendChild(none);
+    }
+    squad.forEach(function(p){
       var b=document.createElement('button');
       b.textContent=p.name;
       b.addEventListener('click', function(){ choose(p.id, p.name); });
