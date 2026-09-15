@@ -20,7 +20,7 @@ final class LeagueModule implements Module
 
     public static function title(): string { return 'League data'; }
 
-    public static function schemaVersion(): int { return 2; }
+    public static function schemaVersion(): int { return 3; }
 
     public static function tables(): array
     {
@@ -31,9 +31,17 @@ final class LeagueModule implements Module
                 start_date  DATE         NULL,
                 end_date    DATE         NULL,
                 is_current  TINYINT(1)   NOT NULL DEFAULT 0,
+                frames_total   INT       NOT NULL DEFAULT 15,
+                max_per_player INT       NOT NULL DEFAULT 3,
                 updated_at  DATETIME     NOT NULL,
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+            // The match format follows the app's settings. Sites installed
+            // before it was published keep the WDPL standard until the next push.
+            "ALTER TABLE wdpl_seasons
+                ADD COLUMN IF NOT EXISTS frames_total INT NOT NULL DEFAULT 15,
+                ADD COLUMN IF NOT EXISTS max_per_player INT NOT NULL DEFAULT 3",
 
             "CREATE TABLE IF NOT EXISTS wdpl_divisions (
                 id         CHAR(36)     NOT NULL,
@@ -219,16 +227,21 @@ final class LeagueModule implements Module
             $isCurrent = self::flag($season, 'isCurrent');
 
             Db::query(
-                'INSERT INTO wdpl_seasons (id, name, start_date, end_date, is_current, updated_at)
-                 VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())
+                'INSERT INTO wdpl_seasons
+                    (id, name, start_date, end_date, is_current, frames_total, max_per_player, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
                  ON DUPLICATE KEY UPDATE name = VALUES(name), start_date = VALUES(start_date),
-                     end_date = VALUES(end_date), is_current = VALUES(is_current), updated_at = VALUES(updated_at)',
+                     end_date = VALUES(end_date), is_current = VALUES(is_current),
+                     frames_total = VALUES(frames_total), max_per_player = VALUES(max_per_player),
+                     updated_at = VALUES(updated_at)',
                 [
                     $seasonId,
                     self::text($season, 'name', 190),
                     self::date($season, 'startDate'),
                     self::date($season, 'endDate'),
                     $isCurrent,
+                    self::positiveInt($season, 'framesTotal', 15, 50),
+                    self::positiveInt($season, 'maxPerPlayer', 3, 50),
                 ]
             );
 
@@ -460,6 +473,23 @@ final class LeagueModule implements Module
             ' ORDER BY f.match_date' . ($playedOnly ? ' DESC' : '') . ', d.sort_order, h.name';
 
         return Db::all($sql, [$seasonId]);
+    }
+
+    /**
+     * A whole number from the payload, clamped to something a match could be.
+     *
+     * A published format that made no sense would open every card wrong, so a
+     * missing or silly value falls back to the WDPL standard rather than being
+     * trusted.
+     */
+    private static function positiveInt(array $row, string $key, int $fallback, int $max): int
+    {
+        if (!isset($row[$key]) || !is_numeric($row[$key])) {
+            return $fallback;
+        }
+
+        $value = (int)$row[$key];
+        return ($value < 1 || $value > $max) ? $fallback : $value;
     }
 
     /** The season asked for by query string, or the current one. */

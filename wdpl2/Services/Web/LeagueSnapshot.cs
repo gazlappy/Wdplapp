@@ -1,4 +1,4 @@
-using Wdpl2.Helpers;
+﻿using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Web;
@@ -50,6 +50,7 @@ public static class LeagueSnapshot
             .ToDictionary(x => x.Id, x => x.index);
 
         var standings = BuildStandings(divisions, teams, fixtures, settings);
+        var format = Wdpl2.Domain.Fixtures.MatchFormat.From(settings);
 
         var payload = new
         {
@@ -60,6 +61,12 @@ public static class LeagueSnapshot
                 startDate = season.StartDate.ToString("yyyy-MM-dd"),
                 endDate = season.EndDate.ToString("yyyy-MM-dd"),
                 isCurrent = season.IsActive,
+
+                // The match format travels with the season so the website can
+                // open a card on its own - from the admin portal - without a
+                // second copy of the setting drifting from the app's.
+                framesTotal = format.TotalFrames,
+                maxPerPlayer = format.MaxFramesPerPlayer,
             },
             divisions = divisions.Select(d => new
             {

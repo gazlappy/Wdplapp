@@ -116,6 +116,8 @@ final class ScorecardsModule implements Module
             'reopen' => ['role' => Role::Admin,   'fn' => [self::class, 'reopen']],
             'close'  => ['role' => Role::Admin,   'fn' => [self::class, 'close']],
             'state'  => ['role' => Role::Admin,   'fn' => [self::class, 'state']],
+            'view'      => ['role' => Role::Admin, 'fn' => [self::class, 'view']],
+            'soloClear' => ['role' => Role::Admin, 'fn' => [self::class, 'soloClear']],
 
             'mine'     => ['role' => Role::Captain, 'fn' => [self::class, 'mine']],
             'card'     => ['role' => Role::Captain, 'fn' => [self::class, 'card']],
@@ -132,18 +134,24 @@ final class ScorecardsModule implements Module
 
     public static function open()
     {
-        $fixtureId    = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
-        $framesTotal  = (int)Http::field('framesTotal', self::DEFAULT_FRAMES);
-        $maxPerPlayer = (int)Http::field('maxPerPlayer', self::DEFAULT_MAX_PER_PLAYER);
-        $doubles      = Http::field('doublesFrames', []);
-
-        if ($framesTotal < 1 || $framesTotal > 50) {
-            throw new ApiError(400, 'bad_frames', 'A match must have between 1 and 50 frames.');
-        }
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $doubles   = Http::field('doublesFrames', []);
 
         $fixture = Db::one('SELECT id, season_id FROM wdpl_fixtures WHERE id = ?', [$fixtureId]);
         if ($fixture === null) {
             throw new ApiError(404, 'unknown_fixture', 'That fixture has not been published to the website.');
+        }
+
+        // The app states the format when it opens a card. The admin portal does
+        // not know it, so the season's published format answers for it - which
+        // is the app's own setting, pushed with the league, not a second copy.
+        $format = self::seasonFormat((string)$fixture['season_id']);
+
+        $framesTotal  = (int)Http::field('framesTotal', $format['frames']);
+        $maxPerPlayer = (int)Http::field('maxPerPlayer', $format['maxPerPlayer']);
+
+        if ($framesTotal < 1 || $framesTotal > 50) {
+            throw new ApiError(400, 'bad_frames', 'A match must have between 1 and 50 frames.');
         }
 
         $doublesSet = [];
@@ -325,6 +333,73 @@ final class ScorecardsModule implements Module
              GROUP BY c.fixture_id
              ORDER BY f.match_date DESC"
         );
+    }
+
+    /** The match format a season was published with. */
+    private static function seasonFormat(string $seasonId): array
+    {
+        $row = Db::one(
+            'SELECT frames_total, max_per_player FROM wdpl_seasons WHERE id = ?',
+            [$seasonId]
+        );
+
+        $frames = ($row !== null && (int)$row['frames_total'] > 0)
+            ? (int)$row['frames_total'] : self::DEFAULT_FRAMES;
+
+        $max = ($row !== null && (int)$row['max_per_player'] > 0)
+            ? (int)$row['max_per_player'] : self::DEFAULT_MAX_PER_PLAYER;
+
+        return ['frames' => $frames, 'maxPerPlayer' => $max];
+    }
+
+    /**
+     * The whole card, for the league to watch without touching it.
+     *
+     * Read-only on purpose. The admin portal shows a match as it is being
+     * scored; editing it there would put a second writer on a card the captains
+     * own, which is the thing this design exists to prevent.
+     */
+    public static function view()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+
+        $card = Db::one('SELECT fixture_id FROM wdpl_scorecards WHERE fixture_id = ?', [$fixtureId]);
+        if ($card === null) {
+            throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+        }
+
+        return self::readCard($fixtureId, null);
+    }
+
+    /**
+     * Hands a solo captain's borrowed side back, on their behalf.
+     *
+     * Solo mode is given up by the captain who took it. If they have gone home
+     * with the card still in their name, nobody else can pick for that side and
+     * the match stops - so the league can end it for them.
+     */
+    public static function soloClear()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+
+        return Db::transaction(function () use ($fixtureId) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if ($card['solo_by'] === null) {
+                return self::readCard($fixtureId, null);
+            }
+
+            Db::query(
+                'UPDATE wdpl_scorecards
+                    SET solo_by = NULL, solo_since = NULL, version = version + 1
+                  WHERE fixture_id = ?',
+                [$fixtureId]
+            );
+
+            return self::readCard($fixtureId, null);
+        });
     }
 
     // --------------------------------------------------------------- captains

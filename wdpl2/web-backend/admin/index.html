@@ -157,13 +157,15 @@ button.sm{padding:7px 12px; font-size:13px;}
     <div id="tab-tonight">
       <div class="card">
         <h2>Cards</h2>
-        <div id="cards"><div class="empty">Loading&hellip;</div></div>
-        <div class="row" style="margin-top:10px">
+        <div class="row" style="margin-bottom:10px">
+          <input id="filter" type="search" placeholder="Filter by team, date or state"
+                 autocomplete="off" style="flex:1 1 180px">
           <button id="refresh" class="ghost sm">Refresh</button>
           <label style="display:flex;align-items:center;gap:7px;margin:0;font-size:12px;cursor:pointer">
             <input type="checkbox" id="auto" checked style="width:auto;margin:0"> auto
           </label>
         </div>
+        <div id="cards"><div class="empty">Loading&hellip;</div></div>
       </div>
 
       <div class="card">
@@ -172,9 +174,17 @@ button.sm{padding:7px 12px; font-size:13px;}
           <select id="fixture"><option value="">Loading fixtures&hellip;</option></select>
           <button id="open" class="go" style="width:100%">Open for live scoring</button>
         </div>
+
+        <div class="stack" style="margin-top:14px">
+          <label for="night">Or open a whole night</label>
+          <select id="night"><option value="">No fixtures waiting</option></select>
+          <button id="openNight" class="ghost" style="width:100%">Open every fixture that night</button>
+        </div>
+
         <p class="note">
           While a card is open the app will not edit that fixture. Only the
           captains write it, until it is finished and collected in the app.
+          Each card uses the match format the app published with the season.
         </p>
       </div>
     </div>
@@ -214,6 +224,28 @@ button.sm{padding:7px 12px; font-size:13px;}
       </div>
     </div>
   </section>
+
+  <!-- the card itself, read-only -->
+  <section id="viewer" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <div>
+          <div id="vTitle" style="font-weight:800; font-size:16px"></div>
+          <div id="vSub" class="note" style="margin-top:2px"></div>
+        </div>
+        <div class="score"><span class="h" id="vHome">0</span><span class="x">&ndash;</span><span class="a" id="vAway">0</span></div>
+      </div>
+
+      <div id="vFrames" style="margin-top:12px"></div>
+
+      <div class="row" style="margin-top:12px">
+        <button id="vClose" class="ghost">Back</button>
+        <button id="vReopen" class="ghost hidden">Reopen for editing</button>
+        <button id="vSolo" class="ghost hidden">Hand the borrowed side back</button>
+      </div>
+      <p class="note" id="vNote"></p>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -223,7 +255,8 @@ button.sm{padding:7px 12px; font-size:13px;}
   var API = '../api/index.php';
   var POLL = 15000;
 
-  var S = { cards:[], fixtures:[], pins:[], tab:'tonight', timer:null, busy:false, again:false };
+  var S = { cards:[], fixtures:[], pins:[], tab:'tonight', timer:null, busy:false, again:false,
+            filter:'', viewing:null, nights:{} };
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -327,8 +360,14 @@ button.sm{padding:7px 12px; font-size:13px;}
       return;
     }
 
+    if(!matching(S.cards).length){
+      box.innerHTML='<div class="empty">No card matches “'+esc(S.filter)+'”. '
+        + S.cards.length+' hidden.</div>';
+      return;
+    }
+
     var order={live:0, finalised:1, claimed:2};
-    var rows=S.cards.slice().sort(function(a,b){
+    var rows=matching(S.cards).sort(function(a,b){
       var d=(order[a.state]==null?9:order[a.state])-(order[b.state]==null?9:order[b.state]);
       return d!==0 ? d : String(a.home_team_name||'').localeCompare(String(b.home_team_name||''));
     });
@@ -340,10 +379,13 @@ button.sm{padding:7px 12px; font-size:13px;}
       if(c.state==='live' || c.state==='finalised'){
         acts = '<button class="danger sm" data-close="'+esc(c.fixture_id)+'">Close</button>';
       }
+      acts = '<button class="ghost sm" data-view="'+esc(c.fixture_id)+'">Card</button>' + acts;
 
       var sub = c.state==='finalised'
         ? 'finished — collect it in the app'
         : (c.state==='claimed' ? 'collected into the app' : played+' frame'+(played===1?'':'s')+' scored');
+
+      if(c.solo_by) sub += ' · ' + esc(c.solo_by) + ' filling in both sides';
 
       return '<div class="item">'
         + '<div class="who">'
@@ -359,6 +401,21 @@ button.sm{padding:7px 12px; font-size:13px;}
     Array.prototype.forEach.call(box.querySelectorAll('[data-close]'), function(b){
       b.addEventListener('click', function(){ closeCard(b.getAttribute('data-close')); });
     });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-view]'), function(b){
+      b.addEventListener('click', function(){ openViewer(b.getAttribute('data-view')); });
+    });
+  }
+
+  /** Cards matching the filter box - team, date or state, whichever is typed. */
+  function matching(cards){
+    var q = String(S.filter||'').trim().toLowerCase();
+    if(!q) return cards.slice();
+
+    return cards.filter(function(c){
+      var hay = [c.home_team_name, c.away_team_name, c.state, when(c.match_date)]
+        .join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
   }
 
   function renderFixtures(){
@@ -371,10 +428,12 @@ button.sm{padding:7px 12px; font-size:13px;}
     if(!free.length){
       sel.innerHTML='<option value="">Every fixture already has a card</option>';
       $('open').disabled=true;
+      renderNights([]);
       return;
     }
 
     $('open').disabled=false;
+    renderNights(free);
     sel.innerHTML = free.map(function(f){
       var d = f.match_date ? when(f.match_date).split(',')[0]+' — ' : '';
       return '<option value="'+esc(f.id)+'">'+esc(d)+esc(f.home_team_name||'?')
@@ -396,6 +455,81 @@ button.sm{padding:7px 12px; font-size:13px;}
       renderFixtures();
     });
   }
+
+  /** Dates that still have fixtures with no card, newest first. */
+  function renderNights(free){
+    var sel = $('night');
+    var byDate = {};
+
+    free.forEach(function(f){
+      var d = String(f.match_date||'').slice(0,10);
+      if(!d) return;
+      (byDate[d] = byDate[d] || []).push(f);
+    });
+
+    S.nights = byDate;
+    var dates = Object.keys(byDate).sort();
+
+    if(!dates.length){
+      sel.innerHTML='<option value="">No fixtures waiting</option>';
+      $('openNight').disabled=true;
+      return;
+    }
+
+    $('openNight').disabled=false;
+    sel.innerHTML = dates.map(function(d){
+      var n = byDate[d].length;
+      return '<option value="'+esc(d)+'">'+esc(when(d).split(',')[0])
+           + ' — ' + n + ' fixture' + (n===1?'':'s') + '</option>';
+    }).join('');
+  }
+
+  /**
+   * Opens every fixture on one date.
+   *
+   * One at a time rather than in a batch: a fixture that cannot be opened -
+   * already has a card, was never published - should not stop the rest of the
+   * night, and the secretary wants to know which one it was.
+   */
+  $('openNight').addEventListener('click', function(){
+    var date = $('night').value;
+    var list = (S.nights && S.nights[date]) || [];
+    if(!list.length) return;
+
+    var names = list.map(function(f){
+      return '  ' + (f.home_team_name||'?') + ' v ' + (f.away_team_name||'?');
+    }).join('\n');
+
+    if(!confirm('Open ' + list.length + ' card' + (list.length===1?'':'s') + ' for '
+      + when(date).split(',')[0] + '?\n\n' + names
+      + '\n\nThe app will stop editing these fixtures until they are collected back.')) return;
+
+    $('openNight').disabled=true;
+    say('Opening ' + list.length + '…', 'warn');
+
+    var opened = 0;
+    var failures = [];
+
+    var chain = list.reduce(function(p, f){
+      return p.then(function(){
+        return call('scorecards','open',{fixtureId:f.id})
+          .then(function(){ opened++; })
+          .catch(function(e){
+            failures.push((f.home_team_name||'?') + ' v ' + (f.away_team_name||'?')
+              + ' — ' + ((e && e.message) || 'refused'));
+          });
+      });
+    }, Promise.resolve());
+
+    chain.then(function(){
+      if(failures.length===0){
+        say('Opened ' + opened + ' card' + (opened===1?'':'s') + '. The captains can score them now.','ok');
+      } else {
+        say('Opened ' + opened + '. Could not open ' + failures.length + ': ' + failures.join('; '),'warn');
+      }
+      return refreshAll();
+    }).then(function(){ $('openNight').disabled=false; });
+  });
 
   $('open').addEventListener('click', function(){
     var id=$('fixture').value;
@@ -436,6 +570,113 @@ button.sm{padding:7px 12px; font-size:13px;}
       })
       .catch(fail);
   }
+
+  // ---------------------------------------------------------- the card itself
+
+  /**
+   * The card as the captains are filling it in.
+   *
+   * Read-only. The league watching a match must not become a third person
+   * editing it - the card belongs to the captains until they finish with it.
+   */
+  function openViewer(fixtureId){
+    S.viewing = fixtureId;
+    show($('portal'), false);
+    show($('viewer'), true);
+    $('vFrames').innerHTML = '<div class="empty">Loading…</div>';
+    loadViewer();
+  }
+
+  function closeViewer(){
+    S.viewing = null;
+    show($('viewer'), false);
+    show($('portal'), true);
+    say('');
+    refreshAll();
+  }
+
+  function loadViewer(){
+    if(!S.viewing) return Promise.resolve();
+
+    return call('scorecards','view',{fixtureId:S.viewing})
+      .then(renderViewer)
+      .catch(function(e){
+        $('vFrames').innerHTML='<div class="empty">'+esc((e&&e.message)||'Could not read that card.')+'</div>';
+      });
+  }
+
+  function who(frame, side){
+    var lead = frame[side+'_player_name'] || (frame[side+'_player_id'] ? 'picked' : null);
+    if(!lead) return '<span class="dim">not picked</span>';
+
+    var out = esc(lead);
+    var partner = frame[side+'_player2_name'];
+    if(Number(frame.is_doubles) && partner) out += ' &amp; ' + esc(partner);
+
+    return out;
+  }
+
+  function renderViewer(card){
+    var frames = (card && card.frames) || [];
+
+    $('vTitle').textContent = (card.home_team_name||'Home') + ' v ' + (card.away_team_name||'Away');
+    $('vHome').textContent  = card.home_score || 0;
+    $('vAway').textContent  = card.away_score || 0;
+
+    var bits = [card.state || ''];
+    if(card.solo_by) bits.push(card.solo_by + ' is filling in both sides');
+    if(card.notes)   bits.push('note: ' + card.notes);
+    $('vSub').textContent = bits.join(' · ');
+
+    show($('vReopen'), card.state==='finalised');
+    show($('vSolo'),   !!card.solo_by && card.state==='live');
+
+    $('vNote').textContent = card.state==='finalised'
+      ? 'Both captains have signed this off. Reopening clears both sign-offs, so they have to look again.'
+      : (card.state==='claimed' ? 'Collected into the app. Corrections belong in the app now.' : '');
+
+    if(!frames.length){
+      $('vFrames').innerHTML='<div class="empty">No frames on this card.</div>';
+      return;
+    }
+
+    $('vFrames').innerHTML = frames.map(function(f){
+      var w = f.winner;
+      var mark = w==='home' ? '<span class="pill live">H</span>'
+               : w==='away' ? '<span class="pill done">A</span>'
+               : '<span class="dim" style="font-size:11px">—</span>';
+
+      return '<div class="item" style="gap:8px">'
+        + '<div style="width:26px; font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums">'
+        +   esc(f.frame_no) + '</div>'
+        + '<div class="who" style="flex:1 1 40%">' + who(f,'home') + '</div>'
+        + '<div style="flex:0 0 auto">' + mark
+        +   (Number(f.eight_ball) ? ' <span class="pill done">8</span>' : '')
+        +   (Number(f.is_doubles) ? ' <span class="pill claimed">dbl</span>' : '') + '</div>'
+        + '<div class="who" style="flex:1 1 40%; text-align:right">' + who(f,'away') + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  $('vClose').addEventListener('click', closeViewer);
+
+  $('vReopen').addEventListener('click', function(){
+    if(!confirm('Reopen this card?\n\nBoth captains signed it off. Reopening clears both '
+      + 'sign-offs and lets them edit again, so they will each have to sign off a second time.')) return;
+
+    call('scorecards','reopen',{fixtureId:S.viewing})
+      .then(function(){ say('Reopened. The captains can edit it again.','ok'); return loadViewer(); })
+      .catch(fail);
+  });
+
+  $('vSolo').addEventListener('click', function(){
+    if(!confirm('Hand the borrowed side back?\n\nThe captain filling in both sides gives up the '
+      + 'other team. Do this when they have left and the other captain needs to pick again.')) return;
+
+    call('scorecards','soloClear',{fixtureId:S.viewing})
+      .then(function(){ say('Both sides are back with their own captains.','ok'); return loadViewer(); })
+      .catch(fail);
+  });
 
   // ------------------------------------------------------------- captains
 
@@ -589,11 +830,18 @@ button.sm{padding:7px 12px; font-size:13px;}
 
   $('refresh').addEventListener('click', function(){ say(''); refreshAll(); });
 
+  $('filter').addEventListener('input', function(){
+    S.filter = $('filter').value;
+    renderCards();
+  });
+
   // Polling only earns its keep on the board that changes by itself.
   function startPolling(){
     stopPolling();
     S.timer = setInterval(function(){
-      if(S.tab==='tonight' && $('auto').checked && !document.hidden) refreshAll();
+      if(document.hidden || !$('auto').checked) return;
+      if(S.viewing){ loadViewer(); return; }
+      if(S.tab==='tonight') refreshAll();
     }, POLL);
   }
 

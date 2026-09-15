@@ -1,4 +1,5 @@
-using Wdpl2.Services.Web;
+﻿using Wdpl2.Services.Web;
+using System.Text.RegularExpressions;
 
 namespace wdpl2.Tests;
 
@@ -26,6 +27,39 @@ public class DeployManifestTests
         new CaptainsWebModule(),
         new ScorecardsWebModule(),
     };
+
+    /// <summary>
+    /// The app's declared schema version must match the PHP module's.
+    /// </summary>
+    /// <remarks>
+    /// Nothing reads the C# number today, which is exactly how it drifted to 1
+    /// while three PHP modules moved to 3. A number that is never checked and
+    /// never right is worse than no number, so it is checked here.
+    /// </remarks>
+    [Fact]
+    public void SchemaVersions_MatchTheServerModules()
+    {
+        var root = RepoRoot();
+
+        foreach (var module in Modules())
+        {
+            var php = Path.Combine(
+                root.FullName, "wdpl2", "web-backend", "api", "modules", module.Id, "Module.php");
+
+            Assert.True(File.Exists(php), $"{module.Id}: no Module.php at {php}");
+
+            var match = Regex.Match(
+                File.ReadAllText(php),
+                @"function\s+schemaVersion\s*\(\s*\)\s*:\s*int\s*\{\s*return\s+(\d+)\s*;");
+
+            Assert.True(match.Success, $"{module.Id}: could not read schemaVersion() from Module.php");
+
+            Assert.True(
+                int.Parse(match.Groups[1].Value) == module.SchemaVersion,
+                $"{module.Id}: Module.php declares schema {match.Groups[1].Value}, "
+                + $"but {module.GetType().Name} says {module.SchemaVersion}.");
+        }
+    }
 
     /// <summary>Walks up from the test binary to the repository root.</summary>
     private static DirectoryInfo RepoRoot()

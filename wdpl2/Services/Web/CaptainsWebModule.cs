@@ -11,7 +11,7 @@ public sealed class CaptainsWebModule : IWebModule
     public string Title => "Captains";
     public string Description => "Let team captains sign in to see their fixtures, roster and contacts.";
     public string Icon => "\U0001F511"; // key
-    public int SchemaVersion => 1;
+    public int SchemaVersion => 3;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {

@@ -12,7 +12,7 @@ public sealed class ScorecardsWebModule : IWebModule
     public string Title => "Live scorecards";
     public string Description => "Let captains score a match live, then collect the finished card.";
     public string Icon => "\U0001F3B1"; // billiards
-    public int SchemaVersion => 1;
+    public int SchemaVersion => 3;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {
