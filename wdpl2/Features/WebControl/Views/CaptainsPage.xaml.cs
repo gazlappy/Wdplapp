@@ -41,6 +41,11 @@ public partial class CaptainsPage : ContentPage
 
         var active = _seasons.FindIndex(s => s.IsActive);
         SeasonPicker.SelectedIndex = active >= 0 ? active : 0;
+
+        // Setting the index to the value it already holds raises no change
+        // event, so the summary would never be filled in and the page would sit
+        // there looking inert.
+        UpdateSummary();
     }
 
     private Season? Selected =>
@@ -53,12 +58,18 @@ public partial class CaptainsPage : ContentPage
     private void UpdateSummary()
     {
         var season = Selected;
-        if (season is null) return;
+        if (season is null)
+        {
+            SummaryLabel.Text = "Choose a season.";
+            PushButton.IsEnabled = false;
+            return;
+        }
 
         var (_, summary) = CaptainPins.Build(League, season);
 
         SummaryLabel.Text = summary.WithPin == 0
-            ? "No team in this season has a PIN set. Set them under Website → Captains Access."
+            ? $"No team in this season has a PIN yet ({summary.WithoutPin} team(s) checked). "
+              + "Set PINs under Website → Captains Access, then come back here."
             : $"{summary.WithPin} team(s) have a PIN, {summary.WithoutPin} do not.";
 
         if (summary.Weak.Count > 0)
@@ -79,9 +90,20 @@ public partial class CaptainsPage : ContentPage
     private async void OnPushClicked(object? sender, EventArgs e)
     {
         var season = Selected;
-        if (season is null) return;
+        if (season is null)
+        {
+            Report("Choose a season first.", error: true);
+            return;
+        }
 
         var (payload, summary) = CaptainPins.Build(League, season);
+
+        if (summary.WithPin == 0)
+        {
+            Report($"Nothing to publish: no team in {season.Name} has a PIN. "
+                 + "Set them under Website → Captains Access first.", error: true);
+            return;
+        }
 
         if (!await DisplayAlert("Publish captain PINs?",
                 $"Season: {season.Name}\n{summary.WithPin} team(s) will be able to sign in.\n\n" +

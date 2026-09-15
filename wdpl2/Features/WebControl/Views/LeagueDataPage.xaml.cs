@@ -41,6 +41,10 @@ public partial class LeagueDataPage : ContentPage
 
         var active = _seasons.FindIndex(s => s.IsActive);
         SeasonPicker.SelectedIndex = active >= 0 ? active : 0;
+
+        // Re-selecting the same index raises no event, so fill the summary in
+        // directly rather than waiting for one that will not arrive.
+        UpdateSummary();
     }
 
     private Season? Selected =>
@@ -75,7 +79,11 @@ public partial class LeagueDataPage : ContentPage
     private async void OnPushClicked(object? sender, EventArgs e)
     {
         var season = Selected;
-        if (season is null) return;
+        if (season is null)
+        {
+            Report("Choose a season first.", error: true);
+            return;
+        }
 
         var (payload, counts) = LeagueSnapshot.Build(League, season, League.Settings);
 
