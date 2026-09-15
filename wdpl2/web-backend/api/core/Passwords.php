@@ -38,6 +38,25 @@ final class Passwords
         return hash_equals($expected, $actual);
     }
 
+    /**
+     * Hashes a secret chosen on the server side.
+     *
+     * The app hashes the administrator password and the PINs it sets, because
+     * it holds the plaintext anyway. This exists for the one case the app is
+     * not involved in: a captain choosing their own PIN on their phone, where
+     * the plaintext only ever exists inside one HTTPS request and is never
+     * stored.
+     */
+    public static function hash(string $secret): string
+    {
+        $iterations = 210000;
+        $salt = random_bytes(16);
+        $hash = hash_pbkdf2('sha256', $secret, $salt, $iterations, 32, true);
+
+        return 'pbkdf2-sha256$' . $iterations . '$'
+             . base64_encode($salt) . '$' . base64_encode($hash);
+    }
+
     /** True if the value at least looks like something verify() could accept. */
     public static function isHash(string $stored): bool
     {

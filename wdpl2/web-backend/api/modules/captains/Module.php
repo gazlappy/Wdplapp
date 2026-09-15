@@ -23,7 +23,7 @@ final class CaptainsModule implements Module
 
     public static function title(): string { return 'Captains'; }
 
-    public static function schemaVersion(): int { return 1; }
+    public static function schemaVersion(): int { return 2; }
 
     public static function tables(): array
     {
@@ -56,6 +56,16 @@ final class CaptainsModule implements Module
             'fixtures' => ['role' => Role::Captain, 'fn' => [self::class, 'fixtures']],
             'roster'   => ['role' => Role::Captain, 'fn' => [self::class, 'roster']],
             'contacts' => ['role' => Role::Captain, 'fn' => [self::class, 'contacts']],
+
+            // Team control: a captain runs their own squad directly.
+            'squad'      => ['role' => Role::Captain, 'fn' => [self::class, 'squad']],
+            'addPlayer'  => ['role' => Role::Captain, 'fn' => [self::class, 'addPlayer']],
+            'setPlayer'  => ['role' => Role::Captain, 'fn' => [self::class, 'setPlayer']],
+            'setPin'     => ['role' => Role::Captain, 'fn' => [self::class, 'setPin']],
+
+            // What the app needs to catch up with them.
+            'uncollected' => ['role' => Role::Admin, 'fn' => [self::class, 'uncollected']],
+            'markCollected' => ['role' => Role::Admin, 'fn' => [self::class, 'markCollected']],
         ];
     }
 
@@ -260,6 +270,227 @@ final class CaptainsModule implements Module
              ORDER BY d.sort_order, d.name, t.name',
             [$teamId]
         );
+    }
+
+    // ------------------------------------------------------------ team control
+
+    /** The captain's own squad, newest additions flagged. */
+    public static function squad()
+    {
+        $teamId = Captain::requireTeamId();
+        return Db::all(
+            'SELECT id, name, is_active, added_by_captain, collected_by_app, updated_at
+             FROM wdpl_players WHERE team_id = ? ORDER BY is_active DESC, name',
+            [$teamId]
+        );
+    }
+
+    /**
+     * Adds a player to the captain's own squad.
+     *
+     * Someone who already exists on the squad is reactivated rather than added
+     * again. Two rows for one person splits their frames between them and
+     * quietly corrupts the season's statistics, which is far harder to notice
+     * and undo than a duplicate name in a list.
+     */
+    public static function addPlayer()
+    {
+        $teamId = Captain::requireTeamId();
+        $name   = trim((string)Http::requireField('name'));
+
+        if ($name === '' || mb_strlen($name) > 190) {
+            throw new ApiError(400, 'bad_name', 'Enter a name of up to 190 characters.');
+        }
+        if (strcasecmp($name, 'VOID') === 0) {
+            throw new ApiError(400, 'reserved_name', 'VOID is reserved for a conceded frame.');
+        }
+
+        $team = Db::one('SELECT season_id FROM wdpl_teams WHERE id = ?', [$teamId]);
+        if ($team === null) {
+            throw new ApiError(404, 'no_team', 'That team is no longer published.');
+        }
+
+        return Db::transaction(function () use ($teamId, $team, $name) {
+            $existing = Db::one(
+                'SELECT id, is_active FROM wdpl_players WHERE team_id = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+                [$teamId, $name]
+            );
+
+            if ($existing !== null) {
+                if ((int)$existing['is_active'] === 1) {
+                    throw new ApiError(409, 'already_on_squad', $name . ' is already on your squad.');
+                }
+                Db::query(
+                    'UPDATE wdpl_players SET is_active = 1, updated_at = UTC_TIMESTAMP() WHERE id = ?',
+                    [$existing['id']]
+                );
+                return ['id' => $existing['id'], 'name' => $name, 'reactivated' => true];
+            }
+
+            $id = self::newUuid();
+            Db::query(
+                'INSERT INTO wdpl_players
+                    (id, season_id, team_id, name, is_active, added_by_captain, collected_by_app, updated_at)
+                 VALUES (?, ?, ?, ?, 1, 1, 0, UTC_TIMESTAMP())',
+                [$id, $team['season_id'], $teamId, $name]
+            );
+
+            return ['id' => $id, 'name' => $name, 'reactivated' => false];
+        });
+    }
+
+    /**
+     * Renames or retires a player on the captain's own squad.
+     *
+     * Renaming is limited to players the captain added. A player who came from
+     * the league's own records is the league's to name - a captain correcting a
+     * spelling there would silently disagree with years of history.
+     */
+    public static function setPlayer()
+    {
+        $teamId   = Captain::requireTeamId();
+        $playerId = self::uuid(Http::requireField('playerId'), 'playerId');
+
+        $player = Db::one(
+            'SELECT id, name, is_active, added_by_captain FROM wdpl_players WHERE id = ? AND team_id = ?',
+            [$playerId, $teamId]
+        );
+        if ($player === null) {
+            throw new ApiError(404, 'not_your_player', 'That player is not on your squad.');
+        }
+
+        $changes = [];
+        $params  = [];
+
+        if (Http::field('name') !== null) {
+            if ((int)$player['added_by_captain'] !== 1) {
+                throw new ApiError(403, 'league_player',
+                    'This player comes from the league records, so their name has to be changed by the league.');
+            }
+            $name = trim((string)Http::field('name'));
+            if ($name === '' || mb_strlen($name) > 190) {
+                throw new ApiError(400, 'bad_name', 'Enter a name of up to 190 characters.');
+            }
+            $changes[] = 'name = ?';
+            $params[]  = $name;
+        }
+
+        if (Http::field('isActive') !== null) {
+            $changes[] = 'is_active = ?';
+            $params[]  = Http::field('isActive') ? 1 : 0;
+        }
+
+        if (count($changes) === 0) {
+            throw new ApiError(400, 'nothing_to_do', 'Send a name or an active flag.');
+        }
+
+        $changes[] = 'updated_at = UTC_TIMESTAMP()';
+        $params[]  = $playerId;
+        $params[]  = $teamId;
+
+        Db::query(
+            'UPDATE wdpl_players SET ' . implode(', ', $changes) . ' WHERE id = ? AND team_id = ?',
+            $params
+        );
+
+        return Db::one('SELECT id, name, is_active, added_by_captain FROM wdpl_players WHERE id = ?', [$playerId]);
+    }
+
+    /**
+     * Lets a captain choose their own PIN.
+     *
+     * The current PIN is required, so someone who picks up an unlocked phone
+     * cannot lock the captain out of their own team. Hashed here because this
+     * is the one case the app never sees the plaintext.
+     */
+    public static function setPin()
+    {
+        Http::requireSecure();
+
+        $teamId  = Captain::requireTeamId();
+        $current = (string)Http::requireField('currentPin');
+        $next    = (string)Http::requireField('newPin');
+
+        if (mb_strlen($next) < 4 || mb_strlen($next) > 32) {
+            throw new ApiError(400, 'bad_pin', 'A PIN needs between 4 and 32 characters.');
+        }
+        if ($next === $current) {
+            throw new ApiError(400, 'same_pin', 'That is already your PIN.');
+        }
+
+        RateLimit::check('captain-setpin', 10, 900, $teamId);
+
+        $row = Db::one('SELECT pin_hash FROM wdpl_captain_pins WHERE team_id = ?', [$teamId]);
+        if ($row === null || !Passwords::verify($current, (string)$row['pin_hash'])) {
+            RateLimit::record('captain-setpin', $teamId);
+            throw new ApiError(401, 'bad_pin', 'That is not your current PIN.');
+        }
+        RateLimit::clear('captain-setpin', $teamId);
+
+        Db::query(
+            'UPDATE wdpl_captain_pins SET pin_hash = ?, updated_at = UTC_TIMESTAMP() WHERE team_id = ?',
+            [Passwords::hash($next), $teamId]
+        );
+
+        // The league sets PINs from the app, and publishing replaces the whole
+        // set. Say so plainly rather than let a captain be surprised later.
+        return [
+            'changed' => true,
+            'note'    => 'Keep this PIN safe. If the league publishes PINs again it will be replaced.',
+        ];
+    }
+
+    // ------------------------------------------------- what the app collects
+
+    /** Players captains have added that the app has not taken in yet. */
+    public static function uncollected()
+    {
+        return Db::all(
+            'SELECT p.id, p.name, p.is_active, p.updated_at, p.team_id, p.season_id,
+                    t.name AS team_name
+             FROM wdpl_players p
+             LEFT JOIN wdpl_teams t ON t.id = p.team_id
+             WHERE p.added_by_captain = 1 AND p.collected_by_app = 0
+             ORDER BY t.name, p.name'
+        );
+    }
+
+    /**
+     * Marks players as taken into the app.
+     *
+     * Called after the app has created them locally. They stay flagged as
+     * captain-added for the record, but the next publish now owns them.
+     */
+    public static function markCollected()
+    {
+        $ids = Http::field('playerIds', []);
+        if (!is_array($ids) || count($ids) === 0) {
+            throw new ApiError(400, 'no_players', 'Send the player ids that were collected.');
+        }
+
+        $collected = 0;
+        Db::transaction(function () use ($ids, &$collected) {
+            foreach ($ids as $raw) {
+                $id = self::uuid($raw, 'playerIds[]');
+                Db::query(
+                    'UPDATE wdpl_players SET collected_by_app = 1, updated_at = UTC_TIMESTAMP()
+                      WHERE id = ? AND added_by_captain = 1',
+                    [$id]
+                );
+                $collected++;
+            }
+        });
+
+        return ['collected' => $collected];
+    }
+
+    /** A v4 UUID, so captain-added players look like every other player. */
+    private static function newUuid(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        return strtolower(vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4)));
     }
 
     // ---------------------------------------------------------------- helper

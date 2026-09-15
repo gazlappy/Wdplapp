@@ -242,14 +242,15 @@ test('captains module exposes the expected roles', function () {
 
     // Anything that reveals a team's data must be captain-gated; the sign-in
     // flow itself must not be, or nobody could ever sign in.
-    foreach (['me', 'fixtures', 'roster', 'contacts'] as $private) {
+    foreach (['me', 'fixtures', 'roster', 'contacts',
+              'squad', 'addPlayer', 'setPlayer', 'setPin'] as $private) {
         check(isset($actions[$private]), "missing action {$private}");
         same(Role::Captain, $actions[$private]['role'], "{$private} must require a captain");
     }
     foreach (['teams', 'login', 'logout'] as $open) {
         same(Role::Public, $actions[$open]['role'], "{$open} must be reachable without a session");
     }
-    foreach (['push', 'status'] as $admin) {
+    foreach (['push', 'status', 'uncollected', 'markCollected'] as $admin) {
         same(Role::Admin, $actions[$admin]['role'], "{$admin} must require admin");
     }
 });

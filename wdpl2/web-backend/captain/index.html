@@ -73,6 +73,33 @@ button.go{background:var(--felt);}
 .msg.warn{background:var(--warn-bg); color:var(--warn-fg);}
 .msg.ok{background:var(--ok-bg); color:var(--ok-fg);}
 .hidden{display:none !important;}
+.tabs{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
+.tabs button{
+  padding:8px 14px; font-size:13px; border-radius:999px; font-weight:700;
+  background:rgba(10,15,28,.6); color:var(--muted); border:1px solid var(--line);
+}
+.tabs button.on{background:var(--accent-2); color:#fff; border-color:var(--accent-2);}
+.list{display:flex; flex-direction:column;}
+.list-row{
+  display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--line);
+}
+.list-row:last-child{border-bottom:0;}
+.list-row .who{font-size:14px; font-weight:600;}
+.list-row .sub{font-size:11px; color:var(--muted); margin:2px 0 0;}
+.list-row.retired .who{color:var(--muted); text-decoration:line-through;}
+.tag{
+  display:inline-block; font-size:10px; font-weight:800; padding:2px 7px;
+  border-radius:999px; margin-left:6px; text-transform:uppercase;
+  background:rgba(96,165,250,.18); color:#bfdbfe; border:1px solid rgba(96,165,250,.4);
+}
+.mini{padding:7px 11px; font-size:12px;}
+.fx{display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
+.fx:last-child{border-bottom:0;}
+.fx .date{color:var(--muted); font-size:11px; min-width:62px;}
+.fx .res{font-weight:800; font-size:14px;}
+.fx .res.w{color:var(--home);} .fx .res.l{color:var(--away);} .fx .res.d{color:var(--gold);}
 .net{
   font-size:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
   padding:3px 8px; border-radius:999px; border:1px solid rgba(34,197,94,.45);
@@ -204,6 +231,48 @@ button.go{background:var(--felt);}
     <label for="pin" style="margin-top:12px">PIN</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
     <div class="row" style="margin-top:12px"><button id="loginBtn">Sign in</button></div>
+  </section>
+
+  <!-- Team portal -->
+  <div class="tabs hidden" id="tabs">
+    <button id="tabCard" class="on">Scorecard</button>
+    <button id="tabSquad">My squad</button>
+    <button id="tabFixtures">Fixtures</button>
+    <button id="tabContacts">Contacts</button>
+    <button id="tabPin">PIN</button>
+  </div>
+
+  <section class="card hidden" id="squadPane">
+    <h3 style="margin:0 0 4px;font-size:16px">My squad</h3>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
+      Add someone who turns up, or retire a player who has left. Changes take effect straight away.</p>
+    <div class="list" id="squadList"></div>
+    <label for="newPlayer" style="margin-top:14px">Add a player</label>
+    <input id="newPlayer" type="text" placeholder="Their name" autocomplete="off">
+    <div class="row" style="margin-top:8px"><button id="addPlayerBtn">Add to squad</button></div>
+  </section>
+
+  <section class="card hidden" id="fixturesPane">
+    <h3 style="margin:0 0 12px;font-size:16px">Our season</h3>
+    <div class="list" id="fixtureList"></div>
+  </section>
+
+  <section class="card hidden" id="contactsPane">
+    <h3 style="margin:0 0 4px;font-size:16px">Team contacts</h3>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
+      For arranging and rearranging matches. Please keep these to yourself.</p>
+    <div class="list" id="contactList"></div>
+  </section>
+
+  <section class="card hidden" id="pinPane">
+    <h3 style="margin:0 0 4px;font-size:16px">Change our PIN</h3>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
+      Everyone who scores for this team uses it, so tell whoever needs it.</p>
+    <label for="curPin">Current PIN</label>
+    <input id="curPin" type="password" inputmode="numeric" autocomplete="current-password">
+    <label for="newPin" style="margin-top:10px">New PIN</label>
+    <input id="newPin" type="password" inputmode="numeric" autocomplete="new-password">
+    <div class="row" style="margin-top:12px"><button id="setPinBtn">Change PIN</button></div>
   </section>
 
   <!-- Nothing live -->
@@ -472,6 +541,7 @@ button.go{background:var(--felt);}
       $('who').textContent=me.name;
       $('idleTeam').textContent=me.name;
       show($('loginCard'),false);
+      show($('tabs'),true);
       return refresh();
     }).then(function(){ return loadRosters(); })
       .catch(function(e){ say(e.message,'bad'); })
@@ -497,9 +567,203 @@ button.go{background:var(--felt);}
       .catch(function(){ /* the picker still offers VOID and a typed name */ });
   }
 
+  // ------------------------------------------------------------------ tabs
+
+  var PANES = {
+    tabCard:     ['cardCard','idleCard'],
+    tabSquad:    ['squadPane'],
+    tabFixtures: ['fixturesPane'],
+    tabContacts: ['contactsPane'],
+    tabPin:      ['pinPane']
+  };
+
+  function openTab(which){
+    Object.keys(PANES).forEach(function(id){
+      $(id).classList.toggle('on', id===which);
+      PANES[id].forEach(function(pane){ show($(pane), false); });
+    });
+
+    if(which==='tabCard'){
+      // The scorecard decides for itself whether there is a match on.
+      refresh();
+    } else {
+      PANES[which].forEach(function(pane){ show($(pane), true); });
+    }
+
+    if(which==='tabSquad')    loadSquad();
+    if(which==='tabFixtures') loadFixtures();
+    if(which==='tabContacts') loadContacts();
+  }
+
+  Object.keys(PANES).forEach(function(id){
+    $(id).addEventListener('click', function(){ openTab(id); });
+  });
+
+  // ---------------------------------------------------------------- squad
+
+  function loadSquad(){
+    call('captains','squad').then(function(players){
+      var box=$('squadList');
+      box.innerHTML='';
+      if(!players.length){
+        box.innerHTML='<p class="sub" style="color:var(--muted)">Nobody on the squad yet.</p>';
+        return;
+      }
+      players.forEach(function(p){ box.appendChild(squadRow(p)); });
+    }).catch(function(e){ say(e.message,'bad'); });
+  }
+
+  function squadRow(p){
+    var active=Number(p.is_active)===1;
+    var added =Number(p.added_by_captain)===1;
+
+    var row=document.createElement('div');
+    row.className='list-row'+(active?'':' retired');
+
+    var left=document.createElement('div');
+    var who=document.createElement('div');
+    who.className='who';
+    who.textContent=p.name;
+    if(added){
+      var tag=document.createElement('span');
+      tag.className='tag'; tag.textContent='added by us';
+      who.appendChild(tag);
+    }
+    left.appendChild(who);
+    if(!active){
+      var sub=document.createElement('p');
+      sub.className='sub'; sub.textContent='Retired - not selectable';
+      left.appendChild(sub);
+    }
+    row.appendChild(left);
+
+    var actions=document.createElement('div');
+    actions.className='row';
+
+    // Only our own additions can be renamed: a league player's name is the
+    // league's, and years of history are filed under it.
+    if(added && active){
+      var rename=document.createElement('button');
+      rename.className='ghost mini'; rename.textContent='Rename';
+      rename.addEventListener('click', function(){
+        var next=window.prompt('New name for '+p.name, p.name);
+        if(!next || !next.trim() || next.trim()===p.name) return;
+        call('captains','setPlayer',{playerId:p.id, name:next.trim()})
+          .then(function(){ loadSquad(); say('Renamed.','ok'); })
+          .catch(function(e){ say(e.message,'bad'); });
+      });
+      actions.appendChild(rename);
+    }
+
+    var toggle=document.createElement('button');
+    toggle.className='ghost mini';
+    toggle.textContent=active?'Retire':'Bring back';
+    toggle.addEventListener('click', function(){
+      if(active && !window.confirm('Retire '+p.name+'? They stay in past results but cannot be picked.')) return;
+      call('captains','setPlayer',{playerId:p.id, isActive:!active})
+        .then(function(){ loadSquad(); say(active?(p.name+' retired.'):(p.name+' is back.'),'ok'); })
+        .catch(function(e){ say(e.message,'bad'); });
+    });
+    actions.appendChild(toggle);
+
+    row.appendChild(actions);
+    return row;
+  }
+
+  $('addPlayerBtn').addEventListener('click', function(){
+    var name=$('newPlayer').value.trim();
+    if(!name){ say('Type their name first.','warn'); return; }
+    $('addPlayerBtn').disabled=true;
+    call('captains','addPlayer',{name:name})
+      .then(function(r){
+        $('newPlayer').value='';
+        loadSquad();
+        say(r.reactivated ? (r.name+' was retired and is back on the squad.')
+                          : (r.name+' added to the squad.'), 'ok');
+      })
+      .catch(function(e){ say(e.message,'bad'); })
+      .then(function(){ $('addPlayerBtn').disabled=false; });
+  });
+
+  // ------------------------------------------------------------- fixtures
+
+  function loadFixtures(){
+    call('captains','fixtures').then(function(rows){
+      var box=$('fixtureList');
+      box.innerHTML='';
+      if(!rows.length){
+        box.innerHTML='<p class="sub" style="color:var(--muted)">No fixtures published yet.</p>';
+        return;
+      }
+      rows.forEach(function(f){
+        var row=document.createElement('div'); row.className='fx';
+
+        var date=document.createElement('span'); date.className='date';
+        date.textContent=f.match_date ? f.match_date.slice(8,10)+'/'+f.match_date.slice(5,7) : '';
+        row.appendChild(date);
+
+        var mid=document.createElement('div');
+        var home=Number(f.is_home)===1;
+        mid.innerHTML='<strong>'+esc(f.opponent_name||'TBC')+'</strong>'
+                     +'<p class="sub">'+(home?'Home':'Away')
+                     +(f.venue_name?' · '+esc(f.venue_name):'')+'</p>';
+        row.appendChild(mid);
+
+        var res=document.createElement('span'); res.className='res';
+        if(Number(f.played)===1){
+          var us=Number(f.team_score), them=Number(f.opponent_score);
+          res.textContent=us+'-'+them;
+          res.classList.add(us>them?'w':(us<them?'l':'d'));
+        } else {
+          res.textContent='–'; res.style.color='var(--muted)';
+        }
+        row.appendChild(res);
+        box.appendChild(row);
+      });
+    }).catch(function(e){ say(e.message,'bad'); });
+  }
+
+  // ------------------------------------------------------------- contacts
+
+  function loadContacts(){
+    call('captains','contacts').then(function(rows){
+      var box=$('contactList');
+      box.innerHTML='';
+      rows.forEach(function(t){
+        var row=document.createElement('div'); row.className='list-row';
+        var left=document.createElement('div');
+        left.innerHTML='<div class="who">'+esc(t.name)+'</div>'
+                      +'<p class="sub">'+esc(t.captain_name||'No captain listed')
+                      +(t.division_name?' · '+esc(t.division_name):'')
+                      +(t.venue_name?' · '+esc(t.venue_name):'')+'</p>';
+        row.appendChild(left);
+        box.appendChild(row);
+      });
+    }).catch(function(e){ say(e.message,'bad'); });
+  }
+
+  // ------------------------------------------------------------------ PIN
+
+  $('setPinBtn').addEventListener('click', function(){
+    var cur=$('curPin').value, next=$('newPin').value;
+    if(!cur || !next){ say('Enter the current PIN and the new one.','warn'); return; }
+
+    $('setPinBtn').disabled=true;
+    call('captains','setPin',{currentPin:cur, newPin:next})
+      .then(function(r){
+        $('curPin').value=''; $('newPin').value='';
+        say('PIN changed. '+(r.note||''),'ok');
+      })
+      .catch(function(e){ say(e.message,'bad'); })
+      .then(function(){ $('setPinBtn').disabled=false; });
+  });
+
   // --------------------------------------------------------------- polling
 
+  function onCardTab(){ return $('tabCard').classList.contains('on'); }
+
   function refresh(){
+    if(!onCardTab()) return Promise.resolve();
     return call('scorecards','mine').then(function(card){
       if(!card || !card.fixture_id){
         S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
@@ -520,7 +784,7 @@ button.go{background:var(--felt);}
     S.timer=setInterval(function(){
       // Never overwrite the screen while edits are still unsent, or the
       // captain would watch their own taps disappear.
-      if(document.hidden || S.busy || S.pick || S.queue.length) return;
+      if(document.hidden || S.busy || S.pick || S.queue.length || !onCardTab()) return;
       if(!$('frameSheet').classList.contains('hidden')) return;
       call('scorecards','card',{fixtureId:S.fixtureId})
         .then(function(c){ if(!S.busy && !S.pick) render(c); })

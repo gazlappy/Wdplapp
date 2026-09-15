@@ -20,7 +20,7 @@ final class LeagueModule implements Module
 
     public static function title(): string { return 'League data'; }
 
-    public static function schemaVersion(): int { return 1; }
+    public static function schemaVersion(): int { return 2; }
 
     public static function tables(): array
     {
@@ -71,10 +71,19 @@ final class LeagueModule implements Module
                 team_id   CHAR(36)     NULL,
                 name      VARCHAR(190) NOT NULL,
                 is_active TINYINT(1)   NOT NULL DEFAULT 1,
+                added_by_captain TINYINT(1) NOT NULL DEFAULT 0,
+                collected_by_app TINYINT(1) NOT NULL DEFAULT 0,
+                updated_at DATETIME    NULL,
                 PRIMARY KEY (id),
                 KEY idx_player_season (season_id),
-                KEY idx_player_team (team_id)
+                KEY idx_player_team (team_id),
+                KEY idx_player_added (season_id, added_by_captain, collected_by_app)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+            "ALTER TABLE wdpl_players
+                ADD COLUMN IF NOT EXISTS added_by_captain TINYINT(1) NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS collected_by_app TINYINT(1) NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS updated_at DATETIME NULL",
 
             "CREATE TABLE IF NOT EXISTS wdpl_fixtures (
                 id           CHAR(36)   NOT NULL,
@@ -190,10 +199,22 @@ final class LeagueModule implements Module
         array $teams, array $players, array $fixtures, array $standings
     ): void {
         Db::transaction(function () use ($seasonId, $season, $divisions, $venues, $teams, $players, $fixtures, $standings) {
-            $owned = ['wdpl_standings', 'wdpl_fixtures', 'wdpl_players', 'wdpl_teams', 'wdpl_venues', 'wdpl_divisions'];
+            $owned = ['wdpl_standings', 'wdpl_fixtures', 'wdpl_teams', 'wdpl_venues', 'wdpl_divisions'];
             foreach ($owned as $table) {
                 Db::query('DELETE FROM ' . Db::identifier($table) . ' WHERE season_id = ?', [$seasonId]);
             }
+
+            // Players are the one exception to "publishing replaces the season".
+            // A captain can add someone on a match night, and that player must
+            // survive the next publish or their frames would point at nobody.
+            // Only players the app knows about are cleared; a captain's
+            // addition stays until the app has collected it, at which point it
+            // arrives in the payload like any other player.
+            Db::query(
+                'DELETE FROM wdpl_players
+                  WHERE season_id = ? AND (added_by_captain = 0 OR collected_by_app = 1)',
+                [$seasonId]
+            );
 
             $isCurrent = self::flag($season, 'isCurrent');
 
@@ -242,8 +263,16 @@ final class LeagueModule implements Module
             }
 
             foreach ($players as $p) {
+                // ON DUPLICATE rather than INSERT: a player the app has
+                // collected still exists here as the captain's row, and this
+                // is the app taking ownership of it.
                 Db::query(
-                    'INSERT INTO wdpl_players (id, season_id, team_id, name, is_active) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO wdpl_players (id, season_id, team_id, name, is_active,
+                                               added_by_captain, collected_by_app, updated_at)
+                     VALUES (?, ?, ?, ?, ?, 0, 0, UTC_TIMESTAMP())
+                     ON DUPLICATE KEY UPDATE season_id = VALUES(season_id), team_id = VALUES(team_id),
+                         name = VALUES(name), is_active = VALUES(is_active),
+                         added_by_captain = 0, collected_by_app = 0, updated_at = VALUES(updated_at)',
                     [
                         self::uuid(isset($p['id']) ? $p['id'] : null, 'player.id'), $seasonId,
                         self::optionalUuid($p, 'teamId'), self::text($p, 'name', 190), self::flag($p, 'isActive'),
