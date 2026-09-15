@@ -271,7 +271,7 @@ test('only the app may hand cards out and take them back', function () {
 
     // Ownership transitions belong to the league, not to captains. If any of
     // these became captain-reachable, a captain could seize or release a card.
-    foreach (['open', 'claim', 'reopen', 'state'] as $adminOnly) {
+    foreach (['open', 'claim', 'reopen', 'close', 'state'] as $adminOnly) {
         check(isset($actions[$adminOnly]), "missing action {$adminOnly}");
         same(Role::Admin, $actions[$adminOnly]['role'], "{$adminOnly} must be admin-only");
     }

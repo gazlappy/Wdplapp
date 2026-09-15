@@ -110,6 +110,7 @@ final class ScorecardsModule implements Module
             'open'   => ['role' => Role::Admin,   'fn' => [self::class, 'open']],
             'claim'  => ['role' => Role::Admin,   'fn' => [self::class, 'claim']],
             'reopen' => ['role' => Role::Admin,   'fn' => [self::class, 'reopen']],
+            'close'  => ['role' => Role::Admin,   'fn' => [self::class, 'close']],
             'state'  => ['role' => Role::Admin,   'fn' => [self::class, 'state']],
 
             'mine'     => ['role' => Role::Captain, 'fn' => [self::class, 'mine']],
@@ -247,6 +248,54 @@ final class ScorecardsModule implements Module
             );
 
             return self::readCard($fixtureId, null);
+        });
+    }
+
+    /**
+     * Abandons a card and hands the fixture back to the app.
+     *
+     * Without this, a card opened by mistake is stuck: it cannot be reopened
+     * (it is already live), cannot be collected (it is not finished), and
+     * cannot be opened again (one is already open). The only way out was
+     * editing the database.
+     *
+     * The card is deleted rather than parked in some cancelled state. Anything
+     * the captains entered is discarded, which is the point - the league is
+     * saying this card should not exist. What was on it is reported back so the
+     * app can warn before it happens.
+     *
+     * A collected card is refused: it has already been written into the season,
+     * so there is nothing here to abandon.
+     */
+    public static function close()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+
+        return Db::transaction(function () use ($fixtureId) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if ($card['state'] === self::STATE_CLAIMED) {
+                throw new ApiError(409, 'already_claimed',
+                    'This card has already been collected, so there is nothing to close.');
+            }
+
+            $frames = self::loadFrames($fixtureId);
+            $score  = ScorecardRules::score($frames);
+
+            Db::query('DELETE FROM wdpl_scorecard_frames WHERE fixture_id = ?', [$fixtureId]);
+            Db::query('DELETE FROM wdpl_scorecards WHERE fixture_id = ?', [$fixtureId]);
+
+            return [
+                'fixture_id'    => $fixtureId,
+                'closed'        => true,
+                'was_state'     => $card['state'],
+                'frames_played' => $score['played'],
+                'frames_total'  => (int)$card['frames_total'],
+                'home_score'    => $score['home'],
+                'away_score'    => $score['away'],
+            ];
         });
     }
 

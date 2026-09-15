@@ -114,6 +114,8 @@ public partial class ScorecardsPage : ContentPage
 
             var captured = state;
 
+            var actions = new HorizontalStackLayout { Spacing = 6, VerticalOptions = LayoutOptions.Center };
+
             if (state.Owner == CardOwner.Finalised)
             {
                 var claim = new Button
@@ -126,19 +128,40 @@ public partial class ScorecardsPage : ContentPage
                     Padding = new Thickness(14, 6),
                 };
                 claim.Clicked += async (_, _) => await ClaimAsync(captured);
-                grid.Add(claim, 1);
+                actions.Add(claim);
             }
             else if (state.Owner == CardOwner.Live)
             {
-                var note = new Label
+                actions.Add(new Label
                 {
                     Text = "captains scoring",
                     FontSize = 11,
                     TextColor = Color.FromArgb("#94A3B8"),
                     VerticalOptions = LayoutOptions.Center,
-                };
-                grid.Add(note, 1);
+                });
             }
+
+            // A card opened by mistake has no other way out: it cannot be
+            // reopened, cannot be collected before it is finished, and blocks
+            // opening another for the same fixture.
+            if (state.Owner is CardOwner.Live or CardOwner.Finalised)
+            {
+                var close = new Button
+                {
+                    Text = "Close",
+                    BackgroundColor = Colors.Transparent,
+                    TextColor = Color.FromArgb("#EF4444"),
+                    BorderColor = Color.FromArgb("#FCA5A5"),
+                    BorderWidth = 1,
+                    CornerRadius = 8,
+                    FontSize = 12,
+                    Padding = new Thickness(12, 6),
+                };
+                close.Clicked += async (_, _) => await CloseAsync(captured);
+                actions.Add(close);
+            }
+
+            grid.Add(actions, 1);
 
             CardList.Children.Add(new Frame
             {
@@ -230,6 +253,54 @@ public partial class ScorecardsPage : ContentPage
                 "still_live" => "That match is still being scored. It has to be finished first.",
                 _ => ex.Message,
             }, error: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+    }
+
+    /// <summary>
+    /// Abandons a card so the fixture can be opened again.
+    /// </summary>
+    /// <remarks>
+    /// Warns in proportion to what is lost: a card nobody has scored is a
+    /// trivial thing to discard, one with frames on it is not.
+    /// </remarks>
+    private async Task CloseAsync(ScorecardState state)
+    {
+        var scored = state.FramesPlayed > 0;
+
+        var warning = scored
+            ? $"{state.FramesPlayed} frame(s) have been scored ({state.HomeScore}–{state.AwayScore}). "
+              + "Closing throws that away and cannot be undone. If the match is finished, "
+              + "ask the captains to sign it off and collect it instead."
+            : "Nothing has been scored on it yet.";
+
+        if (!await DisplayAlert("Close this card?",
+                $"{state.HomeTeam} v {state.AwayTeam}\n\n{warning}\n\n"
+                + "The fixture goes back to this app and can be opened again.",
+                scored ? "Close and lose the scores" : "Close", "Cancel"))
+            return;
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            var closed = await ScorecardService.CloseAsync(client, state.FixtureId);
+
+            Report(closed.HadScoring
+                ? $"Closed. {closed.FramesPlayed} scored frame(s) were discarded."
+                : "Closed. The fixture can be opened again.", error: false);
+
+            await LoadStatesAsync();
+        }
+        catch (WebApiException ex)
+        {
+            Report(ex.Code == "already_claimed"
+                ? "That card has already been collected, so there is nothing to close."
+                : ex.Message, error: true);
         }
         catch (InvalidOperationException ex)
         {

@@ -75,6 +75,33 @@ public sealed class ScorecardService
         return ReadState(result);
     }
 
+    /// <summary>What a card held when it was abandoned.</summary>
+    public sealed record ClosedCard(int FramesPlayed, int FramesTotal, int HomeScore, int AwayScore)
+    {
+        /// <summary>True when scoring had started, so closing loses real work.</summary>
+        public bool HadScoring => FramesPlayed > 0;
+    }
+
+    /// <summary>
+    /// Abandons a card and takes the fixture back.
+    /// </summary>
+    /// <remarks>
+    /// The way out of a card opened by mistake: it cannot be reopened, cannot
+    /// be collected before it is finished, and blocks opening another. Whatever
+    /// the captains had entered is discarded, so the caller should confirm
+    /// first - the returned figures are there to make that warning specific.
+    /// </remarks>
+    public static async Task<ClosedCard> CloseAsync(WebApiClient client, Guid fixtureId)
+    {
+        var result = await client.AdminAsync("scorecards", "close", new { fixtureId });
+
+        return new ClosedCard(
+            Int(result, "frames_played"),
+            Int(result, "frames_total"),
+            Int(result, "home_score"),
+            Int(result, "away_score"));
+    }
+
     public sealed class ClaimedFrame
     {
         public int Number { get; init; }
