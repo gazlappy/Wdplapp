@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Wdpl2.Domain.Fixtures;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Web;
@@ -35,16 +36,18 @@ public sealed class ScorecardService
     /// winners; they never invent frames.
     /// </remarks>
     public static async Task<ScorecardState> OpenAsync(
-        WebApiClient client, Fixture fixture, int framesTotal, int maxPerPlayer)
+        WebApiClient client, Fixture fixture, MatchFormat format, int maxPerPlayer)
     {
-        // Which frames are doubles comes from the app, because the season
-        // decides that - captains score the match, they do not redesign it.
-        var doublesFrames = fixture.Frames
-            .Where(f => f.IsDoubles)
-            .Select(f => f.Number)
-            .ToList();
+        // A fixture with frames already built in the app is the card, doubles
+        // and all. Only when there are none does the season's format decide,
+        // and doubles then fall at the end of the night by convention.
+        var hasBuiltFrames = fixture.Frames.Count > 0;
 
-        var count = fixture.Frames.Count > 0 ? fixture.Frames.Count : Math.Max(1, framesTotal);
+        var doublesFrames = hasBuiltFrames
+            ? fixture.Frames.Where(f => f.IsDoubles).Select(f => f.Number).ToList()
+            : format.DoublesFrameNumbers().ToList();
+
+        var count = hasBuiltFrames ? fixture.Frames.Count : format.TotalFrames;
 
         var result = await client.AdminAsync("scorecards", "open", new
         {

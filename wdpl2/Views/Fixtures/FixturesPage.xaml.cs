@@ -1527,6 +1527,9 @@ public partial class FixturesPage : ContentPage
         LoadPlayerLists();
 
         // Determine frame count - priority order:
+        // NOTE: this precedence also lives in Domain/Fixtures/MatchFormat.cs,
+        // which the live-scoring path uses. Change both together, or better,
+        // move this one over to it.
         // 1. Season's doubles config (SinglesFrameCount + DoublesFrameCount)
         // 2. Season's FramesPerMatch (if explicitly set > 0)
         // 3. App Settings DefaultFramesPerMatch (if > 0)
