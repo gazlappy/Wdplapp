@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Wdpl2.Data;
 using Wdpl2.Models;
 
@@ -398,6 +398,19 @@ public partial class SqliteDataStore : IDataStore
                 .OrderBy(f => f.Date)
                 .AsNoTracking()
                 .ToListAsync(ct);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<Fixture?> GetFixtureAsync(Guid id, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            return await _context.Fixtures
+                .Where(f => f.Id == id)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ct);
         }
         finally { _gate.Release(); }
     }

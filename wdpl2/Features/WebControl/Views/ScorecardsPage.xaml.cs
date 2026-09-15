@@ -353,8 +353,7 @@ public partial class ScorecardsPage : ContentPage
     {
         var scored = frames.Where(f => f.Winner != FrameWinner.None).ToList();
 
-        var stored = (await _dataStore.GetFixturesAsync(null))
-            .FirstOrDefault(f => f.Id == fixtureId);
+        var stored = await _dataStore.GetFixtureAsync(fixtureId);
 
         var applied = 0;
 

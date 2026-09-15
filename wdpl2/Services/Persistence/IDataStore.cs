@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Wdpl2.Models;
 
@@ -114,6 +114,13 @@ public interface IDataStore
     /// </summary>
     Task<List<Fixture>> GetFixturesAsync(Guid? seasonId, CancellationToken ct = default);
     
+    /// <summary>Finds one fixture by id, or null. Not season-scoped.</summary>
+    /// <remarks>
+    /// <see cref="GetFixturesAsync"/> returns nothing at all for a null season,
+    /// which is a trap for callers that hold an id but no season.
+    /// </remarks>
+    Task<Fixture?> GetFixtureAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>
     /// Add a new fixture
     /// </summary>
