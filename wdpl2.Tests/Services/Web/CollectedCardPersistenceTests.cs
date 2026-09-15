@@ -73,6 +73,37 @@ public class CollectedCardPersistenceTests
     }
 
     [Fact]
+    public async Task GetPlayersByIdsAsync_AnswersWhichPlayersAreAlreadyHere()
+    {
+        var (connection, options) = await OpenAsync();
+        using var _ = connection;
+
+        var season = new Season { Name = "2026/27" };
+        var here = new Player { FirstName = "Al", LastName = "Here", SeasonId = season.Id };
+
+        using (var seed = new LeagueContext(options))
+        {
+            seed.Seasons.Add(season);
+            seed.Players.Add(here);
+            await seed.SaveChangesAsync();
+        }
+
+        using var read = new LeagueContext(options);
+        var store = new SqliteDataStore(read);
+
+        var absent = Guid.NewGuid();
+        var found = await store.GetPlayersByIdsAsync(new[] { here.Id, absent });
+
+        Assert.Single(found);
+        Assert.Equal(here.Id, found[0].Id);
+        Assert.Empty(await store.GetPlayersByIdsAsync(Array.Empty<Guid>()));
+
+        // The same trap as fixtures: season-scoped reads answer "nothing",
+        // which would make every collected player look new.
+        Assert.Empty(await store.GetPlayersAsync(null));
+    }
+
+    [Fact]
     public async Task UpdateFixtureAsync_PersistsCollectedFrames()
     {
         var (connection, options) = await OpenAsync();

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Wdpl2.Domain.Fixtures;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -64,7 +65,8 @@ public sealed class CaptainRosterService
     {
         if (players.Count == 0) return 0;
 
-        var known = (await store.GetPlayersAsync(null)).ToDictionary(p => p.Id);
+        var known = (await store.GetPlayersByIdsAsync(players.Select(p => p.Id).ToList()))
+            .ToDictionary(p => p.Id);
 
         var added = 0;
         var confirmed = new List<Guid>();
@@ -117,6 +119,38 @@ public sealed class CaptainRosterService
         await client.AdminAsync("captains", "markCollected", new { playerIds = confirmed });
 
         return added;
+    }
+
+    /// <summary>
+    /// Takes in any player a collected card refers to that the app does not have.
+    /// </summary>
+    /// <remarks>
+    /// A card's frames can name someone a captain added online. Collecting the
+    /// card without them leaves those slots pointing at a player the app has
+    /// never heard of, which shows up as a blank name on an otherwise complete
+    /// scorecard - so the card collects the players it needs rather than relying
+    /// on the secretary having pressed the two buttons in the right order.
+    /// </remarks>
+    public static async Task<int> CollectReferencedAsync(
+        WebApiClient client, IDataStore store, LeagueData league, IEnumerable<Guid> playerIds)
+    {
+        var wanted = playerIds
+            .Where(id => id != FrameResult.VoidPlayerId)
+            .Distinct()
+            .ToList();
+
+        if (wanted.Count == 0) return 0;
+
+        var known = (await store.GetPlayersByIdsAsync(wanted)).Select(p => p.Id).ToHashSet();
+        var missing = wanted.Where(id => !known.Contains(id)).ToList();
+        if (missing.Count == 0) return 0;
+
+        var waiting = await GetUncollectedAsync(client);
+        var needed = waiting.Where(p => missing.Contains(p.Id)).ToList();
+
+        // Anything still missing is not a captain's addition - a player deleted
+        // in the app, say. That is not this method's problem to invent a fix for.
+        return needed.Count == 0 ? 0 : await CollectAsync(client, store, league, needed);
     }
 
     /// <summary>

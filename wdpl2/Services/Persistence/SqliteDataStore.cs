@@ -167,6 +167,22 @@ public partial class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
+    public async Task<List<Player>> GetPlayersByIdsAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return new List<Player>();
+
+        await _gate.WaitAsync(ct);
+        try
+        {
+            return await _context.Players
+                .Where(p => ids.Contains(p.Id))
+                .AsNoTracking()
+                .ToListAsync(ct);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task AddPlayerAsync(Player player, CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);

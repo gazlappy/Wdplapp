@@ -34,6 +34,13 @@ public interface IDataStore
     /// </summary>
     Task<List<Player>> GetPlayersAsync(Guid? seasonId, CancellationToken ct = default);
     
+    /// <summary>Finds players by id, across every season. Missing ids are simply absent.</summary>
+    /// <remarks>
+    /// <see cref="GetPlayersAsync"/> returns nothing at all for a null season,
+    /// so it cannot answer "do I already have these players?".
+    /// </remarks>
+    Task<List<Player>> GetPlayersByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
     /// <summary>
     /// Add a new player
     /// </summary>

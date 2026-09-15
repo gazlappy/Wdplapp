@@ -264,11 +264,20 @@ public partial class ScorecardsPage : ContentPage
 
             var (claimed, frames, wasClaimed) = await ScorecardService.ClaimAsync(client, state.FixtureId);
 
+            // Before the frames, or the slots naming them land blank.
+            var pulled = await CaptainRosterService.CollectReferencedAsync(
+                client, _dataStore, League,
+                frames.SelectMany(f => new[] { f.HomePlayerId, f.AwayPlayerId })
+                      .Where(id => id.HasValue)
+                      .Select(id => id!.Value));
+
             var applied = await ApplyToFixtureAsync(state.FixtureId, frames);
 
+            var note = pulled > 0 ? $" Took in {pulled} player(s) the captains added." : "";
+
             Report(wasClaimed
-                ? $"Already collected previously; re-applied {applied} frames. Nothing was duplicated."
-                : $"Collected. {applied} frames written into the season.", error: false);
+                ? $"Already collected previously; re-applied {applied} frames.{note} Nothing was duplicated."
+                : $"Collected. {applied} frames written into the season.{note}", error: false);
 
             await LoadStatesAsync();
         }
