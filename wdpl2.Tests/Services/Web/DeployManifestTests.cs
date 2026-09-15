@@ -1,0 +1,136 @@
+using Wdpl2.Services.Web;
+
+namespace wdpl2.Tests;
+
+/// <summary>
+/// Guards the deploy manifest against the gap that actually bit us.
+/// </summary>
+/// <remarks>
+/// <c>core/Passwords.php</c> was added to the backend but never listed in any
+/// module's <see cref="IWebModule.ServerFiles"/>, so it was never uploaded. The
+/// deployed backend then died on <c>require</c> at the first request.
+/// <para>
+/// Nothing caught it: local testing copied the whole folder rather than going
+/// through the manifest, and <c>WebDeployService</c> can only verify that files
+/// it was told about exist - it cannot know about one it was never told about.
+/// These tests close that loop by comparing the manifest against the tree.
+/// </para>
+/// </remarks>
+public class DeployManifestTests
+{
+    /// <summary>All modules this build would deploy.</summary>
+    private static IReadOnlyList<IWebModule> Modules() => new IWebModule[]
+    {
+        new SystemWebModule(),
+        new LeagueWebModule(),
+        new CaptainsWebModule(),
+        new ScorecardsWebModule(),
+    };
+
+    /// <summary>Walks up from the test binary to the repository root.</summary>
+    private static DirectoryInfo RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "wdpl2.sln")))
+            dir = dir.Parent;
+
+        Assert.NotNull(dir);
+        return dir!;
+    }
+
+    private static DirectoryInfo BackendRoot() =>
+        new(Path.Combine(RepoRoot().FullName, "wdpl2", "web-backend"));
+
+    /// <summary>Backend files that must reach the server, as repo-relative paths.</summary>
+    private static List<string> FilesOnDisk()
+    {
+        var root = BackendRoot();
+        Assert.True(root.Exists, $"Backend folder not found at {root.FullName}");
+
+        return root.EnumerateFiles("*", SearchOption.AllDirectories)
+            // config.php is the credential sidecar: generated at deploy time,
+            // never committed, never shipped as an asset.
+            .Where(f => !f.Name.Equals("config.php", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !f.Name.Equals("config.sample.php", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !f.Name.Equals("README.md", StringComparison.OrdinalIgnoreCase))
+            .Select(f => Path.GetRelativePath(root.FullName, f.FullName).Replace('\\', '/'))
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> FilesDeclared() =>
+        Modules()
+            .SelectMany(m => m.ServerFiles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    [Fact]
+    public void EveryBackendFileIsDeployed()
+    {
+        var missing = FilesOnDisk()
+            .Except(FilesDeclared(), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Assert.True(missing.Count == 0,
+            "These backend files exist but no module deploys them, so the server would be missing them:\n  " +
+            string.Join("\n  ", missing));
+    }
+
+    [Fact]
+    public void EveryDeployedFileExists()
+    {
+        var root = BackendRoot();
+
+        var absent = FilesDeclared()
+            .Where(rel => !File.Exists(Path.Combine(root.FullName, rel.Replace('/', Path.DirectorySeparatorChar))))
+            .ToList();
+
+        Assert.True(absent.Count == 0,
+            "These files are declared for deployment but do not exist:\n  " + string.Join("\n  ", absent));
+    }
+
+    [Fact]
+    public void TheCredentialSidecarIsNeverDeployedAsCode()
+    {
+        // config.php holds the database password and the admin hash. It is
+        // written separately at deploy time; shipping it as an asset would put
+        // credentials in the app package and let a code redeploy clobber them.
+        //
+        // Matched as an exact path, not EndsWith: case-insensitively,
+        // "api/core/Config.php" ends with "config.php" and would trip this.
+        // That is the same trap that once made an MSBuild glob exclude the
+        // wrong file from the app package.
+        Assert.DoesNotContain(FilesDeclared(),
+            p => p.Equals("api/config.php", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ModuleIdsAreUniqueAndMatchTheirServerFolder()
+    {
+        var modules = Modules();
+
+        Assert.Equal(modules.Count, modules.Select(m => m.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+        foreach (var module in modules)
+        {
+            // The PHP side discovers modules by folder name, so a mismatch means
+            // the app and the server disagree about what is installed.
+            var expected = $"api/modules/{module.Id}/Module.php";
+            if (module.Id == "system") continue; // core files, covered above
+
+            Assert.Contains(expected, module.ServerFiles);
+        }
+    }
+
+    [Fact]
+    public void TheFrontControllerAndHtaccessAreAlwaysDeployed()
+    {
+        var declared = FilesDeclared();
+
+        // Without index.php there is no API at all; without .htaccess the core
+        // and the credential sidecar become publicly fetchable.
+        Assert.Contains("api/index.php", declared);
+        Assert.Contains("api/.htaccess", declared);
+    }
+}

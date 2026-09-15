@@ -141,6 +141,14 @@ stop accepting its own administrator.
 3. Register it: `services.AddSingleton<IWebModule, YourWebModule>()` in
    `CoreServiceCollectionExtensions.AddWebPlatform`.
 
+**Every new backend file must appear in some module's `ServerFiles`.** A file on
+disk that nothing declares is simply never uploaded, and the deployed backend
+then dies on `require` at the first request. `DeployManifestTests` compares the
+manifest against the tree and fails naming the file, because `WebDeployService`
+cannot detect a file it was never told about, and local testing that copies the
+folder wholesale will not notice either. This is not hypothetical - it is
+exactly how `core/Passwords.php` reached production missing.
+
 That is the whole checklist. The Web Control tab, the deploy file set and the
 schema installer all read from the registry, so none of them need editing.
 
