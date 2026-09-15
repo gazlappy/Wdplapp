@@ -223,7 +223,7 @@ button.sm{padding:7px 12px; font-size:13px;}
   var API = '../api/index.php';
   var POLL = 15000;
 
-  var S = { cards:[], fixtures:[], pins:[], tab:'tonight', timer:null, busy:false };
+  var S = { cards:[], fixtures:[], pins:[], tab:'tonight', timer:null, busy:false, again:false };
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -499,17 +499,22 @@ button.sm{padding:7px 12px; font-size:13px;}
       var rows = Array.isArray(d) ? d : [];
       var box=$('waiting');
 
+      var at = new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+
       if(!rows.length){
-        box.innerHTML='<div class="empty">Nothing waiting.</div>';
+        box.innerHTML='<div class="empty">No captain has added a player that is still waiting. '
+          + 'Checked at '+esc(at)+'.</div>';
         return;
       }
 
       box.innerHTML = rows.map(function(p){
         return '<div class="item"><div class="who">'
           + '<div class="name">'+esc(p.name||'(unnamed)')+'</div>'
-          + '<div class="sub">'+esc(p.team_name||'(unknown team)')+'</div>'
+          + '<div class="sub">'+esc(p.team_name||'(unknown team)')
+          + (p.updated_at ? ' · added '+esc(when(p.updated_at)) : '')+'</div>'
           + '</div></div>';
-      }).join('');
+      }).join('')
+      + '<div class="empty">'+rows.length+' waiting · checked at '+esc(at)+'</div>';
     });
   }
 
@@ -557,17 +562,29 @@ button.sm{padding:7px 12px; font-size:13px;}
 
   // ------------------------------------------------------------- refresh
 
+  function loadFor(tab){
+    if(tab==='tonight')  return loadCards().then(loadFixtures);
+    if(tab==='captains') return loadPins();
+    if(tab==='waiting')  return loadWaiting();
+    return loadHealth();
+  }
+
+  // The guard is here to stop a poll landing on top of itself, not to throw
+  // away what the secretary just asked for. A tab switched while a load was in
+  // flight used to be dropped silently and sit on "Loading" for good, so the
+  // tab being loaded is remembered and chased if it moved on.
   function refreshAll(){
-    if(S.busy) return Promise.resolve();
+    if(S.busy){ S.again = true; return Promise.resolve(); }
+
     S.busy = true;
+    S.again = false;
 
-    var work;
-    if(S.tab==='tonight')       work = loadCards().then(loadFixtures);
-    else if(S.tab==='captains') work = loadPins();
-    else if(S.tab==='waiting')  work = loadWaiting();
-    else                        work = loadHealth();
+    var tab = S.tab;
 
-    return work.catch(fail).then(function(){ S.busy=false; });
+    return loadFor(tab).catch(fail).then(function(){
+      S.busy = false;
+      if(S.again || S.tab !== tab) return refreshAll();
+    });
   }
 
   $('refresh').addEventListener('click', function(){ say(''); refreshAll(); });
