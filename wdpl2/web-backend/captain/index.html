@@ -4,299 +4,608 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WDPL Captain</title>
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WDPL Captain">
 <style>
-  :root {
-    --bg: #f8fafc; --card: #ffffff; --ink: #1e293b; --muted: #64748b;
-    --line: #e2e8f0; --accent: #2563eb; --home: #059669; --away: #7c3aed;
-    --warn: #d97706; --bad: #ef4444;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f172a; --card: #1e293b; --ink: #f1f5f9; --muted: #94a3b8;
-      --line: #334155; --accent: #3b82f6;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 16px; background: var(--bg); color: var(--ink);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  .wrap { max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
-  .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px; margin-bottom: 12px;
-  }
-  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  select, input {
-    width: 100%; padding: 12px; font-size: 16px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-  }
-  button {
-    padding: 12px 16px; font-size: 15px; font-weight: 600; border: 0;
-    border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer;
-  }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-  .row { display: flex; gap: 8px; align-items: center; }
-  .score { font-size: 30px; font-weight: 700; text-align: center; margin: 8px 0; }
-  .teams { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; }
-  .frame {
-    display: grid; grid-template-columns: 34px 1fr 1fr 1fr; gap: 6px;
-    align-items: center; padding: 6px 0; border-top: 1px solid var(--line);
-  }
-  .frame .no { color: var(--muted); font-size: 13px; }
-  .pick {
-    padding: 10px 4px; font-size: 13px; font-weight: 600; border-radius: 6px;
-    border: 1px solid var(--line); background: transparent; color: var(--muted);
-  }
-  .pick[aria-pressed="true"].h { background: var(--home); border-color: var(--home); color: #fff; }
-  .pick[aria-pressed="true"].a { background: var(--away); border-color: var(--away); color: #fff; }
-  .pick[aria-pressed="true"].n { background: var(--muted); border-color: var(--muted); color: #fff; }
-  .msg { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
-  .msg.bad { background: #fee2e2; color: #991b1b; }
-  .msg.warn { background: #fef3c7; color: #92400e; }
-  .msg.ok { background: #d1fae5; color: #065f46; }
-  .hidden { display: none !important; }
-  .meta { color: var(--muted); font-size: 13px; }
+:root{
+  --bg-0:#0a0f1c; --bg-1:#0f172a; --panel:#16213d; --panel-2:#1d2c4e;
+  --line:#2b3a60; --text:#e6edf7; --muted:#8a9ab8;
+  --accent:#60a5fa; --accent-2:#3b82f6;
+  --felt:#0d8a5a; --gold:#FFD166;
+  --home:#22c55e; --away:#ef4444; --void:#fb923c; --eight:#f97316;
+  --ok-bg:#0b3a2c; --ok-fg:#9af2c8; --bad-bg:#3a0f15; --bad-fg:#ffb4ba;
+  --warn-bg:#3a2d0b; --warn-fg:#fde68a;
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; color:var(--text);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:
+    radial-gradient(1100px 600px at 80% -10%, rgba(96,165,250,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(13,138,90,0.12), transparent 60%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  background-attachment:fixed; min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+header{
+  padding:14px 16px; display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(90deg, rgba(13,138,90,0.35) 0%, rgba(22,33,61,0.85) 45%, rgba(59,130,246,0.30) 100%);
+  border-bottom:2px solid var(--gold); position:sticky; top:0; z-index:30;
+  box-shadow:0 6px 24px rgba(0,0,0,0.55);
+}
+header h1{
+  margin:0; font-size:18px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+  display:flex; align-items:center; gap:10px;
+  background:linear-gradient(90deg,#fff 0%,var(--gold) 50%,var(--accent) 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+header h1::before{
+  content:"8"; display:inline-flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:50%; font-weight:900; font-size:16px;
+  background:radial-gradient(circle at 30% 30%,#2a2a2a,#000 70%); color:#fff;
+  -webkit-text-fill-color:#fff;
+  box-shadow:inset 0 -3px 6px rgba(255,255,255,.10),0 0 0 3px var(--gold),0 0 18px rgba(255,209,102,.55);
+}
+#who{color:var(--gold); font-size:12px; font-weight:600;}
+main{max-width:1100px; margin:0 auto; padding:14px 12px 80px;}
+.card{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+  margin-bottom:12px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px; letter-spacing:.3px;}
+select,input,textarea{
+  width:100%; padding:12px; font-size:16px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); background:rgba(10,15,28,.6); color:var(--text);
+}
+button{
+  padding:12px 16px; font-size:15px; font-weight:700; border:0; cursor:pointer;
+  border-radius:var(--radius-sm); background:var(--accent-2); color:#fff;
+}
+button:disabled{opacity:.45; cursor:not-allowed;}
+button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+button.go{background:var(--felt);}
+.row{display:flex; gap:8px; flex-wrap:wrap;}
+.msg{font-size:13px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:10px; line-height:1.45;}
+.msg.bad{background:var(--bad-bg); color:var(--bad-fg);}
+.msg.warn{background:var(--warn-bg); color:var(--warn-fg);}
+.msg.ok{background:var(--ok-bg); color:var(--ok-fg);}
+.hidden{display:none !important;}
+
+/* Scoreboard */
+.sc-header{
+  display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center;
+  padding:10px 4px 12px;
+}
+.sc-team-h{text-align:right; font-weight:700; font-size:15px;}
+.sc-team-a{text-align:left;  font-weight:700; font-size:15px;}
+.sc-score-badge{
+  background:linear-gradient(180deg,var(--felt),#0a6e48); border:2px solid var(--gold);
+  border-radius:12px; padding:6px 14px; text-align:center; min-width:104px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+.sc-score-big{font-size:24px; font-weight:800; color:var(--gold); letter-spacing:2px;}
+.sc-score-sub{font-size:10px; color:#cbd5e1; margin-top:1px;}
+.sc-phase{
+  padding:8px 12px; font-size:12px; font-weight:700; border-radius:var(--radius-sm);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+  background:rgba(13,138,90,.18); color:#9af2c8; border:1px solid rgba(34,197,94,.35);
+  margin-bottom:10px;
+}
+.sc-phase.home-active{background:rgba(59,130,246,.18); color:#bfdbfe; border-color:rgba(59,130,246,.4);}
+.sc-phase.away-active{background:rgba(239,68,68,.15); color:#fecaca; border-color:rgba(239,68,68,.4);}
+.sc-phase .badge{padding:2px 10px; border-radius:10px; font-size:11px; background:rgba(0,0,0,.3);}
+
+/* Two columns: home on the left, away on the right, as on the paper card */
+.sc-cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+.sc-col-head{
+  padding:6px 4px; display:grid; gap:2px; font-size:10px; font-weight:800;
+  text-align:center; background:rgba(10,15,28,.55); color:var(--muted);
+  border-bottom:1px solid var(--line); letter-spacing:.4px;
+}
+.sc-col-head.home{grid-template-columns:26px 34px minmax(0,1fr);}
+.sc-col-head.away{grid-template-columns:minmax(0,1fr) 34px 26px;}
+.sc-row{display:grid; gap:2px; padding:3px 4px; min-height:38px; align-items:center;}
+.sc-row.home{grid-template-columns:26px 34px minmax(0,1fr);}
+.sc-row.away{grid-template-columns:minmax(0,1fr) 34px 26px;}
+/* Frames group in fives - the three phases of a WDPL match */
+.sc-row.set-a1{background:rgba(255,255,255,.02);} .sc-row.set-a2{background:rgba(255,255,255,.05);}
+.sc-row.set-b1{background:rgba(59,130,246,.07);}  .sc-row.set-b2{background:rgba(59,130,246,.12);}
+.sc-row.set-c1{background:rgba(13,138,90,.08);}   .sc-row.set-c2{background:rgba(13,138,90,.14);}
+.sc-row.current{background:rgba(245,158,11,.18) !important;}
+.sc-num{font-size:11px; color:var(--muted); text-align:center; font-weight:700;}
+.sc-pill{
+  padding:9px 8px; border-radius:var(--radius-sm); border:1px solid var(--line);
+  background:rgba(10,15,28,.5); color:var(--text); font-size:12px; font-weight:600;
+  text-align:left; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.sc-row.away .sc-pill{text-align:right;}
+.sc-pill.empty{color:var(--muted); font-weight:500;}
+.sc-pill.void{color:var(--void); border-color:rgba(251,146,60,.5);}
+.sc-pill.locked{opacity:.45; cursor:not-allowed;}
+.sc-pill.dbl{border-left:3px solid var(--accent);}
+.sc-row.away .sc-pill.dbl{border-left:1px solid var(--line); border-right:3px solid var(--accent);}
+.sc-win{
+  padding:9px 0; border-radius:var(--radius-sm); border:1px solid var(--line);
+  background:rgba(10,15,28,.5); color:var(--muted); font-size:13px; font-weight:800; text-align:center;
+}
+.sc-win.on.home{background:var(--home); border-color:var(--home); color:#052e16;}
+.sc-win.on.away{background:var(--away); border-color:var(--away); color:#450a0a;}
+.sc-eight{
+  display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
+  border-radius:50%; font-size:11px; font-weight:900; margin-left:4px;
+  background:#000; color:#fff; border:2px solid var(--eight);
+}
+.sc-eight.pending{background:var(--warn-bg); color:var(--warn-fg); border-color:var(--gold);}
+.sc-eight.off{opacity:.25; border-color:var(--line);}
+
+/* Picker */
+.sheet{
+  position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:60;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.sheet-inner{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px 16px 0 0;
+  width:100%; max-width:560px; max-height:86vh; overflow:auto; padding:16px;
+}
+.sheet h3{margin:0 0 4px; font-size:16px;}
+.sheet .sub{color:var(--muted); font-size:12px; margin:0 0 12px;}
+.pick-list{display:flex; flex-direction:column; gap:6px; margin:10px 0;}
+.pick-list button{
+  background:rgba(10,15,28,.6); border:1px solid var(--line); color:var(--text);
+  text-align:left; font-weight:600; font-size:14px;
+}
+.pick-list button.void{color:var(--void); border-color:rgba(251,146,60,.4);}
+.pick-list button.clear{color:var(--muted);}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>WDPL Captain</h1>
-  <p class="sub" id="sub">Sign in to score your match.</p>
 
+<header>
+  <h1>WDPL Captain</h1>
+  <span id="who"></span>
+</header>
+
+<main>
   <div id="msg" class="msg hidden" role="status" aria-live="polite"></div>
 
   <!-- Sign in -->
-  <div class="card" id="loginCard">
+  <section class="card" id="loginCard">
     <label for="team">Your team</label>
     <select id="team"><option value="">Loading…</option></select>
     <label for="pin" style="margin-top:12px">PIN</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
-    <div class="row" style="margin-top:12px">
-      <button id="loginBtn">Sign in</button>
-    </div>
-  </div>
+    <div class="row" style="margin-top:12px"><button id="loginBtn">Sign in</button></div>
+  </section>
 
-  <!-- No live match -->
-  <div class="card hidden" id="idleCard">
+  <!-- Nothing live -->
+  <section class="card hidden" id="idleCard">
     <p style="margin:0 0 8px"><strong id="idleTeam"></strong></p>
-    <p class="meta" style="margin:0">No match is open for live scoring right now. The league opens a card when your
-      match is about to start.</p>
+    <p style="margin:0; color:var(--muted); font-size:13px">
+      No match is open for scoring yet. The league opens the card when your match is about to start.</p>
     <div class="row" style="margin-top:12px">
       <button class="ghost" id="refreshBtn">Check again</button>
       <button class="ghost" id="logoutBtn">Sign out</button>
     </div>
-  </div>
+  </section>
 
-  <!-- Live card -->
-  <div class="card hidden" id="cardCard">
-    <div class="teams"><span id="homeName"></span><span id="awayName"></span></div>
-    <div class="score"><span id="homeScore">0</span> – <span id="awayScore">0</span></div>
-    <p class="meta" id="progress" style="text-align:center;margin:0 0 8px"></p>
-    <div id="frames"></div>
-    <div class="row" style="margin-top:16px">
-      <button id="finaliseBtn">Finish match</button>
+  <!-- The card -->
+  <section class="card hidden" id="cardCard">
+    <div class="sc-header">
+      <div class="sc-team-h" id="homeName">Home</div>
+      <div class="sc-score-badge">
+        <div class="sc-score-big"><span id="homeScore">0</span>–<span id="awayScore">0</span></div>
+        <div class="sc-score-sub" id="progress">0 of 0</div>
+      </div>
+      <div class="sc-team-a" id="awayName">Away</div>
+    </div>
+
+    <div class="sc-phase" id="phaseBar">
+      <span id="phaseText">—</span><span class="badge" id="phaseBadge">Phase 1 of 3</span>
+    </div>
+
+    <div class="sc-cols">
+      <div class="sc-col-head home"><span>#</span><span>W</span><span>HOME</span></div>
+      <div class="sc-col-head away"><span>AWAY</span><span>W</span><span>#</span></div>
+    </div>
+    <div class="sc-cols">
+      <div class="sc-rows-home" id="homeRows"></div>
+      <div class="sc-rows-away" id="awayRows"></div>
+    </div>
+
+    <label for="notes" style="margin-top:14px">Match notes</label>
+    <textarea id="notes" rows="2" placeholder="Anything the league should know"></textarea>
+    <div class="row" style="margin-top:8px"><button class="ghost" id="saveNotesBtn">Save notes</button></div>
+
+    <div class="msg" id="signState" style="margin-top:14px"></div>
+    <div class="row">
+      <button class="go" id="signBtn">Sign off my side</button>
       <button class="ghost" id="logoutBtn2">Sign out</button>
+    </div>
+  </section>
+</main>
+
+<!-- Player picker -->
+<div class="sheet hidden" id="sheet">
+  <div class="sheet-inner">
+    <h3 id="sheetTitle">Pick a player</h3>
+    <p class="sub" id="sheetSub"></p>
+    <div class="pick-list" id="pickList"></div>
+    <label for="adhoc">Someone not on the list</label>
+    <input id="adhoc" type="text" placeholder="Type a name" autocomplete="off">
+    <div class="row" style="margin-top:10px">
+      <button id="adhocBtn">Use this name</button>
+      <button class="ghost" id="sheetClose">Cancel</button>
     </div>
   </div>
 </div>
 
 <script>
-(function () {
+(function(){
   'use strict';
 
-  // The page is served from the same site as the API, so one folder up.
   var API = '../api/index.php';
+  var POLL_MS = 4000;
+  var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
-  var state = { fixtureId: null, version: 0, busy: false };
+  var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false, timer:null, pick:null };
 
-  function $(id) { return document.getElementById(id); }
-  function show(el, on) { el.classList.toggle('hidden', !on); }
+  function $(id){ return document.getElementById(id); }
+  function show(el,on){ el.classList.toggle('hidden', !on); }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
-  function say(text, kind) {
-    var box = $('msg');
-    if (!text) { show(box, false); return; }
-    box.textContent = text;
-    box.className = 'msg ' + (kind || 'warn');
-    show(box, true);
+  function say(text, kind){
+    var box=$('msg');
+    if(!text){ show(box,false); return; }
+    box.textContent=text; box.className='msg '+(kind||'warn'); show(box,true);
   }
 
-  function call(module, action, body) {
-    return fetch(API + '?m=' + module + '&a=' + action, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify(body || {})
-    }).then(function (response) {
-      return response.json().catch(function () {
-        throw { code: 'not_json', message: 'The server sent an unexpected reply.' };
-      }).then(function (payload) {
-        if (payload.ok) return payload.data;
-        // A conflict carries the current card, so callers can catch up.
-        throw {
-          code: payload.error ? payload.error.code : 'error',
-          message: payload.error ? payload.error.message : 'Something went wrong.',
-          current: payload.data || null
-        };
-      });
+  function call(module, action, body){
+    return fetch(API+'?m='+module+'&a='+action, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'same-origin', cache:'no-store', body:JSON.stringify(body||{})
+    }).then(function(r){
+      return r.json().catch(function(){ throw {code:'not_json', message:'The server sent an unexpected reply.'}; })
+        .then(function(p){
+          if(p.ok) return p.data;
+          throw { code:p.error?p.error.code:'error',
+                  message:p.error?p.error.message:'Something went wrong.',
+                  current:p.data||null };
+        });
     });
   }
 
-  // ---------------------------------------------------------------- sign in
+  // ------------------------------------------------------------- sign in
 
-  function loadTeams() {
-    call('captains', 'teams').then(function (teams) {
-      var select = $('team');
-      select.innerHTML = '';
-      if (!teams.length) {
-        select.innerHTML = '<option value="">No teams are set up yet</option>';
-        return;
-      }
-      teams.forEach(function (team) {
-        var option = document.createElement('option');
-        option.value = team.id;
-        option.textContent = team.division_name ? team.name + ' (' + team.division_name + ')' : team.name;
-        select.appendChild(option);
-      });
-    }).catch(function (err) { say(err.message, 'bad'); });
-  }
+  call('captains','teams').then(function(teams){
+    var sel=$('team'); sel.innerHTML='';
+    if(!teams.length){ sel.innerHTML='<option value="">No teams set up yet</option>'; return; }
+    teams.forEach(function(t){
+      var o=document.createElement('option');
+      o.value=t.id;
+      o.textContent=t.division_name ? t.name+' ('+t.division_name+')' : t.name;
+      sel.appendChild(o);
+    });
+  }).catch(function(e){ say(e.message,'bad'); });
 
-  $('loginBtn').addEventListener('click', function () {
-    var teamId = $('team').value;
-    var pin = $('pin').value;
-    if (!teamId || !pin) { say('Choose your team and enter your PIN.', 'warn'); return; }
-
-    $('loginBtn').disabled = true;
-    say('');
-    call('captains', 'login', { teamId: teamId, pin: pin })
-      .then(function (me) {
-        $('pin').value = '';
-        show($('loginCard'), false);
-        $('idleTeam').textContent = me.name;
-        $('sub').textContent = me.name + (me.division_name ? ' · ' + me.division_name : '');
-        return refresh();
-      })
-      .catch(function (err) { say(err.message, 'bad'); })
-      .then(function () { $('loginBtn').disabled = false; });
+  $('loginBtn').addEventListener('click', function(){
+    var teamId=$('team').value, pin=$('pin').value;
+    if(!teamId||!pin){ say('Choose your team and enter your PIN.','warn'); return; }
+    $('loginBtn').disabled=true; say('');
+    call('captains','login',{teamId:teamId,pin:pin}).then(function(me){
+      $('pin').value='';
+      $('who').textContent=me.name;
+      $('idleTeam').textContent=me.name;
+      show($('loginCard'),false);
+      return call('scorecards','roster').then(function(r){ S.roster=r||[]; });
+    }).then(function(){ return refresh(); })
+      .catch(function(e){ say(e.message,'bad'); })
+      .then(function(){ $('loginBtn').disabled=false; });
   });
 
-  function signOut() {
-    call('captains', 'logout').then(function () { window.location.reload(); });
-  }
+  function signOut(){ call('captains','logout').then(function(){ location.reload(); }); }
   $('logoutBtn').addEventListener('click', signOut);
   $('logoutBtn2').addEventListener('click', signOut);
-  $('refreshBtn').addEventListener('click', function () { refresh(); });
+  $('refreshBtn').addEventListener('click', function(){ refresh(); });
 
-  // ------------------------------------------------------------- live card
+  // --------------------------------------------------------------- polling
 
-  function refresh() {
-    return call('scorecards', 'mine').then(function (card) {
-      if (!card || !card.fixture_id) {
-        state.fixtureId = null;
-        show($('idleCard'), true);
-        show($('cardCard'), false);
-        return;
+  function refresh(){
+    return call('scorecards','mine').then(function(card){
+      if(!card || !card.fixture_id){
+        S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
+        stopPolling(); return;
       }
-      render(card);
-    }).catch(function (err) { say(err.message, 'bad'); });
+      render(card); startPolling();
+    }).catch(function(e){ say(e.message,'bad'); });
   }
 
-  function render(card) {
-    state.fixtureId = card.fixture_id;
-    state.version = parseInt(card.version, 10) || 0;
+  function startPolling(){
+    if(S.timer) return;
+    S.timer=setInterval(function(){
+      if(document.hidden || S.busy || S.pick) return;
+      call('scorecards','card',{fixtureId:S.fixtureId})
+        .then(function(c){ if(!S.busy && !S.pick) render(c); })
+        .catch(function(){});
+    }, POLL_MS);
+  }
+  function stopPolling(){ if(S.timer){ clearInterval(S.timer); S.timer=null; } }
 
-    show($('idleCard'), false);
-    show($('cardCard'), true);
+  // --------------------------------------------------------------- render
 
-    $('homeName').textContent = card.home_team_name || 'Home';
-    $('awayName').textContent = card.away_team_name || 'Away';
-    $('homeScore').textContent = card.home_score;
-    $('awayScore').textContent = card.away_score;
-    $('progress').textContent = card.frames_played + ' of ' + card.frames_total + ' frames';
+  function render(card){
+    S.card=card; S.fixtureId=card.fixture_id;
+    S.version=parseInt(card.version,10)||0;
+    S.side=card.your_side;
 
-    var box = $('frames');
-    box.innerHTML = '';
-    (card.frames || []).forEach(function (frame) {
-      box.appendChild(frameRow(frame));
-    });
+    show($('idleCard'),false); show($('cardCard'),true);
 
-    $('finaliseBtn').disabled = false;
-    $('finaliseBtn').textContent = card.frames_played < card.frames_total
-      ? 'Finish match early'
-      : 'Finish match';
+    $('homeName').textContent=card.home_team_name||'Home';
+    $('awayName').textContent=card.away_team_name||'Away';
+    $('homeScore').textContent=card.home_score;
+    $('awayScore').textContent=card.away_score;
+    $('progress').textContent=card.frames_played+' of '+card.frames_total;
+
+    if(document.activeElement!==$('notes')) $('notes').value=card.notes||'';
+
+    renderPhase(card);
+    renderRows(card);
+    renderSignState(card);
   }
 
-  function frameRow(frame) {
-    var row = document.createElement('div');
-    row.className = 'frame';
+  function renderPhase(card){
+    var bar=$('phaseBar');
+    bar.classList.remove('home-active','away-active');
+    bar.classList.add(S.side==='home' ? 'home-active' : 'away-active');
 
-    var no = document.createElement('span');
-    no.className = 'no';
-    no.textContent = frame.frame_no + (Number(frame.is_doubles) ? 'D' : '');
-    row.appendChild(no);
-
-    [['home', 'h', 'Home'], ['none', 'n', '—'], ['away', 'a', 'Away']].forEach(function (option) {
-      var button = document.createElement('button');
-      button.className = 'pick ' + option[1];
-      button.type = 'button';
-      button.textContent = option[2];
-      button.setAttribute('aria-pressed', frame.winner === option[0] ? 'true' : 'false');
-      button.setAttribute('aria-label', 'Frame ' + frame.frame_no + ': ' + option[2]);
-      button.addEventListener('click', function () { setFrame(frame.frame_no, option[0]); });
-      row.appendChild(button);
+    var frames=card.frames||[], total=frames.length;
+    var homeSet=0, awaySet=0;
+    frames.forEach(function(f){
+      if(f.home_player_id||f.home_player_name) homeSet++;
+      if(f.away_player_id||f.away_player_name) awaySet++;
     });
 
+    var next=frames.findIndex(function(f){ return f.winner==='none'; });
+    var phase=next<0 ? 3 : Math.min(3, Math.floor(next/5)+1);
+    $('phaseBadge').textContent='Phase '+phase+' of '+Math.max(1,Math.ceil(total/5));
+    $('phaseText').textContent='Home '+homeSet+'/'+total+' · Away '+awaySet+'/'+total
+                              +' · Scored '+card.frames_played+'/'+total;
+
+    if(card.away_locked && S.side==='away'){
+      say('The last 5 frames are blind: the home captain nominates all five before you pick yours.','warn');
+    }
+  }
+
+  function setBg(i){
+    var letter=['a','b','c'][Math.floor(i/5)%3];
+    return 'set-'+letter+((i%2===0)?'1':'2');
+  }
+
+  function label(frame, side){
+    var idKey=side+'_player_id', nmKey=side+'_player_name';
+    var id2=side+'_player2_id', nm2=side+'_player2_name';
+    if(frame[idKey] && String(frame[idKey]).toLowerCase()===VOID_ID) return {text:'VOID', cls:'void'};
+    var name=frame[nmKey];
+    if(!name) return {text:'tap to pick', cls:'empty'};
+    if(Number(frame.is_doubles)) return {text:name+' / '+(frame[nm2]||'(tap)'), cls:'dbl'};
+    return {text:name, cls:''};
+  }
+
+  function renderRows(card){
+    var frames=card.frames||[];
+    var homeBox=$('homeRows'), awayBox=$('awayRows');
+    homeBox.innerHTML=''; awayBox.innerHTML='';
+    var nextUnscored=frames.findIndex(function(f){ return f.winner==='none'; });
+
+    frames.forEach(function(f, i){
+      homeBox.appendChild(sideRow(f, i, 'home', i===nextUnscored));
+      awayBox.appendChild(sideRow(f, i, 'away', i===nextUnscored));
+    });
+  }
+
+  function sideRow(frame, index, side, isCurrent){
+    var row=document.createElement('div');
+    row.className='sc-row '+side+' '+setBg(index)+(isCurrent?' current':'');
+
+    var num=document.createElement('div');
+    num.className='sc-num'; num.textContent=frame.frame_no;
+
+    var win=document.createElement('button');
+    win.className='sc-win '+side+(frame.winner===side?' on':'');
+    win.textContent=frame.winner===side?'W':'·';
+    win.setAttribute('aria-label','Frame '+frame.frame_no+': '+side+' wins');
+    win.addEventListener('click', function(){ setWinner(index, side); });
+
+    var info=label(frame, side);
+    var pill=document.createElement('button');
+    var mine=(side===S.side);
+    var locked=!mine || (side==='away' && awayLocked(index));
+    pill.className='sc-pill '+info.cls+(locked?' locked':'');
+    pill.textContent=info.text;
+    if(Number(frame.eight_ball) && frame.winner===side){
+      var b=document.createElement('span'); b.className='sc-eight'; b.textContent='8';
+      pill.appendChild(b);
+    } else if(frame.pending_eight_by && frame.winner===side){
+      var p=document.createElement('span'); p.className='sc-eight pending'; p.textContent='8';
+      pill.appendChild(p);
+    }
+    pill.addEventListener('click', function(){
+      if(!mine){ say('You can only pick players for your own team.','warn'); return; }
+      if(locked){ say(awayLockMessage(index),'warn'); return; }
+      openPicker(index, side);
+    });
+
+    if(side==='home'){ row.appendChild(num); row.appendChild(win); row.appendChild(pill); }
+    else            { row.appendChild(pill); row.appendChild(win); row.appendChild(num); }
     return row;
   }
 
-  function setFrame(frameNo, winner) {
-    if (state.busy) return;
-    state.busy = true;
-    say('');
-
-    call('scorecards', 'setFrame', {
-      fixtureId: state.fixtureId,
-      frameNo: frameNo,
-      winner: winner,
-      version: state.version
-    })
-      .then(function (card) { render(card); })
-      .catch(function (err) {
-        if (err.code === 'conflict' && err.current) {
-          // The other captain got there first. Show what the card actually
-          // says now rather than silently overwriting their entry.
-          render(err.current);
-          say('Your team-mate updated the card at the same time. Showing the latest — check frame ' + frameNo + '.', 'warn');
-        } else {
-          say(err.message, 'bad');
-          if (err.code === 'not_live') refresh();
-        }
-      })
-      .then(function () { state.busy = false; });
+  // Mirrors the server rule, so the UI can grey a slot out before a tap is
+  // sent. The server still decides - this is only to save a pointless round
+  // trip and to show the captain why.
+  function awayLocked(index){
+    var frames=S.card.frames||[], n=frames.length;
+    if(n>=5 && index>=n-5) return !!S.card.away_locked;
+    return !(frames[index].home_player_id || frames[index].home_player_name);
+  }
+  function awayLockMessage(index){
+    var frames=S.card.frames||[], n=frames.length;
+    if(n>=5 && index>=n-5)
+      return 'Locked until the home captain has nominated all five of their last-phase players.';
+    return 'Locked until the home captain nominates their player for frame '+frames[index].frame_no+'.';
   }
 
-  $('finaliseBtn').addEventListener('click', function () {
-    if (!window.confirm('Finish this match? Captains can no longer change the score afterwards.')) return;
+  function renderSignState(card){
+    var box=$('signState');
+    var mySigned = (S.side==='home') ? card.home_signed : card.away_signed;
+    var theirSigned = (S.side==='home') ? card.away_signed : card.home_signed;
 
-    $('finaliseBtn').disabled = true;
-    call('scorecards', 'finalise', { fixtureId: state.fixtureId })
-      .then(function (card) {
+    if(card.state==='finalised'){
+      box.className='msg ok';
+      box.textContent='Both captains have signed. The league will collect this card.';
+      $('signBtn').disabled=true; $('signBtn').textContent='Signed off';
+      return;
+    }
+    if(mySigned && !theirSigned){
+      box.className='msg ok';
+      box.textContent='You have signed. Waiting for the other captain.';
+      $('signBtn').disabled=true; $('signBtn').textContent='Waiting for the other captain';
+      return;
+    }
+    if(!mySigned && theirSigned){
+      box.className='msg warn';
+      box.textContent='The other captain has signed. Check the card and sign to finish.';
+    } else {
+      box.className='msg warn';
+      box.textContent = card.all_scored
+        ? 'Every frame is scored. Both captains must sign to finish.'
+        : 'Still to score: frame '+(card.unscored||[]).join(', ')+'.';
+    }
+    $('signBtn').disabled=!card.all_scored;
+    $('signBtn').textContent='Sign off my side';
+  }
+
+  // ------------------------------------------------------------------ ops
+
+  function apply(ops){
+    if(S.busy) return Promise.resolve();
+    S.busy=true; say('');
+    return call('scorecards','apply',{fixtureId:S.fixtureId, version:S.version, ops:ops})
+      .then(function(card){
         render(card);
-        show($('cardCard'), false);
-        show($('idleCard'), true);
-        say('Match finished ' + card.home_score + '–' + card.away_score + '. The league will collect it.', 'ok');
+        if(card.rejections && card.rejections.length){
+          say(card.rejections.map(function(r){ return r.reason; }).join('  '), 'warn');
+        }
       })
-      .catch(function (err) {
-        say(err.message, 'bad');
-        $('finaliseBtn').disabled = false;
-      });
+      .catch(function(e){
+        if(e.code==='conflict' && e.current){
+          render(e.current);
+          say('The other captain edited the card at the same time. Showing the latest.','warn');
+        } else {
+          say(e.message,'bad');
+          if(e.code==='not_live') refresh();
+        }
+      })
+      .then(function(){ S.busy=false; });
+  }
+
+  function setWinner(index, side){
+    apply([{kind:'set_winner', frame:index, value:side}]);
+  }
+
+  $('saveNotesBtn').addEventListener('click', function(){
+    apply([{kind:'set_notes', value:$('notes').value}]).then(function(){ say('Notes saved.','ok'); });
   });
 
-  loadTeams();
+  $('signBtn').addEventListener('click', function(){
+    if(!window.confirm('Sign this card off? You can still change it until the other captain signs too.')) return;
+    $('signBtn').disabled=true;
+    call('scorecards','finalise',{fixtureId:S.fixtureId})
+      .then(function(card){
+        render(card);
+        say(card.bothSigned
+          ? 'Both captains signed. Final score '+card.home_score+'–'+card.away_score+'.'
+          : 'Signed. Waiting for the other captain.', 'ok');
+      })
+      .catch(function(e){ say(e.message,'bad'); $('signBtn').disabled=false; });
+  });
+
+  // --------------------------------------------------------------- picker
+
+  function openPicker(index, side){
+    var frame=S.card.frames[index];
+    var doubles=Number(frame.is_doubles);
+    S.pick={index:index, side:side, slot:side};
+
+    $('sheetTitle').textContent='Frame '+frame.frame_no+(doubles?' (doubles)':'');
+    $('sheetSub').textContent=doubles
+      ? 'Choose player 1, then tap again for player 2.'
+      : 'Choose who plays this frame.';
+
+    var list=$('pickList'); list.innerHTML='';
+
+    if(doubles){
+      // Show where the two doubles slots currently stand, so the captain can
+      // see which one their next tap will fill.
+      var lead    = frame[side+'_player_name']  || 'not set';
+      var partner = frame[side+'_player2_name'] || 'not set';
+      var filling = frame[side+'_player_name'] ? 'Player 2' : 'Player 1';
+
+      var head=document.createElement('div');
+      head.style.cssText='font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px';
+      head.textContent='Player 1: '+lead+'   ·   Player 2: '+partner+'   →  filling '+filling;
+      list.appendChild(head);
+    }
+
+    S.roster.forEach(function(p){
+      var b=document.createElement('button');
+      b.textContent=p.name;
+      b.addEventListener('click', function(){ choose(p.id, p.name); });
+      list.appendChild(b);
+    });
+
+    var v=document.createElement('button');
+    v.className='void'; v.textContent='VOID (frame conceded)';
+    v.addEventListener('click', function(){ choose(VOID_ID, 'VOID'); });
+    list.appendChild(v);
+
+    var c=document.createElement('button');
+    c.className='clear'; c.textContent='Clear this slot';
+    c.addEventListener('click', function(){ choose(null, null); });
+    list.appendChild(c);
+
+    $('adhoc').value='';
+    show($('sheet'), true);
+  }
+
+  function slotForPick(){
+    var frame=S.card.frames[S.pick.index];
+    if(!Number(frame.is_doubles)) return S.pick.side;
+    // In a doubles frame fill the lead first, then the partner.
+    var leadName=frame[S.pick.side+'_player_name'];
+    return leadName ? S.pick.side+'2' : S.pick.side;
+  }
+
+  function choose(id, name){
+    var slot=slotForPick();
+    var op={kind:'set_player', frame:S.pick.index, slot:slot};
+    if(id!==null) op.playerId=id;
+    if(name!==null) op.playerName=name;
+    closePicker();
+    apply([op]);
+  }
+
+  $('adhocBtn').addEventListener('click', function(){
+    var name=$('adhoc').value.trim();
+    if(!name){ return; }
+    choose(null, name);
+  });
+  $('sheetClose').addEventListener('click', closePicker);
+  function closePicker(){ S.pick=null; show($('sheet'), false); }
+
 })();
 </script>
 </body>
