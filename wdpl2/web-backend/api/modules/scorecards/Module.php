@@ -530,6 +530,17 @@ final class ScorecardsModule implements Module
                 $frames[$index]['eight_declined_at']    = null;
                 return ['rejected' => null, 'changed' => true];
 
+            case 'withdraw_eight':
+                // Only the captain who made the claim can take it back. The
+                // previous scorecard had no way to do this - it tried to fake
+                // one by re-proposing, which the server treats as a no-op, so a
+                // mistaken claim just sat there until the other captain acted.
+                if ($frames[$index]['pending_eight_by'] !== $side) {
+                    return ['rejected' => null, 'changed' => false];
+                }
+                self::clearEightNegotiation($frames[$index]);
+                return ['rejected' => null, 'changed' => true];
+
             case 'agree_eight':
                 $by = $frames[$index]['pending_eight_by'];
                 if ($by === null || $by === $side) {

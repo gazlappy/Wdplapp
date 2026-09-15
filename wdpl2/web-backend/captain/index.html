@@ -118,6 +118,8 @@ button.go{background:var(--felt);}
 .sc-row{display:grid; gap:2px; padding:3px 4px; min-height:38px; align-items:center;}
 .sc-row.home{grid-template-columns:26px 34px minmax(0,1fr);}
 .sc-row.away{grid-template-columns:minmax(0,1fr) 34px 26px;}
+/* The away row's last cell is the 8-ball, as on the old card - the frame
+   number only needs printing once, down the home side. */
 /* Frames group in fives - the three phases of a WDPL match */
 .sc-row.set-a1{background:rgba(255,255,255,.02);} .sc-row.set-a2{background:rgba(255,255,255,.05);}
 .sc-row.set-b1{background:rgba(59,130,246,.07);}  .sc-row.set-b2{background:rgba(59,130,246,.12);}
@@ -142,12 +144,21 @@ button.go{background:var(--felt);}
 .sc-win.on.home{background:var(--home); border-color:var(--home); color:#052e16;}
 .sc-win.on.away{background:var(--away); border-color:var(--away); color:#450a0a;}
 .sc-eight{
-  display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px;
-  border-radius:50%; font-size:11px; font-weight:900; margin-left:4px;
-  background:#000; color:#fff; border:2px solid var(--eight);
+  padding:0; width:26px; height:26px; border-radius:50%;
+  font-size:11px; font-weight:900; justify-self:center;
+  background:rgba(10,15,28,.5); color:var(--muted); border:1px solid var(--line);
 }
-.sc-eight.pending{background:var(--warn-bg); color:var(--warn-fg); border-color:var(--gold);}
-.sc-eight.off{opacity:.25; border-color:var(--line);}
+.sc-eight.on{background:#000; color:#fff; border:2px solid var(--eight);}
+.sc-eight.pending{background:var(--warn-bg); color:var(--warn-fg); border:2px solid var(--gold);}
+.sc-eight:disabled{opacity:.2; cursor:not-allowed;}
+
+/* Outstanding 8-ball claim, shown above the card so neither captain misses it */
+.eight-bar{
+  display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:10px;
+  background:var(--warn-bg); color:var(--warn-fg); border:1px solid var(--gold); font-size:13px;
+}
+.eight-bar button{padding:8px 12px; font-size:13px;}
 
 /* Picker */
 .sheet{
@@ -221,9 +232,11 @@ button.go{background:var(--felt);}
       <span id="phaseText">—</span><span class="badge" id="phaseBadge">Phase 1 of 3</span>
     </div>
 
+    <div class="eight-bar hidden" id="eightBar"></div>
+
     <div class="sc-cols">
       <div class="sc-col-head home"><span>#</span><span>W</span><span>HOME</span></div>
-      <div class="sc-col-head away"><span>AWAY</span><span>W</span><span>#</span></div>
+      <div class="sc-col-head away"><span>AWAY</span><span>W</span><span>8</span></div>
     </div>
     <div class="sc-cols">
       <div class="sc-rows-home" id="homeRows"></div>
@@ -232,7 +245,7 @@ button.go{background:var(--felt);}
 
     <label for="notes" style="margin-top:14px">Match notes</label>
     <textarea id="notes" rows="2" placeholder="Anything the league should know"></textarea>
-    <div class="row" style="margin-top:8px"><button class="ghost" id="saveNotesBtn">Save notes</button></div>
+    <p class="sub" id="notesHint" style="color:var(--muted);font-size:11px;margin:4px 0 0">Saved as you type.</p>
 
     <div class="msg" id="signState" style="margin-top:14px"></div>
     <div class="row">
@@ -383,7 +396,7 @@ button.go{background:var(--felt);}
       } else if(op.kind==='agree_eight'){
         f.eight_ball=Number(f.pending_eight_value)?1:0;
         f.pending_eight_by=null; f.pending_eight_value=null;
-      } else if(op.kind==='decline_eight'){
+      } else if(op.kind==='decline_eight' || op.kind==='withdraw_eight'){
         f.pending_eight_by=null; f.pending_eight_value=null;
       }
     });
@@ -537,8 +550,10 @@ button.go{background:var(--felt);}
     if(document.activeElement!==$('notes')) $('notes').value=card.notes||'';
 
     renderPhase(card);
+    renderEightBar(card);
     renderRows(card);
     renderSignState(card);
+    reportDeclines(card);
   }
 
   function renderPhase(card){
@@ -604,7 +619,7 @@ button.go{background:var(--felt);}
 
     var win=document.createElement('button');
     win.className='sc-win '+side+(frame.winner===side?' on':'');
-    win.textContent=frame.winner===side?'W':'·';
+    win.textContent=frame.winner===side?'1':'0';   // frames won, as on the paper card
     win.setAttribute('aria-label','Frame '+frame.frame_no+': '+side+' wins');
     win.addEventListener('click', function(){ setWinner(index, side); });
 
@@ -617,22 +632,124 @@ button.go{background:var(--felt);}
     var locked = !mine || (!S.solo && side==='away' && awayLocked(index));
     pill.className='sc-pill '+info.cls+(locked?' locked':'');
     pill.textContent=info.text;
-    if(Number(frame.eight_ball) && frame.winner===side){
-      var b=document.createElement('span'); b.className='sc-eight'; b.textContent='8';
-      pill.appendChild(b);
-    } else if(frame.pending_eight_by && frame.winner===side){
-      var p=document.createElement('span'); p.className='sc-eight pending'; p.textContent='8';
-      pill.appendChild(p);
-    }
     pill.addEventListener('click', function(){
       if(!mine){ say('You can only pick players for your own team.','warn'); return; }
       if(locked){ say(awayLockMessage(index),'warn'); return; }
       openPicker(index, side);
     });
 
-    if(side==='home'){ row.appendChild(num); row.appendChild(win); row.appendChild(pill); }
-    else            { row.appendChild(pill); row.appendChild(win); row.appendChild(num); }
+    if(side==='home'){
+      row.appendChild(num); row.appendChild(win); row.appendChild(pill);
+    } else {
+      row.appendChild(pill); row.appendChild(win); row.appendChild(eightButton(frame, index));
+    }
     return row;
+  }
+
+  /**
+   * The 8-ball control for one frame, at the end of the away row.
+   *
+   * On the card rather than behind a menu, because a dish is called the moment
+   * it happens and nobody wants to go hunting for it mid-match. It is dead
+   * until someone has won the frame - there is no 8-ball without a winner.
+   */
+  function eightButton(frame, index){
+    var b=document.createElement('button');
+    var pending=!!frame.pending_eight_by;
+    var on=Number(frame.eight_ball)===1;
+
+    b.className='sc-eight'+(on?' on':'')+(pending?' pending':'');
+    b.textContent = pending ? '?' : '8';
+    b.disabled = frame.winner==='none';
+    b.title = pending
+      ? ((frame.pending_eight_by===S.side ? 'You' : 'The other captain')
+         + ' claimed ' + (Number(frame.pending_eight_value) ? 'an 8-ball' : 'no 8-ball')
+         + ' - waiting for agreement')
+      : (frame.winner==='none' ? 'Record the winner first' : '8-ball / dish');
+
+    b.addEventListener('click', function(){
+      if(frame.winner==='none') return;
+      if(pending){
+        // A claim is outstanding: it is settled in the bar, not here.
+        say(frame.pending_eight_by===S.side
+          ? 'Waiting for the other captain to agree your 8-ball claim.'
+          : 'Agree or disagree with the 8-ball claim above.','warn');
+        return;
+      }
+      apply([{kind:'propose_eight', frame:index, value:!on}]);
+    });
+    return b;
+  }
+
+  /**
+   * Shows an outstanding 8-ball claim above the card.
+   *
+   * A claim needs the other captain, so it cannot live only on the frame it
+   * belongs to - it would be missed. The bar names the frame and puts the
+   * decision in front of whoever has to make it.
+   */
+  function renderEightBar(card){
+    var bar=$('eightBar');
+    var frames=card.frames||[];
+    var theirs=null, mine=null;
+
+    for(var i=0;i<frames.length;i++){
+      var by=frames[i].pending_eight_by;
+      if(!by) continue;
+      if(by===S.side){ if(!mine) mine={i:i, f:frames[i]}; }
+      else if(!theirs){ theirs={i:i, f:frames[i]}; }
+    }
+
+    bar.innerHTML='';
+    if(!theirs && !mine){ show(bar,false); return; }
+
+    var text=document.createElement('span');
+    var actions=document.createElement('span');
+    actions.className='row';
+
+    if(theirs){
+      var claim=Number(theirs.f.pending_eight_value) ? '8-ball / dish' : 'no 8-ball';
+      text.innerHTML='<strong>Frame '+theirs.f.frame_no+':</strong> the other captain says '
+                    +'<strong>'+claim+'</strong>. Agree?';
+      var yes=document.createElement('button');
+      yes.className='go'; yes.textContent='Agree';
+      yes.addEventListener('click', function(){ apply([{kind:'agree_eight', frame:theirs.i}]); });
+      var no=document.createElement('button');
+      no.className='ghost'; no.textContent='Disagree';
+      no.addEventListener('click', function(){ apply([{kind:'decline_eight', frame:theirs.i}]); });
+      actions.appendChild(yes); actions.appendChild(no);
+    } else {
+      var what=Number(mine.f.pending_eight_value) ? '8-ball' : 'no 8-ball';
+      text.innerHTML='<strong>Frame '+mine.f.frame_no+':</strong> waiting for the other captain '
+                    +'to agree your '+what+' call.';
+      var cancel=document.createElement('button');
+      cancel.className='ghost'; cancel.textContent='Take it back';
+      cancel.addEventListener('click', function(){
+        apply([{kind:'withdraw_eight', frame:mine.i}]);
+      });
+      actions.appendChild(cancel);
+    }
+
+    bar.appendChild(text); bar.appendChild(actions);
+    show(bar,true);
+  }
+
+  /**
+   * Tells the proposing captain their call was refused.
+   *
+   * The server records who disagreed and with what; without surfacing it the
+   * claim would just silently vanish and be re-made.
+   */
+  var seenDeclines={};
+  function reportDeclines(card){
+    (card.frames||[]).forEach(function(f){
+      if(!f.eight_declined_by || f.eight_declined_by===S.side) return;
+      var key=f.frame_no+':'+f.eight_declined_at;
+      if(seenDeclines[key]) return;
+      seenDeclines[key]=true;
+      say('Frame '+f.frame_no+': the other captain disagreed with your '
+         +(Number(f.eight_declined_value)?'8-ball':'no 8-ball')+' call. The score is unchanged.','warn');
+    });
   }
 
   // Mirrors the server rule, so the UI can grey a slot out before a tap is
@@ -699,12 +816,45 @@ button.go{background:var(--felt);}
     return flush();
   }
 
+  /**
+   * Mirrors the server rule that a result needs its players.
+   *
+   * Checked here as well so the frame does not briefly show a winner and then
+   * snap back when the server refuses it - the optimistic local apply would
+   * otherwise make an invalid tap look accepted.
+   */
+  function framePlayersMissing(frame){
+    var missing=[];
+    if(!frame.home_player_name && !frame.home_player_id) missing.push('home');
+    if(!frame.away_player_name && !frame.away_player_id) missing.push('away');
+    if(Number(frame.is_doubles)){
+      if(!frame.home_player2_name && !frame.home_player2_id) missing.push('home player 2');
+      if(!frame.away_player2_name && !frame.away_player2_id) missing.push('away player 2');
+    }
+    return missing;
+  }
+
   function setWinner(index, side){
+    var frame=S.card.frames[index];
+    // Clearing an existing result is always allowed - that is how a mis-tap
+    // gets undone, even on a frame that is not filled in yet.
+    if(frame.winner!==side){
+      var missing=framePlayersMissing(frame);
+      if(missing.length){
+        say('Frame '+frame.frame_no+': pick the players first - still to name: '+missing.join(' and ')+'.','warn');
+        return;
+      }
+    }
     apply([{kind:'set_winner', frame:index, value:side}]);
   }
 
-  $('saveNotesBtn').addEventListener('click', function(){
-    apply([{kind:'set_notes', value:$('notes').value}]).then(function(){ say('Notes saved.','ok'); });
+  // Notes save themselves shortly after typing stops: one less thing to
+  // remember to press at the end of a match.
+  var notesTimer=null;
+  $('notes').addEventListener('input', function(){
+    clearTimeout(notesTimer);
+    var value=$('notes').value;
+    notesTimer=setTimeout(function(){ apply([{kind:'set_notes', value:value}]); }, 700);
   });
 
   $('signBtn').addEventListener('click', function(){
@@ -723,11 +873,11 @@ button.go{background:var(--felt);}
   // ------------------------------------------------------- frame options
 
   /**
-   * Doubles, the 8-ball and clearing a frame.
+   * Doubles and clearing a frame.
    *
-   * These live behind the frame number rather than in the row: a phone row has
-   * space for the player and the result, and nothing else. Tapping the number
-   * is dead space otherwise.
+   * These live behind the frame number because a phone row only has space for
+   * the player, the result and the 8-ball. Tapping the number is dead space
+   * otherwise. The 8-ball itself is on the row, where a dish gets called.
    */
   function openFrameSheet(index){
     var f=S.card.frames[index];
@@ -750,61 +900,6 @@ button.go{background:var(--felt);}
       apply([{kind:'set_doubles', frame:index, value:!Number(f.is_doubles)}]);
     });
     list.appendChild(dbl);
-
-    // The 8-ball, which only makes sense once someone has won the frame.
-    if(f.winner==='none'){
-      var note=document.createElement('div');
-      note.style.cssText='font-size:12px;color:var(--muted);padding:6px 0';
-      note.textContent='Record who won the frame to claim an 8-ball.';
-      list.appendChild(note);
-    } else if(f.pending_eight_by && f.pending_eight_by!==S.side){
-      // The other captain has claimed one: this captain agrees or declines.
-      var claim = Number(f.pending_eight_value) ? 'an 8-ball' : 'no 8-ball';
-      var head=document.createElement('div');
-      head.style.cssText='font-size:12px;color:var(--warn-fg);padding:6px 0';
-      head.textContent='The other captain says '+claim+' in this frame.';
-      list.appendChild(head);
-
-      var ok=document.createElement('button');
-      ok.className='agree'; ok.textContent='Agree';
-      ok.addEventListener('click', function(){
-        closeFrameSheet(); apply([{kind:'agree_eight', frame:index}]);
-      });
-      list.appendChild(ok);
-
-      var no=document.createElement('button');
-      no.className='clear'; no.textContent='Disagree';
-      no.addEventListener('click', function(){
-        closeFrameSheet(); apply([{kind:'decline_eight', frame:index}]);
-      });
-      list.appendChild(no);
-    } else if(f.pending_eight_by===S.side){
-      var wait=document.createElement('div');
-      wait.style.cssText='font-size:12px;color:var(--warn-fg);padding:6px 0';
-      wait.textContent='Waiting for the other captain to agree your 8-ball claim.';
-      list.appendChild(wait);
-    } else {
-      var eight=document.createElement('button');
-      eight.className='eight';
-      eight.textContent = Number(f.eight_ball) ? 'Take back the 8-ball' : 'Claim an 8-ball';
-      eight.addEventListener('click', function(){
-        closeFrameSheet();
-        apply([{kind:'propose_eight', frame:index, value:!Number(f.eight_ball)}]);
-      });
-      list.appendChild(eight);
-
-      if(Number(f.eight_ball)){
-        var agreed=document.createElement('div');
-        agreed.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
-        agreed.textContent='Both captains agreed this 8-ball.';
-        list.appendChild(agreed);
-      } else if(!S.solo){
-        var needs=document.createElement('div');
-        needs.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
-        needs.textContent='The other captain has to agree before it counts.';
-        list.appendChild(needs);
-      }
-    }
 
     // Clearing the result, which also clears any 8-ball on it.
     if(f.winner!=='none'){
