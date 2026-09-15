@@ -255,12 +255,9 @@ button.go{background:var(--felt);}
     </div>
 
     <div class="msg warn hidden" id="soloBar" style="margin-top:10px">
-      <strong>Solo mode.</strong> You are filling in both sides on this phone.
-      Nothing is sent until you submit the finished card, and the other captain
-      should be watching as you enter it.
+      <span id="soloText"></span>
       <div class="row" style="margin-top:8px">
-        <button class="go" id="soloSubmit">Submit agreed card</button>
-        <button class="ghost" id="soloOff">Leave solo mode</button>
+        <button class="ghost" id="soloOff">Hand back the other side</button>
       </div>
     </div>
   </section>
@@ -304,7 +301,7 @@ button.go{background:var(--felt);}
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
-            queue:[], flushTimer:null, strikes:0, solo:false };
+            queue:[], flushTimer:null, strikes:0, solo:false, otherDriving:false };
 
   var QUEUE_KEY   = 'wdpl_sc_queue';
   var FLUSH_MS    = 8000;
@@ -412,7 +409,7 @@ button.go{background:var(--felt);}
   }
 
   function flush(){
-    if(S.solo || S.busy || !S.queue.length || !navigator.onLine) return Promise.resolve();
+    if(S.busy || !S.queue.length || !navigator.onLine) return Promise.resolve();
     S.busy=true;
     var batch=S.queue.slice();
     return call('scorecards','apply',{fixtureId:S.fixtureId, version:S.version, ops:batch})
@@ -523,7 +520,7 @@ button.go{background:var(--felt);}
     S.timer=setInterval(function(){
       // Never overwrite the screen while edits are still unsent, or the
       // captain would watch their own taps disappear.
-      if(document.hidden || S.busy || S.pick || S.solo || S.queue.length) return;
+      if(document.hidden || S.busy || S.pick || S.queue.length) return;
       if(!$('frameSheet').classList.contains('hidden')) return;
       call('scorecards','card',{fixtureId:S.fixtureId})
         .then(function(c){ if(!S.busy && !S.pick) render(c); })
@@ -548,6 +545,12 @@ button.go{background:var(--felt);}
     $('progress').textContent=card.frames_played+' of '+card.frames_total;
 
     if(document.activeElement!==$('notes')) $('notes').value=card.notes||'';
+
+    // Who is driving is the card's business, not this browser's: reloading,
+    // or picking the phone up again later, lands in the right mode.
+    S.solo = !!card.you_are_driving;
+    S.otherDriving = !!card.solo_driver && !card.you_are_driving;
+    renderSolo(card);
 
     renderPhase(card);
     renderEightBar(card);
@@ -625,7 +628,7 @@ button.go{background:var(--felt);}
 
     var info=label(frame, side);
     var pill=document.createElement('button');
-    var mine = S.solo || (side===S.side);   // solo fills in both teams
+    var mine = S.solo || (side===S.side);   // the captain driving fills in both
     // Nomination order only exists to stop each captain seeing the other's
     // picks first. With one person filling both sides by agreement, it has
     // already been set aside - so solo mode ignores it.
@@ -688,6 +691,42 @@ button.go{background:var(--felt);}
    * belongs to - it would be missed. The bar names the frame and puts the
    * decision in front of whoever has to make it.
    */
+  /**
+   * Shows who is entering the card, to whoever is looking.
+   *
+   * The captain driving needs a way out; the other needs to know why their
+   * taps are being refused rather than thinking the app is broken.
+   */
+  function renderSolo(card){
+    var bar=$('soloBar');
+    var btn=$('soloBtn');
+
+    if(S.solo){
+      $('soloText').innerHTML='<strong>You are entering both teams.</strong> '
+        +'Everything you tap is going through as normal, so the scoreboard keeps up. '
+        +'Hand the other side back when their phone is working again.';
+      $('soloOff').textContent='Hand back the other side';
+      show(bar,true);
+      btn.disabled=true;
+      btn.textContent='Entering both teams';
+      return;
+    }
+
+    if(S.otherDriving){
+      $('soloText').innerHTML='<strong>The other captain is entering this card</strong> on their device, '
+        +'for both teams. You can watch it here. Take it back if you need to enter your own side.';
+      $('soloOff').textContent='Take my side back';
+      show(bar,true);
+      btn.disabled=true;
+      btn.textContent='Other captain entering';
+      return;
+    }
+
+    show(bar,false);
+    btn.disabled=false;
+    btn.textContent='Enter both teams';
+  }
+
   function renderEightBar(card){
     var bar=$('eightBar');
     var frames=card.frames||[];
@@ -802,14 +841,14 @@ button.go{background:var(--felt);}
   /**
    * Records an edit: applied locally at once, queued, and sent when possible.
    *
-   * In solo mode nothing is queued for the live API at all - the whole card
-   * goes up in one agreed submission at the end - because the server would
-   * rightly refuse edits to the other team's slots.
+   * This is the same path in solo mode. The server knows this captain is
+   * driving both sides and accepts the other team's slots from them, so the
+   * scoreboard and the league keep seeing the match as it happens - which is
+   * the whole point of scoring it live.
    */
   function apply(ops){
     say('');
     applyLocally(ops);
-    if(S.solo){ netBadge(); return Promise.resolve(); }
     S.queue = S.queue.concat(ops);
     saveQueue();
     netBadge();
@@ -920,56 +959,24 @@ button.go{background:var(--felt);}
   // ------------------------------------------------------------ solo mode
 
   $('soloBtn').addEventListener('click', function(){
-    if(S.queue.length){
-      say('Send your queued changes first, or wait for signal, before switching to solo.','warn');
-      return;
-    }
     if(!window.confirm(
-      'Solo mode fills in BOTH teams on this phone.\n\n'
-      +'Use it only when the other captain cannot get signal and is watching you enter the card. '
-      +'Nothing is sent until you submit at the end.')) return;
-    S.solo=true;
-    show($('soloBar'), true);
-    $('soloBtn').disabled=true;
-    $('signBtn').disabled=true;
-    stopPolling();
-    netBadge();
-    render(S.card);
+      'Enter both teams on this phone?\n\n'
+      +'Use this when the other captain cannot get signal. They should watch as you enter it. '
+      +'Scoring stays live - everything still goes through as you tap.')) return;
+
+    call('scorecards','soloStart',{fixtureId:S.fixtureId})
+      .then(function(card){ render(card); say('You are now entering both teams.','ok'); })
+      .catch(function(e){ say(e.message,'bad'); });
   });
 
   $('soloOff').addEventListener('click', function(){
-    if(!window.confirm('Leave solo mode? Anything you entered for the other team will be lost when the card reloads.')) return;
-    S.solo=false;
-    show($('soloBar'), false);
-    $('soloBtn').disabled=false;
-    netBadge();
-    refresh();
-  });
-
-  $('soloSubmit').addEventListener('click', function(){
-    if(!S.card.all_scored){
-      say('Every frame needs a result first. Still to score: frame '+(S.card.unscored||[]).join(', ')+'.','warn');
-      return;
-    }
-    if(!window.confirm(
-      'Submit this card for BOTH teams?\n\n'
-      +'Final score '+S.card.home_score+'-'+S.card.away_score+'.\n'
-      +'This signs off for both captains, so only do it with the other captain\'s agreement.')) return;
-
-    $('soloSubmit').disabled=true;
-    call('scorecards','solo',{fixtureId:S.fixtureId, frames:S.card.frames, notes:$('notes').value})
+    call('scorecards','soloStop',{fixtureId:S.fixtureId})
       .then(function(card){
-        S.solo=false;
-        show($('soloBar'), false);
-        $('soloBtn').disabled=false;
-        netBadge();
         render(card);
-        say('Card submitted for both teams. Final score '+card.home_score+'-'+card.away_score+'.','ok');
+        say(card.your_side==='home' || card.your_side==='away'
+          ? 'Back to normal - each captain enters their own side.' : '', 'ok');
       })
-      .catch(function(e){
-        say(e.message,'bad');
-        $('soloSubmit').disabled=false;
-      });
+      .catch(function(e){ say(e.message,'bad'); });
   });
 
   // --------------------------------------------------------------- picker

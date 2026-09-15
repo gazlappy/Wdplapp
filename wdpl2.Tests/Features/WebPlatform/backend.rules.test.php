@@ -278,7 +278,7 @@ test('only the app may hand cards out and take them back', function () {
 
     // Scoring belongs to captains, and nothing here may be anonymous.
     // apply carries every edit as a batch of ops; roster feeds the picker.
-    foreach (['mine', 'card', 'roster', 'apply', 'finalise'] as $captainOnly) {
+    foreach (['mine', 'card', 'roster', 'apply', 'finalise', 'soloStart', 'soloStop'] as $captainOnly) {
         check(isset($actions[$captainOnly]), "missing action {$captainOnly}");
         same(Role::Captain, $actions[$captainOnly]['role'], "{$captainOnly} must require a captain");
     }

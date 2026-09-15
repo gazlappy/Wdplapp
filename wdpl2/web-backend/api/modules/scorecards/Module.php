@@ -31,7 +31,7 @@ final class ScorecardsModule implements Module
 
     public static function title(): string { return 'Live scorecards'; }
 
-    public static function schemaVersion(): int { return 2; }
+    public static function schemaVersion(): int { return 3; }
 
     public static function tables(): array
     {
@@ -51,6 +51,8 @@ final class ScorecardsModule implements Module
                 away_finalised_version INT      NULL,
                 finalised_at DATETIME    NULL,
                 claimed_at   DATETIME    NULL,
+                solo_by      VARCHAR(8)  NULL,
+                solo_since   DATETIME    NULL,
                 PRIMARY KEY (fixture_id),
                 KEY idx_card_state (state)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -87,7 +89,9 @@ final class ScorecardsModule implements Module
                 ADD COLUMN IF NOT EXISTS home_finalised_at DATETIME NULL,
                 ADD COLUMN IF NOT EXISTS home_finalised_version INT NULL,
                 ADD COLUMN IF NOT EXISTS away_finalised_at DATETIME NULL,
-                ADD COLUMN IF NOT EXISTS away_finalised_version INT NULL",
+                ADD COLUMN IF NOT EXISTS away_finalised_version INT NULL,
+                ADD COLUMN IF NOT EXISTS solo_by VARCHAR(8) NULL,
+                ADD COLUMN IF NOT EXISTS solo_since DATETIME NULL",
 
             "ALTER TABLE wdpl_scorecard_frames
                 ADD COLUMN IF NOT EXISTS home_player_name VARCHAR(190) NULL,
@@ -119,6 +123,8 @@ final class ScorecardsModule implements Module
             'apply'    => ['role' => Role::Captain, 'fn' => [self::class, 'apply']],
             'finalise' => ['role' => Role::Captain, 'fn' => [self::class, 'finalise']],
             'solo'     => ['role' => Role::Captain, 'fn' => [self::class, 'solo']],
+            'soloStart' => ['role' => Role::Captain, 'fn' => [self::class, 'soloStart']],
+            'soloStop'  => ['role' => Role::Captain, 'fn' => [self::class, 'soloStop']],
         ];
     }
 
@@ -208,8 +214,10 @@ final class ScorecardsModule implements Module
             }
 
             Db::query(
-                'UPDATE wdpl_scorecards SET state = ?, claimed_at = UTC_TIMESTAMP(), version = version + 1
-                 WHERE fixture_id = ?',
+                'UPDATE wdpl_scorecards
+                    SET state = ?, claimed_at = UTC_TIMESTAMP(), version = version + 1,
+                        solo_by = NULL, solo_since = NULL
+                  WHERE fixture_id = ?',
                 [self::STATE_CLAIMED, $fixtureId]
             );
 
@@ -304,7 +312,7 @@ final class ScorecardsModule implements Module
         return Db::all(
             "SELECT c.fixture_id, c.state, c.version, c.frames_total,
                     c.opened_at, c.finalised_at, c.claimed_at,
-                    c.home_finalised_at, c.away_finalised_at,
+                    c.home_finalised_at, c.away_finalised_at, c.solo_by,
                     h.name AS home_team_name, a.name AS away_team_name, f.match_date,
                     SUM(CASE WHEN fr.winner = 'home' THEN 1 ELSE 0 END) AS home_score,
                     SUM(CASE WHEN fr.winner = 'away' THEN 1 ELSE 0 END) AS away_score,
@@ -440,11 +448,16 @@ final class ScorecardsModule implements Module
             $changed = false;
             $notes = $card['notes'];
 
+            // While this captain is driving both sides, they may fill either
+            // team's slots and the nomination order does not apply - one person
+            // entering both line-ups has already set that aside by agreement.
+            $driving = ($card['solo_by'] !== null && $card['solo_by'] === $side);
+
             foreach ($ops as $index => $op) {
                 if (!is_array($op) || empty($op['kind'])) {
                     continue;
                 }
-                $result = self::applyOne($op, $side, $frames, $notes, $maxPerPlayer);
+                $result = self::applyOne($op, $side, $frames, $notes, $maxPerPlayer, $driving);
 
                 if ($result['rejected'] !== null) {
                     $rejections[] = ['op' => $index, 'reason' => $result['rejected']]
@@ -481,8 +494,9 @@ final class ScorecardsModule implements Module
      *
      * @return array{rejected: string|null, changed: bool, frame?: int}
      */
-    private static function applyOne(array $op, string $side, array &$frames, &$notes, int $maxPerPlayer): array
-    {
+    private static function applyOne(
+        array $op, string $side, array &$frames, &$notes, int $maxPerPlayer, bool $driving = false
+    ): array {
         $kind = (string)$op['kind'];
 
         if ($kind === 'set_notes') {
@@ -499,7 +513,10 @@ final class ScorecardsModule implements Module
         switch ($kind) {
             case 'set_player':
                 $slot = isset($op['slot']) ? (string)$op['slot'] : '';
-                if (!in_array($slot, ScorecardRules::slotsFor($side), true)) {
+                $allowed = $driving
+                    ? ['home', 'home2', 'away', 'away2']
+                    : ScorecardRules::slotsFor($side);
+                if (!in_array($slot, $allowed, true)) {
                     return ['rejected' => 'You can only pick players for your own team.',
                             'changed' => false, 'frame' => $frameNo];
                 }
@@ -508,7 +525,8 @@ final class ScorecardsModule implements Module
                 $playerName = isset($op['playerName']) && $op['playerName'] !== '' ? (string)$op['playerName'] : null;
                 $clearing   = ($playerId === null && $playerName === null);
 
-                if (!$clearing && $side === 'away' && ScorecardRules::awaySlotLocked($frames, $index)) {
+                if (!$clearing && !$driving && $side === 'away'
+                    && ScorecardRules::awaySlotLocked($frames, $index)) {
                     return ['rejected' => ScorecardRules::awayLockReason($frames, $index),
                             'changed' => false, 'frame' => $frameNo];
                 }
@@ -564,6 +582,17 @@ final class ScorecardsModule implements Module
                 return ['rejected' => null, 'changed' => true];
 
             case 'propose_eight':
+                if ($driving) {
+                    // No one to agree with - the captain driving is recording
+                    // what both sides already accepted at the table.
+                    if ($frames[$index]['winner'] === 'none') {
+                        return ['rejected' => 'Record who won the frame before claiming an 8-ball.',
+                                'changed' => false, 'frame' => $frameNo];
+                    }
+                    $frames[$index]['eight_ball'] = !empty($op['value']) ? 1 : 0;
+                    self::clearEightNegotiation($frames[$index]);
+                    return ['rejected' => null, 'changed' => true];
+                }
                 if ($frames[$index]['winner'] === 'none') {
                     return ['rejected' => 'Record who won the frame before claiming an 8-ball.',
                             'changed' => false, 'frame' => $frameNo];
@@ -682,6 +711,71 @@ final class ScorecardsModule implements Module
             $result = self::readCard($fixtureId, $side);
             $result['bothSigned'] = $bothSigned;
             return $result;
+        });
+    }
+
+    /**
+     * Takes control of both sides of a live card on one device.
+     *
+     * The venue has one usable phone between them, so one captain enters
+     * everything with the other watching. Unlike the offline submission below,
+     * this stays LIVE - every tap reaches the server as normal, so the public
+     * scoreboard keeps updating and the league can see the match progressing.
+     *
+     * Recorded on the card rather than kept in the browser, for three reasons:
+     * the server has to know to accept the other side's slots from this
+     * captain; the other captain's device can say what is happening instead of
+     * silently refusing their taps; and the league can see afterwards that one
+     * person entered the whole card.
+     */
+    public static function soloStart()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $side = self::requireSide($fixtureId);
+
+        return Db::transaction(function () use ($fixtureId, $side) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if ($card['state'] !== self::STATE_LIVE) {
+                throw new ApiError(409, 'not_live', 'This card is no longer being scored.');
+            }
+            if ($card['solo_by'] !== null && $card['solo_by'] !== $side) {
+                throw new ApiError(409, 'solo_taken',
+                    'The other captain is already entering this card on their device.');
+            }
+
+            Db::query(
+                'UPDATE wdpl_scorecards SET solo_by = ?, solo_since = UTC_TIMESTAMP(), version = version + 1
+                  WHERE fixture_id = ?',
+                [$side, $fixtureId]
+            );
+
+            return self::readCard($fixtureId, $side);
+        });
+    }
+
+    /** Hands the other captain their own side back. */
+    public static function soloStop()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $side = self::requireSide($fixtureId);
+
+        return Db::transaction(function () use ($fixtureId, $side) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            // Either captain may end it: the one driving because they are done,
+            // the other because their signal came back and they want their side.
+            Db::query(
+                'UPDATE wdpl_scorecards SET solo_by = NULL, solo_since = NULL, version = version + 1
+                  WHERE fixture_id = ?',
+                [$fixtureId]
+            );
+
+            return self::readCard($fixtureId, $side);
         });
     }
 
@@ -824,7 +918,7 @@ final class ScorecardsModule implements Module
         $card = Db::one(
             'SELECT c.fixture_id, c.state, c.version, c.frames_total, c.max_per_player, c.notes,
                     c.opened_at, c.finalised_at, c.claimed_at,
-                    c.home_finalised_at, c.away_finalised_at,
+                    c.home_finalised_at, c.away_finalised_at, c.solo_by, c.solo_since,
                     f.match_date, f.home_team_id, f.away_team_id,
                     h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name
              FROM wdpl_scorecards c
@@ -851,6 +945,8 @@ final class ScorecardsModule implements Module
         $card['home_signed']   = $card['home_finalised_at'] !== null;
         $card['away_signed']   = $card['away_finalised_at'] !== null;
         $card['away_locked']   = ScorecardRules::blindWindowLocked($frames);
+        $card['solo_driver']   = $card['solo_by'];
+        $card['you_are_driving'] = ($side !== null && $card['solo_by'] === $side);
         $card['all_scored']    = ScorecardRules::allFramesScored($frames);
         $card['unscored']      = ScorecardRules::unscoredFrames($frames);
 
