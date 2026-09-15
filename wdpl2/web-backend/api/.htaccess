@@ -1,12 +1,17 @@
 # index.php is the only public entry point. Everything else under api/ -
 # core/, modules/ and above all config.php - must never be fetchable directly,
 # whether PHP executes or (on a misconfigured host) serves it as plain text.
+#
+# The deny list covers .html and .js as well as .php, because the previous
+# backend left an admin dashboard at api/admin/index.html which stayed publicly
+# readable: a rule that only denied .php let the page itself be fetched even
+# though every endpoint behind it was refused.
 
 Options -Indexes
 
 <IfModule mod_authz_core.c>
     # Apache 2.4
-    <FilesMatch "\.(php|sql|md)$">
+    <FilesMatch "\.(php|sql|md|html|htm|js|json)$">
         Require all denied
     </FilesMatch>
     <Files "index.php">
@@ -16,7 +21,7 @@ Options -Indexes
 
 <IfModule !mod_authz_core.c>
     # Apache 2.2 fallback
-    <FilesMatch "\.(php|sql|md)$">
+    <FilesMatch "\.(php|sql|md|html|htm|js|json)$">
         Order allow,deny
         Deny from all
     </FilesMatch>
