@@ -5,10 +5,10 @@
              Title="Captains">
 
     <ScrollView BackgroundColor="#F8FAFC">
-        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="820" HorizontalOptions="Start">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="900" HorizontalOptions="Start">
 
             <Label Text="Captains" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
-            <Label Text="Give team captains their own sign-in for fixtures, roster and contacts."
+            <Label Text="Set each team's PIN, then publish so captains can sign in on the website."
                    FontSize="12" TextColor="#64748B"/>
 
             <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
@@ -20,12 +20,41 @@
                 </VerticalStackLayout>
             </Frame>
 
+            <!-- PIN editor -->
             <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Publish PINs" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
-                    <Label Text="PINs are hashed on this machine before they are sent. The PIN itself never leaves the app and is never stored on the website."
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Label Text="Team PINs" FontAttributes="Bold" FontSize="13" TextColor="#475569"
+                               VerticalOptions="Center"/>
+                        <Button Grid.Column="1" x:Name="FillButton" Text="Fill blanks" Clicked="OnFillBlanksClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                        <Button Grid.Column="2" x:Name="SaveButton" Text="Save PINs" Clicked="OnSaveClicked"
+                                BackgroundColor="#059669" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                    </Grid>
+
+                    <Label Text="PINs are shown in full so you can pass them to captains. They are stored in your league data and hashed before being sent to the website."
                            FontSize="11" TextColor="#94A3B8"/>
-                    <Label Text="Teams left out lose their access — that is how you remove a captain."
+
+                    <!-- Header row -->
+                    <Grid ColumnDefinitions="2*,1.4*,Auto" ColumnSpacing="8" Padding="0,6,0,2">
+                        <Label Text="TEAM" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"/>
+                        <Label Grid.Column="1" Text="PIN" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"/>
+                        <Label Grid.Column="2" Text=" " FontSize="10"/>
+                    </Grid>
+
+                    <VerticalStackLayout x:Name="TeamList" Spacing="2"/>
+                    <Label x:Name="NoTeamsLabel" Text="No teams in this season." FontSize="11"
+                           TextColor="#94A3B8" IsVisible="False"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Publish -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Publish" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="Sends the hashed PINs to the website. The PIN itself never leaves this machine. Teams left blank cannot sign in."
                            FontSize="11" TextColor="#94A3B8"/>
                     <Button x:Name="PushButton" Text="Publish captain PINs" Clicked="OnPushClicked"
                             BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"
