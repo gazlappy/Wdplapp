@@ -344,7 +344,20 @@ final class LeagueModule implements Module
      */
     public static function live()
     {
-        $seasonId = self::currentSeasonId();
+        // Never 404 here. The public scoreboard polls this endpoint on a timer,
+        // so a failure is not a one-off error message - it is a page stuck
+        // showing "could not load" until someone publishes a season. An empty
+        // board is the honest answer to "what is being played right now".
+        // Two ways this legitimately has no answer yet: no season published
+        // (ApiError), or the tables not installed at all (PDOException) on a
+        // site where the website was generated before the backend was set up.
+        try {
+            $seasonId = self::currentSeasonId();
+        } catch (ApiError $noSeasonYet) {
+            return self::emptyBoard();
+        } catch (PDOException $notInstalledYet) {
+            return self::emptyBoard();
+        }
 
         // Only live cards. A finalised card is no longer "in progress", and a
         // claimed one belongs to the app again - neither should sit on the
@@ -393,6 +406,12 @@ final class LeagueModule implements Module
             'generatedUtc' => gmdate('c'),
             'items'        => $items,
         ];
+    }
+
+    /** What the scoreboard shows when there is genuinely nothing to show. */
+    private static function emptyBoard(): array
+    {
+        return ['seasonId' => null, 'generatedUtc' => gmdate('c'), 'items' => []];
     }
 
     // ----------------------------------------------------------------- helpers
