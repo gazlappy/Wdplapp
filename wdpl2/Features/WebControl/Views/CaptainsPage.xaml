@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebControl.CaptainsPage"
@@ -85,7 +85,9 @@
             <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="Who can sign in" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
-                    <Button x:Name="StatusButton" Text="Check website" Clicked="OnStatusClicked"
+                    <Label Text="Captains can change their own PIN on the website. It is stored hashed, so it cannot be read back here — but this shows you which teams have changed one, so you know the PIN above is no longer the live one."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Button x:Name="StatusButton" Text="Refresh from website" Clicked="OnStatusClicked"
                             BackgroundColor="#334155" TextColor="White" CornerRadius="8" FontSize="13"/>
                     <Frame x:Name="StatusFrame" IsVisible="False" BorderColor="#E2E8F0" Padding="10"
                            CornerRadius="8" BackgroundColor="#F8FAFC" HasShadow="False">

@@ -23,7 +23,7 @@ final class CaptainsModule implements Module
 
     public static function title(): string { return 'Captains'; }
 
-    public static function schemaVersion(): int { return 2; }
+    public static function schemaVersion(): int { return 3; }
 
     public static function tables(): array
     {
@@ -33,9 +33,15 @@ final class CaptainsModule implements Module
                 season_id  CHAR(36)     NOT NULL,
                 pin_hash   VARCHAR(255) NOT NULL,
                 updated_at DATETIME     NOT NULL,
+                set_by     VARCHAR(16)  NOT NULL DEFAULT 'admin',
                 PRIMARY KEY (team_id),
                 KEY idx_pin_season (season_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+            // Sites installed before the app could tell the two apart. Existing
+            // rows were all published from the app, which the default covers.
+            "ALTER TABLE wdpl_captain_pins
+                ADD COLUMN IF NOT EXISTS set_by VARCHAR(16) NOT NULL DEFAULT 'admin'",
         ];
     }
 
@@ -109,10 +115,10 @@ final class CaptainsModule implements Module
             Db::query('DELETE FROM wdpl_captain_pins WHERE season_id = ?', [$seasonId]);
             foreach ($clean as $teamId => $hash) {
                 Db::query(
-                    'INSERT INTO wdpl_captain_pins (team_id, season_id, pin_hash, updated_at)
-                     VALUES (?, ?, ?, UTC_TIMESTAMP())
+                    "INSERT INTO wdpl_captain_pins (team_id, season_id, pin_hash, updated_at, set_by)
+                     VALUES (?, ?, ?, UTC_TIMESTAMP(), 'admin')
                      ON DUPLICATE KEY UPDATE season_id = VALUES(season_id), pin_hash = VALUES(pin_hash),
-                         updated_at = VALUES(updated_at)',
+                         updated_at = VALUES(updated_at), set_by = VALUES(set_by)",
                     [$teamId, $seasonId, $hash]
                 );
             }
@@ -125,7 +131,7 @@ final class CaptainsModule implements Module
     public static function status()
     {
         return Db::all(
-            'SELECT p.team_id, t.name AS team_name, p.updated_at
+            'SELECT p.team_id, t.name AS team_name, p.updated_at, p.set_by
              FROM wdpl_captain_pins p
              LEFT JOIN wdpl_teams t ON t.id = p.team_id
              ORDER BY t.name'
@@ -428,7 +434,9 @@ final class CaptainsModule implements Module
         RateLimit::clear('captain-setpin', $teamId);
 
         Db::query(
-            'UPDATE wdpl_captain_pins SET pin_hash = ?, updated_at = UTC_TIMESTAMP() WHERE team_id = ?',
+            "UPDATE wdpl_captain_pins
+                SET pin_hash = ?, updated_at = UTC_TIMESTAMP(), set_by = 'captain'
+              WHERE team_id = ?",
             [Passwords::hash($next), $teamId]
         );
 

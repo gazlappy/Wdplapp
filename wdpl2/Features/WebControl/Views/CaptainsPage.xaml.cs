@@ -33,6 +33,7 @@ public partial class CaptainsPage : ContentPage
 
     private readonly List<Season> _seasons = new();
     private readonly List<TeamRow> _rows = new();
+    private HashSet<string> _changedByCaptains = new();
     private bool _dirty;
 
     private readonly IDataStore _dataStore;
@@ -344,6 +345,15 @@ public partial class CaptainsPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Reads back who can sign in, and whose PIN the app no longer knows.
+    /// </summary>
+    /// <remarks>
+    /// The website stores a PIN as a hash and nothing can turn that back into
+    /// the PIN itself, so a captain's own change cannot be read down into this
+    /// page. What can be read is that it happened — which is the part that
+    /// matters, because the PIN shown here is then no longer the live one.
+    /// </remarks>
     private async void OnStatusClicked(object? sender, EventArgs e)
     {
         StatusButton.IsEnabled = false;
@@ -356,24 +366,29 @@ public partial class CaptainsPage : ContentPage
 
             var rows = await client.AdminAsync("captains", "status");
 
-            var text = new StringBuilder();
-            var count = 0;
+            var live = new List<(string Team, string When, bool ByCaptain)>();
+
             if (rows.ValueKind == JsonValueKind.Array)
             {
                 foreach (var row in rows.EnumerateArray())
                 {
-                    count++;
-                    var name = row.TryGetProperty("team_name", out var n) ? n.GetString() : "(unknown team)";
-                    var when = row.TryGetProperty("updated_at", out var u) ? u.GetString() : "";
-                    text.AppendLine($"  {name}  ({when})");
+                    live.Add((
+                        row.TryGetProperty("team_name", out var n) ? n.GetString() ?? "(unknown team)" : "(unknown team)",
+                        row.TryGetProperty("updated_at", out var u) ? u.GetString() ?? "" : "",
+                        row.TryGetProperty("set_by", out var b) && b.GetString() == "captain"));
                 }
             }
 
-            StatusDetail.Text = count == 0
-                ? "No team can sign in yet."
-                : $"{count} team(s) can sign in:\n{text}".TrimEnd();
+            _changedByCaptains = live.Where(r => r.ByCaptain).Select(r => r.Team).ToHashSet();
+
+            StatusDetail.Text = Summarise(live);
             StatusFrame.IsVisible = true;
-            Report("Read back from the website.", error: false);
+            MarkStaleRows();
+
+            Report(_changedByCaptains.Count == 0
+                ? "Read back from the website."
+                : $"{_changedByCaptains.Count} captain(s) have set their own PIN since you published.",
+                error: false);
         }
         catch (WebApiException ex)
         {
@@ -386,6 +401,57 @@ public partial class CaptainsPage : ContentPage
         finally
         {
             StatusButton.IsEnabled = true;
+        }
+    }
+
+    private static string Summarise(List<(string Team, string When, bool ByCaptain)> live)
+    {
+        if (live.Count == 0) return "No team can sign in yet.";
+
+        var text = new StringBuilder();
+        text.AppendLine($"{live.Count} team(s) can sign in:");
+
+        foreach (var row in live.OrderBy(r => r.Team, StringComparer.CurrentCultureIgnoreCase))
+        {
+            text.AppendLine(row.ByCaptain
+                ? $"  {row.Team}  ({When(row.When)}) — captain set their own"
+                : $"  {row.Team}  ({When(row.When)})");
+        }
+
+        var changed = live.Count(r => r.ByCaptain);
+        if (changed > 0)
+        {
+            text.AppendLine();
+            text.Append(
+                "A captain's own PIN is stored hashed and cannot be read back, so the PIN "
+                + "shown above for those teams is the one you last published, not the one "
+                + "that works. Type a new PIN and publish to take it back.");
+        }
+
+        return text.ToString().TrimEnd();
+    }
+
+    /// <summary>The website sends UTC; the secretary reads local time.</summary>
+    private static string When(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "unknown";
+
+        return DateTime.TryParse(
+            raw, null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+            out var utc)
+            ? utc.ToLocalTime().ToString("d MMM, HH:mm")
+            : raw;
+    }
+
+    /// <summary>Flags the PIN boxes the website no longer agrees with.</summary>
+    private void MarkStaleRows()
+    {
+        foreach (var row in _rows)
+        {
+            var stale = _changedByCaptains.Contains(row.TeamName);
+
+            row.Field.BackgroundColor = stale ? Color.FromArgb("#FEF3C7") : Colors.Transparent;
+            row.Field.Placeholder = stale ? "captain changed this" : "no PIN";
         }
     }
 
