@@ -4,126 +4,58 @@ using Wdpl2.Models;
 namespace wdpl2.Tests;
 
 /// <summary>
-/// Pins how many frames a match has.
+/// Pins where the match format comes from.
 /// </summary>
 /// <remarks>
-/// Getting this wrong opens a scorecard with the wrong number of frames, which
-/// is only noticed on a match night with two captains waiting. The precedence
-/// had been duplicated and the live-scoring path was skipping the season's own
-/// settings entirely.
+/// One source only: the app's Settings. Seasons carry their own FramesPerMatch
+/// and doubles fields and fixtures can carry pre-built frames, but neither is
+/// consulted - a number settable in three places is a number nobody can be
+/// sure of, and being wrong lands on a match night with captains waiting.
 /// </remarks>
 public class MatchFormatTests
 {
-    private static AppSettings Settings(int defaultFrames) =>
-        new() { DefaultFramesPerMatch = defaultFrames };
-
     [Fact]
-    public void FallsBackToTheLeagueStandardWhenNothingIsSet()
+    public void ReadsTheFrameCountFromSettings()
     {
-        var format = MatchFormat.For(null, null);
+        var format = MatchFormat.From(new AppSettings { DefaultFramesPerMatch = 15, MaxFramesPerPlayer = 3 });
 
         Assert.Equal(15, format.TotalFrames);
-        Assert.False(format.HasDoubles);
+        Assert.Equal(3, format.MaxFramesPerPlayer);
     }
 
     [Fact]
-    public void UsesTheAppDefaultWhenTheSeasonSaysNothing()
+    public void ChangingSettingsChangesTheCard()
     {
-        var season = new Season { FramesPerMatch = 0 };
+        var format = MatchFormat.From(new AppSettings { DefaultFramesPerMatch = 9, MaxFramesPerPlayer = 2 });
 
-        Assert.Equal(11, MatchFormat.For(season, Settings(11)).TotalFrames);
+        Assert.Equal(9, format.TotalFrames);
+        Assert.Equal(2, format.MaxFramesPerPlayer);
     }
 
     [Fact]
-    public void TheSeasonOverridesTheAppDefault()
+    public void FallsBackToTheLeagueStandardWhenSettingsAreMissing()
     {
-        // This is the case the live-scoring path used to miss: it read only the
-        // app default, so a season on a different count opened the wrong card.
-        var season = new Season { FramesPerMatch = 9 };
-
-        Assert.Equal(9, MatchFormat.For(season, Settings(15)).TotalFrames);
-    }
-
-    [Fact]
-    public void ADoublesSeasonDescribesItselfAsASplit()
-    {
-        var season = new Season
-        {
-            FramesPerMatch = 15,     // ignored: the split is more specific
-            IncludeDoubles = true,
-            SinglesFrameCount = 10,
-            DoublesFrameCount = 2,
-        };
-
-        var format = MatchFormat.For(season, Settings(15));
-
-        Assert.Equal(12, format.TotalFrames);
-        Assert.Equal(10, format.SinglesFrames);
-        Assert.Equal(2, format.DoublesFrames);
-        Assert.True(format.HasDoubles);
-    }
-
-    [Fact]
-    public void DoublesAreThePlayedAtTheEndOfTheNight()
-    {
-        var season = new Season
-        {
-            IncludeDoubles = true,
-            SinglesFrameCount = 10,
-            DoublesFrameCount = 2,
-        };
-
-        // 12 frames, so the doubles are frames 11 and 12.
-        Assert.Equal(new[] { 11, 12 }, MatchFormat.For(season, Settings(15)).DoublesFrameNumbers());
-    }
-
-    [Fact]
-    public void DoublesEnabledWithNoCountsIsNotASplit()
-    {
-        // The flag alone says nothing about how many, so the ordinary count
-        // applies rather than collapsing the match to zero frames.
-        var season = new Season
-        {
-            IncludeDoubles = true,
-            SinglesFrameCount = 0,
-            DoublesFrameCount = 0,
-            FramesPerMatch = 15,
-        };
-
-        var format = MatchFormat.For(season, Settings(15));
+        var format = MatchFormat.From(null);
 
         Assert.Equal(15, format.TotalFrames);
-        Assert.False(format.HasDoubles);
-        Assert.Empty(format.DoublesFrameNumbers());
+        Assert.Equal(3, format.MaxFramesPerPlayer);
     }
 
     [Fact]
-    public void ASinglesSeasonHasNoDoublesFrames()
+    public void IgnoresNonsenseValues()
     {
-        var format = MatchFormat.For(new Season { FramesPerMatch = 15 }, Settings(15));
-
-        Assert.Empty(format.DoublesFrameNumbers());
-        Assert.Equal(15, format.SinglesFrames);
-    }
-
-    [Fact]
-    public void MatchesTheLeaguesCurrentSeason()
-    {
-        // WINTER 26-27 UNITED: FramesPerMatch 15, no doubles, app default 15.
-        var season = new Season { Name = "WINTER 26-27 UNITED", FramesPerMatch = 15 };
-
-        var format = MatchFormat.For(season, Settings(15));
+        // A zero or negative count would open a card with no frames on it.
+        var format = MatchFormat.From(new AppSettings { DefaultFramesPerMatch = 0, MaxFramesPerPlayer = -1 });
 
         Assert.Equal(15, format.TotalFrames);
-        Assert.False(format.HasDoubles);
-        Assert.Equal("15 frames", format.ToString());
+        Assert.Equal(3, format.MaxFramesPerPlayer);
     }
 
     [Fact]
-    public void DescribesItselfForAConfirmationDialog()
+    public void DescribesItselfForTheConfirmationDialog()
     {
-        var doubles = new Season { IncludeDoubles = true, SinglesFrameCount = 10, DoublesFrameCount = 2 };
+        var format = MatchFormat.From(new AppSettings { DefaultFramesPerMatch = 15, MaxFramesPerPlayer = 3 });
 
-        Assert.Equal("12 frames (10 singles, 2 doubles)", MatchFormat.For(doubles, Settings(15)).ToString());
+        Assert.Equal("15 frames, max 3 per player", format.ToString());
     }
 }

@@ -159,17 +159,12 @@ public partial class ScorecardsPage : ContentPage
         if (FixturePicker.SelectedIndex < 0 || FixturePicker.SelectedIndex >= _openable.Count) return;
         var fixture = _openable[FixturePicker.SelectedIndex];
 
-        // A fixture that already has frames built in the app is authoritative -
-        // that IS the card. Otherwise resolve the season's format, using the
-        // same precedence the rest of the app uses.
-        var season = League.Seasons.FirstOrDefault(s => s.Id == fixture.SeasonId);
-        var format = MatchFormat.For(season, League.Settings);
-
-        var framesTotal = fixture.Frames.Count > 0 ? fixture.Frames.Count : format.TotalFrames;
-        var maxPerPlayer = Math.Max(1, League.Settings.MaxFramesPerPlayer);
+        // One source for the match format: Settings. Not the season, not the
+        // fixture's existing frames - see MatchFormat.
+        var format = MatchFormat.From(League.Settings);
 
         if (!await DisplayAlert("Open for live scoring?",
-                $"{FixturePicker.ItemsSource[FixturePicker.SelectedIndex]}\n{framesTotal} frames\n\n" +
+                $"{FixturePicker.ItemsSource[FixturePicker.SelectedIndex]}\n{format}\n\n" +
                 "The website will own this scorecard until you collect it. This app will not change its frames in the meantime.",
                 "Open", "Cancel"))
             return;
@@ -180,7 +175,7 @@ public partial class ScorecardsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var state = await ScorecardService.OpenAsync(client, fixture, format, maxPerPlayer);
+            var state = await ScorecardService.OpenAsync(client, fixture, format);
             Report($"Open for live scoring. Captains can now score at your website's /captain/ page.", error: false);
             await LoadStatesAsync();
         }

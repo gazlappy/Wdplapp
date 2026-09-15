@@ -36,25 +36,17 @@ public sealed class ScorecardService
     /// winners; they never invent frames.
     /// </remarks>
     public static async Task<ScorecardState> OpenAsync(
-        WebApiClient client, Fixture fixture, MatchFormat format, int maxPerPlayer)
+        WebApiClient client, Fixture fixture, MatchFormat format)
     {
-        // A fixture with frames already built in the app is the card, doubles
-        // and all. Only when there are none does the season's format decide,
-        // and doubles then fall at the end of the night by convention.
-        var hasBuiltFrames = fixture.Frames.Count > 0;
-
-        var doublesFrames = hasBuiltFrames
-            ? fixture.Frames.Where(f => f.IsDoubles).Select(f => f.Number).ToList()
-            : format.DoublesFrameNumbers().ToList();
-
-        var count = hasBuiltFrames ? fixture.Frames.Count : format.TotalFrames;
-
+        // The format comes from Settings and nowhere else, so a card always has
+        // the number of frames the league actually plays. Doubles are marked on
+        // the card by the captains, not decided here.
         var result = await client.AdminAsync("scorecards", "open", new
         {
             fixtureId = fixture.Id,
-            framesTotal = count,
-            maxPerPlayer,
-            doublesFrames,
+            framesTotal = format.TotalFrames,
+            maxPerPlayer = format.MaxFramesPerPlayer,
+            doublesFrames = Array.Empty<int>(),
         });
 
         return ReadState(result);
