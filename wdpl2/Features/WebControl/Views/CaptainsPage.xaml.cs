@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Wdpl2.Models;
@@ -382,6 +382,101 @@ public partial class CaptainsPage : ContentPage
         finally
         {
             StatusButton.IsEnabled = true;
+        }
+    }
+
+    // ------------------------------------------- players captains added online
+
+    private List<CaptainRosterService.AddedPlayer> _added = new();
+
+    private async void OnCheckAddedClicked(object? sender, EventArgs e)
+    {
+        CheckAddedButton.IsEnabled = false;
+        AddedFrame.IsVisible = false;
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            _added = await CaptainRosterService.GetUncollectedAsync(client);
+
+            if (_added.Count == 0)
+            {
+                AddedDetail.Text = "No captain has added a player since you last collected.";
+                CollectButton.IsEnabled = false;
+            }
+            else
+            {
+                var lines = _added
+                    .GroupBy(p => p.TeamName)
+                    .Select(g => $"  {g.Key}: {string.Join(", ", g.Select(p => p.Name))}");
+
+                AddedDetail.Text = $"{_added.Count} player(s) waiting:\n{string.Join("\n", lines)}";
+                CollectButton.IsEnabled = true;
+            }
+
+            AddedFrame.IsVisible = true;
+            Report("Read back from the website.", error: false);
+        }
+        catch (WebApiException ex)
+        {
+            Report(ex.Code == "unknown_module"
+                ? "The website does not have the captains module yet. Deploy the backend, then install tables."
+                : ex.Message, error: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            CheckAddedButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnCollectClicked(object? sender, EventArgs e)
+    {
+        if (_added.Count == 0) return;
+
+        var names = string.Join(", ", _added.Take(6).Select(p => p.Name))
+                    + (_added.Count > 6 ? $" and {_added.Count - 6} more" : "");
+
+        if (!await DisplayAlert("Add these players?",
+                $"{_added.Count} player(s): {names}\n\n"
+                + "They will be created in this season with the same identity they already have online, "
+                + "so any frames they have played still point at them.",
+                "Add them", "Cancel"))
+            return;
+
+        CollectButton.IsEnabled = false;
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            var created = await CaptainRosterService.CollectAsync(client, League, _added);
+
+            Report(created == _added.Count
+                ? $"Added {created} player(s). Publish the season to finish tying them in."
+                : $"Added {created} new player(s); the rest were already here. Publish the season to finish tying them in.",
+                error: false);
+
+            _added.Clear();
+            AddedDetail.Text = "All collected.";
+        }
+        catch (WebApiException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            CollectButton.IsEnabled = _added.Count > 0;
         }
     }
 

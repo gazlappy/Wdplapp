@@ -62,6 +62,26 @@
                 </VerticalStackLayout>
             </Frame>
 
+            <!-- Players captains added online -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Players added by captains" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="Captains can add someone who turns up on the night. They stay on the website until you take them in here — publishing does not remove them."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button x:Name="CheckAddedButton" Text="Check for new players" Clicked="OnCheckAddedClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8" FontSize="13"/>
+                        <Button x:Name="CollectButton" Grid.Column="1" Text="Add them to the app" Clicked="OnCollectClicked"
+                                BackgroundColor="#059669" TextColor="White" CornerRadius="8" FontSize="13"
+                                IsEnabled="False"/>
+                    </Grid>
+                    <Frame x:Name="AddedFrame" IsVisible="False" BorderColor="#E2E8F0" Padding="10"
+                           CornerRadius="8" BackgroundColor="#F8FAFC" HasShadow="False">
+                        <Label x:Name="AddedDetail" FontSize="11" TextColor="#475569" LineBreakMode="WordWrap"/>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
             <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="Who can sign in" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
