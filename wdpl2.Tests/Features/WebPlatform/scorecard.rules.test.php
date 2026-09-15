@@ -233,6 +233,52 @@ test('players typed in on the night are matched by name', function () {
     check($reason !== null, 'ad-hoc players should still be limited');
 });
 
+// ------------------------------------------------- players before a result
+
+echo "
+A result needs the players it belongs to
+";
+
+test('a frame with no players is not ready for a result', function () {
+    $f = frames(3);
+    check(!ScorecardRules::frameHasPlayers($f[0]), 'an empty frame should not be scorable');
+    same(['home', 'away'], ScorecardRules::missingPlayers($f[0]));
+});
+
+test('one side named is still not enough', function () {
+    $f = frames(3);
+    put($f, 0, 'home', player(1));
+    check(!ScorecardRules::frameHasPlayers($f[0]), 'one side should not be enough');
+    same(['away'], ScorecardRules::missingPlayers($f[0]));
+});
+
+test('both sides named is ready', function () {
+    $f = frames(3);
+    put($f, 0, 'home', player(1));
+    put($f, 0, 'away', player(9));
+    check(ScorecardRules::frameHasPlayers($f[0]), 'both sides named should be scorable');
+    same([], ScorecardRules::missingPlayers($f[0]));
+});
+
+test('a doubles frame needs all four', function () {
+    $f = frames(3);
+    $f[0]['is_doubles'] = 1;
+    put($f, 0, 'home', player(1));
+    put($f, 0, 'away', player(9));
+    check(!ScorecardRules::frameHasPlayers($f[0]), 'leads alone should not be enough in doubles');
+
+    put($f, 0, 'home2', player(2));
+    put($f, 0, 'away2', player(8));
+    check(ScorecardRules::frameHasPlayers($f[0]), 'all four named should be scorable');
+});
+
+test('VOID counts as named - a conceded frame still scores', function () {
+    $f = frames(3);
+    put($f, 0, 'home', ScorecardRules::VOID_PLAYER_ID, 'VOID');
+    put($f, 0, 'away', player(9));
+    check(ScorecardRules::frameHasPlayers($f[0]), 'a conceded frame must be scorable');
+});
+
 // ------------------------------------------------------------------ scoring
 
 echo "\nScoring\n";

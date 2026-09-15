@@ -180,6 +180,44 @@ final class ScorecardRules
         return null;
     }
 
+    /**
+     * Whether a frame has the players it needs before a result can be recorded.
+     *
+     * A scorecard is a record of who played, not just what the score was. A
+     * frame with a winner and no players tells the league nothing, and quietly
+     * breaks the player statistics that are calculated from it afterwards.
+     *
+     * VOID counts as named: a conceded frame genuinely has nobody on that side,
+     * and saying so is the point.
+     */
+    public static function frameHasPlayers(array $frame): bool
+    {
+        if (self::slotIdentity($frame, 'home') === null) return false;
+        if (self::slotIdentity($frame, 'away') === null) return false;
+
+        if (!empty($frame['is_doubles'])) {
+            // A doubles frame is not fully described until all four are named.
+            if (self::slotIdentity($frame, 'home2') === null) return false;
+            if (self::slotIdentity($frame, 'away2') === null) return false;
+        }
+
+        return true;
+    }
+
+    /** Which side still needs naming, for a message the captain can act on. */
+    public static function missingPlayers(array $frame): array
+    {
+        $missing = [];
+        if (self::slotIdentity($frame, 'home') === null) $missing[] = 'home';
+        if (self::slotIdentity($frame, 'away') === null) $missing[] = 'away';
+
+        if (!empty($frame['is_doubles'])) {
+            if (self::slotIdentity($frame, 'home2') === null) $missing[] = 'home player 2';
+            if (self::slotIdentity($frame, 'away2') === null) $missing[] = 'away player 2';
+        }
+        return $missing;
+    }
+
     // -------------------------------------------------------------- scoring
 
     /** Frames won by each side, and how many have been played. */

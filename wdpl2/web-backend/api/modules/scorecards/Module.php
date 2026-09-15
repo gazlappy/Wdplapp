@@ -495,6 +495,16 @@ final class ScorecardsModule implements Module
                 // Tapping the current winner again clears the frame, which is
                 // how a captain undoes a mis-tap.
                 $clear = ($value === null) || ($frames[$index]['winner'] === $value);
+
+                // A result needs the players it belongs to. Clearing is always
+                // allowed - a captain must be able to undo a mis-tap even on a
+                // frame that is not fully filled in yet.
+                if (!$clear && !ScorecardRules::frameHasPlayers($frames[$index])) {
+                    $missing = ScorecardRules::missingPlayers($frames[$index]);
+                    return ['rejected' => 'Pick the players first - still to name: '
+                                        . implode(' and ', $missing) . '.',
+                            'changed' => false, 'frame' => $frameNo];
+                }
                 $frames[$index]['winner'] = $clear ? 'none' : $value;
                 if ($clear) {
                     $frames[$index]['eight_ball'] = 0;

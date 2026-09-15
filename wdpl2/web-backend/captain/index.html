@@ -167,6 +167,10 @@ button.go{background:var(--felt);}
 }
 .pick-list button.void{color:var(--void); border-color:rgba(251,146,60,.4);}
 .pick-list button.clear{color:var(--muted);}
+.pick-list button.eight{color:var(--eight); border-color:rgba(249,115,22,.5);}
+.pick-list button.agree{color:#9af2c8; border-color:rgba(34,197,94,.5);}
+.sc-num{cursor:pointer;}
+.sc-num:hover{color:var(--gold);}
 </style>
 </head>
 <body>
@@ -248,6 +252,16 @@ button.go{background:var(--felt);}
     </div>
   </section>
 </main>
+
+<!-- Frame options: doubles, 8-ball, clear -->
+<div class="sheet hidden" id="frameSheet">
+  <div class="sheet-inner">
+    <h3 id="frameTitle">Frame</h3>
+    <p class="sub" id="frameSub"></p>
+    <div class="pick-list" id="frameOptions"></div>
+    <div class="row"><button class="ghost" id="frameClose">Close</button></div>
+  </div>
+</div>
 
 <!-- Player picker -->
 <div class="sheet hidden" id="sheet">
@@ -360,6 +374,17 @@ button.go{background:var(--felt);}
         f[prefix+'_name'] = op.playerName||null;
       } else if(op.kind==='set_doubles'){
         f.is_doubles = op.value?1:0;
+        if(!f.is_doubles){
+          f.home_player2_id=null; f.home_player2_name=null;
+          f.away_player2_id=null; f.away_player2_name=null;
+        }
+      } else if(op.kind==='propose_eight'){
+        f.pending_eight_by=S.side; f.pending_eight_value=op.value?1:0;
+      } else if(op.kind==='agree_eight'){
+        f.eight_ball=Number(f.pending_eight_value)?1:0;
+        f.pending_eight_by=null; f.pending_eight_value=null;
+      } else if(op.kind==='decline_eight'){
+        f.pending_eight_by=null; f.pending_eight_value=null;
       }
     });
     var h=0,a=0,p=0;
@@ -486,6 +511,7 @@ button.go{background:var(--felt);}
       // Never overwrite the screen while edits are still unsent, or the
       // captain would watch their own taps disappear.
       if(document.hidden || S.busy || S.pick || S.solo || S.queue.length) return;
+      if(!$('frameSheet').classList.contains('hidden')) return;
       call('scorecards','card',{fixtureId:S.fixtureId})
         .then(function(c){ if(!S.busy && !S.pick) render(c); })
         .catch(function(){});
@@ -570,7 +596,11 @@ button.go{background:var(--felt);}
     row.className='sc-row '+side+' '+setBg(index)+(isCurrent?' current':'');
 
     var num=document.createElement('div');
-    num.className='sc-num'; num.textContent=frame.frame_no;
+    num.className='sc-num';
+    num.textContent=frame.frame_no + (Number(frame.is_doubles) ? 'D' : '');
+    num.setAttribute('role','button');
+    num.setAttribute('aria-label','Options for frame '+frame.frame_no);
+    num.addEventListener('click', function(){ openFrameSheet(index); });
 
     var win=document.createElement('button');
     win.className='sc-win '+side+(frame.winner===side?' on':'');
@@ -689,6 +719,108 @@ button.go{background:var(--felt);}
       })
       .catch(function(e){ say(e.message,'bad'); $('signBtn').disabled=false; });
   });
+
+  // ------------------------------------------------------- frame options
+
+  /**
+   * Doubles, the 8-ball and clearing a frame.
+   *
+   * These live behind the frame number rather than in the row: a phone row has
+   * space for the player and the result, and nothing else. Tapping the number
+   * is dead space otherwise.
+   */
+  function openFrameSheet(index){
+    var f=S.card.frames[index];
+    S.pick=null;
+
+    $('frameTitle').textContent='Frame '+f.frame_no;
+
+    var winner = f.winner==='none' ? 'not scored yet'
+               : (f.winner==='home' ? S.card.home_team_name : S.card.away_team_name)+' won';
+    $('frameSub').textContent = winner + (Number(f.is_doubles) ? ' · doubles' : '');
+
+    var list=$('frameOptions');
+    list.innerHTML='';
+
+    // Doubles - either captain may set it, since it changes how both sides pick.
+    var dbl=document.createElement('button');
+    dbl.textContent = Number(f.is_doubles) ? 'Make this a singles frame' : 'Make this a doubles frame';
+    dbl.addEventListener('click', function(){
+      closeFrameSheet();
+      apply([{kind:'set_doubles', frame:index, value:!Number(f.is_doubles)}]);
+    });
+    list.appendChild(dbl);
+
+    // The 8-ball, which only makes sense once someone has won the frame.
+    if(f.winner==='none'){
+      var note=document.createElement('div');
+      note.style.cssText='font-size:12px;color:var(--muted);padding:6px 0';
+      note.textContent='Record who won the frame to claim an 8-ball.';
+      list.appendChild(note);
+    } else if(f.pending_eight_by && f.pending_eight_by!==S.side){
+      // The other captain has claimed one: this captain agrees or declines.
+      var claim = Number(f.pending_eight_value) ? 'an 8-ball' : 'no 8-ball';
+      var head=document.createElement('div');
+      head.style.cssText='font-size:12px;color:var(--warn-fg);padding:6px 0';
+      head.textContent='The other captain says '+claim+' in this frame.';
+      list.appendChild(head);
+
+      var ok=document.createElement('button');
+      ok.className='agree'; ok.textContent='Agree';
+      ok.addEventListener('click', function(){
+        closeFrameSheet(); apply([{kind:'agree_eight', frame:index}]);
+      });
+      list.appendChild(ok);
+
+      var no=document.createElement('button');
+      no.className='clear'; no.textContent='Disagree';
+      no.addEventListener('click', function(){
+        closeFrameSheet(); apply([{kind:'decline_eight', frame:index}]);
+      });
+      list.appendChild(no);
+    } else if(f.pending_eight_by===S.side){
+      var wait=document.createElement('div');
+      wait.style.cssText='font-size:12px;color:var(--warn-fg);padding:6px 0';
+      wait.textContent='Waiting for the other captain to agree your 8-ball claim.';
+      list.appendChild(wait);
+    } else {
+      var eight=document.createElement('button');
+      eight.className='eight';
+      eight.textContent = Number(f.eight_ball) ? 'Take back the 8-ball' : 'Claim an 8-ball';
+      eight.addEventListener('click', function(){
+        closeFrameSheet();
+        apply([{kind:'propose_eight', frame:index, value:!Number(f.eight_ball)}]);
+      });
+      list.appendChild(eight);
+
+      if(Number(f.eight_ball)){
+        var agreed=document.createElement('div');
+        agreed.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
+        agreed.textContent='Both captains agreed this 8-ball.';
+        list.appendChild(agreed);
+      } else if(!S.solo){
+        var needs=document.createElement('div');
+        needs.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
+        needs.textContent='The other captain has to agree before it counts.';
+        list.appendChild(needs);
+      }
+    }
+
+    // Clearing the result, which also clears any 8-ball on it.
+    if(f.winner!=='none'){
+      var clr=document.createElement('button');
+      clr.className='clear'; clr.textContent='Clear this frame\'s result';
+      clr.addEventListener('click', function(){
+        closeFrameSheet(); apply([{kind:'set_winner', frame:index, value:null}]);
+      });
+      list.appendChild(clr);
+    }
+
+    show($('frameSheet'), true);
+  }
+
+  function closeFrameSheet(){ show($('frameSheet'), false); }
+  $('frameClose').addEventListener('click', closeFrameSheet);
 
   // ------------------------------------------------------------ solo mode
 
