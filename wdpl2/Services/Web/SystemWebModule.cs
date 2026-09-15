@@ -1,4 +1,4 @@
-namespace Wdpl2.Services.Web;
+﻿namespace Wdpl2.Services.Web;
 
 /// <summary>
 /// The backend core: front controller, shared services and the system module.
@@ -31,5 +31,10 @@ public sealed class SystemWebModule : IWebModule
         "api/core/Registry.php",
         "api/core/Schema.php",
         "api/modules/system/Module.php",
+
+        // The secretary's own portal. It reads and writes nothing the admin
+        // API does not already expose, so it belongs with the core rather than
+        // with any one feature module.
+        "admin/index.html",
     };
 }

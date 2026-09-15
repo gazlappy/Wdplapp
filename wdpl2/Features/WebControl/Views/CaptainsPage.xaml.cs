@@ -33,7 +33,7 @@ public partial class CaptainsPage : ContentPage
 
     private readonly List<Season> _seasons = new();
     private readonly List<TeamRow> _rows = new();
-    private HashSet<string> _changedByCaptains = new();
+    private HashSet<string> _changedElsewhere = new();
     private bool _dirty;
 
     private readonly IDataStore _dataStore;
@@ -366,7 +366,7 @@ public partial class CaptainsPage : ContentPage
 
             var rows = await client.AdminAsync("captains", "status");
 
-            var live = new List<(string Team, string When, bool ByCaptain)>();
+            var live = new List<(string Team, string When, string SetBy)>();
 
             if (rows.ValueKind == JsonValueKind.Array)
             {
@@ -375,19 +375,20 @@ public partial class CaptainsPage : ContentPage
                     live.Add((
                         row.TryGetProperty("team_name", out var n) ? n.GetString() ?? "(unknown team)" : "(unknown team)",
                         row.TryGetProperty("updated_at", out var u) ? u.GetString() ?? "" : "",
-                        row.TryGetProperty("set_by", out var b) && b.GetString() == "captain"));
+                        row.TryGetProperty("set_by", out var b) ? b.GetString() ?? "admin" : "admin"));
                 }
             }
 
-            _changedByCaptains = live.Where(r => r.ByCaptain).Select(r => r.Team).ToHashSet();
+            // Anything the app did not publish is a PIN it no longer knows.
+            _changedElsewhere = live.Where(r => r.SetBy != "admin").Select(r => r.Team).ToHashSet();
 
             StatusDetail.Text = Summarise(live);
             StatusFrame.IsVisible = true;
             MarkStaleRows();
 
-            Report(_changedByCaptains.Count == 0
+            Report(_changedElsewhere.Count == 0
                 ? "Read back from the website."
-                : $"{_changedByCaptains.Count} captain(s) have set their own PIN since you published.",
+                : $"{_changedElsewhere.Count} PIN(s) have been changed since you published.",
                 error: false);
         }
         catch (WebApiException ex)
@@ -404,7 +405,7 @@ public partial class CaptainsPage : ContentPage
         }
     }
 
-    private static string Summarise(List<(string Team, string When, bool ByCaptain)> live)
+    private static string Summarise(List<(string Team, string When, string SetBy)> live)
     {
         if (live.Count == 0) return "No team can sign in yet.";
 
@@ -413,18 +414,20 @@ public partial class CaptainsPage : ContentPage
 
         foreach (var row in live.OrderBy(r => r.Team, StringComparer.CurrentCultureIgnoreCase))
         {
-            text.AppendLine(row.ByCaptain
-                ? $"  {row.Team}  ({When(row.When)}) — captain set their own"
-                : $"  {row.Team}  ({When(row.When)})");
+            text.AppendLine(row.SetBy switch
+            {
+                "captain" => $"  {row.Team}  ({When(row.When)}) — captain set their own",
+                "portal"  => $"  {row.Team}  ({When(row.When)}) — you reset it on the website",
+                _         => $"  {row.Team}  ({When(row.When)})",
+            });
         }
 
-        var changed = live.Count(r => r.ByCaptain);
-        if (changed > 0)
+        if (live.Any(r => r.SetBy != "admin"))
         {
             text.AppendLine();
             text.Append(
-                "A captain's own PIN is stored hashed and cannot be read back, so the PIN "
-                + "shown above for those teams is the one you last published, not the one "
+                "A PIN set anywhere but here is stored hashed and cannot be read back, so the "
+                + "PIN shown above for those teams is the one you last published, not the one "
                 + "that works. Type a new PIN and publish to take it back.");
         }
 
@@ -448,10 +451,10 @@ public partial class CaptainsPage : ContentPage
     {
         foreach (var row in _rows)
         {
-            var stale = _changedByCaptains.Contains(row.TeamName);
+            var stale = _changedElsewhere.Contains(row.TeamName);
 
             row.Field.BackgroundColor = stale ? Color.FromArgb("#FEF3C7") : Colors.Transparent;
-            row.Field.Placeholder = stale ? "captain changed this" : "no PIN";
+            row.Field.Placeholder = stale ? "changed elsewhere" : "no PIN";
         }
     }
 

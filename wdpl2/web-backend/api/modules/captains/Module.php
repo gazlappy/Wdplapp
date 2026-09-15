@@ -50,6 +50,7 @@ final class CaptainsModule implements Module
         return [
             // Admin
             'push'     => ['role' => Role::Admin,   'fn' => [self::class, 'push']],
+            'setTeamPin' => ['role' => Role::Admin, 'fn' => [self::class, 'setTeamPin']],
             'status'   => ['role' => Role::Admin,   'fn' => [self::class, 'status']],
 
             // Anonymous: the sign-in flow
@@ -125,6 +126,47 @@ final class CaptainsModule implements Module
         });
 
         return ['seasonId' => $seasonId, 'teams' => count($clean)];
+    }
+
+    /**
+     * Resets one team's PIN, leaving every other team alone.
+     *
+     * push() replaces a whole season's PINs, which is the right shape for the
+     * app publishing its records and the wrong shape entirely for fixing one
+     * team from a phone. Recorded as set by the portal rather than the app, so
+     * the app can see its stored copy is no longer the live one.
+     */
+    public static function setTeamPin()
+    {
+        Http::requireSecure();
+
+        $teamId = self::uuid(Http::requireField('teamId'), 'teamId');
+        $pin    = trim((string)Http::requireField('pin'));
+
+        if (strlen($pin) < 4) {
+            throw new ApiError(400, 'pin_too_short', 'A PIN must be at least four characters.');
+        }
+
+        $row = Db::one('SELECT season_id FROM wdpl_captain_pins WHERE team_id = ?', [$teamId]);
+
+        if ($row === null) {
+            // Without a season the row cannot be published over later, and the
+            // app is the only thing that knows which season a team belongs to.
+            throw new ApiError(
+                404,
+                'unknown_team',
+                'That team has no PIN yet. Publish captain PINs from the app first.'
+            );
+        }
+
+        Db::query(
+            "UPDATE wdpl_captain_pins
+                SET pin_hash = ?, updated_at = UTC_TIMESTAMP(), set_by = 'portal'
+              WHERE team_id = ?",
+            [Passwords::hash($pin), $teamId]
+        );
+
+        return ['teamId' => $teamId, 'changed' => true];
     }
 
     /** Which teams can sign in. Never returns a hash. */
