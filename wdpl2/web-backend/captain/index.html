@@ -350,8 +350,9 @@ button.go{background:var(--felt);}
     <div class="pick-list" id="pickList"></div>
     <label for="adhoc">Someone not on the list</label>
     <input id="adhoc" type="text" placeholder="Type a name" autocomplete="off">
+    <p class="sub" style="margin:4px 0 0">Adds them to the squad, so you can pick them in later frames too.</p>
     <div class="row" style="margin-top:10px">
-      <button id="adhocBtn">Use this name</button>
+      <button id="adhocBtn">Add and pick</button>
       <button class="ghost" id="sheetClose">Cancel</button>
     </div>
   </div>
@@ -366,7 +367,7 @@ button.go{background:var(--felt);}
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
   var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
-            timer:null, pick:null, rosters:{home:[],away:[]},
+            timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null},
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
@@ -563,7 +564,10 @@ button.go{background:var(--felt);}
   function loadRosters(){
     if(!S.fixtureId) return Promise.resolve();
     return call('scorecards','roster',{fixtureId:S.fixtureId})
-      .then(function(r){ S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]}; })
+      .then(function(r){
+        S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]};
+        S.teamIds={home:(r&&r.homeTeamId)||null, away:(r&&r.awayTeamId)||null};
+      })
       .catch(function(){ /* the picker still offers VOID and a typed name */ });
   }
 
@@ -678,6 +682,7 @@ button.go{background:var(--felt);}
       .then(function(r){
         $('newPlayer').value='';
         loadSquad();
+        loadRosters();
         say(r.reactivated ? (r.name+' was retired and is back on the squad.')
                           : (r.name+' added to the squad.'), 'ok');
       })
@@ -1315,10 +1320,56 @@ button.go{background:var(--felt);}
     apply([op]);
   }
 
+  /** The squad entry for a name, if it is already there. */
+  function inSquad(side, name){
+    var found=null, wanted=String(name).trim().toLowerCase();
+    (S.rosters[side]||[]).forEach(function(p){
+      if(String(p.name).trim().toLowerCase()===wanted) found=p;
+    });
+    return found;
+  }
+
+  /**
+   * Someone who turned up on the night.
+   *
+   * A typed name used to be written straight onto the frame and nowhere else,
+   * so the same player had to be retyped for every frame they played and never
+   * reached the app. Adding them to the squad first gives them an identity: the
+   * other frames offer them, and the app can take them in afterwards.
+   */
   $('adhocBtn').addEventListener('click', function(){
     var name=$('adhoc').value.trim();
-    if(!name){ return; }
-    choose(null, name);
+    if(!name || !S.pick) return;
+
+    var side = S.pick.side;
+    var already = inSquad(side, name);
+    if(already){ choose(already.id, already.name); return; }
+
+    var teamId = S.teamIds[side];
+    if(!teamId){
+      // No team to add them to - better a name on the frame than nothing.
+      choose(null, name);
+      return;
+    }
+
+    var btn=$('adhocBtn');
+    btn.disabled=true;
+
+    call('captains','addPlayer',{name:name, teamId:teamId})
+      .catch(function(e){
+        // Already there under a name the roster had not caught up with.
+        if(e && e.code==='already_on_squad') return null;
+        throw e;
+      })
+      .then(function(r){
+        return loadRosters().then(function(){
+          var p = (r && r.id) ? {id:r.id, name:r.name} : inSquad(side, name);
+          if(p) choose(p.id, p.name);
+          else   choose(null, name);
+        });
+      })
+      .catch(function(e){ say((e && e.message) || 'Could not add that player.', 'bad'); })
+      .then(function(){ btn.disabled=false; });
   });
   $('sheetClose').addEventListener('click', closePicker);
   function closePicker(){ S.pick=null; show($('sheet'), false); }

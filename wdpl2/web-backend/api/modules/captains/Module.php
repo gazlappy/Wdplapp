@@ -343,8 +343,15 @@ final class CaptainsModule implements Module
      */
     public static function addPlayer()
     {
-        $teamId = Captain::requireTeamId();
-        $name   = trim((string)Http::requireField('name'));
+        $ownTeamId = Captain::requireTeamId();
+        $asked     = trim((string)Http::field('teamId', ''));
+        $teamId    = $asked === '' ? $ownTeamId : self::uuid($asked, 'teamId');
+
+        if ($teamId !== $ownTeamId) {
+            self::requireDrivingFor($ownTeamId, $teamId);
+        }
+
+        $name = trim((string)Http::requireField('name'));
 
         if ($name === '' || mb_strlen($name) > 190) {
             throw new ApiError(400, 'bad_name', 'Enter a name of up to 190 characters.');
@@ -385,6 +392,37 @@ final class CaptainsModule implements Module
 
             return ['id' => $id, 'name' => $name, 'reactivated' => false];
         });
+    }
+
+    /**
+     * Allows one captain to act for the other side, and only in solo mode.
+     *
+     * Solo is one captain filling in the whole card because the other is not
+     * there. Somebody turning up for the opposition still has to be added, and
+     * the away captain is not present to do it. Outside that, a captain has no
+     * business touching another team's squad.
+     */
+    private static function requireDrivingFor(string $ownTeamId, string $otherTeamId): void
+    {
+        $driving = Db::one(
+            "SELECT 1
+               FROM wdpl_scorecards c
+               JOIN wdpl_fixtures f ON f.id = c.fixture_id
+              WHERE c.state = 'live'
+                AND c.solo_by = ?
+                AND ((f.home_team_id = ? AND f.away_team_id = ?)
+                  OR (f.away_team_id = ? AND f.home_team_id = ?))
+              LIMIT 1",
+            [$ownTeamId, $ownTeamId, $otherTeamId, $ownTeamId, $otherTeamId]
+        );
+
+        if ($driving === null) {
+            throw new ApiError(
+                403,
+                'not_your_team',
+                'You can only add players to your own squad, unless you are filling in the whole card.'
+            );
+        }
     }
 
     /**

@@ -385,10 +385,15 @@ final class ScorecardsModule implements Module
             [$fixtureId]
         );
 
+        // The team ids travel with the squads so a captain adding someone who
+        // has turned up can say which side they are turning out for - which in
+        // solo mode is not always their own.
         return [
-            'yourSide' => $side,
-            'home'     => self::playersOf((string)$fixture['home_team_id']),
-            'away'     => self::playersOf((string)$fixture['away_team_id']),
+            'yourSide'    => $side,
+            'homeTeamId'  => (string)$fixture['home_team_id'],
+            'awayTeamId'  => (string)$fixture['away_team_id'],
+            'home'        => self::playersOf((string)$fixture['home_team_id']),
+            'away'        => self::playersOf((string)$fixture['away_team_id']),
         ];
     }
 
