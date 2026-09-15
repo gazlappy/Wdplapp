@@ -53,27 +53,75 @@ public sealed class CaptainRosterService
         return players;
     }
 
+    /// <summary>What the secretary chose to do with one captain-added player.</summary>
+    /// <param name="LinkTo">
+    /// An existing app player to treat this as, or null to create a new one.
+    /// </param>
+    public sealed record Decision(AddedPlayer Player, Guid? LinkTo);
+
     /// <summary>
-    /// Creates the players locally and confirms them to the website.
+    /// Applies the secretary's decisions and confirms them to the website.
     /// </summary>
     /// <remarks>
-    /// The website's id is reused deliberately. Scorecard frames already point
-    /// at it, so a fresh id would orphan every frame that player appeared in.
+    /// A created player keeps the website's id on purpose: the card's frames
+    /// already name it, so a fresh id would orphan every frame that player
+    /// appeared in. A linked player cannot do that — the app's own record wins
+    /// — so the pairing is recorded in
+    /// <see cref="LeagueData.CollectedWebPlayers"/> and the frames are pointed
+    /// at it as they are written.
+    /// <para>
+    /// The website is told only after the local save succeeds. A failure leaves
+    /// the player waiting to be collected again rather than disappearing from
+    /// both sides.
+    /// </para>
     /// </remarks>
-    public static async Task<int> CollectAsync(
-        WebApiClient client, IDataStore store, LeagueData league, List<AddedPlayer> players)
+    public static async Task<(int Created, int Linked)> CollectAsync(
+        WebApiClient client, IDataStore store, LeagueData league, IReadOnlyList<Decision> decisions)
     {
-        if (players.Count == 0) return 0;
+        if (decisions.Count == 0) return (0, 0);
 
-        var known = (await store.GetPlayersByIdsAsync(players.Select(p => p.Id).ToList()))
+        var existing = (await store.GetPlayersByIdsAsync(
+                decisions.Select(d => d.LinkTo ?? d.Player.Id).Distinct().ToList()))
             .ToDictionary(p => p.Id);
 
-        var added = 0;
+        var created = 0;
+        var linked = 0;
         var confirmed = new List<Guid>();
 
-        foreach (var incoming in players)
+        foreach (var decision in decisions)
         {
-            if (!known.TryGetValue(incoming.Id, out var existing))
+            var incoming = decision.Player;
+
+            if (decision.LinkTo is { } targetId)
+            {
+                if (!existing.TryGetValue(targetId, out var target)) continue;
+
+                // The captain told us something the app did not know: which
+                // team this player turned out for.
+                target.TeamId = incoming.TeamId;
+                target.IsActive = true;
+                target.ModifiedDate = DateTime.UtcNow;
+
+                await store.UpdatePlayerAsync(target);
+                MirrorInSnapshot(league, target);
+
+                if (targetId != incoming.Id)
+                    league.CollectedWebPlayers[incoming.Id] = targetId;
+
+                linked++;
+            }
+            else if (existing.TryGetValue(incoming.Id, out var already))
+            {
+                // Here from a previous run that did not get as far as
+                // confirming. Bring it up to date and confirm it this time.
+                already.TeamId = incoming.TeamId;
+                already.IsActive = incoming.IsActive;
+                already.ModifiedDate = DateTime.UtcNow;
+
+                await store.UpdatePlayerAsync(already);
+                MirrorInSnapshot(league, already);
+            }
+            else
             {
                 var player = new Player
                 {
@@ -89,68 +137,67 @@ public sealed class CaptainRosterService
 
                 await store.AddPlayerAsync(player);
                 league.Players.Add(player);
-                added++;
-            }
-            else
-            {
-                // Already here from a previous run that did not get as far as
-                // confirming. Bring it up to date and confirm it this time.
-                existing.TeamId = incoming.TeamId;
-                existing.IsActive = incoming.IsActive;
-                existing.ModifiedDate = DateTime.UtcNow;
-                await store.UpdatePlayerAsync(existing);
-
-                var mirrored = league.Players.FirstOrDefault(p => p.Id == incoming.Id);
-                if (mirrored is null) league.Players.Add(existing);
-                else
-                {
-                    mirrored.TeamId = incoming.TeamId;
-                    mirrored.IsActive = incoming.IsActive;
-                    mirrored.ModifiedDate = existing.ModifiedDate;
-                }
+                created++;
             }
 
             confirmed.Add(incoming.Id);
         }
 
+        await store.SaveAsync();
         DataStore.SaveJsonOnly();
 
-        // Only now that it is safely saved locally.
-        await client.AdminAsync("captains", "markCollected", new { playerIds = confirmed });
+        if (confirmed.Count > 0)
+            await client.AdminAsync("captains", "markCollected", new { playerIds = confirmed });
 
-        return added;
+        return (created, linked);
+    }
+
+    /// <summary>Keeps the JSON snapshot level with the store it was written to.</summary>
+    private static void MirrorInSnapshot(LeagueData league, Player player)
+    {
+        var mirrored = league.Players.FirstOrDefault(p => p.Id == player.Id);
+
+        if (mirrored is null)
+        {
+            league.Players.Add(player);
+            return;
+        }
+
+        mirrored.TeamId = player.TeamId;
+        mirrored.IsActive = player.IsActive;
+        mirrored.ModifiedDate = player.ModifiedDate;
     }
 
     /// <summary>
-    /// Takes in any player a collected card refers to that the app does not have.
+    /// The players a collected card names that the app cannot resolve yet.
     /// </summary>
     /// <remarks>
     /// A card's frames can name someone a captain added online. Collecting the
     /// card without them leaves those slots pointing at a player the app has
     /// never heard of, which shows up as a blank name on an otherwise complete
-    /// scorecard - so the card collects the players it needs rather than relying
-    /// on the secretary having pressed the two buttons in the right order.
+    /// scorecard. Returning them lets the caller ask before writing the card,
+    /// rather than relying on the secretary having pressed two buttons in the
+    /// right order.
     /// </remarks>
-    public static async Task<int> CollectReferencedAsync(
+    public static async Task<List<AddedPlayer>> UnresolvedAsync(
         WebApiClient client, IDataStore store, LeagueData league, IEnumerable<Guid> playerIds)
     {
         var wanted = playerIds
             .Where(id => id != FrameResult.VoidPlayerId)
+            .Select(id => league.CollectedWebPlayers.TryGetValue(id, out var linked) ? linked : id)
             .Distinct()
             .ToList();
 
-        if (wanted.Count == 0) return 0;
+        if (wanted.Count == 0) return new List<AddedPlayer>();
 
         var known = (await store.GetPlayersByIdsAsync(wanted)).Select(p => p.Id).ToHashSet();
-        var missing = wanted.Where(id => !known.Contains(id)).ToList();
-        if (missing.Count == 0) return 0;
+        var missing = wanted.Where(id => !known.Contains(id)).ToHashSet();
+        if (missing.Count == 0) return new List<AddedPlayer>();
 
+        // Anything still missing after this is not a captain's addition - a
+        // player deleted in the app, say. Not this method's to invent a fix for.
         var waiting = await GetUncollectedAsync(client);
-        var needed = waiting.Where(p => missing.Contains(p.Id)).ToList();
-
-        // Anything still missing is not a captain's addition - a player deleted
-        // in the app, say. That is not this method's problem to invent a fix for.
-        return needed.Count == 0 ? 0 : await CollectAsync(client, store, league, needed);
+        return waiting.Where(p => missing.Contains(p.Id)).ToList();
     }
 
     /// <summary>

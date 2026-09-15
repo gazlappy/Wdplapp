@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.CollectPlayersPage"
+             Title="Players added by captains">
+
+    <Grid RowDefinitions="Auto,*,Auto" BackgroundColor="#F8FAFC">
+
+        <VerticalStackLayout Grid.Row="0" Padding="20,16,20,8" Spacing="4">
+            <Label Text="Players added by captains" FontSize="18" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label x:Name="IntroLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout x:Name="PlayerList" Padding="20,4,20,16" Spacing="10"
+                                 MaximumWidthRequest="760" HorizontalOptions="Start"/>
+        </ScrollView>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"
+              Padding="20,12" BackgroundColor="White">
+            <Label x:Name="SummaryLabel" FontSize="12" TextColor="#64748B" VerticalOptions="Center"/>
+            <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked"
+                    BackgroundColor="Transparent" TextColor="#475569"
+                    BorderColor="#CBD5E1" BorderWidth="1" CornerRadius="8" FontSize="13"/>
+            <Button Grid.Column="2" x:Name="ConfirmButton" Text="Add them" Clicked="OnConfirmClicked"
+                    BackgroundColor="#059669" TextColor="White" CornerRadius="8" FontSize="13"/>
+        </Grid>
+    </Grid>
+</ContentPage>

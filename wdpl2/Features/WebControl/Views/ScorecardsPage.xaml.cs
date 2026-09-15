@@ -264,12 +264,9 @@ public partial class ScorecardsPage : ContentPage
 
             var (claimed, frames, wasClaimed) = await ScorecardService.ClaimAsync(client, state.FixtureId);
 
-            // Before the frames, or the slots naming them land blank.
-            var pulled = await CaptainRosterService.CollectReferencedAsync(
-                client, _dataStore, League,
-                frames.SelectMany(f => new[] { f.HomePlayerId, f.AwayPlayerId })
-                      .Where(id => id.HasValue)
-                      .Select(id => id!.Value));
+            // Settle the players first, or the slots naming them land blank.
+            var pulled = await ResolvePlayersAsync(client, state, frames);
+            if (pulled is null) return;
 
             var applied = await ApplyToFixtureAsync(state.FixtureId, frames);
 
@@ -344,6 +341,55 @@ public partial class ScorecardsPage : ContentPage
     }
 
     /// <summary>
+    /// Settles any player the card names that the app cannot resolve.
+    /// </summary>
+    /// <remarks>
+    /// Returns null if the secretary cancelled, which abandons the collect
+    /// rather than writing a card with holes in it. The website copy is
+    /// untouched either way, so it can simply be collected again.
+    /// </remarks>
+    private async Task<int?> ResolvePlayersAsync(
+        WebApiClient client, ScorecardState state, List<ScorecardService.ClaimedFrame> frames)
+    {
+        var waiting = await CaptainRosterService.UnresolvedAsync(
+            client, _dataStore, League,
+            frames.SelectMany(f => new[] { f.HomePlayerId, f.AwayPlayerId })
+                  .Where(id => id.HasValue)
+                  .Select(id => id!.Value));
+
+        if (waiting.Count == 0) return 0;
+
+        var squad = await _dataStore.GetPlayersAsync(waiting[0].SeasonId);
+
+        var decisions = await CollectPlayersPage.AskAsync(
+            this, waiting, squad,
+            $"{state.HomeTeam} v {state.AwayTeam} names "
+            + (waiting.Count == 1 ? "a player" : $"{waiting.Count} players")
+            + " the app does not have yet.");
+
+        if (decisions is null) return null;
+
+        // Leaving one waiting means its frames would land blank, so say so
+        // rather than writing a card that quietly looks wrong.
+        if (decisions.Count < waiting.Count)
+        {
+            var left = waiting.Count - decisions.Count;
+            if (!await DisplayAlert("Collect without them?",
+                    $"{left} player(s) will be left waiting, so the frames they played "
+                    + "will show blank until you collect them and collect this card again.",
+                    "Collect anyway", "Go back"))
+                return null;
+        }
+
+        if (decisions.Count == 0) return 0;
+
+        var (created, linked) = await CaptainRosterService.CollectAsync(
+            client, _dataStore, League, decisions);
+
+        return created + linked;
+    }
+
+    /// <summary>
     /// Writes collected frames into the local fixture, in both places the app
     /// keeps fixtures.
     /// </summary>
@@ -393,6 +439,11 @@ public partial class ScorecardsPage : ContentPage
     /// </remarks>
     private static int Overlay(Fixture fixture, List<ScorecardService.ClaimedFrame> scored)
     {
+        // A player the secretary linked to someone already here is named by the
+        // website's id in these frames, and by the app's id everywhere else.
+        var links = League.CollectedWebPlayers;
+        Guid Resolve(Guid id) => links.TryGetValue(id, out var linked) ? linked : id;
+
         var applied = 0;
 
         foreach (var claimed in scored)
@@ -406,8 +457,8 @@ public partial class ScorecardsPage : ContentPage
 
             frame.Winner = claimed.Winner;
             frame.EightBall = claimed.EightBall;
-            if (claimed.HomePlayerId.HasValue) frame.HomePlayerId = claimed.HomePlayerId;
-            if (claimed.AwayPlayerId.HasValue) frame.AwayPlayerId = claimed.AwayPlayerId;
+            if (claimed.HomePlayerId.HasValue) frame.HomePlayerId = Resolve(claimed.HomePlayerId.Value);
+            if (claimed.AwayPlayerId.HasValue) frame.AwayPlayerId = Resolve(claimed.AwayPlayerId.Value);
             applied++;
         }
 

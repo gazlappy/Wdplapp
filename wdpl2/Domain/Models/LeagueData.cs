@@ -1,4 +1,4 @@
-using Wdpl2.Services;
+﻿using Wdpl2.Services;
 
 namespace Wdpl2.Models
 {
@@ -29,6 +29,22 @@ namespace Wdpl2.Models
 
         /// <summary>Application settings for league behavior.</summary>
         public AppSettings Settings { get; set; } = new();
+
+        /// <summary>
+        /// Website player id to the app player it was collected as, where the
+        /// two differ because the secretary linked it to someone already here.
+        /// </summary>
+        /// <remarks>
+        /// A card's frames name players by the website's id. When a captain's
+        /// addition is linked to an existing player rather than created, that
+        /// id belongs to nobody in the app, so collecting the same card again
+        /// would show a blank slot. This is how the link is remembered.
+        /// <para>
+        /// Only links are stored. A player created from the website keeps the
+        /// website's id, so it needs no entry.
+        /// </para>
+        /// </remarks>
+        public Dictionary<Guid, Guid> CollectedWebPlayers { get; set; } = new();
 
         /// <summary>
         /// Resolve the effective <see cref="AppSettings"/> for a season.

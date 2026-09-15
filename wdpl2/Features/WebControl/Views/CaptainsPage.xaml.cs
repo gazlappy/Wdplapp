@@ -443,32 +443,36 @@ public partial class CaptainsPage : ContentPage
     {
         if (_added.Count == 0) return;
 
-        var names = string.Join(", ", _added.Take(6).Select(p => p.Name))
-                    + (_added.Count > 6 ? $" and {_added.Count - 6} more" : "");
-
-        if (!await DisplayAlert("Add these players?",
-                $"{_added.Count} player(s): {names}\n\n"
-                + "They will be created in this season with the same identity they already have online, "
-                + "so any frames they have played still point at them.",
-                "Add them", "Cancel"))
-            return;
-
         CollectButton.IsEnabled = false;
 
         try
         {
+            var squad = await _dataStore.GetPlayersAsync(SeasonId());
+
+            var decisions = await CollectPlayersPage.AskAsync(
+                this, _added, squad,
+                "Choose what to do with each one.");
+
+            if (decisions is null || decisions.Count == 0)
+            {
+                Report("Nothing collected.", error: false);
+                return;
+            }
+
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var created = await CaptainRosterService.CollectAsync(client, _dataStore, League, _added);
+            var (created, linked) = await CaptainRosterService.CollectAsync(
+                client, _dataStore, League, decisions);
 
-            Report(created == _added.Count
-                ? $"Added {created} player(s). Publish the season to finish tying them in."
-                : $"Added {created} new player(s); the rest were already here. Publish the season to finish tying them in.",
-                error: false);
+            var left = _added.Count - decisions.Count;
 
-            _added.Clear();
-            AddedDetail.Text = "All collected.";
+            Report(Describe(created, linked, left), error: false);
+
+            _added.RemoveAll(p => decisions.Any(d => d.Player.Id == p.Id));
+            AddedDetail.Text = _added.Count == 0
+                ? "All collected."
+                : $"{_added.Count} still waiting.";
         }
         catch (WebApiException ex)
         {
@@ -482,6 +486,26 @@ public partial class CaptainsPage : ContentPage
         {
             CollectButton.IsEnabled = _added.Count > 0;
         }
+    }
+
+    private static string Describe(int created, int linked, int left)
+    {
+        var parts = new List<string>();
+        if (created > 0) parts.Add($"added {created} new player(s)");
+        if (linked > 0) parts.Add($"linked {linked} to players already here");
+        if (left > 0) parts.Add($"left {left} waiting");
+
+        return parts.Count == 0
+            ? "Nothing collected."
+            : char.ToUpper(parts[0][0]) + string.Join(", ", parts)[1..]
+              + ". Publish the season to finish tying them in.";
+    }
+
+    /// <summary>The season the picker is on, which is the one being collected into.</summary>
+    private Guid? SeasonId()
+    {
+        var index = SeasonPicker.SelectedIndex;
+        return index >= 0 && index < _seasons.Count ? _seasons[index].Id : League.ActiveSeasonId;
     }
 
     private void Report(string message, bool error)
