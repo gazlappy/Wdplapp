@@ -117,6 +117,7 @@ final class ScorecardsModule implements Module
             'roster'   => ['role' => Role::Captain, 'fn' => [self::class, 'roster']],
             'apply'    => ['role' => Role::Captain, 'fn' => [self::class, 'apply']],
             'finalise' => ['role' => Role::Captain, 'fn' => [self::class, 'finalise']],
+            'solo'     => ['role' => Role::Captain, 'fn' => [self::class, 'solo']],
         ];
     }
 
@@ -575,6 +576,138 @@ final class ScorecardsModule implements Module
 
             $result = self::readCard($fixtureId, $side);
             $result['bothSigned'] = $bothSigned;
+            return $result;
+        });
+    }
+
+    /**
+     * Submits a whole card captured on one phone, covering both sides.
+     *
+     * Venues with no usable signal are why this exists: rather than two
+     * captains failing to sync, one fills the card in with the other watching,
+     * and uploads it once as an agreed result.
+     *
+     * Which rules still apply, and why:
+     *
+     *  - Selection rules DO apply - max frames per player, no repeat pairings,
+     *    nobody on both sides of a frame. Those are competition rules and hold
+     *    however the card was captured.
+     *  - Nomination order does NOT. Its whole purpose is stopping each captain
+     *    seeing the other's picks before committing to their own, and one
+     *    person filling both sides has already set that aside by agreement.
+     *
+     * Both sides are marked signed, because the submitting captain asserts the
+     * other agreed. Which captain submitted it is recorded in the notes, so the
+     * league can see this was a solo capture and not two independent sign-offs.
+     */
+    public static function solo()
+    {
+        Http::setMaxBytes(512 * 1024);
+
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $incoming  = Http::field('frames', []);
+        $notes     = (string)Http::field('notes', '');
+
+        if (!is_array($incoming) || count($incoming) === 0) {
+            throw new ApiError(400, 'no_frames', 'A solo submission needs the whole card.');
+        }
+
+        $side = self::requireSide($fixtureId);
+
+        return Db::transaction(function () use ($fixtureId, $side, $incoming, $notes) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if ($card['state'] === self::STATE_CLAIMED) {
+                throw new ApiError(409, 'already_claimed', 'This match has already been collected by the league.');
+            }
+
+            $frames = self::loadFrames($fixtureId);
+            $byNumber = array();
+            foreach ($frames as $i => $frame) {
+                $byNumber[(int)$frame['frame_no']] = $i;
+            }
+
+            // Apply every incoming frame first, then validate the finished card
+            // as a whole: a half-applied swap can look invalid in mid-flight.
+            foreach ($incoming as $row) {
+                if (!is_array($row) || !isset($row['frame_no'])) {
+                    continue;
+                }
+                $number = (int)$row['frame_no'];
+                if (!isset($byNumber[$number])) {
+                    continue;
+                }
+                $i = $byNumber[$number];
+
+                $winner = isset($row['winner']) ? (string)$row['winner'] : 'none';
+                if (!in_array($winner, array('home', 'away', 'none'), true)) {
+                    $winner = 'none';
+                }
+
+                $frames[$i]['is_doubles'] = empty($row['is_doubles']) ? 0 : 1;
+                $frames[$i]['winner']     = $winner;
+                $frames[$i]['eight_ball'] = ($winner !== 'none' && !empty($row['eight_ball'])) ? 1 : 0;
+
+                foreach (array('home', 'home2', 'away', 'away2') as $slot) {
+                    $prefix = ScorecardRules::slotPrefix($slot);
+                    $idKey   = $prefix . '_id';
+                    $nameKey = $prefix . '_name';
+                    $frames[$i][$idKey]   = (isset($row[$idKey])   && $row[$idKey]   !== '') ? (string)$row[$idKey]   : null;
+                    $frames[$i][$nameKey] = (isset($row[$nameKey]) && $row[$nameKey] !== '') ? (string)$row[$nameKey] : null;
+                }
+
+                self::clearEightNegotiation($frames[$i]);
+            }
+
+            // Competition rules, checked against the completed card.
+            $maxPerPlayer = (int)$card['max_per_player'];
+            $problems = array();
+            foreach ($frames as $i => $frame) {
+                foreach (array('home', 'home2', 'away', 'away2') as $slot) {
+                    $prefix = ScorecardRules::slotPrefix($slot);
+                    $id   = $frame[$prefix . '_id'];
+                    $name = $frame[$prefix . '_name'];
+                    if ($id === null && $name === null) {
+                        continue;
+                    }
+                    $reason = ScorecardRules::rejectPick($frames, $i, $slot, $id, $name, $maxPerPlayer);
+                    if ($reason !== null) {
+                        $problems[] = 'Frame ' . $frame['frame_no'] . ': ' . $reason;
+                    }
+                }
+            }
+            if (count($problems) > 0) {
+                $extra = count($problems) > 3 ? ' (and ' . (count($problems) - 3) . ' more)' : '';
+                throw new ApiError(409, 'rule_violation',
+                    'This card breaks the match rules, so nothing was saved. '
+                    . implode(' ', array_slice($problems, 0, 3)) . $extra);
+            }
+
+            if (!ScorecardRules::allFramesScored($frames)) {
+                $missing = ScorecardRules::unscoredFrames($frames);
+                throw new ApiError(400, 'not_all_scored',
+                    'Every frame needs a result. Still to score: ' . implode(', ', $missing) . '.');
+            }
+
+            self::saveFrames($fixtureId, $frames);
+
+            $stamp = ($notes === '' ? '' : $notes . "\n")
+                   . '[Submitted from one device by the ' . $side . ' captain.]';
+
+            Db::query(
+                'UPDATE wdpl_scorecards
+                    SET state = ?, notes = ?, version = version + 1,
+                        finalised_at = UTC_TIMESTAMP(),
+                        home_finalised_at = UTC_TIMESTAMP(), home_finalised_version = version + 1,
+                        away_finalised_at = UTC_TIMESTAMP(), away_finalised_version = version + 1
+                  WHERE fixture_id = ?',
+                array(self::STATE_FINALISED, $stamp, $fixtureId)
+            );
+
+            $result = self::readCard($fixtureId, $side);
+            $result['solo'] = true;
             return $result;
         });
     }

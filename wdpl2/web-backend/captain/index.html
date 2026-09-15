@@ -73,6 +73,14 @@ button.go{background:var(--felt);}
 .msg.warn{background:var(--warn-bg); color:var(--warn-fg);}
 .msg.ok{background:var(--ok-bg); color:var(--ok-fg);}
 .hidden{display:none !important;}
+.net{
+  font-size:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+  padding:3px 8px; border-radius:999px; border:1px solid rgba(34,197,94,.45);
+  background:rgba(13,138,90,.25); color:#9af2c8;
+}
+.net.off{background:rgba(239,68,68,.18); border-color:rgba(239,68,68,.45); color:#fecaca;}
+.net.queued{background:var(--warn-bg); border-color:var(--gold); color:var(--warn-fg);}
+.net.solo{background:rgba(96,165,250,.2); border-color:var(--accent); color:#bfdbfe;}
 
 /* Scoreboard */
 .sc-header{
@@ -165,7 +173,10 @@ button.go{background:var(--felt);}
 
 <header>
   <h1>WDPL Captain</h1>
-  <span id="who"></span>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="net" class="net">online</span>
+    <span id="who"></span>
+  </div>
 </header>
 
 <main>
@@ -222,7 +233,18 @@ button.go{background:var(--felt);}
     <div class="msg" id="signState" style="margin-top:14px"></div>
     <div class="row">
       <button class="go" id="signBtn">Sign off my side</button>
+      <button class="ghost" id="soloBtn">Solo mode</button>
       <button class="ghost" id="logoutBtn2">Sign out</button>
+    </div>
+
+    <div class="msg warn hidden" id="soloBar" style="margin-top:10px">
+      <strong>Solo mode.</strong> You are filling in both sides on this phone.
+      Nothing is sent until you submit the finished card, and the other captain
+      should be watching as you enter it.
+      <div class="row" style="margin-top:8px">
+        <button class="go" id="soloSubmit">Submit agreed card</button>
+        <button class="ghost" id="soloOff">Leave solo mode</button>
+      </div>
     </div>
   </section>
 </main>
@@ -250,7 +272,16 @@ button.go{background:var(--felt);}
   var POLL_MS = 4000;
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
-  var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false, timer:null, pick:null };
+  var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
+            timer:null, pick:null,
+            // Offline support: taps are applied to the local card straight away
+            // and queued. A pub cellar with no signal is the normal case here,
+            // not an edge case, so the card must stay usable with nothing sent.
+            queue:[], flushTimer:null, strikes:0, solo:false };
+
+  var QUEUE_KEY   = 'wdpl_sc_queue';
+  var FLUSH_MS    = 8000;
+  var MAX_STRIKES = 3;   // give up re-sending a batch the server keeps refusing
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -276,6 +307,112 @@ button.go{background:var(--felt);}
                   current:p.data||null };
         });
     });
+  }
+
+  // --------------------------------------------------------- offline queue
+
+  function loadQueue(){
+    try{
+      var raw=localStorage.getItem(QUEUE_KEY);
+      if(!raw) return;
+      var saved=JSON.parse(raw);
+      // Only restore a queue belonging to the match we are actually on.
+      if(saved && saved.fixtureId===S.fixtureId && Array.isArray(saved.ops)) S.queue=saved.ops;
+    }catch(e){}
+  }
+  function saveQueue(){
+    try{
+      if(S.queue.length) localStorage.setItem(QUEUE_KEY, JSON.stringify({fixtureId:S.fixtureId, ops:S.queue}));
+      else localStorage.removeItem(QUEUE_KEY);
+    }catch(e){}
+  }
+
+  function netBadge(){
+    var el=$('net');
+    if(S.solo){ el.className='net solo'; el.textContent='solo'; return; }
+    if(!navigator.onLine){ el.className='net off';
+      el.textContent = S.queue.length ? ('offline · '+S.queue.length+' queued') : 'offline'; return; }
+    if(S.queue.length){ el.className='net queued'; el.textContent=S.queue.length+' queued'; return; }
+    el.className='net'; el.textContent='online';
+  }
+
+  window.addEventListener('online',  function(){ netBadge(); flush(); });
+  window.addEventListener('offline', function(){ netBadge(); });
+
+  /**
+   * Applies ops to the local card so the screen responds instantly, whether or
+   * not anything can be sent. The server remains the authority: when a flush
+   * succeeds its version of the card replaces this one.
+   */
+  function applyLocally(ops){
+    var frames=S.card.frames;
+    ops.forEach(function(op){
+      if(op.kind==='set_notes'){ S.card.notes=op.value; return; }
+      var f=frames[op.frame];
+      if(!f) return;
+      if(op.kind==='set_winner'){
+        f.winner = (f.winner===op.value) ? 'none' : op.value;
+        if(f.winner==='none') f.eight_ball=0;
+      } else if(op.kind==='set_player'){
+        var prefix = op.slot==='home' ? 'home_player' : op.slot==='home2' ? 'home_player2'
+                   : op.slot==='away' ? 'away_player' : 'away_player2';
+        f[prefix+'_id']   = op.playerId||null;
+        f[prefix+'_name'] = op.playerName||null;
+      } else if(op.kind==='set_doubles'){
+        f.is_doubles = op.value?1:0;
+      }
+    });
+    var h=0,a=0,p=0;
+    frames.forEach(function(f){
+      if(f.winner==='home'){h++;p++;} else if(f.winner==='away'){a++;p++;}
+    });
+    S.card.home_score=h; S.card.away_score=a; S.card.frames_played=p;
+    S.card.all_scored = p===frames.length && frames.length>0;
+    S.card.unscored = frames.filter(function(f){ return f.winner==='none'; })
+                            .map(function(f){ return f.frame_no; });
+    render(S.card);
+  }
+
+  function flush(){
+    if(S.solo || S.busy || !S.queue.length || !navigator.onLine) return Promise.resolve();
+    S.busy=true;
+    var batch=S.queue.slice();
+    return call('scorecards','apply',{fixtureId:S.fixtureId, version:S.version, ops:batch})
+      .then(function(card){
+        S.queue=S.queue.slice(batch.length); saveQueue();
+        S.strikes=0;
+        render(card);
+        if(card.rejections && card.rejections.length){
+          say(card.rejections.map(function(r){ return r.reason; }).join('  '), 'warn');
+        }
+      })
+      .catch(function(e){
+        if(e.code==='conflict' && e.current){
+          S.strikes++;
+          render(e.current);
+          if(S.strikes>=MAX_STRIKES){
+            // The card has moved on repeatedly. Replaying blind would overwrite
+            // whatever the other captain did, so stop and let a human look.
+            S.queue=[]; saveQueue(); S.strikes=0;
+            say('Your queued changes could not be applied - the card changed too much. '
+               +'Check the frames and re-enter anything missing.','bad');
+          } else {
+            say('The other captain edited at the same time. Retrying your changes...','warn');
+          }
+        } else if(e.code==='not_live'){
+          S.queue=[]; saveQueue();
+          say(e.message,'bad'); refresh();
+        } else {
+          // Probably still offline. Keep the queue and try again later.
+          say('Not sent yet - '+S.queue.length+' change(s) waiting for signal.','warn');
+        }
+      })
+      .then(function(){ S.busy=false; netBadge(); });
+  }
+
+  function startFlushing(){
+    if(S.flushTimer) return;
+    S.flushTimer=setInterval(function(){ if(!document.hidden) flush(); }, FLUSH_MS);
   }
 
   // ------------------------------------------------------------- sign in
@@ -319,14 +456,21 @@ button.go{background:var(--felt);}
         S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
         stopPolling(); return;
       }
-      render(card); startPolling();
+      render(card);
+      loadQueue();
+      netBadge();
+      startPolling();
+      startFlushing();
+      if(S.queue.length) flush();
     }).catch(function(e){ say(e.message,'bad'); });
   }
 
   function startPolling(){
     if(S.timer) return;
     S.timer=setInterval(function(){
-      if(document.hidden || S.busy || S.pick) return;
+      // Never overwrite the screen while edits are still unsent, or the
+      // captain would watch their own taps disappear.
+      if(document.hidden || S.busy || S.pick || S.solo || S.queue.length) return;
       call('scorecards','card',{fixtureId:S.fixtureId})
         .then(function(c){ if(!S.busy && !S.pick) render(c); })
         .catch(function(){});
@@ -421,8 +565,11 @@ button.go{background:var(--felt);}
 
     var info=label(frame, side);
     var pill=document.createElement('button');
-    var mine=(side===S.side);
-    var locked=!mine || (side==='away' && awayLocked(index));
+    var mine = S.solo || (side===S.side);   // solo fills in both teams
+    // Nomination order only exists to stop each captain seeing the other's
+    // picks first. With one person filling both sides by agreement, it has
+    // already been set aside - so solo mode ignores it.
+    var locked = !mine || (!S.solo && side==='away' && awayLocked(index));
     pill.className='sc-pill '+info.cls+(locked?' locked':'');
     pill.textContent=info.text;
     if(Number(frame.eight_ball) && frame.winner===side){
@@ -490,26 +637,21 @@ button.go{background:var(--felt);}
 
   // ------------------------------------------------------------------ ops
 
+  /**
+   * Records an edit: applied locally at once, queued, and sent when possible.
+   *
+   * In solo mode nothing is queued for the live API at all - the whole card
+   * goes up in one agreed submission at the end - because the server would
+   * rightly refuse edits to the other team's slots.
+   */
   function apply(ops){
-    if(S.busy) return Promise.resolve();
-    S.busy=true; say('');
-    return call('scorecards','apply',{fixtureId:S.fixtureId, version:S.version, ops:ops})
-      .then(function(card){
-        render(card);
-        if(card.rejections && card.rejections.length){
-          say(card.rejections.map(function(r){ return r.reason; }).join('  '), 'warn');
-        }
-      })
-      .catch(function(e){
-        if(e.code==='conflict' && e.current){
-          render(e.current);
-          say('The other captain edited the card at the same time. Showing the latest.','warn');
-        } else {
-          say(e.message,'bad');
-          if(e.code==='not_live') refresh();
-        }
-      })
-      .then(function(){ S.busy=false; });
+    say('');
+    applyLocally(ops);
+    if(S.solo){ netBadge(); return Promise.resolve(); }
+    S.queue = S.queue.concat(ops);
+    saveQueue();
+    netBadge();
+    return flush();
   }
 
   function setWinner(index, side){
@@ -531,6 +673,61 @@ button.go{background:var(--felt);}
           : 'Signed. Waiting for the other captain.', 'ok');
       })
       .catch(function(e){ say(e.message,'bad'); $('signBtn').disabled=false; });
+  });
+
+  // ------------------------------------------------------------ solo mode
+
+  $('soloBtn').addEventListener('click', function(){
+    if(S.queue.length){
+      say('Send your queued changes first, or wait for signal, before switching to solo.','warn');
+      return;
+    }
+    if(!window.confirm(
+      'Solo mode fills in BOTH teams on this phone.\n\n'
+      +'Use it only when the other captain cannot get signal and is watching you enter the card. '
+      +'Nothing is sent until you submit at the end.')) return;
+    S.solo=true;
+    show($('soloBar'), true);
+    $('soloBtn').disabled=true;
+    $('signBtn').disabled=true;
+    stopPolling();
+    netBadge();
+    render(S.card);
+  });
+
+  $('soloOff').addEventListener('click', function(){
+    if(!window.confirm('Leave solo mode? Anything you entered for the other team will be lost when the card reloads.')) return;
+    S.solo=false;
+    show($('soloBar'), false);
+    $('soloBtn').disabled=false;
+    netBadge();
+    refresh();
+  });
+
+  $('soloSubmit').addEventListener('click', function(){
+    if(!S.card.all_scored){
+      say('Every frame needs a result first. Still to score: frame '+(S.card.unscored||[]).join(', ')+'.','warn');
+      return;
+    }
+    if(!window.confirm(
+      'Submit this card for BOTH teams?\n\n'
+      +'Final score '+S.card.home_score+'-'+S.card.away_score+'.\n'
+      +'This signs off for both captains, so only do it with the other captain\'s agreement.')) return;
+
+    $('soloSubmit').disabled=true;
+    call('scorecards','solo',{fixtureId:S.fixtureId, frames:S.card.frames, notes:$('notes').value})
+      .then(function(card){
+        S.solo=false;
+        show($('soloBar'), false);
+        $('soloBtn').disabled=false;
+        netBadge();
+        render(card);
+        say('Card submitted for both teams. Final score '+card.home_score+'-'+card.away_score+'.','ok');
+      })
+      .catch(function(e){
+        say(e.message,'bad');
+        $('soloSubmit').disabled=false;
+      });
   });
 
   // --------------------------------------------------------------- picker

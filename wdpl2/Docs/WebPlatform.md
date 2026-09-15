@@ -242,7 +242,45 @@ on this machine and proved nothing.
 | M1 — spine (core, routing, auth, deploy, Web Control tab) | **Done and live.** Deployed to wdpl.uk, admin auth verified, schema installed. |
 | M2 — league data + public read | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
 | M3 — captains (server-side PIN) | **Done**, tested against a local MariaDB. Not yet pushed to wdpl.uk. |
-| M4 — live scorecards | **Done**, ownership state machine tested against a local MariaDB including concurrent writes and claim retry. Not yet pushed to wdpl.uk. |
+| M4 — live scorecards | **Done.** Ownership state machine, the league's playing rules, the captain page, offline queue and solo mode. Tested against a local MariaDB. Not yet pushed to wdpl.uk. |
+
+### Scorecard rules
+
+The league's playing rules live in `api/modules/scorecards/Rules.php`, free of
+database and HTTP concerns, with their own suite
+(`wdpl2.Tests/Features/WebPlatform/scorecard.rules.test.php`). They were
+recovered from the previous online scorecard, which is the only place they were
+ever written down.
+
+Two kinds of rule, and the difference matters:
+
+- **Information rules** — nomination order, and the blind last five frames.
+  These exist so neither captain sees the other's picks before committing to
+  their own. **Solo mode sets these aside**, because one person filling both
+  sides with the other watching has already abandoned the premise.
+- **Competition rules** — max frames per player, no repeat pairings, nobody on
+  both sides of a frame, doubles partners must differ. These hold however the
+  card was captured, so **solo mode still enforces them** and refuses the whole
+  submission if any are broken.
+
+`VOID` (`ffffffff-…-ffffffffffff`) is a conceded frame, not a player, and is
+exempt from every selection limit — a side must be able to concede as many
+frames as it has to.
+
+### Offline and solo
+
+A pub cellar with no signal is the normal case, not an edge case.
+
+- **Offline queue**: taps apply to the local card immediately and queue in
+  `localStorage`, flushing when signal returns. Polling pauses while anything is
+  unsent, so a captain never watches their own taps vanish. After three
+  consecutive conflicts the queue is dropped with an explicit message rather
+  than blindly replaying over the other captain's work.
+- **Solo mode**: one captain captures both sides locally and submits once via
+  `scorecards/solo`. No live ops are sent while solo is on — the server would
+  rightly refuse edits to the other team's slots. The submission signs off both
+  sides and stamps the notes with which captain sent it, so the league can see
+  it was a solo capture rather than two independent sign-offs.
 
 Two known loose ends carried from the removal of the old backend, both closed by
 later milestones:
