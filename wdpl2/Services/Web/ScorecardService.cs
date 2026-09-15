@@ -34,25 +34,24 @@ public sealed class ScorecardService
     /// frames a match has and which are doubles. Captains fill in players and
     /// winners; they never invent frames.
     /// </remarks>
-    public static async Task<ScorecardState> OpenAsync(WebApiClient client, Fixture fixture, int framesTotal)
+    public static async Task<ScorecardState> OpenAsync(
+        WebApiClient client, Fixture fixture, int framesTotal, int maxPerPlayer)
     {
-        var frames = new List<object>();
+        // Which frames are doubles comes from the app, because the season
+        // decides that - captains score the match, they do not redesign it.
+        var doublesFrames = fixture.Frames
+            .Where(f => f.IsDoubles)
+            .Select(f => f.Number)
+            .ToList();
 
-        if (fixture.Frames.Count > 0)
-        {
-            foreach (var frame in fixture.Frames.OrderBy(f => f.Number))
-                frames.Add(new { frameNo = frame.Number, isDoubles = frame.IsDoubles });
-        }
-        else
-        {
-            for (var i = 1; i <= Math.Max(1, framesTotal); i++)
-                frames.Add(new { frameNo = i, isDoubles = false });
-        }
+        var count = fixture.Frames.Count > 0 ? fixture.Frames.Count : Math.Max(1, framesTotal);
 
         var result = await client.AdminAsync("scorecards", "open", new
         {
             fixtureId = fixture.Id,
-            frames,
+            framesTotal = count,
+            maxPerPlayer,
+            doublesFrames,
         });
 
         return ReadState(result);
@@ -86,8 +85,26 @@ public sealed class ScorecardService
         public int Number { get; init; }
         public FrameWinner Winner { get; init; }
         public bool EightBall { get; init; }
+        public bool IsDoubles { get; init; }
         public Guid? HomePlayerId { get; init; }
         public Guid? AwayPlayerId { get; init; }
+        public Guid? HomePlayer2Id { get; init; }
+        public Guid? AwayPlayer2Id { get; init; }
+
+        /// <summary>
+        /// Names for picks made without an id - someone typed in on the night
+        /// who is not on the roster. Kept so the secretary sees who actually
+        /// played rather than an empty slot.
+        /// </summary>
+        public string? HomePlayerName { get; init; }
+        public string? AwayPlayerName { get; init; }
+        public string? HomePlayer2Name { get; init; }
+        public string? AwayPlayer2Name { get; init; }
+
+        /// <summary>A pick with a name but no id needs a player creating.</summary>
+        public bool HasUnregisteredPlayer =>
+            (HomePlayerId is null && !string.IsNullOrWhiteSpace(HomePlayerName))
+            || (AwayPlayerId is null && !string.IsNullOrWhiteSpace(AwayPlayerName));
     }
 
     private static List<ClaimedFrame> ReadFrames(JsonElement card)
@@ -108,8 +125,15 @@ public sealed class ScorecardService
                     _ => FrameWinner.None,
                 },
                 EightBall = Int(frame, "eight_ball") == 1,
+                IsDoubles = Int(frame, "is_doubles") == 1,
                 HomePlayerId = OptionalGuid(frame, "home_player_id"),
                 AwayPlayerId = OptionalGuid(frame, "away_player_id"),
+                HomePlayer2Id = OptionalGuid(frame, "home_player2_id"),
+                AwayPlayer2Id = OptionalGuid(frame, "away_player2_id"),
+                HomePlayerName = Text(frame, "home_player_name"),
+                AwayPlayerName = Text(frame, "away_player_name"),
+                HomePlayer2Name = Text(frame, "home_player2_name"),
+                AwayPlayer2Name = Text(frame, "away_player2_name"),
             });
         }
 
@@ -128,6 +152,8 @@ public sealed class ScorecardService
         FramesPlayed = Int(row, "frames_played"),
         FramesTotal = Int(row, "frames_total"),
         MatchDate = DateTime.TryParse(Text(row, "match_date"), out var d) ? d : null,
+        HomeSigned = Text(row, "home_finalised_at") is not null,
+        AwaySigned = Text(row, "away_finalised_at") is not null,
     };
 
     // MySQL hands back numbers as strings through PDO, so accept either form.

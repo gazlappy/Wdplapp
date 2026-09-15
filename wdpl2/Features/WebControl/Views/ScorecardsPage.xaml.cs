@@ -158,7 +158,11 @@ public partial class ScorecardsPage : ContentPage
         if (FixturePicker.SelectedIndex < 0 || FixturePicker.SelectedIndex >= _openable.Count) return;
         var fixture = _openable[FixturePicker.SelectedIndex];
 
-        var framesTotal = fixture.Frames.Count > 0 ? fixture.Frames.Count : 10;
+        // The season decides the shape of a match; fall back to app settings.
+        var framesTotal = fixture.Frames.Count > 0
+            ? fixture.Frames.Count
+            : Math.Max(1, League.Settings.DefaultFramesPerMatch);
+        var maxPerPlayer = Math.Max(1, League.Settings.MaxFramesPerPlayer);
 
         if (!await DisplayAlert("Open for live scoring?",
                 $"{FixturePicker.ItemsSource[FixturePicker.SelectedIndex]}\n{framesTotal} frames\n\n" +
@@ -172,7 +176,7 @@ public partial class ScorecardsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var state = await ScorecardService.OpenAsync(client, fixture, framesTotal);
+            var state = await ScorecardService.OpenAsync(client, fixture, framesTotal, maxPerPlayer);
             Report($"Open for live scoring. Captains can now score at your website's /captain/ page.", error: false);
             await LoadStatesAsync();
         }

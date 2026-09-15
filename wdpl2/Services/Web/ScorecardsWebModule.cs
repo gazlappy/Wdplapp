@@ -17,6 +17,7 @@ public sealed class ScorecardsWebModule : IWebModule
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {
         "api/modules/scorecards/Module.php",
+        "api/modules/scorecards/Rules.php",
         // The captain's scoring page. Served from the site root, same origin as
         // the API, so its session cookie and fetch calls need no CORS handling.
         "captain/index.html",
@@ -53,6 +54,14 @@ public sealed class ScorecardState
     public DateTime? MatchDate { get; init; }
 
     /// <summary>
+    /// Whether each captain has signed the card off. Both must sign before the
+    /// card can be collected, which is the online equivalent of both captains
+    /// signing the paper card.
+    /// </summary>
+    public bool HomeSigned { get; init; }
+    public bool AwaySigned { get; init; }
+
+    /// <summary>
     /// True when the app must not edit this fixture's frames, because the
     /// website owns them. This is the single-writer rule in code.
     /// </summary>
@@ -60,8 +69,11 @@ public sealed class ScorecardState
 
     public string Describe() => Owner switch
     {
+        CardOwner.Live when HomeSigned || AwaySigned =>
+            $"Live — {HomeScore}–{AwayScore}, waiting for the "
+            + (HomeSigned ? "away" : "home") + " captain to sign off",
         CardOwner.Live => $"Live — {HomeScore}–{AwayScore} after {FramesPlayed} of {FramesTotal}",
-        CardOwner.Finalised => $"Finished {HomeScore}–{AwayScore}, waiting to be collected",
+        CardOwner.Finalised => $"Both captains signed {HomeScore}–{AwayScore}, waiting to be collected",
         CardOwner.Claimed => $"Collected — {HomeScore}–{AwayScore}",
         _ => "Not open online",
     };
