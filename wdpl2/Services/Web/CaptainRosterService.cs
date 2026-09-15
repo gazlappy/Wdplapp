@@ -1,5 +1,6 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Wdpl2.Models;
+using Wdpl2.Services;
 
 namespace Wdpl2.Services.Web;
 
@@ -58,20 +59,21 @@ public sealed class CaptainRosterService
     /// The website's id is reused deliberately. Scorecard frames already point
     /// at it, so a fresh id would orphan every frame that player appeared in.
     /// </remarks>
-    public static async Task<int> CollectAsync(WebApiClient client, LeagueData league, List<AddedPlayer> players)
+    public static async Task<int> CollectAsync(
+        WebApiClient client, IDataStore store, LeagueData league, List<AddedPlayer> players)
     {
         if (players.Count == 0) return 0;
+
+        var known = (await store.GetPlayersAsync(null)).ToDictionary(p => p.Id);
 
         var added = 0;
         var confirmed = new List<Guid>();
 
         foreach (var incoming in players)
         {
-            var existing = league.Players.FirstOrDefault(p => p.Id == incoming.Id);
-
-            if (existing is null)
+            if (!known.TryGetValue(incoming.Id, out var existing))
             {
-                league.Players.Add(new Player
+                var player = new Player
                 {
                     Id = incoming.Id,
                     SeasonId = incoming.SeasonId,
@@ -81,7 +83,10 @@ public sealed class CaptainRosterService
                     IsActive = incoming.IsActive,
                     Notes = "Added by the team captain online.",
                     CreatedDate = DateTime.UtcNow,
-                });
+                };
+
+                await store.AddPlayerAsync(player);
+                league.Players.Add(player);
                 added++;
             }
             else
@@ -91,12 +96,22 @@ public sealed class CaptainRosterService
                 existing.TeamId = incoming.TeamId;
                 existing.IsActive = incoming.IsActive;
                 existing.ModifiedDate = DateTime.UtcNow;
+                await store.UpdatePlayerAsync(existing);
+
+                var mirrored = league.Players.FirstOrDefault(p => p.Id == incoming.Id);
+                if (mirrored is null) league.Players.Add(existing);
+                else
+                {
+                    mirrored.TeamId = incoming.TeamId;
+                    mirrored.IsActive = incoming.IsActive;
+                    mirrored.ModifiedDate = existing.ModifiedDate;
+                }
             }
 
             confirmed.Add(incoming.Id);
         }
 
-        DataStore.Save();
+        DataStore.SaveJsonOnly();
 
         // Only now that it is safely saved locally.
         await client.AdminAsync("captains", "markCollected", new { playerIds = confirmed });

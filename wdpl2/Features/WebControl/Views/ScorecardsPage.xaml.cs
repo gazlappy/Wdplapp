@@ -1,5 +1,6 @@
-using Wdpl2.Domain.Fixtures;
+﻿using Wdpl2.Domain.Fixtures;
 using Wdpl2.Models;
+using Wdpl2.Services;
 using Wdpl2.Services.Web;
 
 namespace Wdpl2.Views.WebControl;
@@ -18,9 +19,11 @@ public partial class ScorecardsPage : ContentPage
 
     private readonly List<Fixture> _openable = new();
     private List<ScorecardState> _states = new();
+    private readonly IDataStore _dataStore;
 
-    public ScorecardsPage()
+    public ScorecardsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
     }
 
@@ -237,8 +240,7 @@ public partial class ScorecardsPage : ContentPage
 
             var (claimed, frames, already) = await ScorecardService.ClaimAsync(client, state.FixtureId);
 
-            var applied = ApplyToFixture(state.FixtureId, frames);
-            DataStore.SaveJsonOnly();
+            var applied = await ApplyToFixtureAsync(state.FixtureId, frames);
 
             Report(already
                 ? $"Already collected previously; re-applied {applied} frames. Nothing was duplicated."
@@ -309,21 +311,59 @@ public partial class ScorecardsPage : ContentPage
     }
 
     /// <summary>
-    /// Writes collected frames into the local fixture.
+    /// Writes collected frames into the local fixture, in both places the app
+    /// keeps fixtures.
     /// </summary>
     /// <remarks>
-    /// Matching is by frame number, which is the identity both sides agreed on
-    /// when the card was opened. Frames the captains left unplayed are left
-    /// alone rather than being blanked.
+    /// Persistence here is hybrid: the JSON snapshot behind <c>DataStore.Data</c>
+    /// and the SQLite copy behind <see cref="IDataStore"/>. The Fixtures page
+    /// reads the SQLite copy, so writing only the snapshot leaves the result
+    /// invisible in the app even though it collected cleanly.
+    /// <para>
+    /// The SQLite row is the one the app edits, so it is the one the frames are
+    /// overlaid onto; the snapshot is brought level from the same result rather
+    /// than being copied over the top of it.
+    /// </para>
     /// </remarks>
-    private static int ApplyToFixture(Guid fixtureId, List<ScorecardService.ClaimedFrame> frames)
+    private async Task<int> ApplyToFixtureAsync(Guid fixtureId, List<ScorecardService.ClaimedFrame> frames)
     {
-        var fixture = League.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
-        if (fixture is null) return 0;
+        var scored = frames.Where(f => f.Winner != FrameWinner.None).ToList();
+
+        var stored = (await _dataStore.GetFixturesAsync(null))
+            .FirstOrDefault(f => f.Id == fixtureId);
 
         var applied = 0;
 
-        foreach (var claimed in frames.Where(f => f.Winner != FrameWinner.None))
+        if (stored is not null)
+        {
+            applied = Overlay(stored, scored);
+            await _dataStore.UpdateFixtureAsync(stored);
+        }
+
+        var snapshot = League.Fixtures.FirstOrDefault(f => f.Id == fixtureId);
+        if (snapshot is not null)
+        {
+            var count = Overlay(snapshot, scored);
+            if (stored is null) applied = count;
+            DataStore.SaveJsonOnly();
+        }
+
+        return applied;
+    }
+
+    /// <summary>
+    /// Lays collected frames over a fixture, matching on frame number.
+    /// </summary>
+    /// <remarks>
+    /// Frame number is the identity both sides agreed on when the card was
+    /// opened. Frames the captains left unplayed are not in the list at all, so
+    /// anything already recorded against them survives rather than being blanked.
+    /// </remarks>
+    private static int Overlay(Fixture fixture, List<ScorecardService.ClaimedFrame> scored)
+    {
+        var applied = 0;
+
+        foreach (var claimed in scored)
         {
             var frame = fixture.Frames.FirstOrDefault(f => f.Number == claimed.Number);
             if (frame is null)

@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using Wdpl2.Models;
+using Wdpl2.Services;
 using Wdpl2.Services.Web;
 
 namespace Wdpl2.Views.WebControl;
@@ -34,8 +35,11 @@ public partial class CaptainsPage : ContentPage
     private readonly List<TeamRow> _rows = new();
     private bool _dirty;
 
-    public CaptainsPage()
+    private readonly IDataStore _dataStore;
+
+    public CaptainsPage(IDataStore dataStore)
     {
+        _dataStore = dataStore;
         InitializeComponent();
     }
 
@@ -456,7 +460,7 @@ public partial class CaptainsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var created = await CaptainRosterService.CollectAsync(client, League, _added);
+            var created = await CaptainRosterService.CollectAsync(client, _dataStore, League, _added);
 
             Report(created == _added.Count
                 ? $"Added {created} player(s). Publish the season to finish tying them in."
