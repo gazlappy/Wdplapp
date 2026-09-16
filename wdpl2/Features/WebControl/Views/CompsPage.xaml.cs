@@ -42,6 +42,9 @@ public partial class CompsPage : ContentPage
     {
         base.OnAppearing();
         await LoadCompetitionsAsync();
+
+        // Looks for anything the organisers sent while the app was shut.
+        await LoadLiveAsync();
     }
 
     /// <summary>
@@ -338,8 +341,24 @@ public partial class CompsPage : ContentPage
             using var client = new WebApiClient(connection);
 
             _live = await CompetitionNightService.StateAsync(client);
+
+            // A group the organiser has sent is theirs no longer. Waiting for a
+            // second button to be pressed here is how "sent to the league" ends
+            // up meaning "sitting on a website nobody is looking at".
+            var brought = await CollectFinishedAsync(client);
+
+            if (brought.Count > 0)
+            {
+                _live = await CompetitionNightService.StateAsync(client);
+            }
+
             BuildLive();
-            Report("Read back from the website.", error: false);
+
+            Report(brought.Count == 0
+                ? "Read back from the website."
+                : $"Took in {brought.Count} group(s) the organisers had sent: "
+                  + string.Join(", ", brought) + ". Publish the website to show them.",
+                error: false);
         }
         catch (WebApiException ex)
         {
@@ -353,6 +372,47 @@ public partial class CompsPage : ContentPage
         {
             RefreshButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>
+    /// Takes in every group an organiser has finished with.
+    /// </summary>
+    /// <remarks>
+    /// Safe to run on every refresh: collecting is idempotent, and a group that
+    /// has already been collected is skipped. Anything that fails is left for
+    /// the next look rather than stopping the ones behind it.
+    /// </remarks>
+    private async Task<List<string>> CollectFinishedAsync(WebApiClient client)
+    {
+        var brought = new List<string>();
+
+        var waiting = _live.Where(s => s.Finished && !s.Collected).ToList();
+        if (waiting.Count == 0) return brought;
+
+        foreach (var state in waiting)
+        {
+            try
+            {
+                var collected = await CompetitionNightService.CollectAsync(client, state.Id);
+                var competition = await _dataStore.GetCompetitionAsync(state.CompetitionId);
+
+                if (competition is null) continue;
+
+                if (CompetitionNightService.Apply(competition, collected) > 0)
+                {
+                    await PersistAsync(competition);
+                    brought.Add($"{competition.Name} — {state.Name}");
+                }
+            }
+            catch (WebApiException)
+            {
+                // Left where it is; the next refresh will try again.
+            }
+        }
+
+        if (brought.Count > 0) await LoadCompetitionsAsync();
+
+        return brought;
     }
 
     private void BuildLive()
