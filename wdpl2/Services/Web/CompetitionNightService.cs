@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Wdpl2.Domain.Competitions;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Web;
@@ -340,9 +341,10 @@ public sealed class CompetitionNightService
         group.Matches = built;
         group.DrawOrder = session.DrawOrder.ToList();
 
-        // A knockout has no table; leaving the old one would publish standings
-        // for matches that were never played.
-        group.Standings.Clear();
+        // A knockout has no table, but the rest of the app reads who went
+        // through from the standings - so they are rebuilt from the tree
+        // rather than left describing a round robin that never happened.
+        group.Standings = KnockoutGroup.Standings(group);
 
         return built.Count;
     }

@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
+using Wdpl2.Domain.Competitions;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -240,6 +241,139 @@ public partial class CompetitionsPage
         return 0;
     }
 
+    /// <summary>
+    /// Draws a group's knockout as it was played at the venue.
+    /// </summary>
+    /// <remarks>
+    /// The draw happened on the night, so this is the only place in the app that
+    /// shows what it produced. Without it a collected group looks empty - the
+    /// results are there, but the editor only knows how to ask who got through.
+    /// </remarks>
+    private View BuildGroupKnockout(CompetitionGroup group, CompetitionFormat format)
+    {
+        var layout = new VerticalStackLayout { Spacing = 0, Padding = new Thickness(10, 8) };
+
+        if (group.DrawOrder.Count > 0)
+        {
+            var order = string.Join(", ", group.DrawOrder
+                .Select((id, i) => $"{i + 1}. {GetParticipantName(id, format) ?? "?"}"));
+
+            layout.Children.Add(new Label
+            {
+                Text = $"Drawn: {order}",
+                FontSize = 11,
+                TextColor = Color.FromArgb("#64748B"),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+        }
+
+        var rounds = group.Matches
+            .Where(m => m.RoundNumber > 0)
+            .GroupBy(m => m.RoundNumber)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        foreach (var round in rounds)
+        {
+            layout.Children.Add(new Label
+            {
+                Text = RoundName(round.Key, rounds.Count),
+                FontSize = 11,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Color.FromArgb("#94A3B8"),
+                Margin = new Thickness(0, 6, 0, 2),
+            });
+
+            foreach (var match in round.OrderBy(m => m.Slot))
+            {
+                layout.Children.Add(BuildKnockoutTie(match, format));
+            }
+        }
+
+        var winner = KnockoutGroup.Winner(group);
+        if (winner.HasValue)
+        {
+            layout.Children.Add(new Label
+            {
+                Text = $"\U0001F3C6 {GetParticipantName(winner.Value, format)} wins the group",
+                FontSize = 13,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Color.FromArgb("#047857"),
+                Margin = new Thickness(0, 8, 0, 0),
+            });
+        }
+
+        return layout;
+    }
+
+    /// <summary>One tie of a group's knockout.</summary>
+    private View BuildKnockoutTie(CompetitionMatch match, CompetitionFormat format)
+    {
+        var one = match.Participant1Id.HasValue
+            ? GetParticipantName(match.Participant1Id.Value, format) : null;
+        var two = match.Participant2Id.HasValue
+            ? GetParticipantName(match.Participant2Id.Value, format) : null;
+
+        // One side empty in the first round is a bye; later it just means the
+        // tie feeding it has not been played.
+        bool bye = match.RoundNumber == 1 && (one is null) != (two is null);
+
+        var left = one ?? (bye ? "bye" : "—");
+        var right = two ?? (bye ? "bye" : "—");
+
+        var score = match.IsComplete && !bye
+            ? $"{match.Participant1Score}–{match.Participant2Score}"
+            : (bye ? "bye" : "v");
+
+        bool leftWon = match.IsComplete && match.WinnerId == match.Participant1Id;
+        bool rightWon = match.IsComplete && match.WinnerId == match.Participant2Id;
+
+        Label Side(string text, bool won, TextAlignment align) => new()
+        {
+            Text = text,
+            FontSize = 12,
+            FontAttributes = won ? FontAttributes.Bold : FontAttributes.None,
+            TextColor = Color.FromArgb(won ? "#047857" : "#475569"),
+            HorizontalTextAlignment = align,
+            VerticalTextAlignment = TextAlignment.Center,
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(58) },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing = 6,
+            Padding = new Thickness(0, 3),
+        };
+
+        grid.Add(Side(left, leftWon, TextAlignment.End), 0, 0);
+        grid.Add(new Label
+        {
+            Text = score,
+            FontSize = 12,
+            TextColor = Color.FromArgb("#94A3B8"),
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center,
+        }, 1, 0);
+        grid.Add(Side(right, rightWon, TextAlignment.Start), 2, 0);
+
+        return grid;
+    }
+
+    /// <summary>What a round is called, counting back from the final.</summary>
+    private static string RoundName(int roundNumber, int totalRounds) =>
+        (totalRounds - roundNumber) switch
+        {
+            0 => "Final",
+            1 => "Semi-finals",
+            2 => "Quarter-finals",
+            _ => $"Round {roundNumber}",
+        };
+
     private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance, bool editable = true)
     {
         // Track which participants are selected as winners
@@ -255,8 +389,17 @@ public partial class CompetitionsPage
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
         };
 
+        // A group played as a knockout decides who went through itself, so the
+        // header reports the result rather than asking for a selection that has
+        // already been made on the table.
+        bool isKnockout = KnockoutGroup.IsKnockout(group);
+        int decided = isKnockout ? KnockoutGroup.PlacesDecided(group) : 0;
+
         int selected = selectedIds.Count;
-        var headerText = $"{group.Name} ({group.ParticipantIds.Count} players) — {selected}/{topAdvance} selected";
+
+        var headerText = isKnockout
+            ? $"{group.Name} ({group.ParticipantIds.Count} players) — knockout, {decided}/{topAdvance} decided"
+            : $"{group.Name} ({group.ParticipantIds.Count} players) — {selected}/{topAdvance} selected";
 
         var headerStack = new VerticalStackLayout { Spacing = 2 };
         headerStack.Children.Add(new Label
@@ -302,9 +445,28 @@ public partial class CompetitionsPage
             headerStack.Children.Add(venueLine);
         }
 
+        // A knockout that cannot fill the places asked of it is worth saying out
+        // loud: the losing semi-finalists never met, so there is no third place
+        // without another match being played.
+        if (isKnockout && decided > 0 && decided < topAdvance)
+        {
+            headerStack.Children.Add(new Label
+            {
+                Text = $"A knockout decides {decided} place(s). Set this competition to "
+                     + $"{decided} through per group, or play off for the rest.",
+                TextColor = Color.FromArgb("#FEF3C7"),
+                FontSize = 11,
+            });
+        }
+
         headerBorder.Content = headerStack;
 
         var playersLayout = new VerticalStackLayout { Spacing = 0 };
+
+        if (isKnockout)
+        {
+            playersLayout.Children.Add(BuildGroupKnockout(group, format));
+        }
 
         foreach (var participantId in group.ParticipantIds)
         {

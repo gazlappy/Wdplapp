@@ -239,17 +239,26 @@ public class CompetitionNightServiceTests
     }
 
     [Fact]
-    public void Apply_ClearsAStaleTable()
+    public void Apply_RebuildsTheTableFromTheTree()
     {
         var competition = GroupStage();
         var group = competition.Groups[0];
-        group.Standings.Add(new GroupStanding { ParticipantId = Ann, Position = 1, Points = 4 });
+
+        // A table left over from when this was a round robin, with the wrong
+        // player on top.
+        group.Standings.Add(new GroupStanding { ParticipantId = Bob, Position = 1, Points = 4 });
 
         CompetitionNightService.Apply(competition, Played(group.Id));
 
-        // A knockout has no table; publishing the old one would show standings
-        // for matches that were never played.
-        Assert.Empty(group.Standings);
+        // The rest of the app reads who went through from the standings, so
+        // they have to describe the knockout that was actually played.
+        Assert.Equal(Ann, group.Standings[0].ParticipantId);
+        Assert.Equal(1, group.Standings[0].Position);
+
+        Assert.Equal(Cal, group.Standings[1].ParticipantId);
+        Assert.Equal(2, group.Standings[1].Position);
+
+        Assert.DoesNotContain(group.Standings, s => s.ParticipantId == Bob && s.Position == 1);
     }
 
     [Fact]
