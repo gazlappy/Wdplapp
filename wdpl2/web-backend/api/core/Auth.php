@@ -6,6 +6,7 @@ declare(strict_types=1);
  *
  *   Role::Admin   - the league secretary (desktop app, later a browser admin).
  *   Role::Captain - one team captain, scoped to their own team only. Added in M3.
+ *   Role::Runner  - the player running one competition group or round tonight.
  *   Role::Public  - anonymous read of published data.
  *
  * Holding a captain session must never grant admin access, and vice versa.
@@ -14,6 +15,7 @@ final class Role
 {
     public const Public  = 'public';
     public const Captain = 'captain';
+    public const Runner  = 'runner';
     public const Admin   = 'admin';
 }
 
@@ -39,6 +41,12 @@ final class Auth
                 Http::requireSecure();
                 if (!Captain::isSignedIn()) {
                     throw new ApiError(401, 'captain_required', 'Captain sign-in required.');
+                }
+                return;
+            case Role::Runner:
+                Http::requireSecure();
+                if (!Runner::isSignedIn()) {
+                    throw new ApiError(401, 'runner_required', 'Sign in with the PIN for this group.');
                 }
                 return;
             default:

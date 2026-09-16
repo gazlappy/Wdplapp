@@ -79,6 +79,7 @@ try {
     require __DIR__ . '/core/Passwords.php';
     require __DIR__ . '/core/Auth.php';
     require __DIR__ . '/core/Captain.php';
+    require __DIR__ . '/core/Runner.php';
     require __DIR__ . '/core/Module.php';
     require __DIR__ . '/core/Registry.php';
     require __DIR__ . '/core/Schema.php';
