@@ -79,12 +79,49 @@ button.sm{padding:7px 11px; font-size:13px;}
 .stack > * + *{margin-top:10px;}
 .sub{color:var(--muted); font-size:11px; line-height:1.5;}
 
-.tabs{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
-.tabs button{
-  padding:8px 14px; font-size:13px; border-radius:999px; font-weight:700;
-  background:rgba(10,15,28,.6); color:var(--muted); border:1px solid var(--line);
+/* the night at a glance */
+.strip{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+  background:var(--line); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden; margin-bottom:14px;
 }
-.tabs button.on{background:var(--accent-2); color:#fff; border-color:var(--accent-2);}
+.stat{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+  padding:10px 8px; text-align:center;
+}
+.stat .n{display:block; font-size:19px; font-weight:800; color:var(--gold);
+         font-variant-numeric:tabular-nums; line-height:1.15;}
+.stat .k{display:block; font-size:10px; font-weight:700; letter-spacing:.7px;
+         text-transform:uppercase; color:var(--muted); margin-top:2px;}
+
+/* the three things the night consists of */
+.panel{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+  border:1px solid var(--line); border-radius:var(--radius);
+  margin-bottom:14px; overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.45);
+}
+.panel-head{
+  display:flex; align-items:flex-start; gap:11px;
+  padding:13px 14px; border-bottom:1px solid var(--line);
+  background:rgba(10,15,28,.35);
+}
+.panel-head h2{margin:0; font-size:14px; font-weight:800; letter-spacing:.3px;
+               text-transform:none; color:var(--text);}
+.panel-head .hint{margin:2px 0 0; font-size:11px; color:var(--muted); line-height:1.45;}
+.panel-head > div{flex:1 1 auto; min-width:0;}
+.step-no{
+  flex:0 0 auto; width:24px; height:24px; border-radius:50%;
+  background:var(--accent-2); color:#fff;
+  font-size:12px; font-weight:800; line-height:24px; text-align:center;
+}
+.tally{
+  flex:0 0 auto; font-size:11px; font-weight:700; color:var(--muted);
+  background:rgba(10,15,28,.6); border:1px solid var(--line);
+  border-radius:999px; padding:3px 9px; white-space:nowrap;
+}
+.panel-body{padding:13px 14px;}
+.footer-row{justify-content:center; margin-top:4px;}
 
 /* who turned up */
 .person{
@@ -125,7 +162,9 @@ button.sm{padding:7px 11px; font-size:13px;}
   display:flex; justify-content:space-between; align-items:center; gap:8px;
 }
 .step{
-  width:32px; height:30px; border-radius:6px; font-size:16px; font-weight:800;
+  width:32px; height:30px; border-radius:6px; font-size:17px; font-weight:800;
+  line-height:1; padding:0; display:inline-flex; align-items:center;
+  justify-content:center;
   background:rgba(10,15,28,.7); border:1px solid var(--line); color:var(--text);
 }
 
@@ -141,7 +180,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 .empty{color:var(--muted); font-size:13px; padding:6px 2px;}
 
 /* the draw wheel */
-.wheelwrap{position:relative; width:min(78vw,300px); margin:6px auto 12px; aspect-ratio:1;}
+.wheelwrap{position:relative; width:min(72vw,270px); margin:2px auto 12px; aspect-ratio:1;}
 .wheelwrap svg{width:100%; height:100%; display:block;
   filter:drop-shadow(0 10px 26px rgba(0,0,0,.55));}
 #wheelSpin{
@@ -166,12 +205,12 @@ tr.top td{color:var(--gold); font-weight:700;}
 .wheel-seg-text{font-size:11px; font-weight:700; fill:#fff;}
 
 .called{
-  text-align:center; font-size:clamp(17px,5.6vw,24px); font-weight:900;
-  color:var(--gold); min-height:1.5em; margin:2px 0 8px;
+  text-align:center; font-size:clamp(16px,5.2vw,22px); font-weight:900;
+  color:var(--gold); min-height:1.4em; margin:0 0 10px;
 }
 
 /* the sheet as it fills */
-.sheet{display:grid; grid-template-columns:repeat(2,1fr); gap:6px;}
+.sheet{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:12px;}
 .slot{
   display:flex; align-items:center; gap:8px; padding:8px 10px;
   border:1px solid var(--line); border-radius:var(--radius-sm);
@@ -210,6 +249,7 @@ tr.top td{color:var(--gold); font-weight:700;}
   padding:3px 9px; font-size:10px; font-weight:800; letter-spacing:.4px;
   text-transform:uppercase; color:var(--muted); background:rgba(10,15,28,.5);
   display:flex; justify-content:space-between; gap:6px; align-items:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 </style>
 </head>
@@ -244,16 +284,43 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   <!-- ----------------------------------------------------------- running -->
   <section id="app" class="hidden">
-    <div class="tabs">
-      <button data-tab="draw" class="on">Draw</button>
-      <button data-tab="tree">Knockout</button>
-      <button data-tab="who">Who turned up</button>
+
+    <!-- Where the night stands, without having to read anything -->
+    <div class="strip">
+      <div class="stat"><span class="n" id="statHere">0</span><span class="k">here</span></div>
+      <div class="stat"><span class="n" id="statDrawn">&ndash;</span><span class="k">draw</span></div>
+      <div class="stat"><span class="n" id="statPlayed">0/0</span><span class="k">ties played</span></div>
     </div>
 
-    <div id="tab-draw">
-      <div class="card">
-        <h2>The draw</h2>
+    <!-- 1 ---------------------------------------------------------------- -->
+    <section class="panel">
+      <header class="panel-head">
+        <span class="step-no">1</span>
+        <div>
+          <h2>Who turned up</h2>
+          <p class="hint">Tick everyone who is here. Only they go in the bag.</p>
+        </div>
+        <span class="tally" id="hereTally"></span>
+      </header>
+      <div class="panel-body">
+        <div id="people"><div class="empty">Loading&hellip;</div></div>
+      </div>
+    </section>
 
+    <!-- 2 ---------------------------------------------------------------- -->
+    <section class="panel">
+      <header class="panel-head">
+        <span class="step-no">2</span>
+        <div>
+          <h2>The draw</h2>
+          <p class="hint" id="drawHint">
+            First name out goes to the top of the sheet, the second into the
+            bottom half.
+          </p>
+        </div>
+      </header>
+
+      <div class="panel-body">
         <div class="wheelwrap" id="wheelWrap">
           <div class="needle"></div>
           <svg viewBox="0 0 200 200" aria-hidden="true">
@@ -270,41 +337,27 @@ tr.top td{color:var(--gold); font-weight:700;}
           <button id="redrawBtn" class="ghost hidden">Draw again</button>
         </div>
 
-        <div id="sheet" class="sheet" style="margin-top:12px"></div>
-
-        <p class="sub" id="drawHint">
-          Everyone here goes in the bag. The first name out goes to the top of
-          the sheet, the second into the bottom half, so the first two drawn can
-          only meet in the final.
-        </p>
+        <div id="sheet" class="sheet"></div>
       </div>
-    </div>
+    </section>
 
-    <div id="tab-tree" class="hidden">
-      <div class="card">
-        <h2>Knockout</h2>
+    <!-- 3 ---------------------------------------------------------------- -->
+    <section class="panel">
+      <header class="panel-head">
+        <span class="step-no">3</span>
+        <div>
+          <h2>The knockout</h2>
+          <p class="hint" id="framesHint"></p>
+        </div>
+      </header>
+      <div class="panel-body">
         <div id="tree"><div class="empty">Make the draw first.</div></div>
-        <p class="sub" id="framesHint"></p>
       </div>
-    </div>
+    </section>
 
-    <div id="tab-who" class="hidden">
-      <div class="card">
-        <h2>Who turned up</h2>
-        <div id="people"><div class="empty">Loading&hellip;</div></div>
-        <p class="sub">
-          Tick the players who are here. Mark anyone who has not turned up as a
-          no-show &mdash; the league needs to know before working out who goes through.
-        </p>
-      </div>
-    </div>
-
-
-    <div class="card">
-      <div class="row">
-        <button id="refresh" class="ghost sm">Refresh</button>
-        <button id="signout" class="ghost sm">Sign out</button>
-      </div>
+    <div class="row footer-row">
+      <button id="refresh" class="ghost sm">Refresh</button>
+      <button id="signout" class="ghost sm">Sign out</button>
     </div>
   </section>
 </main>
@@ -315,7 +368,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   var API = '../api/index.php';
 
-  var S = { session:null, tab:'draw', busy:false, revealed:[], spin:0 };
+  var S = { session:null, busy:false, revealed:[], spin:0 };
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -587,6 +640,7 @@ tr.top td{color:var(--gold); font-weight:700;}
   function finishReveal(){
     show($('revealBtn'), false);
     show($('redrawBtn'), true);
+    showWheel(false);
     $('wheelHub').textContent = '8';
     $('called').textContent = 'That is the draw.';
     renderSheet();
@@ -656,6 +710,7 @@ tr.top td{color:var(--gold); font-weight:700;}
   function startReveal(){
     S.revealed = [];
     S.spin = 0;
+    showWheel(true);
     $('called').textContent = '';
     $('wheelHub').textContent = '8';
     show($('drawBtn'), false);
@@ -670,6 +725,7 @@ tr.top td{color:var(--gold); font-weight:700;}
   function showFinishedDraw(){
     S.revealed = S.session.players.filter(wasDrawn).map(function(p){ return p.participant_id; });
     S.spin = 0;
+    showWheel(false);
     show($('drawBtn'), false);
     show($('revealBtn'), false);
     show($('redrawBtn'), true);
@@ -729,7 +785,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 
       return '<div class="ln'+cls+'">'
         + '<span class="who">'+esc(nm)+'</span>'
-        + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="-1">−</button>' : '')
+        + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="-1">–</button>' : '')
         + (playable ? '<span class="sc">'+esc(sc)+'</span>' : '')
         + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="1">+</button>' : '')
         + '</div>';
@@ -737,7 +793,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     var note = bye ? 'through on a bye'
              : (done ? 'finished'
-             : (playable ? '' : 'waiting on the round before'));
+             : (playable ? '' : 'waiting'));
 
     return '<div class="tie'+(done?' done':'')+'">'
       + (note ? '<div class="bar"><span>'+esc(note)+'</span></div>' : '')
@@ -800,6 +856,31 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   // -------------------------------------------------------------- render
 
+  /** The three numbers worth knowing without reading anything. */
+  function renderStrip(){
+    var players = (S.session && S.session.players) || [];
+    var here = players.filter(function(p){ return Number(p.present)===1; }).length;
+
+    var matches = (S.session && S.session.matches) || [];
+    var played = matches.filter(function(m){ return Number(m.is_complete)===1; }).length;
+
+    $('statHere').textContent = here;
+    $('statDrawn').textContent = (S.session && Number(S.session.drawn)===1) ? 'made' : 'to do';
+    $('statPlayed').textContent = played + '/' + matches.length;
+    $('hereTally').textContent = here + ' of ' + players.length;
+  }
+
+  /**
+   * The wheel is a tool, not a result.
+   *
+   * Once every name is out it has nothing left to say, and a large idle circle
+   * is the biggest thing on a page whose job by then is the sheet and the tree.
+   */
+  function showWheel(on){
+    show($('wheelWrap'), on);
+    show($('called'), on);
+  }
+
   function render(){
     if(!S.session) return;
 
@@ -809,6 +890,7 @@ tr.top td{color:var(--gold); font-weight:700;}
     $('who').innerHTML = esc(S.session.name)
       + (where ? '<br><span style="color:var(--muted)">'+esc(where)+'</span>' : '');
 
+    renderStrip();
     renderPeople();
     renderTree();
 
@@ -825,17 +907,9 @@ tr.top td{color:var(--gold); font-weight:700;}
     // replayed, so a second person opening the page does not spin it again.
     if(drawn && !S.revealed.length) showFinishedDraw();
     else renderSheet();
-  }
 
-  Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(b){
-    b.addEventListener('click', function(){
-      S.tab = b.getAttribute('data-tab');
-      Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(o){
-        o.classList.toggle('on', o===b);
-      });
-      ['draw','tree','who'].forEach(function(t){ show($('tab-'+t), t===S.tab); });
-    });
-  });
+    showWheel(!drawn || inBag().length > 0);
+  }
 
   $('refresh').addEventListener('click', function(){
     call('comps','mine',{})
