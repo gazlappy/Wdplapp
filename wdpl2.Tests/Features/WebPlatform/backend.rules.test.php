@@ -181,7 +181,7 @@ test('unknown module is a 404, not a crash', function () {
 });
 
 test('every declared action has a valid role and callable', function () {
-    $valid = [Role::Public, Role::Captain, Role::Admin];
+    $valid = [Role::Public, Role::Captain, Role::Runner, Role::Admin];
     foreach (Registry::all() as $id => $class) {
         foreach ($class::actions() as $action => $spec) {
             check(isset($spec['role'], $spec['fn']), "{$id}/{$action} is missing role or fn");

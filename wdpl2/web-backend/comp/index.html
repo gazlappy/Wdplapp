@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WDPL Competition</title>
+<meta name="theme-color" content="#1f4e79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WDPL Comp">
+<style>
+:root{
+  --bg-0:#0a0f1c; --bg-1:#0f172a; --panel:#16213d; --panel-2:#1d2c4e;
+  --line:#2b3a60; --text:#e6edf7; --muted:#8a9ab8;
+  --accent:#60a5fa; --accent-2:#3b82f6;
+  --felt:#0d8a5a; --gold:#FFD166;
+  --win:#22c55e; --lose:#ef4444;
+  --ok-bg:#0b3a2c; --ok-fg:#9af2c8; --bad-bg:#3a0f15; --bad-fg:#ffb4ba;
+  --warn-bg:#3a2d0b; --warn-fg:#fde68a;
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; color:var(--text);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:
+    radial-gradient(1100px 600px at 80% -10%, rgba(96,165,250,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(13,138,90,0.12), transparent 60%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  background-attachment:fixed; min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+header{
+  padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:linear-gradient(90deg, rgba(13,138,90,0.35) 0%, rgba(22,33,61,0.85) 45%, rgba(59,130,246,0.30) 100%);
+  border-bottom:2px solid var(--gold); position:sticky; top:0; z-index:30;
+  box-shadow:0 6px 24px rgba(0,0,0,0.55);
+}
+header h1{
+  margin:0; font-size:17px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+  display:flex; align-items:center; gap:10px;
+  background:linear-gradient(90deg,#fff 0%,var(--gold) 50%,var(--accent) 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+header h1::before{
+  content:"8"; display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border-radius:50%; font-weight:900; font-size:15px;
+  background:radial-gradient(circle at 30% 30%,#2a2a2a,#000 70%); color:#fff;
+  -webkit-text-fill-color:#fff;
+  box-shadow:inset 0 -3px 6px rgba(255,255,255,.10),0 0 0 3px var(--gold),0 0 18px rgba(255,209,102,.55);
+}
+#who{color:var(--gold); font-size:12px; font-weight:600; text-align:right; line-height:1.3;}
+main{max-width:720px; margin:0 auto; padding:14px 12px 90px;}
+.card{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+  border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+  margin-bottom:12px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+h2{margin:0 0 10px; font-size:13px; font-weight:800; letter-spacing:.6px;
+   text-transform:uppercase; color:var(--muted);}
+label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px; letter-spacing:.3px;}
+select,input{
+  width:100%; padding:12px; font-size:16px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); background:rgba(10,15,28,.6); color:var(--text);
+}
+button{
+  padding:11px 15px; font-size:14px; font-weight:700; border:0; cursor:pointer;
+  border-radius:var(--radius-sm); background:var(--accent-2); color:#fff;
+}
+button:disabled{opacity:.45; cursor:not-allowed;}
+button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+button.go{background:var(--felt);}
+button.sm{padding:7px 11px; font-size:13px;}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.msg{font-size:13px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:10px; line-height:1.45;}
+.msg.bad{background:var(--bad-bg); color:var(--bad-fg);}
+.msg.warn{background:var(--warn-bg); color:var(--warn-fg);}
+.msg.ok{background:var(--ok-bg); color:var(--ok-fg);}
+.hidden{display:none !important;}
+.stack > * + *{margin-top:10px;}
+.sub{color:var(--muted); font-size:11px; line-height:1.5;}
+
+.tabs{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
+.tabs button{
+  padding:8px 14px; font-size:13px; border-radius:999px; font-weight:700;
+  background:rgba(10,15,28,.6); color:var(--muted); border:1px solid var(--line);
+}
+.tabs button.on{background:var(--accent-2); color:#fff; border-color:var(--accent-2);}
+
+/* who turned up */
+.person{
+  display:flex; align-items:center; gap:10px; padding:11px 12px;
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:rgba(10,15,28,.35); margin-bottom:7px;
+}
+.person .nm{flex:1 1 auto; font-weight:700; font-size:14px; overflow-wrap:anywhere;}
+.person.out .nm{color:var(--muted); text-decoration:line-through;}
+.tick{
+  flex:0 0 auto; width:38px; height:34px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); background:rgba(10,15,28,.6);
+  font-size:15px; font-weight:800; color:var(--muted);
+}
+.tick.on{background:var(--felt); border-color:var(--felt); color:#fff;}
+.tick.off{background:var(--lose); border-color:var(--lose); color:#fff;}
+
+/* matches */
+.match{
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:rgba(10,15,28,.35); margin-bottom:8px; overflow:hidden;
+}
+.match.done{border-color:rgba(34,197,94,.45);}
+.match .side{
+  display:flex; align-items:center; gap:8px; padding:9px 11px;
+}
+.match .side + .side{border-top:1px solid var(--line);}
+.match .side .nm{flex:1 1 auto; font-weight:700; font-size:14px; overflow-wrap:anywhere;}
+.match .side.won .nm{color:var(--win);}
+.match .side.lost .nm{color:var(--muted);}
+.sc{
+  min-width:34px; text-align:center; font-size:17px; font-weight:900;
+  font-variant-numeric:tabular-nums;
+}
+.match .ord{
+  padding:4px 11px; font-size:10px; font-weight:800; letter-spacing:.5px;
+  text-transform:uppercase; color:var(--muted); background:rgba(10,15,28,.5);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.step{
+  width:32px; height:30px; border-radius:6px; font-size:16px; font-weight:800;
+  background:rgba(10,15,28,.7); border:1px solid var(--line); color:var(--text);
+}
+
+/* table */
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{
+  text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--muted); padding:6px 4px; border-bottom:1px solid var(--line);
+}
+td{padding:8px 4px; border-bottom:1px solid rgba(43,58,96,.5);}
+td.n, th.n{text-align:center; font-variant-numeric:tabular-nums;}
+tr.top td{color:var(--gold); font-weight:700;}
+.empty{color:var(--muted); font-size:13px; padding:6px 2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WDPL Comp</h1>
+  <span id="who"></span>
+</header>
+
+<main>
+  <div id="msg" class="msg hidden"></div>
+
+  <!-- ---------------------------------------------------------- sign in -->
+  <section id="login">
+    <div class="card stack">
+      <div>
+        <label for="session">Your group</label>
+        <select id="session"><option value="">Loading&hellip;</option></select>
+      </div>
+      <div>
+        <label for="pin">PIN</label>
+        <input id="pin" type="tel" inputmode="numeric" autocomplete="off" placeholder="The PIN you were given">
+      </div>
+      <button id="signin" class="go" style="width:100%">Sign in</button>
+      <p class="sub">
+        The league gives the PIN to whoever is running the group. It opens this
+        group only, and stops working when the league closes the night.
+      </p>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- running -->
+  <section id="app" class="hidden">
+    <div class="tabs">
+      <button data-tab="matches" class="on">Matches</button>
+      <button data-tab="who">Who turned up</button>
+      <button data-tab="table">Table</button>
+    </div>
+
+    <div id="tab-matches">
+      <div class="card">
+        <h2>Matches</h2>
+        <div id="matches"><div class="empty">Loading&hellip;</div></div>
+        <p class="sub" id="framesHint"></p>
+      </div>
+    </div>
+
+    <div id="tab-who" class="hidden">
+      <div class="card">
+        <h2>Who turned up</h2>
+        <div id="people"><div class="empty">Loading&hellip;</div></div>
+        <p class="sub">
+          Tick the players who are here. Mark anyone who has not turned up as a
+          no-show &mdash; the league needs to know before working out who goes through.
+        </p>
+      </div>
+    </div>
+
+    <div id="tab-table" class="hidden">
+      <div class="card">
+        <h2>Table</h2>
+        <div id="table"><div class="empty">Loading&hellip;</div></div>
+        <p class="sub">Two points for a win, one for a draw. Frames settle ties.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button id="refresh" class="ghost sm">Refresh</button>
+        <button id="signout" class="ghost sm">Sign out</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  var API = '../api/index.php';
+
+  var S = { session:null, tab:'matches', busy:false, order:null };
+
+  function $(id){ return document.getElementById(id); }
+  function show(el,on){ el.classList.toggle('hidden', !on); }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function say(text, kind){
+    var box=$('msg');
+    if(!text){ show(box,false); return; }
+    box.textContent=text; box.className='msg '+(kind||'warn'); show(box,true);
+  }
+
+  function call(module, action, body){
+    return fetch(API+'?m='+module+'&a='+action, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'same-origin', cache:'no-store', body:JSON.stringify(body||{})
+    }).then(function(r){
+      return r.json().catch(function(){ throw {code:'not_json', message:'The server sent an unexpected reply.'}; })
+        .then(function(p){
+          if(p.ok) return p.data;
+          throw { code:p.error?p.error.code:'error',
+                  message:p.error?p.error.message:'Something went wrong.',
+                  current:p.data||null };
+        });
+    });
+  }
+
+  function fail(e){
+    if(e && e.code==='runner_required'){ signedOut('Signed out. Sign in again.'); return; }
+    if(e && e.code==='session_closed'){ say(e.message,'bad'); return; }
+    say((e && e.message) || 'Something went wrong.','bad');
+  }
+
+  function nameOf(id){
+    if(!S.session || !id) return null;
+    var found=null;
+    S.session.players.forEach(function(p){ if(p.participant_id===id) found=p.name; });
+    return found;
+  }
+
+  // ------------------------------------------------------------- sign in
+
+  function loadSessions(){
+    return call('comps','sessions',{}).then(function(rows){
+      var sel=$('session');
+      if(!rows || !rows.length){
+        sel.innerHTML='<option value="">No competition is running</option>';
+        $('signin').disabled=true;
+        return;
+      }
+      $('signin').disabled=false;
+      sel.innerHTML = rows.map(function(r){
+        var where = r.venue_name ? ' — '+r.venue_name : '';
+        var who = r.organiser_name ? ' ('+r.organiser_name+')' : '';
+        return '<option value="'+esc(r.id)+'">'+esc(r.competition)+': '
+             + esc(r.name)+esc(where)+esc(who)+'</option>';
+      }).join('');
+    }).catch(function(){
+      $('session').innerHTML='<option value="">Could not reach the league site</option>';
+    });
+  }
+
+  $('signin').addEventListener('click', function(){
+    var id=$('session').value, pin=$('pin').value.trim();
+    if(!id || !pin){ say('Choose your group and enter the PIN.','warn'); return; }
+
+    $('signin').disabled=true;
+    call('comps','login',{sessionId:id, pin:pin})
+      .then(function(session){ $('pin').value=''; arrive(session); })
+      .catch(function(e){
+        say(e.code==='rate_limited'
+            ? 'Too many tries. Wait a few minutes.'
+            : (e.message || 'That PIN was not accepted.'), 'bad');
+      })
+      .then(function(){ $('signin').disabled=false; });
+  });
+
+  $('pin').addEventListener('keydown', function(e){ if(e.key==='Enter') $('signin').click(); });
+
+  $('signout').addEventListener('click', function(){
+    call('comps','logout',{}).catch(function(){}).then(function(){ signedOut('Signed out.'); });
+  });
+
+  function arrive(session){
+    S.session = session;
+    show($('login'), false);
+    show($('app'), true);
+    say('');
+    render();
+  }
+
+  function signedOut(note){
+    S.session=null;
+    show($('app'), false);
+    show($('login'), true);
+    $('who').textContent='';
+    loadSessions();
+    if(note) say(note,'warn');
+  }
+
+  // --------------------------------------------------------------- edits
+
+  /**
+   * Sends a batch and takes the answer as the truth.
+   *
+   * The version goes with it, so if somebody else has changed the group since
+   * this page last read it the server refuses rather than letting one phone
+   * quietly overwrite the other.
+   */
+  function apply(ops){
+    if(!S.session || S.busy) return Promise.resolve();
+    S.busy = true;
+    say('');
+
+    return call('comps','apply',{version:S.session.version, ops:ops})
+      .then(function(session){
+        S.session = session;
+        render();
+        if(session.rejections && session.rejections.length){
+          say(session.rejections.map(function(r){ return r.reason; }).join('  '),'warn');
+        }
+      })
+      .catch(function(e){
+        if(e.code==='conflict' && e.current){
+          S.session = e.current;
+          render();
+          say('Somebody else updated this group. Your screen has been brought up to date '
+             +'— check the match you were entering.','warn');
+          return;
+        }
+        fail(e);
+      })
+      .then(function(){ S.busy=false; });
+  }
+
+  // ------------------------------------------------------------- matches
+
+  function renderMatches(){
+    var box=$('matches');
+    var matches=(S.session && S.session.matches) || [];
+
+    if(!matches.length){
+      box.innerHTML='<div class="empty">No matches in this group yet.</div>';
+      return;
+    }
+
+    var ftw = Number(S.session.frames_to_win)||0;
+    var bo  = Number(S.session.best_of)||0;
+
+    $('framesHint').textContent = ftw > 0
+      ? 'Best of '+bo+' — first to '+ftw+' frames wins the match.'
+      : 'Whoever is ahead when the match ends wins it.';
+
+    box.innerHTML = matches.map(function(m, i){
+      var n1 = nameOf(m.p1_id) || 'not drawn';
+      var n2 = nameOf(m.p2_id) || 'not drawn';
+      var playable = !!(m.p1_id && m.p2_id);
+      var done = Number(m.is_complete)===1;
+
+      function side(which){
+        var isOne = which===1;
+        var nm = isOne ? n1 : n2;
+        var sc = isOne ? m.p1_score : m.p2_score;
+        var won = done && m.winner_id === (isOne ? m.p1_id : m.p2_id);
+        var cls = done ? (won ? ' won' : ' lost') : '';
+
+        return '<div class="side'+cls+'">'
+          + '<span class="nm">'+esc(nm)+'</span>'
+          + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="-1">&minus;</button>' : '')
+          + '<span class="sc">'+esc(sc)+'</span>'
+          + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="1">+</button>' : '')
+          + '</div>';
+      }
+
+      var canMove = S.session.allow_order && Number(S.session.allow_order)===1;
+
+      return '<div class="match'+(done?' done':'')+'">'
+        + '<div class="ord"><span>Match '+(i+1)+(done?' · finished':'')+'</span>'
+        +   (canMove
+              ? '<span>'
+                + (i>0 ? '<button class="step sm" data-up="'+esc(m.match_id)+'">&uarr;</button>' : '')
+                + (i<matches.length-1 ? ' <button class="step sm" data-down="'+esc(m.match_id)+'">&darr;</button>' : '')
+                + '</span>'
+              : '')
+        + '</div>'
+        + side(1) + side(2)
+        + '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(box.querySelectorAll('.step[data-m]'), function(b){
+      b.addEventListener('click', function(){ bump(b.getAttribute('data-m'),
+        Number(b.getAttribute('data-s')), Number(b.getAttribute('data-d'))); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-up]'), function(b){
+      b.addEventListener('click', function(){ move(b.getAttribute('data-up'), -1); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-down]'), function(b){
+      b.addEventListener('click', function(){ move(b.getAttribute('data-down'), 1); });
+    });
+  }
+
+  function bump(matchId, which, delta){
+    var m=null;
+    S.session.matches.forEach(function(x){ if(x.match_id===matchId) m=x; });
+    if(!m) return;
+
+    var p1=Number(m.p1_score)||0, p2=Number(m.p2_score)||0;
+    if(which===1) p1=Math.max(0,p1+delta); else p2=Math.max(0,p2+delta);
+
+    apply([{kind:'set_score', matchId:matchId, p1:p1, p2:p2}]);
+  }
+
+  function move(matchId, delta){
+    var ids = S.session.matches.map(function(m){ return m.match_id; });
+    var at = ids.indexOf(matchId);
+    var to = at + delta;
+    if(at < 0 || to < 0 || to >= ids.length) return;
+
+    ids.splice(to, 0, ids.splice(at, 1)[0]);
+    apply([{kind:'set_order', matchIds: ids}]);
+  }
+
+  // -------------------------------------------------------- who turned up
+
+  function renderPeople(){
+    var box=$('people');
+    var players=(S.session && S.session.players) || [];
+
+    if(!players.length){
+      box.innerHTML='<div class="empty">Nobody is listed in this group.</div>';
+      return;
+    }
+
+    box.innerHTML = players.map(function(p){
+      var here = p.present === null || p.present === undefined ? null : Number(p.present)===1;
+
+      return '<div class="person'+(here===false?' out':'')+'">'
+        + '<span class="nm">'+esc(p.name)+'</span>'
+        + '<button class="tick'+(here===true?' on':'')+'" data-here="'+esc(p.participant_id)+'">&check;</button>'
+        + '<button class="tick'+(here===false?' off':'')+'" data-away="'+esc(p.participant_id)+'">&times;</button>'
+        + '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(box.querySelectorAll('[data-here]'), function(b){
+      b.addEventListener('click', function(){ setPresent(b.getAttribute('data-here'), true); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-away]'), function(b){
+      b.addEventListener('click', function(){ setPresent(b.getAttribute('data-away'), false); });
+    });
+  }
+
+  function setPresent(playerId, here){
+    var current=null;
+    S.session.players.forEach(function(p){
+      if(p.participant_id===playerId){
+        current = p.present === null || p.present === undefined ? null : Number(p.present)===1;
+      }
+    });
+
+    // Tapping the answer you already gave takes it back to "not said yet".
+    var value = current === here ? null : here;
+    apply([{kind:'set_present', playerId:playerId, value:value}]);
+  }
+
+  // --------------------------------------------------------------- table
+
+  function renderTable(){
+    var box=$('table');
+    var rows=(S.session && S.session.standings) || [];
+
+    if(!rows.length){
+      box.innerHTML='<div class="empty">Nothing played yet.</div>';
+      return;
+    }
+
+    box.innerHTML =
+      '<table><thead><tr><th class="n">#</th><th>Player</th>'
+      + '<th class="n">P</th><th class="n">W</th><th class="n">D</th><th class="n">L</th>'
+      + '<th class="n">F</th><th class="n">A</th><th class="n">Pts</th></tr></thead><tbody>'
+      + rows.map(function(r){
+          return '<tr'+(r.position<=2?' class="top"':'')+'>'
+            + '<td class="n">'+esc(r.position)+'</td>'
+            + '<td>'+esc(r.name)+'</td>'
+            + '<td class="n">'+esc(r.played)+'</td>'
+            + '<td class="n">'+esc(r.won)+'</td>'
+            + '<td class="n">'+esc(r.drawn)+'</td>'
+            + '<td class="n">'+esc(r.lost)+'</td>'
+            + '<td class="n">'+esc(r.frames_for)+'</td>'
+            + '<td class="n">'+esc(r.frames_against)+'</td>'
+            + '<td class="n">'+esc(r.points)+'</td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
+
+  // -------------------------------------------------------------- render
+
+  function render(){
+    if(!S.session) return;
+
+    var where = S.session.venue_name || '';
+    if(S.session.table_label) where += (where ? ' · ' : '') + S.session.table_label;
+
+    $('who').innerHTML = esc(S.session.name)
+      + (where ? '<br><span style="color:var(--muted)">'+esc(where)+'</span>' : '');
+
+    renderMatches();
+    renderPeople();
+    renderTable();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(b){
+    b.addEventListener('click', function(){
+      S.tab = b.getAttribute('data-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(o){
+        o.classList.toggle('on', o===b);
+      });
+      ['matches','who','table'].forEach(function(t){ show($('tab-'+t), t===S.tab); });
+    });
+  });
+
+  $('refresh').addEventListener('click', function(){
+    call('comps','mine',{})
+      .then(function(session){ S.session=session; render(); say(''); })
+      .catch(fail);
+  });
+
+  // ----------------------------------------------------------------- boot
+
+  call('comps','mine',{})
+    .then(arrive)
+    .catch(function(){ loadSessions(); });
+})();
+</script>
+</body>
+</html>

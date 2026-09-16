@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.CompsPage"
+             Title="Competition nights">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="900" HorizontalOptions="Start">
+
+            <Label Text="Competition nights" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="Give the player running each group a PIN, publish, and collect their results afterwards. The PIN opens that group only."
+                   FontSize="12" TextColor="#64748B"/>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Competition" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Picker x:Name="CompetitionPicker" FontSize="13" SelectedIndexChanged="OnCompetitionChanged"/>
+                    <Label x:Name="SummaryLabel" FontSize="11" TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Sessions and their PINs -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Text="Groups and rounds" FontAttributes="Bold" FontSize="13" TextColor="#475569"
+                               VerticalOptions="Center"/>
+                        <Button Grid.Column="1" x:Name="FillButton" Text="PIN the blanks" Clicked="OnFillPinsClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                    </Grid>
+
+                    <Label Text="PINs are shown in full so you can pass them on. They are stored in your league data and hashed before being sent."
+                           FontSize="11" TextColor="#94A3B8"/>
+
+                    <Grid ColumnDefinitions="2*,1.6*,1.1*" ColumnSpacing="8" Padding="0,6,0,2">
+                        <Label Text="GROUP / ROUND" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"/>
+                        <Label Grid.Column="1" Text="RUN BY" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"/>
+                        <Label Grid.Column="2" Text="PIN" FontSize="10" FontAttributes="Bold" TextColor="#94A3B8"/>
+                    </Grid>
+
+                    <VerticalStackLayout x:Name="SessionList" Spacing="2"/>
+                    <Label x:Name="NoneLabel" Text="This competition has no groups or unplayed rounds."
+                           FontSize="11" TextColor="#94A3B8" IsVisible="False"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Publish -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Publish" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
+                    <Label Text="Sends the players and matches, with the hashed PINs. Anything without a PIN is left off — it would list the players with no way to open it."
+                           FontSize="11" TextColor="#94A3B8"/>
+                    <Button x:Name="PushButton" Text="Publish this competition" Clicked="OnPushClicked"
+                            BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"
+                            FontSize="13" Margin="0,4,0,0"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- What the website holds -->
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Text="Live on the website" FontAttributes="Bold" FontSize="13" TextColor="#475569"
+                               VerticalOptions="Center"/>
+                        <Button Grid.Column="1" x:Name="RefreshButton" Text="Refresh" Clicked="OnRefreshClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                    </Grid>
+                    <VerticalStackLayout x:Name="LiveList" Spacing="8"/>
+                    <Label x:Name="NoLiveLabel" Text="Nothing published yet." FontSize="11"
+                           TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

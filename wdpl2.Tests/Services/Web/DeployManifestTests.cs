@@ -26,6 +26,7 @@ public class DeployManifestTests
         new LeagueWebModule(),
         new CaptainsWebModule(),
         new ScorecardsWebModule(),
+        new CompsWebModule(),
     };
 
     /// <summary>

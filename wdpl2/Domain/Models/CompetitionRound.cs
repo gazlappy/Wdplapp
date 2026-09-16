@@ -1,4 +1,4 @@
-namespace Wdpl2.Models
+﻿namespace Wdpl2.Models
 {
     /// <summary>
     /// A round in a knockout competition (e.g., Quarter-Finals, Semi-Finals, Final)
@@ -18,6 +18,25 @@ namespace Wdpl2.Models
 
         /// <summary>Scheduled date for this round.</summary>
         public DateTime? Date { get; set; }
+
+        /// <summary>
+        /// The participant nominated to run this round at the venue.
+        /// </summary>
+        /// <remarks>
+        /// Groups have carried this for a while; a knockout round played at a
+        /// venue needs the same person, and for the same reason - somebody has
+        /// to be holding the phone.
+        /// </remarks>
+        public Guid? OrganiserParticipantId { get; set; }
+
+        /// <summary>
+        /// The PIN that opens this round on the website, in plain text.
+        /// </summary>
+        /// <remarks>
+        /// Kept here so the secretary can read it back and pass it on. Only its
+        /// hash is ever published; see <see cref="CompetitionGroup.RunnerPin"/>.
+        /// </remarks>
+        public string? RunnerPin { get; set; }
 
         /// <summary>Venues/tables available for this round.</summary>
         public List<CompetitionVenue> SelectedVenues { get; set; } = new();

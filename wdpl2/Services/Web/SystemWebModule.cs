@@ -27,6 +27,7 @@ public sealed class SystemWebModule : IWebModule
         "api/core/Passwords.php",
         "api/core/Auth.php",
         "api/core/Captain.php",
+        "api/core/Runner.php",
         "api/core/Module.php",
         "api/core/Registry.php",
         "api/core/Schema.php",

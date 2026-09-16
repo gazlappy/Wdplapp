@@ -1,4 +1,4 @@
-namespace Wdpl2.Models
+﻿namespace Wdpl2.Models
 {
     /// <summary>
     /// A group in a group stage competition
@@ -35,6 +35,16 @@ namespace Wdpl2.Models
         /// Marked with a "*" next to their name on the website and in the editor.
         /// </summary>
         public Guid? OrganiserParticipantId { get; set; }
+
+        /// <summary>
+        /// The PIN that opens this group on the website, in plain text.
+        /// </summary>
+        /// <remarks>
+        /// Held in plain so the secretary can read it out to the player running
+        /// the group; only a hash of it is ever sent to the website, the same
+        /// arrangement as a captain's PIN. It opens this group and nothing else.
+        /// </remarks>
+        public string? RunnerPin { get; set; }
 
         /// <summary>Group stage matches (round robin within group)</summary>
         public List<CompetitionMatch> Matches { get; set; } = new();

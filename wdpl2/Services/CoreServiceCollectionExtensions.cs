@@ -29,6 +29,7 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IWebModule, LeagueWebModule>();
         services.AddSingleton<IWebModule, CaptainsWebModule>();
         services.AddSingleton<IWebModule, ScorecardsWebModule>();
+        services.AddSingleton<IWebModule, CompsWebModule>();
 
         services.AddSingleton<WebModuleRegistry>();
         services.AddSingleton<WebDeployService>();
