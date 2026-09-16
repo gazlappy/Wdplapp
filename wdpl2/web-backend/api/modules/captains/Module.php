@@ -397,10 +397,11 @@ final class CaptainsModule implements Module
     /**
      * Allows one captain to act for the other side, and only in solo mode.
      *
-     * Solo is one captain filling in the whole card because the other is not
-     * there. Somebody turning up for the opposition still has to be added, and
-     * the away captain is not present to do it. Outside that, a captain has no
-     * business touching another team's squad.
+     * Solo is one captain entering the whole card because the other captain's
+     * phone cannot get online in that pub. Somebody turning up for the
+     * opposition still has to be added, and the away captain has no working
+     * device to do it with. Outside that, a captain has no business touching
+     * another team's squad.
      */
     private static function requireDrivingFor(string $ownTeamId, string $otherTeamId): void
     {

@@ -671,7 +671,8 @@ button.sm{padding:7px 12px; font-size:13px;}
 
   $('vSolo').addEventListener('click', function(){
     if(!confirm('Hand the borrowed side back?\n\nThe captain filling in both sides gives up the '
-      + 'other team. Do this when they have left and the other captain needs to pick again.')) return;
+      + 'other team. Do this once the other captain can get online again and needs to pick '
+      + 'for themselves.')) return;
 
     call('scorecards','soloClear',{fixtureId:S.viewing})
       .then(function(){ say('Both sides are back with their own captains.','ok'); return loadViewer(); })

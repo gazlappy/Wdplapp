@@ -374,9 +374,10 @@ final class ScorecardsModule implements Module
     /**
      * Hands a solo captain's borrowed side back, on their behalf.
      *
-     * Solo mode is given up by the captain who took it. If they have gone home
-     * with the card still in their name, nobody else can pick for that side and
-     * the match stops - so the league can end it for them.
+     * Solo mode is given up by the captain who took it, normally once the other
+     * captain's phone is working again. If the night ends with the card still
+     * in their name, nobody else can pick for that side - so the league can
+     * hand it back for them.
      */
     public static function soloClear()
     {
