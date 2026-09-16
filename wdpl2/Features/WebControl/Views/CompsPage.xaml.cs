@@ -377,10 +377,15 @@ public partial class CompsPage : ContentPage
             {
                 Text = state.Collected
                     ? $"Collected · {state.Played} of {state.Matches} matches"
-                    : $"{state.Played} of {state.Matches} matches played · {state.Present} here"
-                      + (state.OrganiserName is null ? "" : $" · run by {state.OrganiserName}"),
+                    : state.Finished
+                        ? $"Sent by the organiser · {state.Played} of {state.Matches} played · ready to collect"
+                        : $"{state.Played} of {state.Matches} matches played · {state.Present} here"
+                          + (state.OrganiserName is null ? "" : $" · run by {state.OrganiserName}"),
                 FontSize = 11,
-                TextColor = Color.FromArgb(state.Collected ? "#94A3B8" : "#475569"),
+                FontAttributes = state.Finished && !state.Collected
+                    ? FontAttributes.Bold : FontAttributes.None,
+                TextColor = Color.FromArgb(state.Collected ? "#94A3B8"
+                    : state.Finished ? "#047857" : "#475569"),
             };
 
             var actions = new HorizontalStackLayout { Spacing = 6, VerticalOptions = LayoutOptions.Center };

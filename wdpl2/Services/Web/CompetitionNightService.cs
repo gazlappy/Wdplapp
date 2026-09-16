@@ -45,7 +45,7 @@ public sealed class CompetitionNightService
     public sealed record SessionState(
         Guid Id, Guid CompetitionId, string Competition, string Name, string Kind, Guid RefId,
         string? VenueName, string? OrganiserName, string State,
-        int Matches, int Played, int Present, bool Collected);
+        int Matches, int Played, int Present, bool Finished, bool Collected);
 
     /// <summary>One tie of the knockout that was played on the night.</summary>
     public sealed record CollectedMatch(
@@ -247,6 +247,7 @@ public sealed class CompetitionNightService
                 Int(row, "matches"),
                 Int(row, "played"),
                 Int(row, "present"),
+                Text(row, "finished_at") is not null,
                 Text(row, "collected_at") is not null));
         }
 

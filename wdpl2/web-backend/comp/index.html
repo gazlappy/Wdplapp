@@ -123,6 +123,39 @@ button.sm{padding:7px 11px; font-size:13px;}
 .panel-body{padding:13px 14px;}
 .footer-row{justify-content:center; margin-top:4px;}
 
+/* the end of the night */
+.finish-panel{text-align:center;}
+.finish-panel button{width:100%; max-width:320px; font-size:15px; padding:13px 18px;}
+.finish-note{margin:9px 0 0; font-size:11px; color:var(--muted); line-height:1.5;}
+
+.sent{
+  text-align:center; padding:6px 4px 10px;
+  animation:sent-in .45s cubic-bezier(.2,.9,.3,1.2) both;
+}
+@keyframes sent-in{ from{ opacity:0; transform:translateY(8px) scale(.96);} }
+@media (prefers-reduced-motion:reduce){ .sent{animation:none;} }
+
+.sent .tick{
+  width:64px; height:64px; margin:0 auto 10px; border-radius:50%;
+  background:var(--felt); border:3px solid #34d399;
+  display:flex; align-items:center; justify-content:center;
+  font-size:32px; color:#fff; font-weight:900;
+  box-shadow:0 0 0 8px rgba(13,138,90,.16), 0 10px 26px rgba(0,0,0,.5);
+}
+.sent h3{margin:0 0 4px; font-size:19px; font-weight:900; color:var(--gold);}
+.sent .when{margin:0 0 12px; font-size:11px; color:var(--muted);}
+
+.through-box{
+  border:1px solid rgba(34,197,94,.4); border-radius:var(--radius-sm);
+  background:rgba(13,138,90,.12); padding:11px 12px; margin:0 auto 12px;
+  max-width:340px;
+}
+.through-box .lbl{
+  font-size:10px; font-weight:800; letter-spacing:.7px; text-transform:uppercase;
+  color:var(--muted); display:block; margin-bottom:5px;
+}
+.through-box .who{font-size:15px; font-weight:800; color:var(--win); line-height:1.5;}
+
 /* who turned up */
 .person{
   display:flex; align-items:center; gap:10px; padding:11px 12px;
@@ -355,6 +388,33 @@ tr.top td{color:var(--gold); font-weight:700;}
       </div>
     </section>
 
+    <!-- the end of it -->
+    <section class="panel" id="finishPanel">
+      <header class="panel-head">
+        <span class="step-no">4</span>
+        <div>
+          <h2>Finish</h2>
+          <p class="hint">When every tie is played, send the group to the league.</p>
+        </div>
+      </header>
+      <div class="panel-body finish-panel">
+        <div id="sentBox" class="sent hidden">
+          <div class="tick">&check;</div>
+          <h3>Sent to the league</h3>
+          <p class="when" id="sentWhen"></p>
+          <div class="through-box">
+            <span class="lbl">Through to the next round</span>
+            <div class="who" id="sentThrough"></div>
+          </div>
+        </div>
+
+        <button id="finishBtn" class="go">Finish and send to the league</button>
+        <button id="reopenBtn" class="ghost hidden">Reopen this group</button>
+
+        <p class="finish-note" id="finishNote"></p>
+      </div>
+    </section>
+
     <div class="row footer-row">
       <button id="refresh" class="ghost sm">Refresh</button>
       <button id="signout" class="ghost sm">Sign out</button>
@@ -400,6 +460,24 @@ tr.top td{color:var(--gold); font-weight:700;}
     if(e && e.code==='runner_required'){ signedOut('Signed out. Sign in again.'); return; }
     if(e && e.code==='session_closed'){ say(e.message,'bad'); return; }
     say((e && e.message) || 'Something went wrong.','bad');
+  }
+
+  /**
+   * A server timestamp as the room would say it.
+   *
+   * Deliberately not called `when`: the browser has a global of that name now
+   * (EventTarget.when), and calling it by accident does not fail - it quietly
+   * returns an Observable and prints as [object Observable].
+   */
+  function formatWhen(raw){
+    if(!raw) return '';
+
+    var t = Date.parse(raw.indexOf('T') < 0 ? raw.replace(' ','T') + 'Z' : raw);
+    if(isNaN(t)) return String(raw);
+
+    var d = new Date(t);
+    return d.toLocaleDateString(undefined,{day:'numeric',month:'short'})
+         + ' at ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
   }
 
   function nameOf(id){
@@ -866,7 +944,9 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     $('statHere').textContent = here;
     $('statDrawn').textContent = (S.session && Number(S.session.drawn)===1) ? 'made' : 'to do';
-    $('statPlayed').textContent = played + '/' + matches.length;
+    $('statPlayed').textContent = S.session && S.session.finished_at
+      ? 'sent'
+      : played + '/' + matches.length;
     $('hereTally').textContent = here + ' of ' + players.length;
   }
 
@@ -893,6 +973,7 @@ tr.top td{color:var(--gold); font-weight:700;}
     renderStrip();
     renderPeople();
     renderTree();
+    renderFinish();
 
     var drawn = S.session.drawn !== undefined && Number(S.session.drawn) === 1;
 
@@ -910,6 +991,85 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     showWheel(!drawn || inBag().length > 0);
   }
+
+  // ------------------------------------------------------------- finishing
+
+  /** Who came through, for the note the room reads at the end. */
+  function throughNames(){
+    var rounds = (S.session && S.session.rounds) || [];
+    if(!rounds.length) return [];
+
+    var last = rounds[rounds.length - 1];
+    var names = [];
+
+    last.matches.forEach(function(m){
+      if(Number(m.is_complete)===1 && m.winner_id) names.push(nameOf(m.winner_id) || 'unknown');
+    });
+
+    return names;
+  }
+
+  function renderFinish(){
+    if(!S.session) return;
+
+    var drawn = Number(S.session.drawn) === 1;
+    var matches = S.session.matches || [];
+    var left = matches.filter(function(m){ return Number(m.is_complete)!==1; }).length;
+    var sent = !!S.session.finished_at;
+
+    show($('sentBox'), sent);
+    show($('finishBtn'), !sent);
+    show($('reopenBtn'), sent);
+
+    if(sent){
+      $('sentWhen').textContent = 'Sent ' + formatWhen(S.session.finished_at)
+        + '. The league will collect it into the records.';
+
+      var names = throughNames();
+      $('sentThrough').textContent = names.length ? names.join(' \u00b7 ') : 'nobody yet';
+      $('finishNote').textContent = 'Nothing more can be entered unless you reopen it.';
+      return;
+    }
+
+    $('finishBtn').disabled = !drawn || left > 0;
+
+    $('finishNote').textContent = !drawn
+      ? 'Make the draw first.'
+      : (left > 0
+          ? left + ' tie' + (left===1?'':'s') + ' still to play.'
+          : 'Every tie is played. Send it and the night is done.');
+  }
+
+  $('finishBtn').addEventListener('click', function(){
+    var names = throughNames();
+
+    if(!window.confirm('Send this group to the league?\n\n'
+      + (names.length ? 'Through: ' + names.join(', ') + '\n\n' : '')
+      + 'Nothing more can be entered unless you reopen it.')) return;
+
+    $('finishBtn').disabled = true;
+
+    call('comps','finish',{})
+      .then(function(session){
+        S.session = session;
+        render();
+        say('Sent. That is the group done \u2014 thanks.','ok');
+      })
+      .catch(function(e){ fail(e); renderFinish(); });
+  });
+
+  $('reopenBtn').addEventListener('click', function(){
+    if(!window.confirm('Reopen this group?\n\nIt goes back to the league as unfinished '
+      + 'until you send it again.')) return;
+
+    call('comps','reopen',{})
+      .then(function(session){
+        S.session = session;
+        render();
+        say('Reopened. Send it again when you are done.','warn');
+      })
+      .catch(fail);
+  });
 
   $('refresh').addEventListener('click', function(){
     call('comps','mine',{})

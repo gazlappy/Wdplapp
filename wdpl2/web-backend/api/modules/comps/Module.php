@@ -28,7 +28,7 @@ final class CompsModule implements Module
 
     public static function title(): string { return 'Competition nights'; }
 
-    public static function schemaVersion(): int { return 3; }
+    public static function schemaVersion(): int { return 4; }
 
     public static function tables(): array
     {
@@ -54,6 +54,7 @@ final class CompsModule implements Module
                 drawn          TINYINT(1)   NOT NULL DEFAULT 0,
                 bracket_size   INT          NOT NULL DEFAULT 0,
                 places         INT          NOT NULL DEFAULT 1,
+                finished_at    DATETIME     NULL,
                 updated_at     DATETIME     NOT NULL,
                 PRIMARY KEY (id),
                 KEY idx_comp_session_comp (competition_id),
@@ -96,6 +97,11 @@ final class CompsModule implements Module
             "ALTER TABLE wdpl_comp_sessions
                 ADD COLUMN IF NOT EXISTS places INT NOT NULL DEFAULT 1",
 
+            // When the player running it says the group is done. The league has
+            // not taken the results yet, so it is a handover rather than an end.
+            "ALTER TABLE wdpl_comp_sessions
+                ADD COLUMN IF NOT EXISTS finished_at DATETIME NULL",
+
             "ALTER TABLE wdpl_comp_players
                 ADD COLUMN IF NOT EXISTS draw_no INT NULL",
 
@@ -120,8 +126,10 @@ final class CompsModule implements Module
             'logout'   => ['role' => Role::Public, 'fn' => [self::class, 'logout']],
 
             // The player running it
-            'mine'  => ['role' => Role::Runner, 'fn' => [self::class, 'mine']],
-            'apply' => ['role' => Role::Runner, 'fn' => [self::class, 'apply']],
+            'mine'   => ['role' => Role::Runner, 'fn' => [self::class, 'mine']],
+            'apply'  => ['role' => Role::Runner, 'fn' => [self::class, 'apply']],
+            'finish' => ['role' => Role::Runner, 'fn' => [self::class, 'finish']],
+            'reopen' => ['role' => Role::Runner, 'fn' => [self::class, 'reopen']],
         ];
     }
 
@@ -305,7 +313,7 @@ final class CompsModule implements Module
         return Db::all(
             "SELECT s.id, s.competition_id, s.competition, s.name, s.kind, s.ref_id,
                     s.venue_name, s.table_label, s.organiser_name, s.state, s.version,
-                    s.collected_at, s.updated_at,
+                    s.finished_at, s.collected_at, s.updated_at,
                     (SELECT COUNT(*) FROM wdpl_comp_matches m WHERE m.session_id = s.id) AS matches,
                     (SELECT COUNT(*) FROM wdpl_comp_matches m
                       WHERE m.session_id = s.id AND m.is_complete = 1) AS played,
@@ -455,6 +463,10 @@ final class CompsModule implements Module
             if ($session['state'] !== self::STATE_OPEN) {
                 throw new ApiError(409, 'session_closed',
                     'The league has closed this group. Nothing more can be entered.');
+            }
+            if ($session['finished_at'] !== null) {
+                throw new ApiError(409, 'session_finished',
+                    'This group has been sent to the league. Reopen it to change anything.');
             }
             if ((int)$session['version'] !== (int)$expected) {
                 throw new ApiConflict(self::read($sessionId),
@@ -769,6 +781,86 @@ final class CompsModule implements Module
         }
     }
 
+    /**
+     * The player running it says the group is done.
+     *
+     * An end to the night rather than a state change nobody sees: the card
+     * locks, the league is told it is ready, and the room gets an answer
+     * instead of a page that looks the same as it did an hour ago.
+     *
+     * Ties still to play are refused. A group sent half-finished reads as
+     * complete to everyone downstream, and the only person who knows otherwise
+     * has gone home.
+     */
+    public static function finish()
+    {
+        $sessionId = Runner::requireSessionId();
+
+        return Db::transaction(function () use ($sessionId) {
+            $session = Db::lockRow('wdpl_comp_sessions', 'id', $sessionId);
+            if ($session === null) {
+                throw new ApiError(404, 'no_session', 'This group is no longer published.');
+            }
+            if ($session['state'] !== self::STATE_OPEN) {
+                throw new ApiError(409, 'session_closed', 'The league has closed this group.');
+            }
+            if ((int)$session['drawn'] !== 1) {
+                throw new ApiError(409, 'not_drawn', 'The group has not been drawn yet.');
+            }
+
+            $unplayed = Db::one(
+                'SELECT COUNT(*) AS n FROM wdpl_comp_matches
+                  WHERE session_id = ? AND is_complete = 0',
+                [$sessionId]
+            );
+
+            if ($unplayed !== null && (int)$unplayed['n'] > 0) {
+                throw new ApiError(409, 'ties_left',
+                    (int)$unplayed['n'] . ' tie(s) still have no result. Finish those first.');
+            }
+
+            if ($session['finished_at'] === null) {
+                Db::query(
+                    'UPDATE wdpl_comp_sessions
+                        SET finished_at = UTC_TIMESTAMP(), version = version + 1,
+                            updated_at = UTC_TIMESTAMP()
+                      WHERE id = ?',
+                    [$sessionId]
+                );
+            }
+
+            return self::read($sessionId);
+        });
+    }
+
+    /** Takes a sent group back, while the league has still not collected it. */
+    public static function reopen()
+    {
+        $sessionId = Runner::requireSessionId();
+
+        return Db::transaction(function () use ($sessionId) {
+            $session = Db::lockRow('wdpl_comp_sessions', 'id', $sessionId);
+            if ($session === null) {
+                throw new ApiError(404, 'no_session', 'This group is no longer published.');
+            }
+            if ($session['state'] !== self::STATE_OPEN) {
+                throw new ApiError(409, 'session_closed',
+                    'The league has already taken this group.');
+            }
+
+            if ($session['finished_at'] !== null) {
+                Db::query(
+                    'UPDATE wdpl_comp_sessions
+                        SET finished_at = NULL, version = version + 1, updated_at = UTC_TIMESTAMP()
+                      WHERE id = ?',
+                    [$sessionId]
+                );
+            }
+
+            return self::read($sessionId);
+        });
+    }
+
     // ----------------------------------------------------------------- reading
 
     private static function read(string $sessionId): array
@@ -776,7 +868,7 @@ final class CompsModule implements Module
         $session = Db::one(
             'SELECT id, competition_id, competition, name, kind, ref_id, venue_name, table_label,
                     organiser_name, best_of, frames_to_win, allow_order, places, state, version,
-                    drawn, bracket_size, collected_at, updated_at
+                    drawn, bracket_size, finished_at, collected_at, updated_at
              FROM wdpl_comp_sessions WHERE id = ?',
             [$sessionId]
         );
