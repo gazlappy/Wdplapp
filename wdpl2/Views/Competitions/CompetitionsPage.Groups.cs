@@ -249,7 +249,7 @@ public partial class CompetitionsPage
     /// shows what it produced. Without it a collected group looks empty - the
     /// results are there, but the editor only knows how to ask who got through.
     /// </remarks>
-    private View BuildGroupKnockout(CompetitionGroup group, CompetitionFormat format)
+    private View BuildGroupKnockout(CompetitionGroup group, CompetitionFormat format, int places)
     {
         var layout = new VerticalStackLayout { Spacing = 0, Padding = new Thickness(10, 8) };
 
@@ -290,12 +290,16 @@ public partial class CompetitionsPage
             }
         }
 
-        var winner = KnockoutGroup.Winner(group);
-        if (winner.HasValue)
+        var through = KnockoutGroup.Through(group, places);
+        if (through.Count > 0)
         {
+            var who = string.Join(" and ", through.Select(id => GetParticipantName(id, format) ?? "?"));
+
             layout.Children.Add(new Label
             {
-                Text = $"\U0001F3C6 {GetParticipantName(winner.Value, format)} wins the group",
+                Text = through.Count == 1
+                    ? $"\U0001F3C6 {who} wins the group"
+                    : $"\U0001F3C6 {who} go through",
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold,
                 TextColor = Color.FromArgb("#047857"),
@@ -376,11 +380,20 @@ public partial class CompetitionsPage
 
     private View CreateGroupSelectionView(CompetitionGroup group, CompetitionFormat format, int topAdvance, bool editable = true)
     {
-        // Track which participants are selected as winners
+        // Track which participants are selected as winners.
         var selectedIds = new HashSet<Guid>(
             group.Standings
                 .Where(s => s.Position > 0 && s.Position <= topAdvance)
                 .Select(s => s.ParticipantId));
+
+        // A group played as a knockout answered this on the table, so its boxes
+        // are ticked from the tree rather than waiting to be ticked by hand.
+        // Only when nobody is marked yet: a selection already made by hand is
+        // the secretary's, and overruling it would undo a withdrawal.
+        if (selectedIds.Count == 0 && KnockoutGroup.IsKnockout(group))
+        {
+            selectedIds = new HashSet<Guid>(KnockoutGroup.Through(group, topAdvance));
+        }
 
         var headerBorder = new Border
         {
@@ -393,12 +406,10 @@ public partial class CompetitionsPage
         // header reports the result rather than asking for a selection that has
         // already been made on the table.
         bool isKnockout = KnockoutGroup.IsKnockout(group);
-        int decided = isKnockout ? KnockoutGroup.PlacesDecided(group) : 0;
-
         int selected = selectedIds.Count;
 
         var headerText = isKnockout
-            ? $"{group.Name} ({group.ParticipantIds.Count} players) — knockout, {decided}/{topAdvance} decided"
+            ? $"{group.Name} ({group.ParticipantIds.Count} players) — knockout, {selected}/{topAdvance} through"
             : $"{group.Name} ({group.ParticipantIds.Count} players) — {selected}/{topAdvance} selected";
 
         var headerStack = new VerticalStackLayout { Spacing = 2 };
@@ -448,12 +459,12 @@ public partial class CompetitionsPage
         // A knockout that cannot fill the places asked of it is worth saying out
         // loud: the losing semi-finalists never met, so there is no third place
         // without another match being played.
-        if (isKnockout && decided > 0 && decided < topAdvance)
+        if (isKnockout && selected > 0 && selected < topAdvance)
         {
             headerStack.Children.Add(new Label
             {
-                Text = $"A knockout decides {decided} place(s). Set this competition to "
-                     + $"{decided} through per group, or play off for the rest.",
+                Text = $"A knockout decides {selected} place(s). Set this competition to "
+                     + $"{selected} through per group, or play off for the rest.",
                 TextColor = Color.FromArgb("#FEF3C7"),
                 FontSize = 11,
             });
@@ -465,7 +476,7 @@ public partial class CompetitionsPage
 
         if (isKnockout)
         {
-            playersLayout.Children.Add(BuildGroupKnockout(group, format));
+            playersLayout.Children.Add(BuildGroupKnockout(group, format, topAdvance));
         }
 
         foreach (var participantId in group.ParticipantIds)

@@ -144,7 +144,13 @@ tr.top td{color:var(--gold); font-weight:700;}
 .wheelwrap{position:relative; width:min(78vw,300px); margin:6px auto 12px; aspect-ratio:1;}
 .wheelwrap svg{width:100%; height:100%; display:block;
   filter:drop-shadow(0 10px 26px rgba(0,0,0,.55));}
-#wheelSpin{transition:transform 4s cubic-bezier(.12,.72,.12,1);}
+#wheelSpin{
+  /* The rotation is a CSS transform, not the SVG attribute: mixing the two
+     leaves the browser spinning about the group's bounding box rather than the
+     middle of the wheel, which looks like it is wobbling off its axle. */
+  transform-box:fill-box; transform-origin:center;
+  transition:transform 4s cubic-bezier(.12,.72,.12,1);
+}
 .needle{
   position:absolute; top:-2px; left:50%; transform:translateX(-50%);
   width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent;
@@ -251,7 +257,7 @@ tr.top td{color:var(--gold); font-weight:700;}
         <div class="wheelwrap" id="wheelWrap">
           <div class="needle"></div>
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <g id="wheelSpin" transform="rotate(0 100 100)"></g>
+            <g id="wheelSpin"></g>
           </svg>
           <div class="hub" id="wheelHub">8</div>
         </div>
@@ -526,11 +532,11 @@ tr.top td{color:var(--gold); font-weight:700;}
     var centre = at*step + step/2;
 
     // Land the segment's middle under the needle, after a few whole turns.
-    var target = S.spin + 360*4 + (360 - centre - (S.spin % 360));
+    var target = 360*4 + (360 - centre);
     S.spin = target;
 
     var g = $('wheelSpin');
-    g.setAttribute('transform', 'rotate(' + target.toFixed(2) + ' 100 100)');
+    g.style.transform = 'rotate(' + target.toFixed(2) + 'deg)';
 
     var settled = false;
     function land(){
@@ -543,8 +549,16 @@ tr.top td{color:var(--gold); font-weight:700;}
       $('wheelHub').textContent = player.draw_no;
 
       renderSheet();
+
+      // Redrawn without the name just taken, back at zero. The transition is
+      // suppressed for that step or the wheel would unwind the whole way.
+      g.style.transition = 'none';
+      g.style.transform = 'rotate(0deg)';
       drawWheel();
-      g.setAttribute('transform', 'rotate(0 100 100)');
+      void g.getBoundingClientRect();
+      g.style.transition = '';
+
+      S.spin = 0;
       done();
     }
 

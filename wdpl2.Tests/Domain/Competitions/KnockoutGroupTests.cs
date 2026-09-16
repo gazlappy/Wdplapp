@@ -1,4 +1,4 @@
-using Wdpl2.Domain.Competitions;
+﻿using Wdpl2.Domain.Competitions;
 using Wdpl2.Models;
 
 namespace wdpl2.Tests;
@@ -175,5 +175,34 @@ public class KnockoutGroupTests
 
         // Nothing to derive from, so the table it was given stands.
         Assert.Same(group.Standings, KnockoutGroup.Standings(group));
+    }
+
+    [Fact]
+    public void TwoGoThroughWhenTheCompetitionAsksForTwo()
+    {
+        // The league's own setup: eight groups, two through from each.
+        var through = KnockoutGroup.Through(Finished(), places: 2);
+
+        Assert.Equal(new[] { Ann, Cal }, through);
+    }
+
+    [Fact]
+    public void OnlyTheWinnerGoesThroughWhenTheCompetitionAsksForOne()
+    {
+        Assert.Equal(new[] { Ann }, KnockoutGroup.Through(Finished(), places: 1));
+    }
+
+    [Fact]
+    public void AskingForMoreThanAKnockoutDecidesGivesWhatItHas()
+    {
+        // Beyond the two finalists there is nothing to say, so it stops rather
+        // than padding the list with players who never met.
+        Assert.Equal(new[] { Ann, Cal }, KnockoutGroup.Through(Finished(), places: 4));
+    }
+
+    [Fact]
+    public void NobodyGoesThroughBeforeTheFinalIsPlayed()
+    {
+        Assert.Empty(KnockoutGroup.Through(Finished(finalPlayed: false), places: 2));
     }
 }

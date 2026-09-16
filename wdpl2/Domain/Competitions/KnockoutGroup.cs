@@ -1,4 +1,4 @@
-using Wdpl2.Models;
+﻿using Wdpl2.Models;
 
 namespace Wdpl2.Domain.Competitions;
 
@@ -61,6 +61,25 @@ public static class KnockoutGroup
     {
         if (Winner(group) is null) return 0;
         return RunnerUp(group) is null ? 1 : 2;
+    }
+
+    /// <summary>
+    /// Who goes through to the next draw, best first.
+    /// </summary>
+    /// <remarks>
+    /// Read off the tree rather than out of the stored standings, so a group
+    /// collected by an older build - or one whose table was left over from when
+    /// it was a round robin - still shows the right people as through.
+    /// </remarks>
+    public static List<Guid> Through(CompetitionGroup group, int places)
+    {
+        var through = new List<Guid>();
+        if (places < 1) return through;
+
+        if (Winner(group) is { } winner) through.Add(winner);
+        if (through.Count < places && RunnerUp(group) is { } runnerUp) through.Add(runnerUp);
+
+        return through;
     }
 
     /// <summary>
