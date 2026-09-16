@@ -1,24 +1,32 @@
-﻿using Wdpl2.Models;
+using Wdpl2.Models;
 using Wdpl2.Services;
 
 namespace wdpl2.Tests;
 
 /// <summary>
-/// A group drawn out and played as a knockout has to reach the website as one.
+/// What a knockout group publishes: who came through, and not the ties.
 /// </summary>
 /// <remarks>
-/// The night is run on the website and collected back into the app, and the app
-/// is what publishes. If the generator only knew how to draw a league table, the
-/// competition people played would not be the one they could read afterwards.
+/// The competitions page says where a competition stands. The ties themselves
+/// belong on the card that was played — listing every scoreline for eight
+/// groups buries the one thing anybody came to the page to read.
 /// </remarks>
 public class KnockoutGroupPublishTests
 {
     private static readonly Guid Ann = Guid.NewGuid();
     private static readonly Guid Bob = Guid.NewGuid();
     private static readonly Guid Cal = Guid.NewGuid();
+    private static readonly Guid Dee = Guid.NewGuid();
 
-    /// <summary>A season with one competition, one group, played as a knockout.</summary>
-    private static (LeagueData League, WebsiteSettings Settings) Played(bool finished = true)
+    /// <summary>
+    /// A season with one group, played as a knockout.
+    /// </summary>
+    /// <param name="oneRound">
+    /// True for the shape a group takes when two go through: a single round of
+    /// two ties, no final, and two qualifiers.
+    /// </param>
+    private static (LeagueData League, WebsiteSettings Settings) Played(
+        bool oneRound = true, bool finished = true, int through = 2)
     {
         var seasonId = Guid.NewGuid();
         var league = new LeagueData();
@@ -27,37 +35,43 @@ public class KnockoutGroupPublishTests
         league.Players.Add(new Player { Id = Ann, FirstName = "Ann", LastName = "Reid", SeasonId = seasonId });
         league.Players.Add(new Player { Id = Bob, FirstName = "Bob", LastName = "Crane", SeasonId = seasonId });
         league.Players.Add(new Player { Id = Cal, FirstName = "Cal", LastName = "Dow", SeasonId = seasonId });
+        league.Players.Add(new Player { Id = Dee, FirstName = "Dee", LastName = "Marsh", SeasonId = seasonId });
 
         var group = new CompetitionGroup
         {
             Name = "Group A",
             GroupNumber = 1,
             GroupRound = 1,
-            ParticipantIds = { Ann, Bob, Cal },
-            DrawOrder = { Ann, Cal, Bob },
+            ParticipantIds = { Ann, Bob, Cal, Dee },
+            DrawOrder = { Ann, Cal, Bob, Dee },
         };
 
-        // Ann drawn first and Bob third, so they meet; Cal drawn second has a bye.
         group.Matches.Add(new CompetitionMatch
         {
             RoundNumber = 1, Slot = 0,
             Participant1Id = Ann, Participant2Id = Bob,
-            Participant1Score = 2, Participant2Score = 1,
-            WinnerId = Ann, IsComplete = true,
+            Participant1Score = finished ? 2 : 0, Participant2Score = finished ? 1 : 0,
+            WinnerId = finished ? Ann : null, IsComplete = finished,
         });
         group.Matches.Add(new CompetitionMatch
         {
             RoundNumber = 1, Slot = 1,
-            Participant1Id = Cal, Participant2Id = null,
-            WinnerId = Cal, IsComplete = true,
-        });
-        group.Matches.Add(new CompetitionMatch
-        {
-            RoundNumber = 2, Slot = 0,
-            Participant1Id = Ann, Participant2Id = Cal,
+            Participant1Id = Cal, Participant2Id = Dee,
             Participant1Score = finished ? 2 : 0, Participant2Score = 0,
-            WinnerId = finished ? Ann : null, IsComplete = finished,
+            WinnerId = finished ? Cal : null, IsComplete = finished,
         });
+
+        if (!oneRound)
+        {
+            // Played on to a final, which is what happens when one goes through.
+            group.Matches.Add(new CompetitionMatch
+            {
+                RoundNumber = 2, Slot = 0,
+                Participant1Id = Ann, Participant2Id = Cal,
+                Participant1Score = finished ? 2 : 0, Participant2Score = 0,
+                WinnerId = finished ? Ann : null, IsComplete = finished,
+            });
+        }
 
         var competition = new Competition
         {
@@ -68,6 +82,7 @@ public class KnockoutGroupPublishTests
             BestOf = 3,
             ShowOnWebsite = true,
             Status = CompetitionStatus.InProgress,
+            GroupSettings = new GroupStageSettings { NumberOfGroups = 1, TopPlayersAdvance = through },
         };
         competition.Groups.Add(group);
         league.Competitions.Add(competition);
@@ -93,7 +108,62 @@ public class KnockoutGroupPublishTests
     }
 
     [Fact]
-    public void ThePublishedPageShowsTheTiesThatWerePlayed()
+    public void BothQualifiersAreMarkedThrough()
+    {
+        var (league, settings) = Played();
+
+        var html = CompetitionsPage(league, settings);
+
+        // A single round has no final, so reading the winner off one would have
+        // marked nobody at all.
+        Assert.Equal(2, Occurrences(html, "Through</span>"));
+    }
+
+    [Fact]
+    public void AGroupPlayedToAFinalStillMarksItsWinnerAndRunnerUp()
+    {
+        var (league, settings) = Played(oneRound: false);
+
+        var html = CompetitionsPage(league, settings);
+
+        Assert.Equal(2, Occurrences(html, "Through</span>"));
+    }
+
+    [Fact]
+    public void OnlyTheWinnerIsMarkedWhenOneGoesThrough()
+    {
+        var (league, settings) = Played(oneRound: false, through: 1);
+
+        var html = CompetitionsPage(league, settings);
+
+        Assert.Equal(1, Occurrences(html, "Through</span>"));
+    }
+
+    [Fact]
+    public void NobodyIsMarkedUntilTheRoundIsPlayed()
+    {
+        var (league, settings) = Played(finished: false);
+
+        var html = CompetitionsPage(league, settings);
+
+        Assert.DoesNotContain("Through</span>", html);
+    }
+
+    [Fact]
+    public void TheTiesThemselvesAreNotListed()
+    {
+        var (league, settings) = Played();
+
+        var html = CompetitionsPage(league, settings);
+
+        // The scoreline of a tie that was played. Its absence is the point:
+        // eight groups of these is what made the page unreadable.
+        Assert.DoesNotContain("2&ndash;1", html);
+        Assert.DoesNotContain("Semi-finals", html);
+    }
+
+    [Fact]
+    public void ThePlayersAreStillNamed()
     {
         var (league, settings) = Played();
 
@@ -102,52 +172,7 @@ public class KnockoutGroupPublishTests
         Assert.Contains("Ann Reid", html);
         Assert.Contains("Bob Crane", html);
         Assert.Contains("Cal Dow", html);
-
-        // The scoreline of the tie they actually played.
-        Assert.Contains("2&ndash;1", html);
-    }
-
-    [Fact]
-    public void RoundsAreNamedCountingBackFromTheFinal()
-    {
-        var (league, settings) = Played();
-
-        var html = CompetitionsPage(league, settings);
-
-        Assert.Contains("Final", html);
-        Assert.Contains("Semi-finals", html);
-    }
-
-    [Fact]
-    public void AByeIsShownAsOne()
-    {
-        var (league, settings) = Played();
-
-        var html = CompetitionsPage(league, settings);
-
-        Assert.Contains("bye", html);
-    }
-
-    [Fact]
-    public void TheWinnerOfTheGroupIsMarkedThrough()
-    {
-        var (league, settings) = Played();
-
-        var html = CompetitionsPage(league, settings);
-
-        // The badge's text, not its class: the class also appears in the page's
-        // own CSS, so matching it would pass whether anybody was marked or not.
-        Assert.Contains("Through</span>", html);
-    }
-
-    [Fact]
-    public void NobodyIsMarkedThroughUntilTheFinalIsPlayed()
-    {
-        var (league, settings) = Played(finished: false);
-
-        var html = CompetitionsPage(league, settings);
-
-        Assert.DoesNotContain("Through</span>", html);
+        Assert.Contains("Dee Marsh", html);
     }
 
     [Fact]
@@ -159,5 +184,19 @@ public class KnockoutGroupPublishTests
 
         // "Pts" is the giveaway column of the round-robin table.
         Assert.DoesNotContain("<th>Pts</th>", html);
+    }
+
+    private static int Occurrences(string haystack, string needle)
+    {
+        var count = 0;
+        var at = 0;
+
+        while ((at = haystack.IndexOf(needle, at, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            at += needle.Length;
+        }
+
+        return count;
     }
 }
