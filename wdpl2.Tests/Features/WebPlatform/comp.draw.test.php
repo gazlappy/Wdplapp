@@ -191,6 +191,69 @@ test('one player or none is not a knockout', function () {
     same([], CompDraw::tree(CompDraw::place([])));
 });
 
+// ------------------------------------------- playing only as far as needed
+
+echo "\nHow far the group is played\n";
+
+test('four players with two through is one round', function () {
+    // The league's own case: nothing is gained by playing a final between two
+    // players who have both already qualified.
+    $tree = CompDraw::tree(CompDraw::place(drawn(4)), 2);
+
+    same(1, count($tree), 'should stop after one round');
+    same(2, count($tree[0]), 'two ties, and both winners go through');
+});
+
+test('four players with one through plays the final', function () {
+    $tree = CompDraw::tree(CompDraw::place(drawn(4)), 1);
+
+    same(2, count($tree));
+    same(1, count($tree[1]), 'a final');
+});
+
+test('eight players with two through is two rounds', function () {
+    $tree = CompDraw::tree(CompDraw::place(drawn(8)), 2);
+
+    same(2, count($tree));
+    same(4, count($tree[0]));
+    same(2, count($tree[1]), 'the last round leaves the two who go through');
+});
+
+test('the rounds needed are counted the same way', function () {
+    same(1, CompDraw::roundsNeeded(4, 2));
+    same(2, CompDraw::roundsNeeded(4, 1));
+    same(2, CompDraw::roundsNeeded(8, 2));
+    same(3, CompDraw::roundsNeeded(8, 1));
+    same(0, CompDraw::roundsNeeded(2, 2), 'two players and two through is no match at all');
+});
+
+test('a bye still carries into a shortened tree', function () {
+    // Three players, two through: one round, and the odd one out has a bye.
+    $tree = CompDraw::tree(CompDraw::place(drawn(3)), 2);
+
+    same(1, count($tree));
+
+    $byes = 0;
+    foreach ($tree[0] as $tie) {
+        if ($tie['p1'] === null || $tie['p2'] === null) {
+            $byes++;
+            check($tie['complete'], 'a bye should be settled');
+        }
+    }
+    same(1, $byes);
+});
+
+test('rounds are named for what is at stake', function () {
+    // Playing to a winner: the old names still apply.
+    same('Final', CompDraw::roundName(3, 3, 1));
+    same('Semi-finals', CompDraw::roundName(2, 3, 1));
+
+    // Playing to two qualifiers: the last round is not a final, so borrowing
+    // the name would tell the room something untrue.
+    same('Round 2 - winners go through', CompDraw::roundName(2, 2, 2));
+    same('Round 1', CompDraw::roundName(1, 2, 2));
+});
+
 echo "\n";
 echo $failed === 0 ? "PASS  {$passed} checks\n" : "FAIL  {$failed} failed, {$passed} passed\n";
 exit($failed === 0 ? 0 : 1);

@@ -86,19 +86,27 @@ final class CompDraw
      * A first-round match against a bye is settled immediately - there is nobody
      * to play, and making someone press a button to say so helps no one.
      *
-     * @param  array $slots from {@see place()}
+     * A group is only played as far as it has to be. If two go through and
+     * four turned up, that is one round of two ties and both winners are
+     * through - there is nothing to be gained by playing a final between two
+     * players who have both already qualified.
+     *
+     * @param  array $slots  from {@see place()}
+     * @param  int   $places how many go through to the next stage
      * @return array rounds, each a list of ['p1' => id|null, 'p2' => id|null,
      *               'winner' => id|null, 'complete' => bool]
      */
-    public static function tree(array $slots): array
+    public static function tree(array $slots, int $places = 1): array
     {
         $count = count($slots);
         if ($count < 2) return [];
 
+        $places = max(1, $places);
+
         $rounds = [];
         $current = $slots;
 
-        while (count($current) >= 2) {
+        while (count($current) >= 2 && count($current) > $places) {
             $round = [];
             $next = [];
 
@@ -133,18 +141,44 @@ final class CompDraw
     }
 
     /**
-     * What a round is called, counting back from the final.
+     * What a round is called.
+     *
+     * Only a group played down to a single winner has a final, a semi-final and
+     * so on. When two go through, the last round decides who qualifies rather
+     * than who wins, so borrowing those names would say something untrue about
+     * what is at stake.
      */
-    public static function roundName(int $roundNumber, int $totalRounds): string
+    public static function roundName(int $roundNumber, int $totalRounds, int $places = 1): string
     {
-        $fromEnd = $totalRounds - $roundNumber;
+        if ($places > 1) {
+            return $roundNumber === $totalRounds
+                ? 'Round ' . $roundNumber . ' - winners go through'
+                : 'Round ' . $roundNumber;
+        }
 
-        switch ($fromEnd) {
+        switch ($totalRounds - $roundNumber) {
             case 0:  return 'Final';
             case 1:  return 'Semi-finals';
             case 2:  return 'Quarter-finals';
             default: return 'Round ' . $roundNumber;
         }
+    }
+
+    /**
+     * How many rounds a field of this size plays to leave $places standing.
+     */
+    public static function roundsNeeded(int $bracketSize, int $places): int
+    {
+        $rounds = 0;
+        $left = $bracketSize;
+        $places = max(1, $places);
+
+        while ($left >= 2 && $left > $places) {
+            $left = intdiv($left, 2);
+            $rounds++;
+        }
+
+        return $rounds;
     }
 
     /**

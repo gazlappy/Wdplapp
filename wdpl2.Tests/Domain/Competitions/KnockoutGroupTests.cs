@@ -205,4 +205,80 @@ public class KnockoutGroupTests
     {
         Assert.Empty(KnockoutGroup.Through(Finished(finalPlayed: false), places: 2));
     }
+
+    // ------------------------------------ a group played only as far as it must
+
+    /// <summary>
+    /// Four players, two through: one round of two ties, and that is the lot.
+    /// </summary>
+    private static CompetitionGroup OneRound(bool played = true)
+    {
+        var group = new CompetitionGroup
+        {
+            Name = "Group A",
+            ParticipantIds = { Ann, Bob, Cal, Dee },
+            DrawOrder = { Ann, Cal, Bob, Dee },
+        };
+
+        group.Matches.Add(new CompetitionMatch
+        {
+            RoundNumber = 1, Slot = 0,
+            Participant1Id = Ann, Participant2Id = Bob,
+            Participant1Score = played ? 2 : 0, Participant2Score = played ? 1 : 0,
+            WinnerId = played ? Ann : null, IsComplete = played,
+        });
+        group.Matches.Add(new CompetitionMatch
+        {
+            RoundNumber = 1, Slot = 1,
+            Participant1Id = Cal, Participant2Id = Dee,
+            Participant1Score = played ? 2 : 0, Participant2Score = played ? 0 : 0,
+            WinnerId = played ? Cal : null, IsComplete = played,
+        });
+
+        return group;
+    }
+
+    [Fact]
+    public void BothWinnersOfASingleRoundGoThrough()
+    {
+        // Four players and two through is one round. Nobody plays a final, so
+        // there is no winner of the group - there are two qualifiers.
+        Assert.Equal(new[] { Ann, Cal }, KnockoutGroup.Through(OneRound(), places: 2));
+    }
+
+    [Fact]
+    public void ASingleRoundHasNoGroupWinner()
+    {
+        var group = OneRound();
+
+        Assert.Null(KnockoutGroup.Winner(group));
+        Assert.Null(KnockoutGroup.RunnerUp(group));
+        Assert.Equal(2, KnockoutGroup.PlacesDecided(group));
+    }
+
+    [Fact]
+    public void NobodyGoesThroughUntilBothTiesArePlayed()
+    {
+        var group = OneRound();
+        group.Matches[1].IsComplete = false;
+        group.Matches[1].WinnerId = null;
+
+        Assert.Equal(0, KnockoutGroup.PlacesDecided(group));
+        Assert.Equal(new[] { Ann }, KnockoutGroup.Through(group, places: 2));
+    }
+
+    [Fact]
+    public void StandingsOfASingleRoundPlaceBothQualifiers()
+    {
+        var standings = KnockoutGroup.Standings(OneRound());
+
+        Assert.Equal(Ann, standings[0].ParticipantId);
+        Assert.Equal(1, standings[0].Position);
+
+        Assert.Equal(Cal, standings[1].ParticipantId);
+        Assert.Equal(2, standings[1].Position);
+
+        // The two who went out are unplaced; they never met.
+        Assert.All(standings.Skip(2), r => Assert.Equal(0, r.Position));
+    }
 }

@@ -28,7 +28,7 @@ final class CompsModule implements Module
 
     public static function title(): string { return 'Competition nights'; }
 
-    public static function schemaVersion(): int { return 2; }
+    public static function schemaVersion(): int { return 3; }
 
     public static function tables(): array
     {
@@ -53,6 +53,7 @@ final class CompsModule implements Module
                 collected_at   DATETIME     NULL,
                 drawn          TINYINT(1)   NOT NULL DEFAULT 0,
                 bracket_size   INT          NOT NULL DEFAULT 0,
+                places         INT          NOT NULL DEFAULT 1,
                 updated_at     DATETIME     NOT NULL,
                 PRIMARY KEY (id),
                 KEY idx_comp_session_comp (competition_id),
@@ -89,6 +90,11 @@ final class CompsModule implements Module
             "ALTER TABLE wdpl_comp_sessions
                 ADD COLUMN IF NOT EXISTS drawn TINYINT(1) NOT NULL DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS bracket_size INT NOT NULL DEFAULT 0",
+
+            // How many go through. A group is played only as far as it has to
+            // be, so this decides how many rounds the draw produces.
+            "ALTER TABLE wdpl_comp_sessions
+                ADD COLUMN IF NOT EXISTS places INT NOT NULL DEFAULT 1",
 
             "ALTER TABLE wdpl_comp_players
                 ADD COLUMN IF NOT EXISTS draw_no INT NULL",
@@ -175,14 +181,15 @@ final class CompsModule implements Module
                     "INSERT INTO wdpl_comp_sessions
                         (id, competition_id, season_id, kind, ref_id, competition, name,
                          venue_name, table_label, organiser_name, best_of, frames_to_win,
-                         allow_order, pin_hash, state, version, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, UTC_TIMESTAMP())
+                         allow_order, places, pin_hash, state, version, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, UTC_TIMESTAMP())
                      ON DUPLICATE KEY UPDATE
                         season_id = VALUES(season_id), kind = VALUES(kind), ref_id = VALUES(ref_id),
                         competition = VALUES(competition), name = VALUES(name),
                         venue_name = VALUES(venue_name), table_label = VALUES(table_label),
                         organiser_name = VALUES(organiser_name), best_of = VALUES(best_of),
                         frames_to_win = VALUES(frames_to_win), allow_order = VALUES(allow_order),
+                        places = VALUES(places),
                         pin_hash = VALUES(pin_hash), updated_at = UTC_TIMESTAMP()",
                     [
                         $id, $competitionId, $seasonId,
@@ -196,6 +203,7 @@ final class CompsModule implements Module
                         (int)(isset($entry['bestOf']) ? $entry['bestOf'] : 0),
                         (int)(isset($entry['framesToWin']) ? $entry['framesToWin'] : 0),
                         !empty($entry['allowOrder']) ? 1 : 0,
+                        max(1, (int)(isset($entry['places']) ? $entry['places'] : 1)),
                         $hash,
                         self::STATE_OPEN,
                     ]
@@ -582,7 +590,7 @@ final class CompsModule implements Module
      */
     private static function makeDraw(string $sessionId, bool $redraw, bool &$changed)
     {
-        $session = Db::one('SELECT drawn FROM wdpl_comp_sessions WHERE id = ?', [$sessionId]);
+        $session = Db::one('SELECT drawn, places FROM wdpl_comp_sessions WHERE id = ?', [$sessionId]);
         if ($session === null) return 'This group is no longer published.';
 
         if ((int)$session['drawn'] === 1 && !$redraw) {
@@ -595,28 +603,37 @@ final class CompsModule implements Module
             [$sessionId]
         );
 
-        $anyAnswered = false;
-        foreach ($players as $player) {
-            if ($player['present'] !== null) { $anyAnswered = true; break; }
-        }
-
+        // Only the people standing there go in the bag. Somebody who has not
+        // turned up cannot play their tie, and drawing them in would hand their
+        // opponent a walkover the league never awarded.
         $field = [];
         foreach ($players as $player) {
-            $here = $anyAnswered ? ((int)$player['present'] === 1) : true;
-            if ($here) $field[] = (string)$player['participant_id'];
+            if ((int)$player['present'] === 1) {
+                $field[] = (string)$player['participant_id'];
+            }
+        }
+
+        if (count($field) === 0) {
+            return 'Nobody is marked as here yet. Tick who has turned up, then draw.';
         }
 
         if (count($field) < 2) {
-            return 'There are not enough players here to draw a knockout.';
+            return 'Only one player is marked as here, so there is nothing to draw.';
         }
 
         // Out of the bag: the order decides the sheet, so this is the only
         // place chance comes into it.
         shuffle($field);
 
+        $places = max(1, (int)$session['places']);
+
         $slots = CompDraw::place($field);
-        $tree  = CompDraw::tree($slots);
+        $tree  = CompDraw::tree($slots, $places);
         $size  = count($slots);
+
+        if (count($tree) === 0) {
+            return 'There are already few enough players here that nobody needs to play.';
+        }
 
         Db::query('DELETE FROM wdpl_comp_matches WHERE session_id = ?', [$sessionId]);
         Db::query('UPDATE wdpl_comp_players SET draw_no = NULL WHERE session_id = ?', [$sessionId]);
@@ -758,7 +775,7 @@ final class CompsModule implements Module
     {
         $session = Db::one(
             'SELECT id, competition_id, competition, name, kind, ref_id, venue_name, table_label,
-                    organiser_name, best_of, frames_to_win, allow_order, state, version,
+                    organiser_name, best_of, frames_to_win, allow_order, places, state, version,
                     drawn, bracket_size, collected_at, updated_at
              FROM wdpl_comp_sessions WHERE id = ?',
             [$sessionId]
@@ -794,7 +811,7 @@ final class CompsModule implements Module
         foreach ($rounds as $number => $matches) {
             $session['rounds'][] = [
                 'round'   => $number,
-                'name'    => CompDraw::roundName($number, $total),
+                'name'    => CompDraw::roundName($number, $total, (int)$session['places']),
                 'matches' => $matches,
             ];
         }

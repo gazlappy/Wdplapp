@@ -25,21 +25,37 @@ public static class KnockoutGroup
     public static int FinalRound(CompetitionGroup group) =>
         IsKnockout(group) ? group.Matches.Max(m => m.RoundNumber) : 0;
 
-    /// <summary>The final itself, or null.</summary>
-    public static CompetitionMatch? Final(CompetitionGroup group)
+    /// <summary>The ties of the last round played.</summary>
+    /// <remarks>
+    /// Not necessarily a final. A group that sends two through stops when two
+    /// are left, so its last round is two ties and both winners qualify.
+    /// </remarks>
+    public static List<CompetitionMatch> LastRound(CompetitionGroup group)
     {
         var last = FinalRound(group);
-        return last == 0 ? null : group.Matches.FirstOrDefault(m => m.RoundNumber == last && m.Slot == 0);
+
+        return last == 0
+            ? new List<CompetitionMatch>()
+            : group.Matches.Where(m => m.RoundNumber == last).OrderBy(m => m.Slot).ToList();
     }
 
-    /// <summary>Who won the group, or null while the final is still to play.</summary>
+    /// <summary>The final, when the group was played down to one winner.</summary>
+    public static CompetitionMatch? Final(CompetitionGroup group)
+    {
+        var last = LastRound(group);
+        return last.Count == 1 ? last[0] : null;
+    }
+
+    /// <summary>
+    /// Who won the group, or null unless it was played down to one winner.
+    /// </summary>
     public static Guid? Winner(CompetitionGroup group)
     {
         var final = Final(group);
         return final is { IsComplete: true } ? final.WinnerId : null;
     }
 
-    /// <summary>The beaten finalist, or null.</summary>
+    /// <summary>The beaten finalist, when there was a final.</summary>
     public static Guid? RunnerUp(CompetitionGroup group)
     {
         var final = Final(group);
@@ -49,37 +65,54 @@ public static class KnockoutGroup
     }
 
     /// <summary>
-    /// How many places a knockout can actually decide.
+    /// Who goes through to the next draw, in the order their ties are listed.
     /// </summary>
     /// <remarks>
-    /// One if only the winner goes through, two if the beaten finalist does as
-    /// well. Past that a knockout has nothing to say: the losing semi-finalists
-    /// never played each other, so there is no third place without another
-    /// match. Telling the secretary that is better than inventing an order.
-    /// </remarks>
-    public static int PlacesDecided(CompetitionGroup group)
-    {
-        if (Winner(group) is null) return 0;
-        return RunnerUp(group) is null ? 1 : 2;
-    }
-
-    /// <summary>
-    /// Who goes through to the next draw, best first.
-    /// </summary>
-    /// <remarks>
+    /// The winners of the last round played. A group that stops with two left
+    /// sends both through; one played to a final sends its winner, and its
+    /// beaten finalist too if the competition asks for two.
+    /// <para>
     /// Read off the tree rather than out of the stored standings, so a group
     /// collected by an older build - or one whose table was left over from when
     /// it was a round robin - still shows the right people as through.
+    /// </para>
     /// </remarks>
     public static List<Guid> Through(CompetitionGroup group, int places)
     {
         var through = new List<Guid>();
         if (places < 1) return through;
 
-        if (Winner(group) is { } winner) through.Add(winner);
-        if (through.Count < places && RunnerUp(group) is { } runnerUp) through.Add(runnerUp);
+        foreach (var tie in LastRound(group))
+        {
+            if (through.Count >= places) break;
+            if (tie is { IsComplete: true, WinnerId: { } winner }) through.Add(winner);
+        }
+
+        // A group played all the way to a final leaves only one standing, so the
+        // beaten finalist takes the second place when one is being offered.
+        if (through.Count < places && RunnerUp(group) is { } runnerUp && !through.Contains(runnerUp))
+        {
+            through.Add(runnerUp);
+        }
 
         return through;
+    }
+
+    /// <summary>
+    /// How many places this group has actually decided.
+    /// </summary>
+    /// <remarks>
+    /// Past the last round a knockout has nothing to say: players who never met
+    /// cannot be separated. Telling the secretary that is better than inventing
+    /// an order.
+    /// </remarks>
+    public static int PlacesDecided(CompetitionGroup group)
+    {
+        var last = LastRound(group);
+        if (last.Count == 0 || last.Any(m => !m.IsComplete)) return 0;
+
+        // Down to a final: the winner, and the beaten finalist behind them.
+        return last.Count == 1 ? 2 : last.Count;
     }
 
     /// <summary>
@@ -113,14 +146,15 @@ public static class KnockoutGroup
                    match.WinnerId == match.Participant2Id);
         }
 
-        var winner = Winner(group);
-        var runnerUp = RunnerUp(group);
+        // Positions come from the tree: everyone still standing at the end is
+        // through, in the order their ties are listed, and a final puts its
+        // beaten finalist second.
+        var through = Through(group, PlacesDecided(group));
 
         foreach (var row in rows.Values)
         {
-            row.Position = row.ParticipantId == winner ? 1
-                         : row.ParticipantId == runnerUp ? 2
-                         : 0;
+            var at = through.IndexOf(row.ParticipantId);
+            row.Position = at < 0 ? 0 : at + 1;
         }
 
         return rows.Values

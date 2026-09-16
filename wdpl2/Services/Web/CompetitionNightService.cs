@@ -36,6 +36,7 @@ public sealed class CompetitionNightService
         string? TableLabel,
         int BestOf,
         int FramesToWin,
+        int Places,
         IReadOnlyList<Guid> ParticipantIds,
         IReadOnlyList<CompetitionMatch> Matches,
         string? Pin);
@@ -66,6 +67,18 @@ public sealed class CompetitionNightService
         IReadOnlyList<Guid> DrawOrder,
         IReadOnlyList<CollectedMatch> Matches);
 
+    /// <summary>
+    /// How many go through from a group, as the competition is set up.
+    /// </summary>
+    /// <remarks>
+    /// A group is played only as far as it has to be: if two go through and
+    /// four turn up, that is one round and both winners qualify. The website
+    /// needs this before the draw, not after, because it decides how many
+    /// rounds the sheet has.
+    /// </remarks>
+    public static int PlacesThrough(Competition competition) =>
+        Math.Max(1, competition.GroupSettings?.TopPlayersAdvance ?? 1);
+
     // --------------------------------------------------------------- building
 
     /// <summary>
@@ -93,6 +106,7 @@ public sealed class CompetitionNightService
                 TableLabel: group.TableLabel,
                 BestOf: competition.BestOf,
                 FramesToWin: competition.FramesToWin,
+                Places: PlacesThrough(competition),
                 ParticipantIds: group.ParticipantIds,
                 Matches: group.Matches,
                 Pin: group.RunnerPin));
@@ -124,6 +138,7 @@ public sealed class CompetitionNightService
                 TableLabel: null,
                 BestOf: round.GetEffectiveBestOf(competition),
                 FramesToWin: round.GetFramesToWin(competition),
+                Places: 1,
                 ParticipantIds: players,
                 Matches: round.Matches,
                 Pin: round.RunnerPin));
@@ -165,6 +180,7 @@ public sealed class CompetitionNightService
                 tableLabel = session.TableLabel,
                 bestOf = session.BestOf,
                 framesToWin = session.FramesToWin,
+                places = session.Places,
                 allowOrder = true,
                 pinHash = PasswordHash.Create(session.Pin!.Trim()),
                 players = session.ParticipantIds

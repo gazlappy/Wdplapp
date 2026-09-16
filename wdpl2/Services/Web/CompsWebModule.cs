@@ -9,7 +9,7 @@ public sealed class CompsWebModule : IWebModule
     public string Title => "Competition nights";
     public string Description => "Give the player running a group a PIN, and collect their results back.";
     public string Icon => "\U0001F3C6"; // trophy
-    public int SchemaVersion => 2;
+    public int SchemaVersion => 3;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {
