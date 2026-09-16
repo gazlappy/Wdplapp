@@ -680,6 +680,8 @@ tr.top td{color:var(--gold); font-weight:700;}
       $('wheelHub').textContent = player.draw_no;
 
       renderSheet();
+      renderTree();
+      renderStrip();
 
       // Redrawn without the name just taken, back at zero. The transition is
       // suppressed for that step or the wheel would unwind the whole way.
@@ -814,6 +816,26 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   // ---------------------------------------------------------------- tree
 
+  /**
+   * True while names are still coming out of the bag.
+   *
+   * The server draws the whole group in one go, so every name exists the moment
+   * the draw is made. Showing them straight away gives the sheet away before
+   * the wheel has turned - the room watches a spin whose answer is already on
+   * screen behind it.
+   */
+  function revealPending(){
+    if(!S.session || Number(S.session.drawn) !== 1) return false;
+    return S.revealed.length < S.session.players.filter(wasDrawn).length;
+  }
+
+  /** A player's name, or nothing while they are still in the bag. */
+  function shownName(id){
+    if(!id) return null;
+    if(revealPending() && S.revealed.indexOf(id) < 0) return null;
+    return nameOf(id);
+  }
+
   function renderTree(){
     var box = $('tree');
     var rounds = (S.session && S.session.rounds) || [];
@@ -826,9 +848,12 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     var ftw = Number(S.session.frames_to_win)||0;
     var bo  = Number(S.session.best_of)||0;
-    $('framesHint').textContent = ftw > 0
-      ? 'Best of '+bo+' \u2014 first to '+ftw+' frames wins the tie.'
-      : 'Whoever is ahead when the tie ends wins it.';
+
+    $('framesHint').textContent = revealPending()
+      ? 'Filling in as the names come out of the bag.'
+      : (ftw > 0
+          ? 'Best of '+bo+' \u2014 first to '+ftw+' frames wins the tie.'
+          : 'Whoever is ahead when the tie ends wins it.');
 
     box.innerHTML = '<div class="tree">' + rounds.map(function(round){
       return '<div class="round"><h3>'+esc(round.name)+'</h3>'
@@ -846,20 +871,28 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   function tie(m){
     var done = Number(m.is_complete)===1;
-    var playable = !!(m.p1_id && m.p2_id);
 
     // Only the first round holds a real bye. Further in, one empty side means
     // the tie feeding it has not been played yet - calling that a bye would
     // tell the room somebody is through when they are not.
     var bye = Number(m.round_no)===1 && ((!!m.p1_id) !== (!!m.p2_id));
 
+    // Nothing is scoreable while the draw is still being revealed, and a tie
+    // whose players are still in the bag shows neither name nor buttons.
+    var hidden = revealPending();
+    var playable = !hidden && !!(m.p1_id && m.p2_id);
+
     function line(which){
       var isOne = which===1;
       var id = isOne ? m.p1_id : m.p2_id;
-      var nm = id ? (nameOf(id) || 'unknown') : (bye ? 'bye' : 'to be decided');
+      var shown = shownName(id);
+
+      var nm = id
+        ? (shown || (hidden ? 'in the bag' : 'unknown'))
+        : (bye ? 'bye' : 'to be decided');
       var sc = isOne ? m.p1_score : m.p2_score;
       var won = done && m.winner_id === id && id;
-      var cls = !id ? ' tbd' : (done ? (won ? ' won' : ' lost') : '');
+      var cls = (!id || !shown) ? ' tbd' : (done ? (won ? ' won' : ' lost') : '');
 
       return '<div class="ln'+cls+'">'
         + '<span class="who">'+esc(nm)+'</span>'
@@ -869,11 +902,12 @@ tr.top td{color:var(--gold); font-weight:700;}
         + '</div>';
     }
 
-    var note = bye ? 'through on a bye'
+    var note = hidden ? ''
+             : (bye ? 'through on a bye'
              : (done ? 'finished'
-             : (playable ? '' : 'waiting'));
+             : (playable ? '' : 'waiting')));
 
-    return '<div class="tie'+(done?' done':'')+'">'
+    return '<div class="tie'+(done && !hidden ? ' done':'')+'">'
       + (note ? '<div class="bar"><span>'+esc(note)+'</span></div>' : '')
       + line(1) + line(2)
       + '</div>';
