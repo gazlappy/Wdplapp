@@ -38,26 +38,37 @@ public partial class CompsPage : ContentPage
         InitializeComponent();
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
-        LoadCompetitions();
+        await LoadCompetitionsAsync();
     }
 
     /// <summary>
     /// Competitions that have something to run.
     /// </summary>
     /// <remarks>
+    /// Read from <see cref="IDataStore"/>, which is where the Competitions tab
+    /// keeps them. The JSON snapshot holds its own copy, and taking the
+    /// competition from there would mean collecting a night onto a version the
+    /// app is not showing - the results would land somewhere nobody looks.
+    /// <para>
     /// Team knockouts are left out: those are matches between teams, played on
     /// the league's own scorecards, not a night one player organises.
+    /// </para>
     /// </remarks>
-    private void LoadCompetitions()
+    private async Task LoadCompetitionsAsync()
     {
         _competitions.Clear();
-        _competitions.AddRange(League.Competitions
-            .Where(c => c.Format != CompetitionFormat.TeamKnockout)
-            .OrderByDescending(c => c.Groups.Count + c.Rounds.Count)
-            .ThenBy(c => c.Name));
+
+        // Season-scoped reads answer nothing for a null season, so each season
+        // is asked for in turn rather than hoping for "all of them".
+        foreach (var season in League.Seasons.OrderByDescending(x => x.StartDate))
+        {
+            _competitions.AddRange(await _dataStore.GetCompetitionsAsync(season.Id));
+        }
+
+        _competitions.RemoveAll(c => c.Format == CompetitionFormat.TeamKnockout);
 
         CompetitionPicker.ItemsSource = _competitions.Select(c => c.Name).ToList();
 
@@ -205,7 +216,35 @@ public partial class CompsPage : ContentPage
             if (round is not null) round.RunnerPin = clean;
         }
 
-        DataStore.SaveJsonOnly();
+        // Written to the store the Competitions tab reads, and mirrored into the
+        // snapshot so a publish built from either sees the same PIN.
+        _ = PersistAsync(competition);
+    }
+
+    /// <summary>Saves a competition to both places the app keeps one.</summary>
+    private async Task PersistAsync(Competition competition)
+    {
+        try
+        {
+            await _dataStore.UpdateCompetitionAsync(competition);
+            await _dataStore.SaveAsync();
+
+            var mirrored = League.Competitions.FirstOrDefault(c => c.Id == competition.Id);
+            if (mirrored is not null)
+            {
+                League.Competitions[League.Competitions.IndexOf(mirrored)] = competition;
+            }
+            else
+            {
+                League.Competitions.Add(competition);
+            }
+
+            DataStore.SaveJsonOnly();
+        }
+        catch (Exception ex)
+        {
+            Report($"Could not save: {ex.Message}", error: true);
+        }
     }
 
     private void OnFillPinsClicked(object? sender, EventArgs e)
@@ -417,20 +456,20 @@ public partial class CompsPage : ContentPage
 
             var collected = await CompetitionNightService.CollectAsync(client, state.Id);
 
-            var competition = League.Competitions.FirstOrDefault(c =>
-                c.Groups.Any(g => g.Id == collected.RefId) || c.Rounds.Any(r => r.Id == collected.RefId));
+            // Fetched by id from the store the Competitions tab reads, so the
+            // night is written onto the competition the app is actually showing.
+            var competition = await _dataStore.GetCompetitionAsync(state.CompetitionId);
 
             if (competition is null)
             {
-                Report("That group is not in this league's data any more. Nothing was written.", error: true);
+                Report("That competition is not in this league's data any more. Nothing was written.",
+                    error: true);
                 return;
             }
 
             var applied = CompetitionNightService.Apply(competition, collected);
 
-            await _dataStore.UpdateCompetitionAsync(competition);
-            await _dataStore.SaveAsync();
-            DataStore.SaveJsonOnly();
+            if (applied > 0) await PersistAsync(competition);
 
             Report(applied == 0
                 ? "Collected, but nothing was written — the draw did not match anything in this competition."
@@ -439,7 +478,7 @@ public partial class CompsPage : ContentPage
                 error: applied == 0);
 
             await LoadLiveAsync();
-            BuildRows();
+            await LoadCompetitionsAsync();
         }
         catch (WebApiException ex)
         {

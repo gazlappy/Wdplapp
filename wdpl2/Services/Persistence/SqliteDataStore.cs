@@ -87,6 +87,19 @@ public partial class SqliteDataStore : IDataStore
         finally { _gate.Release(); }
     }
 
+    public async Task<Competition?> GetCompetitionAsync(Guid id, CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            return await _context.Competitions
+                .Where(c => c.Id == id)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ct);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task UpdateCompetitionAsync(Competition competition, CancellationToken ct = default)
     {
         // EF Core's JSON change tracking for deeply nested OwnsMany().ToJson()

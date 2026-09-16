@@ -759,7 +759,7 @@ final class CompsModule implements Module
         $session = Db::one(
             'SELECT id, competition_id, competition, name, kind, ref_id, venue_name, table_label,
                     organiser_name, best_of, frames_to_win, allow_order, state, version,
-                    collected_at, updated_at
+                    drawn, bracket_size, collected_at, updated_at
              FROM wdpl_comp_sessions WHERE id = ?',
             [$sessionId]
         );
@@ -769,7 +769,7 @@ final class CompsModule implements Module
         }
 
         $session['players'] = Db::all(
-            'SELECT participant_id, name, sort_order, present
+            'SELECT participant_id, name, sort_order, present, draw_no
              FROM wdpl_comp_players WHERE session_id = ? ORDER BY sort_order, name',
             [$sessionId]
         );

@@ -14,6 +14,13 @@ public interface IDataStore
     /// </summary>
     Task<List<Competition>> GetCompetitionsAsync(Guid? seasonId, CancellationToken ct = default);
     
+    /// <summary>Finds one competition by id, or null. Not season-scoped.</summary>
+    /// <remarks>
+    /// <see cref="GetCompetitionsAsync"/> returns nothing at all for a null
+    /// season, so it cannot answer "fetch the one this id belongs to".
+    /// </remarks>
+    Task<Competition?> GetCompetitionAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>
     /// Add a new competition
     /// </summary>

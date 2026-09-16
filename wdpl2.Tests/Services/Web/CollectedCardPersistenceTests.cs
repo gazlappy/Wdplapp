@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Wdpl2.Data;
 using Wdpl2.Domain.Fixtures;
@@ -181,5 +181,96 @@ public class CollectedCardPersistenceTests
 
         Assert.Single(reloaded!.Frames);
         Assert.Equal(FrameWinner.Away, reloaded.Frames[0].Winner);
+    }
+
+    [Fact]
+    public async Task GetCompetitionAsync_FindsByIdWithoutKnowingTheSeason()
+    {
+        var (connection, options) = await OpenAsync();
+        using var _ = connection;
+
+        var season = new Season { Name = "2026/27" };
+        var competition = new Competition
+        {
+            Id = Guid.NewGuid(),
+            SeasonId = season.Id,
+            Name = "Singles Cup",
+            Format = CompetitionFormat.SinglesGroupStage,
+        };
+
+        using (var seed = new LeagueContext(options))
+        {
+            seed.Seasons.Add(season);
+            seed.Competitions.Add(competition);
+            await seed.SaveChangesAsync();
+        }
+
+        using var read = new LeagueContext(options);
+        var store = new SqliteDataStore(read);
+
+        Assert.NotNull(await store.GetCompetitionAsync(competition.Id));
+        Assert.Null(await store.GetCompetitionAsync(Guid.NewGuid()));
+
+        // The same trap as fixtures and players: a season-scoped read answers
+        // "nothing at all" rather than "everything", so it cannot be used to
+        // fetch the competition a collected night belongs to.
+        Assert.Empty(await store.GetCompetitionsAsync(null));
+    }
+
+    [Fact]
+    public async Task UpdateCompetitionAsync_PersistsAWholeKnockoutTree()
+    {
+        var (connection, options) = await OpenAsync();
+        using var _ = connection;
+
+        var season = new Season { Name = "2026/27" };
+        var competition = new Competition
+        {
+            Id = Guid.NewGuid(),
+            SeasonId = season.Id,
+            Name = "Singles Cup",
+            Format = CompetitionFormat.SinglesGroupStage,
+        };
+        competition.Groups.Add(new CompetitionGroup { Name = "Group A" });
+
+        using (var seed = new LeagueContext(options))
+        {
+            seed.Seasons.Add(season);
+            seed.Competitions.Add(competition);
+            await seed.SaveChangesAsync();
+        }
+
+        var ann = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+
+        using (var write = new LeagueContext(options))
+        {
+            var store = new SqliteDataStore(write);
+            var loaded = await store.GetCompetitionAsync(competition.Id);
+            Assert.NotNull(loaded);
+
+            var group = loaded!.Groups[0];
+            group.DrawOrder = new List<Guid> { ann, bob };
+            group.Matches = new List<CompetitionMatch>
+            {
+                new() { RoundNumber = 1, Slot = 0, Participant1Id = ann, Participant2Id = bob,
+                        Participant1Score = 2, Participant2Score = 1, WinnerId = ann, IsComplete = true },
+            };
+
+            await store.UpdateCompetitionAsync(loaded);
+        }
+
+        // A fresh context, because a night collected but not written is the bug.
+        using var reopened = new LeagueContext(options);
+        var back = await new SqliteDataStore(reopened).GetCompetitionAsync(competition.Id);
+
+        Assert.NotNull(back);
+        var saved = back!.Groups[0];
+
+        Assert.Equal(new[] { ann, bob }, saved.DrawOrder);
+        Assert.Single(saved.Matches);
+        Assert.Equal(1, saved.Matches[0].RoundNumber);
+        Assert.Equal(ann, saved.Matches[0].WinnerId);
+        Assert.True(saved.Matches[0].IsComplete);
     }
 }

@@ -41,7 +41,7 @@ public sealed class CompetitionNightService
 
     /// <summary>What the website holds for one session.</summary>
     public sealed record SessionState(
-        Guid Id, string Competition, string Name, string Kind, Guid RefId,
+        Guid Id, Guid CompetitionId, string Competition, string Name, string Kind, Guid RefId,
         string? VenueName, string? OrganiserName, string State,
         int Matches, int Played, int Present, bool Collected);
 
@@ -214,10 +214,12 @@ public sealed class CompetitionNightService
         {
             var id = Guid(row, "id");
             var refId = Guid(row, "ref_id");
-            if (id is null || refId is null) continue;
+            var competitionId = Guid(row, "competition_id");
+            if (id is null || refId is null || competitionId is null) continue;
 
             states.Add(new SessionState(
                 id.Value,
+                competitionId.Value,
                 Text(row, "competition") ?? "",
                 Text(row, "name") ?? "",
                 Text(row, "kind") ?? "group",
