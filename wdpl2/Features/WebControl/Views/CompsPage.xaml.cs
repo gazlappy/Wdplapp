@@ -359,6 +359,7 @@ public partial class CompsPage : ContentPage
     {
         LiveList.Children.Clear();
         NoLiveLabel.IsVisible = _live.Count == 0;
+        CloseAllButton.IsVisible = _live.Count > 0;
 
         foreach (var state in _live)
         {
@@ -519,6 +520,88 @@ public partial class CompsPage : ContentPage
         catch (InvalidOperationException ex)
         {
             Report(ex.Message, error: true);
+        }
+    }
+
+    /// <summary>
+    /// Takes every published group off the website in one go.
+    /// </summary>
+    /// <remarks>
+    /// The end of a competition night: a dozen groups, each with a PIN that
+    /// should stop working, and no appetite for a dozen confirmations.
+    /// <para>
+    /// Anything holding results that have not been collected is named before
+    /// anything is closed, because closing throws those away and the only copy
+    /// is on the website.
+    /// </para>
+    /// </remarks>
+    private async void OnCloseAllClicked(object? sender, EventArgs e)
+    {
+        if (_live.Count == 0)
+        {
+            Report("Nothing is published, so there is nothing to close.", error: false);
+            return;
+        }
+
+        // A collected group is already frozen and holds nothing that is not
+        // safely in the app, so closing it costs nothing.
+        var atRisk = _live
+            .Where(s => !s.Collected && s.Played > 0)
+            .OrderBy(s => s.Competition)
+            .ThenBy(s => s.Name)
+            .ToList();
+
+        var warning = atRisk.Count == 0
+            ? "Nothing has results waiting to be collected."
+            : $"{atRisk.Count} still hold results that have not been collected, and closing "
+              + "throws them away:\n  "
+              + string.Join("\n  ", atRisk.Select(s => $"{s.Competition} — {s.Name} ({s.Played} played)"));
+
+        if (!await DisplayAlert("Close all?",
+                $"{_live.Count} group(s) come off the website and their PINs stop working.\n\n"
+                + warning,
+                atRisk.Count == 0 ? "Close all" : "Close and lose them", "Cancel"))
+            return;
+
+        CloseAllButton.IsEnabled = false;
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            var closed = 0;
+            var failures = new List<string>();
+
+            // One at a time, so a group that refuses does not stop the rest and
+            // the secretary is told which one it was.
+            foreach (var session in _live.ToList())
+            {
+                try
+                {
+                    await client.AdminAsync("comps", "close", new { sessionId = session.Id });
+                    closed++;
+                }
+                catch (WebApiException ex)
+                {
+                    failures.Add($"{session.Name} — {ex.Message}");
+                }
+            }
+
+            Report(failures.Count == 0
+                ? $"Closed {closed} group(s). Nothing is live on the website now."
+                : $"Closed {closed}. Could not close {failures.Count}: {string.Join("; ", failures)}",
+                error: failures.Count > 0);
+
+            await LoadLiveAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            CloseAllButton.IsEnabled = true;
         }
     }
 
