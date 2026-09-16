@@ -139,6 +139,72 @@ td{padding:8px 4px; border-bottom:1px solid rgba(43,58,96,.5);}
 td.n, th.n{text-align:center; font-variant-numeric:tabular-nums;}
 tr.top td{color:var(--gold); font-weight:700;}
 .empty{color:var(--muted); font-size:13px; padding:6px 2px;}
+
+/* the draw wheel */
+.wheelwrap{position:relative; width:min(78vw,300px); margin:6px auto 12px; aspect-ratio:1;}
+.wheelwrap svg{width:100%; height:100%; display:block;
+  filter:drop-shadow(0 10px 26px rgba(0,0,0,.55));}
+#wheelSpin{transition:transform 4s cubic-bezier(.12,.72,.12,1);}
+.needle{
+  position:absolute; top:-2px; left:50%; transform:translateX(-50%);
+  width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent;
+  border-top:20px solid var(--gold); z-index:2;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.6));
+}
+.hub{
+  position:absolute; inset:0; margin:auto; width:26%; height:26%; border-radius:50%;
+  background:radial-gradient(circle at 32% 30%,#2c2c2c,#000 72%);
+  border:3px solid var(--gold); color:#fff; display:flex; align-items:center;
+  justify-content:center; font-weight:900; font-size:clamp(13px,4.6vw,20px);
+}
+.wheel-seg-text{font-size:11px; font-weight:700; fill:#fff;}
+
+.called{
+  text-align:center; font-size:clamp(17px,5.6vw,24px); font-weight:900;
+  color:var(--gold); min-height:1.5em; margin:2px 0 8px;
+}
+
+/* the sheet as it fills */
+.sheet{display:grid; grid-template-columns:repeat(2,1fr); gap:6px;}
+.slot{
+  display:flex; align-items:center; gap:8px; padding:8px 10px;
+  border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:rgba(10,15,28,.35); font-size:13px; min-height:38px;
+}
+.slot .no{
+  flex:0 0 auto; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:800;
+  background:rgba(10,15,28,.8); border:1px solid var(--line); color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+}
+.slot.filled{border-color:rgba(255,209,102,.45);}
+.slot.filled .no{background:var(--gold); color:#000; border-color:var(--gold);}
+.slot.bye{opacity:.55;}
+.slot .who{overflow-wrap:anywhere; font-weight:700;}
+.slot.bye .who{font-weight:500; color:var(--muted); font-style:italic;}
+
+/* the tree */
+.tree{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;}
+.round{flex:0 0 auto; min-width:152px; display:flex; flex-direction:column;
+       justify-content:space-around; gap:8px;}
+.round h3{
+  margin:0 0 2px; font-size:10px; font-weight:800; letter-spacing:.5px;
+  text-transform:uppercase; color:var(--muted); text-align:center;
+}
+.tie{border:1px solid var(--line); border-radius:var(--radius-sm);
+     background:rgba(10,15,28,.35); overflow:hidden;}
+.tie.done{border-color:rgba(34,197,94,.45);}
+.tie .ln{display:flex; align-items:center; gap:6px; padding:7px 9px; font-size:13px;}
+.tie .ln + .ln{border-top:1px solid var(--line);}
+.tie .ln .who{flex:1 1 auto; overflow-wrap:anywhere; font-weight:700;}
+.tie .ln.won .who{color:var(--win);}
+.tie .ln.lost .who{color:var(--muted);}
+.tie .ln.tbd .who{color:var(--muted); font-weight:500; font-style:italic;}
+.tie .ln .sc{min-width:26px; text-align:center; font-weight:900; font-variant-numeric:tabular-nums;}
+.tie .bar{
+  padding:3px 9px; font-size:10px; font-weight:800; letter-spacing:.4px;
+  text-transform:uppercase; color:var(--muted); background:rgba(10,15,28,.5);
+  display:flex; justify-content:space-between; gap:6px; align-items:center;
+}
 </style>
 </head>
 <body>
@@ -173,15 +239,45 @@ tr.top td{color:var(--gold); font-weight:700;}
   <!-- ----------------------------------------------------------- running -->
   <section id="app" class="hidden">
     <div class="tabs">
-      <button data-tab="matches" class="on">Matches</button>
+      <button data-tab="draw" class="on">Draw</button>
+      <button data-tab="tree">Knockout</button>
       <button data-tab="who">Who turned up</button>
-      <button data-tab="table">Table</button>
     </div>
 
-    <div id="tab-matches">
+    <div id="tab-draw">
       <div class="card">
-        <h2>Matches</h2>
-        <div id="matches"><div class="empty">Loading&hellip;</div></div>
+        <h2>The draw</h2>
+
+        <div class="wheelwrap" id="wheelWrap">
+          <div class="needle"></div>
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <g id="wheelSpin" transform="rotate(0 100 100)"></g>
+          </svg>
+          <div class="hub" id="wheelHub">8</div>
+        </div>
+
+        <div class="called" id="called"></div>
+
+        <div class="row" style="justify-content:center">
+          <button id="drawBtn" class="go">Make the draw</button>
+          <button id="revealBtn" class="ghost hidden">Next name</button>
+          <button id="redrawBtn" class="ghost hidden">Draw again</button>
+        </div>
+
+        <div id="sheet" class="sheet" style="margin-top:12px"></div>
+
+        <p class="sub" id="drawHint">
+          Everyone here goes in the bag. The first name out goes to the top of
+          the sheet, the second into the bottom half, so the first two drawn can
+          only meet in the final.
+        </p>
+      </div>
+    </div>
+
+    <div id="tab-tree" class="hidden">
+      <div class="card">
+        <h2>Knockout</h2>
+        <div id="tree"><div class="empty">Make the draw first.</div></div>
         <p class="sub" id="framesHint"></p>
       </div>
     </div>
@@ -197,13 +293,6 @@ tr.top td{color:var(--gold); font-weight:700;}
       </div>
     </div>
 
-    <div id="tab-table" class="hidden">
-      <div class="card">
-        <h2>Table</h2>
-        <div id="table"><div class="empty">Loading&hellip;</div></div>
-        <p class="sub">Two points for a win, one for a draw. Frames settle ties.</p>
-      </div>
-    </div>
 
     <div class="card">
       <div class="row">
@@ -220,7 +309,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   var API = '../api/index.php';
 
-  var S = { session:null, tab:'matches', busy:false, order:null };
+  var S = { session:null, tab:'draw', busy:false, revealed:[], spin:0 };
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -356,91 +445,301 @@ tr.top td{color:var(--gold); font-weight:700;}
       .then(function(){ S.busy=false; });
   }
 
-  // ------------------------------------------------------------- matches
+  // ---------------------------------------------------------------- draw
 
-  function renderMatches(){
-    var box=$('matches');
-    var matches=(S.session && S.session.matches) || [];
+  var SEG_COLOURS = ['#0d8a5a','#1f4e79','#7c3aed','#b45309','#0e7490','#9d174d',
+                     '#15803d','#1d4ed8','#6d28d9','#a16207','#0f766e','#be123c'];
 
-    if(!matches.length){
-      box.innerHTML='<div class="empty">No matches in this group yet.</div>';
+  /** The players still in the bag, as the wheel shows them. */
+  function inBag(){
+    if(!S.session) return [];
+    return S.session.players.filter(function(p){
+      return S.revealed.indexOf(p.participant_id) < 0 && wasDrawn(p);
+    });
+  }
+
+  /** Somebody the server actually put in the draw. */
+  function wasDrawn(p){
+    return p.draw_no !== null && p.draw_no !== undefined;
+  }
+
+  function drawWheel(){
+    var g = $('wheelSpin');
+    var left = inBag();
+
+    if(!left.length){
+      g.innerHTML = '<circle cx="100" cy="100" r="96" fill="#16213d" stroke="#2b3a60" stroke-width="2"/>';
+      return;
+    }
+
+    var step = 360 / left.length;
+    var parts = [];
+
+    left.forEach(function(p, i){
+      var a0 = i*step - 90, a1 = (i+1)*step - 90;
+      var r = 96;
+      var x0 = 100 + r*Math.cos(a0*Math.PI/180), y0 = 100 + r*Math.sin(a0*Math.PI/180);
+      var x1 = 100 + r*Math.cos(a1*Math.PI/180), y1 = 100 + r*Math.sin(a1*Math.PI/180);
+      var big = step > 180 ? 1 : 0;
+
+      parts.push('<path d="M100,100 L'+x0.toFixed(2)+','+y0.toFixed(2)
+        +' A'+r+','+r+' 0 '+big+',1 '+x1.toFixed(2)+','+y1.toFixed(2)+' Z" fill="'
+        + SEG_COLOURS[i % SEG_COLOURS.length] + '" stroke="#0a0f1c" stroke-width="1"/>');
+
+      // Names sit along the segment, trimmed so a long one does not spill out.
+      var mid = (a0 + a1) / 2;
+      var tx = 100 + 62*Math.cos(mid*Math.PI/180);
+      var ty = 100 + 62*Math.sin(mid*Math.PI/180);
+      var label = String(p.name||'');
+      if(label.length > 14) label = label.slice(0,13) + '\u2026';
+
+      // Names on the lower half would otherwise read upside down, so they are
+      // turned the other way up - the room is looking at this from across a pub.
+      var rot = mid + 90;
+      if(rot > 90 && rot < 270) rot += 180;
+
+      parts.push('<text class="wheel-seg-text" x="'+tx.toFixed(1)+'" y="'+ty.toFixed(1)
+        +'" text-anchor="middle" dominant-baseline="middle" transform="rotate('
+        + rot.toFixed(1) + ' ' + tx.toFixed(1) + ' ' + ty.toFixed(1) + ')">'
+        + esc(label) + '</text>');
+    });
+
+    parts.push('<circle cx="100" cy="100" r="96" fill="none" stroke="#FFD166" stroke-width="3"/>');
+    g.innerHTML = parts.join('');
+  }
+
+  /**
+   * Spins the wheel onto the player the draw actually produced.
+   *
+   * The order comes from the server, which is the only place the shuffle
+   * happens. The wheel is showing the room a result that already exists rather
+   * than deciding one - otherwise two phones watching would disagree about who
+   * came out first.
+   */
+  function spinTo(player, done){
+    var left = inBag();
+    var at = -1;
+    left.forEach(function(p,i){ if(p.participant_id===player.participant_id) at = i; });
+    if(at < 0){ done(); return; }
+
+    var step = 360 / left.length;
+    var centre = at*step + step/2;
+
+    // Land the segment's middle under the needle, after a few whole turns.
+    var target = S.spin + 360*4 + (360 - centre - (S.spin % 360));
+    S.spin = target;
+
+    var g = $('wheelSpin');
+    g.setAttribute('transform', 'rotate(' + target.toFixed(2) + ' 100 100)');
+
+    var settled = false;
+    function land(){
+      if(settled) return;
+      settled = true;
+      g.removeEventListener('transitionend', land);
+
+      S.revealed.push(player.participant_id);
+      $('called').textContent = player.draw_no + '. ' + player.name;
+      $('wheelHub').textContent = player.draw_no;
+
+      renderSheet();
+      drawWheel();
+      g.setAttribute('transform', 'rotate(0 100 100)');
+      done();
+    }
+
+    g.addEventListener('transitionend', land);
+    // transitionend does not always arrive on a backgrounded phone.
+    setTimeout(land, 4400);
+  }
+
+  function revealNext(){
+    var next = null;
+    S.session.players
+      .filter(wasDrawn)
+      .sort(function(a,b){ return a.draw_no - b.draw_no; })
+      .forEach(function(p){ if(!next && S.revealed.indexOf(p.participant_id)<0) next = p; });
+
+    if(!next){ finishReveal(); return; }
+
+    $('revealBtn').disabled = true;
+    // The wheel needs the segment it is about to land on to still be drawn.
+    spinTo(next, function(){
+      $('revealBtn').disabled = false;
+      if(!inBag().length) finishReveal();
+    });
+  }
+
+  function finishReveal(){
+    show($('revealBtn'), false);
+    show($('redrawBtn'), true);
+    $('wheelHub').textContent = '8';
+    $('called').textContent = 'That is the draw.';
+    renderSheet();
+    renderTree();
+  }
+
+  /** The sheet, in the order the tree is played down the page. */
+  function renderSheet(){
+    var box = $('sheet');
+    if(!S.session || !S.session.drawn || Number(S.session.drawn)!==1){
+      box.innerHTML = '';
+      return;
+    }
+
+    var size = Number(S.session.bracket_size) || 0;
+    if(!size){ box.innerHTML=''; return; }
+
+    var byNo = {};
+    S.session.players.forEach(function(p){ if(wasDrawn(p)) byNo[p.draw_no] = p; });
+
+    box.innerHTML = slotOrder(size).map(function(no){
+      var p = byNo[no];
+      var shown = p && S.revealed.indexOf(p.participant_id) >= 0;
+
+      var who = !p ? 'BYE' : (shown ? p.name : '\u2014');
+      var cls = !p ? 'slot bye' : (shown ? 'slot filled' : 'slot');
+
+      return '<div class="'+cls+'"><span class="no">'+no+'</span>'
+           + '<span class="who">'+esc(who)+'</span></div>';
+    }).join('');
+  }
+
+  /** The same rule the server draws by, so the sheet matches the tree. */
+  function slotOrder(size){
+    if(size <= 1) return [1];
+    var half = slotOrder(size/2), out = [];
+    half.forEach(function(n){ out.push(n); out.push(n + size/2); });
+    return out;
+  }
+
+  $('drawBtn').addEventListener('click', function(){
+    var here = S.session.players.filter(function(p){
+      return p.present === null || p.present === undefined || Number(p.present)===1;
+    });
+
+    if(!window.confirm('Make the draw?\n\n'+here.length+' player(s) go in the bag. '
+      + 'Everyone can watch the names come out.')) return;
+
+    $('drawBtn').disabled = true;
+    apply([{kind:'draw'}]).then(function(){
+      $('drawBtn').disabled = false;
+      if(S.session && Number(S.session.drawn)===1) startReveal();
+    });
+  });
+
+  $('redrawBtn').addEventListener('click', function(){
+    if(!window.confirm('Draw again?\n\nThe sheet is torn up and everything already '
+      + 'entered on it goes with it.')) return;
+
+    apply([{kind:'draw', redraw:true}]).then(function(){
+      if(S.session && Number(S.session.drawn)===1) startReveal();
+    });
+  });
+
+  $('revealBtn').addEventListener('click', revealNext);
+
+  function startReveal(){
+    S.revealed = [];
+    S.spin = 0;
+    $('called').textContent = '';
+    $('wheelHub').textContent = '8';
+    show($('drawBtn'), false);
+    show($('redrawBtn'), false);
+    show($('revealBtn'), true);
+    $('revealBtn').disabled = false;
+    drawWheel();
+    renderSheet();
+  }
+
+  /** A draw already made, arrived at by somebody opening the page later. */
+  function showFinishedDraw(){
+    S.revealed = S.session.players.filter(wasDrawn).map(function(p){ return p.participant_id; });
+    S.spin = 0;
+    show($('drawBtn'), false);
+    show($('revealBtn'), false);
+    show($('redrawBtn'), true);
+    $('called').textContent = '';
+    drawWheel();
+    renderSheet();
+  }
+
+  // ---------------------------------------------------------------- tree
+
+  function renderTree(){
+    var box = $('tree');
+    var rounds = (S.session && S.session.rounds) || [];
+
+    if(!rounds.length){
+      box.innerHTML = '<div class="empty">Make the draw first.</div>';
+      $('framesHint').textContent = '';
       return;
     }
 
     var ftw = Number(S.session.frames_to_win)||0;
     var bo  = Number(S.session.best_of)||0;
-
     $('framesHint').textContent = ftw > 0
-      ? 'Best of '+bo+' — first to '+ftw+' frames wins the match.'
-      : 'Whoever is ahead when the match ends wins it.';
+      ? 'Best of '+bo+' \u2014 first to '+ftw+' frames wins the tie.'
+      : 'Whoever is ahead when the tie ends wins it.';
 
-    box.innerHTML = matches.map(function(m, i){
-      var n1 = nameOf(m.p1_id) || 'not drawn';
-      var n2 = nameOf(m.p2_id) || 'not drawn';
-      var playable = !!(m.p1_id && m.p2_id);
-      var done = Number(m.is_complete)===1;
-
-      function side(which){
-        var isOne = which===1;
-        var nm = isOne ? n1 : n2;
-        var sc = isOne ? m.p1_score : m.p2_score;
-        var won = done && m.winner_id === (isOne ? m.p1_id : m.p2_id);
-        var cls = done ? (won ? ' won' : ' lost') : '';
-
-        return '<div class="side'+cls+'">'
-          + '<span class="nm">'+esc(nm)+'</span>'
-          + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="-1">&minus;</button>' : '')
-          + '<span class="sc">'+esc(sc)+'</span>'
-          + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="1">+</button>' : '')
-          + '</div>';
-      }
-
-      var canMove = S.session.allow_order && Number(S.session.allow_order)===1;
-
-      return '<div class="match'+(done?' done':'')+'">'
-        + '<div class="ord"><span>Match '+(i+1)+(done?' · finished':'')+'</span>'
-        +   (canMove
-              ? '<span>'
-                + (i>0 ? '<button class="step sm" data-up="'+esc(m.match_id)+'">&uarr;</button>' : '')
-                + (i<matches.length-1 ? ' <button class="step sm" data-down="'+esc(m.match_id)+'">&darr;</button>' : '')
-                + '</span>'
-              : '')
-        + '</div>'
-        + side(1) + side(2)
+    box.innerHTML = '<div class="tree">' + rounds.map(function(round){
+      return '<div class="round"><h3>'+esc(round.name)+'</h3>'
+        + round.matches.map(function(m){ return tie(m); }).join('')
         + '</div>';
-    }).join('');
+    }).join('') + '</div>';
 
     Array.prototype.forEach.call(box.querySelectorAll('.step[data-m]'), function(b){
-      b.addEventListener('click', function(){ bump(b.getAttribute('data-m'),
-        Number(b.getAttribute('data-s')), Number(b.getAttribute('data-d'))); });
+      b.addEventListener('click', function(){
+        bump(b.getAttribute('data-m'), Number(b.getAttribute('data-s')),
+             Number(b.getAttribute('data-d')));
+      });
     });
-    Array.prototype.forEach.call(box.querySelectorAll('[data-up]'), function(b){
-      b.addEventListener('click', function(){ move(b.getAttribute('data-up'), -1); });
-    });
-    Array.prototype.forEach.call(box.querySelectorAll('[data-down]'), function(b){
-      b.addEventListener('click', function(){ move(b.getAttribute('data-down'), 1); });
-    });
+  }
+
+  function tie(m){
+    var done = Number(m.is_complete)===1;
+    var playable = !!(m.p1_id && m.p2_id);
+
+    // Only the first round holds a real bye. Further in, one empty side means
+    // the tie feeding it has not been played yet - calling that a bye would
+    // tell the room somebody is through when they are not.
+    var bye = Number(m.round_no)===1 && ((!!m.p1_id) !== (!!m.p2_id));
+
+    function line(which){
+      var isOne = which===1;
+      var id = isOne ? m.p1_id : m.p2_id;
+      var nm = id ? (nameOf(id) || 'unknown') : (bye ? 'bye' : 'to be decided');
+      var sc = isOne ? m.p1_score : m.p2_score;
+      var won = done && m.winner_id === id && id;
+      var cls = !id ? ' tbd' : (done ? (won ? ' won' : ' lost') : '');
+
+      return '<div class="ln'+cls+'">'
+        + '<span class="who">'+esc(nm)+'</span>'
+        + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="-1">−</button>' : '')
+        + (playable ? '<span class="sc">'+esc(sc)+'</span>' : '')
+        + (playable ? '<button class="step" data-m="'+esc(m.match_id)+'" data-s="'+which+'" data-d="1">+</button>' : '')
+        + '</div>';
+    }
+
+    var note = bye ? 'through on a bye'
+             : (done ? 'finished'
+             : (playable ? '' : 'waiting on the round before'));
+
+    return '<div class="tie'+(done?' done':'')+'">'
+      + (note ? '<div class="bar"><span>'+esc(note)+'</span></div>' : '')
+      + line(1) + line(2)
+      + '</div>';
   }
 
   function bump(matchId, which, delta){
-    var m=null;
-    S.session.matches.forEach(function(x){ if(x.match_id===matchId) m=x; });
+    var m = null;
+    S.session.matches.forEach(function(x){ if(x.match_id===matchId) m = x; });
     if(!m) return;
 
-    var p1=Number(m.p1_score)||0, p2=Number(m.p2_score)||0;
-    if(which===1) p1=Math.max(0,p1+delta); else p2=Math.max(0,p2+delta);
+    var p1 = Number(m.p1_score)||0, p2 = Number(m.p2_score)||0;
+    if(which===1) p1 = Math.max(0, p1+delta); else p2 = Math.max(0, p2+delta);
 
     apply([{kind:'set_score', matchId:matchId, p1:p1, p2:p2}]);
-  }
-
-  function move(matchId, delta){
-    var ids = S.session.matches.map(function(m){ return m.match_id; });
-    var at = ids.indexOf(matchId);
-    var to = at + delta;
-    if(at < 0 || to < 0 || to >= ids.length) return;
-
-    ids.splice(to, 0, ids.splice(at, 1)[0]);
-    apply([{kind:'set_order', matchIds: ids}]);
   }
 
   // -------------------------------------------------------- who turned up
@@ -485,37 +784,6 @@ tr.top td{color:var(--gold); font-weight:700;}
     apply([{kind:'set_present', playerId:playerId, value:value}]);
   }
 
-  // --------------------------------------------------------------- table
-
-  function renderTable(){
-    var box=$('table');
-    var rows=(S.session && S.session.standings) || [];
-
-    if(!rows.length){
-      box.innerHTML='<div class="empty">Nothing played yet.</div>';
-      return;
-    }
-
-    box.innerHTML =
-      '<table><thead><tr><th class="n">#</th><th>Player</th>'
-      + '<th class="n">P</th><th class="n">W</th><th class="n">D</th><th class="n">L</th>'
-      + '<th class="n">F</th><th class="n">A</th><th class="n">Pts</th></tr></thead><tbody>'
-      + rows.map(function(r){
-          return '<tr'+(r.position<=2?' class="top"':'')+'>'
-            + '<td class="n">'+esc(r.position)+'</td>'
-            + '<td>'+esc(r.name)+'</td>'
-            + '<td class="n">'+esc(r.played)+'</td>'
-            + '<td class="n">'+esc(r.won)+'</td>'
-            + '<td class="n">'+esc(r.drawn)+'</td>'
-            + '<td class="n">'+esc(r.lost)+'</td>'
-            + '<td class="n">'+esc(r.frames_for)+'</td>'
-            + '<td class="n">'+esc(r.frames_against)+'</td>'
-            + '<td class="n">'+esc(r.points)+'</td>'
-            + '</tr>';
-        }).join('')
-      + '</tbody></table>';
-  }
-
   // -------------------------------------------------------------- render
 
   function render(){
@@ -527,9 +795,22 @@ tr.top td{color:var(--gold); font-weight:700;}
     $('who').innerHTML = esc(S.session.name)
       + (where ? '<br><span style="color:var(--muted)">'+esc(where)+'</span>' : '');
 
-    renderMatches();
     renderPeople();
-    renderTable();
+    renderTree();
+
+    var drawn = S.session.drawn !== undefined && Number(S.session.drawn) === 1;
+
+    show($('drawBtn'), !drawn);
+    $('drawHint').textContent = drawn
+      ? 'Drawn. The sheet reads top to bottom, and the tree is under Knockout.'
+      : 'Everyone here goes in the bag. The first name out goes to the top of the '
+        + 'sheet, the second into the bottom half, so the first two drawn can only '
+        + 'meet in the final.';
+
+    // A draw made before this phone arrived is shown finished rather than
+    // replayed, so a second person opening the page does not spin it again.
+    if(drawn && !S.revealed.length) showFinishedDraw();
+    else renderSheet();
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(b){
@@ -538,7 +819,7 @@ tr.top td{color:var(--gold); font-weight:700;}
       Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(o){
         o.classList.toggle('on', o===b);
       });
-      ['matches','who','table'].forEach(function(t){ show($('tab-'+t), t===S.tab); });
+      ['draw','tree','who'].forEach(function(t){ show($('tab-'+t), t===S.tab); });
     });
   });
 

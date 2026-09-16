@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Standings.php';
+require_once __DIR__ . '/Draw.php';
 
 /**
  * Competition nights, run at the venue by one of the players.
@@ -27,7 +28,7 @@ final class CompsModule implements Module
 
     public static function title(): string { return 'Competition nights'; }
 
-    public static function schemaVersion(): int { return 1; }
+    public static function schemaVersion(): int { return 2; }
 
     public static function tables(): array
     {
@@ -50,6 +51,8 @@ final class CompsModule implements Module
                 state          VARCHAR(8)   NOT NULL,
                 version        INT          NOT NULL DEFAULT 1,
                 collected_at   DATETIME     NULL,
+                drawn          TINYINT(1)   NOT NULL DEFAULT 0,
+                bracket_size   INT          NOT NULL DEFAULT 0,
                 updated_at     DATETIME     NOT NULL,
                 PRIMARY KEY (id),
                 KEY idx_comp_session_comp (competition_id),
@@ -79,6 +82,20 @@ final class CompsModule implements Module
                 updated_at  DATETIME   NULL,
                 PRIMARY KEY (session_id, match_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+            // A group is drawn out and played as a knockout, so a match belongs
+            // to a round and a place in it. Sites installed before the draw
+            // existed keep their matches as a single first round.
+            "ALTER TABLE wdpl_comp_sessions
+                ADD COLUMN IF NOT EXISTS drawn TINYINT(1) NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS bracket_size INT NOT NULL DEFAULT 0",
+
+            "ALTER TABLE wdpl_comp_players
+                ADD COLUMN IF NOT EXISTS draw_no INT NULL",
+
+            "ALTER TABLE wdpl_comp_matches
+                ADD COLUMN IF NOT EXISTS round_no INT NOT NULL DEFAULT 1,
+                ADD COLUMN IF NOT EXISTS slot INT NOT NULL DEFAULT 0",
         ];
     }
 
@@ -524,6 +541,8 @@ final class CompsModule implements Module
                       WHERE session_id = ? AND match_id = ?',
                     [$p1, $p2, $winner, $complete, $sessionId, $matchId]
                 );
+
+                self::advance($sessionId, $matchId);
                 $changed = true;
                 return null;
 
@@ -546,8 +565,190 @@ final class CompsModule implements Module
                 $changed = true;
                 return null;
 
+            case 'draw':
+                return self::makeDraw($sessionId, !empty($op['redraw']), $changed);
+
             default:
                 return 'That is not something this page can do.';
+        }
+    }
+
+    /**
+     * Draws the group out and builds the knockout tree.
+     *
+     * Only players marked present are drawn. Nobody has said who is here on a
+     * fresh sheet, so in that case everyone is in - which is the sensible
+     * reading of "the draw" before anyone has ticked anything.
+     */
+    private static function makeDraw(string $sessionId, bool $redraw, bool &$changed)
+    {
+        $session = Db::one('SELECT drawn FROM wdpl_comp_sessions WHERE id = ?', [$sessionId]);
+        if ($session === null) return 'This group is no longer published.';
+
+        if ((int)$session['drawn'] === 1 && !$redraw) {
+            return 'This group has already been drawn.';
+        }
+
+        $players = Db::all(
+            'SELECT participant_id, present FROM wdpl_comp_players
+              WHERE session_id = ? ORDER BY sort_order, name',
+            [$sessionId]
+        );
+
+        $anyAnswered = false;
+        foreach ($players as $player) {
+            if ($player['present'] !== null) { $anyAnswered = true; break; }
+        }
+
+        $field = [];
+        foreach ($players as $player) {
+            $here = $anyAnswered ? ((int)$player['present'] === 1) : true;
+            if ($here) $field[] = (string)$player['participant_id'];
+        }
+
+        if (count($field) < 2) {
+            return 'There are not enough players here to draw a knockout.';
+        }
+
+        // Out of the bag: the order decides the sheet, so this is the only
+        // place chance comes into it.
+        shuffle($field);
+
+        $slots = CompDraw::place($field);
+        $tree  = CompDraw::tree($slots);
+        $size  = count($slots);
+
+        Db::query('DELETE FROM wdpl_comp_matches WHERE session_id = ?', [$sessionId]);
+        Db::query('UPDATE wdpl_comp_players SET draw_no = NULL WHERE session_id = ?', [$sessionId]);
+
+        foreach ($field as $index => $participantId) {
+            Db::query(
+                'UPDATE wdpl_comp_players SET draw_no = ?, updated_at = UTC_TIMESTAMP()
+                  WHERE session_id = ? AND participant_id = ?',
+                [$index + 1, $sessionId, $participantId]
+            );
+        }
+
+        foreach ($tree as $roundIndex => $round) {
+            foreach ($round as $matchIndex => $match) {
+                Db::query(
+                    'INSERT INTO wdpl_comp_matches
+                        (session_id, match_id, round_no, slot, order_no,
+                         p1_id, p2_id, p1_score, p2_score, winner_id, is_complete, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, UTC_TIMESTAMP())',
+                    [
+                        $sessionId,
+                        self::matchId($sessionId, $roundIndex, $matchIndex),
+                        $roundIndex + 1,
+                        $matchIndex,
+                        $matchIndex,
+                        $match['p1'],
+                        $match['p2'],
+                        $match['winner'],
+                        $match['complete'] ? 1 : 0,
+                    ]
+                );
+            }
+        }
+
+        Db::query(
+            'UPDATE wdpl_comp_sessions SET drawn = 1, bracket_size = ?, updated_at = UTC_TIMESTAMP()
+              WHERE id = ?',
+            [$size, $sessionId]
+        );
+
+        $changed = true;
+        return null;
+    }
+
+    /**
+     * A match's id, derived from where it sits in the tree.
+     *
+     * Derived rather than random so a redraw writes over the same rows, and so
+     * the app recognises the same match across two collects.
+     */
+    private static function matchId(string $sessionId, int $roundIndex, int $matchIndex): string
+    {
+        $hash = md5($sessionId . ':' . $roundIndex . ':' . $matchIndex);
+
+        return substr($hash, 0, 8) . '-' . substr($hash, 8, 4) . '-4' . substr($hash, 13, 3)
+             . '-8' . substr($hash, 17, 3) . '-' . substr($hash, 20, 12);
+    }
+
+    /**
+     * Carries a decided match's winner into the next round.
+     *
+     * A bye in the next round settles itself the moment the other side arrives,
+     * so a player can walk through two rounds without anybody pressing anything
+     * - which is exactly what happens on paper.
+     */
+    private static function advance(string $sessionId, string $matchId): void
+    {
+        $match = Db::one(
+            'SELECT round_no, slot, winner_id, is_complete
+               FROM wdpl_comp_matches WHERE session_id = ? AND match_id = ?',
+            [$sessionId, $matchId]
+        );
+        if ($match === null) return;
+
+        $top = Db::one('SELECT MAX(round_no) AS n FROM wdpl_comp_matches WHERE session_id = ?',
+                       [$sessionId]);
+        $rounds = $top === null ? 0 : (int)$top['n'];
+
+        $roundIndex = (int)$match['round_no'] - 1;
+        $matchIndex = (int)$match['slot'];
+
+        $next = CompDraw::nextSlot($roundIndex, $matchIndex, $rounds);
+        if ($next === null) return;
+
+        $side = CompDraw::nextSide($matchIndex) === 'p1' ? 'p1_id' : 'p2_id';
+        $winner = (int)$match['is_complete'] === 1 ? $match['winner_id'] : null;
+
+        Db::query(
+            "UPDATE wdpl_comp_matches
+                SET {$side} = ?, updated_at = UTC_TIMESTAMP()
+              WHERE session_id = ? AND round_no = ? AND slot = ?",
+            [$winner, $sessionId, $next[0] + 1, $next[1]]
+        );
+
+        // Taking a result back can leave the next round holding somebody who is
+        // no longer through, so it is re-settled rather than left as it was.
+        self::settleBye($sessionId, $next[0] + 1, $next[1]);
+    }
+
+    /** Settles, or unsettles, a match that has become a bye. */
+    private static function settleBye(string $sessionId, int $roundNo, int $slot): void
+    {
+        $match = Db::one(
+            'SELECT match_id, p1_id, p2_id, p1_score, p2_score
+               FROM wdpl_comp_matches WHERE session_id = ? AND round_no = ? AND slot = ?',
+            [$sessionId, $roundNo, $slot]
+        );
+        if ($match === null) return;
+
+        // A match somebody has actually scored is theirs, not ours to decide.
+        if ((int)$match['p1_score'] > 0 || (int)$match['p2_score'] > 0) return;
+
+        $p1 = $match['p1_id'];
+        $p2 = $match['p2_id'];
+
+        $winner = null;
+
+        // Only the first round can hold a real bye. Later on, an empty side
+        // means the match feeding it has not been played yet.
+        if ($roundNo === 1) {
+            if ($p1 !== null && $p2 === null)     $winner = $p1;
+            elseif ($p2 !== null && $p1 === null) $winner = $p2;
+        }
+
+        Db::query(
+            'UPDATE wdpl_comp_matches SET winner_id = ?, is_complete = ?, updated_at = UTC_TIMESTAMP()
+              WHERE session_id = ? AND match_id = ?',
+            [$winner, $winner === null ? 0 : 1, $sessionId, $match['match_id']]
+        );
+
+        if ($winner !== null) {
+            self::advance($sessionId, (string)$match['match_id']);
         }
     }
 
@@ -574,10 +775,29 @@ final class CompsModule implements Module
         );
 
         $session['matches'] = Db::all(
-            'SELECT match_id, order_no, p1_id, p2_id, p1_score, p2_score, winner_id, is_complete
-             FROM wdpl_comp_matches WHERE session_id = ? ORDER BY order_no',
+            'SELECT match_id, round_no, slot, order_no, p1_id, p2_id,
+                    p1_score, p2_score, winner_id, is_complete
+             FROM wdpl_comp_matches WHERE session_id = ? ORDER BY round_no, slot',
             [$sessionId]
         );
+
+        // Grouped into rounds as well, so the page can draw the tree without
+        // having to work out the shape for itself.
+        $rounds = [];
+        foreach ($session['matches'] as $match) {
+            $rounds[(int)$match['round_no']][] = $match;
+        }
+
+        $total = count($rounds);
+        $session['rounds'] = [];
+
+        foreach ($rounds as $number => $matches) {
+            $session['rounds'][] = [
+                'round'   => $number,
+                'name'    => CompDraw::roundName($number, $total),
+                'matches' => $matches,
+            ];
+        }
 
         $session['standings'] = CompStandings::table($session['players'], $session['matches']);
 
