@@ -1,4 +1,4 @@
-namespace Wdpl2.Models
+﻿namespace Wdpl2.Models
 {
     /// <summary>
     /// A single match in a competition
@@ -17,6 +17,20 @@ namespace Wdpl2.Models
 
         /// <summary>For losers bracket in double elimination</summary>
         public bool IsLosersBracket { get; set; }
+
+        /// <summary>
+        /// Which round of its own knockout this match belongs to, counting from 1.
+        /// </summary>
+        /// <remarks>
+        /// A group played as a knockout keeps its whole tree in one list, so a
+        /// match has to say where in the tree it sits. Zero means the match does
+        /// not belong to a tree of its own - a round-robin group, or a knockout
+        /// whose rounds are held as <see cref="CompetitionRound"/> instead.
+        /// </remarks>
+        public int RoundNumber { get; set; }
+
+        /// <summary>Position within its round, top of the sheet first.</summary>
+        public int Slot { get; set; }
 
         /// <summary>Group ID if this match belongs to a group stage</summary>
         public Guid? GroupId { get; set; }

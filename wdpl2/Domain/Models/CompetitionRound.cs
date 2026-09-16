@@ -38,6 +38,9 @@
         /// </remarks>
         public string? RunnerPin { get; set; }
 
+        /// <summary>The order players came out of the draw, first out first.</summary>
+        public List<Guid> DrawOrder { get; set; } = new();
+
         /// <summary>Venues/tables available for this round.</summary>
         public List<CompetitionVenue> SelectedVenues { get; set; } = new();
 

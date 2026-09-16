@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Wdpl2.Models;
 using Wdpl2.Services;
 using Wdpl2.Services.Web;
@@ -415,10 +415,10 @@ public partial class CompsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var results = await CompetitionNightService.CollectAsync(client, state.Id);
+            var collected = await CompetitionNightService.CollectAsync(client, state.Id);
 
             var competition = League.Competitions.FirstOrDefault(c =>
-                c.Groups.Any(g => g.Id == state.RefId) || c.Rounds.Any(r => r.Id == state.RefId));
+                c.Groups.Any(g => g.Id == collected.RefId) || c.Rounds.Any(r => r.Id == collected.RefId));
 
             if (competition is null)
             {
@@ -426,13 +426,17 @@ public partial class CompsPage : ContentPage
                 return;
             }
 
-            var applied = CompetitionNightService.Apply(competition, results);
+            var applied = CompetitionNightService.Apply(competition, collected);
 
             await _dataStore.UpdateCompetitionAsync(competition);
             await _dataStore.SaveAsync();
             DataStore.SaveJsonOnly();
 
-            Report($"Collected. {applied} result(s) written into {competition.Name}.", error: false);
+            Report(applied == 0
+                ? "Collected, but nothing was written — the draw did not match anything in this competition."
+                : $"Collected. {competition.Name} now holds the {applied} tie(s) that were played, "
+                  + "in the order they were drawn. Publish the website to show it.",
+                error: applied == 0);
 
             await LoadLiveAsync();
             BuildRows();

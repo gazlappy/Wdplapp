@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -2840,10 +2840,101 @@ namespace Wdpl2.Services
             }
         }
 
+        /// <summary>A group whose matches form a tree rather than a round robin.</summary>
+        private static bool IsKnockoutGroup(CompetitionGroup group) =>
+            group.Matches.Any(m => m.RoundNumber > 0);
+
+        /// <summary>
+        /// Who won a knockout group, or null if it is not one or is unfinished.
+        /// </summary>
+        private static Guid? KnockoutWinner(CompetitionGroup group)
+        {
+            if (!IsKnockoutGroup(group)) return null;
+
+            var last = group.Matches.Max(m => m.RoundNumber);
+            var final = group.Matches.FirstOrDefault(m => m.RoundNumber == last && m.Slot == 0);
+
+            return final is { IsComplete: true } ? final.WinnerId : null;
+        }
+
+        /// <summary>
+        /// Draws a group's knockout, round by round.
+        /// </summary>
+        /// <remarks>
+        /// The draw decided the sheet at the venue, so it is published in the
+        /// order it was drawn rather than sorted - people look for their own name
+        /// where it was on the night.
+        /// </remarks>
+        private void AppendGroupKnockout(StringBuilder html, CompetitionGroup group, Competition comp,
+            List<Player> players, List<Team> teams)
+        {
+            if (!IsKnockoutGroup(group)) return;
+
+            var rounds = group.Matches
+                .Where(m => m.RoundNumber > 0)
+                .GroupBy(m => m.RoundNumber)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            if (rounds.Count == 0) return;
+
+            html.AppendLine("                        <div class=\"group-knockout\" style=\"margin-top:10px;\">");
+
+            foreach (var round in rounds)
+            {
+                var name = RoundLabel(round.Key, rounds.Count);
+                html.AppendLine($"                            <h5 style=\"margin:8px 0 4px;font-size:0.85rem;color:var(--text-secondary,#64748B);\">{Esc(name)}</h5>");
+
+                foreach (var match in round.OrderBy(m => m.Slot))
+                {
+                    var one = match.Participant1Id.HasValue
+                        ? GetWebParticipantName(match.Participant1Id.Value, comp, players, teams) : null;
+                    var two = match.Participant2Id.HasValue
+                        ? GetWebParticipantName(match.Participant2Id.Value, comp, players, teams) : null;
+
+                    // One name and no opponent in the first round is a bye; later
+                    // on it just means the tie before it has not been played.
+                    var bye = round.Key == 1 && (one is null) != (two is null);
+
+                    var left = one ?? (bye ? "bye" : "&mdash;");
+                    var right = two ?? (bye ? "bye" : "&mdash;");
+
+                    var leftWon = match.IsComplete && match.WinnerId == match.Participant1Id;
+                    var rightWon = match.IsComplete && match.WinnerId == match.Participant2Id;
+
+                    var score = match.IsComplete && !bye
+                        ? $"{match.Participant1Score}&ndash;{match.Participant2Score}"
+                        : (bye ? "bye" : "v");
+
+                    html.AppendLine("                            <div class=\"ko-tie\" style=\"display:flex;gap:8px;align-items:center;padding:4px 0;font-size:0.85rem;\">");
+                    html.AppendLine($"                                <span style=\"flex:1;text-align:right;{(leftWon ? "font-weight:700;" : "")}\">{Esc(left)}</span>");
+                    html.AppendLine($"                                <span style=\"min-width:46px;text-align:center;color:var(--text-secondary,#64748B);\">{score}</span>");
+                    html.AppendLine($"                                <span style=\"flex:1;{(rightWon ? "font-weight:700;" : "")}\">{Esc(right)}</span>");
+                    html.AppendLine("                            </div>");
+                }
+            }
+
+            html.AppendLine("                        </div>");
+        }
+
+        /// <summary>What a round is called, counting back from the final.</summary>
+        private static string RoundLabel(int roundNumber, int totalRounds) =>
+            (totalRounds - roundNumber) switch
+            {
+                0 => "Final",
+                1 => "Semi-finals",
+                2 => "Quarter-finals",
+                _ => $"Round {roundNumber}",
+            };
+
         private void AppendGroupSection(StringBuilder html, CompetitionGroup group, Competition comp,
             List<Player> players, List<Team> teams, int topAdvance, bool hasSelections)
         {
             var hasStandings = group.Standings.Any(s => s.Played > 0);
+
+            // A group drawn out and played as a knockout has a winner instead of
+            // a table, so who went through has to be read off the tree.
+            var knockoutWinner = KnockoutWinner(group);
             var sectionClass = hasStandings ? "group-section gs-has-standings" : "group-section";
             var participantLabel = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage ? "pairs" : "players";
             html.AppendLine($"                    <div class=\"{sectionClass}\">");
@@ -2857,7 +2948,8 @@ namespace Wdpl2.Services
                 var name = GetWebParticipantName(pid, comp, players, teams);
 
                 var standing = group.Standings.FirstOrDefault(s => s.ParticipantId == pid);
-                bool isAdvancing = standing != null && standing.Position > 0 && standing.Position <= topAdvance;
+                bool isAdvancing = (standing != null && standing.Position > 0 && standing.Position <= topAdvance)
+                                   || (knockoutWinner.HasValue && knockoutWinner.Value == pid);
                 bool isNoShow = comp.NoShowIds.Contains(pid);
                 bool isEliminated = hasSelections && !isAdvancing && !isNoShow;
                 bool isOrganiser = group.OrganiserParticipantId == pid;
@@ -2923,8 +3015,11 @@ namespace Wdpl2.Services
                 html.AppendLine("                        </div>");
             }
 
+            // The knockout as it was drawn and played, when that is what happened.
+            AppendGroupKnockout(html, group, comp, players, teams);
+
             // Per-group match results
-            if (group.Matches.Any(m => m.IsComplete))
+            if (group.Matches.Any(m => m.IsComplete) && !IsKnockoutGroup(group))
             {
                 html.AppendLine("                        <div class=\"group-matches\" style=\"margin-top:10px;\">");
                 html.AppendLine("                            <h5 style=\"margin:6px 0;font-size:0.85rem;color:var(--text-secondary,#64748B);\">Matches</h5>");

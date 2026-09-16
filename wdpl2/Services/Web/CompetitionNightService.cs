@@ -45,8 +45,25 @@ public sealed class CompetitionNightService
         string? VenueName, string? OrganiserName, string State,
         int Matches, int Played, int Present, bool Collected);
 
-    /// <summary>A result the runner entered, ready to go back into the app.</summary>
-    public sealed record CollectedMatch(Guid MatchId, int P1Score, int P2Score, Guid? WinnerId, bool IsComplete);
+    /// <summary>One tie of the knockout that was played on the night.</summary>
+    public sealed record CollectedMatch(
+        Guid MatchId, int RoundNumber, int Slot,
+        Guid? P1Id, Guid? P2Id, int P1Score, int P2Score, Guid? WinnerId, bool IsComplete);
+
+    /// <summary>
+    /// Everything that happened in one group, as the app needs it back.
+    /// </summary>
+    /// <remarks>
+    /// The draw is part of it. The sheet was decided at the venue, so the app
+    /// cannot work out afterwards who was where - it has to be told, or the
+    /// competition it publishes would not be the one that was played.
+    /// </remarks>
+    public sealed record CollectedSession(
+        Guid SessionId,
+        Guid RefId,
+        string Kind,
+        IReadOnlyList<Guid> DrawOrder,
+        IReadOnlyList<CollectedMatch> Matches);
 
     // --------------------------------------------------------------- building
 
@@ -224,53 +241,108 @@ public sealed class CompetitionNightService
     /// Safe to repeat. Collecting again returns the same results and writes the
     /// same values, so a lost reply costs nothing but a second press.
     /// </remarks>
-    public static async Task<List<CollectedMatch>> CollectAsync(WebApiClient client, Guid sessionId)
+    public static async Task<CollectedSession> CollectAsync(WebApiClient client, Guid sessionId)
     {
         var result = await client.AdminAsync("comps", "collect", new { sessionId });
-        var collected = new List<CollectedMatch>();
 
-        if (!result.TryGetProperty("matches", out var matches) || matches.ValueKind != JsonValueKind.Array)
-            return collected;
+        var refId = Guid(result, "ref_id") ?? System.Guid.Empty;
+        var kind = Text(result, "kind") ?? "group";
 
-        foreach (var row in matches.EnumerateArray())
+        // The order they came out of the bag, which is what built the sheet.
+        var draw = new List<(int Number, Guid Id)>();
+
+        if (result.TryGetProperty("players", out var players) && players.ValueKind == JsonValueKind.Array)
         {
-            var matchId = Guid(row, "match_id");
-            if (matchId is null) continue;
-
-            collected.Add(new CollectedMatch(
-                matchId.Value,
-                Int(row, "p1_score"),
-                Int(row, "p2_score"),
-                Guid(row, "winner_id"),
-                Int(row, "is_complete") == 1));
+            foreach (var row in players.EnumerateArray())
+            {
+                var id = Guid(row, "participant_id");
+                var number = Int(row, "draw_no");
+                if (id is null || number <= 0) continue;
+                draw.Add((number, id.Value));
+            }
         }
 
-        return collected;
+        var matches = new List<CollectedMatch>();
+
+        if (result.TryGetProperty("matches", out var rows) && rows.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var row in rows.EnumerateArray())
+            {
+                var matchId = Guid(row, "match_id");
+                if (matchId is null) continue;
+
+                matches.Add(new CollectedMatch(
+                    matchId.Value,
+                    Int(row, "round_no"),
+                    Int(row, "slot"),
+                    Guid(row, "p1_id"),
+                    Guid(row, "p2_id"),
+                    Int(row, "p1_score"),
+                    Int(row, "p2_score"),
+                    Guid(row, "winner_id"),
+                    Int(row, "is_complete") == 1));
+            }
+        }
+
+        return new CollectedSession(
+            sessionId,
+            refId,
+            kind,
+            draw.OrderBy(d => d.Number).Select(d => d.Id).ToList(),
+            matches);
     }
 
-    /// <summary>Writes collected results onto the competition's own matches.</summary>
-    public static int Apply(Competition competition, IReadOnlyList<CollectedMatch> results)
+    /// <summary>
+    /// Rebuilds the group or round the night was actually played as.
+    /// </summary>
+    /// <remarks>
+    /// Not a merge. The draw happened at the venue, so whatever the app had
+    /// pencilled in beforehand is not what was played - the tree that came back
+    /// replaces it wholesale, draw order and all. That is what makes the
+    /// competition the app publishes the same one that took place.
+    /// </remarks>
+    public static int Apply(Competition competition, CollectedSession session)
     {
-        var byId = new Dictionary<Guid, CompetitionMatch>();
+        var built = session.Matches
+            .OrderBy(m => m.RoundNumber)
+            .ThenBy(m => m.Slot)
+            .Select(m => new CompetitionMatch
+            {
+                Id = m.MatchId,
+                RoundNumber = m.RoundNumber,
+                Slot = m.Slot,
+                Participant1Id = m.P1Id,
+                Participant2Id = m.P2Id,
+                Participant1Score = m.P1Score,
+                Participant2Score = m.P2Score,
+                WinnerId = m.WinnerId,
+                IsComplete = m.IsComplete,
+            })
+            .ToList();
 
-        foreach (var match in competition.Groups.SelectMany(g => g.Matches)) byId[match.Id] = match;
-        foreach (var match in competition.Rounds.SelectMany(r => r.Matches)) byId[match.Id] = match;
+        if (built.Count == 0) return 0;
 
-        var applied = 0;
-
-        foreach (var result in results)
+        if (session.Kind == "round")
         {
-            if (!result.IsComplete) continue;
-            if (!byId.TryGetValue(result.MatchId, out var match)) continue;
+            var round = competition.Rounds.FirstOrDefault(r => r.Id == session.RefId);
+            if (round is null) return 0;
 
-            match.Participant1Score = result.P1Score;
-            match.Participant2Score = result.P2Score;
-            match.WinnerId = result.WinnerId;
-            match.IsComplete = true;
-            applied++;
+            round.Matches = built;
+            round.DrawOrder = session.DrawOrder.ToList();
+            return built.Count;
         }
 
-        return applied;
+        var group = competition.Groups.FirstOrDefault(g => g.Id == session.RefId);
+        if (group is null) return 0;
+
+        group.Matches = built;
+        group.DrawOrder = session.DrawOrder.ToList();
+
+        // A knockout has no table; leaving the old one would publish standings
+        // for matches that were never played.
+        group.Standings.Clear();
+
+        return built.Count;
     }
 
     // ------------------------------------------------------------------ PINs

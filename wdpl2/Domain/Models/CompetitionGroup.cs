@@ -46,6 +46,16 @@
         /// </remarks>
         public string? RunnerPin { get; set; }
 
+        /// <summary>
+        /// The order players came out of the draw on the night, first out first.
+        /// </summary>
+        /// <remarks>
+        /// Recorded because the draw is what decided the sheet, and it is the
+        /// one part of the night that cannot be worked back out from the
+        /// results afterwards.
+        /// </remarks>
+        public List<Guid> DrawOrder { get; set; } = new();
+
         /// <summary>Group stage matches (round robin within group)</summary>
         public List<CompetitionMatch> Matches { get; set; } = new();
 
