@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Wdpl2.Models;
+using Wdpl2.ViewModels;
 using Wdpl2.Services;
 
 namespace Wdpl2.Views;
@@ -226,6 +227,14 @@ public partial class CompetitionsPage
         var options = new List<string>();
         if (match.Participant1Id.HasValue && match.Participant2Id.HasValue)
             options.Add("🔁 Swap home / away");
+
+        // A match with one team and one empty slot is a bye waiting to happen.
+        var bye = CompetitionEditorViewModel.ByeCandidate(match);
+        if (CompetitionEditorViewModel.IsBye(match))
+            options.Add("↩️ Take back the bye");
+        else if (bye.HasValue && !match.IsComplete)
+            options.Add($"🏁 Give {GetParticipantName(bye, competition.Format)} a bye");
+
         options.Add($"✏️ Change home ({p1Name})");
         options.Add($"✏️ Change away ({p2Name})");
         if (match.Participant1Id.HasValue) options.Add($"❌ Clear home ({p1Name})");
@@ -237,6 +246,15 @@ public partial class CompetitionsPage
         if (chosen.StartsWith("🔁"))
         {
             await _editorViewModel.SwapMatchParticipantsAsync(match.Id);
+        }
+        else if (chosen.StartsWith("🏁"))
+        {
+            await GiveByeAsync(match, competition);
+            return;
+        }
+        else if (chosen.StartsWith("↩️"))
+        {
+            await _editorViewModel.UndoByeAsync(match.Id);
         }
         else if (chosen.StartsWith("❌"))
         {
@@ -251,6 +269,51 @@ public partial class CompetitionsPage
             await _editorViewModel.AssignParticipantToMatchAsync(match.Id, isSlot1, picked.Value);
         }
 
+        SetStatus(_editorViewModel.StatusMessage);
+        RerenderCompetitionView(competition);
+    }
+
+    /// <summary>
+    /// Confirms a bye and sends the team through.
+    /// </summary>
+    /// <remarks>
+    /// Worth confirming: it puts a team in the next round without a ball being
+    /// potted, and the rest of the draw is built on top of it.
+    /// </remarks>
+    private async Task GiveByeAsync(CompetitionMatch match, Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        var through = CompetitionEditorViewModel.ByeCandidate(match);
+        if (!through.HasValue) return;
+
+        var name = GetParticipantName(through, competition.Format) ?? "That team";
+
+        if (!await DisplayAlert("Give a bye?",
+                $"{name} has no opponent in this match, so they go through to the next round "
+                + "without playing.\n\nYou can take it back if you fill the empty slot later.",
+                "Give the bye", "Cancel"))
+            return;
+
+        await _editorViewModel.GiveByeAsync(match.Id);
+        SetStatus(_editorViewModel.StatusMessage);
+        RerenderCompetitionView(competition);
+    }
+
+    /// <summary>Takes a bye back, warning that the next round changes with it.</summary>
+    private async Task UndoByeAsync(CompetitionMatch match, Competition competition)
+    {
+        if (_editorViewModel == null) return;
+
+        var who = GetParticipantName(match.WinnerId, competition.Format) ?? "That team";
+
+        if (!await DisplayAlert("Take back the bye?",
+                $"{who} comes out of the next round, and this match goes back to waiting "
+                + "for an opponent.",
+                "Take it back", "Cancel"))
+            return;
+
+        await _editorViewModel.UndoByeAsync(match.Id);
         SetStatus(_editorViewModel.StatusMessage);
         RerenderCompetitionView(competition);
     }

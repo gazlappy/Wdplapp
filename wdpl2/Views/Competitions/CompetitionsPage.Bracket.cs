@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Wdpl2.Helpers;
 using Wdpl2.Models;
+using Wdpl2.ViewModels;
 using Wdpl2.Services;
 
 namespace Wdpl2.Views;
@@ -707,6 +708,37 @@ public partial class CompetitionsPage
         }
 
         card.Children.Add(p2Row);
+
+        // A half-empty match cannot be scored, so without this the round has no
+        // way to finish: say plainly what the match is and offer the one action
+        // that applies to it.
+        var waiting = CompetitionEditorViewModel.ByeCandidate(match);
+        if (waiting.HasValue)
+        {
+            var isBye = CompetitionEditorViewModel.IsBye(match);
+            var who = GetParticipantName(waiting, format) ?? "That team";
+
+            var byeLabel = new Label
+            {
+                Text = isBye ? $"🏁 Bye — {who} went through" : "🏁 Tap to give a bye",
+                FontSize = 11,
+                FontAttributes = isBye ? FontAttributes.None : FontAttributes.Bold,
+                TextColor = isBye ? _subtleText : _accentBlue,
+                HorizontalTextAlignment = TextAlignment.Center,
+                Padding = new Thickness(8, 6),
+            };
+
+            var byeTap = new TapGestureRecognizer();
+            byeTap.Tapped += async (_, _) =>
+            {
+                if (isBye) await UndoByeAsync(match, competition);
+                else       await GiveByeAsync(match, competition);
+            };
+            byeLabel.GestureRecognizers.Add(byeTap);
+
+            card.Children.Add(new BoxView { HeightRequest = 1, BackgroundColor = _borderDefault });
+            card.Children.Add(byeLabel);
+        }
 
         var borderColor = match.IsComplete ? _borderComplete : _borderDefault;
         var border = new Border

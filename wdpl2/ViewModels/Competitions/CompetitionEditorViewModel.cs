@@ -923,6 +923,17 @@ public partial class CompetitionEditorViewModel : ObservableObject
                 var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
                 if (match != null)
                 {
+                    // Filling the empty slot of a bye means there is a match to
+                    // play after all, so the unplayed win has to go - and the
+                    // team it sent through has to come back out of the next round.
+                    if (IsBye(match))
+                    {
+                        ClearAdvancement(round, match);
+                        match.WinnerId = null;
+                        match.IsComplete = false;
+                        if (match.Notes == ByeNote) match.Notes = null;
+                    }
+
                     if (isSlot1)
                         match.Participant1Id = participantId;
                     else
@@ -942,6 +953,118 @@ public partial class CompetitionEditorViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine(ex);
         }
     }
+
+    /// <summary>
+    /// Sends the only team in a match through to the next round unplayed.
+    /// </summary>
+    /// <remarks>
+    /// A bye is a match with nobody to play. The bracket generator already
+    /// completes the ones it creates, but a draw made by hand has no way to say
+    /// "this team has no opponent" — the match sits there with one empty slot,
+    /// unscoreable because a score needs two teams, and the round cannot finish.
+    /// <para>
+    /// The team is recorded as the winner of a match that was never played,
+    /// which is what a bye is, and advances by the same route as any other
+    /// winner so the next round fills in identically.
+    /// </para>
+    /// </remarks>
+    public async Task GiveByeAsync(Guid matchId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match == null) continue;
+
+                var through = ByeCandidate(match);
+                if (through is null)
+                {
+                    StatusMessage = match.Participant1Id.HasValue && match.Participant2Id.HasValue
+                        ? "That match has two teams, so it has to be played."
+                        : "That match has nobody in it yet.";
+                    return;
+                }
+
+                match.WinnerId = through;
+                match.IsComplete = true;
+                match.Participant1Score = 0;
+                match.Participant2Score = 0;
+                match.Notes = string.IsNullOrWhiteSpace(match.Notes) ? ByeNote : match.Notes;
+
+                AdvanceWinner(round, match);
+
+                await _competitionStore.UpdateCompetitionAsync(_competition);
+                await _competitionStore.SaveAsync();
+
+                StatusMessage = $"{GetParticipantName(through.Value) ?? "That team"} goes through on a bye";
+                return;
+            }
+
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error giving a bye: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
+    /// <summary>Takes a bye back, and the team out of the next round with it.</summary>
+    public async Task UndoByeAsync(Guid matchId)
+    {
+        if (CheckSeasonLocked()) return;
+
+        try
+        {
+            foreach (var round in _competition.Rounds)
+            {
+                var match = round.Matches.FirstOrDefault(m => m.Id == matchId);
+                if (match == null) continue;
+
+                if (!IsBye(match))
+                {
+                    StatusMessage = "That match is not a bye.";
+                    return;
+                }
+
+                ClearAdvancement(round, match);
+
+                match.WinnerId = null;
+                match.IsComplete = false;
+                if (match.Notes == ByeNote) match.Notes = null;
+
+                await _competitionStore.UpdateCompetitionAsync(_competition);
+                await _competitionStore.SaveAsync();
+
+                StatusMessage = "Bye taken back";
+                return;
+            }
+
+            StatusMessage = "Match not found";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error taking back the bye: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+    }
+
+    /// <summary>How a bye is written on the match it was given in.</summary>
+    public const string ByeNote = "Bye - no opponent";
+
+    /// <summary>The team that would go through, or null if this is not a bye.</summary>
+    public static Guid? ByeCandidate(CompetitionMatch match)
+    {
+        if (match.Participant1Id.HasValue == match.Participant2Id.HasValue) return null;
+        return match.Participant1Id ?? match.Participant2Id;
+    }
+
+    /// <summary>A match already given as a bye.</summary>
+    public static bool IsBye(CompetitionMatch match) =>
+        match.IsComplete && match.WinnerId.HasValue && ByeCandidate(match) == match.WinnerId;
 
     /// <summary>
     /// Get all participants that haven't been assigned to any first-round match yet.
