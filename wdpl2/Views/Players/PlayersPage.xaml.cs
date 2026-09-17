@@ -1128,6 +1128,23 @@ public partial class PlayersPage : ContentPage
 
     private void OnCloseEditor(object? sender, EventArgs e) => EditorPanel.IsVisible = EditorOverlay.IsVisible = false;
 
+    /// <summary>
+    /// Opens the duplicate finder.
+    /// </summary>
+    /// <remarks>
+    /// It looks across every season rather than the one this page is showing:
+    /// a name misspelled once and copied forward is the usual way a player's
+    /// record ends up in two halves, and one season at a time is how it stays
+    /// that way.
+    /// </remarks>
+    private async void OnFindDuplicates(object? sender, EventArgs e)
+    {
+        // A merge deletes rows this page is showing. Coming back re-runs
+        // OnAppearing, which rebuilds the list, so nothing is left pointing at
+        // a player that no longer exists.
+        await Navigation.PushAsync(new Players.DuplicatePlayersPage());
+    }
+
     private async Task<bool> SavePlayerChangesAsync(IEnumerable<Player> changes, IReadOnlyCollection<Guid> deleted, string success)
     {
         if (!CanEdit()) return false;

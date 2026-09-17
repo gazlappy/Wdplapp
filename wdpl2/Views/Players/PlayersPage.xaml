@@ -17,6 +17,7 @@
             <FlexLayout Wrap="Wrap" Direction="Row">
                 <Button x:Name="NewPlayerBtn" Text="+ New player" Clicked="OnNewPlayer" Margin="0,0,8,4" BackgroundColor="#16634B" TextColor="White" />
                 <Button Text="Manage players" Clicked="OnOpenEditor" Margin="0,0,8,4" />
+                <Button Text="Find duplicates" Clicked="OnFindDuplicates" Margin="0,0,8,4" />
             </FlexLayout>
         </VerticalStackLayout>
         <Label x:Name="StatusLbl" Grid.Row="2" Grid.ColumnSpan="2" FontSize="12"

@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.Players.DuplicatePlayersPage"
+             Title="Duplicate players"
+             BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="980" HorizontalOptions="Start">
+
+            <Label Text="Duplicate players" FontSize="24" FontAttributes="Bold"/>
+            <Label Text="The same person recorded more than once, anywhere in the league."
+                   FontSize="13" TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}"/>
+
+            <Border StrokeShape="RoundRectangle 10" Padding="12" StrokeThickness="1"
+                    BackgroundColor="{AppThemeBinding Light=#FFFBEB, Dark=#2A2213}"
+                    Stroke="#FCD34D">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Two rows in one season are a duplicate; one row per season is not."
+                           FontAttributes="Bold" FontSize="12"/>
+                    <Label Text="Merging collapses rows that share a season into one and moves every frame, competition entry and captaincy onto it. Rows in different seasons are only linked, so each season keeps its own player — that link is what career stats and achievements read."
+                           FontSize="12" LineBreakMode="WordWrap"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label x:Name="SummaryLabel" FontSize="13" FontAttributes="Bold" VerticalOptions="Center"/>
+                <Button Grid.Column="1" x:Name="ScanButton" Text="Scan again" Clicked="OnScanClicked"
+                        BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                        FontSize="12" Padding="14,6"/>
+            </Grid>
+
+            <VerticalStackLayout x:Name="GroupList" Spacing="12"/>
+
+            <Label x:Name="EmptyLabel" IsVisible="False"
+                   Text="No duplicates found. Every player appears once per season, and anyone playing in more than one season is already linked."
+                   FontSize="12" TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}"/>
+
+            <Label x:Name="StatusLabel" FontSize="12" LineBreakMode="WordWrap" Margin="0,4,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
