@@ -35,17 +35,17 @@ public sealed class WebDeployService
         var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var missing = new List<string>();
 
-        foreach (var relative in _registry.AllServerFiles())
+        foreach (var file in _registry.DeployMap())
         {
             try
             {
-                using var stream = await FileSystem.OpenAppPackageFileAsync("backend/" + relative);
+                using var stream = await FileSystem.OpenAppPackageFileAsync("backend/" + file.Source);
                 using var reader = new StreamReader(stream, Encoding.UTF8);
-                files[relative] = await reader.ReadToEndAsync();
+                files[file.Destination] = await reader.ReadToEndAsync();
             }
             catch (Exception ex)
             {
-                missing.Add($"{relative} ({ex.GetType().Name})");
+                missing.Add($"{file} ({ex.GetType().Name})");
             }
         }
 

@@ -93,12 +93,65 @@ public class DeployManifestTests
             .ToList();
     }
 
+    /// <summary>
+    /// Every source file some module deploys.
+    /// </summary>
+    /// <remarks>
+    /// An entry may serve one file at a second address (<see cref="ServerFile"/>),
+    /// so the source is what is compared against the tree - the alias adds an
+    /// address, not a file.
+    /// </remarks>
     private static List<string> FilesDeclared() =>
         Modules()
             .SelectMany(m => m.ServerFiles)
+            .Select(e => ServerFile.Parse(e).Source)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    /// <summary>
+    /// Two modules must not deploy different files to the same address.
+    /// </summary>
+    /// <remarks>
+    /// The deploy is a dictionary keyed by destination, so a clash would not
+    /// fail - one file would silently win, and which one would depend on the
+    /// order the modules happen to be registered in.
+    /// </remarks>
+    [Fact]
+    public void NoTwoFilesClaimTheSameAddress()
+    {
+        var clashes = Modules()
+            .SelectMany(m => m.ServerFiles)
+            .Select(ServerFile.Parse)
+            .GroupBy(f => f.Destination, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Select(f => f.Source).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+            .Select(g => $"{g.Key} <- {string.Join(", ", g.Select(f => f.Source))}")
+            .ToList();
+
+        Assert.True(clashes.Count == 0,
+            "These addresses are claimed by more than one file:\n  " + string.Join("\n  ", clashes));
+    }
+
+    /// <summary>A file served at a second address is uploaded to both.</summary>
+    [Fact]
+    public void AliasedFilesAreDeployedToBothAddresses()
+    {
+        var aliases = Modules()
+            .SelectMany(m => m.ServerFiles)
+            .Select(ServerFile.Parse)
+            .Where(f => f.IsAlias)
+            .ToList();
+
+        // The cup tie card is the one that exists, and the reason the mechanism
+        // exists at all. If it goes, this test should be reconsidered, not deleted.
+        Assert.Contains(aliases, f => f.Destination == "comp/tie.html"
+                                      && f.Source == "captain/index.html");
+
+        foreach (var alias in aliases)
+        {
+            Assert.Contains(alias.Source, FilesDeclared());
+        }
+    }
 
     [Fact]
     public void EveryBackendFileIsDeployed()

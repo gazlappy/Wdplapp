@@ -27,4 +27,18 @@ public sealed class WebModuleRegistry
         _modules.SelectMany(m => m.ServerFiles)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+    /// <summary>
+    /// Every file to upload, as source on disk to address on the server.
+    /// </summary>
+    /// <remarks>
+    /// A file may be served at more than one address - see <see cref="ServerFile"/> -
+    /// so this is keyed by destination, not by source.
+    /// </remarks>
+    public IReadOnlyList<ServerFile> DeployMap() =>
+        AllServerFiles()
+            .Select(ServerFile.Parse)
+            .GroupBy(f => f.Destination, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
 }

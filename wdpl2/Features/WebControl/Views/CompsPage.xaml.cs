@@ -766,7 +766,83 @@ public partial class CompsPage : ContentPage
             ? $"{_ties.Count} tie(s), none left to play."
             : $"{open.Count} tie(s) still to play.";
 
+        TieAddressLabel.Text = $"Captains score a cup tie at {CupAddress()} — not the captains' page.";
+
         RenderTieCards();
+    }
+
+    /// <summary>
+    /// Where a captain goes to score a cup tie.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately the competition side of the site rather than /captain. A
+    /// cup tie is nothing to do with a team's league fixtures, and the two
+    /// sitting on one page is the confusion this address exists to prevent.
+    /// </remarks>
+    private static string CupAddress()
+    {
+        var site = WebConnection.SiteRoot();
+
+        return string.IsNullOrWhiteSpace(site) ? "your website's /comp page" : site + "/comp/";
+    }
+
+    /// <summary>
+    /// Sends the draw up so a card can be opened on it.
+    /// </summary>
+    /// <remarks>
+    /// This is the season publish, not a competition one: a cup tie lives in
+    /// the fixtures table so the captains' own sign-in and the scorecard both
+    /// find it, and that table is replaced a season at a time. Offering it here
+    /// as well saves running a cup night from two pages.
+    /// </remarks>
+    private async void OnPublishTiesClicked(object? sender, EventArgs e)
+    {
+        var competition = Selected;
+        if (competition is null) return;
+
+        var season = League.Seasons.FirstOrDefault(x => x.Id == competition.SeasonId)
+                     ?? League.Seasons.FirstOrDefault(x => x.IsActive);
+        if (season is null)
+        {
+            Report("That competition is not in a season, so there is nothing to publish.", error: true);
+            return;
+        }
+
+        var (payload, counts) = LeagueSnapshot.Build(League, season, League.Settings);
+
+        if (!await DisplayAlert("Publish these ties?",
+                $"{competition.Name}\n{_ties.Count} tie(s)\n\n"
+                + $"This publishes the whole of {season.Name} — {counts} — because a cup tie "
+                + "travels with the season's fixtures. It replaces everything the website holds for "
+                + "that season. Other seasons are not affected.",
+                "Publish", "Cancel"))
+            return;
+
+        PublishTiesButton.IsEnabled = false;
+        Report("Publishing...", error: false);
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            await client.AdminAsync("league", "push", payload);
+
+            Report($"Published. The captains can score their ties at {CupAddress()}.", error: false);
+            await LoadTiesAsync();
+        }
+        catch (WebApiException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            PublishTiesButton.IsEnabled = true;
+        }
     }
 
     /// <summary>The tie the picker is on, or null.</summary>
@@ -971,6 +1047,7 @@ public partial class CompsPage : ContentPage
                 $"{tie.CompetitionName} — {tie.RoundName}\n{tie.Describe(teams)}\n{format}\n\n"
                 + "The captains toss for home and away on the card, then fill it in turns. "
                 + "First to 8 frames wins the tie.\n\n"
+                + $"Both captains score it at {CupAddress()}.\n\n"
                 + "The website will own this card until you collect it.",
                 "Open", "Cancel"))
             return;
@@ -982,7 +1059,7 @@ public partial class CompsPage : ContentPage
             using var client = new WebApiClient(connection);
 
             await ScorecardService.OpenAsync(client, tie.Id, format);
-            Report("Open for live scoring. Both captains can now score it at your website's /captain/ page.",
+            Report($"Open for live scoring. Both captains can now score it at {CupAddress()}.",
                    error: false);
 
             await LoadTiesAsync();
@@ -994,7 +1071,7 @@ public partial class CompsPage : ContentPage
                 "already_live" => "That tie is already open for live scoring.",
                 "awaiting_claim" => "The captains have finished that tie. Collect it first.",
                 "unknown_fixture" => "That tie has not been published to the website yet. "
-                                     + "Publish the season from Web Control — cup ties go up with it.",
+                                     + "Use Publish these ties first.",
                 _ => ex.Message,
             }, error: true);
         }

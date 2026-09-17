@@ -75,4 +75,28 @@ public class WebConnectionTests
             AdminPassword = "pw",
         }.IsConfigured);
     }
+
+    [Theory]
+    [InlineData("https://wdpl.uk/api/", "https://wdpl.uk")]
+    [InlineData("https://wdpl.uk/api", "https://wdpl.uk")]
+    [InlineData("https://wdpl.uk/pool/api/", "https://wdpl.uk/pool")]
+    [InlineData("https://wdpl.uk/", "https://wdpl.uk")]
+    [InlineData("", "")]
+    public void SiteRoot_TrimsTheApiOffTheEnd(string api, string expected)
+    {
+        Assert.Equal(expected, WebConnection.SiteRoot(api));
+    }
+
+    /// <summary>
+    /// A site that happens to live under a folder called "api" keeps it.
+    /// </summary>
+    /// <remarks>
+    /// Only the last "/api" is the endpoint; an earlier one is part of the path
+    /// the league actually published to.
+    /// </remarks>
+    [Fact]
+    public void SiteRoot_OnlyTrimsTheLastApi()
+    {
+        Assert.Equal("https://wdpl.uk/api/league", WebConnection.SiteRoot("https://wdpl.uk/api/league/api/"));
+    }
 }

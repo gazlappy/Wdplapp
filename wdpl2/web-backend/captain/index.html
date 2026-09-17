@@ -214,8 +214,10 @@ button.go{background:var(--felt);}
 <body>
 
 <header>
-  <h1>WDPL Captain</h1>
+  <h1 id="brand">WDPL Captain</h1>
   <div style="display:flex;align-items:center;gap:8px">
+    <a id="backToComps" class="hidden" href="./"
+       style="color:var(--muted);font-size:12px;text-decoration:none">&#8592; Competitions</a>
     <span id="net" class="net">online</span>
     <span id="who"></span>
   </div>
@@ -226,6 +228,9 @@ button.go{background:var(--felt);}
 
   <!-- Sign in -->
   <section class="card" id="loginCard">
+    <p id="loginIntro" class="hidden" style="margin:0 0 12px;color:var(--muted);font-size:13px">
+      Sign in with your team&rsquo;s PIN to score tonight&rsquo;s cup tie. This is the cup only &mdash;
+      league nights are at <strong>/captain</strong>.</p>
     <label for="team">Your team</label>
     <select id="team"><option value="">Loading…</option></select>
     <label for="pin" style="margin-top:12px">PIN</label>
@@ -278,7 +283,7 @@ button.go{background:var(--felt);}
   <!-- Nothing live -->
   <section class="card hidden" id="idleCard">
     <p style="margin:0 0 8px"><strong id="idleTeam"></strong></p>
-    <p style="margin:0; color:var(--muted); font-size:13px">
+    <p id="idleText" style="margin:0; color:var(--muted); font-size:13px">
       No match is open for scoring yet. The league opens the card when your match is about to start.</p>
     <div class="row" style="margin-top:12px">
       <button class="ghost" id="refreshBtn">Check again</button>
@@ -388,6 +393,18 @@ button.go{background:var(--felt);}
   'use strict';
 
   var API = '../api/index.php';
+
+  /**
+   * This page is served twice: at /captain for a league night, and at
+   * /comp/tie.html for a cup tie. One file, two front doors.
+   *
+   * A cup tie has nothing to do with a captain's league fixtures, squad or
+   * contacts, and mixing the two would mean hunting for tonight's tie among
+   * them. So the competition door shows the card and nothing else, and asks
+   * the server for cup cards only - a league night never appears here, and a
+   * cup tie never appears under /captain.
+   */
+  var CUP_ONLY = /\/comp\//.test(location.pathname);
   var POLL_MS = 4000;
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
@@ -403,6 +420,16 @@ button.go{background:var(--felt);}
   var MAX_STRIKES = 3;   // give up re-sending a batch the server keeps refusing
 
   function $(id){ return document.getElementById(id); }
+
+  // Said once, at load, so the page never briefly reads as the wrong one.
+  if(CUP_ONLY){
+    document.title = 'WDPL Cup Tie';
+    $('brand').textContent = 'WDPL Cup Tie';
+    $('backToComps').classList.remove('hidden');
+    $('loginIntro').classList.remove('hidden');
+    $('idleText').textContent =
+      'No cup tie is open for you yet. The league opens the card when the tie is about to start.';
+  }
   function show(el,on){ el.classList.toggle('hidden', !on); }
   function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
@@ -576,7 +603,7 @@ button.go{background:var(--felt);}
       $('who').textContent=me.name;
       $('idleTeam').textContent=me.name;
       show($('loginCard'),false);
-      show($('tabs'),true);
+      show($('tabs'), !CUP_ONLY);
       return refresh();
     }).then(function(){ return loadRosters(); })
       .catch(function(e){ say(e.message,'bad'); })
@@ -799,11 +826,11 @@ button.go{background:var(--felt);}
 
   // --------------------------------------------------------------- polling
 
-  function onCardTab(){ return $('tabCard').classList.contains('on'); }
+  function onCardTab(){ return CUP_ONLY || $('tabCard').classList.contains('on'); }
 
   function refresh(){
     if(!onCardTab()) return Promise.resolve();
-    return call('scorecards','mine').then(function(card){
+    return call('scorecards','mine',{kind: CUP_ONLY ? 'cup' : 'league'}).then(function(card){
       if(!card || !card.fixture_id){
         S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
         stopPolling(); return;

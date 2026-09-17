@@ -17,5 +17,11 @@ public sealed class CompsWebModule : IWebModule
         "api/modules/comps/Standings.php",
         "api/modules/comps/Draw.php",
         "comp/index.html",
+
+        // The cup tie card is the captains' scorecard, served a second time on
+        // the competition side of the site. A cup tie has nothing to do with
+        // the league's fixtures and the captains should not have to pick it out
+        // from among them - so it is reached from wdpl.uk/comp, not /captain.
+        "captain/index.html>comp/tie.html",
     };
 }

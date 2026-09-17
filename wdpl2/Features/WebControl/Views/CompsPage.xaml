@@ -34,8 +34,18 @@
                                 FontSize="12" Padding="12,6"/>
                     </Grid>
 
-                    <Label Text="A cup tie is scored on a full scorecard, like a league night. Publish the season first — the ties go up with it. On the night the captains toss for home and away, then fill the card in turns. First to 8 frames wins; the rest can be played out or left."
+                    <Label Text="A cup tie is scored on a full scorecard, like a league night. On the night the captains toss for home and away, then fill the card in turns. First to 8 frames wins; the rest can be played out or left."
                            FontSize="11" TextColor="#94A3B8"/>
+
+                    <Label x:Name="TieAddressLabel" FontSize="11" TextColor="#2563EB"/>
+
+                    <Button x:Name="PublishTiesButton" Text="Publish these ties" Clicked="OnPublishTiesClicked"
+                            BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                            FontSize="13" Margin="0,2,0,0"/>
+                    <Label Text="Sends the draw to the website so a card can be opened on it. Publishes the whole season, the same as the League data page — cup ties travel with it."
+                           FontSize="11" TextColor="#94A3B8"/>
+
+                    <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,6"/>
 
                     <Picker x:Name="TiePicker" FontSize="13"/>
                     <Button x:Name="OpenTieButton" Text="Open this tie for live scoring" Clicked="OnOpenTieClicked"

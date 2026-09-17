@@ -55,6 +55,25 @@ public sealed class WebConnection
         return new Uri(uri, "index.php");
     }
 
+    /// <summary>
+    /// The website's own address, worked out from the API URL.
+    /// </summary>
+    /// <remarks>
+    /// Wanted for telling the secretary where to send people - the captains'
+    /// page, the competition page - so it reads the stored URL directly rather
+    /// than going through <see cref="LoadAsync"/>, which also fetches the admin
+    /// password from secure storage and cannot be waited on from a UI thread.
+    /// </remarks>
+    public static string SiteRoot(string? apiUrl = null)
+    {
+        var api = (apiUrl ?? Preferences.Get(KeyBaseUrl, DefaultBaseUrl) ?? "").Trim();
+
+        var at = api.LastIndexOf("/api", StringComparison.OrdinalIgnoreCase);
+        var root = at > 0 ? api[..at] : api;
+
+        return root.TrimEnd('/');
+    }
+
     public static async Task<WebConnection> LoadAsync()
     {
         var connection = new WebConnection

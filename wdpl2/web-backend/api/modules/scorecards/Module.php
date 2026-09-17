@@ -485,21 +485,31 @@ final class ScorecardsModule implements Module
 
     // --------------------------------------------------------------- captains
 
+    /**
+     * The card this team is playing right now, if any.
+     *
+     * A cup tie and a league night are asked for separately, because they are
+     * reached from different pages: the league's own scorecard lives under
+     * /captain, and a cup tie under /comp. Mixing them would put a cup tie in
+     * among a captain's league fixtures on the very night it is played, which
+     * is exactly the confusion the two addresses exist to avoid.
+     */
     public static function mine()
     {
         $teamId = Captain::requireTeamId();
+        $kind   = Http::field('kind', 'league') === 'cup' ? 'cup' : 'league';
 
         $row = Db::one(
             'SELECT c.fixture_id
              FROM wdpl_scorecards c
              JOIN wdpl_fixtures f ON f.id = c.fixture_id
-             WHERE c.state = ? AND (f.home_team_id = ? OR f.away_team_id = ?)
+             WHERE c.state = ? AND c.card_kind = ? AND (f.home_team_id = ? OR f.away_team_id = ?)
              ORDER BY f.match_date DESC LIMIT 1',
-            [self::STATE_LIVE, $teamId, $teamId]
+            [self::STATE_LIVE, $kind, $teamId, $teamId]
         );
 
         if ($row === null) {
-            return ['fixture_id' => null];
+            return ['fixture_id' => null, 'kind' => $kind];
         }
         return self::readCard((string)$row['fixture_id'], self::sideFor((string)$row['fixture_id'], $teamId));
     }
