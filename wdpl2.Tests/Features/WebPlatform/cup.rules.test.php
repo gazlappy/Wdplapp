@@ -2,11 +2,17 @@
 declare(strict_types=1);
 
 /**
- * Cup nomination order.
+ * Cup nomination order, and the frames that decide a cup tie.
  *
  * The league's rule, in its own words: the home team fills in one player, the
  * away team fills in two, the home team two, and so on to frame ten; then the
  * home captain fills in the last five before the away captain fills in theirs.
+ * Home and away are decided by a coin toss on the night, so "home" here is
+ * simply whoever won that toss - by the time these rules are asked anything,
+ * the coin has landed.
+ *
+ * A cup tie is the first to eight of fifteen, not fifteen played out, so there
+ * is no such thing as a drawn cup tie.
  *
  *   php wdpl2.Tests/Features/WebPlatform/cup.rules.test.php
  */
@@ -50,12 +56,18 @@ function card(): array
     $out = [];
     for ($i = 1; $i <= 15; $i++) {
         $out[] = [
-            'frame_no' => $i,
+            'frame_no' => $i, 'winner' => 'none',
             'home_player_id' => null, 'home_player_name' => null,
             'away_player_id' => null, 'away_player_name' => null,
         ];
     }
     return $out;
+}
+
+/** Records the winner of a frame. */
+function won(array &$frames, int $index, string $side): void
+{
+    $frames[$index]['winner'] = $side;
 }
 
 /** Names a side's lead in one frame. */
@@ -232,10 +244,52 @@ test('the allowance follows the blocks the other side has finished', function ()
     same(10, CupRules::allowance('away', 10, 9));
 });
 
+test('fifteen frames is first to eight', function () {
+    same(8, CupRules::target(15));
+
+    // Stated as a majority so a card of another length still has an answer.
+    same(6, CupRules::target(11));
+    same(4, CupRules::target(7));
+});
+
+test('the tie is decided the moment one side reaches eight', function () {
+    $f = card();
+
+    for ($i = 0; $i < 7; $i++) won($f, $i, 'home');
+    check(CupRules::decided($f, 8) === null, 'seven is not enough');
+
+    won($f, 7, 'home');
+    same('home', CupRules::decided($f, 8), 'eight wins it');
+});
+
+test('a cup tie cannot be drawn', function () {
+    $f = card();
+
+    // Seven each with one to come: not a draw, just not finished.
+    for ($i = 0; $i < 7; $i++) won($f, $i, 'home');
+    for ($i = 7; $i < 14; $i++) won($f, $i, 'away');
+    check(CupRules::decided($f, 8) === null, 'seven all is still live');
+
+    won($f, 14, 'away');
+    same('away', CupRules::decided($f, 8), 'the last frame settles it');
+});
+
+test('the rest may still be played after it is won', function () {
+    $f = card();
+
+    for ($i = 0; $i < 8; $i++) won($f, $i, 'home');
+    same('home', CupRules::decided($f, 8));
+
+    // Playing the dead frames out changes nothing about who won.
+    for ($i = 8; $i < 15; $i++) won($f, $i, 'away');
+    same('home', CupRules::decided($f, 8), 'the winner does not change');
+});
+
 test('a card that is not fifteen frames still behaves', function () {
     $f = [];
     for ($i = 1; $i <= 10; $i++) {
-        $f[] = ['frame_no' => $i, 'home_player_id' => null, 'home_player_name' => null,
+        $f[] = ['frame_no' => $i, 'winner' => 'none',
+                'home_player_id' => null, 'home_player_name' => null,
                 'away_player_id' => null, 'away_player_name' => null];
     }
 

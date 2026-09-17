@@ -242,6 +242,68 @@ public class CupTiePublishTests
         Assert.Null(CupTie.Locate(cup, Guid.NewGuid()));
     }
 
+    [Fact]
+    public void TheTossDecidesHomeAndAway_SoTheScoreIsMatchedBackByTeam()
+    {
+        var cup = TheCup();
+        var match = cup.Rounds[0].Matches[0];   // the draw listed Reds first
+
+        // The Blues won the toss, so they were home on the card and won 8-5.
+        CupTie.ApplyScore(match, homeTeamId: Blues, homeScore: 8, awayScore: 5);
+
+        // Recorded the draw's way round: the Reds are still slot one.
+        Assert.Equal(5, match.Participant1Score);
+        Assert.Equal(8, match.Participant2Score);
+    }
+
+    [Fact]
+    public void TossGoingTheDrawsWay_LeavesTheScoreWhereItIs()
+    {
+        var cup = TheCup();
+        var match = cup.Rounds[0].Matches[0];
+
+        CupTie.ApplyScore(match, homeTeamId: Reds, homeScore: 8, awayScore: 5);
+
+        Assert.Equal(8, match.Participant1Score);
+        Assert.Equal(5, match.Participant2Score);
+    }
+
+    [Fact]
+    public void TheCardNamesTheWinningTeam_NotJustTheWinningColumn()
+    {
+        // The card as the website hands it back after a toss that made the
+        // Blues home: home is the Blues, and home won it.
+        var card = new ScorecardState
+        {
+            IsCup = true,
+            HomeTeamId = Blues,
+            AwayTeamId = Reds,
+            HomeScore = 8,
+            AwayScore = 5,
+            DecidedBy = FrameWinner.Home,
+        };
+
+        Assert.Equal(Blues, card.WinnerTeamId);
+    }
+
+    [Fact]
+    public void ATieNobodyHasWonYet_NamesNoWinner()
+    {
+        // Seven all with one to play is not a draw - a cup tie cannot be drawn.
+        // It is simply not finished, and nothing may go into the bracket.
+        var card = new ScorecardState
+        {
+            IsCup = true,
+            HomeTeamId = Blues,
+            AwayTeamId = Reds,
+            HomeScore = 7,
+            AwayScore = 7,
+            DecidedBy = FrameWinner.None,
+        };
+
+        Assert.Null(card.WinnerTeamId);
+    }
+
     private static JsonElement Json(object payload) =>
         JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(payload));
 

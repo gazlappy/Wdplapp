@@ -85,6 +85,25 @@ public sealed record CupTie(
         return ties;
     }
 
+    /// <summary>
+    /// Puts a card's scoreline onto the match, the draw's way round.
+    /// </summary>
+    /// <remarks>
+    /// The card's home and away are the coin's answer, not the draw's: the toss
+    /// winner is home for the night. The bracket's two slots are fixed, so the
+    /// result is matched back by team rather than by which column it sat in, or
+    /// a tie whose toss went the other way would be recorded backwards.
+    /// </remarks>
+    public static void ApplyScore(CompetitionMatch match, Guid homeTeamId, int homeScore, int awayScore)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+
+        var homeIsFirst = match.Participant1Id == homeTeamId;
+
+        match.Participant1Score = homeIsFirst ? homeScore : awayScore;
+        match.Participant2Score = homeIsFirst ? awayScore : homeScore;
+    }
+
     /// <summary>Finds the round and match a collected cup card belongs to.</summary>
     public static (Competition Comp, CompetitionRound Round, CompetitionMatch Match)? Locate(
         Competition competition, Guid matchId)

@@ -1,5 +1,5 @@
-﻿using Wdpl2.Domain.Competitions;
-using Wdpl2.Domain.Fixtures;
+﻿using Wdpl2.Domain.Fixtures;
+using Wdpl2.Features.WebControl;
 using Wdpl2.Models;
 using Wdpl2.Services;
 using Wdpl2.Services.Web;
@@ -18,19 +18,7 @@ public partial class ScorecardsPage : ContentPage
 {
     private static LeagueData League => DataStore.Data;
 
-    /// <summary>
-    /// A match a card can be opened on - a league fixture, or a cup tie.
-    /// </summary>
-    /// <remarks>
-    /// The website holds both in one table, so the only thing this page needs
-    /// to keep apart is where a collected result is written back to.
-    /// </remarks>
-    private sealed record Openable(Guid Id, string Label, DateTime Date, CupTie? Cup)
-    {
-        public bool IsCup => Cup is not null;
-    }
-
-    private readonly List<Openable> _openable = new();
+    private readonly List<Fixture> _openable = new();
     private List<ScorecardState> _states = new();
     private readonly IDataStore _dataStore;
 
@@ -57,29 +45,20 @@ public partial class ScorecardsPage : ContentPage
 
         var teams = League.Teams.Where(t => t.SeasonId == season.Id).ToDictionary(t => t.Id, t => t.Name ?? "?");
 
+        // Cup ties are handed out from the Competition nights page instead:
+        // they belong to a competition, not to the league's own calendar.
         _openable.AddRange(League.Fixtures
             .Where(f => f.SeasonId == season.Id)
-            .Select(f => new Openable(
-                f.Id,
-                $"{f.Date:ddd dd MMM}  {teams.GetValueOrDefault(f.HomeTeamId, "?")} "
-                + $"v {teams.GetValueOrDefault(f.AwayTeamId, "?")}",
-                f.Date,
-                null)));
+            .OrderBy(f => f.Date));
 
-        // A cup tie already played is left out: its card has been collected and
-        // the competition has moved on, so opening it again would only invite
-        // scoring a round that is over.
-        _openable.AddRange(CupTie.For(League, season)
-            .Where(t => !t.IsComplete)
-            .Select(t => new Openable(
-                t.Id,
-                $"{t.Date:ddd dd MMM}  {t.Describe(teams)}  ({t.CompetitionName} - {t.RoundName})",
-                t.Date,
-                t)));
-
-        _openable.Sort((a, b) => a.Date.CompareTo(b.Date));
-
-        FixturePicker.ItemsSource = _openable.Select(o => o.Label).ToList();
+        FixturePicker.ItemsSource = _openable
+            .Select(f =>
+            {
+                var home = teams.GetValueOrDefault(f.HomeTeamId, "?");
+                var away = teams.GetValueOrDefault(f.AwayTeamId, "?");
+                return $"{f.Date:ddd dd MMM}  {home} v {away}";
+            })
+            .ToList();
 
         if (_openable.Count > 0) FixturePicker.SelectedIndex = 0;
     }
@@ -226,19 +205,14 @@ public partial class ScorecardsPage : ContentPage
     private async void OnOpenClicked(object? sender, EventArgs e)
     {
         if (FixturePicker.SelectedIndex < 0 || FixturePicker.SelectedIndex >= _openable.Count) return;
-        var chosen = _openable[FixturePicker.SelectedIndex];
+        var fixture = _openable[FixturePicker.SelectedIndex];
 
         // One source for the match format: Settings. Not the season, not the
         // fixture's existing frames - see MatchFormat.
         var format = MatchFormat.From(League.Settings);
 
-        var cupNote = chosen.IsCup
-            ? "\n\nCup tie: the captains toss for it on the card, and the winner of the toss "
-              + "fills it in as home."
-            : "";
-
         if (!await DisplayAlert("Open for live scoring?",
-                $"{chosen.Label}\n{format}{cupNote}\n\n" +
+                $"{FixturePicker.ItemsSource[FixturePicker.SelectedIndex]}\n{format}\n\n" +
                 "The website will own this scorecard until you collect it. This app will not change its frames in the meantime.",
                 "Open", "Cancel"))
             return;
@@ -249,7 +223,7 @@ public partial class ScorecardsPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            var state = await ScorecardService.OpenAsync(client, chosen.Id, format);
+            var state = await ScorecardService.OpenAsync(client, fixture.Id, format);
             Report($"Open for live scoring. Captains can now score at your website's /captain/ page.", error: false);
             await LoadStatesAsync();
         }
@@ -259,10 +233,7 @@ public partial class ScorecardsPage : ContentPage
             {
                 "already_live" => "That match is already open for live scoring.",
                 "awaiting_claim" => "That match has been finished by the captains. Collect it first.",
-                "unknown_fixture" => chosen.IsCup
-                    ? "That cup tie has not been published to the website yet. Publish the season "
-                      + "first - cup ties go up with it."
-                    : "That fixture has not been published to the website yet. Publish the season first.",
+                "unknown_fixture" => "That fixture has not been published to the website yet. Publish the season first.",
                 _ => ex.Message,
             }, error: true);
         }
@@ -297,26 +268,13 @@ public partial class ScorecardsPage : ContentPage
             var (claimed, frames, wasClaimed) = await ScorecardService.ClaimAsync(client, state.FixtureId);
 
             // Settle the players first, or the slots naming them land blank.
-            var pulled = await ResolvePlayersAsync(client, state, frames);
+            var pulled = await CardCollect.ResolvePlayersAsync(
+                this, client, _dataStore, League, $"{state.HomeTeam} v {state.AwayTeam}", frames);
             if (pulled is null) return;
 
-            var note = pulled > 0 ? $" Took in {pulled} player(s) the captains added." : "";
-
-            // A cup tie is not a league fixture, so its result goes back into
-            // the competition it came out of - and the winner moves on.
-            var cup = await ApplyToCupTieAsync(state, frames);
-            if (cup is not null)
-            {
-                Report(wasClaimed
-                    ? $"Already collected previously; {cup} Nothing was duplicated."
-                    : $"Collected. {cup}{note}", error: false);
-
-                await LoadStatesAsync();
-                LoadFixtures();
-                return;
-            }
-
             var applied = await ApplyToFixtureAsync(state.FixtureId, frames);
+
+            var note = pulled > 0 ? $" Took in {pulled} player(s) the captains added." : "";
 
             Report(wasClaimed
                 ? $"Already collected previously; re-applied {applied} frames.{note} Nothing was duplicated."
@@ -387,55 +345,6 @@ public partial class ScorecardsPage : ContentPage
     }
 
     /// <summary>
-    /// Settles any player the card names that the app cannot resolve.
-    /// </summary>
-    /// <remarks>
-    /// Returns null if the secretary cancelled, which abandons the collect
-    /// rather than writing a card with holes in it. The website copy is
-    /// untouched either way, so it can simply be collected again.
-    /// </remarks>
-    private async Task<int?> ResolvePlayersAsync(
-        WebApiClient client, ScorecardState state, List<ScorecardService.ClaimedFrame> frames)
-    {
-        var waiting = await CaptainRosterService.UnresolvedAsync(
-            client, _dataStore, League,
-            frames.SelectMany(f => new[] { f.HomePlayerId, f.AwayPlayerId })
-                  .Where(id => id.HasValue)
-                  .Select(id => id!.Value));
-
-        if (waiting.Count == 0) return 0;
-
-        var squad = await _dataStore.GetPlayersAsync(waiting[0].SeasonId);
-
-        var decisions = await CollectPlayersPage.AskAsync(
-            this, waiting, squad,
-            $"{state.HomeTeam} v {state.AwayTeam} names "
-            + (waiting.Count == 1 ? "a player" : $"{waiting.Count} players")
-            + " the app does not have yet.");
-
-        if (decisions is null) return null;
-
-        // Leaving one waiting means its frames would land blank, so say so
-        // rather than writing a card that quietly looks wrong.
-        if (decisions.Count < waiting.Count)
-        {
-            var left = waiting.Count - decisions.Count;
-            if (!await DisplayAlert("Collect without them?",
-                    $"{left} player(s) will be left waiting, so the frames they played "
-                    + "will show blank until you collect them and collect this card again.",
-                    "Collect anyway", "Go back"))
-                return null;
-        }
-
-        if (decisions.Count == 0) return 0;
-
-        var (created, linked) = await CaptainRosterService.CollectAsync(
-            client, _dataStore, League, decisions);
-
-        return created + linked;
-    }
-
-    /// <summary>
     /// Writes collected frames into the local fixture, in both places the app
     /// keeps fixtures.
     /// </summary>
@@ -473,90 +382,6 @@ public partial class ScorecardsPage : ContentPage
         }
 
         return applied;
-    }
-
-    /// <summary>
-    /// Writes a collected cup card into the competition the tie belongs to.
-    /// </summary>
-    /// <remarks>
-    /// Returns null when the card is an ordinary league fixture, so the caller
-    /// falls through to the usual path. The frames themselves are not kept: a
-    /// knockout round records who won and by how much, and the card on the
-    /// website stays frozen as the detailed record of the night.
-    /// <para>
-    /// The scoreline stays in the columns the card used. Which team fills the
-    /// card in first is what the toss decided, not which column a frame is won
-    /// in, so home here is still the team the draw listed first.
-    /// </para>
-    /// </remarks>
-    private async Task<string?> ApplyToCupTieAsync(
-        ScorecardState state, List<ScorecardService.ClaimedFrame> frames)
-    {
-        var season = League.Seasons.FirstOrDefault(s => s.IsActive)
-                     ?? League.Seasons.OrderByDescending(s => s.StartDate).FirstOrDefault();
-        if (season is null) return null;
-
-        var tie = CupTie.For(League, season).FirstOrDefault(t => t.Id == state.FixtureId);
-        if (tie is null) return null;
-
-        var competition = await _dataStore.GetCompetitionAsync(tie.CompetitionId);
-        if (competition is null) return "the competition it belongs to is no longer in the app.";
-
-        var found = CupTie.Locate(competition, tie.Id);
-        if (found is null) return "the tie is no longer in that competition's bracket.";
-
-        var (_, round, match) = found.Value;
-
-        var home = frames.Count(f => f.Winner == FrameWinner.Home);
-        var away = frames.Count(f => f.Winner == FrameWinner.Away);
-
-        match.Participant1Score = home;
-        match.Participant2Score = away;
-
-        // A drawn cup tie has to be settled at the table, so it is left open
-        // rather than sent through on a coin toss of our own.
-        if (home == away)
-        {
-            match.WinnerId = null;
-            match.IsComplete = false;
-            BracketAdvance.Clear(competition, round, match);
-        }
-        else
-        {
-            match.WinnerId = home > away ? match.Participant1Id : match.Participant2Id;
-            match.IsComplete = true;
-            BracketAdvance.Advance(competition, round, match);
-        }
-
-        await _dataStore.UpdateCompetitionAsync(competition);
-
-        var snapshot = League.Competitions.FirstOrDefault(c => c.Id == competition.Id);
-        if (snapshot is not null)
-        {
-            var mirror = CupTie.Locate(snapshot, tie.Id);
-            if (mirror is not null)
-            {
-                mirror.Value.Match.Participant1Score = match.Participant1Score;
-                mirror.Value.Match.Participant2Score = match.Participant2Score;
-                mirror.Value.Match.WinnerId = match.WinnerId;
-                mirror.Value.Match.IsComplete = match.IsComplete;
-
-                if (match.IsComplete) BracketAdvance.Advance(snapshot, mirror.Value.Round, mirror.Value.Match);
-                else BracketAdvance.Clear(snapshot, mirror.Value.Round, mirror.Value.Match);
-            }
-
-            DataStore.SaveJsonOnly();
-        }
-
-        var teams = League.Teams.ToDictionary(t => t.Id, t => t.Name ?? "?");
-
-        if (!match.WinnerId.HasValue)
-            return $"{tie.CompetitionName} {tie.RoundName} finished level at {home}-{away}, "
-                 + "so nobody has gone through. Settle it in the Competitions tab.";
-
-        var winner = teams.GetValueOrDefault(match.WinnerId.Value, "The winner");
-        return $"{winner} win {Math.Max(home, away)}-{Math.Min(home, away)} and go through "
-             + $"in the {tie.CompetitionName} {tie.RoundName}.";
     }
 
     /// <summary>

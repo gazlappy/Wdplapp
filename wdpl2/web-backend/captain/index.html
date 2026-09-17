@@ -303,10 +303,11 @@ button.go{background:var(--felt);}
 
     <!-- A cup tie has no home team until the coin lands. -->
     <div class="msg warn hidden" id="tossBar" style="margin-top:10px">
-      <strong>Toss for it</strong>
+      <strong>Toss for home and away</strong>
       <p style="margin:6px 0 0; font-size:12px">
-        This is a cup tie. Toss a coin in front of both captains - whoever wins it fills
-        the card in as home and names the first player.
+        This is a cup tie, so there is no home team until you toss for it. Do it in front of
+        both captains: the winner is home, names the first player, and takes the home half of
+        the card.
       </p>
       <div class="row" style="margin-top:8px">
         <button class="go" id="tossMine">We won the toss</button>
@@ -497,6 +498,15 @@ button.go{background:var(--felt);}
     });
     S.card.home_score=h; S.card.away_score=a; S.card.frames_played=p;
     S.card.all_scored = p===frames.length && frames.length>0;
+
+    // A cup tie is first to eight, so the card can be finished long before
+    // every frame has a result. Worked out here too, or the sign-off button
+    // would go dead again between a tap and the server's reply.
+    S.card.decided_by = null;
+    if(S.card.is_cup){
+      var need = S.card.frames_to_win || Math.floor(frames.length/2)+1;
+      S.card.decided_by = h>=need ? 'home' : (a>=need ? 'away' : null);
+    }
     S.card.unscored = frames.filter(function(f){ return f.winner==='none'; })
                             .map(function(f){ return f.frame_no; });
     render(S.card);
@@ -869,7 +879,7 @@ button.go{background:var(--felt);}
     bar.classList.remove('ok','warn');
     bar.classList.add(card.your_turn ? 'ok' : 'warn');
 
-    var role = card.your_role==='home' ? 'You won the toss' : 'They won the toss';
+    var role = S.side==='home' ? 'You are home' : 'They are home';
     var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
 
     $('turnText').textContent = card.your_turn
@@ -877,13 +887,19 @@ button.go{background:var(--felt);}
       : role+' \u00b7 waiting for '+theirs+' to name '+((card.turn&&card.turn.what)||'theirs');
   }
 
+  /** The team that has already won a cup tie, by name, or empty. */
+  function cupWinnerName(card){
+    if(!card.is_cup || !card.decided_by) return '';
+    return (card.decided_by==='home' ? $('homeName') : $('awayName')).textContent;
+  }
+
   function tossed(wonBy){
     call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy})
       .then(function(card){
         render(card);
-        say(card.your_role==='home'
-          ? 'You fill the card in as home - name your first player.'
-          : 'They fill the card in as home. You name two once they have named their first.', 'ok');
+        say(card.your_side==='home'
+          ? 'You are home - name your first player.'
+          : 'They are home. You name two once they have named their first.', 'ok');
       })
       .catch(function(e){ say(e.message,'bad'); });
   }
@@ -918,7 +934,7 @@ button.go{background:var(--felt);}
   function cupLockMessage(index){
     var card=S.card, frames=card.frames||[], n=frames.length;
 
-    if(!card.toss_won_by) return 'Toss for it first - the winner of the toss fills the card in as home.';
+    if(!card.toss_won_by) return 'Toss for it first - the winner of the toss is home.';
     if(!card.your_turn){
       var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
       return 'It is '+theirs+"'s turn.";
@@ -1207,11 +1223,21 @@ button.go{background:var(--felt);}
       box.textContent='The other captain has signed. Check the card and sign to finish.';
     } else {
       box.className='msg warn';
-      box.textContent = card.all_scored
-        ? 'Every frame is scored. Both captains must sign to finish.'
-        : 'Still to score: frame '+(card.unscored||[]).join(', ')+'.';
+
+      if(card.all_scored){
+        box.textContent='Every frame is scored. Both captains must sign to finish.';
+      } else if(card.decided_by){
+        // Won, but not played out. Both are fine - the league takes the card
+        // as it stands, and the dead frames are the captains' business.
+        box.className='msg ok';
+        box.textContent=cupWinnerName(card)+' have won it '+Math.max(card.home_score,card.away_score)
+                       +'\u2013'+Math.min(card.home_score,card.away_score)
+                       +'. Sign off now, or play the rest out first.';
+      } else {
+        box.textContent='Still to score: frame '+(card.unscored||[]).join(', ')+'.';
+      }
     }
-    $('signBtn').disabled=!card.all_scored;
+    $('signBtn').disabled=!(card.all_scored || card.decided_by);
     $('signBtn').textContent='Sign off my side';
   }
 

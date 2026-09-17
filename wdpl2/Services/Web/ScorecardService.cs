@@ -175,6 +175,19 @@ public sealed class ScorecardService
         Version = Int(row, "version"),
         HomeTeam = Text(row, "home_team_name") ?? "",
         AwayTeam = Text(row, "away_team_name") ?? "",
+
+        // For a cup tie these two are the coin's answer, not the draw's: the
+        // website puts the toss winner in the home column and leaves it there.
+        HomeTeamId = OptionalGuid(row, "home_team_id"),
+        AwayTeamId = OptionalGuid(row, "away_team_id"),
+        IsCup = row.TryGetProperty("is_cup", out var cup)
+                && (cup.ValueKind == JsonValueKind.True || Text(row, "is_cup") == "1"),
+        DecidedBy = Text(row, "decided_by") switch
+        {
+            "home" => FrameWinner.Home,
+            "away" => FrameWinner.Away,
+            _ => FrameWinner.None,
+        },
         HomeScore = Int(row, "home_score"),
         AwayScore = Int(row, "away_score"),
         FramesPlayed = Int(row, "frames_played"),

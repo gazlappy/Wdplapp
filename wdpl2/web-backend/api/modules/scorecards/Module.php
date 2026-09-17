@@ -336,10 +336,11 @@ final class ScorecardsModule implements Module
 
     public static function state()
     {
-        return Db::all(
+        $rows = Db::all(
             "SELECT c.fixture_id, c.state, c.version, c.frames_total,
-                    c.opened_at, c.finalised_at, c.claimed_at,
+                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by,
                     c.home_finalised_at, c.away_finalised_at, c.solo_by,
+                    f.home_team_id, f.away_team_id,
                     h.name AS home_team_name, a.name AS away_team_name, f.match_date,
                     SUM(CASE WHEN fr.winner = 'home' THEN 1 ELSE 0 END) AS home_score,
                     SUM(CASE WHEN fr.winner = 'away' THEN 1 ELSE 0 END) AS away_score,
@@ -352,6 +353,24 @@ final class ScorecardsModule implements Module
              GROUP BY c.fixture_id
              ORDER BY f.match_date DESC"
         );
+
+        // A cup tie's two teams change places when the coin lands, and the
+        // scoreline above is already counted in the card's own columns - so the
+        // names have to follow, or the league would read the result backwards.
+        foreach ($rows as &$row) {
+            $row['is_cup'] = ($row['card_kind'] ?? 'league') === 'cup';
+
+            if ($row['is_cup'] && ($row['toss_won_by'] ?? null) === 'away') {
+                foreach ([['home_team_id', 'away_team_id'], ['home_team_name', 'away_team_name']] as $pair) {
+                    $was = $row[$pair[0]];
+                    $row[$pair[0]] = $row[$pair[1]];
+                    $row[$pair[1]] = $was;
+                }
+            }
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /** The match format a season was published with. */
@@ -427,7 +446,8 @@ final class ScorecardsModule implements Module
      *
      * A cup tie has no home team until the coin lands. Either captain may enter
      * it - they are both standing there watching - but only once, because the
-     * whole nomination order hangs off it.
+     * whole card hangs off it: who is home, who names the first player, and
+     * which half of the scoreline belongs to which team.
      */
     public static function toss()
     {
@@ -458,7 +478,8 @@ final class ScorecardsModule implements Module
                 [$won, $fixtureId]
             );
 
-            return self::readCard($fixtureId, $side);
+            // The caller's side is asked again: the coin may have just moved it.
+            return self::readCard($fixtureId, self::requireSide($fixtureId));
         });
     }
 
@@ -588,20 +609,12 @@ final class ScorecardsModule implements Module
     /** The squad a draw picks from, for one side of a fixture. */
     private static function drawPool(string $fixtureId, string $side): array
     {
-        $fixture = Db::one(
-            'SELECT home_team_id, away_team_id FROM wdpl_fixtures WHERE id = ?',
-            [$fixtureId]
-        );
-
-        if ($fixture === null) {
+        $sides = self::sides($fixtureId);
+        if ($sides === null) {
             return [];
         }
 
-        $teamId = $side === 'home'
-            ? (string)$fixture['home_team_id']
-            : (string)$fixture['away_team_id'];
-
-        return self::playersOf($teamId);
+        return self::playersOf($sides[$side === 'home' ? 'home' : 'away']);
     }
 
     private static function playersOf(string $teamId): array
@@ -668,11 +681,10 @@ final class ScorecardsModule implements Module
             // A cup card is filled in turns rather than one side following the
             // other, so both captains have to be told to wait - not just away.
             $cup = ($card['card_kind'] ?? 'league') === 'cup';
-            $toss = $card['toss_won_by'];
 
-            if ($cup && $toss === null) {
+            if ($cup && $card['toss_won_by'] === null) {
                 throw new ApiError(409, 'no_toss',
-                    'Toss for it first. The winner of the toss fills the card in as home.');
+                    'Toss for it first. The winner of the toss is home.');
             }
 
             // A draw is shorthand for the picks it makes. Expanding it here
@@ -684,8 +696,7 @@ final class ScorecardsModule implements Module
                 if (!is_array($op) || empty($op['kind'])) {
                     continue;
                 }
-                $result = self::applyOne(
-                    $op, $side, $frames, $notes, $maxPerPlayer, $driving, $cup, $toss);
+                $result = self::applyOne($op, $side, $frames, $notes, $maxPerPlayer, $driving, $cup);
 
                 if ($result['rejected'] !== null) {
                     $rejections[] = ['op' => $index, 'reason' => $result['rejected']]
@@ -724,7 +735,7 @@ final class ScorecardsModule implements Module
      */
     private static function applyOne(
         array $op, string $side, array &$frames, &$notes, int $maxPerPlayer, bool $driving = false,
-        bool $cup = false, ?string $toss = null
+        bool $cup = false
     ): array {
         $kind = (string)$op['kind'];
 
@@ -757,13 +768,9 @@ final class ScorecardsModule implements Module
                 if (!$clearing && !$driving) {
                     if ($cup) {
                         // Both sides take turns on a cup card, so both are
-                        // asked - and which of them is "home" for the purposes
-                        // of the order was settled by the toss, not the draw.
-                        $view = CupRules::roleView($frames, $toss);
-                        $role = CupRules::role($side, $toss);
-
-                        if (CupRules::slotLocked($view, $index, $role)) {
-                            return ['rejected' => CupRules::lockReason($view, $index, $role),
+                        // asked. Home here is the side that won the toss.
+                        if (CupRules::slotLocked($frames, $index, $side)) {
+                            return ['rejected' => CupRules::lockReason($frames, $index, $side),
                                     'changed' => false, 'frame' => $frameNo];
                         }
                     } elseif ($side === 'away' && ScorecardRules::awaySlotLocked($frames, $index)) {
@@ -919,7 +926,7 @@ final class ScorecardsModule implements Module
             }
 
             $frames = self::loadFrames($fixtureId);
-            if (!ScorecardRules::allFramesScored($frames)) {
+            if (!self::readyToSign($card, $frames)) {
                 $missing = ScorecardRules::unscoredFrames($frames);
                 throw new ApiError(400, 'not_all_scored',
                     'Every frame needs a result first. Still to score: ' . implode(', ', $missing) . '.');
@@ -1125,7 +1132,7 @@ final class ScorecardsModule implements Module
                     . implode(' ', array_slice($problems, 0, 3)) . $extra);
             }
 
-            if (!ScorecardRules::allFramesScored($frames)) {
+            if (!self::readyToSign($card, $frames)) {
                 $missing = ScorecardRules::unscoredFrames($frames);
                 throw new ApiError(400, 'not_all_scored',
                     'Every frame needs a result. Still to score: ' . implode(', ', $missing) . '.');
@@ -1189,8 +1196,19 @@ final class ScorecardsModule implements Module
 
         $toss = $card['toss_won_by'];
 
+        // The coin decides who is home, so the two teams change places on the
+        // card rather than the scoreline being translated afterwards. Doing it
+        // here means everything downstream - the captain's page, the league's
+        // view, the collected result - reads one consistent card.
+        if ($cup && $toss === 'away') {
+            foreach ([['home_team_id', 'away_team_id'], ['home_team_name', 'away_team_name']] as $pair) {
+                $was = $card[$pair[0]];
+                $card[$pair[0]] = $card[$pair[1]];
+                $card[$pair[1]] = $was;
+            }
+        }
+
         $card['is_cup']      = $cup;
-        $card['your_role']   = $cup && $side !== null ? CupRules::role($side, $toss) : null;
 
         // The blind window is a league idea: away picks catch up behind home's.
         // A cup card has no such window - both sides are held by the turn.
@@ -1202,22 +1220,41 @@ final class ScorecardsModule implements Module
         $card['your_turn'] = null;
 
         if ($cup && $toss !== null) {
-            $turn = CupRules::turn(CupRules::roleView($frames, $toss));
-
-            // Back from a nomination role to the column the captain is sitting in.
-            $turn['side'] = $turn['side'] === 'home'
-                ? $toss
-                : ($toss === 'home' ? 'away' : 'home');
-
-            $card['turn'] = $turn;
-            $card['your_turn'] = $side !== null && $turn['side'] === $side;
+            $card['turn'] = CupRules::turn($frames);
+            $card['your_turn'] = $side !== null && $card['turn']['side'] === $side;
         }
+
+        // A cup tie is first to eight, not fifteen played out, so the card has
+        // to say when it is already won - otherwise the captains sit waiting
+        // for frames that no longer decide anything.
+        $card['frames_to_win'] = $cup ? CupRules::target((int)$card['frames_total']) : null;
+        $card['decided_by']    = $cup ? CupRules::decided($frames, $card['frames_to_win']) : null;
         $card['solo_driver']   = $card['solo_by'];
         $card['you_are_driving'] = ($side !== null && $card['solo_by'] === $side);
         $card['all_scored']    = ScorecardRules::allFramesScored($frames);
         $card['unscored']      = ScorecardRules::unscoredFrames($frames);
 
         return $card;
+    }
+
+    /**
+     * Whether a card may be signed off.
+     *
+     * A league night is every frame. A cup tie is the first to eight: once one
+     * side has that, the rest decide nothing, so the captains may sign there
+     * and then - or play the remaining frames out first and sign afterwards.
+     */
+    private static function readyToSign(array $card, array $frames): bool
+    {
+        if (ScorecardRules::allFramesScored($frames)) {
+            return true;
+        }
+
+        if (($card['card_kind'] ?? 'league') !== 'cup') {
+            return false;
+        }
+
+        return CupRules::decided($frames, CupRules::target((int)$card['frames_total'])) !== null;
     }
 
     private static function loadFrames(string $fixtureId): array
@@ -1284,16 +1321,48 @@ final class ScorecardsModule implements Module
     /** @return string|null */
     private static function sideFor(string $fixtureId, string $teamId)
     {
+        $sides = self::sides($fixtureId);
+        if ($sides === null) {
+            return null;
+        }
+        if ($sides['home'] === $teamId) return 'home';
+        if ($sides['away'] === $teamId) return 'away';
+        return null;
+    }
+
+    /**
+     * Which team is on which side of this card.
+     *
+     * A league fixture answers this itself. A cup tie does not: the two teams
+     * are listed in the order the draw made them, and the coin decides which of
+     * them is actually home. Everything that asks - the captain's own side, the
+     * squad a draw picks from, the scoreline - has to get the same answer, so
+     * they all come through here.
+     *
+     * @return array|null ['home' => teamId, 'away' => teamId]
+     */
+    private static function sides(string $fixtureId)
+    {
         $row = Db::one(
-            'SELECT home_team_id, away_team_id FROM wdpl_fixtures WHERE id = ?',
+            'SELECT f.home_team_id, f.away_team_id, c.card_kind, c.toss_won_by
+               FROM wdpl_fixtures f
+               LEFT JOIN wdpl_scorecards c ON c.fixture_id = f.id
+              WHERE f.id = ?',
             [$fixtureId]
         );
+
         if ($row === null) {
             return null;
         }
-        if ($row['home_team_id'] === $teamId) return 'home';
-        if ($row['away_team_id'] === $teamId) return 'away';
-        return null;
+
+        $home = (string)$row['home_team_id'];
+        $away = (string)$row['away_team_id'];
+
+        if (($row['card_kind'] ?? 'league') === 'cup' && ($row['toss_won_by'] ?? null) === 'away') {
+            return ['home' => $away, 'away' => $home];
+        }
+
+        return ['home' => $home, 'away' => $away];
     }
 
     private static function uuid($value, string $what): string

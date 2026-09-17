@@ -5,8 +5,14 @@ declare(strict_types=1);
  * Nomination order for a cup night.
  *
  * A cup card is played the same way as a league night - same frames, same
- * scoring, same sign-off - but it is filled in differently, and which team
- * counts as "home" is decided by a coin toss rather than by the fixture.
+ * scoring, same sign-off - but it is filled in differently, and which team is
+ * home is decided by a coin toss on the night rather than by the fixture. Once
+ * that coin has landed, home means home: the toss winner takes the home column,
+ * the home squad, and the home half of the scoreline.
+ *
+ * A cup tie is won by the first team to eight frames rather than by playing all
+ * fifteen, so there is no such thing as a drawn cup tie. The rest may still be
+ * played out once it is decided, and often are.
  *
  * The order, as the league plays it:
  *
@@ -32,45 +38,6 @@ final class CupRules
 
     /** Frames at the end that each side nominates in one go. */
     const BLIND_FRAMES = 5;
-
-    /**
-     * Which nomination role a side is playing, given who won the toss.
-     *
-     * A cup tie has no home team until the coin lands, so the card's home and
-     * away columns are just the order the draw listed the two teams in. The
-     * toss decides which of them fills the card in first - and the scoreline
-     * stays in the columns it started in, or collecting it would credit the
-     * wrong team.
-     */
-    public static function role(string $side, ?string $tossWinner): string
-    {
-        return $side === ($tossWinner ?? 'home') ? 'home' : 'away';
-    }
-
-    /**
-     * The card as the nomination rules see it: the toss winner's names in the
-     * home columns, whichever columns they actually live in.
-     */
-    public static function roleView(array $frames, ?string $tossWinner): array
-    {
-        if (($tossWinner ?? 'home') !== 'away') {
-            return $frames;
-        }
-
-        foreach ($frames as &$frame) {
-            foreach (['_id', '_name', '2_id', '2_name'] as $suffix) {
-                $h = 'home_player' . $suffix;
-                $a = 'away_player' . $suffix;
-
-                $was = isset($frame[$h]) ? $frame[$h] : null;
-                $frame[$h] = isset($frame[$a]) ? $frame[$a] : null;
-                $frame[$a] = $was;
-            }
-        }
-        unset($frame);
-
-        return $frames;
-    }
 
     /**
      * How many leads a side is allowed to have named in the open frames.
@@ -234,6 +201,38 @@ final class CupRules
         $left = self::allowance($side, $home, $away) - self::named($frames, $side);
 
         return ['side' => $side, 'what' => $left . ' more to name'];
+    }
+
+    /**
+     * The frames it takes to win, which settles the tie on its own.
+     *
+     * A cup tie is first to eight of fifteen. Expressed as a majority so a card
+     * of a different length still has an answer, and so nobody has to keep two
+     * numbers in step.
+     */
+    public static function target(int $framesTotal): int
+    {
+        return intdiv(max(1, $framesTotal), 2) + 1;
+    }
+
+    /**
+     * The side that has already won it, or null while it is still live.
+     */
+    public static function decided(array $frames, int $target)
+    {
+        $home = 0;
+        $away = 0;
+
+        foreach ($frames as $frame) {
+            $winner = isset($frame['winner']) ? $frame['winner'] : 'none';
+            if ($winner === 'home') { $home++; }
+            elseif ($winner === 'away') { $away++; }
+        }
+
+        if ($home >= $target) { return 'home'; }
+        if ($away >= $target) { return 'away'; }
+
+        return null;
     }
 
     private static function hasLead(array $frame, string $side): bool
