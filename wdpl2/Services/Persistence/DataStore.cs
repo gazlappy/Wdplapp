@@ -361,6 +361,13 @@ public static partial class DataStore
                 Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
             }
 
+            // The database is about to overwrite what was just read, so if it
+            // has fallen behind the file this is the only moment the file's
+            // version still exists to put it right from. A failed save leaves
+            // exactly that state, and without this the next load would copy the
+            // stale database over the good file and the work would be gone.
+            RepairDatabaseIfBehind();
+
             // Overlay entity collections from EF Core (source of truth after migration)
             RefreshEntitiesFromDatabase();
         }
@@ -471,25 +478,36 @@ public static partial class DataStore
 
         try
         {
-            bool behind;
+            string? behind = null;
 
             using (var scope = _services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
 
-                behind = context.Seasons.Count() != Data.Seasons.Count
-                      || context.Divisions.Count() != Data.Divisions.Count
-                      || context.Venues.Count() != Data.Venues.Count
-                      || context.Teams.Count() != Data.Teams.Count
-                      || context.Players.Count() != Data.Players.Count
-                      || context.Fixtures.Count() != Data.Fixtures.Count
-                      || context.Competitions.Count() != Data.Competitions.Count
-                      || context.Players.Count(p => p.GlobalPlayerId != null)
-                             != Data.Players.Count(p => p.GlobalPlayerId != null);
+                void Check(string what, int inDatabase, int inFile)
+                {
+                    if (behind is null && inDatabase != inFile)
+                        behind = $"{what}: database {inDatabase}, file {inFile}";
+                }
+
+                Check("seasons", context.Seasons.Count(), Data.Seasons.Count);
+                Check("divisions", context.Divisions.Count(), Data.Divisions.Count);
+                Check("venues", context.Venues.Count(), Data.Venues.Count);
+                Check("teams", context.Teams.Count(), Data.Teams.Count);
+                Check("players", context.Players.Count(), Data.Players.Count);
+                Check("fixtures", context.Fixtures.Count(), Data.Fixtures.Count);
+                Check("competitions", context.Competitions.Count(), Data.Competitions.Count);
+
+                // The field a failed sync was last seen to lose, and the one
+                // nothing else would notice the absence of.
+                Check("linked players",
+                    context.Players.Count(p => p.GlobalPlayerId != null),
+                    Data.Players.Count(p => p.GlobalPlayerId != null));
             }
 
-            if (!behind) return;
+            if (behind is null) return;
 
+            System.Diagnostics.Debug.WriteLine($"[DataStore] Database is behind the file ({behind}). Rebuilding.");
             SyncEntitiesToDatabase();
         }
         catch (Exception ex)

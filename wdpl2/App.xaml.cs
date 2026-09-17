@@ -31,12 +31,10 @@ public partial class App : Application
         DataStore.SetServiceProvider(_services);
 
         // Load data (entities come from EF Core, settings from JSON)
+        // Load checks the database against the file and rebuilds it if it has
+        // fallen behind - which has to happen there, before the database is
+        // copied back over what was read.
         DataStore.Load();
-
-        // The database is a copy of the file, and a failed sync leaves the two
-        // disagreeing with nothing to say so. Checked on the way in, and put
-        // right in the background so starting up does not wait for it.
-        Task.Run(DataStore.RepairDatabaseIfBehind);
 
         // Apply saved theme settings
         _themeService.ApplyTheme();
