@@ -100,7 +100,7 @@ public class PlayerLinksTests
     }
 
     [Fact]
-    public void Find_PairsAnInitialWithAForename()
+    public void Find_PairsABareInitialWithTheOnlyNameItCanMean()
     {
         var league = League();
         Add(league, "D", "Marsh", LastSeason);
@@ -114,6 +114,25 @@ public class PlayerLinksTests
         Assert.Equal("Dave Marsh", found.Name);
     }
 
+    /// <summary>
+    /// An initial that could mean two of them means neither.
+    /// </summary>
+    /// <remarks>
+    /// The books hold a Jamie Smith and a Jez Smith. Which of them J Smith is
+    /// cannot be worked out from the name, and guessing would not only get it
+    /// wrong half the time - it would drag Jamie and Jez into one set as well.
+    /// </remarks>
+    [Fact]
+    public void Find_LeavesAnAmbiguousInitialAlone()
+    {
+        var league = League();
+        Add(league, "J", "Smith", LastSeason);
+        Add(league, "Jamie", "Smith", ThisSeason);
+        Add(league, "Jez", "Smith", ThisSeason);
+
+        Assert.Empty(PlayerLinks.Find(league));
+    }
+
     [Fact]
     public void Find_PairsAOneLetterTypo()
     {
@@ -125,6 +144,59 @@ public class PlayerLinksTests
         Assert.Equal(PlayerLinks.Confidence.Likely, found.Confidence);
     }
 
+    [Fact]
+    public void Find_PairsANameWithItsShortForm()
+    {
+        var league = League();
+        Add(league, "Michael", "Griffiths", LastSeason);
+        Add(league, "Mike", "Griffiths", ThisSeason);
+
+        var found = Assert.Single(PlayerLinks.Find(league));
+        Assert.Equal(PlayerLinks.Confidence.Likely, found.Confidence);
+        Assert.Equal(2, found.Players.Count);
+    }
+
+    [Fact]
+    public void Find_PairsANameWithItsOwnBeginning()
+    {
+        var league = League();
+        Add(league, "Trevor", "Hull", LastSeason);
+        Add(league, "Trev", "Hull", ThisSeason);
+
+        Assert.Single(PlayerLinks.Find(league));
+    }
+
+    /// <summary>
+    /// Sharing a surname and a first letter means nothing at all.
+    /// </summary>
+    /// <remarks>
+    /// Every one of these is two people on this league's books, and every one
+    /// of them was offered as a match by the first version of the finder. A
+    /// wrong link merges two careers in every stat the league publishes, which
+    /// is far worse than missing one - so these are the cases that matter.
+    /// </remarks>
+    [Theory]
+    [InlineData("Jack", "Joel", "Martin")]
+    [InlineData("Dave", "Donna", "Smith")]
+    [InlineData("Linda", "Luke", "Perry")]
+    [InlineData("Liam", "Lisa", "Moore")]
+    [InlineData("Mark", "Mike", "Kerslake")]
+    [InlineData("Mike", "Matt", "Smith")]
+    [InlineData("Justin", "Jason", "Jenkins")]
+    [InlineData("Darren", "David", "Radford")]
+    [InlineData("Jeremy", "John", "Roberts")]
+    [InlineData("Kelly", "Kim", "Thorne")]
+    [InlineData("Aiden", "Ali", "Hodge")]
+    [InlineData("Jamie", "Jez", "Smith")]
+    public void Find_KeepsTwoPeopleApart(string first, string second, string surname)
+    {
+        var league = League();
+        Add(league, first, surname, ThisSeason);
+        Add(league, second, surname, ThisSeason);
+
+        Assert.Empty(PlayerLinks.Find(league));
+    }
+
     /// <summary>
     /// Two short forenames one letter apart are usually two people.
     /// </summary>
@@ -133,12 +205,27 @@ public class PlayerLinksTests
     /// them is worse than missing a typo: a missed typo is a career counted in
     /// halves, a wrong link is two careers counted as one.
     /// </remarks>
-    [Fact]
-    public void Find_LeavesShortNamesAlone()
+    [Theory]
+    [InlineData("Jon", "Ian")]
+    [InlineData("Kim", "Kit")]
+    [InlineData("Dan", "Don")]
+    [InlineData("Jan", "Jon")]
+    public void Find_LeavesShortNamesAlone(string first, string second)
     {
         var league = League();
-        Add(league, "Jon", "Marsh", ThisSeason);
-        Add(league, "Ian", "Marsh", ThisSeason);
+        Add(league, first, "Marsh", ThisSeason);
+        Add(league, second, "Marsh", ThisSeason);
+
+        Assert.Empty(PlayerLinks.Find(league));
+    }
+
+    /// <summary>A short form is not a licence to swallow a longer name.</summary>
+    [Fact]
+    public void Find_DoesNotLetATwoLetterStartSwallowAName()
+    {
+        var league = League();
+        Add(league, "Jo", "Martin", LastSeason);
+        Add(league, "Joel", "Martin", ThisSeason);
 
         Assert.Empty(PlayerLinks.Find(league));
     }
@@ -153,6 +240,7 @@ public class PlayerLinksTests
 
         var found = Assert.Single(PlayerLinks.Find(league));
         Assert.Equal(3, found.Players.Count);
+        Assert.Equal(PlayerLinks.Confidence.Likely, found.Confidence);
     }
 
     // ------------------------------------------------------------------ link

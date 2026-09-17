@@ -155,24 +155,48 @@ public static class PlayerLinks
                 Join(rows[0], rows[i], Confidence.Certain, "the same name");
         }
 
-        // "D Marsh" and "Dave Marsh". Common because a captain writes what fits
-        // on the card and the app holds what is on the registration form.
-        foreach (var group in players.GroupBy(Initialled).Where(g => g.Key.Length > 0 && g.Count() > 1))
-        {
-            var rows = group.ToList();
-            for (var i = 1; i < rows.Count; i++)
-                Join(rows[0], rows[i], Confidence.Likely, "an initial against a forename");
-        }
-
-        // One letter out, same surname: a typo rather than a second person.
+        // Everything else is decided within a surname, and never on an initial
+        // alone: Jack and Joel Martin share a surname and a first letter and
+        // are two people. See PlayerNames for what counts as one name.
         foreach (var group in players.Where(p => Surname(p).Length > 0).GroupBy(Surname))
         {
             var rows = group.ToList();
+
+            // The full forenames on the books for this surname. A bare initial
+            // is only ever matched when exactly one of these starts with it.
+            var full = rows.Where(p => !PlayerNames.IsInitial(Forename(p)))
+                           .Select(Forename)
+                           .Where(n => n.Length > 0)
+                           .Distinct()
+                           .ToList();
+
+            foreach (var initial in rows.Where(p => PlayerNames.IsInitial(Forename(p))))
+            {
+                var letter = PlayerNames.Letter(Forename(initial));
+                var candidates = full.Where(n => n[0] == letter).ToList();
+
+                // Two Smiths behind one J is a question, not an answer.
+                if (candidates.Count != 1) continue;
+
+                foreach (var match in rows.Where(p => Forename(p) == candidates[0]))
+                    Join(initial, match, Confidence.Likely, "an initial standing for a name");
+            }
+
             for (var i = 0; i < rows.Count; i++)
             {
+                var left = Forename(rows[i]);
+                if (left.Length == 0 || PlayerNames.IsInitial(left)) continue;
+
                 for (var j = i + 1; j < rows.Count; j++)
                 {
-                    if (Within(Forename(rows[i]), Forename(rows[j]), 1))
+                    var right = Forename(rows[j]);
+                    if (right.Length == 0 || PlayerNames.IsInitial(right)) continue;
+
+                    if (PlayerNames.SameFamily(left, right))
+                        Join(rows[i], rows[j], Confidence.Likely, "one name and its short form");
+                    else if (PlayerNames.Shortened(left, right))
+                        Join(rows[i], rows[j], Confidence.Likely, "one name shortened");
+                    else if (PlayerNames.OneLetterApart(left, right))
                         Join(rows[i], rows[j], Confidence.Likely, "one letter apart");
                 }
             }
@@ -385,14 +409,6 @@ public static class PlayerLinks
     private static string Forename(Player player) => (player.FirstName ?? "").Trim().ToLowerInvariant();
     private static string Surname(Player player) => (player.LastName ?? "").Trim().ToLowerInvariant();
 
-    /// <summary>"Dave Marsh" and "D Marsh" both come out as "d marsh".</summary>
-    private static string Initialled(Player player)
-    {
-        var first = Forename(player);
-        var last = Surname(player);
-
-        return first.Length == 0 || last.Length == 0 ? "" : $"{first[0]} {last}";
-    }
 
     /// <summary>The fullest spelling in the set, which is the one worth keeping.</summary>
     private static string Best(IEnumerable<Player> rows) =>
@@ -406,36 +422,4 @@ public static class PlayerLinks
         return season is null ? long.MaxValue : -season.StartDate.Ticks;
     }
 
-    /// <summary>True when two names are no more than <paramref name="allowed"/> edits apart.</summary>
-    private static bool Within(string left, string right, int allowed)
-    {
-        if (left.Length == 0 || right.Length == 0) return false;
-        if (left == right) return false;                       // handled as the same name
-        if (Math.Abs(left.Length - right.Length) > allowed) return false;
-
-        // Two or three letters is too short for one letter of difference to
-        // mean a typo: "Jon" and "Ian" would pair up, and they are brothers.
-        if (Math.Min(left.Length, right.Length) <= 3) return false;
-
-        var previous = new int[right.Length + 1];
-        var current = new int[right.Length + 1];
-
-        for (var j = 0; j <= right.Length; j++) previous[j] = j;
-
-        for (var i = 1; i <= left.Length; i++)
-        {
-            current[0] = i;
-            for (var j = 1; j <= right.Length; j++)
-            {
-                var cost = left[i - 1] == right[j - 1] ? 0 : 1;
-                current[j] = Math.Min(
-                    Math.Min(current[j - 1] + 1, previous[j] + 1),
-                    previous[j - 1] + cost);
-            }
-
-            (previous, current) = (current, previous);
-        }
-
-        return previous[right.Length] <= allowed;
-    }
 }
