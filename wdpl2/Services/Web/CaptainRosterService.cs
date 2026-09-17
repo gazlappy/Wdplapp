@@ -21,7 +21,18 @@ namespace Wdpl2.Services.Web;
 /// </remarks>
 public sealed class CaptainRosterService
 {
-    public sealed record AddedPlayer(Guid Id, string Name, Guid TeamId, Guid SeasonId, string TeamName, bool IsActive);
+    /// <param name="Added">
+    /// When the captain put them on, so the secretary can tell a name added
+    /// tonight from one that has been waiting a fortnight.
+    /// </param>
+    public sealed record AddedPlayer(
+        Guid Id, string Name, Guid TeamId, Guid SeasonId, string TeamName, bool IsActive,
+        DateTime? Added = null)
+    {
+        public string Describe() => Added is null
+            ? Name
+            : $"{Name} — added {Added.Value.ToLocalTime():ddd d MMM}";
+    }
 
     /// <summary>Players captains have added that the app has not taken in yet.</summary>
     public static async Task<List<AddedPlayer>> GetUncollectedAsync(WebApiClient client)
@@ -47,7 +58,13 @@ public sealed class CaptainRosterService
                 teamId.Value,
                 seasonId.Value,
                 Text(row, "team_name") ?? "(unknown team)",
-                Int(row, "is_active") == 1));
+                Int(row, "is_active") == 1,
+
+                // MySQL hands this back as a plain UTC string.
+                DateTime.TryParse(Text(row, "updated_at"), null,
+                    System.Globalization.DateTimeStyles.AssumeUniversal
+                    | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out var added) ? added : null));
         }
 
         return players;

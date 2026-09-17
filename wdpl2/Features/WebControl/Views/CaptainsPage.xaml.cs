@@ -37,10 +37,12 @@ public partial class CaptainsPage : ContentPage
     private bool _dirty;
 
     private readonly IDataStore _dataStore;
+    private readonly IServiceProvider _services;
 
-    public CaptainsPage(IDataStore dataStore)
+    public CaptainsPage(IDataStore dataStore, IServiceProvider services)
     {
         _dataStore = dataStore;
+        _services = services;
         InitializeComponent();
     }
 
@@ -460,115 +462,12 @@ public partial class CaptainsPage : ContentPage
 
     // ------------------------------------------- players captains added online
 
-    private List<CaptainRosterService.AddedPlayer> _added = new();
-
-    private async void OnCheckAddedClicked(object? sender, EventArgs e)
+    private async void OnWaitingClicked(object? sender, EventArgs e)
     {
-        CheckAddedButton.IsEnabled = false;
-        AddedFrame.IsVisible = false;
-
-        try
-        {
-            var connection = await WebConnection.LoadAsync();
-            using var client = new WebApiClient(connection);
-
-            _added = await CaptainRosterService.GetUncollectedAsync(client);
-
-            if (_added.Count == 0)
-            {
-                AddedDetail.Text = "No captain has added a player since you last collected.";
-                CollectButton.IsEnabled = false;
-            }
-            else
-            {
-                var lines = _added
-                    .GroupBy(p => p.TeamName)
-                    .Select(g => $"  {g.Key}: {string.Join(", ", g.Select(p => p.Name))}");
-
-                AddedDetail.Text = $"{_added.Count} player(s) waiting:\n{string.Join("\n", lines)}";
-                CollectButton.IsEnabled = true;
-            }
-
-            AddedFrame.IsVisible = true;
-            Report("Read back from the website.", error: false);
-        }
-        catch (WebApiException ex)
-        {
-            Report(ex.Code == "unknown_module"
-                ? "The website does not have the captains module yet. Deploy the backend, then install tables."
-                : ex.Message, error: true);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Report(ex.Message, error: true);
-        }
-        finally
-        {
-            CheckAddedButton.IsEnabled = true;
-        }
+        var page = _services.GetService<WaitingPlayersPage>();
+        if (page is not null) await Navigation.PushAsync(page);
     }
 
-    private async void OnCollectClicked(object? sender, EventArgs e)
-    {
-        if (_added.Count == 0) return;
-
-        CollectButton.IsEnabled = false;
-
-        try
-        {
-            var squad = await _dataStore.GetPlayersAsync(SeasonId());
-
-            var decisions = await CollectPlayersPage.AskAsync(
-                this, _added, squad,
-                "Choose what to do with each one.");
-
-            if (decisions is null || decisions.Count == 0)
-            {
-                Report("Nothing collected.", error: false);
-                return;
-            }
-
-            var connection = await WebConnection.LoadAsync();
-            using var client = new WebApiClient(connection);
-
-            var (created, linked) = await CaptainRosterService.CollectAsync(
-                client, _dataStore, League, decisions);
-
-            var left = _added.Count - decisions.Count;
-
-            Report(Describe(created, linked, left), error: false);
-
-            _added.RemoveAll(p => decisions.Any(d => d.Player.Id == p.Id));
-            AddedDetail.Text = _added.Count == 0
-                ? "All collected."
-                : $"{_added.Count} still waiting.";
-        }
-        catch (WebApiException ex)
-        {
-            Report(ex.Message, error: true);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Report(ex.Message, error: true);
-        }
-        finally
-        {
-            CollectButton.IsEnabled = _added.Count > 0;
-        }
-    }
-
-    private static string Describe(int created, int linked, int left)
-    {
-        var parts = new List<string>();
-        if (created > 0) parts.Add($"added {created} new player(s)");
-        if (linked > 0) parts.Add($"linked {linked} to players already here");
-        if (left > 0) parts.Add($"left {left} waiting");
-
-        return parts.Count == 0
-            ? "Nothing collected."
-            : char.ToUpper(parts[0][0]) + string.Join(", ", parts)[1..]
-              + ". Publish the season to finish tying them in.";
-    }
 
     /// <summary>The season the picker is on, which is the one being collected into.</summary>
     private Guid? SeasonId()

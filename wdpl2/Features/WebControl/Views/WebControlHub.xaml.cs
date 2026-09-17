@@ -31,6 +31,50 @@ public partial class WebControlHub : ContentPage
             _built = true;
         }
         _ = ShowEndpointAsync();
+        _ = ShowWaitingAsync();
+    }
+
+    /// <summary>
+    /// Says so, on the way in, when captains have added players.
+    /// </summary>
+    /// <remarks>
+    /// Silent when there is nobody waiting. The whole point is that a player a
+    /// captain added is easy to miss - they are not on a card, nothing breaks
+    /// without them, and the only sign is a row on the website. So the tab that
+    /// opens every time says it rather than waiting to be asked.
+    /// </remarks>
+    private async Task ShowWaitingAsync()
+    {
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            if (!connection.IsConfigured) return;
+
+            using var client = new WebApiClient(connection);
+            var waiting = await CaptainRosterService.GetUncollectedAsync(client);
+
+            WaitingFrame.IsVisible = waiting.Count > 0;
+            if (waiting.Count == 0) return;
+
+            var teams = waiting.Select(p => p.TeamName).Distinct().Count();
+
+            WaitingLabel.Text = waiting.Count == 1
+                ? $"1 player added by {waiting[0].TeamName} is waiting to come into the app."
+                : $"{waiting.Count} players added by captains are waiting to come into the app"
+                  + (teams == 1 ? $" ({waiting[0].TeamName})." : $", across {teams} teams.");
+        }
+        catch
+        {
+            // A hub that cannot reach the website should still open. The Backend
+            // panel above is where a connection problem is reported.
+            WaitingFrame.IsVisible = false;
+        }
+    }
+
+    private async void OnWaitingClicked(object? sender, EventArgs e)
+    {
+        var page = _services.GetService<WaitingPlayersPage>();
+        if (page is not null) await Navigation.PushAsync(page);
     }
 
     /// <summary>
