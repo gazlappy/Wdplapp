@@ -27,7 +27,7 @@ public partial class CareerStatsPage : ContentPage
         BurgerMenuBtn.Clicked += OnBurgerMenuClicked;
         CloseFlyoutBtn.Clicked += OnCloseFlyoutClicked;
         OverlayTap.Tapped += (_, __) => CloseFlyout();
-        SearchEntry.TextChanged += (_, __) => RefreshList();
+        SearchBar.TextChanged += (_, __) => RefreshList();
         PlayersList.SelectionChanged += OnPlayerSelected;
 
         // NEW: Export button
@@ -71,9 +71,9 @@ public partial class CareerStatsPage : ContentPage
         // Apply search filter and sort in a single pass on the local list,
         // then atomically swap into the bound collection.
         IEnumerable<PlayerCareerStats> result = built;
-        if (!string.IsNullOrWhiteSpace(SearchEntry.Text))
+        if (!string.IsNullOrWhiteSpace(SearchBar.Text))
         {
-            var searchText = SearchEntry.Text;
+            var searchText = SearchBar.Text;
             result = result.Where(p => p.PlayerName.Contains(searchText, StringComparison.OrdinalIgnoreCase));
         }
         result = result.OrderByDescending(p => p.TotalFramesPlayed);
@@ -184,25 +184,58 @@ public partial class CareerStatsPage : ContentPage
         }
     }
 
+    private PlayerCareerStats? _selected;
+
+    /// <summary>
+    /// Shows the chosen player's career in the panel beside the list.
+    /// </summary>
+    /// <remarks>
+    /// The panel is what this page is for and it was fully built, but selecting
+    /// somebody navigated away to the profile page instead and cleared the
+    /// selection on the way - so the panel never filled, the highlight never
+    /// stayed, and the page looked like it had ignored the click.
+    /// <para>
+    /// The profile page is still a click away, from the button under the panel,
+    /// for the head-to-head and the rest of it.
+    /// </para>
+    /// </remarks>
     private void OnPlayerSelected(object? sender, SelectionChangedEventArgs e)
     {
-        var player = e.CurrentSelection?.FirstOrDefault() as PlayerCareerStats;
-        
-        if (player == null)
+        _selected = e.CurrentSelection?.FirstOrDefault() as PlayerCareerStats;
+
+        EmptyStatePanel.IsVisible = _selected is null;
+        DetailsPanel.IsVisible = _selected is not null;
+
+        if (_selected is null) return;
+
+        PlayerNameLabel.Text = _selected.PlayerName;
+        TotalFramesLabel.Text = _selected.TotalFramesPlayed.ToString();
+        WinPercentageLabel.Text = $"{_selected.CareerWinPercentage:F1}%";
+        EightBallsLabel.Text = _selected.TotalEightBalls.ToString();
+        SeasonsLabel.Text = _selected.SeasonsPlayed.ToString();
+        FramesWonLabel.Text = _selected.TotalFramesWon.ToString();
+        FramesLostLabel.Text = _selected.TotalFramesLost.ToString();
+
+        // Most recent season first: what somebody is doing now is the thing
+        // being looked for, and a career here can be thirteen seasons long.
+        SeasonBreakdownList.ItemsSource = _selected.SeasonBreakdown
+            .OrderByDescending(s => s.SeasonYear)
+            .ToList();
+    }
+
+    private void OnOpenProfile(object? sender, EventArgs e)
+    {
+        if (_selected is null) return;
+
+        var profilePage = Application.Current?.Handler?.MauiContext?.Services.GetService<PlayerProfilePage>();
+        if (profilePage is null)
         {
-            EmptyStatePanel.IsVisible = true;
-            DetailsPanel.IsVisible = false;
+            StatusLabel.Text = "Could not open the full profile.";
             return;
         }
 
-        // Navigate to player profile page
-        var profilePage = Application.Current?.Handler?.MauiContext?.Services.GetService<PlayerProfilePage>()
-            ?? throw new InvalidOperationException("PlayerProfilePage not registered");
-        profilePage.LoadPlayer(player.GlobalPlayerId, player.PlayerName);
-        Navigation.PushAsync(profilePage);
-
-        // Clear selection after navigation
-        PlayersList.SelectedItem = null;
+        profilePage.LoadPlayer(_selected.GlobalPlayerId, _selected.PlayerName);
+        _ = Navigation.PushAsync(profilePage);
     }
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)

@@ -28,7 +28,14 @@
         public int TableNumber { get; set; }
 
         /// <summary>Participants in this group</summary>
-        public List<Guid> ParticipantIds { get; set; } = new();
+        private List<Guid> _participantIds = new();
+
+        /// <remarks>Never null, whatever the stored file says - see CompetitionRound.DrawOrder.</remarks>
+        public List<Guid> ParticipantIds
+        {
+            get => _participantIds;
+            set => _participantIds = value ?? new();
+        }
 
         /// <summary>
         /// The participant nominated to run the draw / organise this group on the night.
@@ -54,7 +61,14 @@
         /// one part of the night that cannot be worked back out from the
         /// results afterwards.
         /// </remarks>
-        public List<Guid> DrawOrder { get; set; } = new();
+        private List<Guid> _drawOrder = new();
+
+        /// <remarks>Never null, whatever the stored file says - see CompetitionRound.DrawOrder.</remarks>
+        public List<Guid> DrawOrder
+        {
+            get => _drawOrder;
+            set => _drawOrder = value ?? new();
+        }
 
         /// <summary>Group stage matches (round robin within group)</summary>
         public List<CompetitionMatch> Matches { get; set; } = new();

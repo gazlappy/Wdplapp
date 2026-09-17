@@ -85,7 +85,14 @@ namespace Wdpl2.Models
         }
 
         /// <summary>List of participant IDs (Players for Singles, Teams for Team KO)</summary>
-        public List<Guid> ParticipantIds { get; set; } = new();
+        private List<Guid> _participantIds = new();
+
+        /// <remarks>Never null, whatever the stored file says - see CompetitionRound.DrawOrder.</remarks>
+        public List<Guid> ParticipantIds
+        {
+            get => _participantIds;
+            set => _participantIds = value ?? new();
+        }
 
         /// <summary>For doubles competitions - pairs of player IDs</summary>
         public List<DoublesTeam> DoublesTeams { get; set; } = new();
@@ -118,7 +125,14 @@ namespace Wdpl2.Models
         public Guid? ParentCompetitionId { get; set; }
 
         /// <summary>Participant IDs marked as no-shows. These players are excluded from the plate competition.</summary>
-        public List<Guid> NoShowIds { get; set; } = new();
+        private List<Guid> _noShowIds = new();
+
+        /// <remarks>Never null, whatever the stored file says - see CompetitionRound.DrawOrder.</remarks>
+        public List<Guid> NoShowIds
+        {
+            get => _noShowIds;
+            set => _noShowIds = value ?? new();
+        }
 
         private bool _isLocked;
         private bool _showOnWebsite = true;

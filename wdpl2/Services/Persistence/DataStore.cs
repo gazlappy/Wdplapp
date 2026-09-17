@@ -436,6 +436,69 @@ public static partial class DataStore
     /// Push the current entity collections from <see cref="Data"/> into the EF Core database.
     /// Uses delete-all + re-insert within a transaction to avoid complex diff logic.
     /// </summary>
+    /// <summary>
+    /// Why the database copy was last left behind, or null if it is current.
+    /// </summary>
+    /// <remarks>
+    /// This used to be swallowed, and it mattered: one competition round with a
+    /// null draw order made Entity Framework refuse the whole transaction, and
+    /// because the transaction carries every table, every save after that wrote
+    /// the JSON file and silently left the database on the previous data. The
+    /// app reads the database for players, fixtures and competitions, so the
+    /// screen stopped agreeing with the file and nothing said why.
+    /// </remarks>
+    public static string? LastSyncError { get; private set; }
+
+    /// <summary>
+    /// Brings the database copy level with the file if it has fallen behind.
+    /// </summary>
+    /// <remarks>
+    /// The JSON file is the record; the database is a copy of it that the app
+    /// reads for players, fixtures and competitions. A sync that failed - and
+    /// they failed silently for a long while - leaves the two disagreeing, and
+    /// nothing else ever notices, because every page reads only one of them.
+    /// <para>
+    /// Compared on counts rather than contents so the check costs a handful of
+    /// COUNT queries: the row counts of each table, plus how many players carry
+    /// a cross-season link, which is the field a failed sync was last seen to
+    /// lose. Worth running on the way in, off the UI thread, because the cost
+    /// of being wrong is every career statistic in the app being stale.
+    /// </para>
+    /// </remarks>
+    public static void RepairDatabaseIfBehind()
+    {
+        if (_services == null) return;
+
+        try
+        {
+            bool behind;
+
+            using (var scope = _services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<LeagueContext>();
+
+                behind = context.Seasons.Count() != Data.Seasons.Count
+                      || context.Divisions.Count() != Data.Divisions.Count
+                      || context.Venues.Count() != Data.Venues.Count
+                      || context.Teams.Count() != Data.Teams.Count
+                      || context.Players.Count() != Data.Players.Count
+                      || context.Fixtures.Count() != Data.Fixtures.Count
+                      || context.Competitions.Count() != Data.Competitions.Count
+                      || context.Players.Count(p => p.GlobalPlayerId != null)
+                             != Data.Players.Count(p => p.GlobalPlayerId != null);
+            }
+
+            if (!behind) return;
+
+            SyncEntitiesToDatabase();
+        }
+        catch (Exception ex)
+        {
+            LastSyncError = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"RepairDatabaseIfBehind failed: {ex.Message}");
+        }
+    }
+
     private static void SyncEntitiesToDatabase()
     {
         if (_services == null) return;
@@ -470,10 +533,16 @@ public static partial class DataStore
 
             context.SaveChanges();
             transaction.Commit();
+
+            LastSyncError = null;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"SyncEntitiesToDatabase failed: {ex.Message}");
+            // Kept rather than rethrown: the JSON file is written by now, so the
+            // work is not lost, and throwing here would turn a stale screen into
+            // a crash. But it is no longer a secret.
+            LastSyncError = ex.InnerException?.Message ?? ex.Message;
+            System.Diagnostics.Debug.WriteLine($"SyncEntitiesToDatabase failed: {LastSyncError}");
         }
     }
 }

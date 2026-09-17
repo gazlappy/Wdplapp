@@ -74,11 +74,6 @@
                     
                     <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" />
 
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Search Players" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,4" />
-                        <Entry x:Name="SearchEntry" Placeholder="Search by name..." />
-                    </VerticalStackLayout>
-
                     <Label Text="Statistics Info" Style="{StaticResource SubsectionHeaderStyle}" Margin="0,8,0,0" />
                     
                     <Border 
@@ -121,12 +116,20 @@
             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}"
             Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}"
             StrokeThickness="1">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="{StaticResource StandardSpacing}">
                 <Label Text="Players" Style="{StaticResource SectionHeaderStyle}" Margin="0" />
-                
+
+                <!-- At the top of the list it filters, rather than behind the
+                     burger menu where nobody would think to look for it. -->
+                <SearchBar
+                    x:Name="SearchBar"
+                    Grid.Row="1"
+                    Placeholder="Search players by name"
+                    Margin="0" />
+
                 <CollectionView
                     x:Name="PlayersList"
-                    Grid.Row="1"
+                    Grid.Row="2"
                     SelectionMode="Single"
                     VerticalScrollBarVisibility="Always">
                     <CollectionView.ItemTemplate>
@@ -368,6 +371,13 @@
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>
                         </CollectionView>
+
+                        <Button
+                            x:Name="OpenProfileBtn"
+                            Text="Open full profile"
+                            Clicked="OnOpenProfile"
+                            Margin="0,8,0,0"
+                            HorizontalOptions="Start" />
 
                     </VerticalStackLayout>
 

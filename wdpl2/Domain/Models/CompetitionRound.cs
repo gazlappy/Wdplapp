@@ -38,8 +38,21 @@
         /// </remarks>
         public string? RunnerPin { get; set; }
 
+        private List<Guid> _drawOrder = new();
+
         /// <summary>The order players came out of the draw, first out first.</summary>
-        public List<Guid> DrawOrder { get; set; } = new();
+        /// <remarks>
+        /// Never null, whatever the stored file says. A null here stopped the
+        /// whole database sync - Entity Framework refuses a required collection
+        /// with no value, and the one transaction carries every table - so a
+        /// competition written before this property existed quietly froze the
+        /// app's database copy at whatever it last held.
+        /// </remarks>
+        public List<Guid> DrawOrder
+        {
+            get => _drawOrder;
+            set => _drawOrder = value ?? new();
+        }
 
         /// <summary>Venues/tables available for this round.</summary>
         public List<CompetitionVenue> SelectedVenues { get; set; } = new();

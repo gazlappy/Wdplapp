@@ -339,7 +339,19 @@ public partial class DuplicatePlayersPage : ContentPage
                 return done;
             });
 
-            Report(report.ToString(), error: false);
+            // If the database copy could not be brought level the link is in the
+            // file but not in what the rest of the app reads, and saying so
+            // beats letting the analytics quietly disagree.
+            if (DataStore.LastSyncError is { } trouble)
+            {
+                Report($"{report} But the app's database copy could not be updated: {trouble}",
+                       error: true);
+            }
+            else
+            {
+                Report(report.ToString(), error: false);
+            }
+
             await ScanAsync();
         }
         catch (Exception ex)
