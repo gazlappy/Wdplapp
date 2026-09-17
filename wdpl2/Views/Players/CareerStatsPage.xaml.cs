@@ -1,3 +1,4 @@
+using Wdpl2.Domain.Players;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -56,40 +57,15 @@ public partial class CareerStatsPage : ContentPage
         var allFixtures = data.Fixtures;
         var allSeasons = data.Seasons;
 
-        // Build a comprehensive player list:
-        // 1. Group players WITH GlobalPlayerId by their GlobalPlayerId
-        // 2. Include players WITHOUT GlobalPlayerId individually
-
-        var processedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // One row per person, as the league has tied them together. This used
+        // to skip anyone whose name had already been seen, so a second player
+        // of the same name - or an unlinked row of the same person - had their
+        // whole record dropped rather than counted.
         var built = new List<PlayerCareerStats>();
 
-        // First, process players with GlobalPlayerId (multi-season players)
-        var playerGroups = allPlayers
-            .Where(p => p.GlobalPlayerId.HasValue)
-            .GroupBy(p => p.GlobalPlayerId!.Value)
-            .ToList();
-
-        foreach (var group in playerGroups)
+        foreach (var career in PlayerCareers.All(data))
         {
-            var firstPlayer = group.First();
-            var playerName = firstPlayer.FullName;
-            processedNames.Add(playerName);
-
-            ProcessPlayerGroup(group.Key, playerName, group.Select(p => p.Id).ToList(), allFixtures, allSeasons, built);
-        }
-
-        // Second, process players WITHOUT GlobalPlayerId (single-season players not yet linked)
-        var singleSeasonPlayers = allPlayers
-            .Where(p => !p.GlobalPlayerId.HasValue && !processedNames.Contains(p.FullName))
-            .ToList();
-
-        foreach (var player in singleSeasonPlayers)
-        {
-            if (processedNames.Contains(player.FullName))
-                continue;
-
-            processedNames.Add(player.FullName);
-            ProcessPlayerGroup(player.Id, player.FullName, new List<Guid> { player.Id }, allFixtures, allSeasons, built);
+            ProcessPlayerGroup(career.Id, career.Name, career.PlayerIds.ToList(), allFixtures, allSeasons, built);
         }
 
         // Apply search filter and sort in a single pass on the local list,

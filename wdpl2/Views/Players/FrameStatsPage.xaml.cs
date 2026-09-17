@@ -1,3 +1,4 @@
+using Wdpl2.Domain.Players;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -34,42 +35,19 @@ public partial class FrameStatsPage : ContentPage
         
         if (_allSeasonsMode)
         {
-            // Group players - include those WITH GlobalPlayerId grouped together,
-            // AND those WITHOUT GlobalPlayerId individually
-            var playersWithGlobal = _dataStore.GetData().Players
-                .Where(p => p.GlobalPlayerId.HasValue)
-                .GroupBy(p => p.GlobalPlayerId!.Value)
-                .Select(g => new PlayerOption
+            // One entry per person, as the league has tied them together. This
+            // used to dedupe by name afterwards and keep only the biggest set,
+            // which quietly threw away everybody else's frames.
+            foreach (var career in PlayerCareers.All(_dataStore.GetData()))
+            {
+                _players.Add(new PlayerOption
                 {
-                    GlobalPlayerId = g.Key,
-                    DisplayName = g.First().FullName,
-                    SubText = $"{g.Count()} season(s)",
-                    PlayerIds = g.Select(p => p.Id).ToList()
-                })
-                .ToList();
-
-            // Also include players without GlobalPlayerId (single season players)
-            var playersWithoutGlobal = _dataStore.GetData().Players
-                .Where(p => !p.GlobalPlayerId.HasValue)
-                .Select(p => new PlayerOption
-                {
-                    GlobalPlayerId = p.Id, // Use their own ID as identifier
-                    DisplayName = p.FullName,
-                    SubText = "1 season",
-                    PlayerIds = new List<Guid> { p.Id }
-                })
-                .ToList();
-
-            // Combine and sort, deduping by name
-            var allPlayers = playersWithGlobal
-                .Concat(playersWithoutGlobal)
-                .GroupBy(p => p.DisplayName.ToLower())
-                .Select(g => g.OrderByDescending(p => p.PlayerIds.Count).First())
-                .OrderBy(p => p.DisplayName)
-                .ToList();
-
-            foreach (var player in allPlayers)
-                _players.Add(player);
+                    GlobalPlayerId = career.Id,
+                    DisplayName = career.Name,
+                    SubText = career.Describe(),
+                    PlayerIds = career.PlayerIds.ToList(),
+                });
+            }
             
             StatusLabel.Text = $"{_players.Count} player(s) available (all seasons)";
         }

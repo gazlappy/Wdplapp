@@ -1,3 +1,4 @@
+using Wdpl2.Domain.Players;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -45,26 +46,20 @@ public partial class PlayerProfilePage : ContentPage
                 return;
             }
 
-            // Get all player instances across seasons
-            // Include players where GlobalPlayerId matches OR the ID itself matches (for players without GlobalPlayerId)
-            var playerInstances = _dataStore.GetData().Players
-                .Where(p => p.GlobalPlayerId == _globalPlayerId || p.Id == _globalPlayerId)
-                .ToList();
+            // Whoever the league says this is - and nobody else. This page used
+            // to sweep in everybody of the same name as well, which merged two
+            // different Dave Smiths into one profile and, worse, ignored the
+            // league's own decision not to link them.
+            var career = PlayerCareers.For(_dataStore.GetData(), _globalPlayerId.Value);
 
-            if (playerInstances.Count == 0)
+            if (career is null)
             {
                 StatusLabel.Text = "Player data not found";
                 return;
             }
 
-            // Also find players with the same name who might not have GlobalPlayerId set
-            var playerName = playerInstances.First().FullName;
-            var additionalPlayers = _dataStore.GetData().Players
-                .Where(p => !playerInstances.Any(pi => pi.Id == p.Id) && 
-                           p.FullName.Equals(playerName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            
-            playerInstances.AddRange(additionalPlayers);
+            var playerInstances = career.Rows.ToList();
+            var playerName = career.Name;
 
             // Get all seasons this player played in
             var seasonIds = playerInstances.Select(p => p.SeasonId).Distinct().ToList();

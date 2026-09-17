@@ -1,3 +1,4 @@
+using Wdpl2.Domain.Players;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -54,19 +55,18 @@ public partial class CareerStatsViewModel : BaseViewModel
             var allFixtures = data.Fixtures;
             var allSeasons = data.Seasons;
             
-            // Group players by GlobalPlayerId
-            var playerGroups = allPlayers
-                .Where(p => p.GlobalPlayerId.HasValue)
-                .GroupBy(p => p.GlobalPlayerId!.Value)
-                .ToList();
+            // Everybody, not only those already tied to another season. This
+            // asked for a GlobalPlayerId, so a player who has only ever played
+            // one season had no career at all.
+            var playerGroups = PlayerCareers.All(data);
 
             var careerStats = new List<PlayerCareerStats>();
 
-            foreach (var group in playerGroups)
+            foreach (var career in playerGroups)
             {
-                var firstPlayer = group.First();
-                var playerName = firstPlayer.FullName;
-                
+                var group = career.Rows;
+                var playerName = career.Name;
+
                 // Get all seasons this player participated in
                 var seasonIds = group.Select(p => p.SeasonId).Distinct().ToList();
                 var seasons = allSeasons.Where(s => seasonIds.Contains(s.Id)).OrderByDescending(s => s.StartDate).ToList();
@@ -81,8 +81,13 @@ public partial class CareerStatsViewModel : BaseViewModel
 
                 foreach (var season in seasons)
                 {
-                    var playerInSeason = group.FirstOrDefault(p => p.SeasonId == season.Id);
-                    if (playerInSeason == null) continue;
+                    // Every row this person has in the season, not the first of
+                    // them: a season that ended up with two rows for one player
+                    // would otherwise have half their frames go uncounted.
+                    var rowsInSeason = group.Where(p => p.SeasonId == season.Id)
+                                            .Select(p => p.Id)
+                                            .ToHashSet();
+                    if (rowsInSeason.Count == 0) continue;
 
                     int framesPlayed = 0;
                     int framesWon = 0;
@@ -96,7 +101,7 @@ public partial class CareerStatsViewModel : BaseViewModel
                         foreach (var frame in fixture.Frames)
                         {
                             // Home player
-                            if (frame.HomePlayerId == playerInSeason.Id)
+                            if (frame.HomePlayerId.HasValue && rowsInSeason.Contains(frame.HomePlayerId.Value))
                             {
                                 framesPlayed++;
                                 if (frame.Winner == FrameWinner.Home)
@@ -106,7 +111,7 @@ public partial class CareerStatsViewModel : BaseViewModel
                                 }
                             }
                             // Away player
-                            else if (frame.AwayPlayerId == playerInSeason.Id)
+                            else if (frame.AwayPlayerId.HasValue && rowsInSeason.Contains(frame.AwayPlayerId.Value))
                             {
                                 framesPlayed++;
                                 if (frame.Winner == FrameWinner.Away)
@@ -141,7 +146,7 @@ public partial class CareerStatsViewModel : BaseViewModel
                 {
                     careerStats.Add(new PlayerCareerStats
                     {
-                        GlobalPlayerId = group.Key,
+                        GlobalPlayerId = career.Id,
                         PlayerName = playerName,
                         SeasonsPlayed = seasonsPlayed,
                         TotalFramesPlayed = totalFramesPlayed,
