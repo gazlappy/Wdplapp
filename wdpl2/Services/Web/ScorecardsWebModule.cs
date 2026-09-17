@@ -1,4 +1,4 @@
-using Wdpl2.Models;
+﻿using Wdpl2.Models;
 
 namespace Wdpl2.Services.Web;
 
@@ -12,12 +12,13 @@ public sealed class ScorecardsWebModule : IWebModule
     public string Title => "Live scorecards";
     public string Description => "Let captains score a match live, then collect the finished card.";
     public string Icon => "\U0001F3B1"; // billiards
-    public int SchemaVersion => 3;
+    public int SchemaVersion => 4;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {
         "api/modules/scorecards/Module.php",
         "api/modules/scorecards/Rules.php",
+        "api/modules/scorecards/CupRules.php",
         // The captain's scoring page. Served from the site root, same origin as
         // the API, so its session cookie and fetch calls need no CORS handling.
         "captain/index.html",

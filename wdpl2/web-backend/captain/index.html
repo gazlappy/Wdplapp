@@ -301,6 +301,23 @@ button.go{background:var(--felt);}
       <span id="phaseText">—</span><span class="badge" id="phaseBadge">Phase 1 of 3</span>
     </div>
 
+    <!-- A cup tie has no home team until the coin lands. -->
+    <div class="msg warn hidden" id="tossBar" style="margin-top:10px">
+      <strong>Toss for it</strong>
+      <p style="margin:6px 0 0; font-size:12px">
+        This is a cup tie. Toss a coin in front of both captains - whoever wins it fills
+        the card in as home and names the first player.
+      </p>
+      <div class="row" style="margin-top:8px">
+        <button class="go" id="tossMine">We won the toss</button>
+        <button class="ghost" id="tossTheirs">They won the toss</button>
+      </div>
+    </div>
+
+    <div class="msg hidden" id="turnBar" style="margin-top:10px">
+      <span id="turnText"></span>
+    </div>
+
     <div class="row" id="drawBar" style="margin:10px 0 2px; align-items:center">
       <span class="sub" style="color:var(--muted); font-size:11px; font-weight:700">Draw players</span>
       <button class="ghost" data-draw="1"   title="Draw one player into the next empty slot on your side">&#127922; +1</button>
@@ -828,11 +845,92 @@ button.go{background:var(--felt);}
     S.otherDriving = !!card.solo_driver && !card.you_are_driving;
     renderSolo(card);
 
+    renderCup(card);
     renderPhase(card);
     renderEightBar(card);
     renderRows(card);
     renderSignState(card);
     reportDeclines(card);
+  }
+
+  /**
+   * The two things a cup card has and a league card does not: the toss that
+   * decides who fills it in as home, and whose turn it is.
+   */
+  function renderCup(card){
+    var cup = !!card.is_cup;
+
+    show($('tossBar'), cup && !card.toss_won_by);
+    show($('turnBar'), cup && !!card.toss_won_by && !S.solo);
+
+    if(!cup || !card.toss_won_by) return;
+
+    var bar=$('turnBar');
+    bar.classList.remove('ok','warn');
+    bar.classList.add(card.your_turn ? 'ok' : 'warn');
+
+    var role = card.your_role==='home' ? 'You won the toss' : 'They won the toss';
+    var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
+
+    $('turnText').textContent = card.your_turn
+      ? role+' \u00b7 your turn: '+((card.turn&&card.turn.what)||'name your next player')
+      : role+' \u00b7 waiting for '+theirs+' to name '+((card.turn&&card.turn.what)||'theirs');
+  }
+
+  function tossed(wonBy){
+    call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy})
+      .then(function(card){
+        render(card);
+        say(card.your_role==='home'
+          ? 'You fill the card in as home - name your first player.'
+          : 'They fill the card in as home. You name two once they have named their first.', 'ok');
+      })
+      .catch(function(e){ say(e.message,'bad'); });
+  }
+
+  $('tossMine').addEventListener('click', function(){ tossed(S.side); });
+  $('tossTheirs').addEventListener('click', function(){
+    tossed(S.side==='home' ? 'away' : 'home');
+  });
+
+  /**
+   * Mirrors the cup nomination order, so a slot can be greyed out before a tap
+   * is sent. The server still decides; see CupRules.php.
+   */
+  function cupLocked(index, side){
+    var card=S.card, frames=card.frames||[], n=frames.length;
+
+    if(side!==S.side) return true;
+    if(!card.toss_won_by) return true;
+    if(!card.your_turn) return true;
+
+    // Your turn, and the closing five are open: all five at once.
+    if(n>10 && index>=n-5) return false;
+
+    // Otherwise only your next unfilled frame, in order.
+    var limit=Math.min(n,10);
+    for(var i=0;i<limit;i++){
+      if(!(frames[i][side+'_player_id'] || frames[i][side+'_player_name'])) return index!==i;
+    }
+    return true;
+  }
+
+  function cupLockMessage(index){
+    var card=S.card, frames=card.frames||[], n=frames.length;
+
+    if(!card.toss_won_by) return 'Toss for it first - the winner of the toss fills the card in as home.';
+    if(!card.your_turn){
+      var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
+      return 'It is '+theirs+"'s turn.";
+    }
+    if(n>10 && index>=n-5) return 'The last five open once the first ten are filled in.';
+
+    var limit=Math.min(n,10);
+    for(var i=0;i<limit;i++){
+      if(!(frames[i][S.side+'_player_id'] || frames[i][S.side+'_player_name']))
+        return 'Fill the card in order - frame '+frames[i].frame_no+' is your next one.';
+    }
+    return 'You have named all of your open frames.';
   }
 
   function renderPhase(card){
@@ -853,7 +951,9 @@ button.go{background:var(--felt);}
     $('phaseText').textContent='Home '+homeSet+'/'+total+' · Away '+awaySet+'/'+total
                               +' · Scored '+card.frames_played+'/'+total;
 
-    if(card.away_locked && S.side==='away'){
+    // The blind window is a league idea. A cup card says whose turn it is
+    // instead, in its own bar, so this would only contradict it.
+    if(!card.is_cup && card.away_locked && S.side==='away'){
       say('The last 5 frames are blind: the home captain nominates all five before you pick yours.','warn');
     }
   }
@@ -908,12 +1008,15 @@ button.go{background:var(--felt);}
     // Nomination order only exists to stop each captain seeing the other's
     // picks first. With one person filling both sides by agreement, it has
     // already been set aside - so solo mode ignores it.
-    var locked = !mine || (!S.solo && side==='away' && awayLocked(index));
+    var cup = !!S.card.is_cup;
+    var locked = !mine || (!S.solo && (cup
+      ? cupLocked(index, side)
+      : (side==='away' && awayLocked(index))));
     pill.className='sc-pill '+info.cls+(locked?' locked':'');
     pill.textContent=info.text;
     pill.addEventListener('click', function(){
       if(!mine){ say('You can only pick players for your own team.','warn'); return; }
-      if(locked){ say(awayLockMessage(index),'warn'); return; }
+      if(locked){ say(cup ? cupLockMessage(index) : awayLockMessage(index),'warn'); return; }
       openPicker(index, side);
     });
 

@@ -20,7 +20,7 @@ final class LeagueModule implements Module
 
     public static function title(): string { return 'League data'; }
 
-    public static function schemaVersion(): int { return 3; }
+    public static function schemaVersion(): int { return 4; }
 
     public static function tables(): array
     {
@@ -106,10 +106,18 @@ final class LeagueModule implements Module
                 away_score   INT        NOT NULL DEFAULT 0,
                 frames_total INT        NOT NULL DEFAULT 0,
                 played       TINYINT(1) NOT NULL DEFAULT 0,
+                kind         VARCHAR(8) NOT NULL DEFAULT 'league',
                 PRIMARY KEY (id),
                 KEY idx_fx_season (season_id),
                 KEY idx_fx_date (season_id, match_date)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+            // A cup tie lives here so a card can be opened on it and the
+            // captains' own pages find it, but it is not a league fixture: it
+            // belongs to no division and must stay out of the tables, the
+            // results and the fixture list.
+            "ALTER TABLE wdpl_fixtures
+                ADD COLUMN IF NOT EXISTS kind VARCHAR(8) NOT NULL DEFAULT 'league'",
 
             "CREATE TABLE IF NOT EXISTS wdpl_standings (
                 season_id      CHAR(36) NOT NULL,
@@ -297,8 +305,8 @@ final class LeagueModule implements Module
                 Db::query(
                     'INSERT INTO wdpl_fixtures
                         (id, season_id, division_id, home_team_id, away_team_id, venue_id,
-                         match_date, week_no, home_score, away_score, frames_total, played)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         match_date, week_no, home_score, away_score, frames_total, played, kind)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     [
                         self::uuid(isset($f['id']) ? $f['id'] : null, 'fixture.id'), $seasonId,
                         self::optionalUuid($f, 'divisionId'),
@@ -307,6 +315,7 @@ final class LeagueModule implements Module
                         self::date($f, 'date'), self::int($f, 'weekNo'),
                         self::int($f, 'homeScore'), self::int($f, 'awayScore'),
                         self::int($f, 'framesTotal'), self::flag($f, 'played'),
+                        (isset($f['kind']) && $f['kind'] === 'cup') ? 'cup' : 'league',
                     ]
                 );
             }
@@ -469,10 +478,10 @@ final class LeagueModule implements Module
              LEFT JOIN wdpl_teams     h ON h.id = f.home_team_id
              LEFT JOIN wdpl_teams     a ON a.id = f.away_team_id
              LEFT JOIN wdpl_venues    v ON v.id = f.venue_id
-             WHERE f.season_id = ?' . ($playedOnly ? ' AND f.played = 1' : '') .
+             WHERE f.season_id = ? AND f.kind = ?' . ($playedOnly ? ' AND f.played = 1' : '') .
             ' ORDER BY f.match_date' . ($playedOnly ? ' DESC' : '') . ', d.sort_order, h.name';
 
-        return Db::all($sql, [$seasonId]);
+        return Db::all($sql, [$seasonId, 'league']);
     }
 
     /**

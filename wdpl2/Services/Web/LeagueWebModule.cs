@@ -15,7 +15,7 @@ public sealed class LeagueWebModule : IWebModule
     public string Title => "League data";
     public string Description => "Publish teams, fixtures, results and tables to the website.";
     public string Icon => "\U0001F3C6"; // trophy
-    public int SchemaVersion => 3;
+    public int SchemaVersion => 4;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {

@@ -273,7 +273,7 @@ final class CaptainsModule implements Module
         $teamId = Captain::requireTeamId();
 
         return Db::all(
-            'SELECT f.id, f.match_date, f.week_no, f.played,
+            'SELECT f.id, f.match_date, f.week_no, f.played, f.kind,
                     f.home_team_id = ? AS is_home,
                     CASE WHEN f.home_team_id = ? THEN f.home_score ELSE f.away_score END AS team_score,
                     CASE WHEN f.home_team_id = ? THEN f.away_score ELSE f.home_score END AS opponent_score,

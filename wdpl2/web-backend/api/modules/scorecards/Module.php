@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/Rules.php';
+require_once __DIR__ . '/CupRules.php';
 
 /**
  * Live scorecards, playing by the league's actual rules.
@@ -31,7 +32,7 @@ final class ScorecardsModule implements Module
 
     public static function title(): string { return 'Live scorecards'; }
 
-    public static function schemaVersion(): int { return 3; }
+    public static function schemaVersion(): int { return 4; }
 
     public static function tables(): array
     {
@@ -53,6 +54,8 @@ final class ScorecardsModule implements Module
                 claimed_at   DATETIME    NULL,
                 solo_by      VARCHAR(8)  NULL,
                 solo_since   DATETIME    NULL,
+                card_kind    VARCHAR(8)  NOT NULL DEFAULT 'league',
+                toss_won_by  VARCHAR(8)  NULL,
                 PRIMARY KEY (fixture_id),
                 KEY idx_card_state (state)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -93,6 +96,13 @@ final class ScorecardsModule implements Module
                 ADD COLUMN IF NOT EXISTS solo_by VARCHAR(8) NULL,
                 ADD COLUMN IF NOT EXISTS solo_since DATETIME NULL",
 
+            // A cup card is scored like a league night but filled in
+            // differently, and which side counts as home is decided on the
+            // night by a toss rather than by the fixture.
+            "ALTER TABLE wdpl_scorecards
+                ADD COLUMN IF NOT EXISTS card_kind VARCHAR(8) NOT NULL DEFAULT 'league',
+                ADD COLUMN IF NOT EXISTS toss_won_by VARCHAR(8) NULL",
+
             "ALTER TABLE wdpl_scorecard_frames
                 ADD COLUMN IF NOT EXISTS home_player_name VARCHAR(190) NULL,
                 ADD COLUMN IF NOT EXISTS home_player2_id CHAR(36) NULL,
@@ -127,6 +137,7 @@ final class ScorecardsModule implements Module
             'solo'     => ['role' => Role::Captain, 'fn' => [self::class, 'solo']],
             'soloStart' => ['role' => Role::Captain, 'fn' => [self::class, 'soloStart']],
             'soloStop'  => ['role' => Role::Captain, 'fn' => [self::class, 'soloStop']],
+            'toss'      => ['role' => Role::Captain, 'fn' => [self::class, 'toss']],
         ];
     }
 
@@ -137,7 +148,7 @@ final class ScorecardsModule implements Module
         $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
         $doubles   = Http::field('doublesFrames', []);
 
-        $fixture = Db::one('SELECT id, season_id FROM wdpl_fixtures WHERE id = ?', [$fixtureId]);
+        $fixture = Db::one('SELECT id, season_id, kind FROM wdpl_fixtures WHERE id = ?', [$fixtureId]);
         if ($fixture === null) {
             throw new ApiError(404, 'unknown_fixture', 'That fixture has not been published to the website.');
         }
@@ -145,6 +156,11 @@ final class ScorecardsModule implements Module
         // The app states the format when it opens a card. The admin portal does
         // not know it, so the season's published format answers for it - which
         // is the app's own setting, pushed with the league, not a second copy.
+        // Whether this is a cup tie is the fixture's own business, not the
+        // caller's. The admin portal can open one without knowing, and the app
+        // cannot open a cup tie as a league card by mistake.
+        $kind = (isset($fixture['kind']) && $fixture['kind'] === 'cup') ? 'cup' : 'league';
+
         $format = self::seasonFormat((string)$fixture['season_id']);
 
         $framesTotal  = (int)Http::field('framesTotal', $format['frames']);
@@ -161,7 +177,7 @@ final class ScorecardsModule implements Module
             }
         }
 
-        return Db::transaction(function () use ($fixtureId, $fixture, $framesTotal, $maxPerPlayer, $doublesSet) {
+        return Db::transaction(function () use ($fixtureId, $fixture, $framesTotal, $maxPerPlayer, $doublesSet, $kind) {
             $existing = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
 
             if ($existing !== null && $existing['state'] === self::STATE_LIVE) {
@@ -177,16 +193,19 @@ final class ScorecardsModule implements Module
             Db::query(
                 'INSERT INTO wdpl_scorecards
                     (fixture_id, season_id, state, version, frames_total, max_per_player, notes, opened_at,
+                     card_kind, toss_won_by,
                      home_finalised_at, home_finalised_version, away_finalised_at, away_finalised_version,
                      finalised_at, claimed_at)
-                 VALUES (?, ?, ?, 1, ?, ?, NULL, UTC_TIMESTAMP(), NULL, NULL, NULL, NULL, NULL, NULL)
+                 VALUES (?, ?, ?, 1, ?, ?, NULL, UTC_TIMESTAMP(), ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
                  ON DUPLICATE KEY UPDATE state = VALUES(state), version = 1, frames_total = VALUES(frames_total),
                      max_per_player = VALUES(max_per_player), notes = NULL, opened_at = VALUES(opened_at),
+                     card_kind = VALUES(card_kind), toss_won_by = NULL,
                      home_finalised_at = NULL, home_finalised_version = NULL,
                      away_finalised_at = NULL, away_finalised_version = NULL,
                      finalised_at = NULL, claimed_at = NULL',
                 [$fixtureId, $fixture['season_id'], self::STATE_LIVE, $framesTotal,
-                 $maxPerPlayer > 0 ? $maxPerPlayer : self::DEFAULT_MAX_PER_PLAYER]
+                 $maxPerPlayer > 0 ? $maxPerPlayer : self::DEFAULT_MAX_PER_PLAYER,
+                 $kind]
             );
 
             for ($n = 1; $n <= $framesTotal; $n++) {
@@ -403,6 +422,46 @@ final class ScorecardsModule implements Module
         });
     }
 
+    /**
+     * Records who won the toss, and therefore who fills the card in as home.
+     *
+     * A cup tie has no home team until the coin lands. Either captain may enter
+     * it - they are both standing there watching - but only once, because the
+     * whole nomination order hangs off it.
+     */
+    public static function toss()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $won       = Http::requireField('wonBy') === 'away' ? 'away' : 'home';
+
+        $side = self::requireSide($fixtureId);
+
+        return Db::transaction(function () use ($fixtureId, $won, $side) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if (($card['card_kind'] ?? 'league') !== 'cup') {
+                throw new ApiError(409, 'not_a_cup', 'Only a cup tie is decided on a toss.');
+            }
+            if ($card['state'] !== self::STATE_LIVE) {
+                throw new ApiError(409, 'not_live', 'This card is no longer being scored.');
+            }
+            if ($card['toss_won_by'] !== null) {
+                throw new ApiError(409, 'already_tossed',
+                    'The toss has already been recorded. Ask the league if it is wrong.');
+            }
+
+            Db::query(
+                'UPDATE wdpl_scorecards SET toss_won_by = ?, version = version + 1
+                  WHERE fixture_id = ?',
+                [$won, $fixtureId]
+            );
+
+            return self::readCard($fixtureId, $side);
+        });
+    }
+
     // --------------------------------------------------------------- captains
 
     public static function mine()
@@ -606,6 +665,16 @@ final class ScorecardsModule implements Module
             // entering both line-ups has already set that aside by agreement.
             $driving = ($card['solo_by'] !== null && $card['solo_by'] === $side);
 
+            // A cup card is filled in turns rather than one side following the
+            // other, so both captains have to be told to wait - not just away.
+            $cup = ($card['card_kind'] ?? 'league') === 'cup';
+            $toss = $card['toss_won_by'];
+
+            if ($cup && $toss === null) {
+                throw new ApiError(409, 'no_toss',
+                    'Toss for it first. The winner of the toss fills the card in as home.');
+            }
+
             // A draw is shorthand for the picks it makes. Expanding it here
             // means it goes through exactly the same rule checks, rejections
             // and version bump as a captain tapping each slot by hand.
@@ -615,7 +684,8 @@ final class ScorecardsModule implements Module
                 if (!is_array($op) || empty($op['kind'])) {
                     continue;
                 }
-                $result = self::applyOne($op, $side, $frames, $notes, $maxPerPlayer, $driving);
+                $result = self::applyOne(
+                    $op, $side, $frames, $notes, $maxPerPlayer, $driving, $cup, $toss);
 
                 if ($result['rejected'] !== null) {
                     $rejections[] = ['op' => $index, 'reason' => $result['rejected']]
@@ -653,7 +723,8 @@ final class ScorecardsModule implements Module
      * @return array{rejected: string|null, changed: bool, frame?: int}
      */
     private static function applyOne(
-        array $op, string $side, array &$frames, &$notes, int $maxPerPlayer, bool $driving = false
+        array $op, string $side, array &$frames, &$notes, int $maxPerPlayer, bool $driving = false,
+        bool $cup = false, ?string $toss = null
     ): array {
         $kind = (string)$op['kind'];
 
@@ -683,10 +754,22 @@ final class ScorecardsModule implements Module
                 $playerName = isset($op['playerName']) && $op['playerName'] !== '' ? (string)$op['playerName'] : null;
                 $clearing   = ($playerId === null && $playerName === null);
 
-                if (!$clearing && !$driving && $side === 'away'
-                    && ScorecardRules::awaySlotLocked($frames, $index)) {
-                    return ['rejected' => ScorecardRules::awayLockReason($frames, $index),
-                            'changed' => false, 'frame' => $frameNo];
+                if (!$clearing && !$driving) {
+                    if ($cup) {
+                        // Both sides take turns on a cup card, so both are
+                        // asked - and which of them is "home" for the purposes
+                        // of the order was settled by the toss, not the draw.
+                        $view = CupRules::roleView($frames, $toss);
+                        $role = CupRules::role($side, $toss);
+
+                        if (CupRules::slotLocked($view, $index, $role)) {
+                            return ['rejected' => CupRules::lockReason($view, $index, $role),
+                                    'changed' => false, 'frame' => $frameNo];
+                        }
+                    } elseif ($side === 'away' && ScorecardRules::awaySlotLocked($frames, $index)) {
+                        return ['rejected' => ScorecardRules::awayLockReason($frames, $index),
+                                'changed' => false, 'frame' => $frameNo];
+                    }
                 }
 
                 $reason = ScorecardRules::rejectPick($frames, $index, $slot, $playerId, $playerName, $maxPerPlayer);
@@ -1075,7 +1158,7 @@ final class ScorecardsModule implements Module
     {
         $card = Db::one(
             'SELECT c.fixture_id, c.state, c.version, c.frames_total, c.max_per_player, c.notes,
-                    c.opened_at, c.finalised_at, c.claimed_at,
+                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by,
                     c.home_finalised_at, c.away_finalised_at, c.solo_by, c.solo_since,
                     f.match_date, f.home_team_id, f.away_team_id,
                     h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name
@@ -1102,7 +1185,33 @@ final class ScorecardsModule implements Module
         $card['your_side']     = $side;
         $card['home_signed']   = $card['home_finalised_at'] !== null;
         $card['away_signed']   = $card['away_finalised_at'] !== null;
-        $card['away_locked']   = ScorecardRules::blindWindowLocked($frames);
+        $cup = ($card['card_kind'] ?? 'league') === 'cup';
+
+        $toss = $card['toss_won_by'];
+
+        $card['is_cup']      = $cup;
+        $card['your_role']   = $cup && $side !== null ? CupRules::role($side, $toss) : null;
+
+        // The blind window is a league idea: away picks catch up behind home's.
+        // A cup card has no such window - both sides are held by the turn.
+        $card['away_locked'] = $cup ? false : ScorecardRules::blindWindowLocked($frames);
+
+        // Whose turn it is, which a league card never has to say because the
+        // answer is always "whoever has not filled this frame in yet".
+        $card['turn'] = null;
+        $card['your_turn'] = null;
+
+        if ($cup && $toss !== null) {
+            $turn = CupRules::turn(CupRules::roleView($frames, $toss));
+
+            // Back from a nomination role to the column the captain is sitting in.
+            $turn['side'] = $turn['side'] === 'home'
+                ? $toss
+                : ($toss === 'home' ? 'away' : 'home');
+
+            $card['turn'] = $turn;
+            $card['your_turn'] = $side !== null && $turn['side'] === $side;
+        }
         $card['solo_driver']   = $card['solo_by'];
         $card['you_are_driving'] = ($side !== null && $card['solo_by'] === $side);
         $card['all_scored']    = ScorecardRules::allFramesScored($frames);

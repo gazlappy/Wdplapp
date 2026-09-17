@@ -35,15 +35,21 @@ public sealed class ScorecardService
     /// frames a match has and which are doubles. Captains fill in players and
     /// winners; they never invent frames.
     /// </remarks>
+    /// <param name="fixtureId">
+    /// The league fixture, or the cup tie - both live in the same table on the
+    /// website. Whether the card is filled in the league's way or the cup's is
+    /// the website's own reading of that row, not something said here, so a cup
+    /// tie cannot be opened as a league card by mistake.
+    /// </param>
     public static async Task<ScorecardState> OpenAsync(
-        WebApiClient client, Fixture fixture, MatchFormat format)
+        WebApiClient client, Guid fixtureId, MatchFormat format)
     {
         // The format comes from Settings and nowhere else, so a card always has
         // the number of frames the league actually plays. Doubles are marked on
         // the card by the captains, not decided here.
         var result = await client.AdminAsync("scorecards", "open", new
         {
-            fixtureId = fixture.Id,
+            fixtureId,
             framesTotal = format.TotalFrames,
             maxPerPlayer = format.MaxFramesPerPlayer,
             doublesFrames = Array.Empty<int>(),

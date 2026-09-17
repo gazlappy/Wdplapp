@@ -1,4 +1,5 @@
-﻿using Wdpl2.Helpers;
+﻿using Wdpl2.Domain.Competitions;
+using Wdpl2.Helpers;
 using Wdpl2.Models;
 
 namespace Wdpl2.Services.Web;
@@ -51,6 +52,13 @@ public static class LeagueSnapshot
 
         var standings = BuildStandings(divisions, teams, fixtures, settings);
         var format = Wdpl2.Domain.Fixtures.MatchFormat.From(settings);
+
+        // Cup ties ride along in the fixtures list so a card can be opened on
+        // them and the captains' own pages find them. They are marked as cup so
+        // the league's tables, results and fixture list ignore them - and they
+        // are deliberately not in `fixtures` above, which is what the standings
+        // are calculated from.
+        var cupTies = CupTie.For(league, season);
 
         var payload = new
         {
@@ -108,7 +116,24 @@ public static class LeagueSnapshot
                 awayScore = f.AwayScore,
                 framesTotal = f.Frames.Count,
                 played = f.Frames.Any(fr => fr.Winner != FrameWinner.None),
-            }).ToList(),
+                kind = "league",
+            })
+            .Concat(cupTies.Select(t => new
+            {
+                id = t.Id,
+                divisionId = (Guid?)null,
+                homeTeamId = t.HomeTeamId,
+                awayTeamId = t.AwayTeamId,
+                venueId = t.VenueId,
+                date = t.Date.ToString("yyyy-MM-dd"),
+                weekNo = 0,
+                homeScore = t.HomeScore,
+                awayScore = t.AwayScore,
+                framesTotal = format.TotalFrames,
+                played = t.IsComplete,
+                kind = "cup",
+            }))
+            .ToList(),
             standings,
         };
 
@@ -118,7 +143,7 @@ public static class LeagueSnapshot
             Venues = venues.Count,
             Teams = teams.Count,
             Players = players.Count,
-            Fixtures = fixtures.Count,
+            Fixtures = fixtures.Count + cupTies.Count,
             Standings = standings.Count,
         };
 

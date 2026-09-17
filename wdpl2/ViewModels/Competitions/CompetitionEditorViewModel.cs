@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Wdpl2.Domain.Competitions;
 using Wdpl2.Models;
 using Wdpl2.Services;
 
@@ -2060,41 +2061,13 @@ public partial class CompetitionEditorViewModel : ObservableObject
         }
     }
 
-    private void AdvanceWinner(CompetitionRound round, CompetitionMatch match)
-    {
-        var nextRound = _competition.Rounds.FirstOrDefault(r => r.RoundNumber == round.RoundNumber + 1);
-        if (nextRound == null || !match.WinnerId.HasValue) return;
+    // A cup tie collected from the website advances its winner too, so the rule
+    // lives in one place rather than in two that could drift apart.
+    private void AdvanceWinner(CompetitionRound round, CompetitionMatch match) =>
+        BracketAdvance.Advance(_competition, round, match);
 
-        int matchIndex = round.Matches.IndexOf(match);
-        if (matchIndex < 0) return;
-
-        int nextMatchIndex = matchIndex / 2;
-        if (nextMatchIndex >= nextRound.Matches.Count) return;
-
-        var nextMatch = nextRound.Matches[nextMatchIndex];
-        if (matchIndex % 2 == 0)
-            nextMatch.Participant1Id = match.WinnerId;
-        else
-            nextMatch.Participant2Id = match.WinnerId;
-    }
-
-    private void ClearAdvancement(CompetitionRound round, CompetitionMatch match)
-    {
-        var nextRound = _competition.Rounds.FirstOrDefault(r => r.RoundNumber == round.RoundNumber + 1);
-        if (nextRound == null) return;
-
-        int matchIndex = round.Matches.IndexOf(match);
-        if (matchIndex < 0) return;
-
-        int nextMatchIndex = matchIndex / 2;
-        if (nextMatchIndex >= nextRound.Matches.Count) return;
-
-        var nextMatch = nextRound.Matches[nextMatchIndex];
-        if (matchIndex % 2 == 0)
-            nextMatch.Participant1Id = null;
-        else
-            nextMatch.Participant2Id = null;
-    }
+    private void ClearAdvancement(CompetitionRound round, CompetitionMatch match) =>
+        BracketAdvance.Clear(_competition, round, match);
 
     /// <summary>
     /// Creates a new "Losers Cup" competition populated with the losers
