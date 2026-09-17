@@ -631,10 +631,6 @@ body.has-tick main{padding-bottom:120px;}
 
   function $(id){ return document.getElementById(id); }
 
-  // The tick box remembers itself, so a captain who wants the other scores
-  // does not have to ask for them again every week.
-  try{ $('vidiOn').checked = vidiWanted(); }catch(e){}
-
   // Said once, at load, so the page never briefly reads as the wrong one.
   if(CUP_ONLY){
     document.title = 'WDPL Cup Tie';
@@ -907,8 +903,16 @@ body.has-tick main{padding-bottom:120px;}
 
   var V = { timer:null, scores:{}, first:true };
 
+  /**
+   * On unless this captain has turned it off.
+   *
+   * Only an explicit "off" counts. A phone that has never been used for this,
+   * or one that will not hand back what it stored, gets the scores - which is
+   * what everybody wants on a match night and what nobody would think to go
+   * looking for a tick box to switch on.
+   */
   function vidiWanted(){
-    try{ return localStorage.getItem(VIDI_KEY) === '1'; }catch(e){ return false; }
+    try{ return localStorage.getItem(VIDI_KEY) !== '0'; }catch(e){ return true; }
   }
 
   function vidiRemember(on){
@@ -1005,6 +1009,14 @@ body.has-tick main{padding-bottom:120px;}
     if(isNaN(when)) when = new Date();
     return when.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
   }
+
+  // Ticked to begin with, and it remembers being unticked, so a captain who
+  // does not want the other scores turns them off once rather than every week.
+  //
+  // Down here rather than with the page's opening lines: VIDI_KEY is a var, so
+  // up there the name exists but the value does not, and this quietly asked
+  // the browser what it had stored under "undefined".
+  $('vidiOn').checked = vidiWanted();
 
   $('vidiOn').addEventListener('change', function(){
     var on = $('vidiOn').checked;
