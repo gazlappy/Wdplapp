@@ -87,13 +87,14 @@ select,input,textarea{
   width:100%; padding:12px; font-size:16px; border-radius:var(--radius-sm);
   border:1px solid var(--line); background:rgba(10,15,28,.6); color:var(--text);
 }
-button{
+button, a.btn{
   padding:12px 16px; font-size:15px; font-weight:700; border:0; cursor:pointer;
   border-radius:var(--radius-sm); background:var(--accent-2); color:#fff;
 }
+a.btn{display:block; text-align:center; text-decoration:none;}
 button:disabled{opacity:.45; cursor:not-allowed;}
 button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
-button.go{background:var(--felt);}
+button.go, a.btn.go{background:var(--felt);}
 .row{display:flex; gap:8px; flex-wrap:wrap;}
 .msg{font-size:13px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:10px; line-height:1.45;}
 .msg.bad{background:var(--bad-bg); color:var(--bad-fg);}
@@ -105,12 +106,58 @@ button.go{background:var(--felt);}
   scrollbar-width:none; -webkit-overflow-scrolling:touch;
 }
 .tabs::-webkit-scrollbar{display:none;}
-.tabs button{
+.tabs button, .tabs .tab-link{
   padding:8px 14px; font-size:13px; border-radius:999px; font-weight:700;
   background:rgba(10,15,28,.6); color:var(--muted); border:1px solid var(--line);
   white-space:nowrap; flex:0 0 auto;
 }
 .tabs button.on{background:var(--accent-2); color:#fff; border-color:var(--accent-2);}
+
+/* The way out of the captains' site, sitting with the ways around it. It is a
+   link and not a tab, so it is marked as leaving rather than dressed as a
+   place you could be. */
+.tabs .tab-link{
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+  border-style:dashed;
+}
+.tabs .tab-link:hover{color:var(--gold); border-color:var(--gold);}
+.tabs .tab-link::before{content:"\2190";}
+
+/* The captain's own landing: what is on tonight, and the ways in. */
+.home-strip{
+  display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--line);
+}
+.home-strip .team{font-size:19px; font-weight:800;}
+.home-strip .where{font-size:12px; color:var(--muted);}
+.home-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px;}
+.home-tile{
+  text-align:left; padding:12px; border-radius:var(--radius); border:1px solid var(--line);
+  background:rgba(10,15,28,.5); color:var(--text); font-weight:700; font-size:14px;
+}
+.home-tile:hover{border-color:var(--gold);}
+.home-tile .tile-sub{display:block; font-weight:500; font-size:11px; color:var(--muted); margin-top:3px;}
+.home-next{font-size:13px; margin:0 0 12px; color:var(--text);}
+.home-next .when{color:var(--gold); font-weight:700;}
+
+/* The division table, read-only, so a captain can see where they stand. */
+.table-wrap{overflow-x:auto;}
+table.tbl{border-collapse:collapse; width:100%; font-size:12px; min-width:380px;}
+table.tbl th{
+  text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--muted); padding:6px 8px; border-bottom:1px solid var(--line); font-weight:800;
+}
+table.tbl td{padding:7px 8px; border-bottom:1px solid var(--line);}
+table.tbl tr:last-child td{border-bottom:0;}
+table.tbl td.num, table.tbl th.num{text-align:right;}
+table.tbl tr.us{background:rgba(59,130,246,.14);}
+table.tbl tr.us td{font-weight:700;}
+@media (max-width:540px){
+  /* Frames for and against are the first to go on a narrow screen: position,
+     played and points are what the table is read for. */
+  table.tbl .slim{display:none;}
+  table.tbl{min-width:0;}
+}
 .list{display:flex; flex-direction:column;}
 .list-row{
   display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center;
@@ -248,7 +295,7 @@ button.go{background:var(--felt);}
 <header>
   <div class="head-top">
     <h1 id="brand">WDPL Captain</h1>
-    <nav class="site-nav">
+    <nav class="site-nav hidden" id="siteNav">
       <a href="../">Home</a>
       <a id="navComps" href="../comp/">Competitions</a>
       <a id="navCaptain" href="./" class="on">Captains</a>
@@ -262,11 +309,11 @@ button.go{background:var(--felt);}
   <!-- The tabs live in the header, so what you are looking at and what else
        you could look at are read in one place. -->
   <div class="tabs hidden" id="tabs">
-    <button id="tabCard" class="on">Scorecard</button>
-    <button id="tabSquad">My squad</button>
-    <button id="tabFixtures">Fixtures</button>
-    <button id="tabContacts">Contacts</button>
-    <button id="tabPin">PIN</button>
+    <button id="tabHome" class="on">Home</button>
+    <button id="tabTeam">My team</button>
+    <button id="tabLeague">League</button>
+    <button id="tabComps">Competitions</button>
+    <a class="tab-link" href="../">Back to WDPL</a>
   </div>
 </header>
 
@@ -285,6 +332,25 @@ button.go{background:var(--felt);}
     <div class="row" style="margin-top:12px"><button id="loginBtn">Sign in</button></div>
   </section>
 
+  <!-- Home: the night, if there is one, and the way to everything else -->
+  <section class="card hidden" id="homePane">
+    <div class="home-strip">
+      <span class="team" id="homeTeam"></span>
+      <span class="where" id="homeWhere"></span>
+    </div>
+    <div id="homeExtras">
+    <p class="home-next" id="homeNext">&nbsp;</p>
+    <div class="home-grid">
+      <button class="home-tile" data-go="tabTeam">My team
+        <span class="tile-sub">Squad, and the PIN everyone uses</span></button>
+      <button class="home-tile" data-go="tabLeague">League
+        <span class="tile-sub">Our fixtures, the table, who to ring</span></button>
+      <button class="home-tile" data-go="tabComps">Competitions
+        <span class="tile-sub">Cup ties and competition nights</span></button>
+    </div>
+    </div>
+  </section>
+
   <section class="card hidden" id="squadPane">
     <h3 style="margin:0 0 4px;font-size:16px">My squad</h3>
     <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
@@ -298,6 +364,24 @@ button.go{background:var(--felt);}
   <section class="card hidden" id="fixturesPane">
     <h3 style="margin:0 0 12px;font-size:16px">Our season</h3>
     <div class="list" id="fixtureList"></div>
+  </section>
+
+  <section class="card hidden" id="tablePane">
+    <h3 style="margin:0 0 4px;font-size:16px">The table</h3>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px" id="tableSub">
+      As the league last published it.</p>
+    <div class="table-wrap"><table class="tbl" id="tableBody"></table></div>
+  </section>
+
+  <section class="card hidden" id="compsPane">
+    <h3 style="margin:0 0 4px;font-size:16px">Competitions</h3>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
+      Cup ties are scored on a full card like a league night, on the competitions page.
+      Singles and doubles nights are run there too.</p>
+    <div class="list" id="cupList"></div>
+    <div class="row" style="margin-top:14px">
+      <a class="btn go" href="../comp/" style="width:100%">Go to the competitions page</a>
+    </div>
   </section>
 
   <section class="card hidden" id="contactsPane">
@@ -320,7 +404,6 @@ button.go{background:var(--felt);}
 
   <!-- Nothing live -->
   <section class="card hidden" id="idleCard">
-    <p style="margin:0 0 8px"><strong id="idleTeam"></strong></p>
     <p id="idleText" style="margin:0; color:var(--muted); font-size:13px">
       No match is open for scoring yet. The league opens the card when your match is about to start.</p>
     <div class="row" style="margin-top:12px">
@@ -451,7 +534,8 @@ button.go{background:var(--felt);}
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
-            queue:[], flushTimer:null, strikes:0, solo:false, otherDriving:false };
+            queue:[], flushTimer:null, strikes:0, solo:false, otherDriving:false,
+            me:null, fixtures:null };
 
   var QUEUE_KEY   = 'wdpl_sc_queue';
   var FLUSH_MS    = 8000;
@@ -464,7 +548,9 @@ button.go{background:var(--felt);}
     document.title = 'WDPL Cup Tie';
     $('brand').textContent = 'WDPL Cup Tie';
 
-    // Same nav, read from where this copy of the page actually sits.
+    // A cup tie has no tabs of its own, so it keeps the plain site nav - read
+    // from where this copy of the page actually sits.
+    $('siteNav').classList.remove('hidden');
     $('navComps').href = './';
     $('navComps').classList.add('on');
     $('navCaptain').href = '../captain/';
@@ -637,16 +723,23 @@ button.go{background:var(--felt);}
   function resume(){
     return call('captains','me').then(function(me){
       if(!me || !me.name) return false;
-      signedIn(me.name);
+      signedIn(me);
       return true;
     }).catch(function(){ return false; });
   }
 
-  function signedIn(name){
-    $('who').textContent = name;
-    $('idleTeam').textContent = name;
+  function signedIn(me){
+    S.me = me;
+
+    $('who').textContent = me.name;
     show($('loginCard'), false);
     show($('tabs'), !CUP_ONLY);
+
+    $('homeTeam').textContent = me.name;
+    $('homeWhere').textContent =
+      [me.division_name, me.venue_name].filter(Boolean).join(' \u00b7 ');
+
+    if(!CUP_ONLY){ show($('homePane'), true); loadNext(); }
   }
 
   resume().then(function(already){
@@ -670,7 +763,7 @@ button.go{background:var(--felt);}
     $('loginBtn').disabled=true; say('');
     call('captains','login',{teamId:teamId,pin:pin}).then(function(me){
       $('pin').value='';
-      signedIn(me.name);
+      signedIn(me);
       return refresh();
     }).then(function(){ return loadRosters(); })
       .catch(function(e){ say(e.message,'bad'); })
@@ -680,7 +773,13 @@ button.go{background:var(--felt);}
   function signOut(){ call('captains','logout').then(function(){ location.reload(); }); }
   $('logoutBtn').addEventListener('click', signOut);
   $('logoutBtn2').addEventListener('click', signOut);
-  $('refreshBtn').addEventListener('click', function(){ refresh(); });
+  $('refreshBtn').addEventListener('click', function(){
+    // Check again means everything: the league may have published a fixture
+    // as well as opened a card.
+    S.fixtures = null;
+    loadNext();
+    refresh();
+  });
 
   /**
    * Both teams' squads for this match.
@@ -701,12 +800,19 @@ button.go{background:var(--felt);}
 
   // ------------------------------------------------------------------ tabs
 
+  /**
+   * The captains' own small site: four places, grouped by what a captain
+   * came to do rather than by which endpoint answers it.
+   *
+   * Home is the match night - the card, or what is coming up. My team is the
+   * things only this captain can change. League is everything about the rest
+   * of the division. Competitions is the cup and the nights run at a venue.
+   */
   var PANES = {
-    tabCard:     ['cardCard','idleCard'],
-    tabSquad:    ['squadPane'],
-    tabFixtures: ['fixturesPane'],
-    tabContacts: ['contactsPane'],
-    tabPin:      ['pinPane']
+    tabHome:   ['homePane','cardCard','idleCard'],
+    tabTeam:   ['squadPane','pinPane'],
+    tabLeague: ['fixturesPane','tablePane','contactsPane'],
+    tabComps:  ['compsPane']
   };
 
   function openTab(which){
@@ -715,20 +821,26 @@ button.go{background:var(--felt);}
       PANES[id].forEach(function(pane){ show($(pane), false); });
     });
 
-    if(which==='tabCard'){
+    if(which==='tabHome'){
+      show($('homePane'), true);
       // The scorecard decides for itself whether there is a match on.
       refresh();
     } else {
       PANES[which].forEach(function(pane){ show($(pane), true); });
     }
 
-    if(which==='tabSquad')    loadSquad();
-    if(which==='tabFixtures') loadFixtures();
-    if(which==='tabContacts') loadContacts();
+    if(which==='tabTeam')   loadSquad();
+    if(which==='tabLeague'){ loadFixtures(); loadTable(); loadContacts(); }
+    if(which==='tabComps')  loadCups();
   }
 
   Object.keys(PANES).forEach(function(id){
     $(id).addEventListener('click', function(){ openTab(id); });
+  });
+
+  // The tiles on the home page are the same four places, said in full.
+  [].forEach.call(document.querySelectorAll('[data-go]'), function(tile){
+    tile.addEventListener('click', function(){ openTab(tile.getAttribute('data-go')); });
   });
 
   // ---------------------------------------------------------------- squad
@@ -820,8 +932,141 @@ button.go{background:var(--felt);}
 
   // ------------------------------------------------------------- fixtures
 
+  /** Every fixture this team has, league and cup, fetched once and kept. */
+  function teamFixtures(){
+    if(S.fixtures) return Promise.resolve(S.fixtures);
+    return call('captains','fixtures').then(function(rows){
+      S.fixtures = rows || [];
+      return S.fixtures;
+    });
+  }
+
+  function niceDate(iso){
+    if(!iso) return '';
+    var d = new Date(iso + 'T00:00:00');
+    if(isNaN(d)) return iso;
+    return d.toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' });
+  }
+
+  /**
+   * The one line a captain actually wants on opening the page: what is next.
+   *
+   * Falls back to the last result when the season has run out, because a page
+   * that says nothing at all reads as broken rather than as finished.
+   */
+  function loadNext(){
+    teamFixtures().then(function(rows){
+      var box=$('homeNext');
+
+      var next = rows.filter(function(f){ return Number(f.played)!==1; })
+                     .sort(function(a,b){ return (a.match_date||'') < (b.match_date||'') ? -1 : 1; })[0];
+
+      if(next){
+        var home = Number(next.is_home)===1;
+        box.innerHTML = 'Next: <span class="when">'+esc(niceDate(next.match_date))+'</span> '
+          + (home ? 'at home to ' : 'away to ') + '<strong>'+esc(next.opponent_name||'TBC')+'</strong>'
+          + (next.kind==='cup' ? ' <em>(cup tie)</em>' : '')
+          + (next.venue_name ? ' \u00b7 '+esc(next.venue_name) : '');
+        return;
+      }
+
+      var last = rows.filter(function(f){ return Number(f.played)===1; })
+                     .sort(function(a,b){ return (a.match_date||'') > (b.match_date||'') ? -1 : 1; })[0];
+
+      box.textContent = last
+        ? 'Last out: ' + niceDate(last.match_date) + ' v ' + (last.opponent_name||'?')
+          + ' ' + last.team_score + '\u2013' + last.opponent_score
+        : 'No fixtures published yet.';
+    }).catch(function(){ $('homeNext').textContent=''; });
+  }
+
+  // ---------------------------------------------------------------- league
+
+  /**
+   * The division table, straight off the league's own published figures.
+   *
+   * Read-only and deliberately not recalculated here: the app works the table
+   * out and publishes it, and a second calculation on this page could only
+   * ever disagree with the one on the website.
+   */
+  function loadTable(){
+    var mine = S.me && S.me.division_id;
+
+    call('league','standings',{}).then(function(rows){
+      var box=$('tableBody');
+      rows = (rows||[]).filter(function(r){ return !mine || r.division_id===mine; });
+
+      if(!rows.length){
+        box.innerHTML='';
+        $('tableSub').textContent='No table published yet.';
+        return;
+      }
+
+      $('tableSub').textContent = (rows[0].division_name || 'The table')
+        + ' \u00b7 as the league last published it.';
+
+      var head='<tr><th class="num">#</th><th>Team</th><th class="num">P</th>'
+             + '<th class="num">W</th><th class="num">L</th>'
+             + '<th class="num slim">F</th><th class="num slim">A</th>'
+             + '<th class="num">Pts</th></tr>';
+
+      box.innerHTML = head + rows.map(function(r){
+        var us = S.me && r.team_id===S.me.id;
+        return '<tr'+(us?' class="us"':'')+'>'
+          + '<td class="num">'+esc(r.position)+'</td>'
+          + '<td>'+esc(r.team_name||'?')+'</td>'
+          + '<td class="num">'+esc(r.played)+'</td>'
+          + '<td class="num">'+esc(r.won)+'</td>'
+          + '<td class="num">'+esc(r.lost)+'</td>'
+          + '<td class="num slim">'+esc(r.frames_for)+'</td>'
+          + '<td class="num slim">'+esc(r.frames_against)+'</td>'
+          + '<td class="num"><strong>'+esc(r.points)+'</strong></td>'
+          + '</tr>';
+      }).join('');
+    }).catch(function(){
+      $('tableBody').innerHTML='';
+      $('tableSub').textContent='Could not read the table.';
+    });
+  }
+
+  // ---------------------------------------------------------- competitions
+
+  /** This team's cup ties, which are fixtures like any other but marked. */
+  function loadCups(){
+    teamFixtures().then(function(rows){
+      var box=$('cupList');
+      var cups = rows.filter(function(f){ return f.kind==='cup'; });
+
+      if(!cups.length){
+        box.innerHTML='<p class="sub" style="color:var(--muted)">'
+          + 'No cup tie for this team yet.</p>';
+        return;
+      }
+
+      box.innerHTML = cups.map(function(f){
+        var played = Number(f.played)===1;
+        var score = played ? (f.team_score+'\u2013'+f.opponent_score) : '\u2013';
+        var cls = played ? (Number(f.team_score)>Number(f.opponent_score) ? 'w' : 'l') : '';
+
+        return '<div class="fx">'
+          + '<span class="date">'+esc(niceDate(f.match_date))+'</span>'
+          + '<div><strong>'+esc(f.opponent_name||'TBC')+'</strong>'
+          + '<p class="sub">'+(played ? 'Played' : 'To play')
+          + (f.venue_name ? ' \u00b7 '+esc(f.venue_name) : '')+'</p></div>'
+          + '<span class="res '+cls+'"'+(played?'':' style="color:var(--muted)"')+'>'+score+'</span>'
+          + '</div>';
+      }).join('');
+    }).catch(function(){
+      $('cupList').innerHTML='<p class="sub" style="color:var(--muted)">'
+        + 'Could not read the competitions.</p>';
+    });
+  }
+
   function loadFixtures(){
-    call('captains','fixtures').then(function(rows){
+    teamFixtures().then(function(all){
+      // Cup ties have their own section; this is the league's own season.
+      var rows = all.filter(function(f){ return f.kind !== 'cup'; });
+
       var box=$('fixtureList');
       box.innerHTML='';
       if(!rows.length){
@@ -893,15 +1138,20 @@ button.go{background:var(--felt);}
 
   // --------------------------------------------------------------- polling
 
-  function onCardTab(){ return CUP_ONLY || $('tabCard').classList.contains('on'); }
+  function onCardTab(){ return CUP_ONLY || $('tabHome').classList.contains('on'); }
 
   function refresh(){
     if(!onCardTab()) return Promise.resolve();
     return call('scorecards','mine',{kind: CUP_ONLY ? 'cup' : 'league'}).then(function(card){
       if(!card || !card.fixture_id){
         S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
+        show($('homeExtras'), true);
         stopPolling(); return;
       }
+
+      // There is a match on, so Home is the card. The tiles are still one tap
+      // away on the tab row and only take up room here.
+      show($('homeExtras'), false);
       render(card);
       if(!S.rosters.home.length && !S.rosters.away.length) loadRosters();
       loadQueue();

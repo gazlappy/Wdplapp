@@ -248,7 +248,8 @@ final class CaptainsModule implements Module
         $teamId = Captain::requireTeamId();
 
         $row = Db::one(
-            'SELECT t.id, t.name, t.captain_name, d.name AS division_name, v.name AS venue_name, t.season_id
+            'SELECT t.id, t.name, t.captain_name, t.division_id, d.name AS division_name,
+                    v.name AS venue_name, t.season_id
              FROM wdpl_teams t
              LEFT JOIN wdpl_divisions d ON d.id = t.division_id
              LEFT JOIN wdpl_venues    v ON v.id = t.venue_id
