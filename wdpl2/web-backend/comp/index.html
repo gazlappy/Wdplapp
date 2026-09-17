@@ -300,7 +300,7 @@ tr.top td{color:var(--gold); font-weight:700;}
   <section id="login">
     <div class="card stack">
       <div>
-        <label for="session">Your group</label>
+        <label for="session">What you are running</label>
         <select id="session"><option value="">Loading&hellip;</option></select>
       </div>
       <div>
@@ -308,26 +308,10 @@ tr.top td{color:var(--gold); font-weight:700;}
         <input id="pin" type="tel" inputmode="numeric" autocomplete="off" placeholder="The PIN you were given">
       </div>
       <button id="signin" class="go" style="width:100%">Sign in</button>
-      <p class="sub">
+      <p class="sub" id="pinHint">
         The league gives the PIN to whoever is running the group. It opens this
         group only, and stops working when the league closes the night.
       </p>
-    </div>
-
-    <!-- The other kind of competition night: two teams and a full scorecard.
-         It is reached from here rather than from the captains' league page,
-         so a cup tie is never mixed in with a team's league fixtures. -->
-    <div class="card stack" style="margin-top:14px">
-      <div>
-        <strong>Playing a team cup tie?</strong>
-        <p class="sub" style="margin:4px 0 0">
-          Both captains score it on a full card, the same as a league night. Sign in
-          with your team&rsquo;s own PIN &mdash; not a group PIN.
-        </p>
-      </div>
-      <a href="tie.html" class="go" style="display:block;text-align:center;text-decoration:none">
-        Open the cup tie card
-      </a>
     </div>
   </section>
 
@@ -444,7 +428,7 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   var API = '../api/index.php';
 
-  var S = { session:null, busy:false, revealed:[], spin:0 };
+  var S = { session:null, busy:false, revealed:[], spin:0, rows:[] };
 
   function $(id){ return document.getElementById(id); }
   function show(el,on){ el.classList.toggle('hidden', !on); }
@@ -505,33 +489,77 @@ tr.top td{color:var(--gold); font-weight:700;}
 
   // ------------------------------------------------------------- sign in
 
+  /**
+   * Groups and cup ties in one list.
+   *
+   * They are signed into differently - a group by its organiser's PIN, a cup
+   * tie by the captain's own team PIN - but that is this page's problem, not
+   * the reader's. They pick what they came to do. The option's value is its
+   * place in the list, so the row behind it (and which sort it is) survives
+   * without being packed into a string.
+   */
   function loadSessions(){
     return call('comps','sessions',{}).then(function(rows){
       var sel=$('session');
-      if(!rows || !rows.length){
+      S.rows = rows || [];
+
+      if(!S.rows.length){
         sel.innerHTML='<option value="">No competition is running</option>';
         $('signin').disabled=true;
         return;
       }
+
       $('signin').disabled=false;
-      sel.innerHTML = rows.map(function(r){
+      sel.innerHTML = S.rows.map(function(r, i){
         var where = r.venue_name ? ' — '+r.venue_name : '';
         var who = r.organiser_name ? ' ('+r.organiser_name+')' : '';
-        return '<option value="'+esc(r.id)+'">'+esc(r.competition)+': '
+        return '<option value="'+i+'">'+esc(r.competition)+': '
              + esc(r.name)+esc(where)+esc(who)+'</option>';
       }).join('');
+
+      pinHint();
     }).catch(function(){
       $('session').innerHTML='<option value="">Could not reach the league site</option>';
     });
   }
 
+  /** The row the picker is on, or null. */
+  function chosen(){
+    var i = Number($('session').value);
+    return (S.rows && S.rows[i]) ? S.rows[i] : null;
+  }
+
+  /** Says which PIN to reach for, because the two are not the same one. */
+  function pinHint(){
+    var row = chosen();
+    var cup = row && row.kind === 'cup';
+
+    $('pinHint').textContent = cup
+      ? 'Use your own team PIN — the one you use for a league night. Either captain can score the tie.'
+      : 'The league gives the PIN to whoever is running the group. It opens this group only, '
+        + 'and stops working when the league closes the night.';
+
+    $('pin').setAttribute('placeholder', cup ? 'Your team PIN' : 'The PIN you were given');
+  }
+
+  $('session').addEventListener('change', pinHint);
+
   $('signin').addEventListener('click', function(){
-    var id=$('session').value, pin=$('pin').value.trim();
-    if(!id || !pin){ say('Choose your group and enter the PIN.','warn'); return; }
+    var row=chosen(), pin=$('pin').value.trim();
+    if(!row || !pin){ say('Choose what you are running and enter the PIN.','warn'); return; }
 
     $('signin').disabled=true;
-    call('comps','login',{sessionId:id, pin:pin})
-      .then(function(session){ $('pin').value=''; arrive(session); })
+
+    // A cup tie is scored on the full scorecard, so signing in hands over to
+    // it. Same page, same session - the captain never sees the difference
+    // beyond the card they land on.
+    var signingIn = row.kind === 'cup'
+      ? call('captains','login',{teamId:row.team_id, pin:pin})
+          .then(function(){ $('pin').value=''; location.href='tie.html'; })
+      : call('comps','login',{sessionId:row.id, pin:pin})
+          .then(function(session){ $('pin').value=''; arrive(session); });
+
+    signingIn
       .catch(function(e){
         say(e.code==='rate_limited'
             ? 'Too many tries. Wait a few minutes.'

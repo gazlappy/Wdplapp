@@ -117,6 +117,7 @@ public static class LeagueSnapshot
                 framesTotal = f.Frames.Count,
                 played = f.Frames.Any(fr => fr.Winner != FrameWinner.None),
                 kind = "league",
+                label = (string?)null,
             })
             .Concat(cupTies.Select(t => new
             {
@@ -132,6 +133,11 @@ public static class LeagueSnapshot
                 framesTotal = format.TotalFrames,
                 played = t.IsComplete,
                 kind = "cup",
+
+                // A cup tie has a name a league fixture does not need: without
+                // it the website can only call it "a cup tie", and the captains
+                // signing in would have no idea which round they are playing.
+                label = $"{t.CompetitionName} — {t.RoundName}",
             }))
             .ToList(),
             standings,

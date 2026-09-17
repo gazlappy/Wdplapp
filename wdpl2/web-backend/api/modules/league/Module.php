@@ -20,7 +20,7 @@ final class LeagueModule implements Module
 
     public static function title(): string { return 'League data'; }
 
-    public static function schemaVersion(): int { return 4; }
+    public static function schemaVersion(): int { return 5; }
 
     public static function tables(): array
     {
@@ -107,6 +107,7 @@ final class LeagueModule implements Module
                 frames_total INT        NOT NULL DEFAULT 0,
                 played       TINYINT(1) NOT NULL DEFAULT 0,
                 kind         VARCHAR(8) NOT NULL DEFAULT 'league',
+                label        VARCHAR(190) NULL,
                 PRIMARY KEY (id),
                 KEY idx_fx_season (season_id),
                 KEY idx_fx_date (season_id, match_date)
@@ -117,7 +118,8 @@ final class LeagueModule implements Module
             // belongs to no division and must stay out of the tables, the
             // results and the fixture list.
             "ALTER TABLE wdpl_fixtures
-                ADD COLUMN IF NOT EXISTS kind VARCHAR(8) NOT NULL DEFAULT 'league'",
+                ADD COLUMN IF NOT EXISTS kind VARCHAR(8) NOT NULL DEFAULT 'league',
+                ADD COLUMN IF NOT EXISTS label VARCHAR(190) NULL",
 
             "CREATE TABLE IF NOT EXISTS wdpl_standings (
                 season_id      CHAR(36) NOT NULL,
@@ -305,8 +307,8 @@ final class LeagueModule implements Module
                 Db::query(
                     'INSERT INTO wdpl_fixtures
                         (id, season_id, division_id, home_team_id, away_team_id, venue_id,
-                         match_date, week_no, home_score, away_score, frames_total, played, kind)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         match_date, week_no, home_score, away_score, frames_total, played, kind, label)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     [
                         self::uuid(isset($f['id']) ? $f['id'] : null, 'fixture.id'), $seasonId,
                         self::optionalUuid($f, 'divisionId'),
@@ -316,6 +318,7 @@ final class LeagueModule implements Module
                         self::int($f, 'homeScore'), self::int($f, 'awayScore'),
                         self::int($f, 'framesTotal'), self::flag($f, 'played'),
                         (isset($f['kind']) && $f['kind'] === 'cup') ? 'cup' : 'league',
+                        self::text($f, 'label', 190, true),
                     ]
                 );
             }

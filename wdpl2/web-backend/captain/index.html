@@ -583,6 +583,33 @@ button.go{background:var(--felt);}
 
   // ------------------------------------------------------------- sign in
 
+  /**
+   * Takes up a sign-in that already happened.
+   *
+   * A captain reaching a cup tie has signed in on the competitions page a
+   * moment ago, and asking for the same PIN twice on the way to the same card
+   * would be nonsense. It also means a refresh mid-match does not throw the
+   * captain back to the login box.
+   */
+  function resume(){
+    return call('captains','me').then(function(me){
+      if(!me || !me.name) return false;
+      signedIn(me.name);
+      return true;
+    }).catch(function(){ return false; });
+  }
+
+  function signedIn(name){
+    $('who').textContent = name;
+    $('idleTeam').textContent = name;
+    show($('loginCard'), false);
+    show($('tabs'), !CUP_ONLY);
+  }
+
+  resume().then(function(already){
+    if(already) return refresh().then(loadRosters);
+  });
+
   call('captains','teams').then(function(teams){
     var sel=$('team'); sel.innerHTML='';
     if(!teams.length){ sel.innerHTML='<option value="">No teams set up yet</option>'; return; }
@@ -600,10 +627,7 @@ button.go{background:var(--felt);}
     $('loginBtn').disabled=true; say('');
     call('captains','login',{teamId:teamId,pin:pin}).then(function(me){
       $('pin').value='';
-      $('who').textContent=me.name;
-      $('idleTeam').textContent=me.name;
-      show($('loginCard'),false);
-      show($('tabs'), !CUP_ONLY);
+      signedIn(me.name);
       return refresh();
     }).then(function(){ return loadRosters(); })
       .catch(function(e){ say(e.message,'bad'); })

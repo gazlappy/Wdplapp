@@ -152,6 +152,26 @@ public class CupTiePublishTests
     }
 
     [Fact]
+    public void PublishedCupTies_CarryTheirOwnName()
+    {
+        var league = TheLeague(TheCup());
+        league.Fixtures.Add(LeagueNight());
+
+        var (payload, _) = LeagueSnapshot.Build(league, TheSeason(), new AppSettings());
+
+        var fixtures = Json(payload).GetProperty("fixtures").EnumerateArray().ToList();
+
+        // A captain signing in on the competitions page picks their tie out of
+        // a list. Without this the list can only call it "a cup tie".
+        var tie = fixtures.Single(f => f.GetProperty("id").GetGuid() == SemiOne);
+        Assert.Equal("Chairman's Cup — Semi-Finals", tie.GetProperty("label").GetString());
+
+        // A league night has no such name and must not invent one.
+        var night = fixtures.Single(f => f.GetProperty("kind").GetString() == "league");
+        Assert.Equal(JsonValueKind.Null, night.GetProperty("label").ValueKind);
+    }
+
+    [Fact]
     public void PublishedSnapshot_KeepsCupTiesOutOfTheTable()
     {
         var league = TheLeague(TheCup());

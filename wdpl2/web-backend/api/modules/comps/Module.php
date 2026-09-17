@@ -375,15 +375,89 @@ final class CompsModule implements Module
      * Deliberately only what is needed to choose one: the competition, the
      * group and where it is playing. No PIN, and nothing about the players.
      */
+    /**
+     * Everything a competition night is running right now, to sign in to.
+     *
+     * Two sorts sit in one list, because the person holding the phone is
+     * choosing what they came to do, not what kind of record it is. A group is
+     * opened by its organiser with the PIN the league gave them; a cup tie by
+     * either captain with their own team's PIN. Both are competition nights and
+     * both belong here - splitting them into two boxes only asks the reader to
+     * know the difference before they can start.
+     */
     public static function sessions()
     {
-        return Db::all(
+        $rows = Db::all(
             "SELECT id, competition, name, venue_name, table_label, organiser_name
              FROM wdpl_comp_sessions
              WHERE state = ?
              ORDER BY competition, name",
             [self::STATE_OPEN]
         );
+
+        foreach ($rows as &$row) {
+            $row['kind'] = 'group';
+            $row['team_id'] = null;
+        }
+        unset($row);
+
+        return array_merge($rows, self::cupSessions());
+    }
+
+    /**
+     * Cup ties with a card open, one row per team.
+     *
+     * A tie has two captains and either may score it, so each side is its own
+     * choice in the list: a captain picks their own team and uses their own
+     * PIN, exactly as an organiser picks their own group.
+     */
+    private static function cupSessions(): array
+    {
+        try {
+            $ties = Db::all(
+                "SELECT c.fixture_id, f.label, f.home_team_id, f.away_team_id,
+                        h.name AS home_name, a.name AS away_name, v.name AS venue_name
+                 FROM wdpl_scorecards c
+                 JOIN wdpl_fixtures f ON f.id = c.fixture_id AND f.kind = 'cup'
+                 LEFT JOIN wdpl_teams  h ON h.id = f.home_team_id
+                 LEFT JOIN wdpl_teams  a ON a.id = f.away_team_id
+                 LEFT JOIN wdpl_venues v ON v.id = f.venue_id
+                 WHERE c.state = 'live'
+                 ORDER BY f.match_date, h.name"
+            );
+        } catch (PDOException $noScorecards) {
+            // The scorecards module may not be installed. A competition night
+            // with no cup in it should still be able to sign in.
+            return [];
+        }
+
+        $out = [];
+
+        foreach ($ties as $tie) {
+            $label = ($tie['label'] !== null && $tie['label'] !== '') ? $tie['label'] : 'Cup tie';
+
+            $sides = [
+                [$tie['home_team_id'], $tie['home_name'], $tie['away_name']],
+                [$tie['away_team_id'], $tie['away_name'], $tie['home_name']],
+            ];
+
+            foreach ($sides as $side) {
+                if ($side[0] === null) { continue; }
+
+                $out[] = [
+                    'id'             => (string)$tie['fixture_id'],
+                    'kind'           => 'cup',
+                    'team_id'        => (string)$side[0],
+                    'competition'    => $label,
+                    'name'           => ($side[1] ?? '?') . ' (v ' . ($side[2] ?? '?') . ')',
+                    'venue_name'     => $tie['venue_name'],
+                    'table_label'    => null,
+                    'organiser_name' => null,
+                ];
+            }
+        }
+
+        return $out;
     }
 
     public static function login()
