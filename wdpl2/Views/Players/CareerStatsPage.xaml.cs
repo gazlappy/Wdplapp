@@ -223,19 +223,53 @@ public partial class CareerStatsPage : ContentPage
             .ToList();
     }
 
-    private void OnOpenProfile(object? sender, EventArgs e)
+    /// <summary>
+    /// Opens the full profile for the player currently shown.
+    /// </summary>
+    /// <remarks>
+    /// Everything here can fail quietly if it is not watched. Resolving the
+    /// page runs its constructor, so a fault in the profile page surfaces as an
+    /// exception out of this handler; and a push that is started but not
+    /// awaited drops whatever it throws on the floor. Either way the button
+    /// appears to do nothing, which is what it did.
+    /// </remarks>
+    private async void OnOpenProfile(object? sender, EventArgs e)
     {
-        if (_selected is null) return;
-
-        var profilePage = Application.Current?.Handler?.MauiContext?.Services.GetService<PlayerProfilePage>();
-        if (profilePage is null)
+        if (_selected is null)
         {
-            StatusLabel.Text = "Could not open the full profile.";
+            StatusLabel.Text = "Choose a player first.";
             return;
         }
 
-        profilePage.LoadPlayer(_selected.GlobalPlayerId, _selected.PlayerName);
-        _ = Navigation.PushAsync(profilePage);
+        OpenProfileBtn.IsEnabled = false;
+
+        try
+        {
+            var services = Application.Current?.Handler?.MauiContext?.Services;
+            if (services is null)
+            {
+                StatusLabel.Text = "Could not open the full profile: the app is still starting up.";
+                return;
+            }
+
+            var profilePage = services.GetService<PlayerProfilePage>();
+            if (profilePage is null)
+            {
+                StatusLabel.Text = "Could not open the full profile: the page is not registered.";
+                return;
+            }
+
+            profilePage.LoadPlayer(_selected.GlobalPlayerId, _selected.PlayerName);
+            await Navigation.PushAsync(profilePage);
+        }
+        catch (Exception ex)
+        {
+            StatusLabel.Text = $"Could not open the full profile: {ex.Message}";
+        }
+        finally
+        {
+            OpenProfileBtn.IsEnabled = true;
+        }
     }
 
     private void OnBurgerMenuClicked(object? sender, EventArgs e)
