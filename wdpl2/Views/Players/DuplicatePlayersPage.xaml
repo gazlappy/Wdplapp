@@ -2,38 +2,56 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.Players.DuplicatePlayersPage"
-             Title="Duplicate players"
+             Title="Link players"
              BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="980" HorizontalOptions="Start">
 
-            <Label Text="Duplicate players" FontSize="24" FontAttributes="Bold"/>
+            <Label Text="Link players" FontSize="24" FontAttributes="Bold"/>
             <Label Text="The same person recorded more than once, anywhere in the league."
                    FontSize="13" TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}"/>
 
             <Border StrokeShape="RoundRectangle 10" Padding="12" StrokeThickness="1"
-                    BackgroundColor="{AppThemeBinding Light=#FFFBEB, Dark=#2A2213}"
-                    Stroke="#FCD34D">
+                    BackgroundColor="{AppThemeBinding Light=#ECFDF5, Dark=#12281F}"
+                    Stroke="#34D399">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Two rows in one season are a duplicate; one row per season is not."
-                           FontAttributes="Bold" FontSize="12"/>
-                    <Label Text="Merging collapses rows that share a season into one and moves every frame, competition entry and captaincy onto it. Rows in different seasons are only linked, so each season keeps its own player — that link is what career stats and achievements read."
+                    <Label Text="Linking never deletes anything." FontAttributes="Bold" FontSize="12"/>
+                    <Label Text="A player has one row per season — that is how the app works. Linking records that those rows are one person, so career stats and achievements count them together. Every row, frame and result stays exactly where it is, and you can unlink at any time."
                            FontSize="12" LineBreakMode="WordWrap"/>
                 </VerticalStackLayout>
             </Border>
 
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Label x:Name="SummaryLabel" FontSize="13" FontAttributes="Bold" VerticalOptions="Center"/>
+                <Label x:Name="SummaryLabel" Text="Scanning…" FontSize="13" FontAttributes="Bold"
+                       VerticalOptions="Center" LineBreakMode="WordWrap"/>
                 <Button Grid.Column="1" x:Name="ScanButton" Text="Scan again" Clicked="OnScanClicked"
                         BackgroundColor="#334155" TextColor="White" CornerRadius="8"
                         FontSize="12" Padding="14,6"/>
             </Grid>
 
+            <!-- The bulk of a long-running league: one row per season, nothing to decide. -->
+            <Border x:Name="BulkFrame" IsVisible="False" StrokeShape="RoundRectangle 10" Padding="12"
+                    StrokeThickness="1" Stroke="#E2E8F0" BackgroundColor="White">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                        <Label x:Name="BulkLabel" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Label x:Name="BulkDetail" FontSize="11" TextColor="#64748B" LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                    <Button Grid.Column="1" x:Name="BulkButton" Text="Link them all" Clicked="OnLinkAllClicked"
+                            BackgroundColor="#16634B" TextColor="White" CornerRadius="8"
+                            FontSize="12" Padding="16,6" VerticalOptions="Center"/>
+                </Grid>
+            </Border>
+
             <VerticalStackLayout x:Name="GroupList" Spacing="12"/>
 
+            <Button x:Name="MoreButton" IsVisible="False" Text="Show more" Clicked="OnMoreClicked"
+                    BackgroundColor="Transparent" TextColor="#334155" BorderColor="#CBD5E1"
+                    BorderWidth="1" CornerRadius="8" FontSize="12"/>
+
             <Label x:Name="EmptyLabel" IsVisible="False"
-                   Text="No duplicates found. Every player appears once per season, and anyone playing in more than one season is already linked."
+                   Text="Nothing to link. Every player appears once per season, and anyone who has played more than one season is already tied together."
                    FontSize="12" TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}"/>
 
             <Label x:Name="StatusLabel" FontSize="12" LineBreakMode="WordWrap" Margin="0,4,0,16"/>

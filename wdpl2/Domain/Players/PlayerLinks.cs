@@ -3,28 +3,27 @@ using Wdpl2.Models;
 namespace Wdpl2.Domain.Players;
 
 /// <summary>
-/// Finds the same person recorded twice, and puts them back together.
+/// Finds the same person recorded more than once, and ties those rows together.
 /// </summary>
 /// <remarks>
-/// A player row belongs to one season, so the same person legitimately has one
-/// row per season - that is not a duplicate, and collapsing them would empty a
-/// season's roster. Two rows in the SAME season are a duplicate, and splitting
-/// somebody's record in half is exactly what a merge is for.
+/// A player row belongs to one season, so somebody who has played ten seasons
+/// has ten rows. That is the design, not a fault - but unless those rows are
+/// tied together the app sees ten different people, and a career gets counted
+/// in pieces. <see cref="Player.GlobalPlayerId"/> is the tie, and career stats
+/// and achievements are what read it.
 /// <para>
-/// So a merge does two different things at once, and says which:
+/// Linking deletes nothing and can be undone, which is the whole point: the
+/// records stay exactly as they are and only the app's idea of who is who
+/// changes. Two rows that share a season are still two rows on that season's
+/// roster afterwards - linking is not a way to remove one, and this says so
+/// rather than pretending otherwise.
 /// </para>
-/// <list type="bullet">
-/// <item>Rows in one season collapse into one, and everything that pointed at
-/// the others is repointed at the survivor.</item>
-/// <item>Rows in different seasons are linked by <see cref="Player.GlobalPlayerId"/>,
-/// which is what career stats and achievements read. Nothing is deleted.</item>
-/// </list>
 /// <para>
-/// Nothing here guesses: <see cref="Find"/> proposes and the secretary decides,
-/// the same bargain <c>CaptainPlayerMatcher</c> makes.
+/// Nothing here decides anything. <see cref="Find"/> proposes and the secretary
+/// disposes, the same bargain <c>CaptainPlayerMatcher</c> makes.
 /// </para>
 /// </remarks>
-public static class PlayerMerge
+public static class PlayerLinks
 {
     /// <summary>How sure the finder is that two rows are one person.</summary>
     public enum Confidence
@@ -52,25 +51,25 @@ public static class PlayerMerge
                    .GroupBy(p => p.SeasonId!.Value)
                    .Count(g => g.Count() > 1);
 
-        /// <summary>True when merging would delete rows rather than only link them.</summary>
-        public bool Collapses => SeasonsWithClash > 0;
+        /// <summary>
+        /// True when this is one person per season, so linking is the whole fix.
+        /// </summary>
+        /// <remarks>
+        /// A set with two rows in one season is a different problem: linking
+        /// ties their record together but the roster still lists them twice,
+        /// and only a person can decide which row the season should keep.
+        /// </remarks>
+        public bool Tidy => SeasonsWithClash == 0;
     }
 
-    /// <summary>What a merge actually did.</summary>
-    public sealed record Report(int Removed, int Linked, int References)
+    /// <summary>What a link did.</summary>
+    public sealed record Report(int Linked, int Groups)
     {
-        public override string ToString()
-        {
-            var parts = new List<string>();
-            if (Removed > 0) parts.Add($"removed {Removed} duplicate row(s)");
-            if (References > 0) parts.Add($"moved {References} reference(s) onto the one that stays");
-            if (Linked > 0) parts.Add($"linked {Linked} season(s) as the same person");
-
-            if (parts.Count == 0) return "Nothing to merge.";
-
-            var said = string.Join(", ", parts);
-            return char.ToUpper(said[0]) + said[1..] + ".";
-        }
+        public override string ToString() => Linked == 0
+            ? "Nothing to link."
+            : $"Linked {Linked} player row(s)"
+              + (Groups > 1 ? $" across {Groups} people" : "")
+              + " as the same person. Nothing was deleted.";
     }
 
     /// <summary>The identity a player is known by across seasons.</summary>
@@ -103,9 +102,17 @@ public static class PlayerMerge
 
         Guid Root(Guid id)
         {
-            if (!parent.TryGetValue(id, out var up) || up == id) return id;
-            var root = Root(up);
-            parent[id] = root;
+            var root = id;
+            while (parent.TryGetValue(root, out var up) && up != root) root = up;
+
+            // Flatten on the way back, or a long chain is walked again every time.
+            var walk = id;
+            while (parent.TryGetValue(walk, out var up) && up != walk)
+            {
+                parent[walk] = root;
+                walk = up;
+            }
+
             return root;
         }
 
@@ -187,15 +194,15 @@ public static class PlayerMerge
         }
 
         return found
-            .OrderBy(d => d.Confidence)
-            .ThenByDescending(d => d.Collapses)
+            .OrderByDescending(d => !d.Tidy)
+            .ThenBy(d => d.Confidence)
             .ThenBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }
 
     /// <summary>
     /// True when these rows are already dealt with: one person, one row each
-    /// season, all linked. Nothing left to merge.
+    /// season, all linked. Nothing left to do.
     /// </summary>
     private static bool Resolved(IReadOnlyList<Player> rows)
     {
@@ -206,20 +213,21 @@ public static class PlayerMerge
                    .All(g => g.Count() == 1);
     }
 
-    // ----------------------------------------------------------------- merge
+    // ------------------------------------------------------------------ link
 
     /// <summary>
-    /// Makes these rows one person.
+    /// Records that these rows are one person.
     /// </summary>
     /// <param name="keepId">
-    /// The row whose name and details survive, and whose identity the rest take.
+    /// The row whose identity the others take. If it already has one, that is
+    /// the one kept - a player linked across three seasons who picks up a
+    /// fourth must not have the other three detached from their career.
     /// </param>
     /// <remarks>
-    /// Rows sharing a season collapse into one - the survivor being whichever
-    /// the league has most invested in, unless that is the row the secretary
-    /// chose to keep. Rows in other seasons are only linked.
+    /// Sets <see cref="Player.GlobalPlayerId"/> and nothing else. No row is
+    /// deleted, no frame is rewritten, and <see cref="Unlink"/> undoes it.
     /// </remarks>
-    public static Report Apply(LeagueData league, Guid keepId, IEnumerable<Guid> alsoIds)
+    public static Report Link(LeagueData league, Guid keepId, IEnumerable<Guid> alsoIds)
     {
         ArgumentNullException.ThrowIfNull(league);
 
@@ -228,184 +236,142 @@ public static class PlayerMerge
         var rows = league.Players.Where(p => wanted.Contains(p.Id)).ToList();
         var keeper = rows.FirstOrDefault(p => p.Id == keepId);
 
-        if (keeper is null || rows.Count < 2) return new Report(0, 0, 0);
+        if (keeper is null || rows.Count < 2) return new Report(0, 0);
 
         var identity = Identity(keeper);
-        var removed = 0;
-        var references = 0;
+        var changed = 0;
 
-        // Within a season there can be only one. Between seasons there must be
-        // one each, or that season loses the player altogether.
-        foreach (var season in rows.GroupBy(p => p.SeasonId))
+        foreach (var row in rows)
         {
-            var survivor = season.Contains(keeper) ? keeper : Preferred(league, season.ToList());
+            if (row.GlobalPlayerId == identity) continue;
 
-            foreach (var loser in season.Where(p => p.Id != survivor.Id))
-            {
-                references += Repoint(league, loser.Id, survivor.Id);
-                Absorb(survivor, loser);
-                league.Players.Remove(loser);
-                removed++;
-            }
-
-            survivor.GlobalPlayerId = identity;
-            survivor.ModifiedDate = DateTime.UtcNow;
+            row.GlobalPlayerId = identity;
+            row.ModifiedDate = DateTime.UtcNow;
+            changed++;
         }
 
-        var linked = league.Players.Count(p => p.GlobalPlayerId == identity);
-
-        return new Report(removed, linked, references);
+        return new Report(changed, 1);
     }
 
-    /// <summary>
-    /// Which row of a season the league has most invested in.
-    /// </summary>
-    /// <remarks>
-    /// A row with frames against it is the one the season actually played;
-    /// keeping the empty one and repointing onto it would work, but it throws
-    /// away the row every other record already agrees about.
-    /// </remarks>
-    private static Player Preferred(LeagueData league, List<Player> rows) =>
-        rows.OrderByDescending(p => p.TeamId.HasValue)
-            .ThenByDescending(p => References(league, p.Id))
-            .ThenBy(p => p.CreatedDate)
-            .First();
-
-    /// <summary>Keeps anything the losing row had that the survivor does not.</summary>
-    private static void Absorb(Player survivor, Player loser)
+    /// <summary>Links every set that needs nothing decided: one row per season.</summary>
+    public static Report LinkAll(LeagueData league, IEnumerable<Duplicate> duplicates)
     {
-        survivor.TeamId ??= loser.TeamId;
+        ArgumentNullException.ThrowIfNull(league);
 
-        if (string.IsNullOrWhiteSpace(survivor.Notes) && !string.IsNullOrWhiteSpace(loser.Notes))
-            survivor.Notes = loser.Notes;
+        var linked = 0;
+        var groups = 0;
 
-        // A person who is playing is playing, whichever row said so.
-        if (loser.IsActive) survivor.IsActive = true;
-
-        survivor.TransferHistory.AddRange(loser.TransferHistory);
-        survivor.Availability.AddRange(loser.Availability);
-    }
-
-    // ------------------------------------------------------------ the fiddly bit
-
-    /// <summary>How many stored records name this player.</summary>
-    public static int References(LeagueData league, Guid playerId) =>
-        Rewrite(league, playerId, playerId, dryRun: true);
-
-    /// <summary>Points every stored reference at a different player.</summary>
-    private static int Repoint(LeagueData league, Guid from, Guid to) =>
-        Rewrite(league, from, to, dryRun: false);
-
-    /// <summary>
-    /// Every place the league stores a player's id, in one list.
-    /// </summary>
-    /// <remarks>
-    /// Counting and rewriting are the same walk, so a reference that is counted
-    /// is a reference that gets moved. Keeping them apart is how one gets
-    /// forgotten and a merge silently orphans a frame.
-    /// </remarks>
-    private static int Rewrite(LeagueData league, Guid from, Guid to, bool dryRun)
-    {
-        var hits = 0;
-
-        Guid? Swap(Guid? value)
+        foreach (var duplicate in duplicates.Where(d => d.Tidy))
         {
-            if (value != from) return value;
-            hits++;
-            return dryRun ? value : to;
+            // The fullest spelling, which is the row worth being known by.
+            var keeper = duplicate.Players
+                .OrderByDescending(p => p.GlobalPlayerId.HasValue)
+                .ThenByDescending(p => $"{p.FirstName} {p.LastName}".Trim().Length)
+                .First();
+
+            var report = Link(league, keeper.Id, duplicate.Players.Select(p => p.Id));
+            if (report.Linked == 0) continue;
+
+            linked += report.Linked;
+            groups++;
         }
 
-        void SwapList(List<Guid> list)
-        {
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (list[i] != from) continue;
-                hits++;
-                if (!dryRun) list[i] = to;
-            }
+        return new Report(linked, groups);
+    }
 
-            if (!dryRun)
-            {
-                // The survivor may already have been in the list.
-                var seen = new HashSet<Guid>();
-                list.RemoveAll(id => !seen.Add(id));
-            }
+    /// <summary>Takes rows back apart, so a wrong link is not a lasting one.</summary>
+    public static Report Unlink(LeagueData league, IEnumerable<Guid> playerIds)
+    {
+        ArgumentNullException.ThrowIfNull(league);
+
+        var wanted = new HashSet<Guid>(playerIds);
+        var changed = 0;
+
+        foreach (var player in league.Players.Where(p => wanted.Contains(p.Id) && p.GlobalPlayerId.HasValue))
+        {
+            player.GlobalPlayerId = null;
+            player.ModifiedDate = DateTime.UtcNow;
+            changed++;
+        }
+
+        return new Report(changed, changed > 0 ? 1 : 0);
+    }
+
+    // ------------------------------------------------------------ references
+
+    /// <summary>
+    /// How many stored records name each player, counted in one pass.
+    /// </summary>
+    /// <remarks>
+    /// Shown so the secretary can see which row a season actually played. It
+    /// walks the whole league, so it is counted once for everybody rather than
+    /// once per player: asking per row turned a page of 400 names into forty
+    /// million passes over the fixtures and hung the app.
+    /// </remarks>
+    public static Dictionary<Guid, int> CountReferences(LeagueData league)
+    {
+        ArgumentNullException.ThrowIfNull(league);
+
+        var counts = new Dictionary<Guid, int>();
+
+        void Count(Guid? id)
+        {
+            if (id is not Guid value) return;
+            counts[value] = counts.TryGetValue(value, out var had) ? had + 1 : 1;
         }
 
         foreach (var fixture in league.Fixtures)
         {
             foreach (var frame in fixture.Frames)
             {
-                frame.HomePlayerId = Swap(frame.HomePlayerId);
-                frame.AwayPlayerId = Swap(frame.AwayPlayerId);
-                frame.HomePlayer2Id = Swap(frame.HomePlayer2Id);
-                frame.AwayPlayer2Id = Swap(frame.AwayPlayer2Id);
+                Count(frame.HomePlayerId);
+                Count(frame.AwayPlayerId);
+                Count(frame.HomePlayer2Id);
+                Count(frame.AwayPlayer2Id);
             }
         }
 
-        foreach (var team in league.Teams)
-            team.CaptainPlayerId = Swap(team.CaptainPlayerId);
-
-        // Another player may name this one as their cross-season identity.
-        foreach (var player in league.Players.Where(p => p.Id != from))
-            player.GlobalPlayerId = Swap(player.GlobalPlayerId);
+        foreach (var team in league.Teams) Count(team.CaptainPlayerId);
 
         foreach (var pair in league.DoublesPairings)
         {
-            pair.Player1Id = Swap(pair.Player1Id);
-            pair.Player2Id = Swap(pair.Player2Id);
+            Count(pair.Player1Id);
+            Count(pair.Player2Id);
         }
 
         foreach (var competition in league.Competitions)
         {
-            SwapList(competition.ParticipantIds);
-            SwapList(competition.NoShowIds);
+            foreach (var id in competition.ParticipantIds) Count(id);
+            foreach (var id in competition.NoShowIds) Count(id);
 
-            // A doubles pair names two players outright, not optionally.
             foreach (var doubles in competition.DoublesTeams)
             {
-                if (doubles.Player1Id == from) { hits++; if (!dryRun) doubles.Player1Id = to; }
-                if (doubles.Player2Id == from) { hits++; if (!dryRun) doubles.Player2Id = to; }
+                Count(doubles.Player1Id);
+                Count(doubles.Player2Id);
             }
 
             foreach (var round in competition.Rounds)
             {
-                round.OrganiserParticipantId = Swap(round.OrganiserParticipantId);
-                foreach (var match in round.Matches) SwapMatch(match);
+                Count(round.OrganiserParticipantId);
+                foreach (var match in round.Matches) CountMatch(match);
             }
 
             foreach (var group in competition.Groups.Concat(competition.PreviousGroups))
             {
-                SwapList(group.ParticipantIds);
-                group.OrganiserParticipantId = Swap(group.OrganiserParticipantId);
-
-                foreach (var match in group.Matches) SwapMatch(match);
-                foreach (var standing in group.Standings)
-                {
-                    if (standing.ParticipantId != from) continue;
-                    hits++;
-                    if (!dryRun) standing.ParticipantId = to;
-                }
+                Count(group.OrganiserParticipantId);
+                foreach (var id in group.ParticipantIds) Count(id);
+                foreach (var match in group.Matches) CountMatch(match);
+                foreach (var standing in group.Standings) Count(standing.ParticipantId);
             }
         }
 
-        // The website's id for a player the secretary linked to this one.
-        foreach (var key in league.CollectedWebPlayers
-                     .Where(kv => kv.Value == from)
-                     .Select(kv => kv.Key)
-                     .ToList())
-        {
-            hits++;
-            if (!dryRun) league.CollectedWebPlayers[key] = to;
-        }
+        return counts;
 
-        return hits;
-
-        void SwapMatch(CompetitionMatch match)
+        void CountMatch(CompetitionMatch match)
         {
-            match.Participant1Id = Swap(match.Participant1Id);
-            match.Participant2Id = Swap(match.Participant2Id);
-            match.WinnerId = Swap(match.WinnerId);
+            Count(match.Participant1Id);
+            Count(match.Participant2Id);
+            Count(match.WinnerId);
         }
     }
 
@@ -434,10 +400,10 @@ public static class PlayerMerge
             .OrderByDescending(n => n.Length)
             .First();
 
-    private static int SeasonOrder(LeagueData league, Player player)
+    private static long SeasonOrder(LeagueData league, Player player)
     {
         var season = league.Seasons.FirstOrDefault(s => s.Id == player.SeasonId);
-        return season is null ? int.MaxValue : -(int)(season.StartDate.Ticks / TimeSpan.TicksPerDay);
+        return season is null ? long.MaxValue : -season.StartDate.Ticks;
     }
 
     /// <summary>True when two names are no more than <paramref name="allowed"/> edits apart.</summary>
@@ -447,8 +413,8 @@ public static class PlayerMerge
         if (left == right) return false;                       // handled as the same name
         if (Math.Abs(left.Length - right.Length) > allowed) return false;
 
-        // Two letters is too short for one letter of difference to mean a typo:
-        // "Jo" and "Al" would pair up.
+        // Two or three letters is too short for one letter of difference to
+        // mean a typo: "Jon" and "Ian" would pair up, and they are brothers.
         if (Math.Min(left.Length, right.Length) <= 3) return false;
 
         var previous = new int[right.Length + 1];

@@ -1,3 +1,4 @@
+using Microsoft.Maui.Controls.Shapes;
 using Wdpl2.Domain.Players;
 using Wdpl2.Models;
 using Wdpl2.Services;
@@ -5,61 +6,131 @@ using Wdpl2.Services;
 namespace Wdpl2.Views.Players;
 
 /// <summary>
-/// Shows the same person recorded twice, and merges them on the word of the
-/// secretary rather than on its own judgement.
+/// Shows the same person recorded more than once, and ties those rows together
+/// on the word of the secretary rather than on its own judgement.
 /// </summary>
 /// <remarks>
-/// Everything here is a proposal. A merge deletes rows and rewrites every
-/// record that named them, so it asks first, says exactly what it will do, and
-/// reports what it did. See <see cref="PlayerMerge"/> for the rules.
+/// Linking deletes nothing, so this page cannot lose anybody's record. What it
+/// can do is take too long: the league it runs against is forty-nine seasons
+/// deep, and an earlier version asked how many records named each row while it
+/// was drawing them - forty million passes over the fixtures, on the thread
+/// drawing the screen, which stopped the app dead. So the scan runs off the UI
+/// thread, references are counted once for everybody, and a long list is drawn
+/// a page at a time.
 /// </remarks>
 public partial class DuplicatePlayersPage : ContentPage
 {
     private static LeagueData League => DataStore.Data;
 
-    private List<PlayerMerge.Duplicate> _found = new();
+    /// <summary>
+    /// How many sets to draw before offering the rest.
+    /// </summary>
+    /// <remarks>
+    /// Each set is a nested layout with a row per player. Four hundred of them
+    /// is slow to build and unreadable anyway - and with "Link them all" there
+    /// is usually no reason to read past the first screen.
+    /// </remarks>
+    private const int PageSize = 25;
+
+    private List<PlayerLinks.Duplicate> _found = new();
+    private Dictionary<Guid, int> _references = new();
+    private int _shown;
 
     public DuplicatePlayersPage()
     {
         InitializeComponent();
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
-        Scan();
+        await ScanAsync();
     }
 
-    private void OnScanClicked(object? sender, EventArgs e) => Scan();
+    private async void OnScanClicked(object? sender, EventArgs e) => await ScanAsync();
 
-    private void Scan()
+    private async Task ScanAsync()
     {
-        _found = PlayerMerge.Find(League);
-        Render();
+        ScanButton.IsEnabled = false;
+        SummaryLabel.Text = "Scanning…";
+        GroupList.Children.Clear();
+        BulkFrame.IsVisible = MoreButton.IsVisible = EmptyLabel.IsVisible = false;
+
+        try
+        {
+            // Both walk the whole league. On the working set that is a couple of
+            // hundred thousand rows, which is quick but not instant, and the
+            // screen should not be frozen while it happens.
+            var league = League;
+            var (found, references) = await Task.Run(() => (
+                PlayerLinks.Find(league),
+                PlayerLinks.CountReferences(league)));
+
+            _found = found;
+            _references = references;
+            _shown = 0;
+
+            Render();
+        }
+        catch (Exception ex)
+        {
+            SummaryLabel.Text = "Could not scan.";
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            ScanButton.IsEnabled = true;
+        }
     }
 
     private void Render()
     {
         GroupList.Children.Clear();
+        _shown = 0;
+
         EmptyLabel.IsVisible = _found.Count == 0;
 
-        var collapsing = _found.Count(d => d.Collapses);
+        var tidy = _found.Count(d => d.Tidy);
+        var needsALook = _found.Count - tidy;
 
         SummaryLabel.Text = _found.Count switch
         {
-            0 => "Nothing to merge",
-            1 => "1 possible duplicate",
-            _ => $"{_found.Count} possible duplicates"
-                 + (collapsing > 0 ? $" — {collapsing} with two rows in one season" : ""),
+            0 => "Nothing to link",
+            1 => "1 person recorded twice",
+            _ => $"{_found.Count} people recorded more than once"
+                 + (needsALook > 0 ? $" — {needsALook} with two rows in one season" : ""),
         };
 
-        foreach (var duplicate in _found)
+        BulkFrame.IsVisible = tidy > 0;
+        if (tidy > 0)
+        {
+            BulkLabel.Text = tidy == 1
+                ? "1 person has one row per season"
+                : $"{tidy} people have one row per season";
+
+            BulkDetail.Text = "Nothing to decide about these — linking ties each set together "
+                              + "and deletes nothing.";
+        }
+
+        ShowMore();
+    }
+
+    private void OnMoreClicked(object? sender, EventArgs e) => ShowMore();
+
+    private void ShowMore()
+    {
+        foreach (var duplicate in _found.Skip(_shown).Take(PageSize))
         {
             GroupList.Children.Add(Card(duplicate));
         }
+
+        _shown = Math.Min(_shown + PageSize, _found.Count);
+
+        MoreButton.IsVisible = _shown < _found.Count;
+        MoreButton.Text = $"Show more ({_found.Count - _shown} left)";
     }
 
-    private View Card(PlayerMerge.Duplicate duplicate)
+    private View Card(PlayerLinks.Duplicate duplicate)
     {
         var body = new VerticalStackLayout { Spacing = 8 };
 
@@ -74,12 +145,7 @@ public partial class DuplicatePlayersPage : ContentPage
             Spacing = 2,
             Children =
             {
-                new Label
-                {
-                    Text = duplicate.Name,
-                    FontAttributes = FontAttributes.Bold,
-                    FontSize = 16,
-                },
+                new Label { Text = duplicate.Name, FontAttributes = FontAttributes.Bold, FontSize = 16 },
                 new Label
                 {
                     Text = $"{duplicate.Players.Count} rows · {duplicate.Reason}",
@@ -92,16 +158,19 @@ public partial class DuplicatePlayersPage : ContentPage
         heading.Add(Badge(duplicate), 1);
         body.Add(heading);
 
-        // What merging would actually do, said before it is offered.
-        body.Add(new Label
+        if (!duplicate.Tidy)
         {
-            Text = duplicate.Collapses
-                ? $"Two rows share a season, so merging removes {Losers(duplicate)} and moves their records across."
-                : "One row per season, so merging only links them as the same person. Nothing is deleted.",
-            FontSize = 11,
-            TextColor = Color.FromArgb(duplicate.Collapses ? "#B45309" : "#52665D"),
-            LineBreakMode = LineBreakMode.WordWrap,
-        });
+            // Linking is still right - they are one person - but it is not the
+            // whole fix, and saying so is better than leaving it to be noticed.
+            body.Add(new Label
+            {
+                Text = "Two of these share a season. Linking ties their record together, but that "
+                       + "season's squad will still list them twice until you remove one in Manage players.",
+                FontSize = 11,
+                TextColor = Color.FromArgb("#B45309"),
+                LineBreakMode = LineBreakMode.WordWrap,
+            });
+        }
 
         foreach (var player in duplicate.Players)
         {
@@ -110,29 +179,30 @@ public partial class DuplicatePlayersPage : ContentPage
 
         return new Border
         {
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
+            StrokeShape = new RoundRectangle { CornerRadius = 10 },
             StrokeThickness = 1,
             Stroke = Color.FromArgb("#E2E8F0"),
-            BackgroundColor = Color.FromArgb("#FFFFFF"),
+            BackgroundColor = Colors.White,
             Padding = new Thickness(14, 12),
             Content = body,
         };
     }
 
-    private View Row(PlayerMerge.Duplicate duplicate, Player player)
+    private View Row(PlayerLinks.Duplicate duplicate, Player player)
     {
         var season = League.Seasons.FirstOrDefault(s => s.Id == player.SeasonId);
         var team = League.Teams.FirstOrDefault(t => t.Id == player.TeamId);
-        var references = PlayerMerge.References(League, player.Id);
+        var references = _references.TryGetValue(player.Id, out var n) ? n : 0;
 
         var detail = new List<string>
         {
             season?.Name ?? "no season",
             team?.Name ?? "no team",
-            references == 1 ? "1 record names them" : $"{references} records name them",
+            references == 1 ? "1 record" : $"{references} records",
         };
 
         if (!player.IsActive) detail.Add("inactive");
+        if (player.GlobalPlayerId.HasValue) detail.Add("linked");
 
         var grid = new Grid
         {
@@ -161,9 +231,9 @@ public partial class DuplicatePlayersPage : ContentPage
             },
         });
 
-        var keep = new Button
+        var link = new Button
         {
-            Text = "Keep this one",
+            Text = "Link to this one",
             BackgroundColor = Color.FromArgb("#16634B"),
             TextColor = Colors.White,
             CornerRadius = 8,
@@ -172,24 +242,24 @@ public partial class DuplicatePlayersPage : ContentPage
             VerticalOptions = LayoutOptions.Center,
         };
 
-        keep.Clicked += async (_, _) => await MergeAsync(duplicate, player);
-        grid.Add(keep, 1);
+        link.Clicked += async (_, _) => await LinkAsync(duplicate, player);
+        grid.Add(link, 1);
 
         return grid;
     }
 
-    private static View Badge(PlayerMerge.Duplicate duplicate)
+    private static View Badge(PlayerLinks.Duplicate duplicate)
     {
         var (background, text) = duplicate.Confidence switch
         {
-            PlayerMerge.Confidence.Certain => ("#DCFCE7", "#166534"),
-            PlayerMerge.Confidence.Likely => ("#FEF3C7", "#92400E"),
+            PlayerLinks.Confidence.Certain => ("#DCFCE7", "#166534"),
+            PlayerLinks.Confidence.Likely => ("#FEF3C7", "#92400E"),
             _ => ("#F1F5F9", "#475569"),
         };
 
         return new Border
         {
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 999 },
+            StrokeShape = new RoundRectangle { CornerRadius = 999 },
             StrokeThickness = 0,
             BackgroundColor = Color.FromArgb(background),
             Padding = new Thickness(10, 4),
@@ -204,64 +274,85 @@ public partial class DuplicatePlayersPage : ContentPage
         };
     }
 
-    private static string Losers(PlayerMerge.Duplicate duplicate) =>
-        duplicate.Players
-            .Where(p => p.SeasonId.HasValue)
-            .GroupBy(p => p.SeasonId!.Value)
-            .Sum(g => g.Count() - 1) switch
-        {
-            1 => "1 row",
-            var n => $"{n} rows",
-        };
-
-    /// <summary>
-    /// Confirms in full, merges, then saves through the path that rebuilds the
-    /// database from the snapshot.
-    /// </summary>
-    /// <remarks>
-    /// A merge touches fixtures, competitions, teams and players at once.
-    /// <see cref="DataStore.SaveJsonOnly"/> would leave the SQLite copy naming
-    /// a player that no longer exists, and that copy is what the Fixtures page
-    /// reads - so this is one of the few places that needs the full save.
-    /// </remarks>
-    private async Task MergeAsync(PlayerMerge.Duplicate duplicate, Player keeper)
+    private async Task LinkAsync(PlayerLinks.Duplicate duplicate, Player keeper)
     {
         var others = duplicate.Players.Where(p => p.Id != keeper.Id).ToList();
         if (others.Count == 0) return;
 
-        var keptName = $"{keeper.FirstName} {keeper.LastName}".Trim();
-        var keptSeason = League.Seasons.FirstOrDefault(s => s.Id == keeper.SeasonId)?.Name ?? "no season";
+        var name = $"{keeper.FirstName} {keeper.LastName}".Trim();
 
-        var sameSeason = others.Count(p => p.SeasonId == keeper.SeasonId);
-
-        var warning = duplicate.Collapses
-            ? $"\n\n{Losers(duplicate)} will be deleted and everything that named them moved across. "
-              + "This cannot be undone."
-            : "\n\nNothing will be deleted — the rows are in different seasons, so they are only linked.";
-
-        if (!await DisplayAlert("Merge these players?",
-                $"Keeping: {keptName} ({keptSeason})\n"
-                + $"Merging in: {string.Join(", ", others.Select(p => $"{p.FirstName} {p.LastName}".Trim()))}"
-                + (sameSeason > 0 ? $"\n\n{sameSeason} of them share {keptName}'s season." : "")
-                + warning,
-                "Merge", "Cancel"))
+        if (!await DisplayAlert("Link these as one person?",
+                $"Known as: {name}\n"
+                + $"Rows: {string.Join(", ", duplicate.Players.Select(Describe))}\n\n"
+                + "Their records are counted together from now on. Nothing is deleted, "
+                + "and you can unlink from this page.",
+                "Link", "Cancel"))
             return;
+
+        await ApplyAsync(() => PlayerLinks.Link(League, keeper.Id, others.Select(p => p.Id)));
+    }
+
+    private async void OnLinkAllClicked(object? sender, EventArgs e)
+    {
+        var tidy = _found.Where(d => d.Tidy).ToList();
+        if (tidy.Count == 0) return;
+
+        if (!await DisplayAlert("Link them all?",
+                $"{tidy.Count} people have one row per season, so there is nothing to choose between "
+                + "the rows — each set is tied together under its fullest spelling.\n\n"
+                + "Nothing is deleted. Anything with two rows in one season is left for you to look at.",
+                "Link them all", "Cancel"))
+            return;
+
+        BulkButton.IsEnabled = false;
+        try
+        {
+            await ApplyAsync(() => PlayerLinks.LinkAll(League, tidy));
+        }
+        finally
+        {
+            BulkButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Runs a link, saves, and scans again.
+    /// </summary>
+    /// <remarks>
+    /// Linking only writes <c>GlobalPlayerId</c> on player rows, so the JSON
+    /// snapshot and the entity copy both need it - which is what the full save
+    /// does. Nothing else in the league is touched.
+    /// </remarks>
+    private async Task ApplyAsync(Func<PlayerLinks.Report> work)
+    {
+        Report("Linking…", error: false);
 
         try
         {
-            var report = PlayerMerge.Apply(League, keeper.Id, others.Select(p => p.Id));
-
-            // Rebuilds SQLite from the snapshot, which is what a change across
-            // this many tables needs.
-            DataStore.Save();
+            // Saving writes the whole snapshot and rebuilds the entity copy from
+            // it. On this league that is twenty megabytes of JSON, which is not
+            // something to do on the thread drawing the screen.
+            var report = await Task.Run(() =>
+            {
+                var done = work();
+                DataStore.Save();
+                return done;
+            });
 
             Report(report.ToString(), error: false);
-            Scan();
+            await ScanAsync();
         }
         catch (Exception ex)
         {
-            Report($"Could not merge: {ex.Message}", error: true);
+            Report($"Could not link: {ex.Message}", error: true);
         }
+    }
+
+    private string Describe(Player player)
+    {
+        var season = League.Seasons.FirstOrDefault(s => s.Id == player.SeasonId);
+        return $"{player.FirstName} {player.LastName}".Trim()
+               + (season is null ? "" : $" ({season.Name})");
     }
 
     private void Report(string message, bool error)
