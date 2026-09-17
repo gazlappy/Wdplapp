@@ -1,4 +1,4 @@
-using Wdpl2.Models;
+﻿using Wdpl2.Models;
 using Wdpl2.Services;
 
 namespace wdpl2.Tests;
@@ -17,6 +17,11 @@ public class KnockoutGroupPublishTests
     private static readonly Guid Bob = Guid.NewGuid();
     private static readonly Guid Cal = Guid.NewGuid();
     private static readonly Guid Dee = Guid.NewGuid();
+
+    // Kept apart from the four above so a group that has been played and one
+    // that has not can be told apart in the rendered page.
+    private static readonly Guid Eve = Guid.NewGuid();
+    private static readonly Guid Fred = Guid.NewGuid();
 
     /// <summary>
     /// A season with one group, played as a knockout.
@@ -198,5 +203,88 @@ public class KnockoutGroupPublishTests
         }
 
         return count;
+    }
+
+    // ------------------------------------------ one group played, another not
+
+    /// <summary>
+    /// The league's real shape: several groups, only one of them played yet.
+    /// </summary>
+    private static (LeagueData League, WebsiteSettings Settings) OneOfTwoPlayed()
+    {
+        var (league, settings) = Played();
+        var competition = league.Competitions[0];
+
+        var seasonId = league.Seasons[0].Id;
+        league.Players.Add(new Player { Id = Eve, FirstName = "Eve", LastName = "Naylor", SeasonId = seasonId });
+        league.Players.Add(new Player { Id = Fred, FirstName = "Fred", LastName = "Oakes", SeasonId = seasonId });
+
+        // A second group nobody has run yet: its matches are the round-robin
+        // ones the app generated, and nothing has been decided.
+        var waiting = new CompetitionGroup
+        {
+            Name = "Group B",
+            GroupNumber = 2,
+            GroupRound = 1,
+            ParticipantIds = { Eve, Fred },
+        };
+        waiting.Matches.Add(new CompetitionMatch { Participant1Id = Eve, Participant2Id = Fred });
+
+        competition.Groups.Add(waiting);
+        return (league, settings);
+    }
+
+    [Fact]
+    public void AGroupThatHasNotBeenPlayedMarksNobodyOut()
+    {
+        var (league, settings) = OneOfTwoPlayed();
+
+        var html = CompetitionsPage(league, settings);
+
+        // Two out of the group that was played - Bob and Dee lost their ties -
+        // and nobody out of the one that has not been. One group being decided
+        // used to knock out every player in every other group.
+        Assert.Equal(2, Occurrences(html, "Out</span>"));
+
+        var eve = html.IndexOf("Eve Naylor", StringComparison.Ordinal);
+        Assert.True(eve >= 0, "the unplayed group's players should still be listed");
+
+        // Neither of them carries a badge of any kind.
+        var afterEve = html.Substring(eve, Math.Min(400, html.Length - eve));
+        Assert.DoesNotContain("gp-badge", afterEve);
+    }
+
+    [Fact]
+    public void TheGroupThatWasPlayedStillMarksItsQualifiers()
+    {
+        var (league, settings) = OneOfTwoPlayed();
+
+        var html = CompetitionsPage(league, settings);
+
+        Assert.Equal(2, Occurrences(html, "Through</span>"));
+    }
+
+    [Fact]
+    public void AKnockoutGroupIsNotGivenATableEvenOnceItHasFrames()
+    {
+        var (league, settings) = Played();
+
+        // What collecting writes: standings carrying the frames played, so the
+        // rest of the app can read the result off them.
+        var group = league.Competitions[0].Groups[0];
+        group.Standings.Add(new GroupStanding
+        {
+            ParticipantId = Ann, Position = 1, Played = 1, Won = 1, FramesFor = 2, FramesAgainst = 1,
+        });
+        group.Standings.Add(new GroupStanding
+        {
+            ParticipantId = Bob, Position = 0, Played = 1, Lost = 1, FramesFor = 1, FramesAgainst = 2,
+        });
+
+        var html = CompetitionsPage(league, settings);
+
+        // Publishing those as a table says the group was decided on points,
+        // when it was decided on the table.
+        Assert.DoesNotContain("<th>Pts</th>", html);
     }
 }

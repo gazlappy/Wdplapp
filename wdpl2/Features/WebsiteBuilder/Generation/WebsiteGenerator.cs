@@ -2810,7 +2810,7 @@ namespace Wdpl2.Services
 
                 html.AppendLine("                    <div class=\"comp-groups\">");
                 foreach (var group in r.groups)
-                    AppendGroupSection(html, group, comp, players, teams, r.advance, r.hasSelections);
+                    AppendGroupSection(html, group, comp, players, teams, r.advance);
                 html.AppendLine("                    </div>");
 
                 // Organiser footnote — shown when at least one group in this
@@ -2842,7 +2842,7 @@ namespace Wdpl2.Services
         }
 
         private void AppendGroupSection(StringBuilder html, CompetitionGroup group, Competition comp,
-            List<Player> players, List<Team> teams, int topAdvance, bool hasSelections)
+            List<Player> players, List<Team> teams, int topAdvance)
         {
             var hasStandings = group.Standings.Any(s => s.Played > 0);
 
@@ -2853,6 +2853,13 @@ namespace Wdpl2.Services
             var knockoutThrough = isKnockout
                 ? new HashSet<Guid>(KnockoutGroup.Through(group, topAdvance))
                 : new HashSet<Guid>();
+
+            // Whether anybody is out is a fact about THIS group. Judging it
+            // across the competition marked every player in every group that
+            // had not been played yet as knocked out, on the strength of one
+            // group that had.
+            var groupDecided = knockoutThrough.Count > 0
+                               || group.Standings.Any(s => s.Position > 0);
             var sectionClass = hasStandings ? "group-section gs-has-standings" : "group-section";
             var participantLabel = comp.Format is CompetitionFormat.DoublesKnockout or CompetitionFormat.DoublesGroupStage ? "pairs" : "players";
             html.AppendLine($"                    <div class=\"{sectionClass}\">");
@@ -2869,7 +2876,7 @@ namespace Wdpl2.Services
                 bool isAdvancing = (standing != null && standing.Position > 0 && standing.Position <= topAdvance)
                                    || knockoutThrough.Contains(pid);
                 bool isNoShow = comp.NoShowIds.Contains(pid);
-                bool isEliminated = hasSelections && !isAdvancing && !isNoShow;
+                bool isEliminated = groupDecided && !isAdvancing && !isNoShow;
                 bool isOrganiser = group.OrganiserParticipantId == pid;
 
                 string cssClass;
@@ -2907,8 +2914,11 @@ namespace Wdpl2.Services
 
             html.AppendLine($"                        </div>");
 
-            // Per-group standings table (only when matches have been played)
-            if (group.Standings.Any(s => s.Played > 0))
+            // Per-group standings table, for a round robin only. A knockout's
+            // standings carry the frames that were played so the rest of the app
+            // can read them, but publishing those as a table says the group was
+            // decided on points when it was decided on the table.
+            if (!isKnockout && group.Standings.Any(s => s.Played > 0))
             {
                 var sortedStandings = group.Standings
                     .Where(s => group.ParticipantIds.Contains(s.ParticipantId))
