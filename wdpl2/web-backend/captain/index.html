@@ -286,6 +286,53 @@ table.tbl tr.us td{font-weight:700;}
 .pick-list button.clear{color:var(--muted);}
 .pick-list button.eight{color:var(--eight); border-color:rgba(249,115,22,.5);}
 .pick-list button.agree{color:#9af2c8; border-color:rgba(34,197,94,.5);}
+/* Other scores, coming in as they happen */
+.vidi-bar{
+  display:flex; align-items:center; justify-content:flex-end; gap:8px;
+  padding:0 2px 8px; font-size:12px; color:var(--muted);
+}
+.vidi-bar label{display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:700;}
+.vidi-bar input{width:16px; height:16px; accent-color:var(--accent-2);}
+
+#vidiPane{margin-top:14px; border-top:1px solid var(--line); padding-top:12px;}
+.vidi-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--gold); margin-bottom:8px;
+}
+.vidi-head .when{font-weight:600; text-transform:none; letter-spacing:0; color:var(--muted); font-size:11px;}
+
+.vidi-latest{
+  font-size:12px; padding:8px 10px; margin-bottom:10px; border-radius:8px;
+  background:rgba(13,138,90,.18); border:1px solid rgba(34,197,94,.35); color:#9af2c8;
+}
+
+.vidi-row{
+  display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center;
+  padding:8px 6px; border-bottom:1px solid var(--line); border-radius:6px;
+}
+.vidi-row:last-child{border-bottom:0;}
+.vidi-row .home{text-align:right; font-size:13px; font-weight:600;}
+.vidi-row .away{text-align:left; font-size:13px; font-weight:600;}
+.vidi-row .score{
+  font-variant-numeric:tabular-nums; font-weight:800; font-size:15px;
+  padding:2px 10px; border-radius:999px; background:rgba(10,15,28,.6); border:1px solid var(--line);
+}
+.vidi-row .sub{grid-column:1 / -1; text-align:center; font-size:10px; color:var(--muted); margin:2px 0 0;}
+.vidi-row .tag{
+  font-size:9px; font-weight:800; letter-spacing:.4px; padding:1px 5px; border-radius:999px;
+  background:rgba(255,209,102,.18); border:1px solid var(--gold); color:var(--gold); margin-left:6px;
+}
+
+/* A frame has just gone in. Long enough to catch out of the corner of an eye
+   while scoring, short enough not to still be lit at the next one. */
+.vidi-row.moved{animation:vidiFlash 6s ease-out 1;}
+@keyframes vidiFlash{
+  0%   {background:rgba(255,209,102,.35);}
+  15%  {background:rgba(255,209,102,.28);}
+  100% {background:transparent;}
+}
+
 .sc-num{cursor:pointer;}
 .sc-num:hover{color:var(--gold);}
 </style>
@@ -414,6 +461,13 @@ table.tbl tr.us td{font-weight:700;}
 
   <!-- The card -->
   <section class="card hidden" id="cardCard">
+
+    <!-- Off unless asked for: a captain scoring a match does not need the rest
+         of the league on the screen unless they want it. -->
+    <div class="vidi-bar hidden" id="vidiBar">
+      <label for="vidiOn"><input type="checkbox" id="vidiOn"> Other scores</label>
+    </div>
+
     <div class="sc-header">
       <div class="sc-team-h" id="homeName">Home</div>
       <div class="sc-score-badge">
@@ -480,6 +534,16 @@ table.tbl tr.us td{font-weight:700;}
         <button class="ghost" id="soloOff">Hand back the other side</button>
       </div>
     </div>
+
+    <!-- The other matches, at the bottom where it is out of the way of the card -->
+    <div class="hidden" id="vidiPane">
+      <div class="vidi-head">
+        <span>Other scores</span>
+        <span class="when" id="vidiWhen"></span>
+      </div>
+      <div class="vidi-latest hidden" id="vidiLatest"></div>
+      <div id="vidiList"></div>
+    </div>
   </section>
 </main>
 
@@ -542,6 +606,10 @@ table.tbl tr.us td{font-weight:700;}
   var MAX_STRIKES = 3;   // give up re-sending a batch the server keeps refusing
 
   function $(id){ return document.getElementById(id); }
+
+  // The tick box remembers itself, so a captain who wants the other scores
+  // does not have to ask for them again every week.
+  try{ $('vidiOn').checked = vidiWanted(); }catch(e){}
 
   // Said once, at load, so the page never briefly reads as the wrong one.
   if(CUP_ONLY){
@@ -797,6 +865,123 @@ table.tbl tr.us td{font-weight:700;}
       })
       .catch(function(){ /* the picker still offers VOID and a typed name */ });
   }
+
+  // --------------------------------------------------------- other scores
+
+  /**
+   * The rest of the league's matches, updating as they are scored.
+   *
+   * Its own poll rather than a passenger on the card's, because it is optional
+   * and the card's is not: turning it off has to actually stop the asking, and
+   * a captain with it off should cost the site nothing.
+   * <p>
+   * Scores are remembered between polls so a frame going in somewhere else can
+   * be shown as it happens rather than just appearing in the total.
+   */
+  var VIDI_KEY = 'wdpl_vidi_on';
+  var VIDI_MS = 20000;
+
+  var V = { timer:null, scores:{}, first:true };
+
+  function vidiWanted(){
+    try{ return localStorage.getItem(VIDI_KEY) === '1'; }catch(e){ return false; }
+  }
+
+  function vidiRemember(on){
+    try{ localStorage.setItem(VIDI_KEY, on ? '1' : '0'); }catch(e){}
+  }
+
+  function vidiStart(){
+    if(V.timer) return;
+    vidiPoll();
+    V.timer = setInterval(function(){
+      // Nothing to watch while the phone is in a pocket.
+      if(document.hidden) return;
+      vidiPoll();
+    }, VIDI_MS);
+  }
+
+  function vidiStop(){
+    if(V.timer){ clearInterval(V.timer); V.timer = null; }
+    V.scores = {};
+    V.first = true;
+    show($('vidiPane'), false);
+  }
+
+  function vidiPoll(){
+    return call('league','live',{}).then(function(board){
+      var items = (board && board.items) || [];
+
+      // Everybody else's match. Ours is the one on the screen already.
+      var others = items.filter(function(m){ return String(m.fixture_id) !== String(S.fixtureId); });
+
+      vidiRender(others, board && board.generatedUtc);
+    }).catch(function(){
+      // A scoreboard that cannot be reached says nothing rather than shouting:
+      // the card is what matters and it has its own way of reporting trouble.
+      $('vidiWhen').textContent = 'not reachable';
+    });
+  }
+
+  function vidiRender(matches, generatedUtc){
+    show($('vidiPane'), true);
+
+    var box = $('vidiList');
+    var moved = [];
+
+    if(!matches.length){
+      box.innerHTML = '<p class="sub" style="color:var(--muted);font-size:12px;margin:0">'
+                    + 'No other match is being scored right now.</p>';
+      show($('vidiLatest'), false);
+      $('vidiWhen').textContent = vidiClock(generatedUtc);
+      return;
+    }
+
+    box.innerHTML = matches.map(function(m){
+      var key = String(m.fixture_id);
+      var score = m.home_score + '-' + m.away_score;
+      var changed = !V.first && V.scores[key] !== undefined && V.scores[key] !== score;
+
+      if(changed){
+        moved.push({
+          key: key,
+          text: esc(m.home_team_name || '?') + ' ' + m.home_score + '\u2013' + m.away_score
+              + ' ' + esc(m.away_team_name || '?')
+        });
+      }
+
+      V.scores[key] = score;
+
+      return '<div class="vidi-row' + (changed ? ' moved' : '') + '" data-fx="' + esc(key) + '">'
+        + '<span class="home">' + esc(m.home_team_name || '?') + '</span>'
+        + '<span class="score">' + m.home_score + '\u2013' + m.away_score + '</span>'
+        + '<span class="away">' + esc(m.away_team_name || '?')
+        + (m.kind === 'cup' ? '<span class="tag">CUP</span>' : '') + '</span>'
+        + '<p class="sub">' + m.frames_played + ' of ' + m.frames_total
+        + (m.venue_name ? ' \u00b7 ' + esc(m.venue_name) : '') + '</p>'
+        + '</div>';
+    }).join('');
+
+    if(moved.length){
+      $('vidiLatest').textContent = moved[moved.length - 1].text;
+      show($('vidiLatest'), true);
+    }
+
+    V.first = false;
+    $('vidiWhen').textContent = vidiClock(generatedUtc);
+  }
+
+  function vidiClock(iso){
+    var when = iso ? new Date(iso) : new Date();
+    if(isNaN(when)) when = new Date();
+    return 'updated ' + when.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  }
+
+  $('vidiOn').addEventListener('change', function(){
+    var on = $('vidiOn').checked;
+    vidiRemember(on);
+    if(on) vidiStart(); else vidiStop();
+  });
 
   // ------------------------------------------------------------------ tabs
 
@@ -1146,13 +1331,19 @@ table.tbl tr.us td{font-weight:700;}
       if(!card || !card.fixture_id){
         S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
         show($('homeExtras'), true);
-        stopPolling(); return;
+        stopPolling(); vidiStop(); return;
       }
 
       // There is a match on, so Home is the card. The tiles are still one tap
       // away on the tab row and only take up room here.
       show($('homeExtras'), false);
       render(card);
+
+      // League nights only: a cup tie is played on its own and the league's
+      // board is nothing to do with it.
+      show($('vidiBar'), !CUP_ONLY);
+      if(!CUP_ONLY && $('vidiOn').checked) vidiStart();
+
       if(!S.rosters.home.length && !S.rosters.away.length) loadRosters();
       loadQueue();
       netBadge();

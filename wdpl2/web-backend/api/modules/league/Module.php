@@ -425,7 +425,8 @@ final class LeagueModule implements Module
         $items = [];
         try {
             $items = Db::all(
-                "SELECT h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name,
+                "SELECT c.fixture_id, f.kind,
+                        h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name,
                         c.frames_total,
                         SUM(CASE WHEN fr.winner = 'home' THEN 1 ELSE 0 END) AS home_score,
                         SUM(CASE WHEN fr.winner = 'away' THEN 1 ELSE 0 END) AS away_score,
@@ -453,6 +454,7 @@ final class LeagueModule implements Module
             $items[$index]['away_score']    = (int)$item['away_score'];
             $items[$index]['frames_played'] = (int)$item['frames_played'];
             $items[$index]['frames_total']  = (int)$item['frames_total'];
+            $items[$index]['kind']          = ($item['kind'] ?? 'league') === 'cup' ? 'cup' : 'league';
         }
 
         return [
