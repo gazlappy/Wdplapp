@@ -174,10 +174,10 @@ public class KnockoutGroupPublishTests
 
         var html = CompetitionsPage(league, settings);
 
-        Assert.Contains("Ann Reid", html);
-        Assert.Contains("Bob Crane", html);
-        Assert.Contains("Cal Dow", html);
-        Assert.Contains("Dee Marsh", html);
+        Assert.Contains("ANN REID", html);
+        Assert.Contains("BOB CRANE", html);
+        Assert.Contains("CAL DOW", html);
+        Assert.Contains("DEE MARSH", html);
     }
 
     [Fact]
@@ -246,7 +246,7 @@ public class KnockoutGroupPublishTests
         // used to knock out every player in every other group.
         Assert.Equal(2, Occurrences(html, "Out</span>"));
 
-        var eve = html.IndexOf("Eve Naylor", StringComparison.Ordinal);
+        var eve = html.IndexOf("EVE NAYLOR", StringComparison.Ordinal);
         Assert.True(eve >= 0, "the unplayed group's players should still be listed");
 
         // Neither of them carries a badge of any kind.

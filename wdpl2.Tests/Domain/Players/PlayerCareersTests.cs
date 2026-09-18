@@ -56,7 +56,7 @@ public class PlayerCareersTests
 
         var career = Assert.Single(PlayerCareers.All(league));
 
-        Assert.Equal("Dave Marsh", career.Name);
+        Assert.Equal("DAVE MARSH", career.Name);
         Assert.Equal(1, career.Seasons);
         Assert.False(career.IsLinked);
     }
@@ -126,8 +126,15 @@ public class PlayerCareersTests
         Assert.Single(PlayerCareers.All(league));
     }
 
+    /// <summary>
+    /// Somebody on the books three ways is known by the fullest of them.
+    /// </summary>
+    /// <remarks>
+    /// All three arrive in capitals, because that is how a name is stored - so
+    /// the only thing left to choose between them is which says the most.
+    /// </remarks>
     [Fact]
-    public void All_PrefersTheFullestSpellingButNotShouting()
+    public void All_IsKnownByTheFullestSpelling()
     {
         var league = League();
         var first = Add(league, "DAVID", "HOWELL", LastSeason);
@@ -135,7 +142,7 @@ public class PlayerCareersTests
         Add(league, "David", "Howell", ThisSeason, identity: first.Id);
         Add(league, "Dave", "Howell", ThisSeason, identity: first.Id);
 
-        Assert.Equal("David Howell", Assert.Single(PlayerCareers.All(league)).Name);
+        Assert.Equal("DAVID HOWELL", Assert.Single(PlayerCareers.All(league)).Name);
     }
 
     // -------------------------------------------------------------------- one

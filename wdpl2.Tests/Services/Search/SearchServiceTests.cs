@@ -57,7 +57,8 @@ public class SearchServiceTests
     public void SearchByPlayerName_FindsPlayer()
     {
         var results = SearchService.Search(CreateSampleData(), "John");
-        Assert.Contains(results, r => r.Type == "Player" && r.Title.Contains("John"));
+        Assert.Contains(results, r => r.Type == "Player"
+            && r.Title.Contains("John", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

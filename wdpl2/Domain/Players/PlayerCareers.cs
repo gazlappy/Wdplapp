@@ -85,15 +85,16 @@ public static class PlayerCareers
     /// What to call somebody recorded under several spellings.
     /// </summary>
     /// <remarks>
-    /// The fullest spelling, because "David Howell" says more than "D Howell" -
-    /// but a name typed in capitals is a spelling of convenience rather than a
-    /// fuller one, so it loses to the same name written properly.
+    /// The fullest one, because "DAVID HOWELL" says more than "D HOWELL". Case
+    /// used to be a tie-break here, back when some rows were written in capitals
+    /// and some were not; every name is stored in capitals now, so the only
+    /// question left is which spelling says the most.
     /// </remarks>
     private static string Best(IEnumerable<Player> rows) =>
         rows.Select(p => p.FullName.Trim())
             .Where(n => n.Length > 0)
             .DefaultIfEmpty("(unnamed)")
             .OrderByDescending(n => n.Length)
-            .ThenBy(n => n == n.ToUpperInvariant())
+            .ThenBy(n => n, StringComparer.Ordinal)
             .First();
 }

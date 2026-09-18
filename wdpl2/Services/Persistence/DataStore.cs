@@ -25,6 +25,9 @@ public static partial class DataStore
     });
 
     private static string DataPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json");
+
+    /// <summary>Where the league is stored, for the few callers that need the file itself.</summary>
+    public static string DataFilePath => DataPath;
     private static string BackupPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.bak");
     private static string ImportSnapshotPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.pre-import");
 

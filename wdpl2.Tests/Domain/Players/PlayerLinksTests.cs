@@ -111,7 +111,7 @@ public class PlayerLinksTests
         Assert.Equal(PlayerLinks.Confidence.Likely, found.Confidence);
 
         // The fuller spelling is the one worth being known by.
-        Assert.Equal("Dave Marsh", found.Name);
+        Assert.Equal("DAVE MARSH", found.Name);
     }
 
     /// <summary>

@@ -1129,6 +1129,61 @@ public partial class PlayersPage : ContentPage
     private void OnCloseEditor(object? sender, EventArgs e) => EditorPanel.IsVisible = EditorOverlay.IsVisible = false;
 
     /// <summary>
+    /// Writes every existing player's name in capitals, once.
+    /// </summary>
+    /// <remarks>
+    /// New players are stored that way already - see <see cref="Player"/> - so
+    /// this is only for the ones that were here before, and only needs running
+    /// the once. It is offered rather than done quietly because flattening the
+    /// case throws the original away: "McLoughlin" cannot be recovered from
+    /// "MCLOUGHLIN", so it asks first and takes a copy of the file before it
+    /// starts.
+    /// </remarks>
+    private async void OnUppercaseNames(object? sender, EventArgs e)
+    {
+        var league = DataStore.Data;
+
+        // Counted from the file rather than from memory: loading has already
+        // put the names into capitals, so memory can no longer say which ones
+        // were not.
+        var pending = Wdpl2.Services.PlayerNameCase.PendingInStoredFile();
+
+        if (pending == 0)
+        {
+            SetStatus("Every player's name is already in capitals.");
+            return;
+        }
+
+        if (!await DisplayAlert("Put every name in capitals?",
+                $"{pending} of {league.Players.Count} players are stored with mixed-case names.\n\n"
+                + "New players are already saved in capitals. This does the same to the ones that "
+                + "were here before, so the whole list matches.\n\n"
+                + "It cannot be undone - once a name is in capitals there is nothing to say it was "
+                + "McLoughlin rather than Mcloughlin. A copy of your data is taken first.",
+                "Put them in capitals", "Cancel"))
+            return;
+
+        UppercaseBtn.IsEnabled = false;
+        SetStatus("Working...");
+
+        try
+        {
+            var backup = await Task.Run(Wdpl2.Services.PlayerNameCase.BackUpAndApply);
+
+            SetStatus($"{pending} name(s) put into capitals. Your previous data is kept at {backup}.");
+            RefreshAll();
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not do that: {ex.Message}");
+        }
+        finally
+        {
+            UppercaseBtn.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
     /// Opens the duplicate finder.
     /// </summary>
     /// <remarks>

@@ -292,8 +292,8 @@ public class SqliteDataStoreTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
         Assert.All(result, p => Assert.Equal(seasonId, p.SeasonId));
-        Assert.Equal("Doe", result[0].LastName);
-        Assert.Equal("Smith", result[1].LastName);
+        Assert.Equal("DOE", result[0].LastName);
+        Assert.Equal("SMITH", result[1].LastName);
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public class SqliteDataStoreTests
         // Assert
         var updated = await context.Players.FindAsync(player.Id);
         Assert.NotNull(updated);
-        Assert.Equal("Updated", updated.FirstName);
+        Assert.Equal("UPDATED", updated.FirstName);
     }
 
     [Fact]

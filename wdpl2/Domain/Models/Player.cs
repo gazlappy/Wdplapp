@@ -13,18 +13,48 @@ namespace Wdpl2.Models
         /// <summary>Global player identity - links same person across multiple seasons for career tracking.</summary>
         public Guid? GlobalPlayerId { get; set; }
 
+        /// <summary>
+        /// The league writes players' names in capitals, and these see to it.
+        /// </summary>
+        /// <remarks>
+        /// Done here rather than at the twenty-odd places a player is created -
+        /// six importers, a captain's addition collected from the website, a
+        /// season copied forward, a name typed into the Players page - because
+        /// the rule is meant to hold for every one of them, including the ones
+        /// written next year by someone who never read this.
+        /// <para>
+        /// Invariant, not a preference: a name is stored the way it is written
+        /// down, and that is in capitals. Nothing else in the app has to know.
+        /// Matching and linking are case-insensitive anyway, so this changes
+        /// how names look and nothing about how they behave.
+        /// </para>
+        /// </remarks>
+        private static string House(string? value) => (value ?? "").ToUpperInvariant();
+
         // Maintain both single Name and split First/Last for compatibility
         private string _name = string.Empty;
         public string Name
         {
             get => string.IsNullOrWhiteSpace(_name) ? FullName : _name;
-            set => _name = value ?? "";
+            set => _name = House(value);
+        }
+
+        private string _firstName = "";
+        private string _lastName = "";
+
+        [Required, MaxLength(50)]
+        public string FirstName
+        {
+            get => _firstName;
+            set => _firstName = House(value);
         }
 
         [Required, MaxLength(50)]
-        public string FirstName { get; set; } = "";
-        [Required, MaxLength(50)]
-        public string LastName { get; set; } = "";
+        public string LastName
+        {
+            get => _lastName;
+            set => _lastName = House(value);
+        }
 
         [JsonIgnore]
         public string FullName => string.Join(" ", new[] { FirstName, LastName }.Where(s => !string.IsNullOrWhiteSpace(s)));

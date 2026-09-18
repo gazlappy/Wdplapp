@@ -113,7 +113,7 @@ public class LeagueStatsServiceTests
 
         Assert.Single(result);
         Assert.Equal(playerId, result[0].PlayerId);
-        Assert.Equal("John Doe", result[0].PlayerName);
+        Assert.Equal("JOHN DOE", result[0].PlayerName);
         Assert.Equal(3, result[0].FramesPlayed);
         Assert.Equal(3, result[0].FramesWon);
         Assert.Equal(100, result[0].WinPercentage);
@@ -1031,7 +1031,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("Top Scorer", result.TopScorer);
+        Assert.Equal("TOP SCORER", result.TopScorer);
         Assert.Equal(3, result.TopScorerWins);
     }
 
@@ -1067,7 +1067,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("Most EightBalls", result.MostEightBalls);
+        Assert.Equal("MOST EIGHTBALLS", result.MostEightBalls);
         Assert.Equal(3, result.MostEightBallCount);
     }
 
@@ -1099,7 +1099,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("Streak Master", result.LongestWinStreak);
+        Assert.Equal("STREAK MASTER", result.LongestWinStreak);
         Assert.Equal(3, result.LongestWinStreakCount);
     }
 
@@ -1158,7 +1158,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("Real Player", result.TopScorer);
+        Assert.Equal("REAL PLAYER", result.TopScorer);
         Assert.Equal(2, result.TopScorerWins);
     }
 
@@ -1187,7 +1187,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("Away Player", result.TopScorer);
+        Assert.Equal("AWAY PLAYER", result.TopScorer);
         Assert.Equal(2, result.TopScorerWins);
     }
 
@@ -1246,7 +1246,7 @@ public class LeagueStatsServiceTests
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
         Assert.Single(result.MonthlyWinners);
-        Assert.Equal("Monthly Winner", result.MonthlyWinners[0].PlayerName);
+        Assert.Equal("MONTHLY WINNER", result.MonthlyWinners[0].PlayerName);
     }
 
     [Fact]
@@ -1380,7 +1380,7 @@ public class LeagueStatsServiceTests
 
         var result = LeagueStatsService.GenerateSeasonRecap(season, fixtures, players, teams, settings);
 
-        Assert.Equal("New Player", result.TopScorer);
+        Assert.Equal("NEW PLAYER", result.TopScorer);
         Assert.Equal(1, result.TopScorerWins);
     }
 

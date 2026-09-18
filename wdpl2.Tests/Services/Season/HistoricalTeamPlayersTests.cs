@@ -49,7 +49,7 @@ public class HistoricalTeamPlayersTests
         Assert.NotEqual(source.Id, copied.Id);
         Assert.Equal(source.Id, copied.GlobalPlayerId);
         Assert.Equal(team.Id, copied.TeamId);
-        Assert.Equal("Alex Smith", copied.Name);
+        Assert.Equal("ALEX SMITH", copied.Name);
         Assert.True(copied.IsActive);
         Assert.Null(copied.DeactivationReason);
         Assert.Null(copied.Notes);

@@ -78,7 +78,7 @@ public class ManualSeasonRosterTests
         Assert.Null(copiedTeam.CaptainPin);
         Assert.NotEqual(player.Id, copiedPlayer.Id);
         Assert.Equal(player.Id, copiedPlayer.GlobalPlayerId);
-        Assert.Equal("J. Smith", copiedPlayer.Name);
+        Assert.Equal("J. SMITH", copiedPlayer.Name);
         Assert.True(copiedPlayer.IsActive);
         Assert.Null(copiedPlayer.DeactivationReason);
         Assert.Empty(copiedPlayer.TransferHistory);
