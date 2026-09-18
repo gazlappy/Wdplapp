@@ -3,6 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>
+/*
+ * Move to https before anything else happens.
+ *
+ * The .htaccess beside this page does the same, but only where mod_rewrite is
+ * on and the host lets a folder override it. This does not care: it runs in
+ * the <head>, before the page draws, on any browser back to the ones that
+ * shipped with the phones still turning up on a match night.
+ *
+ * Signing in is refused over http on purpose, so a page left on http is a page
+ * that loads and then will not work - which is worse than one that does not
+ * load at all, because nobody can see what is wrong with it.
+ */
+(function () {
+  var host = location.hostname;
+  if (location.protocol !== 'http:') return;
+
+  // Testing against a local server has no certificate and wants none.
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return;
+
+  location.replace('https://' + location.host + location.pathname
+                   + location.search + location.hash);
+})();
+</script>
+
 <title>WDPL Admin</title>
 <meta name="theme-color" content="#1f4e79">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -277,6 +303,16 @@ button.sm{padding:7px 12px; font-size:13px;}
       return r.json().catch(function(){ throw {code:'not_json', message:'The server sent an unexpected reply.'}; })
         .then(function(p){
           if(p.ok) return p.data;
+
+          // Landed on http after all - a link that bypassed the redirect, or a
+          // host that will not honour it. Nothing can work from here, so go to
+          // the same page over https rather than report a refusal the captain
+          // can do nothing about.
+          if(p.error && p.error.code === 'https_required' && location.protocol === 'http:'){
+            location.replace('https://' + location.host + location.pathname
+                             + location.search + location.hash);
+          }
+
           throw { code:p.error?p.error.code:'error',
                   message:p.error?p.error.message:'Something went wrong.' };
         });

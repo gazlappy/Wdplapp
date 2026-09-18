@@ -16,6 +16,10 @@ public sealed class CaptainsWebModule : IWebModule
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {
         "api/modules/captains/Module.php",
+
+        // Sends a captain who arrived on http to the secure page before the
+        // sign-in they came for is refused. See the file itself.
+        "captain/.htaccess",
     };
 }
 

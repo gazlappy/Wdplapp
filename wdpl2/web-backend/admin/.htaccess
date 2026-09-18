@@ -1,0 +1,31 @@
+# The league's own portal, which signs in with a password rather than a PIN
+# and so has even less business being reachable over http. Same redirect as
+# the captains' page, for the same reason.
+#
+# Deliberately a file of its own in this folder rather than one at the site
+# root: the root of a cPanel account usually already has an .htaccess the host
+# manages, and replacing that to fix a login would be a poor trade.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Not already secure, and not secure at a proxy in front of us. The second
+    # test matters on any host that terminates TLS before PHP sees the request,
+    # where the first is false even though the captain is on https - and
+    # without it this would redirect to the page it is already on, forever.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteCond %{HTTP:X-Forwarded-Ssl} !=on
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Once a phone has been here over https it stops trying http, which fixes
+    # the old links as well as the new ones.
+    #
+    # Thirty days rather than the usual year: this applies to the whole site,
+    # not just this folder, so if the certificate ever lapses the league is
+    # locked out until it is fixed or a month has passed. Long enough to cure
+    # the problem, short enough to live with having been wrong.
+    Header always set Strict-Transport-Security "max-age=2592000"
+</IfModule>

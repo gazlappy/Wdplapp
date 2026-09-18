@@ -21,6 +21,7 @@ public sealed class SystemWebModule : IWebModule
     {
         "api/index.php",
         "api/.htaccess",
+        "admin/.htaccess",
         "api/core/Http.php",
         "api/core/Config.php",
         "api/core/Db.php",

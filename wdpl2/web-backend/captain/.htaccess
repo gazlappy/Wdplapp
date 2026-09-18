@@ -1,0 +1,35 @@
+# Captains arrive here on a phone, and often on http: they type the address
+# without a scheme, follow a link from a message sent last season, or tap
+# something a search engine remembered. Every sign-in is refused over http on
+# purpose - a PIN must not cross a pub's wifi in the clear - so without this
+# the page loads, looks fine, and then refuses to let anybody in. That is what
+# happened on the first match night of the season, mostly on Android, whose
+# browsers are the least willing to upgrade a bare hostname on their own.
+#
+# Deliberately a file of its own in this folder rather than one at the site
+# root: the root of a cPanel account usually already has an .htaccess the host
+# manages, and replacing that to fix a login would be a poor trade.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Not already secure, and not secure at a proxy in front of us. The second
+    # test matters on any host that terminates TLS before PHP sees the request,
+    # where the first is false even though the captain is on https - and
+    # without it this would redirect to the page it is already on, forever.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteCond %{HTTP:X-Forwarded-Ssl} !=on
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Once a phone has been here over https it stops trying http, which fixes
+    # the old links as well as the new ones.
+    #
+    # Thirty days rather than the usual year: this applies to the whole site,
+    # not just this folder, so if the certificate ever lapses the league is
+    # locked out until it is fixed or a month has passed. Long enough to cure
+    # the problem, short enough to live with having been wrong.
+    Header always set Strict-Transport-Security "max-age=2592000"
+</IfModule>

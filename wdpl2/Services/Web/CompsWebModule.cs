@@ -17,6 +17,7 @@ public sealed class CompsWebModule : IWebModule
         "api/modules/comps/Standings.php",
         "api/modules/comps/Draw.php",
         "comp/index.html",
+        "comp/.htaccess",
 
         // The cup tie card is the captains' scorecard, served a second time on
         // the competition side of the site. A cup tie has nothing to do with

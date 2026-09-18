@@ -106,11 +106,25 @@ final class Http
         return false;
     }
 
+    /**
+     * Refuses anything that did not arrive over TLS.
+     *
+     * A PIN crossing a pub's wifi in the clear is the thing this prevents, so
+     * it does not soften - but it does say where to go instead. Somebody whose
+     * phone landed on http sees an address they can act on rather than a flat
+     * refusal with nothing to do about it.
+     */
     public static function requireSecure(): void
     {
-        if (!self::isSecure() && Config::get('allow_insecure', false) !== true) {
-            throw new ApiError(403, 'https_required', 'This API requires HTTPS.');
+        if (self::isSecure() || Config::get('allow_insecure', false) === true) {
+            return;
         }
+
+        $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        $where = $host === '' ? '' : ' Open https://' . $host . ' instead.';
+
+        throw new ApiError(403, 'https_required',
+            'This page has to be opened over a secure connection.' . $where);
     }
 
     /** Query-string parameter. */
