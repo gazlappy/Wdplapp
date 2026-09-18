@@ -16,6 +16,28 @@
 		<Nullable>enable</Nullable>
 		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
 
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+		<!--
+		  Android ships for 32-bit ARM as well as 64-bit.
+
+		  The default leaves armeabi-v7a out, which is fine for anything sold in
+		  the last few years but not for the phones a pool league actually has in
+		  its pockets. A budget handset of the 2016-18 era often has a 64-bit chip
+		  running a 32-bit build of Android, and such a device reports only the
+		  32-bit ABI - so a package without it does not run badly there, it refuses
+		  to install at all, with nothing to say why.
+
+		  android-arm is armeabi-v7a, android-arm64 is arm64-v8a, android-x64 is
+		  the emulator. It costs perhaps a third again on the size of the package,
+		  which for a sideloaded league app is a trade worth making.
+		-->
+		<RuntimeIdentifiers>android-arm;android-arm64;android-x64</RuntimeIdentifiers>
+	</PropertyGroup>
+
+	<PropertyGroup>
+
 		<RootNamespace>Wdpl2</RootNamespace>
 		<AssemblyName>Wdpl2</AssemblyName>
 
