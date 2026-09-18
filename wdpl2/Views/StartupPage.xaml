@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.StartupPage"
+             Title="WDPL"
+             BackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}">
+
+    <Grid RowDefinitions="*,Auto,*" Padding="32">
+
+        <VerticalStackLayout Grid.Row="1" Spacing="16" HorizontalOptions="Center">
+
+            <Label Text="WDPL"
+                   FontSize="34"
+                   FontAttributes="Bold"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light=#16634B, Dark=#4ADE80}" />
+
+            <Label Text="Wellington District Pool League"
+                   FontSize="13"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+
+            <ActivityIndicator x:Name="Spinner"
+                               IsRunning="True"
+                               Margin="0,16,0,0"
+                               Color="{AppThemeBinding Light=#16634B, Dark=#4ADE80}" />
+
+            <Label x:Name="StatusLabel"
+                   Text="Opening your league…"
+                   FontSize="13"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap"
+                   TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
+
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

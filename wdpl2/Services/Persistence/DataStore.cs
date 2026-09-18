@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,48 @@ public static partial class DataStore
 
     /// <summary>Where the league is stored, for the few callers that need the file itself.</summary>
     public static string DataFilePath => DataPath;
+
+    /// <summary>
+    /// Writes a file so that it is either wholly the old one or wholly the new.
+    /// </summary>
+    /// <remarks>
+    /// Written beside the real file and then renamed over it. A rename cannot
+    /// happen by halves, so whatever stops the app - Android killing it for
+    /// taking too long to start, a laptop lid closing, a power cut - the file
+    /// on disk is one complete version or the other, never twenty megabytes
+    /// that stop in the middle of a fixture.
+    /// <para>
+    /// This is not hypothetical: testing on Android left a backup of the league
+    /// truncated at 3.9 MB of 21.8 MB, killed partway through the copy. It was
+    /// the backup that time. The next moment it would have been the league.
+    /// </para>
+    /// </remarks>
+    private static void WriteAtomic(string path, string contents)
+    {
+        var temp = path + ".writing";
+
+        using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+        using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+        {
+            writer.Write(contents);
+            writer.Flush();
+
+            // On disk, not merely handed to the operating system: a rename that
+            // beats the data to the platter would leave an empty file behind.
+            stream.Flush(flushToDisk: true);
+        }
+
+        File.Move(temp, path, overwrite: true);
+    }
+
+    /// <summary>Copies a file the same way, so a half-written copy is never left.</summary>
+    private static void CopyAtomic(string from, string to)
+    {
+        var temp = to + ".writing";
+
+        File.Copy(from, temp, overwrite: true);
+        File.Move(temp, to, overwrite: true);
+    }
     private static string BackupPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.bak");
     private static string ImportSnapshotPath => Path.Combine(_appDataDir.Value, "wdpl2", "data.json.pre-import");
 
@@ -84,7 +127,7 @@ public static partial class DataStore
         try
         {
             if (File.Exists(DataPath))
-                File.Copy(DataPath, BackupPath, overwrite: true);
+                CopyAtomic(DataPath, BackupPath);
         }
         catch (Exception ex)
         {
@@ -92,7 +135,7 @@ public static partial class DataStore
         }
 
         var json = JsonSerializer.Serialize(Data, JsonOpts);
-        File.WriteAllText(DataPath, json);
+        WriteAtomic(DataPath, json);
 
         if (syncEntities)
         {
@@ -212,7 +255,7 @@ public static partial class DataStore
         // Persist locally
         EnsureDataDirectory();
         var json = JsonSerializer.Serialize(Data, JsonOpts);
-        File.WriteAllText(DataPath, json);
+        WriteAtomic(DataPath, json);
         SyncEntitiesToDatabase();
 
         ClearPreImportSnapshot();
@@ -229,7 +272,7 @@ public static partial class DataStore
         {
             if (!File.Exists(BackupPath)) return false;
 
-            File.Copy(BackupPath, DataPath, overwrite: true);
+            CopyAtomic(BackupPath, DataPath);
 
             // Load settings from the restored JSON
             var json = File.ReadAllText(DataPath);
@@ -258,7 +301,7 @@ public static partial class DataStore
         {
             EnsureDataDirectory();
             var json = JsonSerializer.Serialize(Data, JsonOpts);
-            File.WriteAllText(ImportSnapshotPath, json);
+            WriteAtomic(ImportSnapshotPath, json);
             return true;
         }
         catch (Exception ex)
@@ -282,7 +325,7 @@ public static partial class DataStore
             Data = JsonSerializer.Deserialize<LeagueData>(json, JsonOpts) ?? new LeagueData();
 
             // Also restore the persisted file so a restart doesn't load partial import data
-            File.WriteAllText(DataPath, json);
+            WriteAtomic(DataPath, json);
 
             // Push restored entities to EF Core
             SyncEntitiesToDatabase();

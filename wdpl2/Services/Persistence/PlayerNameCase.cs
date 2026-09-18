@@ -49,7 +49,11 @@ public static class PlayerNameCase
 
         if (File.Exists(path))
         {
-            File.Copy(path, backup, overwrite: true);
+            // Through a temporary name, so a copy that is interrupted leaves no
+            // backup at all rather than a truncated one that looks like a backup.
+            var writing = backup + ".writing";
+            File.Copy(path, writing, overwrite: true);
+            File.Move(writing, backup, overwrite: true);
         }
 
         // The names in memory are already in capitals, because loading them put
