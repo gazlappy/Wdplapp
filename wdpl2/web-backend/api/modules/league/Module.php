@@ -392,9 +392,11 @@ final class LeagueModule implements Module
     /**
      * Matches currently being scored.
      *
-     * Deliberately empty until live scorecards exist (M4). The public page polls
-     * this endpoint, so it must answer correctly - with no live matches - rather
-     * than 404 and leave the page showing a permanent error.
+     * The public scoreboard and the ticker along the foot of a captain's own
+     * card both poll this, so it answers with everything either of them needs
+     * to draw a match without a second request: the scoreline, where it is
+     * being played, and - for the boards that show it - the frames that have
+     * been decided so far.
      */
     public static function live()
     {
@@ -425,17 +427,20 @@ final class LeagueModule implements Module
         $items = [];
         try {
             $items = Db::all(
-                "SELECT c.fixture_id, f.kind,
-                        h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name,
+                "SELECT c.fixture_id, f.kind, c.card_kind, c.toss_won_by,
+                        h.name AS home_team_name, a.name AS away_team_name,
+                        v.name AS venue_name, d.name AS division_name,
                         c.frames_total,
+                        c.home_finalised_at, c.away_finalised_at,
                         SUM(CASE WHEN fr.winner = 'home' THEN 1 ELSE 0 END) AS home_score,
                         SUM(CASE WHEN fr.winner = 'away' THEN 1 ELSE 0 END) AS away_score,
                         SUM(CASE WHEN fr.winner <> 'none' THEN 1 ELSE 0 END) AS frames_played
                  FROM wdpl_scorecards c
                  JOIN wdpl_fixtures f ON f.id = c.fixture_id
-                 LEFT JOIN wdpl_teams  h ON h.id = f.home_team_id
-                 LEFT JOIN wdpl_teams  a ON a.id = f.away_team_id
-                 LEFT JOIN wdpl_venues v ON v.id = f.venue_id
+                 LEFT JOIN wdpl_teams     h ON h.id = f.home_team_id
+                 LEFT JOIN wdpl_teams     a ON a.id = f.away_team_id
+                 LEFT JOIN wdpl_venues    v ON v.id = f.venue_id
+                 LEFT JOIN wdpl_divisions d ON d.id = f.division_id
                  LEFT JOIN wdpl_scorecard_frames fr ON fr.fixture_id = c.fixture_id
                  WHERE c.state = 'live'
                  GROUP BY c.fixture_id
@@ -448,20 +453,132 @@ final class LeagueModule implements Module
             $items = [];
         }
 
-        // The board shows whole numbers; MySQL returns SUM() as a string.
-        foreach ($items as $index => $item) {
-            $items[$index]['home_score']    = (int)$item['home_score'];
-            $items[$index]['away_score']    = (int)$item['away_score'];
-            $items[$index]['frames_played'] = (int)$item['frames_played'];
-            $items[$index]['frames_total']  = (int)$item['frames_total'];
-            $items[$index]['kind']          = ($item['kind'] ?? 'league') === 'cup' ? 'cup' : 'league';
+        // The frame-by-frame detail is asked for, not assumed. The ticker along
+        // the foot of a captain's card polls this every few seconds from every
+        // phone in every pub and only ever draws the scoreline, so sending it
+        // fifteen frames a match would multiply the traffic for nothing.
+        $frames = Http::query('frames') === '1'
+            ? self::liveFrames(array_column($items, 'fixture_id'))
+            : [];
+
+        $board = [];
+        foreach ($items as $item) {
+            $fixtureId = (string)$item['fixture_id'];
+            $cup       = ($item['card_kind'] ?? 'league') === 'cup';
+
+            $home = (string)($item['home_team_name'] ?? '');
+            $away = (string)($item['away_team_name'] ?? '');
+
+            // A cup tie lists its two teams in the order the draw made them and
+            // tosses a coin for who is actually home. The card swaps the teams
+            // over rather than translating the scoreline afterwards, so the
+            // board has to swap them too - otherwise every frame won by the
+            // side that won the toss is shown against the other team's name.
+            if ($cup && ($item['toss_won_by'] ?? null) === 'away') {
+                $wasHome = $home;
+                $home    = $away;
+                $away    = $wasHome;
+            }
+
+            $board[] = [
+                'fixture_id'     => $fixtureId,
+                'kind'           => ($item['kind'] ?? 'league') === 'cup' ? 'cup' : 'league',
+                'status'         => self::liveStatus($item),
+                'division_name'  => $item['division_name'],
+                'venue_name'     => $item['venue_name'],
+                'home_team_name' => $home,
+                'away_team_name' => $away,
+                // The board shows whole numbers; MySQL returns SUM() as a string.
+                'home_score'     => (int)$item['home_score'],
+                'away_score'     => (int)$item['away_score'],
+                'frames_played'  => (int)$item['frames_played'],
+                'frames_total'   => (int)$item['frames_total'],
+                'frames'         => $frames[$fixtureId] ?? [],
+            ];
         }
 
         return [
             'seasonId'     => $seasonId,
             'generatedUtc' => gmdate('c'),
-            'items'        => $items,
+            'items'        => $board,
         ];
+    }
+
+    /**
+     * Where a live card has got to, in the words the board uses.
+     *
+     * A card only reaches this endpoint while it is still live, so it is either
+     * being played or waiting on the second captain to sign - one captain can
+     * finalise well before the other picks their phone up, and a board that
+     * still says "live" for twenty minutes after the last frame looks broken.
+     */
+    private static function liveStatus(array $card): string
+    {
+        $signed = ($card['home_finalised_at'] !== null ? 1 : 0)
+                + ($card['away_finalised_at'] !== null ? 1 : 0);
+
+        return $signed > 0 ? 'confirming' : 'live';
+    }
+
+    /**
+     * The decided frames of every live card, keyed by fixture.
+     *
+     * Undecided frames are left out entirely: a public board has nothing to say
+     * about a frame nobody has won yet, and sending the players lined up for it
+     * would publish a team's running order before the other captain sees it.
+     *
+     * @param  string[] $fixtureIds
+     * @return array<string, array<int, array>>
+     */
+    private static function liveFrames(array $fixtureIds): array
+    {
+        if (!$fixtureIds) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($fixtureIds), '?'));
+
+        try {
+            $rows = Db::all(
+                'SELECT fixture_id, frame_no, is_doubles, winner, eight_ball,
+                        home_player_name, home_player2_name,
+                        away_player_name, away_player2_name
+                   FROM wdpl_scorecard_frames
+                  WHERE winner <> ? AND fixture_id IN (' . $placeholders . ')
+                  ORDER BY fixture_id, frame_no',
+                array_merge(['none'], array_values($fixtureIds))
+            );
+        } catch (PDOException $noScorecards) {
+            return [];
+        }
+
+        $byFixture = [];
+        foreach ($rows as $row) {
+            $byFixture[(string)$row['fixture_id']][] = [
+                'number'      => (int)$row['frame_no'],
+                'winner'      => $row['winner'],
+                'doubles'     => (bool)$row['is_doubles'],
+                'eight_ball'  => (bool)$row['eight_ball'],
+                'home_player' => self::pairName($row['home_player_name'], $row['home_player2_name']),
+                'away_player' => self::pairName($row['away_player_name'], $row['away_player2_name']),
+            ];
+        }
+
+        return $byFixture;
+    }
+
+    /** One name, or both of a doubles pair, as the board prints them. */
+    private static function pairName($first, $second): string
+    {
+        $names = [];
+        foreach ([$first, $second] as $name) {
+            $name = trim((string)($name ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return implode(' & ', $names);
     }
 
     /** What the scoreboard shows when there is genuinely nothing to show. */

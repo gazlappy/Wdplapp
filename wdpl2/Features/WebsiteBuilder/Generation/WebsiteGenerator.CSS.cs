@@ -406,52 +406,187 @@ header .logo {{
         }
 
         private string GetLiveScoresCSS() => @"
-/* ── Live Scores ── */
+/* ── Live Scores ──
+   A studio panel inside the league's own page. The colours are set here rather
+   than taken from the template: a scoreboard reads as a scoreboard whatever
+   palette the league has picked, and white cards on a dark panel would not. */
+.live-studio {
+    --studio-bg: #0B1220;
+    --studio-panel: #16213D;
+    --studio-line: rgba(148,163,184,0.22);
+    --studio-text: #E8EDF7;
+    --studio-muted: #94A3B8;
+    --studio-gold: #FBBF24;
+    background: linear-gradient(160deg, #0B1220 0%, #16213D 100%);
+    color: var(--studio-text);
+    border-radius: var(--border-radius);
+    padding: 22px 20px 26px;
+    margin: 18px 0 28px;
+    box-shadow: 0 18px 44px rgba(11,18,32,0.35);
+}
+.live-studio-head {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--studio-line);
+}
+.live-studio-title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.live-studio-title h2 { margin: 0; color: #fff; font-size: 1.5rem; letter-spacing: -0.01em; }
+.live-onair {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(220,38,38,0.16); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.45);
+}
+.live-studio-meta { display: flex; align-items: center; gap: 14px; }
+.live-count { font-size: 0.78rem; color: var(--studio-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.live-clock {
+    font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.05rem;
+    color: var(--studio-gold); letter-spacing: 0.04em;
+}
 .live-dot {
-    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-    background: #DC2626; margin-right: 8px; vertical-align: middle;
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: #DC2626; flex: 0 0 auto;
     animation: livePulse 1.6s ease-in-out infinite;
 }
 @keyframes livePulse {
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }
-    50% { opacity: 0.65; box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+    50% { opacity: 0.65; box-shadow: 0 0 0 7px rgba(220,38,38,0); }
 }
-.live-subtitle { color: var(--text-secondary, #475569); font-size: 0.95rem; }
-.live-status { color: #64748B; font-size: 0.85rem; margin: 12px 0; text-align: center; }
-.live-board { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.live-subtitle { color: var(--studio-muted); font-size: 0.86rem; margin: 12px 0 0; }
+.live-status { color: var(--studio-muted); font-size: 0.85rem; margin: 14px 0 0; }
+.live-board { display: grid; gap: 14px; grid-template-columns: 1fr; margin-top: 16px; }
+
 .live-card {
-    background: var(--card-bg); border-radius: var(--border-radius);
-    padding: 16px 18px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    border-left: 4px solid #DC2626;
+    background: var(--studio-panel); border-radius: 12px;
+    padding: 14px 16px 16px; border-left: 4px solid #DC2626;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
 }
-.live-card-final { border-left-color: #16A34A; }
-.live-card-confirming { border-left-color: #F59E0B; }
-.live-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.live-card-confirming { border-left-color: var(--studio-gold); }
+.live-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 .live-badge {
-    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-    padding: 3px 8px; border-radius: 999px; background: #FEE2E2; color: #B91C1C;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
+    padding: 3px 9px; border-radius: 999px; background: rgba(220,38,38,0.18); color: #FCA5A5;
 }
-.live-card-final .live-badge { background: #DCFCE7; color: #15803D; }
-.live-card-confirming .live-badge { background: #FEF3C7; color: #B45309; }
-.live-division { font-size: 0.8rem; color: #64748B; }
-.live-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
-.live-team { font-weight: 600; color: var(--text-color); }
+.live-card-confirming .live-badge { background: rgba(251,191,36,0.16); color: #FCD34D; }
+.live-division { font-size: 0.76rem; color: var(--studio-muted); }
+.live-kind {
+    font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 7px; border-radius: 999px; margin-left: 7px;
+    border: 1px solid var(--studio-gold); color: var(--studio-gold);
+}
+
+.live-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.live-team { font-weight: 700; color: #fff; font-size: 1.02rem; line-height: 1.25; }
 .live-home { text-align: right; }
 .live-away { text-align: left; }
-.live-score { font-size: 1.5rem; font-weight: 800; color: var(--primary-color); white-space: nowrap; }
-.live-meta { margin: 8px 0 0; font-size: 0.82rem; color: #64748B; text-align: center; }
-.live-frames { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid rgba(100,116,139,0.2); }
-.live-frame {
-    display: grid; grid-template-columns: 34px 1fr 18px 1fr auto;
-    align-items: center; gap: 6px; padding: 3px 0; font-size: 0.85rem;
+.live-score { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.live-score-n {
+    font-variant-numeric: tabular-nums; font-size: 2rem; font-weight: 800; color: #fff;
+    min-width: 1.5em; text-align: center; line-height: 1;
 }
-.live-frame-no { color: #94A3B8; font-size: 0.75rem; }
+.live-score-sep { color: var(--studio-muted); font-size: 1.2rem; }
+
+.live-progress { height: 4px; border-radius: 999px; background: rgba(148,163,184,0.18); margin: 12px 0 8px; overflow: hidden; }
+.live-progress span { display: block; height: 100%; background: var(--studio-gold); border-radius: 999px; transition: width 0.4s ease; }
+.live-meta { margin: 0; font-size: 0.78rem; color: var(--studio-muted); text-align: center; }
+
+/* Frame-by-frame player results. */
+.live-results { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--studio-line); }
+.live-results-head {
+    margin: 0 0 8px; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--studio-muted);
+}
+.live-frames { list-style: none; margin: 0; padding: 0; }
+.live-frame {
+    display: grid; grid-template-columns: 34px 1fr 22px 1fr 20px;
+    align-items: center; gap: 8px; padding: 4px 0; font-size: 0.85rem;
+    color: var(--studio-muted); border-bottom: 1px solid rgba(148,163,184,0.10);
+}
+.live-frame:last-child { border-bottom: 0; }
+.live-frame-no {
+    font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; color: var(--studio-muted);
+    background: rgba(148,163,184,0.14); border-radius: 4px; padding: 2px 0; text-align: center;
+}
 .live-frame-home { text-align: right; }
-.live-frame-vs { color: #94A3B8; font-size: 0.7rem; text-align: center; }
-.live-frame-home .live-frame-home, .live-frame-away .live-frame-away { font-weight: 700; color: var(--primary-color); }
-.live-frame-eight { font-size: 0.8rem; }
-@media (min-width: 800px) {
+.live-frame-away { text-align: left; }
+.live-frame-mark { text-align: center; font-size: 0.62rem; color: var(--studio-gold); }
+.live-frame-eight { text-align: center; }
+.live-frame-eight abbr {
+    display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center;
+    border-radius: 50%; background: #0B1220; color: #fff; border: 1px solid var(--studio-muted);
+    font-size: 0.6rem; font-weight: 800; text-decoration: none; cursor: help;
+}
+/* The side that took the frame, named in full and lit. */
+.live-frame-won-home .live-frame-home,
+.live-frame-won-away .live-frame-away { font-weight: 700; color: #fff; }
+
+/* ── The crawl along the foot of the screen ──
+   The same line the captains see under their own card. Fixed to the viewport
+   rather than the page, so it stays put while the page scrolls. */
+.live-tick {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    height: 34px; display: flex; align-items: center; overflow: hidden;
+    background: linear-gradient(90deg, rgba(11,18,32,0.97) 0%, rgba(22,33,61,0.97) 100%);
+    border-top: 2px solid #FBBF24;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.55);
+}
+.live-tick[hidden] { display: none; }
+.tick-badge {
+    flex: 0 0 auto; align-self: stretch; display: flex; align-items: center;
+    padding: 0 10px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #0B1220; background: #FBBF24;
+    font-variant-numeric: tabular-nums;
+}
+.tick-window { flex: 1 1 auto; overflow: hidden; }
+/* Two identical runs, shifted by exactly half the track: at -50% the second run
+   sits where the first began, so it repeats with no gap and no jump. */
+.tick-track {
+    display: inline-flex; white-space: nowrap; will-change: transform;
+    animation: tickRun linear infinite;
+    animation-duration: var(--tick-secs, 40s);
+}
+@keyframes tickRun {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}
+.tick-run { display: inline-flex; align-items: center; }
+.tick-item {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    padding: 0 18px; font-size: 0.82rem; color: #E8EDF7; white-space: nowrap;
+}
+.tick-item .sc {
+    font-variant-numeric: tabular-nums; font-weight: 800; color: #fff;
+    padding: 1px 7px; border-radius: 999px; background: rgba(59,130,246,0.30);
+}
+.tick-item .of { font-size: 0.68rem; color: #94A3B8; }
+.tick-item .cup {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; padding: 1px 5px;
+    border-radius: 999px; border: 1px solid #FBBF24; color: #FBBF24;
+}
+.tick-item .dot { color: #FBBF24; opacity: 0.6; padding: 0 2px; }
+/* A frame has just gone in. It stays marked until the score changes again, so
+   it is still lit when it next comes round - a flash on a timer would nearly
+   always have expired before the line scrolled past. */
+.tick-item.moved { color: #FBBF24; }
+.tick-item.moved .sc { background: #FBBF24; color: #0B1220; }
+
+/* Room for it, so the crawl never sits over the last thing on the page. */
+body.has-tick { padding-bottom: 52px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .tick-track { animation: none; }
+    .tick-window { overflow-x: auto; }
+    .live-dot { animation: none; }
+}
+
+@media (min-width: 900px) {
     .live-board { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) {
+    .live-studio { padding: 16px 12px 20px; }
+    .live-team { font-size: 0.9rem; }
+    .live-score-n { font-size: 1.6rem; }
+    .live-frame { grid-template-columns: 30px 1fr 18px 1fr 18px; font-size: 0.78rem; gap: 6px; }
 }
 ";
 
