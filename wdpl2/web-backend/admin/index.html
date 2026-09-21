@@ -139,6 +139,36 @@ button.sm{padding:7px 12px; font-size:13px;}
 #login{max-width:380px; margin:8vh auto 0;}
 #login .card{padding:18px;}
 .stack > * + *{margin-top:10px;}
+
+/* The board: a match to a line, scoreline aligned so a column of them can be
+   read down rather than across. */
+.board-row{
+  display:flex; align-items:center; gap:10px; padding:8px 0;
+  border-bottom:1px solid var(--line);
+}
+.board-row:last-child{border-bottom:0;}
+.board-row .t{flex:1 1 0; min-width:0; font-weight:700; font-size:13px; overflow-wrap:anywhere;}
+.board-row .t.a{text-align:right;}
+.board-row .sc{
+  font-variant-numeric:tabular-nums; font-weight:900; font-size:16px;
+  white-space:nowrap; padding:1px 9px; border-radius:999px;
+  background:rgba(59,130,246,.22);
+}
+.board-row .of{font-size:11px; color:var(--muted); white-space:nowrap; min-width:42px; text-align:right;}
+.board-sub{font-size:11px; color:var(--muted); margin-top:2px;}
+
+/* Standings and results, kept narrow enough to survive a phone. */
+.tbl{width:100%; border-collapse:collapse; font-size:12px;}
+.tbl caption{
+  text-align:left; font-weight:800; font-size:12px; color:var(--gold);
+  padding:8px 0 6px; letter-spacing:.04em; text-transform:uppercase;
+}
+.tbl th,.tbl td{padding:5px 6px; border-bottom:1px solid var(--line); text-align:right;}
+.tbl th{color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em;}
+.tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left; width:99%; overflow-wrap:anywhere;}
+.tbl td.num{font-variant-numeric:tabular-nums;}
+.tbl tr:last-child td{border-bottom:0;}
+.tbl td.pts{font-weight:900; color:var(--text);}
 </style>
 </head>
 <body>
@@ -175,12 +205,22 @@ button.sm{padding:7px 12px; font-size:13px;}
   <section id="portal" class="hidden">
     <div class="tabs">
       <button data-tab="tonight" class="on">Tonight</button>
+      <button data-tab="comps">Comp nights</button>
+      <button data-tab="tables">Tables</button>
       <button data-tab="captains">Captains</button>
       <button data-tab="waiting">Waiting</button>
       <button data-tab="system">System</button>
     </div>
 
     <div id="tab-tonight">
+      <!-- The board first: it is the thing worth leaving on a screen all
+           evening, and it answers "how is the night going" without reading
+           down a list of cards. -->
+      <div class="card">
+        <h2>On now</h2>
+        <div id="board"><div class="empty">Loading&hellip;</div></div>
+      </div>
+
       <div class="card">
         <h2>Cards</h2>
         <div class="row" style="margin-bottom:10px">
@@ -211,6 +251,35 @@ button.sm{padding:7px 12px; font-size:13px;}
           While a card is open the app will not edit that fixture. Only the
           captains write it, until it is finished and collected in the app.
           Each card uses the match format the app published with the season.
+        </p>
+      </div>
+    </div>
+
+    <div id="tab-comps" class="hidden">
+      <div class="card">
+        <h2>Competition nights</h2>
+        <div id="comps"><div class="empty">Loading&hellip;</div></div>
+        <p class="note">
+          A night is run from the competition page at the venue. Collecting one
+          marks it done and hands it back to the app, the way a scorecard is
+          collected. Removing one deletes the night, its players and every
+          match in it &mdash; take it into the app first.
+        </p>
+      </div>
+    </div>
+
+    <div id="tab-tables" class="hidden">
+      <div class="card">
+        <h2>Standings</h2>
+        <div id="standings"><div class="empty">Loading&hellip;</div></div>
+      </div>
+      <div class="card">
+        <h2>Results</h2>
+        <div id="results"><div class="empty">Loading&hellip;</div></div>
+        <p class="note">
+          What the website is showing for the current season, exactly as the
+          public pages read it. The app owns both &mdash; publish from the app to
+          change what appears here.
         </p>
       </div>
     </div>
@@ -281,7 +350,7 @@ button.sm{padding:7px 12px; font-size:13px;}
   var API = '../api/index.php';
   var POLL = 15000;
 
-  var S = { cards:[], fixtures:[], pins:[], tab:'tonight', timer:null, busy:false, again:false,
+  var S = { cards:[], fixtures:[], pins:[], comps:[], tab:'tonight', timer:null, busy:false, again:false,
             filter:'', viewing:null, nights:{} };
 
   function $(id){ return document.getElementById(id); }
@@ -796,6 +865,283 @@ button.sm{padding:7px 12px; font-size:13px;}
     });
   }
 
+  // ----------------------------------------------------------------- board
+
+  /**
+   * Every match being scored right now, on one line each.
+   *
+   * The same feed the public page and the captains' ticker read, so what the
+   * secretary sees here and what the pub sees are the same numbers. Frames are
+   * not asked for: this is a scoreline board, not a scorecard - the card viewer
+   * is a tap away for that.
+   */
+  function loadBoard(){
+    return call('league','live',{}).then(function(d){
+      var items = (d && d.items) || [];
+      var box = $('board');
+      var at = when(d && d.generatedUtc) || new Date().toLocaleTimeString();
+
+      if(!items.length){
+        box.innerHTML = '<div class="empty">Nothing is being scored right now. '
+                      + 'Checked at '+esc(at)+'.</div>';
+        return;
+      }
+
+      box.innerHTML = items.map(function(m){
+        var where = [];
+        if(m.division_name) where.push(m.division_name);
+        if(m.venue_name) where.push(m.venue_name);
+        if(m.status === 'confirming') where.push('waiting on a signature');
+
+        return '<div>'
+          + '<div class="board-row">'
+          +   '<span class="t a">'+esc(m.home_team_name||'?')+'</span>'
+          +   '<span class="sc">'+esc(m.home_score)+'–'+esc(m.away_score)+'</span>'
+          +   '<span class="t">'+esc(m.away_team_name||'?')+'</span>'
+          +   (m.kind === 'cup' ? '<span class="pill warn">cup</span>' : '')
+          +   '<span class="of">'+esc(m.frames_played)+'/'+esc(m.frames_total)+'</span>'
+          + '</div>'
+          + (where.length ? '<div class="board-sub">'+esc(where.join(' · '))+'</div>' : '')
+          + '</div>';
+      }).join('')
+      + '<div class="empty">'+items.length+' on · '+esc(at)+'</div>';
+    });
+  }
+
+  function boardFailed(e){
+    $('board').innerHTML = '<div class="empty">'
+      + esc((e && e.message) || 'The board could not be loaded.')+'</div>';
+    // Re-thrown only for a dropped session, so the page still signs out.
+    if(e && e.code==='admin_required') throw e;
+  }
+
+  // ----------------------------------------------------------------- comps
+
+  function loadComps(){
+    return call('comps','state',{}).then(function(d){
+      S.comps = Array.isArray(d) ? d : [];
+      renderComps();
+    });
+  }
+
+  function renderComps(){
+    var box = $('comps');
+    var rows = S.comps;
+
+    if(!rows.length){
+      box.innerHTML = '<div class="empty">No competition night has been published.</div>';
+      return;
+    }
+
+    // Grouped by competition, because a league runs several and the names of
+    // the nights inside one ("Group A", "Last 16") mean nothing on their own.
+    var order = [];
+    var byComp = {};
+    rows.forEach(function(s){
+      var key = s.competition || 'Competition';
+      if(!byComp[key]){ byComp[key] = []; order.push(key); }
+      byComp[key].push(s);
+    });
+
+    box.innerHTML = order.map(function(name){
+      return '<div class="board-sub" style="color:var(--gold);font-weight:800;'
+           + 'text-transform:uppercase;letter-spacing:.04em;margin:10px 0 2px">'
+           + esc(name)+'</div>'
+           + byComp[name].map(compRow).join('');
+    }).join('');
+  }
+
+  function compRow(s){
+    var done = s.state === 'closed';
+    var played = Number(s.played||0), matches = Number(s.matches||0);
+    var allPlayed = matches > 0 && played >= matches;
+
+    var pill = done ? '<span class="pill claimed">collected</span>'
+             : (allPlayed ? '<span class="pill done">finished</span>'
+                          : '<span class="pill live">running</span>');
+
+    var where = [];
+    if(s.venue_name) where.push(s.venue_name);
+    if(s.table_label) where.push(s.table_label);
+    if(s.organiser_name) where.push('run by '+s.organiser_name);
+    where.push(played+'/'+matches+' played');
+    if(s.present) where.push(s.present+' here');
+    if(done && s.collected_at) where.push('collected '+when(s.collected_at));
+    else if(s.finished_at) where.push('finished '+when(s.finished_at));
+
+    // Collecting is what the app does with a finished night; removing is the
+    // end of it. Only offer collect while there is something to collect.
+    var acts = (done ? '' :
+        '<button class="ghost sm" data-collect="'+esc(s.id)+'">Collect</button>')
+      + '<button class="ghost sm" data-drop="'+esc(s.id)+'">Remove</button>';
+
+    return '<div class="item"><div class="who">'
+      + '<div class="name">'+esc(s.name||'(unnamed night)')+' '+pill+'</div>'
+      + '<div class="sub">'+esc(where.join(' · '))+'</div>'
+      + '</div><div class="acts">'+acts+'</div></div>';
+  }
+
+  function compNamed(id){
+    for(var i=0;i<S.comps.length;i++){
+      if(String(S.comps[i].id) === String(id)) return S.comps[i];
+    }
+    return null;
+  }
+
+  $('comps').addEventListener('click', function(e){
+    var collect = e.target.getAttribute && e.target.getAttribute('data-collect');
+    var drop    = e.target.getAttribute && e.target.getAttribute('data-drop');
+
+    if(collect){
+      var c = compNamed(collect);
+      if(!confirm('Collect "'+((c&&c.name)||'this night')+'"?\n\n'
+                + 'It stops being live and waits for the app to take it in.')) return;
+      say('');
+      call('comps','collect',{sessionId:collect})
+        .then(function(){ say('Collected. Take it into the app next.','ok'); return loadComps(); })
+        .catch(fail);
+      return;
+    }
+
+    if(drop){
+      var d = compNamed(drop);
+      var label = (d && d.name) || 'this night';
+      // Deleting, not archiving: the session, its players and all of its
+      // matches go. Worth spelling out, because "close" reads much softer
+      // than what it does.
+      if(!confirm('Remove "'+label+'" for good?\n\n'
+                + 'The night, everyone in it and every match played are deleted '
+                + 'from the website. This cannot be undone.\n\n'
+                + 'Collect it into the app first if you have not already.')) return;
+      if(!confirm('Last check: delete "'+label+'"?')) return;
+      say('');
+      call('comps','close',{sessionId:drop})
+        .then(function(){ say('Removed.','ok'); return loadComps(); })
+        .catch(fail);
+    }
+  });
+
+  // ---------------------------------------------------------------- tables
+
+  function loadTables(){
+    // Two reads, one render each, so a failure in one still shows the other.
+    return Promise.all([
+      call('league','standings',{}).then(renderStandings, function(e){
+        $('standings').innerHTML = '<div class="empty">'+esc(e && e.message || 'Could not load.')+'</div>';
+      }),
+      call('league','results',{}).then(renderResults, function(e){
+        $('results').innerHTML = '<div class="empty">'+esc(e && e.message || 'Could not load.')+'</div>';
+      })
+    ]);
+  }
+
+  /**
+   * True when the table is there but every figure in it is zero.
+   *
+   * This is what a season looks like after it is first published and before
+   * any result is sent back: fourteen teams, all on nothing. Drawing that as a
+   * table is worse than useless - it looks like the page is broken rather than
+   * like the website is waiting to be told what happened.
+   */
+  function allZero(rows){
+    var keys = ['position','played','won','drawn','lost','frames_for','frames_against','points'];
+    for(var i=0;i<rows.length;i++){
+      for(var k=0;k<keys.length;k++){
+        if(Number(rows[i][keys[k]]||0) !== 0) return false;
+      }
+    }
+    return true;
+  }
+
+  var STALE = 'The app has not published since these were played. '
+            + 'Publish from the app and this fills in — the website only '
+            + 'shows what the app has sent it.';
+
+  function renderStandings(d){
+    var rows = Array.isArray(d) ? d : [];
+    var box = $('standings');
+
+    if(!rows.length){
+      box.innerHTML = '<div class="empty">No season has been published yet.</div>';
+      return;
+    }
+
+    if(allZero(rows)){
+      box.innerHTML = '<div class="empty">'
+        + rows.length+' team'+(rows.length===1?'':'s')+' published, but every figure is zero. '
+        + esc(STALE)+'</div>';
+      return;
+    }
+
+    var order = [], byDiv = {};
+    rows.forEach(function(r){
+      var key = r.division_name || 'League';
+      if(!byDiv[key]){ byDiv[key] = []; order.push(key); }
+      byDiv[key].push(r);
+    });
+
+    box.innerHTML = order.map(function(name){
+      var body = byDiv[name].map(function(r, i){
+        var diff = Number(r.frames_for||0) - Number(r.frames_against||0);
+        // A published table can carry position 0 on every row. The server
+        // falls back to sorting by points, so the row's own place in the list
+        // is the honest number to print when it does.
+        var place = Number(r.position||0) || (i + 1);
+        return '<tr>'
+          + '<td class="num dim">'+esc(place)+'</td>'
+          + '<td>'+esc(r.team_name||'?')+(Number(r.deducted||0) ? ' <span class="pill warn">-'+esc(r.deducted)+'</span>' : '')+'</td>'
+          + '<td class="num">'+esc(r.played)+'</td>'
+          + '<td class="num">'+esc(r.won)+'</td>'
+          + '<td class="num">'+esc(r.drawn)+'</td>'
+          + '<td class="num">'+esc(r.lost)+'</td>'
+          + '<td class="num dim">'+esc(r.frames_for)+'–'+esc(r.frames_against)+'</td>'
+          + '<td class="num dim">'+(diff>0?'+':'')+esc(diff)+'</td>'
+          + '<td class="num pts">'+esc(r.points)+'</td>'
+          + '</tr>';
+      }).join('');
+
+      return '<table class="tbl"><caption>'+esc(name)+'</caption>'
+        + '<thead><tr><th></th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th>'
+        + '<th>Frames</th><th>+/-</th><th>Pts</th></tr></thead>'
+        + '<tbody>'+body+'</tbody></table>';
+    }).join('');
+  }
+
+  function renderResults(d){
+    var rows = Array.isArray(d) ? d : [];
+    var box = $('results');
+
+    if(!rows.length){
+      box.innerHTML = '<div class="empty">No result has been published yet. '
+        + esc(STALE)+'</div>';
+      return;
+    }
+
+    // results already arrives newest first; capped so the tab stays quick to
+    // read, with the count saying what is behind the cap.
+    var CAP = 60;
+    var shown = rows.slice(0, CAP);
+
+    box.innerHTML = shown.map(function(f){
+      var sub = [];
+      if(f.match_date) sub.push(when(f.match_date).split(',')[0]);
+      if(f.division_name) sub.push(f.division_name);
+      if(f.venue_name) sub.push(f.venue_name);
+
+      return '<div>'
+        + '<div class="board-row">'
+        +   '<span class="t a">'+esc(f.home_team_name||'?')+'</span>'
+        +   '<span class="sc">'+esc(f.home_score)+'–'+esc(f.away_score)+'</span>'
+        +   '<span class="t">'+esc(f.away_team_name||'?')+'</span>'
+        + '</div>'
+        + (sub.length ? '<div class="board-sub">'+esc(sub.join(' · '))+'</div>' : '')
+        + '</div>';
+    }).join('')
+    + '<div class="empty">'
+    + (rows.length > CAP ? 'Showing the latest '+CAP+' of '+rows.length+'.' : rows.length+' played.')
+    + '</div>';
+  }
+
   // --------------------------------------------------------------- system
 
   function loadHealth(){
@@ -826,11 +1172,14 @@ button.sm{padding:7px 12px; font-size:13px;}
     b.addEventListener('click', function(){
       S.tab = b.getAttribute('data-tab');
 
+      // Driven by the buttons themselves. The list of tab names used to be
+      // written out again here, which is a second place to forget when a tab
+      // is added - and a forgotten one shows its button and no panel.
       Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function(o){
+        var name = o.getAttribute('data-tab');
         o.classList.toggle('on', o===b);
-      });
-      ['tonight','captains','waiting','system'].forEach(function(t){
-        show($('tab-'+t), t===S.tab);
+        var panel = $('tab-'+name);
+        if(panel) show(panel, name===S.tab);
       });
 
       say('');
@@ -841,7 +1190,12 @@ button.sm{padding:7px 12px; font-size:13px;}
   // ------------------------------------------------------------- refresh
 
   function loadFor(tab){
-    if(tab==='tonight')  return loadCards().then(loadFixtures);
+    // The board is the nice-to-have on this tab; the cards are the job. A
+    // board that cannot load says so in its own panel rather than taking
+    // the rest of the tab down with it.
+    if(tab==='tonight')  return loadBoard().catch(boardFailed).then(loadCards).then(loadFixtures);
+    if(tab==='comps')    return loadComps();
+    if(tab==='tables')   return loadTables();
     if(tab==='captains') return loadPins();
     if(tab==='waiting')  return loadWaiting();
     return loadHealth();
@@ -878,7 +1232,7 @@ button.sm{padding:7px 12px; font-size:13px;}
     S.timer = setInterval(function(){
       if(document.hidden || !$('auto').checked) return;
       if(S.viewing){ loadViewer(); return; }
-      if(S.tab==='tonight') refreshAll();
+      if(S.tab==='tonight' || S.tab==='comps') refreshAll();
     }, POLL);
   }
 

@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:Wdpl2.Views"
     xmlns:logos="clr-namespace:Wdpl2.Views.Logos"
-    xmlns:webcontrol="clr-namespace:Wdpl2.Views.WebControl">
+    xmlns:webcontrol="clr-namespace:Wdpl2.Views.WebControl"
+    xmlns:websitebuilder="clr-namespace:Wdpl2.Views.WebsiteBuilder">
 
     <TabBar>
         <Tab Title="Dashboard" Icon="stats.png">
@@ -65,7 +66,7 @@
 
         <!-- WEBSITE BUILDER -->
         <Tab Title="Website" Icon="globe.png">
-            <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate views:WebsiteBuilderPage}" />
+            <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate websitebuilder:WebsiteBuilderHub}" />
         </Tab>
 
         <Tab Title="Web Control" Icon="globe.png">

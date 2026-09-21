@@ -384,7 +384,9 @@ final class LeagueModule implements Module
              LEFT JOIN wdpl_divisions d ON d.id = s.division_id
              LEFT JOIN wdpl_teams     t ON t.id = s.team_id
              WHERE s.season_id = ?
-             ORDER BY d.sort_order, d.name, s.position',
+             ORDER BY d.sort_order, d.name, s.position,
+                      s.points DESC, (s.frames_for - s.frames_against) DESC,
+                      s.frames_for DESC, t.name',
             [self::requestedSeason()]
         );
     }

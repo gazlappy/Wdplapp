@@ -170,8 +170,20 @@ public static class LeagueSnapshot
             var divisionTeams = teams.Where(t => t.DivisionId == division.Id).ToList();
             if (divisionTeams.Count == 0) continue;
 
-            var divisionFixtures = fixtures.Where(f => f.DivisionId == division.Id);
-            var table = StandingsCalculator.Calculate(divisionTeams, divisionFixtures, settings);
+            var divisionFixtures = fixtures.Where(f => f.DivisionId == division.Id).ToList();
+            var calculated = StandingsCalculator.Calculate(divisionTeams, divisionFixtures, settings);
+
+            // Calculate returns the rows in team order and leaves Position at
+            // zero - it is the caller's job to place them, and every other
+            // caller does its own. Without this the website was sent fourteen
+            // teams all on position 0, and its ORDER BY had nothing to sort on:
+            // the table came back in a different order on every request.
+            var table = StandingsSorter.Sort(
+                calculated, settings,
+                s => s.Points, s => s.FramesFor, s => s.FramesAgainst, s => s.Won, s => s.TeamId,
+                divisionFixtures);
+
+            for (var i = 0; i < table.Count; i++) table[i].Position = i + 1;
 
             foreach (var standing in table)
             {
