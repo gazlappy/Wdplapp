@@ -45,13 +45,14 @@ dotnet test wdpl2.Tests\wdpl2.Tests.csproj -v minimal
 - EF Core 9 + SQLite (`wdpl2/Data/LeagueContext.cs`), alongside the static
   `DataStore` JSON snapshot bridge. Persistence is hybrid — read both paths before
   changing save/load behaviour.
-- Also in play: SkiaSharp (Logo Studio), Plugin.Maui.OCR (scorecard scanning),
-  Plugin.LocalNotification, FluentFTP + `wdpl2/web-backend` (PHP/MySQL) for publishing.
+- Also in play: SkiaSharp (resizing uploaded images), Plugin.Maui.OCR (scorecard
+  scanning), Plugin.LocalNotification, FluentFTP + `wdpl2/web-backend` (PHP/MySQL)
+  for publishing.
 
 ## Housekeeping
-- Repo root has ~20 empty `_*.ps1` / `patch-*.ps1` stubs and a 10 MB
-  `wdpl2/build_warnings.txt` left over from past sessions. They're dead weight —
-  ignore them, and don't treat them as part of the build.
+- `docs/archive/` holds old status write-ups from past sessions. They describe the
+  app as it was (games, logo designer, importers — all since removed); read the
+  code, not those, for how things work now.
 - Use repo-relative paths in code and docs, never `C:\Users\bobgc\...`.
 
 ## Running it (VS Code / CLI)

@@ -1,7 +1,12 @@
 # Copilot Instructions
 
 ## Project Guidelines
-- WDPL stands for Wellington District Pool League. The project (wdpl2/Wdpl2) is a .NET 9 MAUI app for managing the Wellington District Pool League. Use MAUI, not Xamarin.Forms.
+- WDPL stands for Wellington District Pool League. The project (wdpl2/Wdpl2) is a .NET 9 MAUI app built to manage that league and now being made into a product any pool league can use. Use MAUI, not Xamarin.Forms. The scheduling and season rules below are WDPL's and the app implements them.
+
+## Product Name and App Identity
+- The name people see comes from `wdpl2/Product.cs` (`Product.Name`), or from the league's own name in website settings where the text is about the league. Do not hardcode "WDPL" or "Wellington" in anything a user sees.
+- The app's internal identity is separate and must not be renamed without a data migration: `ApplicationId` (`com.wdpl2.app`) and the `wdpl2` folder under `FileSystem.AppDataDirectory` decide where a league is stored, so changing either opens the app empty with the league left behind. The same applies to the backend's `wdpl_*` table names and the `backend: wdpl` ping identifier. The `Wdpl2` namespace and assembly name are internal and not worth the churn to rename.
+- There is no default server address (`WebConnection.DefaultBaseUrl` is empty). A default pointing at one league's server would send every new install's admin password there.
 - WDPL has separate summer and winter seasons within a year, with division naming changing between numbered divisions (1st, 2nd) and colored divisions (red, green, yellow). Imports must not collapse these distinct seasonal division schemes into one season.
 - Summer and winter can share a calendar year but remain separate seasons. Preserve season terms and year ranges, including pre-2000 years. Do not merge seasons solely by overlapping year, substring, or start/end date. Automatic links require unambiguous season identity.
 
@@ -19,33 +24,18 @@
 - Use repository-relative paths, not developer-specific checkout paths.
 
 ## Season and Entity Identity
-- Numbered divisions are winter evidence and colored divisions are summer evidence in the current archive importer. Conflicting evidence requires review.
-- Alphabet navigation labels (A, B, C, etc.) and index/placeholder text are not players. Preserve legitimate names and initials such as J. Smith.
-- Avoid speculative fuzzy identity merges that could collapse different players, teams, or seasons.
+- Avoid speculative fuzzy identity merges that could collapse different players, teams, or seasons. Preserve legitimate names and initials such as J. Smith.
+- `wdpl2/Helpers/DivisionHelper.cs` handles division normalization and matching.
 
-## Import Workflow and Safeguards
-- The unified import entry uses a choose/review/import flow. Review detected data before saving.
-- Import source flows include Access, SQL, Paradox database folders, Word, Excel, CSV, HTML, and PDF, with format and platform/provider limitations.
-- Multiple HTML files use batch preview. Scan imports discover files, group by season, analyze contents, and present groups for review.
-- Classify using explicit source evidence such as page titles, division names, and table headers, not arbitrary links or positional cells alone.
-- Explain unresolved/conflicting season groups and exclude them from automatic import rather than guessing.
-- Preserve private import workspaces, transactional commits, relationship/placement validation, and locked-season protection.
-- Parser fixes do not automatically repair existing imported data. Cleanup or re-import is separate work; do not silently delete user data.
-- Large archives are a real use case (the reported scan had approximately 43,000 files). Distinguish representative regression coverage from full-archive validation.
-
-## Key Import Files
-- `wdpl2/Views/Import/HistoricalImportPage.xaml` and code-behind: unified entry and step-based workflow.
-- `wdpl2/Views/Import/SmartImportPage.xaml.cs`: scan, season review, and import orchestration.
-- `wdpl2/Features/Import/Html/LeagueFileDiscoveryService.cs`: discovery, season detection/grouping, and analysis.
-- `wdpl2/Features/Import/Html/HtmlLeagueParser.cs`: HTML classification and extraction of standings, results, ratings, profiles, player lists, doubles, and fixtures.
-- `wdpl2/Views/Import/BatchImportPreviewPage.xaml.cs`: selected-file aggregation, preview, and batch import.
-- `wdpl2/Helpers/DivisionHelper.cs`: division normalization and matching.
-- `wdpl2.Tests/Features/Import/Html/HtmlLeagueParserTests.cs` and `ArchiveClassificationTests.cs`: parser and classification regressions.
+## Editing Safeguards
+- The legacy importers (Access, SQL, Paradox, HTML archives, Word) and the Import tab were removed; the league's historical data they brought in is still in the data file. Bulk entry is now the CSV boxes on the Teams, Players, Venues and Divisions pages, and new seasons are started with Import from Previous Seasons on the Seasons page (`Views/Import/ImportHistoricalDataPage`, backed by `SeasonCopyService`).
+- `wdpl2/Features/Import/` keeps only shared plumbing, despite the folder name: `ImportWorkspace` (the private workspace and all-or-nothing commit every editing screen and season copy goes through), `ImportPlacementValidator` (relationship/placement checks on save), `ReviewPagination` (paged review lists) and `Csv`/`CsvRows`.
+- Preserve private workspaces, transactional commits, relationship/placement validation, and locked-season protection. Do not silently delete user data.
 
 ## App Architecture and Shared State
 - `wdpl2/MauiProgram.cs` configures MAUI Community Toolkit, local notifications, OCR, SkiaSharp, fonts, and DI. Registration is split into `AddPersistence`, `AddCoreAppServices`, `AddNotifications`, `AddViewModels`, and `AddPages` extension methods.
 - `wdpl2/App.xaml.cs` initializes the database, bridges the static datastore to DI, loads data, applies the saved theme, initializes season selection, then creates `AppShell`.
-- `wdpl2/AppShell.xaml` defines tab navigation for Dashboard, Seasons, Divisions, Teams, Players, Venues, Fixtures, Calendar, Competitions, Tables, Analytics, Import, Logos, Website, Web Control, Settings, and Pool.
+- `wdpl2/AppShell.xaml` defines tab navigation for Dashboard, Seasons, Divisions, Teams, Players, Venues, Fixtures, Calendar, Competitions, Tables, Analytics, Website, Web Control, and Settings. Point a tab's `ContentTemplate` at the real page: Shell reuses a tab's page instance, so a redirect page that navigates once gets stuck on its loading screen when the tab is revisited.
 - The UI mixes XAML/code-behind with CommunityToolkit.Mvvm view models. Follow the local pattern rather than assuming every page is fully MVVM.
 - `wdpl2/ViewModels/BaseViewModel.cs` provides observable loading/status/season state, cancellation on season changes, and subscription cleanup. Preserve stale-load cancellation and event cleanup.
 - `ISeasonService`/`SeasonService` is the shared singleton for current season selection and `SeasonChanged` notifications; `SeasonService.Current` supports non-DI callers. Do not invent independent current-season state in individual pages.
@@ -75,7 +65,7 @@
 - `wdpl2/Features/WebsiteBuilder/` contains settings views, generated HTML/CSS/components, JSON data generation, template pages, fixture sheets, and live-score output. Website generation is split across partial `WebsiteGenerator` files.
 - Website settings cover branding, layout, colors, league data pages, history, galleries, rules/contact content, entry forms, captain access, SEO, and deployment.
 - Entry forms use private editor drafts and shared rendering in `WebsiteGenerator.EntryForms.cs` for public pages and non-submitting previews. `EntryFormRules` centralizes validation and inclusive closing dates. Delivery is download-and-send, or a credential-free HTTPS POST to an external endpoint that returns an explicit matching acknowledgement; private collection tokens never enter generated HTML. Forms never claim browser storage is a submission. Imports require explicit form identity and review, preserve historical field values, and link season teams only by explicit records.
-- Logo Studio uses `Views/Logos/` and `Features/WebsiteBuilder/Logo/`; SkiaSharp supports logo rendering, design recipes, layers, and shape/icon catalogs.
+- Logos are uploaded images in the website settings' logo catalog (Branding). The logo designer was removed; logos it made remain as images. `Team.LogoCatalogId` is kept for data compatibility but nothing displays team logos.
 - `wdpl2/Services/Cloud/` contains GitHub Pages publishing, optional GitHub data sync, and FTP upload. Do not assume credentials are configured or publishing is enabled, and never store credentials in instructions.
 
 ## Web platform (online backend)
@@ -87,12 +77,11 @@ The previous PHP backend, Web Inbox, browser admin and two-way sync were removed
 - **Two auth realms that never overlap.** Admin (PBKDF2 hash in the `config.php` sidecar) and captain (`Team.CaptainPin`, server-side, scoped to one team). Captain-scoped queries filter on the session's team id, never on a team id taken from the request body.
 - **A module is one folder plus one DI registration**: `api/modules/<id>/Module.php` implementing `Module`, an `IWebModule` in `Services/Web/`, registered in `AddWebPlatform`. The Web Control tab, deploy file set and schema installer all read from the registry, so none of them need editing.
 - **Code and configuration deploy separately**, so redeploying code cannot clobber working server credentials. `api/config.php` is never committed and never bundled as an app asset.
-- Built so far: M1, the spine (core, routing, admin auth, deploy, Web Control tab). Teams, captains and live scorecards are not built. The generated site still publishes hashed captain PINs (`WebsiteJsonDataGenerator.cs`) and still points at the deleted `api/public/live.php` (`WebsiteGenerator.LiveScores.cs`); later milestones close both.
-- **The host runs PHP 7.4.33** (x10hosting / DirectAdmin / LiteSpeed / MariaDB 10.6) with no version selector on the plan, so all backend PHP must parse on 7.4. No constructor promotion, `readonly`, `never`, `mixed`, variable-less `catch`, `$obj::class`, `str_contains`, `match` or enums. Typed properties, arrow functions and `??=` are fine. PHP 8 accepts all the forbidden syntax silently, so **lint against 7.4** - `wdpl2/Docs/WebPlatform.md` has the table and the local runtime paths. PHP 7.4 is end-of-life; moving host is the real fix.
+- Modules built: `system`, `league` (published data and the `live` board), `captains`, `scorecards` (live scoring, cup ties, solo mode) and `comps` (competition nights). The public live page reads `league.live`; `WebsiteGeneratorLiveScoresTests` parses the PHP to keep the page reading only fields the endpoint sends.
+- **The live host reports PHP 8.4** (`system.ping`, September 2026; it was 7.4.33 before the host moved to a version selector). A buyer's host may be older, so keep backend PHP conservative and check `wdpl2/Docs/WebPlatform.md` before relying on newer syntax. Lint every backend change and run the rules suites in `wdpl2.Tests/Features/WebPlatform/`.
 
-## Games, Resources, and Validation
-- `wdpl2/Features/Games/` contains a games library, Pool, Breakout, Memory, Snake, and RetroFps. Pool generates embedded HTML/JavaScript from C# modules under `Pool/Engine/`, covering physics, rendering, input, AI, audio, replay, spin, and shot controls.
-- `wdpl2/Resources/` holds styles, fonts, rules, raw web assets, and 3D models. `Helpers/` contains shared responsive UI, panels, WebView, emoji, and division helpers.
+## Resources and Validation
+- The games (Pool, Breakout, Memory, Snake, RetroFps) were removed. `wdpl2/Resources/` holds styles, fonts, raw web assets, and the rules templates in `Resources/Rules/` (neutral starting templates plus the EPA rules; a league's own rules are saved in website settings, and the Rules editor loads those first). `Helpers/` contains shared responsive UI, panels, WebView, emoji, and division helpers.
 - The app project declares Android, iOS, Mac Catalyst, and Windows targets. Declared targets are not proof that every platform has been tested; honor platform-specific code and dependencies.
 - `wdpl2.Tests/` mirrors domain, services, view models, features, and views using xUnit. Run relevant regressions and build for code changes; documentation-only changes do not require compiling the app.
 - Legacy archive/sample folders are test/reference data, not the application's architecture. `wdpl2/Docs/` includes Paradox format documentation and scheduling references; inspect project exclusions before treating files as compiled code.
