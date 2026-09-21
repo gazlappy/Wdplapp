@@ -113,7 +113,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -149,7 +148,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -181,7 +179,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -212,7 +209,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -243,7 +239,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -330,7 +325,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -363,7 +357,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -396,7 +389,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -428,7 +420,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -460,7 +451,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -492,7 +482,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -524,7 +513,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -556,7 +544,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -588,7 +575,6 @@ public class WebsiteGeneratorTests
         settings.NewsItems.Add(new NewsItem { Title = "Test News" });
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -620,7 +606,6 @@ public class WebsiteGeneratorTests
         settings.ShowRowsReports = true;
         settings.RowsReports.Add(new RowsReport { Title = "Test Report" });
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -652,7 +637,6 @@ public class WebsiteGeneratorTests
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = true;
         settings.EntryForms.Add(new EntryForm { Title = "Test Form", IsPublished = true });
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -685,7 +669,6 @@ public class WebsiteGeneratorTests
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = true;
         settings.EntryForms.Add(new EntryForm { Title = "Test Form", IsPublished = false });
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -699,7 +682,7 @@ public class WebsiteGeneratorTests
     }
 
     [Fact]
-    public void GenerateWebsite_ShowPoolGame_GeneratesPoolGamePage()
+    public void GenerateWebsite_NeverEmitsThePoolGamePage()
     {
         // Arrange
         var league = CreateTestLeagueData();
@@ -717,7 +700,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = true;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -726,7 +708,9 @@ public class WebsiteGeneratorTests
         var files = generator.GenerateWebsite();
 
         // Assert
-        Assert.Contains("pool-game.html", files.Keys);
+        // The pool game was removed from the product. Guarded so a stale
+        // reference cannot quietly put it back on a league's website.
+        Assert.DoesNotContain("pool-game.html", files.Keys);
     }
 
     [Fact]
@@ -748,7 +732,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = true;
         settings.HistoryHtmlContent = "<html><body><h1>Roll of Honour</h1></body></html>";
         settings.GenerateSitemap = false;
@@ -780,7 +763,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "About", Slug = "about-us", IsPublished = true });
@@ -812,7 +794,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "About Us", Slug = "", IsPublished = true });
@@ -844,7 +825,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "Draft", Slug = "draft", IsPublished = false });
@@ -876,7 +856,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = true;
         var generator = new WebsiteGenerator(league, settings);
@@ -907,7 +886,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "About Us", Slug = "   ", IsPublished = true });
@@ -939,7 +917,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -970,7 +947,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "Page 1", Slug = "page-1", IsPublished = true });
@@ -1007,7 +983,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -1039,7 +1014,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -1071,7 +1045,6 @@ public class WebsiteGeneratorTests
         settings.NewsItems.Clear();
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -1103,7 +1076,6 @@ public class WebsiteGeneratorTests
         settings.ShowRowsReports = true;
         settings.RowsReports.Clear();
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -1134,7 +1106,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = true;
         settings.HistoryHtmlContent = "";
         settings.GenerateSitemap = false;
@@ -1169,7 +1140,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         var generator = new WebsiteGenerator(league, settings);
@@ -1200,7 +1170,6 @@ public class WebsiteGeneratorTests
         settings.ShowNews = false;
         settings.ShowRowsReports = false;
         settings.ShowEntryForms = false;
-        settings.ShowPoolGame = false;
         settings.ShowHistory = false;
         settings.GenerateSitemap = false;
         settings.CustomPages.Add(new CustomPage { Title = "Test Page", Slug = null!, IsPublished = true });

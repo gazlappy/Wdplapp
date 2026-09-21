@@ -117,7 +117,7 @@ public partial class WebsiteBuilderHub : ContentPage
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
             or "rows-reports.html" or "entry-forms.html"
             or "captains.html"
-            or "player.html" or "team.html" or "pool-game.html" or "style.css"
+            or "player.html" or "team.html" or "style.css"
             or "sitemap.xml" or "players-data.json" or "teams-data.json";
     
     protected override void OnAppearing()

@@ -25,7 +25,7 @@ public class BackupService
                 Directory.CreateDirectory(backupDir);
 
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var zipPath = outputPath ?? Path.Combine(backupDir, $"wdpl2_backup_{timestamp}.zip");
+            var zipPath = outputPath ?? Path.Combine(backupDir, $"league_backup_{timestamp}.zip");
 
             // Ensure parent directory exists
             var zipDir = Path.GetDirectoryName(zipPath);

@@ -245,7 +245,6 @@ namespace Wdpl2.Models
         public bool ShowSponsors { get; set; } = false;
         public bool ShowRules { get; set; } = false;
         public bool ShowContactPage { get; set; } = false;
-        public bool ShowPoolGame { get; set; } = true;
 
         // Live Scores (public page fed by the captains' shared online scorecards)
         public bool ShowLiveScores { get; set; } = false;
@@ -314,7 +313,6 @@ namespace Wdpl2.Models
         public string PlayersNavLabel { get; set; } = "Players";
         public string DivisionsNavLabel { get; set; } = "Divisions";
         public string CompetitionsNavLabel { get; set; } = "Competitions";
-        public string PoolGameNavLabel { get; set; } = "\U0001F3B1 Play Pool";
         public string GalleryNavLabel { get; set; } = "Gallery";
         public string NewsNavLabel { get; set; } = "News";
         public string RowsReportsNavLabel { get; set; } = "Rows Reports";
@@ -661,38 +659,6 @@ namespace Wdpl2.Models
         }
 
         /// <summary>
-        /// Add a designer-created logo to the catalog with a saved design recipe so it can be re-edited.
-        /// </summary>
-        public string AddDesignedLogoCatalogItem(string name, byte[] imageData, string designJson, string description = "", string category = "Designed")
-        {
-            var id = Guid.NewGuid().ToString();
-            LogoCatalog.Add(new WebsiteLogoCatalogItem
-            {
-                Id = id,
-                Name = name,
-                Description = description,
-                ImageData = imageData,
-                Category = category,
-                DesignJson = designJson
-            });
-            return id;
-        }
-
-        /// <summary>
-        /// Update an existing designer-created logo (replaces image + recipe).
-        /// </summary>
-        public bool UpdateDesignedLogoCatalogItem(string id, string name, byte[] imageData, string designJson, string category = "Designed")
-        {
-            var item = LogoCatalog.Find(l => l.Id == id);
-            if (item == null) return false;
-            item.Name = name;
-            item.ImageData = imageData;
-            item.DesignJson = designJson;
-            if (!string.IsNullOrWhiteSpace(category)) item.Category = category;
-            return true;
-        }
-        
-        /// <summary>
         /// Remove a logo from the catalog
         /// </summary>
         public bool RemoveLogoCatalogItem(string id)
@@ -973,7 +939,6 @@ namespace Wdpl2.Models
             PlayersNavLabel = "Players";
             DivisionsNavLabel = "Divisions";
             CompetitionsNavLabel = "Competitions";
-            PoolGameNavLabel = "\U0001F3B1 Play Pool";
             GalleryNavLabel = "Gallery";
             NewsNavLabel = "News";
             RowsReportsNavLabel = "Rows Reports";
@@ -1200,8 +1165,8 @@ namespace Wdpl2.Models
         public DateTime DateAdded { get; set; } = DateTime.Now;
 
         /// <summary>
-        /// Optional JSON-serialized <c>LogoDesignRecipe</c> for logos created in the Logo Designer.
-        /// When present, the catalog item can be re-opened and edited.
+        /// Design recipe saved by the logo designer, which has since been removed.
+        /// Kept so older saved logos load and save unchanged; nothing reads it.
         /// </summary>
         public string? DesignJson { get; set; }
     }
@@ -1216,8 +1181,6 @@ namespace Wdpl2.Models
         public string Category { get; set; } = "General";
         public byte[] ImageData { get; set; } = Array.Empty<byte>();
         public string? DesignJson { get; set; }
-
-        public bool IsDesigned => !string.IsNullOrEmpty(DesignJson);
 
         public ImageSource? ImageSource => ImageData.Length > 0
             ? ImageSource.FromStream(() => new MemoryStream(ImageData))

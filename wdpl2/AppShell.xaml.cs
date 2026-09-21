@@ -18,6 +18,5 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("playerresults", typeof(Views.PlayerResultsPage));
         Routing.RegisterRoute("seasonsetup", typeof(Views.SeasonSetupPage));
         Routing.RegisterRoute("search", typeof(Views.SearchPage));
-        Routing.RegisterRoute("smartimport", typeof(Views.SmartImportPage));
     }
 }

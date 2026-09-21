@@ -47,7 +47,14 @@ public partial class RulesSettingsPage : ContentPage
         {
             for (int cat = 0; cat < Categories.Length; cat++)
             {
-                var text = await LoadAssetAsync(Categories[cat].asset);
+                // The league's own saved rules first; the bundled file is only a
+                // starting template for a league that has not written any yet.
+                // This used to load the bundled file every time, so reopening
+                // the page showed the template again and saving put it back
+                // over whatever the league had changed.
+                var text = SavedText(cat);
+                if (string.IsNullOrWhiteSpace(text))
+                    text = await LoadAssetAsync(Categories[cat].asset);
                 var (preamble, parsed) = ParseSections(text);
                 _preambles[cat] = preamble;
 
@@ -235,6 +242,19 @@ public partial class RulesSettingsPage : ContentPage
     }
 
     // ── Asset loading ────────────────────────────────────────────────────
+
+    /// <summary>The rules this league has saved for a category, in <see cref="Categories"/> order.</summary>
+    private static string SavedText(int category)
+    {
+        var settings = League.WebsiteSettings;
+        return category switch
+        {
+            0 => settings.ConstitutionContent,
+            1 => settings.MatchRulesContent,
+            2 => settings.EpaRulesContent,
+            _ => "",
+        } ?? "";
+    }
 
     private static async Task<string> LoadAssetAsync(string assetPath)
     {

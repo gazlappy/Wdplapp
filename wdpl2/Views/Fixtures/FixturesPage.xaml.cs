@@ -2820,7 +2820,7 @@ public partial class FixturesPage : ContentPage
         {
             var folder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                "WDPL-Schedules");
+                $"{Wdpl2.Product.Name} Schedules");
 
             var path = await Wdpl2.Services.ScheduleSnapshotService.ExportAsync(
                 league, seasonId.Value, folder);

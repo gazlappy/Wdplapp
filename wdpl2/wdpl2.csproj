@@ -41,7 +41,12 @@
 		<RootNamespace>Wdpl2</RootNamespace>
 		<AssemblyName>Wdpl2</AssemblyName>
 
-		<ApplicationTitle>Wdpl2</ApplicationTitle>
+		<!--
+			The title people see. Safe to change: the league's data folder is
+			keyed on ApplicationId below, which must NOT change without a data
+			migration, or the app opens empty with the league left behind.
+		-->
+		<ApplicationTitle>League Manager</ApplicationTitle>
 		<ApplicationId>com.wdpl2.app</ApplicationId>
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
@@ -97,14 +102,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Include 3D model files as embedded resources -->
-		<EmbeddedResource Include="Resources\Models\scene.gltf" />
-		<EmbeddedResource Include="Resources\Models\scene.bin" />
-	</ItemGroup>
-	<ItemGroup>
-	  <MauiImage Remove="Resources\Raw\pool-game.html" />
-	</ItemGroup>
-	<ItemGroup>
 	  <MauiImage Update="Resources\Images\dotnet_bot.svg">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </MauiImage>
@@ -113,14 +110,8 @@
 	  <MauiXaml Update="Features\WebsiteBuilder\Views\LiveScoresSettingsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Features\WebsiteBuilder\Views\LogoDesignerPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\Inbox\InboxPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Logos\LogosHubPage.xaml">
-		<Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Resources\Styles\SharedStyles.xaml">
 		<Generator>MSBuild:Compile</Generator>
@@ -131,19 +122,10 @@
 	  <MauiXaml Update="Views\Analytics\AnalyticsHubPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\BatchImportPreviewPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\Breakout\BreakoutGamePage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\Calendar\CalendarOptionsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Calendar\CalendarPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Logos\LogosHubPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Players\CareerStatsPage.xaml">
@@ -155,43 +137,19 @@
 	  <MauiXaml Update="Views\Dashboard\DashboardPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\FileDiscoveryPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\Fixtures\FixturesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Players\FrameStatsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\GamesLibraryPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\HistoricalCompetitionImportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\HistoricalImportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\ImportHistoricalCompetitionsPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\Import\ImportHistoricalDataPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\ImportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\ImportPreviewPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\LeagueTables\LeagueTablesPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Fixtures\MatchDayDashboardPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\Memory\MemoryGamePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Players\PlayerProfilePage.xaml">
@@ -202,12 +160,6 @@
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Players\PlayersPage.xaml">
 	    <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\Pool\Views\PoolGamePage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\RetroFps\RetroFpsGamePage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Search\SearchPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
@@ -220,15 +172,6 @@
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Settings\SettingsPage.xaml">
 		<Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\SmartImportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Features\Games\Snake\SnakeGamePage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\Import\SqlImportPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Analytics\TeamAnalyticsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>

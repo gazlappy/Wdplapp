@@ -32,7 +32,7 @@ public sealed class CloudSyncService : IDisposable
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("WDPL-App", "1.0"));
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("LeagueManager", Wdpl2.Product.Version));
         _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
     }
 

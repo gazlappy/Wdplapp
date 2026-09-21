@@ -185,7 +185,7 @@ namespace Wdpl2.Services
                     break;
 
                 default:
-                    // Standard flow — uses LogoPosition to arrange elements
+                    // Standard flow ï¿½ uses LogoPosition to arrange elements
                     AppendDefaultHeaderContent(html, season, logoTag, hasLogo, hasSub, hasBadge, logoPos, freeform);
                     break;
             }
@@ -211,7 +211,7 @@ namespace Wdpl2.Services
 
             if (isCorner && showLogo)
             {
-                // Corner logo — just place it, CSS handles absolute positioning
+                // Corner logo ï¿½ just place it, CSS handles absolute positioning
                 html.AppendLine($"            {logoTag}");
             }
 
@@ -359,10 +359,6 @@ namespace Wdpl2.Services
             if (_settings.ShowCompetitions)
                 NavLink("competitions.html", _settings.CompetitionsNavLabel, "Competitions");
 
-            // UK 8-Ball Pool Game
-            if (_settings.ShowPoolGame)
-                NavLink("pool-game.html", _settings.PoolGameNavLabel, "Pool Game");
-
             if (_settings.ShowGallery && _settings.GalleryImages.Count > 0)
                 NavLink("gallery.html", _settings.GalleryNavLabel, "Gallery");
 
@@ -449,11 +445,11 @@ namespace Wdpl2.Services
 
             var copyrightText = !string.IsNullOrWhiteSpace(_settings.CopyrightText)
                 ? _settings.CopyrightText
-                : $"© {DateTime.Now.Year} {_settings.LeagueName}";
+                : $"ï¿½ {DateTime.Now.Year} {_settings.LeagueName}";
             html.AppendLine($"            <p class=\"copyright\">{copyrightText}</p>");
             
             if (_settings.ShowPoweredBy)
-                html.AppendLine("            <p class=\"powered-by\">Powered by WDPL League Manager</p>");
+                html.AppendLine($"            <p class=\"powered-by\">Powered by {Wdpl2.Product.Name}</p>");
             
             if (_settings.ShowLastUpdated)
                 html.AppendLine($"            <p class=\"last-updated\">Last updated: {DateTime.Now:dd MMM yyyy HH:mm}</p>");

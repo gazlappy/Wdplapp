@@ -23,7 +23,7 @@
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="Title" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-                        <Entry x:Name="TitleEntry" Placeholder="e.g. WDPL 2025 League (auto-generated if blank)" FontSize="12"/>
+                        <Entry x:Name="TitleEntry" Placeholder="e.g. Winter 2025 League (auto-generated if blank)" FontSize="12"/>
                     </VerticalStackLayout>
                 </Frame>
                 <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">

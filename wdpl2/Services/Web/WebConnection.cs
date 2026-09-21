@@ -18,7 +18,12 @@ public sealed class WebConnection
     private const string KeyAdminUser = "Web.AdminUser";
     private const string SecureKeyPwd = "Web.AdminPassword";
 
-    public const string DefaultBaseUrl = "https://wdpl.uk/api/";
+    /// <summary>
+    /// Deliberately empty. A default pointing at one league's server would
+    /// send every new install's admin password there the first time it
+    /// connected; a blank one says "set this first" instead.
+    /// </summary>
+    public const string DefaultBaseUrl = "";
 
     public string BaseUrl { get; set; } = DefaultBaseUrl;
     public string AdminUser { get; set; } = "";

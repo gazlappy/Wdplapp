@@ -171,7 +171,7 @@ public sealed class LocalExportService
     public static string GetDefaultExportFolder()
     {
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        return Path.Combine(documentsPath, "WDPL", "Website");
+        return Path.Combine(documentsPath, Wdpl2.Product.Name, "Website");
     }
     
     /// <summary>
@@ -182,7 +182,7 @@ public sealed class LocalExportService
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var safeName = MakeSafeFileName(leagueName);
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        return Path.Combine(documentsPath, "WDPL", $"{safeName}_Website_{timestamp}.zip");
+        return Path.Combine(documentsPath, Wdpl2.Product.Name, $"{safeName}_Website_{timestamp}.zip");
     }
     
     private static string MakeSafeFileName(string name)

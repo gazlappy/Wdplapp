@@ -178,10 +178,6 @@ namespace Wdpl2.Services
                     files["_submissions.html"] = GenerateSubmissionsAdminPage(season, template);
             }
 
-            // Add UK 8-Ball Pool Game
-            if (_settings.ShowPoolGame)
-                files["pool-game.html"] = PoolGameGenerator.GeneratePoolGameHtml(_settings.LeagueName);
-
             if (_settings.ShowHistory && !string.IsNullOrWhiteSpace(_settings.HistoryHtmlContent))
                 files["history.html"] = _settings.HistoryHtmlContent;
 
@@ -3158,7 +3154,7 @@ namespace Wdpl2.Services
             html.AppendLine("        var blob = new Blob([subs], { type: 'application/json' });");
             html.AppendLine("        var a = document.createElement('a');");
             html.AppendLine("        a.href = URL.createObjectURL(blob);");
-            html.AppendLine("        a.download = 'wdpl2-submissions.json';");
+            html.AppendLine("        a.download = 'entry-form-submissions.json';");
             html.AppendLine("        document.body.appendChild(a); a.click(); document.body.removeChild(a);");
             html.AppendLine("        URL.revokeObjectURL(a.href);");
             html.AppendLine("    }");

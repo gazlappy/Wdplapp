@@ -15,8 +15,6 @@
 
             <!-- Converters -->
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
-            <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
-            <converters:IsNotNullOrEmptyConverter x:Key="IsNotNullOrEmptyConverter" />
             <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
 
             <!-- Application-Level Button Style -->

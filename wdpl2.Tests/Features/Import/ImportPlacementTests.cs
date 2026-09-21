@@ -59,26 +59,4 @@ public class ImportPlacementTests
         after.Players.Add(new Player { FirstName = "New orphan" });
         Assert.Throws<InvalidDataException>(() => ImportPlacementValidator.ThrowIfNewIssues(before, after));
     }
-
-    [Fact]
-    public void Identity_UsesExactNamesAndTeam_NotFuzzySimilarity()
-    {
-        var seasonId = Guid.NewGuid();
-        var teamId = Guid.NewGuid();
-        var jon = new Player { SeasonId = seasonId, TeamId = teamId, FirstName = "Jon", LastName = "Smith" };
-        var john = new Player { SeasonId = seasonId, TeamId = teamId, FirstName = "John", LastName = "Smith" };
-        Assert.Same(john, ImportIdentityMatcher.MatchPlayer([jon, john], seasonId, " john ", "SMITH", teamId));
-        Assert.Null(ImportIdentityMatcher.MatchPlayer([jon], seasonId, "John", "Smith", teamId));
-        Assert.Null(ImportIdentityMatcher.MatchPlayer([john], Guid.NewGuid(), "John", "Smith", teamId));
-    }
-
-    [Fact]
-    public void Identity_DisambiguatesSameNameByTeam_AndRejectsAmbiguity()
-    {
-        var seasonId = Guid.NewGuid();
-        var first = new Player { SeasonId = seasonId, TeamId = Guid.NewGuid(), FirstName = "Alex", LastName = "Smith" };
-        var second = new Player { SeasonId = seasonId, TeamId = Guid.NewGuid(), FirstName = "Alex", LastName = "Smith" };
-        Assert.Same(second, ImportIdentityMatcher.MatchPlayer([first, second], seasonId, "Alex", "Smith", second.TeamId));
-        Assert.Throws<InvalidDataException>(() => ImportIdentityMatcher.MatchPlayer([first, second], seasonId, "Alex", "Smith", null));
-    }
 }

@@ -33,7 +33,6 @@ public partial class ContentSettingsPage : ContentPage
         ShowSponsorsCheck.IsToggled = settings.ShowSponsors;
         ShowRulesCheck.IsToggled = settings.ShowRules;
         ShowContactPageCheck.IsToggled = settings.ShowContactPage;
-        ShowPoolGameCheck.IsToggled = settings.ShowPoolGame;
         ShowHistoryCheck.IsToggled = settings.ShowHistory;
 
         HomeRecentResultsCountEntry.Text = settings.HomeRecentResultsCount.ToString();
@@ -63,7 +62,6 @@ public partial class ContentSettingsPage : ContentPage
         PlayersNavLabelEntry.Text = settings.PlayersNavLabel;
         DivisionsNavLabelEntry.Text = settings.DivisionsNavLabel;
         CompetitionsNavLabelEntry.Text = settings.CompetitionsNavLabel;
-        PoolGameNavLabelEntry.Text = settings.PoolGameNavLabel;
         GalleryNavLabelEntry.Text = settings.GalleryNavLabel;
         NewsNavLabelEntry.Text = settings.NewsNavLabel;
         RowsReportsNavLabelEntry.Text = settings.RowsReportsNavLabel;
@@ -118,7 +116,6 @@ public partial class ContentSettingsPage : ContentPage
             settings.ShowSponsors = ShowSponsorsCheck.IsToggled;
             settings.ShowRules = ShowRulesCheck.IsToggled;
             settings.ShowContactPage = ShowContactPageCheck.IsToggled;
-            settings.ShowPoolGame = ShowPoolGameCheck.IsToggled;
             settings.ShowHistory = ShowHistoryCheck.IsToggled;
 
             if (int.TryParse(HomeRecentResultsCountEntry.Text, out int recentResults))
@@ -175,8 +172,6 @@ public partial class ContentSettingsPage : ContentPage
                 settings.DivisionsNavLabel = DivisionsNavLabelEntry.Text.Trim();
             if (!string.IsNullOrWhiteSpace(CompetitionsNavLabelEntry.Text))
                 settings.CompetitionsNavLabel = CompetitionsNavLabelEntry.Text.Trim();
-            if (!string.IsNullOrWhiteSpace(PoolGameNavLabelEntry.Text))
-                settings.PoolGameNavLabel = PoolGameNavLabelEntry.Text.Trim();
             if (!string.IsNullOrWhiteSpace(GalleryNavLabelEntry.Text))
                 settings.GalleryNavLabel = GalleryNavLabelEntry.Text.Trim();
             if (!string.IsNullOrWhiteSpace(NewsNavLabelEntry.Text))

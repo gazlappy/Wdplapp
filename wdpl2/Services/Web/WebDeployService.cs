@@ -67,7 +67,7 @@ public sealed class WebDeployService
 
         var builder = new StringBuilder();
         builder.AppendLine("<?php");
-        builder.AppendLine("// Written by WDPL -> Web Control -> Connection & Deploy.");
+        builder.AppendLine($"// Written by {Wdpl2.Product.Name} -> Web Control -> Connection & Deploy.");
         builder.AppendLine("// Contains credentials. Do not commit or share.");
         builder.AppendLine("return [");
         builder.AppendLine($"    'db_host' => {Php(settings.BackendDbHost)},");

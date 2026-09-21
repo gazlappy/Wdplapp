@@ -5,6 +5,12 @@ namespace Wdpl2.Tests;
 
 public class ReviewPaginationTests
 {
+    /// <summary>Any row a review screen lets you tick; paging must hand back the same objects.</summary>
+    private sealed class Selectable
+    {
+        public bool IsSelected { get; set; } = true;
+    }
+
     [Fact]
     public void LargeArchive_AllFilesRemainReachableWithoutDuplicates()
     {
@@ -24,8 +30,8 @@ public class ReviewPaginationTests
     public void Paging_PreservesOriginalSeasonSelections()
     {
         var source = Enumerable.Range(0, 90)
-            .Select(_ => new LeagueFileDiscoveryService.SeasonGroup()).ToList();
-        var page = new ReviewPagination<LeagueFileDiscoveryService.SeasonGroup>(source, 1, 5);
+            .Select(_ => new Selectable()).ToList();
+        var page = new ReviewPagination<Selectable>(source, 1, 5);
         Assert.Equal(5, page.Items.Count);
         Assert.Same(source[5], page.Items[0]);
         page.Items[0].IsSelected = false;

@@ -15,7 +15,7 @@
             <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="API address" FontAttributes="Bold" FontSize="13" TextColor="#475569"/>
-                    <Entry x:Name="BaseUrlEntry" Placeholder="https://wdpl.uk/api/" FontSize="13"/>
+                    <Entry x:Name="BaseUrlEntry" Placeholder="https://yourleague.example/api/" FontSize="13"/>
                     <Label Text="The api/ folder on your website. Must be HTTPS."
                            FontSize="11" TextColor="#94A3B8"/>
 

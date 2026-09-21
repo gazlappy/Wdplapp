@@ -29,10 +29,10 @@
 })();
 </script>
 
-<title>WDPL Captain</title>
+<title>Team Captain</title>
 <meta name="theme-color" content="#1f4e79">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="WDPL Captain">
+<meta name="apple-mobile-web-app-title" content="Captain">
 <style>
 :root{
   --bg-0:#0a0f1c; --bg-1:#0f172a; --panel:#16213d; --panel-2:#1d2c4e;
@@ -252,7 +252,7 @@ table.tbl tr.us td{font-weight:700;}
 .sc-row.away{grid-template-columns:minmax(0,1fr) 34px 26px;}
 /* The away row's last cell is the 8-ball, as on the old card - the frame
    number only needs printing once, down the home side. */
-/* Frames group in fives - the three phases of a WDPL match */
+/* Frames group in fives - the three phases of a match */
 .sc-row.set-a1{background:rgba(255,255,255,.02);} .sc-row.set-a2{background:rgba(255,255,255,.05);}
 .sc-row.set-b1{background:rgba(59,130,246,.07);}  .sc-row.set-b2{background:rgba(59,130,246,.12);}
 .sc-row.set-c1{background:rgba(13,138,90,.08);}   .sc-row.set-c2{background:rgba(13,138,90,.14);}
@@ -394,7 +394,7 @@ body.has-tick main{padding-bottom:120px;}
 
 <header>
   <div class="head-top">
-    <h1 id="brand">WDPL Captain</h1>
+    <h1 id="brand">Team Captain</h1>
     <nav class="site-nav hidden" id="siteNav">
       <a href="../">Home</a>
       <a id="navComps" href="../comp/">Competitions</a>
@@ -413,7 +413,7 @@ body.has-tick main{padding-bottom:120px;}
     <button id="tabTeam">My team</button>
     <button id="tabLeague">League</button>
     <button id="tabComps">Competitions</button>
-    <a class="tab-link" href="../">Back to WDPL</a>
+    <a class="tab-link" href="../">Back to the league site</a>
   </div>
 </header>
 
@@ -659,8 +659,8 @@ body.has-tick main{padding-bottom:120px;}
 
   // Said once, at load, so the page never briefly reads as the wrong one.
   if(CUP_ONLY){
-    document.title = 'WDPL Cup Tie';
-    $('brand').textContent = 'WDPL Cup Tie';
+    document.title = 'Cup Tie';
+    $('brand').textContent = 'Cup Tie';
 
     // A cup tie has no tabs of its own, so it keeps the plain site nav - read
     // from where this copy of the page actually sits.

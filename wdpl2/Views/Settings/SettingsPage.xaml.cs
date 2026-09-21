@@ -1718,7 +1718,7 @@ namespace Wdpl2.Views
         // ═══════════════════════════════════════════════════════════
 
         /// <summary>
-        /// A friendly, plain-English walkthrough of how WDPL2 calculates player ratings.
+        /// A friendly, plain-English walkthrough of how the app calculates player ratings.
         /// Reuses the collapsible <see cref="ManualSectionView"/> for a consistent look
         /// with the in-app Manual.
         /// </summary>
@@ -1779,7 +1779,7 @@ namespace Wdpl2.Views
 
             // ---- Chapter 1 ----
             root.Children.Add(Add(Emojis.Star, "Chapter 1 — The big picture (in 30 seconds)",
-                "Every Tuesday night you play a few frames. For each frame WDPL2 asks two questions:\n\n" +
+                "Every match night you play a few frames. For each frame the app asks two questions:\n\n" +
                 $"  1. Did you win or lose?\n" +
                 $"  2. How strong was your opponent at the start of this week?\n\n" +
                 "It turns each frame into a number called the \u201Cframe value\u201D, then mixes all your " +
@@ -1800,7 +1800,7 @@ namespace Wdpl2.Views
 
             // ---- Chapter 3 ----
             root.Children.Add(Add(Emojis.Target, "Chapter 3 — What one frame is worth (the factors)",
-                "For every frame you play, WDPL2 first works out a \u201Cframe value\u201D. " +
+                "For every frame you play, the app first works out a \u201Cframe value\u201D. " +
                 "It does this by taking your opponent\u2019s rating going into this week and multiplying it by one of three factors:\n\n" +
                 $"  • You WON the frame                  →  opp rating  ×  Win Factor      (default 1.25)\n" +
                 $"  • You won on the 8-BALL              →  opp rating  ×  8-Ball Factor   (default 1.35)\n" +
@@ -1820,7 +1820,7 @@ namespace Wdpl2.Views
 
             // ---- Chapter 4 ----
             root.Children.Add(Add(Emojis.Clock, "Chapter 4 — Why recent frames matter more (weighting & bias)",
-                "Once every one of your frames has a value, WDPL2 doesn\u2019t just average them. " +
+                "Once every one of your frames has a value, the app doesn\u2019t just average them. " +
                 "It does a WEIGHTED average, where newer frames count more than old ones. This is what makes the " +
                 "rating feel like \u201Cform\u201D rather than just a season average.\n\n" +
                 "Two settings control the weights:\n\n" +
@@ -1865,7 +1865,7 @@ namespace Wdpl2.Views
 
             // ---- Chapter 6 ----
             root.Children.Add(Add(Emojis.Calendar, "Chapter 6 — How weeks work",
-                "WDPL2 calculates ratings WEEK BY WEEK, in chronological order, using the season\u2019s " +
+                "The app calculates ratings WEEK BY WEEK, in chronological order, using the season\u2019s " +
                 "start date as week 1.\n\n" +
                 $"{Emojis.Bullet} At the start of week 1, EVERY player has the starting rating (1000).\n" +
                 $"{Emojis.Bullet} All of week 1\u2019s frames are processed using those week-1 ratings.\n" +
@@ -1899,7 +1899,7 @@ namespace Wdpl2.Views
                 "Under Settings → Player Ratings there\u2019s a big yellow button: " +
                 "\u201C\U0001F504 Recalculate All Ratings\u201D. What does it actually do?\n\n" +
                 $"{Emojis.Bullet} Imported data (especially from the old VBA / Access database) often " +
-                "includes pre-baked rating numbers stored on each frame. Normally WDPL2 will TRUST those " +
+                "includes pre-baked rating numbers stored on each frame. Normally the app will TRUST those " +
                 "and use them as-is, so historical ratings match what the old system showed.\n" +
                 $"{Emojis.Bullet} But that means changing your rating settings does nothing for old data — " +
                 "the imported numbers override the formula.\n" +
@@ -1978,7 +1978,7 @@ namespace Wdpl2.Views
             var root = new VerticalStackLayout { Spacing = 0 };
 
             root.Children.Add(SectionHeader(Emojis.Note, "User Manual",
-                "How to use the Wellington District Pool League app — tap any heading to expand it"));
+                $"How to use {Product.Name} — tap any heading to expand it"));
 
             // Track every section we add so the expand/collapse-all buttons can drive them.
             var sections = new List<ManualSectionView>();
@@ -2020,7 +2020,7 @@ namespace Wdpl2.Views
 
             // ---- Welcome (always expanded) ----
             root.Children.Add(InfoPanel("Welcome",
-                "WDPL2 is the management app for the Wellington District Pool League. It tracks seasons, " +
+                $"{Product.Name} runs a pool league from one place. It tracks seasons, " +
                 "divisions, teams, players, venues, fixtures, results, ratings, cup competitions and even " +
                 "generates the league website.\n\n" +
                 "Navigation: use the Shell flyout / tab bar on the left (or top on phones) to move between " +
@@ -2180,21 +2180,16 @@ namespace Wdpl2.Views
                 "how the league table would look. Useful for run-in planning.\n" +
                 $"{Emojis.Bullet} Career Stats: long-term player view across every season they\u2019ve appeared in."));
 
-            // ---- Import ----
-            root.Children.Add(Add(Emojis.Import, "Importing Data",
-                "WDPL2 can import legacy data so you don\u2019t have to type history in by hand.\n\n" +
-                $"{Emojis.Bullet} Smart Import: drag a folder or single file in and the app sniffs the format — " +
-                "CSV, HTML, Word (.docx), Excel (.xlsx), Access (.mdb/.accdb), SQL dumps and Paradox (.db) tables " +
-                "are all supported.\n" +
-                $"{Emojis.Bullet} Import Preview: every importer produces a preview screen first. You can deselect " +
-                "individual rows (e.g. a player you don\u2019t want to import) before confirming.\n" +
-                $"{Emojis.Bullet} Batch HTML Import: point at a folder of historical league HTML pages and the " +
-                "discovery service indexes them all into one preview.\n" +
-                $"{Emojis.Bullet} Paradox Pipeline: dedicated importers for Paradox players, teams, divisions, " +
-                "venues, matches, singles, doubles — orchestrated so foreign keys are resolved correctly.\n" +
+            // ---- Adding data ----
+            root.Children.Add(Add(Emojis.Import, "Adding Data in Bulk",
+                "You don\u2019t have to type everything in one record at a time.\n\n" +
+                $"{Emojis.Bullet} CSV files: the Teams, Players, Venues and Divisions pages each have an " +
+                "Import (.csv) box. Drop a spreadsheet export in and the rows are added to the current season.\n" +
+                $"{Emojis.Bullet} New season: on the Seasons page, Import from Previous Seasons copies the " +
+                "divisions, venues, teams and players you choose into the new season.\n" +
                 $"{Emojis.Bullet} Score Card Recognition: snap a photo of a paper score card and the OCR service " +
                 "(Plugin.Maui.OCR + Azure Vision fallback) extracts the frame results.\n" +
-                $"{Emojis.Bullet} Always take a backup from Data Management before a large import."));
+                $"{Emojis.Bullet} Take a backup from Data Management before a large change."));
 
             // ---- Website Builder ----
             root.Children.Add(Add(Emojis.Building, "Website Builder",
@@ -2202,11 +2197,9 @@ namespace Wdpl2.Views
                 $"{Emojis.Bullet} Hub: pick which pages to publish (Home, Fixtures, Results, Standings, Players, " +
                 "Divisions, Competitions, Rules, History, Gallery, Contact, Entry Forms, Captains-only area).\n" +
                 $"{Emojis.Bullet} Branding & Colours: set the league name, tagline, primary/accent colours and " +
-                "upload a logo (or design one in the Logo Designer).\n" +
+                "upload a logo.\n" +
                 $"{Emojis.Bullet} Layout: drag-and-drop the order of sections on each page, choose between " +
                 "single-column / sidebar / hero layouts.\n" +
-                $"{Emojis.Bullet} Logo Designer: SkiaSharp-powered canvas with shape and icon catalogues. Save " +
-                "a design recipe so you can re-render at any size.\n" +
                 $"{Emojis.Bullet} Fixtures Sheet: printable PDF-style fixture sheet for handing out at the AGM.\n" +
                 $"{Emojis.Bullet} Generate: builds a static folder of HTML, CSS, JSON data and images.\n" +
                 $"{Emojis.Bullet} Deploy: upload via FTP (FtpUploadService) or push to GitHub Pages " +
@@ -2225,15 +2218,6 @@ namespace Wdpl2.Views
                 $"{Emojis.Bullet} Test Notification button sends a sample so you can confirm permissions are working.\n" +
                 $"{Emojis.Bullet} Cancel All Notifications wipes scheduled reminders — useful after regenerating fixtures."));
 
-            // ---- Games ----
-            root.Children.Add(Add(Emojis.EightBall, "Games Library",
-                "A bonus collection of mini-games — mostly built for fun and to show off MAUI graphics.\n\n" +
-                $"{Emojis.Bullet} Pool: full 8-ball physics simulator (PoolPhysicsModule, PoolRenderingModule, " +
-                "PoolAiModule). Configure AI difficulty, audio, visual effects and physics quality from in-game settings.\n" +
-                $"{Emojis.Bullet} Replay: every shot is recorded by PoolReplayModule so you can rewind and watch.\n" +
-                $"{Emojis.Bullet} Snake, Memory, Breakout: classic time-killers.\n" +
-                $"{Emojis.Bullet} RetroFps: experimental SkiaSharp first-person prototype."));
-
             // ---- Search ----
             root.Children.Add(Add(Emojis.Target, "Search",
                 "The global Search page (⌘/Ctrl+F equivalent) jumps straight to any record.\n\n" +
@@ -2244,7 +2228,7 @@ namespace Wdpl2.Views
             // ---- Settings overview ----
             root.Children.Add(Add(Emojis.Settings, "Settings (this page) — every panel explained",
                 $"{Emojis.Bullet} Appearance — light / dark / follow system. Theme is applied immediately to all " +
-                "open pages including the Pool game.\n" +
+                "open pages.\n" +
                 $"{Emojis.Bullet} Player Ratings — Starting rating, weighting, bias, win/loss factor, 8-ball factor, " +
                 "min frames %. Recalculate All Ratings re-runs the formula across every historical frame.\n" +
                 $"{Emojis.Bullet} Match Scoring — win bonus, draw bonus, and the drag-and-drop Tiebreaker Order " +
@@ -2397,7 +2381,7 @@ namespace Wdpl2.Views
 
             var versionLabel = new Label
             {
-                Text = "WDPL2 v2.0.0",
+                Text = $"{Product.Name} v{Product.Version}",
                 FontSize = 24,
                 FontAttributes = FontAttributes.Bold,
                 TextColor = Color.FromArgb("#3B82F6"),

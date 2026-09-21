@@ -415,7 +415,7 @@ public class LocalExportServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result);
-        Assert.Contains("WDPL", result);
+        Assert.Contains(Wdpl2.Product.Name, result);
         Assert.Contains("Website", result);
     }
 
@@ -430,7 +430,7 @@ public class LocalExportServiceTests : IDisposable
 
         // Assert
         Assert.StartsWith(documentsPath, result);
-        Assert.EndsWith(Path.Combine("WDPL", "Website"), result);
+        Assert.EndsWith(Path.Combine(Wdpl2.Product.Name, "Website"), result);
     }
 
     [Fact]
@@ -445,7 +445,7 @@ public class LocalExportServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.NotEmpty(result);
-        Assert.Contains("WDPL", result);
+        Assert.Contains(Wdpl2.Product.Name, result);
         Assert.Contains("TestLeague", result);
         Assert.EndsWith(".zip", result);
     }

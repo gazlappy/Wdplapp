@@ -22,7 +22,7 @@ public static class MauiProgram
             .UseMauiCommunityToolkit()  // Add Community Toolkit
             .UseLocalNotification()     // Add Local Notifications
             .UseOcr()                   // Add OCR support for score card scanning
-            .UseSkiaSharp()             // Add SkiaSharp for the Logo Designer canvas
+            .UseSkiaSharp()             // SkiaSharp resizes uploaded images (ImageOptimizationService)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
