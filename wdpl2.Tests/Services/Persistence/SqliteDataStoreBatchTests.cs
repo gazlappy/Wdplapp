@@ -9,7 +9,8 @@ namespace wdpl2.Tests;
 /// Tests for SqliteDataStore bulk operations — ReplaceFixturesForSeasonAsync
 /// and AddSeasonEntitiesAsync (used by fixture generation and season copy).
 /// </summary>
-public class SqliteDataStoreBatchTests
+[Collection(SharedDataStoreCollection.Name)]
+public class SqliteDataStoreBatchTests : SharedDataStoreTest
 {
     private static LeagueContext CreateContext() =>
         new(new DbContextOptionsBuilder<LeagueContext>()

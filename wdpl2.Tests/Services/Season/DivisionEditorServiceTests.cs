@@ -8,7 +8,8 @@ using Wdpl2.Services.Import;
 
 namespace Wdpl2.Tests;
 
-public sealed class DivisionEditorServiceTests
+[Collection(SharedDataStoreCollection.Name)]
+public sealed class DivisionEditorServiceTests : SharedDataStoreTest
 {
     [Fact]
     public async Task InactiveSeason_CreateUpdateImportDelete_PersistWithoutActivation()

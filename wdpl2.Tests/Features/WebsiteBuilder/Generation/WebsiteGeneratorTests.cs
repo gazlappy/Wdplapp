@@ -1445,7 +1445,7 @@ public class WebsiteGeneratorTests
     #region Captains Area Tests
 
     [Fact]
-    public void GenerateWebsite_EnableCaptainsArea_GeneratesLoginDashboardAndJson()
+    public void GenerateWebsite_EnableCaptainsArea_LinksToPortal_AndPublishesNoCaptainData()
     {
         // Arrange
         var league = CreateTestLeagueData();
@@ -1458,8 +1458,12 @@ public class WebsiteGeneratorTests
 
         // Assert
         Assert.Contains("captains.html", files.Keys);
-        Assert.Contains("captain-dashboard.html", files.Keys);
-        Assert.Contains("captains-data.json", files.Keys);
+
+        // Captains sign in to the server-backed portal now. The old static
+        // dashboard read captains-data.json, which put every team's hashed
+        // PIN on the public website - neither may come back.
+        Assert.DoesNotContain("captain-dashboard.html", files.Keys);
+        Assert.DoesNotContain("captains-data.json", files.Keys);
     }
 
     [Fact]

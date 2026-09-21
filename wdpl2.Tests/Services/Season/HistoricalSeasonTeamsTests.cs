@@ -8,8 +8,8 @@ using Wdpl2.Services.Import;
 
 namespace Wdpl2.Tests;
 
-[Collection("Manual season persistence")]
-public class HistoricalSeasonTeamsTests
+[Collection(SharedDataStoreCollection.Name)]
+public class HistoricalSeasonTeamsTests : SharedDataStoreTest
 {
     private static Mock<IDataStore> Store(LeagueData data)
     {

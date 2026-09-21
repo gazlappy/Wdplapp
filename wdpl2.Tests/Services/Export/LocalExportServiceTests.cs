@@ -122,7 +122,7 @@ public class LocalExportServiceTests : IDisposable
             ["test.txt"] = "content"
         };
         var progressReports = new List<string>();
-        var progress = new Progress<string>(msg => progressReports.Add(msg));
+        var progress = new Recorder(progressReports);
 
         // Act
         var result = await _service.ExportToFolderAsync(files, outputFolder, progress);
@@ -246,7 +246,7 @@ public class LocalExportServiceTests : IDisposable
             ["test.txt"] = "content"
         };
         var progressReports = new List<string>();
-        var progress = new Progress<string>(msg => progressReports.Add(msg));
+        var progress = new Recorder(progressReports);
 
         // Act
         var result = await _service.ExportAsZipAsync(files, zipPath, progress);
@@ -351,7 +351,7 @@ public class LocalExportServiceTests : IDisposable
             ["test.txt"] = "content"
         };
         var progressReports = new List<string>();
-        var progress = new Progress<string>(msg => progressReports.Add(msg));
+        var progress = new Recorder(progressReports);
 
         // Act
         var result = await _service.ExportToMemoryStreamAsync(files, progress);
@@ -603,5 +603,23 @@ public class LocalExportServiceTests : IDisposable
         using var reader = new StreamReader(stream, Encoding.UTF8);
         var content = await reader.ReadToEndAsync();
         Assert.Equal("", content);
+    }
+
+    /// <summary>
+    /// Records progress the moment it is reported.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Progress{T}"/> hands each report to the thread pool when there
+    /// is no UI thread, so the last one ("ZIP created successfully!") could land
+    /// after the export had returned and the assertions had run - and several
+    /// could add to the list at once. This records inline, so every report is
+    /// in the list before the call that made it returns.
+    /// </remarks>
+    private sealed class Recorder(List<string> into) : IProgress<string>
+    {
+        public void Report(string value)
+        {
+            lock (into) into.Add(value);
+        }
     }
 }

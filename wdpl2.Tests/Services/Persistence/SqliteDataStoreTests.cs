@@ -12,7 +12,8 @@ namespace wdpl2.Tests;
 /// <summary>
 /// Tests for SqliteDataStore — SQLite-based implementation of IDataStore using Entity Framework Core.
 /// </summary>
-public class SqliteDataStoreTests
+[Collection(SharedDataStoreCollection.Name)]
+public class SqliteDataStoreTests : SharedDataStoreTest
 {
     [Fact]
     public async Task UpdateSeasonAsync_PersistsDetachedCalendarExclusionForSheet()

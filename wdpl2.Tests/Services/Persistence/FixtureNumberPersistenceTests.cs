@@ -7,7 +7,8 @@ using Wdpl2.Services;
 
 namespace wdpl2.Tests;
 
-public class FixtureNumberPersistenceTests
+[Collection(SharedDataStoreCollection.Name)]
+public class FixtureNumberPersistenceTests : SharedDataStoreTest
 {
     [Theory]
     [InlineData("valid")]

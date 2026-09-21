@@ -27,9 +27,20 @@ dotnet build wdpl2\wdpl2.csproj -f net9.0-windows10.0.19041.0 -v minimal
 # tests
 dotnet test wdpl2.Tests\wdpl2.Tests.csproj -v minimal
 
+# smoke-test the real app: opens every tab, cuts short each first visit,
+# fast-flips in and out; fails any tab that crashes, freezes or sticks
+.\tools\smoke-test.ps1 -Build
+
 # full restore + all targets (slow; after dependency or workload changes)
 .\restore-and-build.ps1
 ```
+
+- MAUI pages can't be constructed in the test runner, so there are two nets for
+  UI changes. `AppWiringTests` builds the app's real service collection and fails
+  if a registration can't resolve, a tab page can't be built, or a page fetched
+  with `GetService` isn't registered. `tools/smoke-test.ps1` drives the real app
+  and needs a desktop session and the app closed. Run both after touching
+  navigation, page registrations or a page's `OnAppearing`.
 
 - Always pass `-f net9.0-windows10.0.19041.0` for a quick check. Building all four
   target frameworks takes many minutes and needs the Android/iOS workloads.

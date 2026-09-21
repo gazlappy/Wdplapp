@@ -8,11 +8,8 @@ using Wdpl2.Services.Import;
 
 namespace Wdpl2.Tests;
 
-[CollectionDefinition("Manual season persistence", DisableParallelization = true)]
-public class ManualSeasonPersistenceCollection { }
-
-[Collection("Manual season persistence")]
-public class ManualSeasonRosterTests
+[Collection(SharedDataStoreCollection.Name)]
+public class ManualSeasonRosterTests : SharedDataStoreTest
 {
     [Fact]
     public void HistoricalVenues_CopyDetailsAndTablesWithoutSharingIdsOrObjects()

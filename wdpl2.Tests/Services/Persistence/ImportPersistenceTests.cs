@@ -7,7 +7,8 @@ using Wdpl2.Services.Import;
 
 namespace Wdpl2.Tests;
 
-public class ImportPersistenceTests
+[Collection(SharedDataStoreCollection.Name)]
+public class ImportPersistenceTests : SharedDataStoreTest
 {
     [Fact]
     public async Task Commit_PersistsNewEntities_WithoutActivatingSeason()

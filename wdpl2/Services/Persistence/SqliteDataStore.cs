@@ -27,6 +27,20 @@ public partial class SqliteDataStore : IDataStore
     private static LeagueData? _cachedSnapshot;
     private static readonly object _snapshotLock = new();
 
+    /// <summary>
+    /// Forgets the shared snapshot, for tests that each build their own database.
+    /// </summary>
+    /// <remarks>
+    /// The cache is process-wide because every instance in the app reads the
+    /// same file. A test suite breaks that assumption: each test has its own
+    /// in-memory database, and without this the first store to fill the cache
+    /// serves its seasons to every store built after it.
+    /// </remarks>
+    internal static void ResetSharedSnapshotForTests()
+    {
+        lock (_snapshotLock) { _cachedSnapshot = null; }
+    }
+
     internal static void RefreshAfterAdminSync()
     {
         lock (_snapshotLock) { _cachedSnapshot = null; }

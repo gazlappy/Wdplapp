@@ -16,7 +16,8 @@ namespace wdpl2.Tests;
 /// collected, the fixture still said unplayed, and nothing reported an error.
 /// These cover the store side of that round trip.
 /// </remarks>
-public class CollectedCardPersistenceTests
+[Collection(SharedDataStoreCollection.Name)]
+public class CollectedCardPersistenceTests : SharedDataStoreTest
 {
     private static async Task<(SqliteConnection, DbContextOptions<LeagueContext>)> OpenAsync()
     {

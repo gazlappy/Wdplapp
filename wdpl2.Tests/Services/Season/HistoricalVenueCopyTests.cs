@@ -8,8 +8,8 @@ using Wdpl2.Services.Import;
 
 namespace Wdpl2.Tests;
 
-[Collection("Manual season persistence")]
-public class HistoricalVenueCopyTests
+[Collection(SharedDataStoreCollection.Name)]
+public class HistoricalVenueCopyTests : SharedDataStoreTest
 {
     [Fact]
     public async Task CopyIntoExistingInactiveSeason_PreservesSourcesAndExistingVenues()

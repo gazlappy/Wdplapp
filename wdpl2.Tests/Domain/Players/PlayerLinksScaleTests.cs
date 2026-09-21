@@ -113,22 +113,40 @@ public class PlayerLinksScaleTests
         var small = Big(seasons: 10);
         var large = Big(seasons: 20);
 
-        // Warm the code paths so the first call is not paying for JIT.
+        // Warm both sizes so neither timed run pays for JIT or first allocations.
         PlayerLinks.CountReferences(small);
-
-        var one = Stopwatch.StartNew();
-        PlayerLinks.CountReferences(small);
-        one.Stop();
-
-        var two = Stopwatch.StartNew();
         PlayerLinks.CountReferences(large);
-        two.Stop();
+
+        var one = Fastest(() => PlayerLinks.CountReferences(small));
+        var two = Fastest(() => PlayerLinks.CountReferences(large));
 
         // Twice the league should be roughly twice the work. Eight times over
         // is the signature of a walk per player rather than a walk per league.
-        var ratio = (two.Elapsed.TotalMilliseconds + 1) / (one.Elapsed.TotalMilliseconds + 1);
+        var ratio = (two + 1) / (one + 1);
 
         Assert.True(ratio < 8,
-            $"twice the data took {ratio:F1}x the time ({one.ElapsedMilliseconds}ms then {two.ElapsedMilliseconds}ms)");
+            $"twice the data took {ratio:F1}x the time ({one:F1}ms then {two:F1}ms)");
+    }
+
+    /// <summary>
+    /// The quickest of several runs, in milliseconds.
+    /// </summary>
+    /// <remarks>
+    /// A single run of a millisecond or so is mostly noise: one garbage
+    /// collection, or another test hogging the CPU, turned 1ms into 53ms and
+    /// failed this for no reason. Noise only ever adds time, so the fastest
+    /// run is the honest measure of the work itself.
+    /// </remarks>
+    private static double Fastest(Action run, int times = 7)
+    {
+        var best = double.MaxValue;
+        for (var i = 0; i < times; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            run();
+            clock.Stop();
+            best = Math.Min(best, clock.Elapsed.TotalMilliseconds);
+        }
+        return best;
     }
 }
