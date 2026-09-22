@@ -2,13 +2,13 @@
 
 ## Project Guidelines
 - WDPL stands for Wellington District Pool League. The project (wdpl2/Wdpl2) is a .NET 9 MAUI app built to manage that league and now being made into a product any pool league can use. Use MAUI, not Xamarin.Forms. The scheduling and season rules below are WDPL's and the app implements them.
+- WDPL has separate summer and winter seasons within a year, with division naming changing between numbered divisions (1st, 2nd) and colored divisions (red, green, yellow). Imports must not collapse these distinct seasonal division schemes into one season.
+- Summer and winter can share a calendar year but remain separate seasons. Preserve season terms and year ranges, including pre-2000 years. Do not merge seasons solely by overlapping year, substring, or start/end date. Automatic links require unambiguous season identity.
 
 ## Product Name and App Identity
 - The name people see comes from `wdpl2/Product.cs` (`Product.Name`), or from the league's own name in website settings where the text is about the league. Do not hardcode "WDPL" or "Wellington" in anything a user sees.
 - The app's internal identity is separate and must not be renamed without a data migration: `ApplicationId` (`com.wdpl2.app`) and the `wdpl2` folder under `FileSystem.AppDataDirectory` decide where a league is stored, so changing either opens the app empty with the league left behind. The same applies to the backend's `wdpl_*` table names and the `backend: wdpl` ping identifier. The `Wdpl2` namespace and assembly name are internal and not worth the churn to rename.
 - There is no default server address (`WebConnection.DefaultBaseUrl` is empty). A default pointing at one league's server would send every new install's admin password there.
-- WDPL has separate summer and winter seasons within a year, with division naming changing between numbered divisions (1st, 2nd) and colored divisions (red, green, yellow). Imports must not collapse these distinct seasonal division schemes into one season.
-- Summer and winter can share a calendar year but remain separate seasons. Preserve season terms and year ranges, including pre-2000 years. Do not merge seasons solely by overlapping year, substring, or start/end date. Automatic links require unambiguous season identity.
 
 ## Fixture Scheduling
 - WDPL fixture scheduling requires all matches for a given week on the same night, no team playing more than one match that night, and no more than one home match on a venue/table that night. Shared-table conflicts must not be solved by moving matches to another night.
@@ -35,7 +35,7 @@
 ## App Architecture and Shared State
 - `wdpl2/MauiProgram.cs` configures MAUI Community Toolkit, local notifications, OCR, SkiaSharp, fonts, and DI. Registration is split into `AddPersistence`, `AddCoreAppServices`, `AddNotifications`, `AddViewModels`, and `AddPages` extension methods.
 - `wdpl2/App.xaml.cs` initializes the database, bridges the static datastore to DI, loads data, applies the saved theme, initializes season selection, then creates `AppShell`.
-- `wdpl2/AppShell.xaml` defines tab navigation for Dashboard, Seasons, Divisions, Teams, Players, Venues, Fixtures, Calendar, Competitions, Tables, Analytics, Website, Web Control, and Settings. Point a tab's `ContentTemplate` at the real page: Shell reuses a tab's page instance, so a redirect page that navigates once gets stuck on its loading screen when the tab is revisited.
+- `wdpl2/AppShell.xaml` defines the pages as `FlyoutItem`s, each with a `Route`; navigation is a sidebar (locked open on desktop, a flyout on phones) drawn by `AppShell.xaml.cs` from its `Sections` list under the headings League, Matches, Stats and Online, with Dashboard first and Settings last. A new page needs a FlyoutItem with a Route *and* an entry in `Sections`; `AppWiringTests` fails if the two disagree, and if any `"//Route"` in the code is not a page. Point a page's `ContentTemplate` at the real page: Shell reuses a page instance, so a redirect page that navigates once gets stuck on its loading screen when revisited.
 - The UI mixes XAML/code-behind with CommunityToolkit.Mvvm view models. Follow the local pattern rather than assuming every page is fully MVVM.
 - `wdpl2/ViewModels/BaseViewModel.cs` provides observable loading/status/season state, cancellation on season changes, and subscription cleanup. Preserve stale-load cancellation and event cleanup.
 - `ISeasonService`/`SeasonService` is the shared singleton for current season selection and `SeasonChanged` notifications; `SeasonService.Current` supports non-DI callers. Do not invent independent current-season state in individual pages.

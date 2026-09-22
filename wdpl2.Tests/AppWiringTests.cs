@@ -108,6 +108,60 @@ public class AppWiringTests
         }
     }
 
+    /// <summary>
+    /// The sidebar and the shell list the same pages.
+    /// </summary>
+    /// <remarks>
+    /// The sidebar is drawn from <c>AppShell.Sections</c>; the pages are the
+    /// FlyoutItems in AppShell.xaml. A page in the shell but not the sidebar
+    /// cannot be reached, and a sidebar entry with no page goes nowhere.
+    /// </remarks>
+    [Fact]
+    public void Sidebar_ListsEveryPage_AndNothingElse()
+    {
+        var shellRoutes = FlyoutRoutes();
+        var sidebarRoutes = AppShell.Sections.SelectMany(s => s.Pages).Select(p => p.Route).ToList();
+
+        Assert.Equal(sidebarRoutes.Count, sidebarRoutes.Distinct().Count());
+        Assert.True(shellRoutes.Except(sidebarRoutes).Count() == 0,
+            "In the shell but not the sidebar: " + string.Join(", ", shellRoutes.Except(sidebarRoutes)));
+        Assert.True(sidebarRoutes.Except(shellRoutes).Count() == 0,
+            "In the sidebar but not the shell: " + string.Join(", ", sidebarRoutes.Except(shellRoutes)));
+    }
+
+    /// <summary>
+    /// Every "//Route" the code navigates to is a page in the shell.
+    /// </summary>
+    /// <remarks>
+    /// No page had a Route until the sidebar, so the Dashboard's League Tables
+    /// and Analytics buttons went to "//Tables" and "//Analytics", failed, and
+    /// swallowed the error: they did nothing, for as long as they had existed.
+    /// Search results used lower-case names and threw.
+    /// </remarks>
+    [Fact]
+    public void EveryAbsoluteRoute_InTheCode_IsAPage()
+    {
+        var routes = FlyoutRoutes();
+        var used = SourceFiles()
+            .SelectMany(f => Regex.Matches(File.ReadAllText(f), "\"//([A-Za-z]+)").Select(m => (File: Path.GetFileName(f), Route: m.Groups[1].Value)))
+            .ToList();
+
+        Assert.NotEmpty(used);
+        var broken = used.Where(u => !routes.Contains(u.Route)).Select(u => $"//{u.Route} in {u.File}").Distinct().ToList();
+        Assert.True(broken.Count == 0, "Navigates to a route no page has: " + string.Join("; ", broken));
+    }
+
+    private static List<string> FlyoutRoutes()
+    {
+        var shell = XDocument.Load(Path.Combine(RepoRoot(), "wdpl2", "AppShell.xaml"));
+        var items = shell.Descendants().Where(e => e.Name.LocalName == "FlyoutItem").ToList();
+        Assert.NotEmpty(items);
+        foreach (var item in items)
+            Assert.False(string.IsNullOrEmpty((string?)item.Attribute("Route")),
+                $"The {(string?)item.Attribute("Title")} page has no Route, so nothing can navigate to it by name.");
+        return items.Select(i => (string)i.Attribute("Route")!).ToList();
+    }
+
     /// <summary>The tabs in AppShell.xaml, as (title, page type).</summary>
     private static List<(string Title, Type Type)> TabPages()
     {

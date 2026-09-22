@@ -62,19 +62,22 @@ public partial class SearchPage : ContentPage
         ((CollectionView)sender).SelectedItem = null;
 
         // Navigate based on type
+        // Written out in full so AppWiringTests can check each one is a real
+        // route: these used to be lower-case names no page was registered under,
+        // so tapping a result threw instead of opening the page.
         var route = result.Type switch
         {
-            "Player" => "players",
-            "Team" => "teams",
-            "Venue" => "venues",
-            "Division" => "divisions",
-            "Season" => "seasons",
+            "Player" => "//Players",
+            "Team" => "//Teams",
+            "Venue" => "//Venues",
+            "Division" => "//Divisions",
+            "Season" => "//Seasons",
             _ => null
         };
 
         if (route != null)
         {
-            await Shell.Current.GoToAsync($"//{route}");
+            await Shell.Current.GoToAsync(route);
         }
     }
 }

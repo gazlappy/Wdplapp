@@ -1,69 +1,80 @@
-﻿<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    Navigation is a sidebar with the pages grouped under headings. It is always
+    open on a PC and folds away behind the menu button on a phone.
+
+    The sidebar itself is drawn by AppShell.xaml.cs from its Sections list, so
+    the headings can sit between the pages; Shell's own flyout list has no
+    headings. Every page below needs a Route (that is what the sidebar and
+    GoToAsync("//Route") navigate to) and an entry in Sections - AppWiringTests
+    fails if the two lists disagree.
+-->
 <Shell
     x:Class="Wdpl2.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:Wdpl2.Views"
     xmlns:webcontrol="clr-namespace:Wdpl2.Views.WebControl"
-    xmlns:websitebuilder="clr-namespace:Wdpl2.Views.WebsiteBuilder">
+    xmlns:websitebuilder="clr-namespace:Wdpl2.Views.WebsiteBuilder"
+    FlyoutBehavior="{OnIdiom Phone=Flyout, Default=Locked}"
+    FlyoutWidth="236"
+    FlyoutBackgroundColor="{AppThemeBinding Light=#F5F7F6, Dark=#111A17}">
 
-    <TabBar>
-        <Tab Title="Dashboard" Icon="stats.png">
-            <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
-        </Tab>
+    <Shell.FlyoutContent>
+        <ScrollView>
+            <VerticalStackLayout x:Name="Sidebar" Padding="12,18,12,18" Spacing="2" />
+        </ScrollView>
+    </Shell.FlyoutContent>
 
-        <Tab Title="Seasons" Icon="calendar.png">
-            <ShellContent Title="Seasons" ContentTemplate="{DataTemplate views:SeasonsPage}" />
-        </Tab>
+    <FlyoutItem Title="Dashboard" Route="Dashboard">
+        <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
+    </FlyoutItem>
 
-        <Tab Title="Divisions">
-            <ShellContent Title="Divisions" ContentTemplate="{DataTemplate views:DivisionsPage}" />
-        </Tab>
+    <!-- League -->
+    <FlyoutItem Title="Seasons" Route="Seasons">
+        <ShellContent Title="Seasons" ContentTemplate="{DataTemplate views:SeasonsPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Divisions" Route="Divisions">
+        <ShellContent Title="Divisions" ContentTemplate="{DataTemplate views:DivisionsPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Teams" Route="Teams">
+        <ShellContent Title="Teams" ContentTemplate="{DataTemplate views:TeamsPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Players" Route="Players">
+        <ShellContent Title="Players" ContentTemplate="{DataTemplate views:PlayersPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Venues" Route="Venues">
+        <ShellContent Title="Venues" ContentTemplate="{DataTemplate views:VenuesPage}" />
+    </FlyoutItem>
 
-        <Tab Title="Teams">
-            <ShellContent Title="Teams" ContentTemplate="{DataTemplate views:TeamsPage}" />
-        </Tab>
+    <!-- Matches -->
+    <FlyoutItem Title="Fixtures" Route="Fixtures">
+        <ShellContent Title="Fixtures" ContentTemplate="{DataTemplate views:FixturesPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Calendar" Route="Calendar">
+        <ShellContent Title="Calendar" ContentTemplate="{DataTemplate views:CalendarPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Tables" Route="Tables">
+        <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Competitions" Route="Competitions">
+        <ShellContent Title="Competitions" ContentTemplate="{DataTemplate views:CompetitionsPage}" />
+    </FlyoutItem>
 
-        <Tab Title="Players">
-            <ShellContent Title="Players" ContentTemplate="{DataTemplate views:PlayersPage}" />
-        </Tab>
+    <!-- Stats -->
+    <FlyoutItem Title="Analytics" Route="Analytics">
+        <ShellContent Title="Analytics" ContentTemplate="{DataTemplate views:AnalyticsHubPage}" />
+    </FlyoutItem>
 
-        <Tab Title="Venues">
-            <ShellContent Title="Venues" ContentTemplate="{DataTemplate views:VenuesPage}" />
-        </Tab>
+    <!-- Online -->
+    <FlyoutItem Title="Website" Route="Website">
+        <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate websitebuilder:WebsiteBuilderHub}" />
+    </FlyoutItem>
+    <FlyoutItem Title="Web Control" Route="WebControl">
+        <ShellContent Title="Web Control" ContentTemplate="{DataTemplate webcontrol:WebControlHub}" />
+    </FlyoutItem>
 
-        <Tab Title="Fixtures" Icon="calendar.png">
-            <ShellContent Title="Fixtures" ContentTemplate="{DataTemplate views:FixturesPage}" />
-        </Tab>
-
-        <Tab Title="Calendar" Icon="calendar.png">
-            <ShellContent Title="Calendar" ContentTemplate="{DataTemplate views:CalendarPage}" />
-        </Tab>
-
-        <Tab Title="Competitions">
-            <ShellContent Title="Competitions" ContentTemplate="{DataTemplate views:CompetitionsPage}" />
-        </Tab>
-
-        <Tab Title="Tables" Icon="stats.png">
-            <ShellContent Title="Tables" ContentTemplate="{DataTemplate views:LeagueTablesPage}" />
-        </Tab>
-
-        <!-- ANALYTICS HUB - Replaces individual analytics tabs -->
-        <Tab Title="Analytics" Icon="stats.png">
-            <ShellContent Title="Analytics Hub" ContentTemplate="{DataTemplate views:AnalyticsHubPage}" />
-        </Tab>
-
-        <!-- WEBSITE BUILDER -->
-        <Tab Title="Website" Icon="globe.png">
-            <ShellContent Title="Website Builder" ContentTemplate="{DataTemplate websitebuilder:WebsiteBuilderHub}" />
-        </Tab>
-
-        <Tab Title="Web Control" Icon="globe.png">
-            <ShellContent Title="Web Control" ContentTemplate="{DataTemplate webcontrol:WebControlHub}" />
-        </Tab>
-
-        <Tab Title="Settings">
-            <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
-        </Tab>
-    </TabBar>
+    <FlyoutItem Title="Settings" Route="Settings">
+        <ShellContent Title="Settings" ContentTemplate="{DataTemplate views:SettingsPage}" />
+    </FlyoutItem>
 </Shell>

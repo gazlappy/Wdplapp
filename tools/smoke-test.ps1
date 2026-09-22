@@ -78,14 +78,18 @@ $Any = [System.Windows.Automation.Condition]::TrueCondition
 
 function Get-All($root) { $root.FindAll($Tree, $Any) }
 
+# The sidebar's pages are buttons with AutomationId "nav-<Route>", named after
+# the page (see AppShell.xaml.cs). "Tab" below means one of those pages.
 function Get-Tabs($root) {
-    Get-All $root | Where-Object { $_.Current.ControlType.ProgrammaticName -eq 'ControlType.TabItem' }
+    Get-All $root | Where-Object {
+        $_.Current.ControlType.ProgrammaticName -eq 'ControlType.Button' -and $_.Current.AutomationId -like 'nav-*'
+    }
 }
 
 function Select-Tab($root, [string]$name) {
     $tab = Get-Tabs $root | Where-Object { $_.Current.Name -eq $name } | Select-Object -First 1
     if ($null -eq $tab) { return $false }
-    $tab.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    $tab.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     return $true
 }
 
@@ -124,7 +128,7 @@ until ($proc.HasExited -or $proc.MainWindowHandle -ne [IntPtr]::Zero -or (Get-Da
 if ($proc.HasExited) { throw "The app exited during start-up (code $($proc.ExitCode))." }
 if ($proc.MainWindowHandle -eq [IntPtr]::Zero) { throw "No window appeared within 60 seconds." }
 
-# Maximised, so no tab is hidden in the overflow menu.
+# Maximised, so the sidebar is locked open beside the page.
 [void][SmokeWin]::ShowWindow($proc.MainWindowHandle, 3)
 [void][SmokeWin]::SetForegroundWindow($proc.MainWindowHandle)
 $root = $A::FromHandle($proc.MainWindowHandle)
@@ -133,8 +137,8 @@ $root = $A::FromHandle($proc.MainWindowHandle)
 $deadline = (Get-Date).AddSeconds(60)
 do { Start-Sleep -Milliseconds 500; $names = @(Get-Tabs $root | ForEach-Object { $_.Current.Name }) }
 until ($names.Count -gt 0 -or (Get-Date) -gt $deadline)
-if ($names.Count -eq 0) { throw "No tabs appeared within 60 seconds of launch." }
-Write-Host ("Found {0} tabs: {1}" -f $names.Count, ($names -join ', '))
+if ($names.Count -eq 0) { throw "No sidebar pages appeared within 60 seconds of launch." }
+Write-Host ("Found {0} pages in the sidebar: {1}" -f $names.Count, ($names -join ', '))
 
 $results = @()
 $firstTab = $names[0]
