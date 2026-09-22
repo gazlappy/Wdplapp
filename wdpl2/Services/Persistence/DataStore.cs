@@ -150,7 +150,7 @@ public static partial class DataStore
             try
             {
                 var backupService = new Wdpl2.Services.BackupService();
-                _ = backupService.CreateBackupAsync();
+                _ = backupService.CreateBackupAsync(Wdpl2.Services.BackupKind.Automatic);
             }
             catch (Exception ex)
             {

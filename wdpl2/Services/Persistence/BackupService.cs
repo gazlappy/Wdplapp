@@ -1,69 +1,93 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Threading.Tasks;
 using Wdpl2.Data;
 
 namespace Wdpl2.Services;
 
+/// <summary>What made a backup, told apart by the start of its file name.</summary>
+public enum BackupKind
+{
+    /// <summary>Taken every few saves. Only the newest <see cref="BackupService.AutomaticKept"/> are kept.</summary>
+    Automatic,
+
+    /// <summary>Asked for in Data Tools. Never deleted by the app.</summary>
+    Manual,
+
+    /// <summary>Taken of the league a restore was about to replace. Never deleted by the app.</summary>
+    BeforeRestore,
+
+    /// <summary>Automatic backups from before they were named apart. Never deleted by the app.</summary>
+    OlderAutomatic,
+}
+
 /// <summary>
-/// Service for backing up and restoring app data (SQLite database + JSON data).
+/// Backs up the league (the SQLite database and the JSON file, zipped together)
+/// and restores a backup at the next start.
 /// </summary>
 public class BackupService
 {
+    /// <summary>How many automatic backups are kept; older ones are deleted as new ones are made.</summary>
+    public const int AutomaticKept = 20;
+
+    private static readonly (BackupKind Kind, string Prefix)[] Prefixes =
+    [
+        (BackupKind.Automatic, "auto_backup_"),
+        (BackupKind.Manual, "manual_backup_"),
+        (BackupKind.BeforeRestore, "before-restore_"),
+        // Every save used to take one of these, under either name, and nothing
+        // ever deleted them: one league had built up 280.
+        (BackupKind.OlderAutomatic, "wdpl2_backup_"),
+        (BackupKind.OlderAutomatic, "league_backup_"),
+    ];
+
+    public static string BackupFolder => Path.Combine(FileSystem.AppDataDirectory, "backups");
+
+    private static string LeaguePath => Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
+
     /// <summary>
-    /// Create a backup ZIP containing the SQLite database and JSON data file.
+    /// Zips the database and the league file into the backups folder.
     /// </summary>
-    /// <param name="outputPath">Full path for the output ZIP file. If null, uses default backup folder.</param>
-    /// <returns>The path of the created backup file, or null on failure.</returns>
-    public async Task<(bool success, string message, string? backupPath)> CreateBackupAsync(string? outputPath = null)
+    public async Task<(bool success, string message, string? backupPath)> CreateBackupAsync(BackupKind kind = BackupKind.Manual)
     {
         try
         {
-            var backupDir = Path.Combine(FileSystem.AppDataDirectory, "backups");
-            if (!Directory.Exists(backupDir))
-                Directory.CreateDirectory(backupDir);
+            Directory.CreateDirectory(BackupFolder);
 
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var zipPath = outputPath ?? Path.Combine(backupDir, $"league_backup_{timestamp}.zip");
+            var prefix = Prefixes.First(p => p.Kind == kind).Prefix;
+            var zipPath = Path.Combine(BackupFolder, $"{prefix}{DateTime.Now:yyyyMMdd_HHmmss}.zip");
 
-            // Ensure parent directory exists
-            var zipDir = Path.GetDirectoryName(zipPath);
-            if (!string.IsNullOrEmpty(zipDir) && !Directory.Exists(zipDir))
-                Directory.CreateDirectory(zipDir);
+            // Two backups in the same second (a quick run of saves) would
+            // otherwise overwrite one another.
+            for (var n = 2; File.Exists(zipPath); n++)
+                zipPath = Path.Combine(BackupFolder, $"{prefix}{DateTime.Now:yyyyMMdd_HHmmss}_{n}.zip");
 
-            // Delete existing file if present
-            if (File.Exists(zipPath))
-                File.Delete(zipPath);
-
-            using var zipStream = new FileStream(zipPath, FileMode.Create);
-            using var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true);
-
-            // Backup SQLite database
-            var dbPath = LeagueContext.GetDatabasePath();
-            if (File.Exists(dbPath))
+            using (var zipStream = new FileStream(zipPath, FileMode.CreateNew))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
             {
-                await AddFileToArchiveAsync(archive, dbPath, "league.db");
+                var dbPath = LeagueContext.GetDatabasePath();
+                if (File.Exists(dbPath))
+                    await AddFileToArchiveAsync(archive, dbPath, BackupFiles.DatabaseEntry);
+
+                if (File.Exists(LeaguePath))
+                    await AddFileToArchiveAsync(archive, LeaguePath, BackupFiles.LeagueEntry);
+
+                var metaEntry = archive.CreateEntry("backup_info.txt");
+                using var writer = new StreamWriter(metaEntry.Open());
+                await writer.WriteAsync(
+                    $"Backup created: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                    $"Kind: {kind}\n" +
+                    $"App version: {AppInfo.VersionString}\n" +
+                    $"Platform: {DeviceInfo.Platform}\n");
             }
 
-            // Backup JSON data file
-            var jsonPath = Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
-            if (File.Exists(jsonPath))
-            {
-                await AddFileToArchiveAsync(archive, jsonPath, "data.json");
-            }
+            if (kind == BackupKind.Automatic)
+                PruneAutomatic();
 
-            // Add metadata
-            var metadata = $"Backup created: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                           $"App version: {AppInfo.VersionString}\n" +
-                           $"Platform: {DeviceInfo.Platform}\n";
-            var metaEntry = archive.CreateEntry("backup_info.txt");
-            using (var writer = new StreamWriter(metaEntry.Open()))
-            {
-                await writer.WriteAsync(metadata);
-            }
-
-            return (true, $"Backup created successfully at {zipPath}", zipPath);
+            return (true, $"Backup saved as {Path.GetFileName(zipPath)}.", zipPath);
         }
         catch (Exception ex)
         {
@@ -73,80 +97,64 @@ public class BackupService
     }
 
     /// <summary>
-    /// Restore data from a backup ZIP file.
+    /// Checks a backup and queues it to replace the league at the next start.
     /// </summary>
-    /// <param name="backupZipPath">Full path to the backup ZIP file.</param>
-    /// <returns>Success status and message.</returns>
-    public async Task<(bool success, string message)> RestoreBackupAsync(string backupZipPath)
+    /// <remarks>See <see cref="BackupFiles"/> for why a restore cannot happen while the app is open.</remarks>
+    public static void StageRestore(string backupZip) =>
+        BackupFiles.Stage(backupZip, FileSystem.AppDataDirectory);
+
+    /// <summary>
+    /// Puts a queued backup in place, first taking a backup of the league it
+    /// replaces. Called at start-up before anything opens the league.
+    /// </summary>
+    /// <returns>What happened, for the person; null when nothing was queued.</returns>
+    public static async Task<string?> ApplyPendingRestoreAsync()
     {
+        var appData = FileSystem.AppDataDirectory;
+        if (!BackupFiles.HasPending(appData))
+            return null;
+
+        // The league about to be replaced is backed up first, so a restore of
+        // the wrong file is itself one restore away from being undone.
+        var safety = await new BackupService().CreateBackupAsync(BackupKind.BeforeRestore);
+        if (!safety.success)
+        {
+            BackupFiles.CancelPending(appData);
+            return "The backup was not restored: the current league could not be backed up first, "
+                 + "so it was left as it was. " + safety.message;
+        }
+
         try
         {
-            if (!File.Exists(backupZipPath))
-                return (false, "Backup file not found.");
-
-            using var zipStream = new FileStream(backupZipPath, FileMode.Open, FileAccess.Read);
-            using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-
-            // Verify it's a valid backup
-            var hasDb = archive.GetEntry("league.db") != null;
-            var hasJson = archive.GetEntry("data.json") != null;
-
-            if (!hasDb && !hasJson)
-                return (false, "Invalid backup file — no data found.");
-
-            // Restore SQLite database
-            if (hasDb)
-            {
-                var dbPath = LeagueContext.GetDatabasePath();
-                var entry = archive.GetEntry("league.db")!;
-                await ExtractEntryAsync(entry, dbPath);
-            }
-
-            // Restore JSON data
-            if (hasJson)
-            {
-                var jsonPath = Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
-                var jsonDir = Path.GetDirectoryName(jsonPath);
-                if (!string.IsNullOrEmpty(jsonDir) && !Directory.Exists(jsonDir))
-                    Directory.CreateDirectory(jsonDir);
-
-                var entry = archive.GetEntry("data.json")!;
-                await ExtractEntryAsync(entry, jsonPath);
-            }
-
-            var restored = new System.Collections.Generic.List<string>();
-            if (hasDb) restored.Add("database");
-            if (hasJson) restored.Add("settings");
-
-            return (true, $"Restored {string.Join(" and ", restored)} from backup. Please restart the app.");
+            BackupFiles.ApplyPending(appData, LeagueContext.GetDatabasePath(), LeaguePath);
+            return "Your backup has been restored. The league it replaced was saved first, as "
+                 + Path.GetFileName(safety.backupPath) + ".";
         }
         catch (Exception ex)
         {
+            BackupFiles.CancelPending(appData);
             System.Diagnostics.Debug.WriteLine($"Restore failed: {ex}");
-            return (false, $"Restore failed: {ex.Message}");
+            return "The backup could not be restored, and your league was left as it was. " + ex.Message;
         }
     }
 
-    /// <summary>
-    /// List available backup files in the default backup directory.
-    /// </summary>
-    public System.Collections.Generic.List<BackupInfo> GetAvailableBackups()
+    /// <summary>Every backup in the folder, newest first.</summary>
+    public List<BackupInfo> GetAvailableBackups()
     {
-        var backups = new System.Collections.Generic.List<BackupInfo>();
-        var backupDir = Path.Combine(FileSystem.AppDataDirectory, "backups");
-
-        if (!Directory.Exists(backupDir))
+        var backups = new List<BackupInfo>();
+        if (!Directory.Exists(BackupFolder))
             return backups;
 
-        foreach (var file in Directory.GetFiles(backupDir, "*.zip"))
+        foreach (var file in Directory.GetFiles(BackupFolder, "*.zip"))
         {
             var info = new FileInfo(file);
             backups.Add(new BackupInfo
             {
                 FilePath = file,
                 FileName = info.Name,
-                CreatedDate = info.CreationTime,
-                SizeBytes = info.Length
+                CreatedDate = info.LastWriteTime,
+                SizeBytes = info.Length,
+                Kind = KindOf(info.Name),
             });
         }
 
@@ -154,24 +162,37 @@ public class BackupService
         return backups;
     }
 
-    /// <summary>
-    /// Delete a specific backup file.
-    /// </summary>
     public bool DeleteBackup(string filePath)
     {
         try
         {
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-                return true;
-            }
-            return false;
+            if (!File.Exists(filePath)) return false;
+            File.Delete(filePath);
+            return true;
         }
         catch
         {
             return false;
         }
+    }
+
+    /// <summary>Deletes every backup of one kind. Returns how many went.</summary>
+    public int DeleteAll(BackupKind kind) =>
+        GetAvailableBackups().Where(b => b.Kind == kind).Count(b => DeleteBackup(b.FilePath));
+
+    public static BackupKind KindOf(string fileName)
+    {
+        foreach (var (kind, prefix) in Prefixes)
+            if (fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return kind;
+        return BackupKind.Manual;
+    }
+
+    /// <summary>Keeps the newest automatic backups and deletes the rest.</summary>
+    private void PruneAutomatic()
+    {
+        foreach (var old in GetAvailableBackups().Where(b => b.Kind == BackupKind.Automatic).Skip(AutomaticKept))
+            DeleteBackup(old.FilePath);
     }
 
     private static async Task AddFileToArchiveAsync(ZipArchive archive, string filePath, string entryName)
@@ -180,13 +201,6 @@ public class BackupService
         using var entryStream = entry.Open();
         using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         await fileStream.CopyToAsync(entryStream);
-    }
-
-    private static async Task ExtractEntryAsync(ZipArchiveEntry entry, string outputPath)
-    {
-        using var entryStream = entry.Open();
-        using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
-        await entryStream.CopyToAsync(fileStream);
     }
 }
 
@@ -199,7 +213,17 @@ public class BackupInfo
     public string FileName { get; set; } = "";
     public DateTime CreatedDate { get; set; }
     public long SizeBytes { get; set; }
+    public BackupKind Kind { get; set; }
+
     public string SizeDisplay => SizeBytes < 1024 * 1024
         ? $"{SizeBytes / 1024.0:F1} KB"
         : $"{SizeBytes / (1024.0 * 1024.0):F1} MB";
+
+    public string KindDisplay => Kind switch
+    {
+        BackupKind.Automatic => "Automatic",
+        BackupKind.Manual => "Made by you",
+        BackupKind.BeforeRestore => "Before a restore",
+        _ => "Older automatic",
+    };
 }

@@ -21,7 +21,7 @@ public partial class AppShell : Shell
                      ("Competitions", "Competitions")]),
         ("Stats",   [("Analytics", "Analytics")]),
         ("Online",  [("Website", "Website"), ("Web Control", "WebControl")]),
-        (null,      [("Settings", "Settings")]),
+        (null,      [("Settings", "Settings"), ("Help", "Help")]),
     ];
 
     private static readonly Color SelectedLight = Color.FromArgb("#DCEFE6");

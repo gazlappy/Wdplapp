@@ -54,6 +54,15 @@ public partial class App : Application
     {
         try
         {
+            // A restore chosen last time goes in before anything opens the
+            // league - the one moment nothing is holding it.
+            string? restored = null;
+            if (Services.BackupFiles.HasPending(FileSystem.AppDataDirectory))
+            {
+                startup.Report("Restoring your backup…");
+                restored = await Services.BackupService.ApplyPendingRestoreAsync();
+            }
+
             startup.Report("Preparing the database…");
 
             // Schema first: everything after this reads or writes through it.
@@ -81,6 +90,9 @@ public partial class App : Application
             _seasonService.Initialize();
 
             window.Page = new AppShell();
+
+            if (restored is not null)
+                await window.Page.DisplayAlert("Restore", restored, "OK");
         }
         catch (Exception ex)
         {
