@@ -2204,8 +2204,8 @@ namespace Wdpl2.Views
                 $"{Emojis.Bullet} Generate: builds a static folder of HTML, CSS, JSON data and images.\n" +
                 $"{Emojis.Bullet} Deploy: upload via FTP (FtpUploadService) or push to GitHub Pages " +
                 "(GitHubPagesService) directly from the Deployment Settings page.\n" +
-                $"{Emojis.Bullet} SEO & Social Card: configure meta tags, Open Graph image and a generated " +
-                "social-share card for the league."));
+                $"{Emojis.Bullet} Result Cards: make an image of a result, table or fixture, save it and copy " +
+                "its caption, ready to post wherever the league shares its news."));
 
             // ---- Notifications ----
             root.Children.Add(Add(Emojis.Bell, "Notifications",

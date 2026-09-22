@@ -206,7 +206,7 @@
                             <Label Text="&#128221;" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center"/>
                         </Frame>
                         <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" VerticalOptions="Center">
-                            <Label Text="Rows Reports" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                            <Label Text="Reports" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                             <Label x:Name="RowsReportsCountLabel" Text="Weekly match reports (0)" FontSize="11" TextColor="#64748B"/>
                         </VerticalStackLayout>
                         <Label Grid.Column="2" Text="›" FontSize="22" TextColor="#CBD5E1" VerticalOptions="Center"/>
@@ -304,31 +304,16 @@
                             <Label Text="&#128228;" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center"/>
                         </Frame>
                         <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" VerticalOptions="Center">
-                            <Label Text="Post To Social Media" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"/>
-                            <Label Text="Share result cards, fixtures, tables" FontSize="11" TextColor="#7C3AED"/>
+                            <Label Text="Result Cards" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"/>
+                            <Label Text="Cards of results, tables and fixtures to post" FontSize="11" TextColor="#7C3AED"/>
                         </VerticalStackLayout>
                         <Label Grid.Column="2" Text="›" FontSize="22" TextColor="#A78BFA" VerticalOptions="Center"/>
                     </Grid>
                 </Frame>
 
-                <!-- ── Advanced ── -->
-                <Label x:Name="AdvancedSectionLabel" Text="ADVANCED" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
+                <!-- ── Publish ── -->
+                <Label x:Name="PublishSectionLabel" Text="PUBLISH" FontSize="11" FontAttributes="Bold" TextColor="#94A3B8" 
                        Margin="0,8,0,0" CharacterSpacing="1.5"/>
-
-                <Frame x:Name="SeoTile" BorderColor="#E2E8F0" Padding="0" CornerRadius="10" BackgroundColor="White">
-                    <Grid Padding="14" ColumnDefinitions="36,*,Auto">
-                        <Grid.GestureRecognizers><TapGestureRecognizer Tapped="OnSeoTapped"/></Grid.GestureRecognizers>
-                        <Frame Grid.Column="0" BackgroundColor="#F5F3FF" Padding="0" CornerRadius="8"
-                               HeightRequest="36" WidthRequest="36" HasShadow="False" BorderColor="Transparent">
-                            <Label Text="&#128269;" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center"/>
-                        </Frame>
-                        <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" VerticalOptions="Center">
-                            <Label Text="SEO and Advanced" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
-                            <Label x:Name="SeoSummaryLabel" Text="Meta tags, custom CSS, HTML" FontSize="11" TextColor="#64748B"/>
-                        </VerticalStackLayout>
-                        <Label Grid.Column="2" Text="›" FontSize="22" TextColor="#CBD5E1" VerticalOptions="Center"/>
-                    </Grid>
-                </Frame>
 
                 <Frame x:Name="DeploymentTile" BorderColor="#3B82F6" Padding="0" CornerRadius="10" BackgroundColor="#EFF6FF">
                     <Grid Padding="14" ColumnDefinitions="36,*,Auto">

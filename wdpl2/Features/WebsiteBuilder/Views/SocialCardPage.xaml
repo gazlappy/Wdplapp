@@ -2,7 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebsiteBuilder.SocialCardPage"
-             Title="Post To Social Media">
+             Title="Result Cards">
 
     <Grid ColumnDefinitions="380,*" ColumnSpacing="0">
 
@@ -10,8 +10,8 @@
         <ScrollView Grid.Column="0" BackgroundColor="#F8FAFC">
             <VerticalStackLayout Padding="20,16" Spacing="12">
 
-                <Label Text="Social Cards" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
-                <Label Text="Generate shareable cards for social media" FontSize="12" TextColor="#64748B"/>
+                <Label Text="Result Cards" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
+                <Label Text="Make cards of results, tables and fixtures to post" FontSize="12" TextColor="#64748B"/>
 
                 <!-- Action Buttons -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
@@ -141,38 +141,18 @@
                     </VerticalStackLayout>
                 </Frame>
 
-                <!-- Post To Social Media -->
+                <!-- Save the card -->
                 <Frame BorderColor="#8B5CF6" Padding="14" CornerRadius="10" BackgroundColor="#F5F3FF">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="&#128228; Post To" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"
+                        <Label Text="&#128190; Save your card" FontAttributes="Bold" FontSize="13" TextColor="#6D28D9"
                                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Label Text="Save or share your card directly" FontSize="11" TextColor="#7C3AED"
+                        <Label Text="Save the image and copy the caption, then post it wherever you like" FontSize="11" TextColor="#7C3AED"
                                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
 
                         <Button Text="&#128190; Save as Image" Clicked="OnSaveImageClicked"
                                 BackgroundColor="#6D28D9" TextColor="White" FontSize="12" FontAttributes="Bold"
                                 HeightRequest="40" Padding="0" CornerRadius="8"
                                 HorizontalOptions="Fill"/>
-
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"
-                              RowDefinitions="40,40" RowSpacing="8">
-                            <Button Grid.Column="0" Grid.Row="0" Text="&#127760; Facebook" Clicked="OnPostFacebookClicked"
-                                    BackgroundColor="#1877F2" TextColor="White" FontSize="11" FontAttributes="Bold"
-                                    Padding="0" CornerRadius="8"
-                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
-                            <Button Grid.Column="1" Grid.Row="0" Text="&#120143; X / Twitter" Clicked="OnPostTwitterClicked"
-                                    BackgroundColor="#0F1419" TextColor="White" FontSize="11" FontAttributes="Bold"
-                                    Padding="0" CornerRadius="8"
-                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
-                            <Button Grid.Column="0" Grid.Row="1" Text="&#128247; Instagram" Clicked="OnPostInstagramClicked"
-                                    BackgroundColor="#E1306C" TextColor="White" FontSize="11" FontAttributes="Bold"
-                                    Padding="0" CornerRadius="8"
-                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
-                            <Button Grid.Column="1" Grid.Row="1" Text="&#128172; WhatsApp" Clicked="OnPostWhatsAppClicked"
-                                    BackgroundColor="#25D366" TextColor="White" FontSize="11" FontAttributes="Bold"
-                                    Padding="0" CornerRadius="8"
-                                    HorizontalOptions="Fill" VerticalOptions="Fill"/>
-                        </Grid>
 
                         <Button Text="&#128203; Copy to Clipboard" Clicked="OnCopyClipboardClicked"
                                 BackgroundColor="Transparent" TextColor="#6D28D9" FontSize="12" FontAttributes="Bold"
@@ -207,7 +187,7 @@
                     <Label Text="&#128228;" FontSize="56" HorizontalOptions="Center"/>
                     <Label Text="Select a card type and click Preview" FontSize="18"
                            FontAttributes="Bold" TextColor="#475569" HorizontalOptions="Center"/>
-                    <Label Text="Generate shareable cards for Facebook, Twitter, Instagram and more" FontSize="13"
+                    <Label Text="Result, table and fixture cards, ready to save and post" FontSize="13"
                            TextColor="#94A3B8" HorizontalOptions="Center"/>
                     <Button Text="&#128065; Generate Preview" Clicked="OnPreviewClicked"
                             BackgroundColor="#3B82F6" TextColor="White" FontSize="13"

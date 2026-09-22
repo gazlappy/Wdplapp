@@ -87,7 +87,7 @@ public partial class WebsiteBuilderHub : ContentPage
         if (_generatedFiles.ContainsKey("contact.html")) pages.Add("Contact");
         if (_generatedFiles.ContainsKey("sponsors.html")) pages.Add("Sponsors");
         if (_generatedFiles.ContainsKey("news.html")) pages.Add("News");
-        if (_generatedFiles.ContainsKey("rows-reports.html")) pages.Add("Rows Reports");
+        if (_generatedFiles.ContainsKey("reports.html")) pages.Add("Reports");
         if (_generatedFiles.ContainsKey("entry-forms.html")) pages.Add("Entry Forms");
         if (_generatedFiles.ContainsKey("captains.html")) pages.Add("Captains");
 
@@ -115,7 +115,7 @@ public partial class WebsiteBuilderHub : ContentPage
         fileName is "index.html" or "home.html" or "standings.html" or "fixtures.html" or "results.html"
             or "players.html" or "divisions.html" or "competitions.html" or "gallery.html"
             or "rules.html" or "contact.html" or "sponsors.html" or "news.html"
-            or "rows-reports.html" or "entry-forms.html"
+            or "reports.html" or "entry-forms.html"
             or "captains.html"
             or "player.html" or "team.html" or "style.css"
             or "sitemap.xml" or "players-data.json" or "teams-data.json";
@@ -328,17 +328,6 @@ public partial class WebsiteBuilderHub : ContentPage
         if (s.ShowEntryForms && s.EntryForms.Count > 0) pageCount++;
         ContentSummaryLabel.Text = $"{pageCount} page{(pageCount == 1 ? "" : "s")} enabled · {Capitalize(s.HomeLayout)} home";
 
-        // SEO
-        var seoParts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(s.MetaDescription)) seoParts.Add("Meta");
-        if (!string.IsNullOrWhiteSpace(s.CustomCss)) seoParts.Add("CSS");
-        if (!string.IsNullOrWhiteSpace(s.CustomHeadHtml) || !string.IsNullOrWhiteSpace(s.CustomBodyStartHtml) || !string.IsNullOrWhiteSpace(s.CustomBodyEndHtml))
-            seoParts.Add("HTML");
-        if (s.GenerateSitemap) seoParts.Add("Sitemap");
-        SeoSummaryLabel.Text = seoParts.Count > 0 
-            ? string.Join(" · ", seoParts) + " configured" 
-            : "Not configured yet";
-
         UpdateSetupProgress();
     }
 
@@ -478,8 +467,6 @@ public partial class WebsiteBuilderHub : ContentPage
     private async void OnSocialCardTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new SocialCardPage());
 
-    private async void OnSeoTapped(object sender, EventArgs e)
-        => await Navigation.PushAsync(new SeoSettingsPage());
     
     private async void OnDeploymentTapped(object sender, EventArgs e)
         => await Navigation.PushAsync(new DeploymentSettingsPage());
@@ -499,14 +486,13 @@ public partial class WebsiteBuilderHub : ContentPage
             (HomeTile, ["home", "home page", "welcome", "quick stats", "league leaders", "recent results", "upcoming fixtures", "hide", "show", "sections", "featured", "featured pages"]),
             (ContentTile, ["content", "pages", "home", "standings", "fixtures", "results", "players", "divisions"]),
             (GalleryTile, ["gallery", "photos", "images", "photo"]),
-            (RowsReportsTile, ["rows reports", "match reports", "weekly", "reports"]),
+            (RowsReportsTile, ["reports", "match reports", "weekly", "round-up"]),
             (RulesTile, ["rules", "league rules", "constitution", "match rules"]),
             (EntryFormsTile, ["entry forms", "forms", "entries", "submissions", "entry"]),
             (HistoryTile, ["history", "honours", "roll of honour", "historic", "winners"]),
             (CaptainsTile, ["captains", "captain", "login", "pin", "team login", "access", "private", "contact list"]),
             (FixturesSheetTile, ["fixtures sheet", "print", "printable", "fixtures"]),
-            (SocialCardTile, ["social media", "share", "result cards", "post"]),
-            (SeoTile, ["seo", "advanced", "meta tags", "custom css", "html", "sitemap", "meta"]),
+            (SocialCardTile, ["result cards", "cards", "share", "social media", "image"]),
             (DeploymentTile, ["deployment", "deploy", "export", "github pages", "ftp", "publish", "upload"]),
         };
 
@@ -520,7 +506,7 @@ public partial class WebsiteBuilderHub : ContentPage
             (ContentSectionLabel, [HomeTile, ContentTile, GalleryTile, RowsReportsTile, RulesTile, EntryFormsTile, HistoryTile, CaptainsTile]),
             (PrintExportSectionLabel, [FixturesSheetTile]),
             (SocialSectionLabel, [SocialCardTile]),
-            (AdvancedSectionLabel, [SeoTile, DeploymentTile]),
+            (PublishSectionLabel, [DeploymentTile]),
         };
 
         foreach (var (label, sectionTiles) in sections)
@@ -533,7 +519,7 @@ public partial class WebsiteBuilderHub : ContentPage
     {
         var confirmed = await DisplayAlert(
             "Reset Settings",
-            "This will reset ALL website builder settings (colors, layout, content, SEO, etc.) to their default values. This cannot be undone.\n\nAre you sure?",
+            "This will reset ALL website builder settings (colors, layout, content, etc.) to their default values. This cannot be undone.\n\nAre you sure?",
             "Reset Everything",
             "Cancel");
 
@@ -684,7 +670,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "contact" => "contact.html",
             "sponsors" => "sponsors.html",
             "news" => "news.html",
-            "rows reports" => "rows-reports.html",
+            "reports" => "reports.html",
             "entry forms" => "entry-forms.html",
             "captains" => "captains.html",
             _ => pageName != null ? $"{pageName.ToLowerInvariant()}.html" : "home.html"
@@ -707,7 +693,7 @@ public partial class WebsiteBuilderHub : ContentPage
             "contact.html" => "Contact",
             "sponsors.html" => "Sponsors",
             "news.html" => "News",
-            "rows-reports.html" => "Rows Reports",
+            "reports.html" => "Reports",
             "entry-forms.html" => "Entry Forms",
             "captains.html" => "Captains",
             _ => Path.GetFileNameWithoutExtension(fileName)

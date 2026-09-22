@@ -366,7 +366,7 @@ namespace Wdpl2.Services
                 NavLink("news.html", _settings.NewsNavLabel, "News");
 
             if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
-                NavLink("rows-reports.html", _settings.RowsReportsNavLabel, "Rows Reports");
+                NavLink("reports.html", _settings.RowsReportsNavLabel, "Reports");
 
             if (_settings.ShowSponsors && _settings.Sponsors.Count > 0)
                 NavLink("sponsors.html", _settings.SponsorsNavLabel, "Sponsors");

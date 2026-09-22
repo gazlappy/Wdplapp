@@ -2,13 +2,13 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Wdpl2.Views.WebsiteBuilder.RowsReportsSettingsPage"
-             Title="Rows Reports">
+             Title="Reports">
 
     <Grid RowDefinitions="Auto,*" RowSpacing="0">
 
         <!-- Header -->
         <VerticalStackLayout Padding="20,16" Spacing="4" BackgroundColor="#F8FAFC">
-            <Label Text="&#128221; Rows Reports" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="&#128221; Reports" FontSize="22" FontAttributes="Bold" TextColor="#1E293B"/>
             <Label Text="Write weekly match reports and round-ups for your league website" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
         </VerticalStackLayout>
 

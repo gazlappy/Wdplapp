@@ -299,7 +299,14 @@ namespace Wdpl2.Models
         public string CompetitionsPageTitle { get; set; } = "Competitions";
         public string GalleryPageTitle { get; set; } = "Photo Gallery";
         public string NewsPageTitle { get; set; } = "Latest News";
-        public string RowsReportsPageTitle { get; set; } = "Rows Reports";
+        // "Rows Reports" was the old default. A league that never changed it gets
+        // the new one, rather than keeping a name that meant something to one league.
+        private string _rowsReportsPageTitle = "Reports";
+        public string RowsReportsPageTitle
+        {
+            get => _rowsReportsPageTitle;
+            set => _rowsReportsPageTitle = value == "Rows Reports" ? "Reports" : value;
+        }
         public string SponsorsPageTitle { get; set; } = "Our Sponsors";
         public string RulesPageTitle { get; set; } = "League Rules";
         public string ContactPageTitle { get; set; } = "Contact Us";
@@ -315,7 +322,12 @@ namespace Wdpl2.Models
         public string CompetitionsNavLabel { get; set; } = "Competitions";
         public string GalleryNavLabel { get; set; } = "Gallery";
         public string NewsNavLabel { get; set; } = "News";
-        public string RowsReportsNavLabel { get; set; } = "Rows Reports";
+        private string _rowsReportsNavLabel = "Reports";
+        public string RowsReportsNavLabel
+        {
+            get => _rowsReportsNavLabel;
+            set => _rowsReportsNavLabel = value == "Rows Reports" ? "Reports" : value;
+        }
         public string SponsorsNavLabel { get; set; } = "Sponsors";
         public string RulesNavLabel { get; set; } = "Rules";
         public string EntryFormsNavLabel { get; set; } = "Entry Forms";
@@ -729,7 +741,7 @@ namespace Wdpl2.Models
         public List<NewsItem> NewsItems { get; set; } = new();
         public int NewsItemsToShow { get; set; } = 5;
 
-        // Rows Reports (weekly match reports blog)
+        // Reports (weekly match reports blog)
         public bool ShowRowsReports { get; set; } = false;
         public List<RowsReport> RowsReports { get; set; } = new();
         public int RowsReportsPerPage { get; set; } = 10;
@@ -941,7 +953,7 @@ namespace Wdpl2.Models
             CompetitionsNavLabel = "Competitions";
             GalleryNavLabel = "Gallery";
             NewsNavLabel = "News";
-            RowsReportsNavLabel = "Rows Reports";
+            RowsReportsNavLabel = "Reports";
             SponsorsNavLabel = "Sponsors";
             RulesNavLabel = "Rules";
             EntryFormsNavLabel = "Entry Forms";
@@ -1099,7 +1111,7 @@ namespace Wdpl2.Models
             NewsItems.Clear();
             NewsItemsToShow = 5;
 
-            // Rows Reports
+            // Reports
             ShowRowsReports = false;
             RowsReports.Clear();
             RowsReportsPerPage = 10;
@@ -1254,7 +1266,7 @@ namespace Wdpl2.Models
     }
     
     /// <summary>
-    /// Weekly match report for the Rows Reports blog page
+    /// Weekly match report for the Reports blog page
     /// </summary>
     public sealed class RowsReport
     {

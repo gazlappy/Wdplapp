@@ -112,7 +112,7 @@
 
                     <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
                         <Label Text="&#128221;" FontSize="16" VerticalOptions="Center" HorizontalOptions="Center"/>
-                        <Label Grid.Column="1" Text="Rows Reports" VerticalOptions="Center" FontSize="14"/>
+                        <Label Grid.Column="1" Text="Reports" VerticalOptions="Center" FontSize="14"/>
                         <Switch Grid.Column="2" x:Name="ShowRowsReportsCheck" IsToggled="False" VerticalOptions="Center"/>
                     </Grid>
                     <BoxView HeightRequest="1" BackgroundColor="#F3F4F6"/>
@@ -238,10 +238,10 @@
                         <Entry Grid.Row="8" Grid.Column="1" x:Name="NewsNavLabelEntry" Placeholder="News" FontSize="12"/>
                         <Entry Grid.Row="8" Grid.Column="2" x:Name="NewsPageTitleEntry" Placeholder="Latest News" FontSize="12"/>
 
-                        <!-- Rows Reports -->
+                        <!-- Reports -->
                         <Label Grid.Row="9" Text="Reports" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>
-                        <Entry Grid.Row="9" Grid.Column="1" x:Name="RowsReportsNavLabelEntry" Placeholder="Rows Reports" FontSize="12"/>
-                        <Entry Grid.Row="9" Grid.Column="2" x:Name="RowsReportsPageTitleEntry" Placeholder="Rows Reports" FontSize="12"/>
+                        <Entry Grid.Row="9" Grid.Column="1" x:Name="RowsReportsNavLabelEntry" Placeholder="Reports" FontSize="12"/>
+                        <Entry Grid.Row="9" Grid.Column="2" x:Name="RowsReportsPageTitleEntry" Placeholder="Reports" FontSize="12"/>
 
                         <!-- Sponsors -->
                         <Label Grid.Row="10" Text="Sponsors" VerticalOptions="Center" FontSize="12" TextColor="#374151"/>

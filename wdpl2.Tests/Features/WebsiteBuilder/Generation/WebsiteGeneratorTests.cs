@@ -614,7 +614,7 @@ public class WebsiteGeneratorTests
         var files = generator.GenerateWebsite();
 
         // Assert
-        Assert.Contains("rows-reports.html", files.Keys);
+        Assert.Contains("reports.html", files.Keys);
     }
 
     [Fact]
@@ -1084,7 +1084,7 @@ public class WebsiteGeneratorTests
         var files = generator.GenerateWebsite();
 
         // Assert
-        Assert.DoesNotContain("rows-reports.html", files.Keys);
+        Assert.DoesNotContain("reports.html", files.Keys);
     }
 
     [Fact]

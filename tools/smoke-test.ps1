@@ -76,7 +76,17 @@ $A = [System.Windows.Automation.AutomationElement]
 $Tree = [System.Windows.Automation.TreeScope]::Descendants
 $Any = [System.Windows.Automation.Condition]::TrueCondition
 
-function Get-All($root) { $root.FindAll($Tree, $Any) }
+# Walking the whole tree while a page is still being built can throw
+# ElementNotAvailableException for an element that vanished mid-walk. That is
+# the page changing, not the app failing, so try again rather than abort.
+function Get-All($root) {
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try { return $root.FindAll($Tree, $Any) }
+        catch [System.Windows.Automation.ElementNotAvailableException] { Start-Sleep -Milliseconds 300 }
+        catch { if ($_.Exception.InnerException -is [System.Windows.Automation.ElementNotAvailableException]) { Start-Sleep -Milliseconds 300 } else { throw } }
+    }
+    return @()
+}
 
 # The sidebar's pages are buttons with AutomationId "nav-<Route>", named after
 # the page (see AppShell.xaml.cs). "Tab" below means one of those pages.
@@ -128,6 +138,7 @@ until ($proc.HasExited -or $proc.MainWindowHandle -ne [IntPtr]::Zero -or (Get-Da
 if ($proc.HasExited) { throw "The app exited during start-up (code $($proc.ExitCode))." }
 if ($proc.MainWindowHandle -eq [IntPtr]::Zero) { throw "No window appeared within 60 seconds." }
 
+try {
 # Maximised, so the sidebar is locked open beside the page.
 [void][SmokeWin]::ShowWindow($proc.MainWindowHandle, 3)
 [void][SmokeWin]::SetForegroundWindow($proc.MainWindowHandle)
@@ -194,11 +205,15 @@ if (-not $proc.HasExited) {
 
 $results | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
 $failed = @($results | Where-Object { $_.Result -eq 'FAIL' })
-
-if (-not $KeepOpen -and -not $proc.HasExited) {
-    [void]$proc.CloseMainWindow()
-    Start-Sleep -Seconds 3
-    if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+}
+finally {
+    # Always, even after an error: a second copy left open on the same league
+    # is the one thing this script must never cause.
+    if (-not $KeepOpen -and -not $proc.HasExited) {
+        [void]$proc.CloseMainWindow()
+        Start-Sleep -Seconds 3
+        if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+    }
 }
 
 if ($failed.Count -gt 0) {

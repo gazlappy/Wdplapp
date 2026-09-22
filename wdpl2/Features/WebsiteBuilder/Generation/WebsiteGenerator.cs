@@ -169,7 +169,7 @@ namespace Wdpl2.Services
                 files["news.html"] = GenerateNewsPage(season, template);
 
             if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
-                files["rows-reports.html"] = GenerateRowsReportsPage(season, template);
+                files["reports.html"] = GenerateRowsReportsPage(season, template);
 
             if (_settings.ShowEntryForms && _settings.EntryForms.Any(f => f.IsPublished))
             {
@@ -678,7 +678,7 @@ namespace Wdpl2.Services
                         break;
                     case "rows-reports":
                         if (_settings.ShowRowsReports && _settings.RowsReports.Count > 0)
-                            AppendHomeFeaturedPageCard(html, "\U0001F4CA", "Rows Reports", $"{_settings.RowsReports.Count} report{(_settings.RowsReports.Count == 1 ? "" : "s")} available.", "rows-reports.html");
+                            AppendHomeFeaturedPageCard(html, "\U0001F4CA", "Reports", $"{_settings.RowsReports.Count} report{(_settings.RowsReports.Count == 1 ? "" : "s")} available.", "reports.html");
                         break;
                 }
             }
@@ -2284,7 +2284,7 @@ namespace Wdpl2.Services
         {
             var (divisions, venues, teams, players, fixtures) = _league.GetSeasonData(season.Id);
 
-            return GenerateFullPage($"{_settings.RowsReportsPageTitle} - {_settings.LeagueName}", season, "Rows Reports", html =>
+            return GenerateFullPage($"{_settings.RowsReportsPageTitle} - {_settings.LeagueName}", season, "Reports", html =>
             {
                 html.AppendLine("            <div class=\"hero\">");
                 html.AppendLine($"                <h2>&#128221; {Esc(_settings.RowsReportsPageTitle)}</h2>");
