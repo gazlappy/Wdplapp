@@ -60,7 +60,7 @@
         </Border>
 
         <!-- Main content area -->
-        <Grid Grid.Row="2" RowDefinitions="2*,*" RowSpacing="{StaticResource MediumSpacing}">
+        <Grid x:Name="ResultsGrid" Grid.Row="2" RowDefinitions="2*,*" RowSpacing="{StaticResource MediumSpacing}">
 
             <!-- TOP: Two-column layout: League Table (left) and Player Ratings (right) -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource MediumSpacing}">

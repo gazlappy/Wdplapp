@@ -213,6 +213,24 @@ public partial class LeagueTablesPage : ContentPage
     }
 
     /// <summary>
+    /// Shows or hides the doubles card, and gives its space back when hidden.
+    /// </summary>
+    /// <remarks>
+    /// The results area is split two-thirds tables, one-third doubles. Hiding
+    /// the card used to leave its third reserved as blank space, which cut the
+    /// division table short: a fourteen-team league showed thirteen, with the
+    /// last team behind a scrollbar that only appears on hover.
+    /// </remarks>
+    private void SetDoublesVisible(bool visible)
+    {
+        DoublesRatingsBorder.IsVisible = visible;
+        ResultsGrid.RowDefinitions[1].Height = visible
+            ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(0);
+        ResultsGrid.RowSpacing = visible ? 12 : 0;
+    }
+
+    /// <summary>
     /// Resolves teams belonging to a division. First checks Team.DivisionId directly,
     /// then falls back to discovering teams from fixture data for that division.
     /// This handles the case where teams were copied to a new season without DivisionId.
@@ -989,7 +1007,7 @@ public partial class LeagueTablesPage : ContentPage
 
         if (!_currentSeasonId.HasValue || _selectedDivision == null)
         {
-            DoublesRatingsBorder.IsVisible = false;
+            SetDoublesVisible(false);
             return;
         }
 
@@ -1015,12 +1033,12 @@ public partial class LeagueTablesPage : ContentPage
 
         if (pairings.Count == 0 && !seasonHasDoubles)
         {
-            DoublesRatingsBorder.IsVisible = false;
+            SetDoublesVisible(false);
             return;
         }
 
         // Show the doubles section if the season has doubles enabled OR if there's data
-        DoublesRatingsBorder.IsVisible = true;
+        SetDoublesVisible(true);
 
         var rows = new List<DoublesRow>();
         for (int i = 0; i < pairings.Count; i++)
