@@ -304,12 +304,12 @@ namespace Wdpl2.Views
             var (divisions, venues, teams, players, fixtures) = _dataStore.GetData().GetSeasonData(_selected.Id);
 
             var message = $"?? WARNING: This will permanently delete:\n\n" +
-                          $"• Season: {_selected.Name}\n" +
-                          $"• {divisions.Count} Division(s)\n" +
-                          $"• {venues.Count} Venue(s)\n" +
-                          $"• {teams.Count} Team(s)\n" +
-                          $"• {players.Count} Player(s)\n" +
-                          $"• {fixtures.Count} Fixture(s)\n\n" +
+                          $"ï¿½ Season: {_selected.Name}\n" +
+                          $"ï¿½ {divisions.Count} Division(s)\n" +
+                          $"ï¿½ {venues.Count} Venue(s)\n" +
+                          $"ï¿½ {teams.Count} Team(s)\n" +
+                          $"ï¿½ {players.Count} Player(s)\n" +
+                          $"ï¿½ {fixtures.Count} Fixture(s)\n\n" +
                           $"This cannot be undone!\n\nAre you sure?";
 
             var confirm = await DisplayAlert(
@@ -399,11 +399,11 @@ namespace Wdpl2.Views
                 }
 
                 var message = $"Found and fixed {totalFixed} item(s) with missing Season IDs:\n\n" +
-                              $"• Teams: {teamsFixed}\n" +
-                              $"• Players: {playersFixed}\n" +
-                              $"• Divisions: {divisionsFixed}\n" +
-                              $"• Venues: {venuesFixed}\n" +
-                              $"• Fixtures: {fixturesFixed}\n\n" +
+                              $"ï¿½ Teams: {teamsFixed}\n" +
+                              $"ï¿½ Players: {playersFixed}\n" +
+                              $"ï¿½ Divisions: {divisionsFixed}\n" +
+                              $"ï¿½ Venues: {venuesFixed}\n" +
+                              $"ï¿½ Fixtures: {fixturesFixed}\n\n" +
                               $"All items have been assigned to season: {_selected.Name}\n\n" +
                               $"Save changes now?";
 
@@ -429,7 +429,7 @@ namespace Wdpl2.Views
                 }
                 else
                 {
-                    // Revert exactly the items we mutated (don't reload from disk — that
+                    // Revert exactly the items we mutated (don't reload from disk ï¿½ that
                     // would discard any other unsaved changes elsewhere in the app).
                     foreach (var team in fixedTeams) team.SeasonId = null;
                     foreach (var player in fixedPlayers) player.SeasonId = null;
@@ -491,7 +491,7 @@ namespace Wdpl2.Views
 
             try
             {
-                StatusLabel.Text = "Generating fixtures…";
+                StatusLabel.Text = "Generating fixturesï¿½";
                 GenerateBtn.IsEnabled = false;
 
                 var selectedSeason = _selected;
@@ -543,6 +543,52 @@ namespace Wdpl2.Views
                 ?? throw new InvalidOperationException("ImportHistoricalDataPage not registered");
             importPage.SetTargetSeason(_selected.Id);
             await Navigation.PushModalAsync(new NavigationPage(importPage));
+        }
+
+        private async void OnImportAdmin4PoolClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                var files = await FilePicker.Default.PickMultipleAsync(new PickOptions
+                {
+                    PickerTitle = "Choose Admin4Pool season exports (.sql)",
+                    FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                    {
+                        [DevicePlatform.WinUI] = [".sql"],
+                        [DevicePlatform.MacCatalyst] = ["public.plain-text", "public.data"],
+                        [DevicePlatform.Android] = ["application/sql", "text/plain", "application/octet-stream"],
+                        [DevicePlatform.iOS] = ["public.plain-text", "public.data"],
+                    }),
+                });
+                var picked = files?.Where(f => f != null).ToList();
+                if (picked == null || picked.Count == 0) return;
+
+                var import = new Services.Admin4Pool.Admin4PoolImport(_dataStore);
+                var unreadable = new List<string>();
+                foreach (var file in picked)
+                {
+                    try
+                    {
+                        await using var stream = await file.OpenReadAsync();
+                        import.Add(Services.Admin4Pool.Admin4PoolSqlFile.Read(stream, file.FileName));
+                    }
+                    catch (Exception ex)
+                    {
+                        unreadable.Add($"{file.FileName}: {ex.Message}");
+                    }
+                }
+                if (import.Plans.Count == 0)
+                {
+                    await DisplayAlert("Import from Admin4Pool", "None of those files could be read.\n\n" + string.Join("\n", unreadable), "OK");
+                    return;
+                }
+                var page = new Admin4PoolImportPage(import, unreadable, () => RefreshList(selectId: _selected?.Id));
+                await Navigation.PushModalAsync(new NavigationPage(page));
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Import from Admin4Pool", ex.Message, "OK");
+            }
         }
 
         private async void OnAddExclusionClicked(object sender, EventArgs e)
@@ -668,7 +714,7 @@ namespace Wdpl2.Views
             _library.Refresh(data, SeasonService.Current?.CurrentSeasonId, SeasonSearch.Text,
                 (SeasonLibraryFilter)Math.Max(0, SeasonFilter.SelectedIndex));
             SeasonsList.ItemsSource = _library.Groups;
-            LibraryCountLabel.Text = $"{_library.VisibleCount} season(s) · open a card to preview";
+            LibraryCountLabel.Text = $"{_library.VisibleCount} season(s) ï¿½ open a card to preview";
             CurrentSeasonCard.IsVisible = _library.CurrentSeason != null;
             CurrentSeasonName.Text = _library.CurrentSeason?.Name;
             CurrentSeasonSummary.Text = _library.CurrentSeason == null ? "" :
@@ -845,7 +891,7 @@ namespace Wdpl2.Views
                 LockInfoBtn.BackgroundColor = Color.FromArgb("#D97706");
                 LockInfoBtn.TextColor = Colors.White;
                 LockBtn.Text = $"{Helpers.Emojis.Unlock} Unlock";
-                LockStatusLabel.Text = $"{Helpers.Emojis.Lock} This season is locked — no changes can be made to its data.";
+                LockStatusLabel.Text = $"{Helpers.Emojis.Lock} This season is locked ï¿½ no changes can be made to its data.";
                 LockStatusLabel.IsVisible = true;
                 LockStatusLabel.TextColor = Color.FromArgb("#DC2626");
 
@@ -897,9 +943,9 @@ namespace Wdpl2.Views
                 var confirm = await DisplayAlert(
                     $"{Helpers.Emojis.Lock} Lock Season",
                     $"Lock \"{_selected.Name}\"?\n\nWhen locked:\n" +
-                    "• Fixtures, teams, players and venues cannot be added, edited or deleted\n" +
-                    "• The season itself cannot be deleted\n" +
-                    "• You can unlock it again later",
+                    "ï¿½ Fixtures, teams, players and venues cannot be added, edited or deleted\n" +
+                    "ï¿½ The season itself cannot be deleted\n" +
+                    "ï¿½ You can unlock it again later",
                     "Lock", "Cancel");
                 if (!confirm) return;
 
@@ -926,13 +972,13 @@ namespace Wdpl2.Views
 
             try
             {
-                StatusLabel.Text = "Generating SQL export…";
+                StatusLabel.Text = "Generating SQL exportï¿½";
                 ExportSqlBtn.IsEnabled = false;
 
                 var sql = SqlExportService.GenerateSeasonSql(_dataStore.GetData(), _selected.Id);
                 var fileName = $"{_selected.Name.Replace(" ", "_")}_Export_{DateTime.Now:yyyyMMdd_HHmmss}.sql";
 
-                await ExportService.ShareFileAsync(sql, fileName, $"SQL Export — {_selected.Name}");
+                await ExportService.ShareFileAsync(sql, fileName, $"SQL Export ï¿½ {_selected.Name}");
                 StatusLabel.Text = $"{Helpers.Emojis.Success} SQL exported for \"{_selected.Name}\"";
             }
             catch (Exception ex)

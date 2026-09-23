@@ -21,9 +21,15 @@
                 <Label x:Name="PageSubtitle" Text="Your league, season by season." FontSize="13" Margin="0"
                        TextColor="{AppThemeBinding Light=#52665D, Dark=#ABC1B6}" />
             </VerticalStackLayout>
-            <Button Grid.Column="2" Text="+ New season" Clicked="OnNewClicked"
-                    BackgroundColor="#16634B" TextColor="White" VerticalOptions="Center"
-                    SemanticProperties.Description="Create a new season" />
+            <HorizontalStackLayout Grid.Column="2" Spacing="10" VerticalOptions="Center">
+                <Button Text="Import from Admin4Pool…" Clicked="OnImportAdmin4PoolClicked"
+                        BackgroundColor="Transparent" TextColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}"
+                        BorderColor="{AppThemeBinding Light=#16634B, Dark=#82DDB6}" BorderWidth="1"
+                        SemanticProperties.Description="Import past seasons from Admin4Pool SQL exports" />
+                <Button Text="+ New season" Clicked="OnNewClicked"
+                        BackgroundColor="#16634B" TextColor="White"
+                        SemanticProperties.Description="Create a new season" />
+            </HorizontalStackLayout>
         </Grid>
 
         <!-- Flyout Menu Overlay -->
