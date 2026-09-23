@@ -21,7 +21,7 @@ public static partial class DataStore
     // can touch DataStore.Data without triggering the static cctor MAUI lookup.
     private static readonly Lazy<string> _appDataDir = new(() =>
     {
-        try { return FileSystem.AppDataDirectory; }
+        try { return Wdpl2.Services.AppPaths.Data; }
         catch { return Path.Combine(Path.GetTempPath(), "wdpl2-test"); }
     });
 

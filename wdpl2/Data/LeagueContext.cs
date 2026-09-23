@@ -32,7 +32,7 @@ public class LeagueContext : DbContext
         if (!optionsBuilder.IsConfigured)
         {
             // Get the database path in the app's data directory
-            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "league.db");
+            var dbPath = Wdpl2.Services.AppPaths.Database;
             optionsBuilder.UseSqlite($"Data Source={dbPath}");
 
 #if DEBUG
@@ -457,6 +457,6 @@ public class LeagueContext : DbContext
     /// </summary>
     public static string GetDatabasePath()
     {
-        return Path.Combine(FileSystem.AppDataDirectory, "league.db");
+        return Wdpl2.Services.AppPaths.Database;
     }
 }

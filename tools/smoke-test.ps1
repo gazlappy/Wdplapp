@@ -16,9 +16,10 @@
       3. Flips out of and back into every tab quickly. The tab must still
          settle.
 
-    It only reads: nothing is clicked except the tabs themselves. It uses the
-    league on this machine, so run it against a build you are happy to open
-    your own data with.
+    It only reads: nothing is clicked except the tabs themselves. By default
+    it opens the league on this machine, so run it against a build you are
+    happy to open your own data with - or pass -DataDir to keep it away from
+    your league altogether.
 
 .PARAMETER Build
     Build the Windows target first.
@@ -29,6 +30,11 @@
 .PARAMETER Screenshots
     Folder to save a screenshot of each tab into. Omit to skip screenshots.
 
+.PARAMETER DataDir
+    Open a league kept in this folder instead of the one on this machine
+    (LEAGUE_DATA_DIR). An empty folder starts the app as a new customer sees
+    it, wizard and all.
+
 .EXAMPLE
     .\tools\smoke-test.ps1 -Build
     .\tools\smoke-test.ps1 -Screenshots .\smoke-shots -KeepOpen
@@ -37,6 +43,7 @@ param(
     [switch]$Build,
     [switch]$KeepOpen,
     [string]$Screenshots = "",
+    [string]$DataDir = "",
     [int]$SettleSeconds = 6
 )
 
@@ -53,6 +60,11 @@ if ($Build) {
     if (-not $?) { throw "Build failed." }
 }
 if (-not (Test-Path $exe)) { throw "No build at $exe. Run with -Build." }
+if ($DataDir) {
+    New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+    $env:LEAGUE_DATA_DIR = (Resolve-Path $DataDir).Path
+    Write-Host "Using the league in $env:LEAGUE_DATA_DIR"
+}
 if (Get-Process Wdpl2 -ErrorAction SilentlyContinue) {
     throw "The app is already running. Close it so the test starts from a clean launch."
 }

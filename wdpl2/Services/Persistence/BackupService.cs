@@ -44,9 +44,9 @@ public class BackupService
         (BackupKind.OlderAutomatic, "league_backup_"),
     ];
 
-    public static string BackupFolder => Path.Combine(FileSystem.AppDataDirectory, "backups");
+    public static string BackupFolder => Path.Combine(AppPaths.Data, "backups");
 
-    private static string LeaguePath => Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
+    private static string LeaguePath => AppPaths.LeagueFile;
 
     /// <summary>
     /// Zips the database and the league file into the backups folder.
@@ -101,7 +101,7 @@ public class BackupService
     /// </summary>
     /// <remarks>See <see cref="BackupFiles"/> for why a restore cannot happen while the app is open.</remarks>
     public static void StageRestore(string backupZip) =>
-        BackupFiles.Stage(backupZip, FileSystem.AppDataDirectory);
+        BackupFiles.Stage(backupZip, AppPaths.Data);
 
     /// <summary>
     /// Puts a queued backup in place, first taking a backup of the league it
@@ -110,7 +110,7 @@ public class BackupService
     /// <returns>What happened, for the person; null when nothing was queued.</returns>
     public static async Task<string?> ApplyPendingRestoreAsync()
     {
-        var appData = FileSystem.AppDataDirectory;
+        var appData = AppPaths.Data;
         if (!BackupFiles.HasPending(appData))
             return null;
 

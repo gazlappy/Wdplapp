@@ -31,6 +31,10 @@ dotnet test wdpl2.Tests\wdpl2.Tests.csproj -v minimal
 # fast-flips in and out; fails any tab that crashes, freezes or sticks
 .\tools\smoke-test.ps1 -Build
 
+# ...against a throwaway league instead of your own data. An empty folder
+# starts the app as a new customer sees it, first-run wizard and all
+.\tools\smoke-test.ps1 -DataDir $env:TEMP\league-test
+
 # full restore + all targets (slow; after dependency or workload changes)
 .\restore-and-build.ps1
 ```
@@ -42,6 +46,9 @@ dotnet test wdpl2.Tests\wdpl2.Tests.csproj -v minimal
   and needs a desktop session and the app closed. Run both after touching
   navigation, page registrations or a page's `OnAppearing`.
 
+- `LEAGUE_DATA_DIR` points the app at another folder for the database, the league
+  file and the backups (`wdpl2/Services/Persistence/AppPaths.cs`), so a change can
+  be tried without opening the real league.
 - Always pass `-f net9.0-windows10.0.19041.0` for a quick check. Building all four
   target frameworks takes many minutes and needs the Android/iOS workloads.
 - The csproj sets a wide `NoWarn` list deliberately (MVVMTK*, CS0618, CS8618,

@@ -57,7 +57,7 @@ public partial class App : Application
             // A restore chosen last time goes in before anything opens the
             // league - the one moment nothing is holding it.
             string? restored = null;
-            if (Services.BackupFiles.HasPending(FileSystem.AppDataDirectory))
+            if (Services.BackupFiles.HasPending(AppPaths.Data))
             {
                 startup.Report("Restoring your backup…");
                 restored = await Services.BackupService.ApplyPendingRestoreAsync();
@@ -93,6 +93,12 @@ public partial class App : Application
 
             if (restored is not null)
                 await window.Page.DisplayAlert("Restore", restored, "OK");
+
+            // A league with no seasons at all has just been installed: walk
+            // through setting it up rather than leaving a row of empty pages.
+            if (DataStore.Data.Seasons.Count == 0
+                && _services.GetService(typeof(SetupWizardPage)) is SetupWizardPage wizard)
+                await window.Page.Navigation.PushModalAsync(wizard);
         }
         catch (Exception ex)
         {

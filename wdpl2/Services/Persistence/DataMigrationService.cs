@@ -17,7 +17,7 @@ public class DataMigrationService
     {
         _context = context;
         // Use the same path as DataStore
-        _jsonFilePath = Path.Combine(FileSystem.AppDataDirectory, "wdpl2", "data.json");
+        _jsonFilePath = Wdpl2.Services.AppPaths.LeagueFile;
     }
 
     /// <summary>
