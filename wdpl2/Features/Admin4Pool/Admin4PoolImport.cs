@@ -28,6 +28,7 @@ public sealed class Admin4PoolImport
         var data = _workspace.GetData();
         var plan = Admin4PoolSeasonPlan.Build(file, data.Settings);
         _plans.Add(plan);
+        _plans.Sort((a, b) => a.Season.StartDate.CompareTo(b.Season.StartDate));
         return plan;
     }
 
