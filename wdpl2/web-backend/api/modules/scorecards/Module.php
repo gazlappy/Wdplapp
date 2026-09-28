@@ -593,20 +593,24 @@ final class ScorecardsModule implements Module
         $fixtureId = self::uuid($fixtureId, 'fixtureId');
         $side = self::requireSide($fixtureId);
 
-        $fixture = Db::one(
-            'SELECT home_team_id, away_team_id FROM wdpl_fixtures WHERE id = ?',
-            [$fixtureId]
-        );
+        // Keyed by the card's own sides, not the fixture's row. On a cup tie
+        // the coin decides who is home, and everything else on the card - the
+        // captain's side, the scoreline, the pool a draw picks from - already
+        // answers that way. Reading the fixture directly here meant that after
+        // a toss to the away team the picker offered the other team's players
+        // under your own column, and a walk-in added from it joined the
+        // opposition.
+        $sides = self::sides($fixtureId);
 
         // The team ids travel with the squads so a captain adding someone who
         // has turned up can say which side they are turning out for - which in
         // solo mode is not always their own.
         return [
             'yourSide'    => $side,
-            'homeTeamId'  => (string)$fixture['home_team_id'],
-            'awayTeamId'  => (string)$fixture['away_team_id'],
-            'home'        => self::playersOf((string)$fixture['home_team_id']),
-            'away'        => self::playersOf((string)$fixture['away_team_id']),
+            'homeTeamId'  => $sides['home'],
+            'awayTeamId'  => $sides['away'],
+            'home'        => self::playersOf($sides['home']),
+            'away'        => self::playersOf($sides['away']),
         ];
     }
 

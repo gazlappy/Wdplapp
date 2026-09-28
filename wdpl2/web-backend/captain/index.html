@@ -1635,6 +1635,11 @@ body.has-tick main{padding-bottom:120px;}
     call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy})
       .then(function(card){
         render(card);
+
+        // The coin has just decided which team is home, so the squads have to
+        // be read again: they come back keyed by the card's sides, and the
+        // ones loaded before the toss may be the other way round.
+        loadRosters();
         say(card.your_side==='home'
           ? 'You are home - name your first player.'
           : 'They are home. You name two once they have named their first.', 'ok');

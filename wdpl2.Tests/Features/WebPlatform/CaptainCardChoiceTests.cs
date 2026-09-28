@@ -99,12 +99,41 @@ public class CaptainCardChoiceTests
         Assert.DoesNotContain("call('captains','login'", comp);
     }
 
-    private static string CardsBody()
+    /// <summary>
+    /// On a cup tie the coin decides who is home. Anything that answers
+    /// "which side" has to ask the card, not the fixture's row, or the two
+    /// disagree: the picker offered the other team's players under your own
+    /// column, and a walk-in added from it joined the opposition.
+    /// </summary>
+    [Fact]
+    public void The_squads_are_keyed_by_the_cards_sides_not_the_draws()
     {
-        var php = ScorecardsModule();
-        var match = Regex.Match(php, @"public static function cards\(\).*?\n    \}", RegexOptions.Singleline);
+        var body = Body("roster");
 
-        Assert.True(match.Success, "No cards() action in the scorecards module.");
+        Assert.Contains("self::sides($fixtureId)", body);
+        Assert.DoesNotContain("FROM wdpl_fixtures", body);
+    }
+
+    [Fact]
+    public void The_squads_are_read_again_once_the_toss_is_known()
+    {
+        var tossed = Regex.Match(CaptainPage(), @"function tossed\(wonBy\).*?\n  \}", RegexOptions.Singleline);
+
+        Assert.True(tossed.Success, "No tossed() in the captains' page.");
+        Assert.Contains("loadRosters()", tossed.Value);
+    }
+
+    private static string CardsBody() => Body("cards");
+
+    /// <summary>One action's PHP, read out of the module.</summary>
+    private static string Body(string action)
+    {
+        var match = Regex.Match(
+            ScorecardsModule(),
+            @"public static function " + action + @"\(\).*?\n    \}",
+            RegexOptions.Singleline);
+
+        Assert.True(match.Success, $"No {action}() action in the scorecards module.");
         return match.Value;
     }
 
