@@ -665,7 +665,7 @@ body.has-tick main{padding-bottom:120px;}
 
   var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
             timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null},
-            rosterFor:null, rosterError:null,
+            rosterFor:null, rosterTried:null, rosterError:null,
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
@@ -946,6 +946,7 @@ body.has-tick main{padding-bottom:120px;}
     var asked = S.fixtureId;
     return call('scorecards','roster',{fixtureId:asked})
       .then(function(r){
+        S.rosterTried=asked;
         if(asked !== S.fixtureId) return;
         S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]};
         S.teamIds={home:(r&&r.homeTeamId)||null, away:(r&&r.awayTeamId)||null};
@@ -953,6 +954,7 @@ body.has-tick main{padding-bottom:120px;}
         S.rosterError=null;
       })
       .catch(function(e){
+        S.rosterTried=asked;
         if(asked !== S.fixtureId) return;
         // The picker still offers VOID and a typed name, so the night is not
         // lost - but a squad that could not be read used to look exactly like
@@ -1639,9 +1641,11 @@ body.has-tick main{padding-bottom:120px;}
     var role = S.side==='home' ? 'You are home' : 'They are home';
     var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
 
+    var owed = (card.turn && card.turn.what) || '';
+
     $('turnText').textContent = card.your_turn
-      ? role+' \u00b7 your turn: '+((card.turn&&card.turn.what)||'name your next player')
-      : role+' \u00b7 waiting for '+theirs+' to name '+((card.turn&&card.turn.what)||'theirs');
+      ? role+' \u00b7 your turn'+(owed ? ': '+owed : ': name your next player')
+      : role+' \u00b7 waiting for '+theirs+(owed ? ': '+owed : '');
   }
 
   /** The team that has already won a cup tie, by name, or empty. */
@@ -1808,7 +1812,17 @@ body.has-tick main{padding-bottom:120px;}
     pill.textContent=info.text;
     pill.addEventListener('click', function(){
       if(!mine){ say('You can only pick players for your own team.','warn'); return; }
-      if(locked){ say(cup ? cupLockMessage(index) : awayLockMessage(index),'warn'); return; }
+
+      // A refusal shown only in the bar at the top of the page is a refusal
+      // nobody reads on a phone: the captain taps a frame, nothing opens, and
+      // it looks as though their squad is missing. So say it where they
+      // tapped, in the sheet that would have held the players.
+      if(locked){
+        var why = cup ? cupLockMessage(index) : awayLockMessage(index);
+        say(why,'warn');
+        showLocked(index, why);
+        return;
+      }
       openPicker(index, side);
     });
 
@@ -2253,8 +2267,10 @@ body.has-tick main{padding-bottom:120px;}
     }
 
     // Belt and braces: if the squads on hand are not this card's, fetch them
-    // and draw the picker again rather than showing an empty list.
-    if(S.rosterFor !== S.fixtureId){
+    // and draw the picker again rather than showing an empty list. Once per
+    // card - a squad the server will not give up must not become a loop of
+    // requests behind an open sheet.
+    if(S.rosterFor !== S.fixtureId && S.rosterTried !== S.fixtureId){
       loadRosters().then(function(){ if(S.pick) openPicker(S.pick.index, S.pick.side); });
     }
 
@@ -2312,6 +2328,43 @@ body.has-tick main{padding-bottom:120px;}
     list.appendChild(c);
 
     $('adhoc').value='';
+    show($('adhoc'), true);
+    show($('adhocBtn'), true);
+    show($('sheet'), true);
+  }
+
+  /**
+   * The picker's place, when the frame is not yours to fill yet.
+   *
+   * Everything that picks a player is left out - the point is that there is
+   * nothing to choose here, and an empty list reads as a fault rather than a
+   * rule.
+   */
+  function showLocked(index, why){
+    var frame=S.card.frames[index];
+    S.pick=null;
+
+    $('sheetTitle').textContent='Frame '+frame.frame_no+' is not yours yet';
+    $('sheetSub').textContent=why;
+
+    var list=$('pickList'); list.innerHTML='';
+
+    var note=document.createElement('div');
+    note.style.cssText='font-size:12px;color:var(--muted);padding:2px 0 4px';
+    note.textContent=!!S.card.is_cup
+      ? 'In a cup tie the captains name their players in turn, so the card cannot be filled in all at once. '
+        + 'This frame opens as soon as it is your turn.'
+      : 'The away captain names theirs once the home captain has named that frame.';
+    list.appendChild(note);
+
+    var close=document.createElement('button');
+    close.className='ghost';
+    close.textContent='Close';
+    close.addEventListener('click', closePicker);
+    list.appendChild(close);
+
+    show($('adhoc'), false);
+    show($('adhocBtn'), false);
     show($('sheet'), true);
   }
 
