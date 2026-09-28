@@ -527,7 +527,7 @@ body.has-tick main{padding-bottom:120px;}
   <section class="card hidden" id="pickCard">
     <p style="margin:0 0 10px;color:var(--muted);font-size:13px">
       More than one match is open for your team. Which are you scoring?</p>
-    <div id="pickList"></div>
+    <div id="cardChoices"></div>
   </section>
 
   <!-- The card -->
@@ -1572,7 +1572,7 @@ body.has-tick main{padding-bottom:120px;}
     show($('switchBar'), many);
     if(!many){ show($('pickCard'), false); return; }
 
-    $('pickList').innerHTML = S.cards.map(function(c){
+    $('cardChoices').innerHTML = S.cards.map(function(c){
       var when = c.match_date ? niceDate(c.match_date) : '';
       var here = cardFor(S.fixtureId);
       return '<button class="pick'+(here && here.fixture_id===c.fixture_id?' on':'')+'" data-card="'+esc(c.fixture_id)+'">'
@@ -1581,7 +1581,7 @@ body.has-tick main{padding-bottom:120px;}
         + '</button>';
     }).join('');
 
-    [].forEach.call($('pickList').querySelectorAll('[data-card]'), function(b){
+    [].forEach.call($('cardChoices').querySelectorAll('[data-card]'), function(b){
       b.addEventListener('click', function(){
         var id = b.getAttribute('data-card');
         if(id === S.fixtureId){ show($('pickCard'), false); show($('cardCard'), true); return; }
