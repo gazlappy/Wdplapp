@@ -664,7 +664,7 @@ body.has-tick main{padding-bottom:120px;}
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
   var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
-            timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null},
+            timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null}, rosterError:null,
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
@@ -938,8 +938,14 @@ body.has-tick main{padding-bottom:120px;}
       .then(function(r){
         S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]};
         S.teamIds={home:(r&&r.homeTeamId)||null, away:(r&&r.awayTeamId)||null};
+        S.rosterError=null;
       })
-      .catch(function(){ /* the picker still offers VOID and a typed name */ });
+      .catch(function(e){
+        // The picker still offers VOID and a typed name, so the night is not
+        // lost - but a squad that could not be read used to look exactly like
+        // a team with nobody in it, which sent us hunting in the wrong place.
+        S.rosterError = (e && e.message) || 'The squads could not be read.';
+      });
   }
 
   // --------------------------------------------------------- other scores
@@ -1359,8 +1365,8 @@ body.has-tick main{padding-bottom:120px;}
             say('');
             var card = cardFor(b.getAttribute('data-tie'));
             if(!card){ say('That tie is not open any more.','warn'); loadCups(); return; }
-            openTab('tabHome');
             openCard(card.fixture_id);
+            openTab('tabHome');
           });
         });
       }).catch(function(){
@@ -2236,9 +2242,24 @@ body.has-tick main{padding-bottom:120px;}
     var squad = S.rosters[side] || [];
     if(!squad.length){
       var none=document.createElement('div');
-      none.style.cssText='font-size:12px;color:var(--muted);padding:4px 0';
-      none.textContent='No players listed for this team. Type a name below.';
-      list.appendChild(none);
+      none.style.cssText='font-size:12px;padding:4px 0';
+      if(S.rosterError){
+        none.style.color='var(--bad-fg)';
+        none.textContent='Could not read the squads: '+S.rosterError;
+
+        var again=document.createElement('button');
+        again.className='ghost';
+        again.textContent='Try the squads again';
+        again.addEventListener('click', function(){
+          loadRosters().then(function(){ openPicker(S.pick.index, S.pick.side); });
+        });
+        list.appendChild(none);
+        list.appendChild(again);
+      } else {
+        none.style.color='var(--muted)';
+        none.textContent='No players listed for this team. Type a name below.';
+        list.appendChild(none);
+      }
     }
     squad.forEach(function(p){
       var b=document.createElement('button');
