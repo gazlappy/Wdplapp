@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Rules.php';
 require_once __DIR__ . '/CupRules.php';
+require_once __DIR__ . '/Order.php';
 
 /**
  * Live scorecards, playing by the league's actual rules.
@@ -735,8 +736,9 @@ final class ScorecardsModule implements Module
             $notes = $card['notes'];
 
             // While this captain is driving both sides, they may fill either
-            // team's slots and the nomination order does not apply - one person
-            // entering both line-ups has already set that aside by agreement.
+            // team's slots. The order those slots are filled in still applies -
+            // see NominationOrder - because it is a rule of the card, not an
+            // arrangement between two phones.
             $driving = ($card['solo_by'] !== null && $card['solo_by'] === $side);
 
             // A cup card is filled in turns rather than one side following the
@@ -826,17 +828,13 @@ final class ScorecardsModule implements Module
                 $playerName = isset($op['playerName']) && $op['playerName'] !== '' ? (string)$op['playerName'] : null;
                 $clearing   = ($playerId === null && $playerName === null);
 
-                if (!$clearing && !$driving) {
-                    if ($cup) {
-                        // Both sides take turns on a cup card, so both are
-                        // asked. Home here is the side that won the toss.
-                        if (CupRules::slotLocked($frames, $index, $side)) {
-                            return ['rejected' => CupRules::lockReason($frames, $index, $side),
-                                    'changed' => false, 'frame' => $frameNo];
-                        }
-                    } elseif ($side === 'away' && ScorecardRules::awaySlotLocked($frames, $index)) {
-                        return ['rejected' => ScorecardRules::awayLockReason($frames, $index),
-                                'changed' => false, 'frame' => $frameNo];
+                // The order holds for everyone, solo included. Asked about the
+                // side the slot belongs to: without solo that is the sender's
+                // own, with it that is the team being entered.
+                if (!$clearing) {
+                    $why = NominationOrder::refusal($frames, $index, $slot, $cup);
+                    if ($why !== null) {
+                        return ['rejected' => $why, 'changed' => false, 'frame' => $frameNo];
                     }
                 }
 

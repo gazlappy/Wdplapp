@@ -123,6 +123,30 @@ public class CaptainCardChoiceTests
         Assert.Contains("loadRosters()", tossed.Value);
     }
 
+    /// <summary>
+    /// The order a card is filled in holds for everyone. It used to be
+    /// skipped in solo, which let a cup card be filled in any order at all.
+    /// </summary>
+    [Fact]
+    public void Every_pick_goes_through_the_order_check_solo_included()
+    {
+        var php = ScorecardsModule();
+        var setPlayer = Regex.Match(php, @"case 'set_player':.*?case 'set_doubles':", RegexOptions.Singleline);
+        Assert.True(setPlayer.Success, "No set_player branch in the scorecards module.");
+
+        Assert.Contains("NominationOrder::refusal($frames, $index, $slot, $cup)", setPlayer.Value);
+        Assert.DoesNotContain("!$driving", setPlayer.Value);
+    }
+
+    [Fact]
+    public void The_page_asks_the_order_for_the_columns_own_side_in_solo_too()
+    {
+        var page = CaptainPage();
+
+        Assert.Contains("var locked = !mine || orderLocked(index, side);", page);
+        Assert.DoesNotContain("!S.solo && (cup", page);
+    }
+
     private static string CardsBody() => Body("cards");
 
     /// <summary>One action's PHP, read out of the module.</summary>

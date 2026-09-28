@@ -19,6 +19,7 @@ public sealed class ScorecardsWebModule : IWebModule
         "api/modules/scorecards/Module.php",
         "api/modules/scorecards/Rules.php",
         "api/modules/scorecards/CupRules.php",
+        "api/modules/scorecards/Order.php",
         // The captain's scoring page. Served from the site root, same origin as
         // the API, so its session cookie and fetch calls need no CORS handling.
         "captain/index.html",

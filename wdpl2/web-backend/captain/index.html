@@ -1702,40 +1702,76 @@ body.has-tick main{padding-bottom:120px;}
    * Mirrors the cup nomination order, so a slot can be greyed out before a tap
    * is sent. The server still decides; see CupRules.php.
    */
-  function cupLocked(index, side){
-    var card=S.card, frames=card.frames||[], n=frames.length;
+  // ------------------------------------------------ nomination order (cup)
+  //
+  // A port of CupRules.php, so the page offers exactly the frames the server
+  // will take. Asked about a SIDE rather than "me": in solo one captain fills
+  // both, and the order still holds for each of them.
 
-    if(side!==S.side) return true;
-    if(!card.toss_won_by) return true;
-    if(!card.your_turn) return true;
+  var CUP_OPEN = 10, CUP_BLIND = 5;
 
-    // Your turn, and the closing five are open: all five at once.
-    if(n>10 && index>=n-5) return false;
-
-    // Otherwise only your next unfilled frame, in order.
-    var limit=Math.min(n,10);
-    for(var i=0;i<limit;i++){
-      if(!(frames[i][side+'_player_id'] || frames[i][side+'_player_name'])) return index!==i;
-    }
+  function hasLead(f, side){
+    var id=f[side+'_player_id'], nm=f[side+'_player_name'];
+    return !!((id && String(id).trim()) || (nm && String(nm).trim()));
+  }
+  function cupNamed(frames, side){
+    var n=0, lim=Math.min(frames.length, CUP_OPEN);
+    for(var i=0;i<lim;i++) if(hasLead(frames[i], side)) n++;
+    return n;
+  }
+  function cupAllowance(side, home, away){
+    if(side==='home') return Math.min(2*Math.floor(away/2)+1, CUP_OPEN);
+    if(home===0) return 0;
+    return Math.min(home%2===1 ? home+1 : home, CUP_OPEN);
+  }
+  function cupNextOpen(frames, side){
+    var lim=Math.min(frames.length, CUP_OPEN);
+    for(var i=0;i<lim;i++) if(!hasLead(frames[i], side)) return i;
+    return null;
+  }
+  function cupOpenDone(frames){
+    return cupNamed(frames,'home')>=CUP_OPEN && cupNamed(frames,'away')>=CUP_OPEN;
+  }
+  function cupBlindNamed(frames){
+    var n=frames.length;
+    if(n<CUP_BLIND) return false;
+    for(var i=n-CUP_BLIND;i<n;i++) if(!hasLead(frames[i],'home')) return false;
     return true;
   }
 
-  function cupLockMessage(index){
-    var card=S.card, frames=card.frames||[], n=frames.length;
+  /** True when this side may not name this frame's lead yet. */
+  function cupSlotLocked(index, side){
+    var frames=S.card.frames||[], n=frames.length;
+    if(!S.card.toss_won_by) return true;
 
-    if(!card.toss_won_by) return 'Toss for it first - the winner of the toss is home.';
-    if(!card.your_turn){
-      var theirs = (S.side==='home' ? $('awayName') : $('homeName')).textContent;
-      return 'It is '+theirs+"'s turn.";
+    var inBlind = n>CUP_OPEN && index>=n-CUP_BLIND;
+    if(inBlind){
+      if(!cupOpenDone(frames)) return true;
+      return side==='away' ? !cupBlindNamed(frames) : false;
     }
-    if(n>10 && index>=n-5) return 'The last five open once the first ten are filled in.';
 
-    var limit=Math.min(n,10);
-    for(var i=0;i<limit;i++){
-      if(!(frames[i][S.side+'_player_id'] || frames[i][S.side+'_player_name']))
-        return 'Fill the card in order - frame '+frames[i].frame_no+' is your next one.';
+    var next=cupNextOpen(frames, side);
+    if(next===null || next!==index) return true;
+
+    return cupNamed(frames, side) >= cupAllowance(side, cupNamed(frames,'home'), cupNamed(frames,'away'));
+  }
+
+  function cupLockReason(index, side){
+    var frames=S.card.frames||[], n=frames.length;
+    if(!S.card.toss_won_by) return 'Toss for it first - the winner of the toss is home.';
+
+    var inBlind = n>CUP_OPEN && index>=n-CUP_BLIND;
+    if(inBlind){
+      if(!cupOpenDone(frames)) return 'The last '+CUP_BLIND+' frames open once the first '+CUP_OPEN+' are filled in.';
+      return 'The away picks for the last '+CUP_BLIND+' are locked until home has named all five.';
     }
-    return 'You have named all of your open frames.';
+
+    var next=cupNextOpen(frames, side);
+    if(next!==null && next!==index) return 'Fill the card in order - frame '+frames[next].frame_no+' is next for this side.';
+    if(next===null) return 'This side has named all '+CUP_OPEN+' of its open frames.';
+
+    var other = side==='home' ? $('awayName').textContent : $('homeName').textContent;
+    return 'It is '+other+"'s turn. Frame "+frames[index].frame_no+' opens when they have named theirs.';
   }
 
   function renderPhase(card){
@@ -1824,13 +1860,12 @@ body.has-tick main{padding-bottom:120px;}
     var info=label(frame, side);
     var pill=document.createElement('button');
     var mine = S.solo || (side===S.side);   // the captain driving fills in both
-    // Nomination order only exists to stop each captain seeing the other's
-    // picks first. With one person filling both sides by agreement, it has
-    // already been set aside - so solo mode ignores it.
+    // The order a card is filled in is a rule of the card, so it holds in
+    // solo as well: one captain entering both teams still enters them in
+    // turn. Asked for the column's own side, which in solo is not always
+    // the captain's.
     var cup = !!S.card.is_cup;
-    var locked = !mine || (!S.solo && (cup
-      ? cupLocked(index, side)
-      : (side==='away' && awayLocked(index))));
+    var locked = !mine || orderLocked(index, side);
     pill.className='sc-pill '+info.cls+(locked?' locked':'');
     pill.textContent=info.text;
     pill.addEventListener('click', function(){
@@ -1841,7 +1876,7 @@ body.has-tick main{padding-bottom:120px;}
       // it looks as though their squad is missing. So say it where they
       // tapped, in the sheet that would have held the players.
       if(locked){
-        var why = cup ? cupLockMessage(index) : awayLockMessage(index);
+        var why = orderReason(index, side);
         say(why,'warn');
         showLocked(index, why);
         return;
@@ -2002,10 +2037,38 @@ body.has-tick main{padding-bottom:120px;}
   // Mirrors the server rule, so the UI can grey a slot out before a tap is
   // sent. The server still decides - this is only to save a pointless round
   // trip and to show the captain why.
+  /**
+   * True when this side may not fill this frame yet. Mirrors
+   * NominationOrder::refusal on the server.
+   */
+  function orderLocked(index, side){
+    var frame=S.card.frames[index];
+
+    // A doubles partner joins a lead already named for that frame.
+    if(Number(frame.is_doubles) && hasLead(frame, side)) return false;
+
+    if(S.card.is_cup) return cupSlotLocked(index, side);
+    return side==='away' && awayLocked(index);
+  }
+
+  function orderReason(index, side){
+    if(S.card.is_cup) return cupLockReason(index, side);
+    return awayLockMessage(index);
+  }
+
+  /**
+   * League night: away names a frame once home has named it, and the last
+   * five wait for all five of home's. Worked out from the card on screen
+   * (as ScorecardRules does on the server) rather than a flag sent with it,
+   * so it is right for taps not yet sent as well.
+   */
   function awayLocked(index){
     var frames=S.card.frames||[], n=frames.length;
-    if(n>=5 && index>=n-5) return !!S.card.away_locked;
-    return !(frames[index].home_player_id || frames[index].home_player_name);
+    if(n>=5 && index>=n-5){
+      for(var i=n-5;i<n;i++) if(!hasLead(frames[i],'home')) return true;
+      return false;
+    }
+    return !hasLead(frames[index],'home');
   }
   function awayLockMessage(index){
     var frames=S.card.frames||[], n=frames.length;
@@ -2395,7 +2458,13 @@ body.has-tick main{padding-bottom:120px;}
       both.className='go';
       both.textContent='Enter both teams instead';
       both.addEventListener('click', function(){
-        takeBothSides(function(){ openPicker(index, S.side); });
+        takeBothSides(function(){
+          closePicker();
+          var turn = S.card.turn;
+          var who = turn && turn.side==='away' ? $('awayName').textContent : $('homeName').textContent;
+          say('You are entering both teams. It is '+who+"'s turn"
+              +(turn && turn.what ? ' - '+turn.what : '')+'. The card still goes in order.', 'ok');
+        });
       });
       list.appendChild(both);
 
