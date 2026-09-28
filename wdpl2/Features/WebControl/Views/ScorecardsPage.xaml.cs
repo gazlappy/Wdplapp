@@ -1,4 +1,5 @@
-﻿using Wdpl2.Domain.Fixtures;
+﻿using Wdpl2.Domain.Competitions;
+using Wdpl2.Domain.Fixtures;
 using Wdpl2.Features.WebControl;
 using Wdpl2.Models;
 using Wdpl2.Services;
@@ -21,6 +22,8 @@ public partial class ScorecardsPage : ContentPage
     private readonly List<Fixture> _openable = new();
     private List<ScorecardState> _states = new();
     private readonly IDataStore _dataStore;
+
+    private List<MatchNight> _nights = new();
 
     public ScorecardsPage(IDataStore dataStore)
     {
@@ -82,6 +85,11 @@ public partial class ScorecardsPage : ContentPage
         {
             Report(ex.Message, error: true);
         }
+
+        // Outside the catch: the nights are worked out from the app's own
+        // fixtures, so they are worth showing even when the website cannot be
+        // reached and the list of cards is all that is missing.
+        BuildNights();
     }
 
     private void RenderStates()
@@ -197,6 +205,106 @@ public partial class ScorecardsPage : ContentPage
                 HasShadow = false,
                 Content = grid,
             });
+        }
+    }
+
+    /// <summary>Fills the night picker from what is still waiting for a card.</summary>
+    private void BuildNights()
+    {
+        var season = League.Seasons.FirstOrDefault(s => s.IsActive)
+                     ?? League.Seasons.OrderByDescending(s => s.StartDate).FirstOrDefault();
+
+        _nights = season is null
+            ? new List<MatchNight>()
+            : MatchNights.Waiting(League, season, _states.Select(s => s.FixtureId));
+
+        NightPicker.ItemsSource = _nights
+            .Select(n => $"{n.Date:ddd dd MMM}  ·  {Count(n)}")
+            .ToList();
+
+        var enabled = _nights.Count > 0;
+        NightPicker.IsEnabled = enabled;
+        OpenNightButton.IsEnabled = enabled;
+        NightPicker.SelectedIndex = MatchNights.Nearest(_nights, DateTime.Today);
+
+        static string Count(MatchNight night)
+        {
+            var cup = night.Matches.Count(m => m.IsCup);
+            var league = night.Matches.Count - cup;
+            var parts = new List<string>();
+            if (league > 0) parts.Add($"{league} fixture{(league == 1 ? "" : "s")}");
+            if (cup > 0) parts.Add($"{cup} cup tie{(cup == 1 ? "" : "s")}");
+            return string.Join(" + ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Opens every match on the chosen night, one at a time.
+    /// </summary>
+    /// <remarks>
+    /// One at a time, not as a batch: a match that will not open - never
+    /// published, say - must not stop the rest of the night, and the secretary
+    /// is told which ones were left.
+    /// </remarks>
+    private async void OnOpenNightClicked(object? sender, EventArgs e)
+    {
+        if (NightPicker.SelectedIndex < 0 || NightPicker.SelectedIndex >= _nights.Count) return;
+        var (date, matches) = _nights[NightPicker.SelectedIndex];
+
+        var format = MatchFormat.From(League.Settings);
+
+        if (!await DisplayAlert($"Open {matches.Count} card{(matches.Count == 1 ? "" : "s")}?",
+                $"{date:dddd dd MMMM}\n{format}\n\n"
+                + string.Join("\n", matches.Select(m => "  " + m.Label))
+                + "\n\nThe website will own these until you collect them, and this app will not "
+                + "change their frames in the meantime.",
+                "Open them", "Cancel"))
+            return;
+
+        OpenNightButton.IsEnabled = false;
+        Report($"Opening {matches.Count}…", error: false);
+
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            using var client = new WebApiClient(connection);
+
+            var opened = 0;
+            var failures = new List<string>();
+
+            foreach (var match in matches)
+            {
+                try
+                {
+                    await ScorecardService.OpenAsync(client, match.Id, format);
+                    opened++;
+                }
+                catch (WebApiException ex)
+                {
+                    failures.Add($"{match.Label} — " + ex.Code switch
+                    {
+                        "already_live" => "already open",
+                        "awaiting_claim" => "finished by the captains; collect it first",
+                        "unknown_fixture" => "not published to the website yet",
+                        _ => ex.Message,
+                    });
+                }
+            }
+
+            Report(failures.Count == 0
+                ? $"Opened {opened} card{(opened == 1 ? "" : "s")}. The captains can score them now."
+                : $"Opened {opened}. Could not open {failures.Count}: {string.Join("; ", failures)}",
+                error: failures.Count > 0);
+
+            await LoadStatesAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(ex.Message, error: true);
+        }
+        finally
+        {
+            OpenNightButton.IsEnabled = _nights.Count > 0;
         }
     }
 
