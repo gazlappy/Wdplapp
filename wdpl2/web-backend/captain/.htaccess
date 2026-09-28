@@ -33,3 +33,16 @@
     # the problem, short enough to live with having been wrong.
     Header always set Strict-Transport-Security "max-age=2592000"
 </IfModule>
+
+<IfModule mod_headers.c>
+    # Always check with the server before reusing this page.
+    #
+    # The card changes between match nights, and a phone that kept last
+    # week's copy is a captain who cannot score - with no sign that anything
+    # is out of date, because nothing on screen says which version it is.
+    # The page carries an ETag, so the check costs one small request and the
+    # copy is reused when it really has not changed.
+    <FilesMatch "\.html$">
+        Header always set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>

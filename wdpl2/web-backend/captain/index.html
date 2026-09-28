@@ -664,7 +664,8 @@ body.has-tick main{padding-bottom:120px;}
   var VOID_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
   var S = { fixtureId:null, version:0, side:null, card:null, roster:[], busy:false,
-            timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null}, rosterError:null,
+            timer:null, pick:null, rosters:{home:[],away:[]}, teamIds:{home:null,away:null},
+            rosterFor:null, rosterError:null,
             // Offline support: taps are applied to the local card straight away
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
@@ -932,15 +933,27 @@ body.has-tick main{padding-bottom:120px;}
    * team's players as well as their own - picking from your own squad for the
    * opposition is exactly the bug this replaced.
    */
+  /**
+   * Both squads for the card on the screen.
+   *
+   * Stamped with the card they were asked for. Two of these can be in the air
+   * at once - opening a tie from the Competitions tab asks once for the tab
+   * and once for the card - and an answer that arrives for a card no longer
+   * showing must be dropped rather than overwrite the one that is.
+   */
   function loadRosters(){
     if(!S.fixtureId) return Promise.resolve();
-    return call('scorecards','roster',{fixtureId:S.fixtureId})
+    var asked = S.fixtureId;
+    return call('scorecards','roster',{fixtureId:asked})
       .then(function(r){
+        if(asked !== S.fixtureId) return;
         S.rosters={home:(r&&r.home)||[], away:(r&&r.away)||[]};
         S.teamIds={home:(r&&r.homeTeamId)||null, away:(r&&r.awayTeamId)||null};
+        S.rosterFor=asked;
         S.rosterError=null;
       })
       .catch(function(e){
+        if(asked !== S.fixtureId) return;
         // The picker still offers VOID and a typed name, so the night is not
         // lost - but a squad that could not be read used to look exactly like
         // a team with nobody in it, which sent us hunting in the wrong place.
@@ -1501,7 +1514,7 @@ body.has-tick main{padding-bottom:120px;}
   function openCard(fixtureId){
     S.opening = true;
     var switching = S.fixtureId && S.fixtureId !== fixtureId;
-    if(switching){ stopPolling(); S.queue=[]; S.rosters={home:[],away:[]}; S.teamIds={home:null,away:null}; }
+    if(switching){ stopPolling(); S.queue=[]; }
 
     return call('scorecards','card',{fixtureId:fixtureId}).then(function(card){
       // There is a match on, so Home is the card. The tiles are still one tap
@@ -1518,7 +1531,7 @@ body.has-tick main{padding-bottom:120px;}
       if(cup) vidiStop();
       else if($('vidiOn').checked) vidiStart();
 
-      if(switching || (!S.rosters.home.length && !S.rosters.away.length)) loadRosters();
+      if(S.rosterFor !== S.fixtureId) loadRosters();
       loadQueue();
       netBadge();
       startPolling();
@@ -2239,6 +2252,12 @@ body.has-tick main{padding-bottom:120px;}
       list.appendChild(head);
     }
 
+    // Belt and braces: if the squads on hand are not this card's, fetch them
+    // and draw the picker again rather than showing an empty list.
+    if(S.rosterFor !== S.fixtureId){
+      loadRosters().then(function(){ if(S.pick) openPicker(S.pick.index, S.pick.side); });
+    }
+
     var squad = S.rosters[side] || [];
     if(!squad.length){
       var none=document.createElement('div');
@@ -2256,9 +2275,23 @@ body.has-tick main{padding-bottom:120px;}
         list.appendChild(none);
         list.appendChild(again);
       } else {
+        // Both sides' counts, because the two ways this happens need telling
+        // apart: nobody published for either team, or the squads came back
+        // under the other side.
         none.style.color='var(--muted)';
-        none.textContent='No players listed for this team. Type a name below.';
+        none.textContent='No players listed for this team (this side '
+          + (S.rosters[side]||[]).length + ', the other '
+          + (S.rosters[side==='home'?'away':'home']||[]).length
+          + '). Type a name below.';
         list.appendChild(none);
+
+        var reread=document.createElement('button');
+        reread.className='ghost';
+        reread.textContent='Fetch the squads again';
+        reread.addEventListener('click', function(){
+          loadRosters().then(function(){ openPicker(S.pick.index, S.pick.side); });
+        });
+        list.appendChild(reread);
       }
     }
     squad.forEach(function(p){
