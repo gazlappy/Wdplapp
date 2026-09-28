@@ -199,6 +199,13 @@ table.tbl tr.us td{font-weight:700;}
   background:rgba(96,165,250,.18); color:#bfdbfe; border:1px solid rgba(96,165,250,.4);
 }
 .mini{padding:7px 11px; font-size:12px;}
+.pick{display:block; width:100%; text-align:left; margin:0 0 8px; padding:12px 14px;
+  border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--panel-2);
+  color:var(--text); font-size:15px; font-weight:600;}
+.pick .sub{display:block; margin-top:3px; font-weight:400; font-size:12px; color:var(--muted);}
+.pick.on{border-color:var(--accent); background:rgba(96,165,250,0.12);}
+.switch-bar{display:flex; justify-content:flex-end; margin:0 0 8px;}
+.switch-bar button{width:auto; padding:6px 12px; font-size:12px;}
 .fx{display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
     padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
 .fx:last-child{border-bottom:0;}
@@ -512,8 +519,19 @@ body.has-tick main{padding-bottom:120px;}
     </div>
   </section>
 
+  <!-- Two matches open at once: a cup tie on a league night, say -->
+  <section class="card hidden" id="pickCard">
+    <p style="margin:0 0 10px;color:var(--muted);font-size:13px">
+      More than one match is open for your team. Which are you scoring?</p>
+    <div id="pickList"></div>
+  </section>
+
   <!-- The card -->
   <section class="card hidden" id="cardCard">
+
+    <div class="switch-bar hidden" id="switchBar">
+      <button class="ghost" id="switchBtn">Other match</button>
+    </div>
 
     <!-- Off unless asked for: a captain scoring a match does not need the rest
          of the league on the screen unless they want it. -->
@@ -630,14 +648,15 @@ body.has-tick main{padding-bottom:120px;}
   var API = '../api/index.php';
 
   /**
-   * This page is served twice: at /captain for a league night, and at
-   * /comp/tie.html for a cup tie. One file, two front doors.
+   * This page is served twice: at /captain, and at /comp/tie.html.
    *
-   * A cup tie has nothing to do with a captain's league fixtures, squad or
-   * contacts, and mixing the two would mean hunting for tonight's tie among
-   * them. So the competition door shows the card and nothing else, and asks
-   * the server for cup cards only - a league night never appears here, and a
-   * cup tie never appears under /captain.
+   * /captain is the way in. A captain signs in once and finds whatever is
+   * open for them there - a league night, a cup tie, or both on the same
+   * evening - because being told which address to type for which kind of
+   * match is exactly what sent captains to the wrong page.
+   *
+   * /comp/tie.html stays for links and bookmarks handed out before that, and
+   * shows cup ties only. Nothing new points at it.
    */
   var CUP_ONLY = /\/comp\//.test(location.pathname);
   var POLL_MS = 4000;
@@ -649,7 +668,7 @@ body.has-tick main{padding-bottom:120px;}
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
             queue:[], flushTimer:null, strikes:0, solo:false, otherDriving:false,
-            me:null, fixtures:null };
+            me:null, fixtures:null, cards:[] };
 
   var QUEUE_KEY   = 'wdpl_sc_queue';
   var FLUSH_MS    = 8000;
@@ -1305,7 +1324,14 @@ body.has-tick main{padding-bottom:120px;}
         return;
       }
 
-      box.innerHTML = cups.map(function(f){
+      // A tie being played right now is scored on Home, not here - say so,
+      // because the list below looks like where it would happen.
+      var live = S.cards.filter(function(c){ return c.kind==='cup'; })[0];
+      var banner = live
+        ? '<p class="sub" style="color:var(--ok-fg)">Your tie is open now — score it on the Home tab.</p>'
+        : '';
+
+      box.innerHTML = banner + cups.map(function(f){
         var played = Number(f.played)===1;
         var score = played ? (f.team_score+'\u2013'+f.opponent_score) : '\u2013';
         var cls = played ? (Number(f.team_score)>Number(f.opponent_score) ? 'w' : 'l') : '';
@@ -1402,26 +1428,54 @@ body.has-tick main{padding-bottom:120px;}
 
   function onCardTab(){ return CUP_ONLY || $('tabHome').classList.contains('on'); }
 
+  /**
+   * What is open for this team, and which of it is on the screen.
+   *
+   * Asks for every live card rather than one kind: on a cup night a team can
+   * have a tie open while a rearranged league night is still going, and the
+   * captain chooses between them here instead of somewhere else on the site.
+   */
   function refresh(){
     if(!onCardTab()) return Promise.resolve();
-    return call('scorecards','mine',{kind: CUP_ONLY ? 'cup' : 'league'}).then(function(card){
-      if(!card || !card.fixture_id){
-        S.fixtureId=null; show($('idleCard'),true); show($('cardCard'),false);
+    return call('scorecards','cards',{}).then(function(cards){
+      // The old cup door keeps its promise: ties only, nothing else.
+      S.cards = (cards||[]).filter(function(c){ return !CUP_ONLY || c.kind==='cup'; });
+
+      if(!S.cards.length){
+        S.fixtureId=null;
+        show($('idleCard'),true); show($('cardCard'),false); show($('pickCard'),false);
         show($('homeExtras'), true);
         stopPolling(); vidiStop(); return;
       }
 
+      // Stay on the card being scored. Otherwise the one played soonest -
+      // which on a normal night is the only one there is.
+      var still = S.fixtureId && S.cards.filter(function(c){ return c.fixture_id===S.fixtureId; })[0];
+      return openCard(still ? S.fixtureId : S.cards[0].fixture_id);
+    }).catch(function(e){ say(e.message,'bad'); });
+  }
+
+  /** Puts one of this team's open cards on the screen. */
+  function openCard(fixtureId){
+    var switching = S.fixtureId && S.fixtureId !== fixtureId;
+    if(switching){ stopPolling(); S.queue=[]; S.rosters={home:[],away:[]}; S.teamIds={home:null,away:null}; }
+
+    return call('scorecards','card',{fixtureId:fixtureId}).then(function(card){
       // There is a match on, so Home is the card. The tiles are still one tap
       // away on the tab row and only take up room here.
       show($('homeExtras'), false);
+      show($('pickCard'), false);
       render(card);
+      renderPicks();
 
       // League nights only: a cup tie is played on its own and the league's
       // board is nothing to do with it.
-      show($('vidiBar'), !CUP_ONLY);
-      if(!CUP_ONLY && $('vidiOn').checked) vidiStart();
+      var cup = !!card.is_cup;
+      show($('vidiBar'), !cup);
+      if(cup) vidiStop();
+      else if($('vidiOn').checked) vidiStart();
 
-      if(!S.rosters.home.length && !S.rosters.away.length) loadRosters();
+      if(switching || (!S.rosters.home.length && !S.rosters.away.length)) loadRosters();
       loadQueue();
       netBadge();
       startPolling();
@@ -1429,6 +1483,39 @@ body.has-tick main{padding-bottom:120px;}
       if(S.queue.length) flush();
     }).catch(function(e){ say(e.message,'bad'); });
   }
+
+  /** The other matches open for this team, if there are any. */
+  function renderPicks(){
+    var many = S.cards.length > 1;
+    show($('switchBar'), many);
+    if(!many){ show($('pickCard'), false); return; }
+
+    $('pickList').innerHTML = S.cards.map(function(c){
+      var when = c.match_date ? niceDate(c.match_date) : '';
+      return '<button class="pick'+(c.fixture_id===S.fixtureId?' on':'')+'" data-card="'+esc(c.fixture_id)+'">'
+        + esc(c.kind==='cup' ? 'Cup tie' : 'League night')
+        + '<span class="sub">v '+esc(c.opponent_name||'?')+(when?' \u00b7 '+esc(when):'')+'</span>'
+        + '</button>';
+    }).join('');
+
+    [].forEach.call($('pickList').querySelectorAll('[data-card]'), function(b){
+      b.addEventListener('click', function(){
+        var id = b.getAttribute('data-card');
+        if(id === S.fixtureId){ show($('pickCard'), false); show($('cardCard'), true); return; }
+
+        // Taps not yet sent belong to the card they were made on.
+        if(S.queue.length){ say('Still sending your last taps. Try again in a moment.','warn'); flush(); return; }
+        say('');
+        openCard(id);
+      });
+    });
+  }
+
+  $('switchBtn').addEventListener('click', function(){
+    renderPicks();
+    show($('pickCard'), true);
+    show($('cardCard'), false);
+  });
 
   function startPolling(){
     if(S.timer) return;

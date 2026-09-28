@@ -766,7 +766,7 @@ public partial class CompsPage : ContentPage
             ? $"{_ties.Count} tie(s), none left to play."
             : $"{open.Count} tie(s) still to play.";
 
-        TieAddressLabel.Text = $"Captains score a cup tie at {CupAddress()} — not the captains' page.";
+        TieAddressLabel.Text = $"Captains score a cup tie where they score a league night: {CupAddress()}.";
 
         RenderTieCards();
     }
@@ -775,15 +775,21 @@ public partial class CompsPage : ContentPage
     /// Where a captain goes to score a cup tie.
     /// </summary>
     /// <remarks>
-    /// Deliberately the competition side of the site rather than /captain. A
-    /// cup tie is nothing to do with a team's league fixtures, and the two
-    /// sitting on one page is the confusion this address exists to prevent.
+    /// The captains' own page, the same as a league night. It used to be the
+    /// competition side of the site, on the grounds that a cup tie is nothing
+    /// to do with the league's fixtures - but a captain does not think in
+    /// modules, and being told which address to type for which kind of match
+    /// is what sent them to the wrong one. The page now shows whatever is
+    /// open for their team, and asks which if there is more than one.
+    /// <para>
+    /// The old /comp/tie.html still works, for links handed out before this.
+    /// </para>
     /// </remarks>
     private static string CupAddress()
     {
         var site = WebConnection.SiteRoot();
 
-        return string.IsNullOrWhiteSpace(site) ? "your website's /comp page" : site + "/comp/";
+        return string.IsNullOrWhiteSpace(site) ? "your website's /captain page" : site + "/captain/";
     }
 
     /// <summary>

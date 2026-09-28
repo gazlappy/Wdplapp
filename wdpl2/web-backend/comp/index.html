@@ -620,12 +620,13 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     $('signin').disabled=true;
 
-    // A cup tie is scored on the full scorecard, so signing in hands over to
-    // it. Same page, same session - the captain never sees the difference
-    // beyond the card they land on.
+    // A cup tie is scored on the captains' page, the same place as a league
+    // night, so signing in here hands over to it. Same session - the captain
+    // never sees the difference beyond the card they land on - and a captain
+    // who went straight to /captain finds the tie waiting there anyway.
     var signingIn = row.kind === 'cup'
       ? call('captains','login',{teamId:row.team_id, pin:pin})
-          .then(function(){ $('pin').value=''; location.href='tie.html'; })
+          .then(function(){ $('pin').value=''; location.href='../captain/'; })
       : call('comps','login',{sessionId:row.id, pin:pin})
           .then(function(session){ $('pin').value=''; arrive(session); });
 

@@ -130,6 +130,7 @@ final class ScorecardsModule implements Module
             'soloClear' => ['role' => Role::Admin, 'fn' => [self::class, 'soloClear']],
 
             'mine'     => ['role' => Role::Captain, 'fn' => [self::class, 'mine']],
+            'cards'    => ['role' => Role::Captain, 'fn' => [self::class, 'cards']],
             'card'     => ['role' => Role::Captain, 'fn' => [self::class, 'card']],
             'roster'   => ['role' => Role::Captain, 'fn' => [self::class, 'roster']],
             'apply'    => ['role' => Role::Captain, 'fn' => [self::class, 'apply']],
@@ -512,6 +513,52 @@ final class ScorecardsModule implements Module
             return ['fixture_id' => null, 'kind' => $kind];
         }
         return self::readCard((string)$row['fixture_id'], self::sideFor((string)$row['fixture_id'], $teamId));
+    }
+
+    /**
+     * Every card open for this team right now, league night and cup tie alike.
+     *
+     * The captains' page is the one door: a captain signs in once and finds
+     * whatever is open for them there, rather than being told which address to
+     * type for which kind of match. So this answers with all of them and lets
+     * the page put the choice on screen, in the order they are played.
+     *
+     * Only what is needed to choose between them - the card itself is read
+     * through 'card', which checks the team belongs to it.
+     */
+    public static function cards()
+    {
+        $teamId = Captain::requireTeamId();
+
+        $rows = Db::all(
+            'SELECT c.fixture_id, c.card_kind, f.match_date, f.home_team_id,
+                    h.name AS home_team_name, a.name AS away_team_name
+             FROM wdpl_scorecards c
+             JOIN wdpl_fixtures f ON f.id = c.fixture_id
+             LEFT JOIN wdpl_teams h ON h.id = f.home_team_id
+             LEFT JOIN wdpl_teams a ON a.id = f.away_team_id
+             WHERE c.state = ? AND (f.home_team_id = ? OR f.away_team_id = ?)
+             ORDER BY f.match_date ASC',
+            [self::STATE_LIVE, $teamId, $teamId]
+        );
+
+        $cards = [];
+        foreach ($rows as $row) {
+            $cards[] = [
+                'fixture_id'     => (string)$row['fixture_id'],
+                'kind'           => ($row['card_kind'] ?? 'league') === 'cup' ? 'cup' : 'league',
+                'match_date'     => $row['match_date'],
+                'home_team_name' => $row['home_team_name'],
+                'away_team_name' => $row['away_team_name'],
+                // Who you are playing does not depend on the toss, so this is
+                // read from the draw's own order rather than through sides().
+                'opponent_name'  => (string)$row['home_team_id'] === $teamId
+                    ? $row['away_team_name']
+                    : $row['home_team_name'],
+            ];
+        }
+
+        return $cards;
     }
 
     public static function card()
