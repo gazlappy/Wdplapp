@@ -560,18 +560,19 @@ tr.top td{color:var(--gold); font-weight:700;}
   // ------------------------------------------------------------- sign in
 
   /**
-   * Groups and cup ties in one list.
+   * The groups running tonight.
    *
-   * They are signed into differently - a group by its organiser's PIN, a cup
-   * tie by the captain's own team PIN - but that is this page's problem, not
-   * the reader's. They pick what they came to do. The option's value is its
-   * place in the list, so the row behind it (and which sort it is) survives
-   * without being packed into a string.
+   * Cup ties are left out on purpose. A captain scores a tie where they score
+   * a league night - signed in on the captains page, with the tie in their own
+   * list - so offering it here as well would be a second door to the same card,
+   * and a second place to look when it is not there. The option's value is its
+   * place in the list, so the row behind it survives without being packed into
+   * a string.
    */
   function loadSessions(){
     return call('comps','sessions',{}).then(function(rows){
       var sel=$('session');
-      S.rows = rows || [];
+      S.rows = (rows || []).filter(function(r){ return r.kind !== 'cup'; });
 
       if(!S.rows.length){
         sel.innerHTML='<option value="">No competition is running</option>';
@@ -599,17 +600,13 @@ tr.top td{color:var(--gold); font-weight:700;}
     return (S.rows && S.rows[i]) ? S.rows[i] : null;
   }
 
-  /** Says which PIN to reach for, because the two are not the same one. */
+  /** Says which PIN to reach for. */
   function pinHint(){
-    var row = chosen();
-    var cup = row && row.kind === 'cup';
+    $('pinHint').textContent =
+      'The league gives the PIN to whoever is running the group. It opens this group only, '
+      + 'and stops working when the league closes the night.';
 
-    $('pinHint').textContent = cup
-      ? 'Use your own team PIN — the one you use for a league night. Either captain can score the tie.'
-      : 'The league gives the PIN to whoever is running the group. It opens this group only, '
-        + 'and stops working when the league closes the night.';
-
-    $('pin').setAttribute('placeholder', cup ? 'Your team PIN' : 'The PIN you were given');
+    $('pin').setAttribute('placeholder', 'The PIN you were given');
   }
 
   $('session').addEventListener('change', pinHint);
@@ -620,15 +617,8 @@ tr.top td{color:var(--gold); font-weight:700;}
 
     $('signin').disabled=true;
 
-    // A cup tie is scored on the captains' page, the same place as a league
-    // night, so signing in here hands over to it. Same session - the captain
-    // never sees the difference beyond the card they land on - and a captain
-    // who went straight to /captain finds the tie waiting there anyway.
-    var signingIn = row.kind === 'cup'
-      ? call('captains','login',{teamId:row.team_id, pin:pin})
-          .then(function(){ $('pin').value=''; location.href='../captain/'; })
-      : call('comps','login',{sessionId:row.id, pin:pin})
-          .then(function(session){ $('pin').value=''; arrive(session); });
+    var signingIn = call('comps','login',{sessionId:row.id, pin:pin})
+      .then(function(session){ $('pin').value=''; arrive(session); });
 
     signingIn
       .catch(function(e){

@@ -199,6 +199,7 @@ table.tbl tr.us td{font-weight:700;}
   background:rgba(96,165,250,.18); color:#bfdbfe; border:1px solid rgba(96,165,250,.4);
 }
 .mini{padding:7px 11px; font-size:12px;}
+.fx .score-tie{width:auto; padding:8px 12px; font-size:12px; white-space:nowrap;}
 .pick{display:block; width:100%; text-align:left; margin:0 0 8px; padding:12px 14px;
   border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--panel-2);
   color:var(--text); font-size:15px; font-weight:600;}
@@ -483,12 +484,12 @@ body.has-tick main{padding-bottom:120px;}
   <section class="card hidden" id="compsPane">
     <h3 style="margin:0 0 4px;font-size:16px">Competitions</h3>
     <p class="sub" style="color:var(--muted);font-size:12px;margin:0 0 12px">
-      Cup ties are scored on a full card like a league night, on the competitions page.
-      Singles and doubles nights are run there too.</p>
+      Your team&rsquo;s cup ties. When the league opens one, score it here &mdash; the same
+      card as a league night, with the same sign-in.</p>
     <div class="list" id="cupList"></div>
-    <div class="row" style="margin-top:14px">
-      <a class="btn go" href="../comp/" style="width:100%">Go to the competitions page</a>
-    </div>
+    <p class="sub" style="color:var(--muted);font-size:12px;margin:14px 0 0">
+      Running a singles or doubles night? Those are at the
+      <a href="../comp/">competitions page</a>, on the PIN the league gave you for the group.</p>
   </section>
 
   <section class="card hidden" id="contactsPane">
@@ -668,7 +669,7 @@ body.has-tick main{padding-bottom:120px;}
             // and queued. A pub cellar with no signal is the normal case here,
             // not an edge case, so the card must stay usable with nothing sent.
             queue:[], flushTimer:null, strikes:0, solo:false, otherDriving:false,
-            me:null, fixtures:null, cards:[] };
+            me:null, fixtures:null, cards:[], opening:false };
 
   var QUEUE_KEY   = 'wdpl_sc_queue';
   var FLUSH_MS    = 8000;
@@ -1104,8 +1105,10 @@ body.has-tick main{padding-bottom:120px;}
 
     if(which==='tabHome'){
       show($('homePane'), true);
-      // The scorecard decides for itself whether there is a match on.
-      refresh();
+      // The scorecard decides for itself whether there is a match on - unless
+      // a tie has just been chosen on the Competitions tab, which opens its
+      // own card a moment after this and must not be overruled.
+      if(!S.opening) refresh();
     } else {
       PANES[which].forEach(function(pane){ show($(pane), true); });
     }
@@ -1312,42 +1315,58 @@ body.has-tick main{padding-bottom:120px;}
 
   // ---------------------------------------------------------- competitions
 
-  /** This team's cup ties, which are fixtures like any other but marked. */
+  /**
+   * This team's cup ties, and the way into the one being played.
+   *
+   * A tie the league has opened is scored from its own row here: same
+   * sign-in, same card as a league night. A captain should never have to
+   * learn a second address to score a cup match.
+   */
   function loadCups(){
-    teamFixtures().then(function(rows){
-      var box=$('cupList');
-      var cups = rows.filter(function(f){ return f.kind==='cup'; });
+    Promise.all([teamFixtures(), loadCards().catch(function(){ return []; })])
+      .then(function(both){
+        var rows = both[0];
+        var box=$('cupList');
+        var cups = rows.filter(function(f){ return f.kind==='cup'; });
 
-      if(!cups.length){
-        box.innerHTML='<p class="sub" style="color:var(--muted)">'
-          + 'No cup tie for this team yet.</p>';
-        return;
-      }
+        if(!cups.length){
+          box.innerHTML='<p class="sub" style="color:var(--muted)">'
+            + 'No cup tie for this team yet.</p>';
+          return;
+        }
 
-      // A tie being played right now is scored on Home, not here - say so,
-      // because the list below looks like where it would happen.
-      var live = S.cards.filter(function(c){ return c.kind==='cup'; })[0];
-      var banner = live
-        ? '<p class="sub" style="color:var(--ok-fg)">Your tie is open now — score it on the Home tab.</p>'
-        : '';
+        box.innerHTML = cups.map(function(f){
+          var played = Number(f.played)===1;
+          var score = played ? (f.team_score+'\u2013'+f.opponent_score) : '\u2013';
+          var cls = played ? (Number(f.team_score)>Number(f.opponent_score) ? 'w' : 'l') : '';
+          var open = !!cardFor(f.id);
 
-      box.innerHTML = banner + cups.map(function(f){
-        var played = Number(f.played)===1;
-        var score = played ? (f.team_score+'\u2013'+f.opponent_score) : '\u2013';
-        var cls = played ? (Number(f.team_score)>Number(f.opponent_score) ? 'w' : 'l') : '';
+          return '<div class="fx">'
+            + '<span class="date">'+esc(niceDate(f.match_date))+'</span>'
+            + '<div><strong>'+esc(f.opponent_name||'TBC')+'</strong>'
+            + '<p class="sub">'+(open ? 'Open for scoring' : (played ? 'Played' : 'To play'))
+            + (f.venue_name ? ' \u00b7 '+esc(f.venue_name) : '')+'</p></div>'
+            + (open
+                ? '<button class="go score-tie" data-tie="'+esc(f.id)+'">Score this tie</button>'
+                : '<span class="res '+cls+'"'+(played?'':' style="color:var(--muted)"')+'>'+score+'</span>')
+            + '</div>';
+        }).join('');
 
-        return '<div class="fx">'
-          + '<span class="date">'+esc(niceDate(f.match_date))+'</span>'
-          + '<div><strong>'+esc(f.opponent_name||'TBC')+'</strong>'
-          + '<p class="sub">'+(played ? 'Played' : 'To play')
-          + (f.venue_name ? ' \u00b7 '+esc(f.venue_name) : '')+'</p></div>'
-          + '<span class="res '+cls+'"'+(played?'':' style="color:var(--muted)"')+'>'+score+'</span>'
-          + '</div>';
-      }).join('');
-    }).catch(function(){
-      $('cupList').innerHTML='<p class="sub" style="color:var(--muted)">'
-        + 'Could not read the competitions.</p>';
-    });
+        [].forEach.call(box.querySelectorAll('[data-tie]'), function(b){
+          b.addEventListener('click', function(){
+            // Taps not yet sent belong to the card they were made on.
+            if(S.queue.length){ say('Still sending your last taps. Try again in a moment.','warn'); flush(); return; }
+            say('');
+            var card = cardFor(b.getAttribute('data-tie'));
+            if(!card){ say('That tie is not open any more.','warn'); loadCups(); return; }
+            openTab('tabHome');
+            openCard(card.fixture_id);
+          });
+        });
+      }).catch(function(){
+        $('cupList').innerHTML='<p class="sub" style="color:var(--muted)">'
+          + 'Could not read the competitions.</p>';
+      });
   }
 
   function loadFixtures(){
@@ -1435,12 +1454,29 @@ body.has-tick main{padding-bottom:120px;}
    * have a tie open while a rearranged league night is still going, and the
    * captain chooses between them here instead of somewhere else on the site.
    */
-  function refresh(){
-    if(!onCardTab()) return Promise.resolve();
+  function loadCards(){
     return call('scorecards','cards',{}).then(function(cards){
       // The old cup door keeps its promise: ties only, nothing else.
       S.cards = (cards||[]).filter(function(c){ return !CUP_ONLY || c.kind==='cup'; });
+      return S.cards;
+    });
+  }
 
+  /**
+   * The card for one fixture, if it is open for this team.
+   *
+   * Matched without case: the same fixture can come back from two tables with
+   * its hex cased differently, and a captain whose tie will not open because
+   * of that has no way of knowing why.
+   */
+  function cardFor(fixtureId){
+    var want = String(fixtureId||'').toLowerCase();
+    return S.cards.filter(function(c){ return String(c.fixture_id).toLowerCase()===want; })[0] || null;
+  }
+
+  function refresh(){
+    if(!onCardTab()) return Promise.resolve();
+    return loadCards().then(function(){
       if(!S.cards.length){
         S.fixtureId=null;
         show($('idleCard'),true); show($('cardCard'),false); show($('pickCard'),false);
@@ -1450,13 +1486,14 @@ body.has-tick main{padding-bottom:120px;}
 
       // Stay on the card being scored. Otherwise the one played soonest -
       // which on a normal night is the only one there is.
-      var still = S.fixtureId && S.cards.filter(function(c){ return c.fixture_id===S.fixtureId; })[0];
-      return openCard(still ? S.fixtureId : S.cards[0].fixture_id);
+      var still = S.fixtureId && cardFor(S.fixtureId);
+      return openCard(still ? still.fixture_id : S.cards[0].fixture_id);
     }).catch(function(e){ say(e.message,'bad'); });
   }
 
   /** Puts one of this team's open cards on the screen. */
   function openCard(fixtureId){
+    S.opening = true;
     var switching = S.fixtureId && S.fixtureId !== fixtureId;
     if(switching){ stopPolling(); S.queue=[]; S.rosters={home:[],away:[]}; S.teamIds={home:null,away:null}; }
 
@@ -1481,7 +1518,8 @@ body.has-tick main{padding-bottom:120px;}
       startPolling();
       startFlushing();
       if(S.queue.length) flush();
-    }).catch(function(e){ say(e.message,'bad'); });
+      S.opening = false;
+    }).catch(function(e){ S.opening = false; say(e.message,'bad'); });
   }
 
   /** The other matches open for this team, if there are any. */
@@ -1492,7 +1530,8 @@ body.has-tick main{padding-bottom:120px;}
 
     $('pickList').innerHTML = S.cards.map(function(c){
       var when = c.match_date ? niceDate(c.match_date) : '';
-      return '<button class="pick'+(c.fixture_id===S.fixtureId?' on':'')+'" data-card="'+esc(c.fixture_id)+'">'
+      var here = cardFor(S.fixtureId);
+      return '<button class="pick'+(here && here.fixture_id===c.fixture_id?' on':'')+'" data-card="'+esc(c.fixture_id)+'">'
         + esc(c.kind==='cup' ? 'Cup tie' : 'League night')
         + '<span class="sub">v '+esc(c.opponent_name||'?')+(when?' \u00b7 '+esc(when):'')+'</span>'
         + '</button>';

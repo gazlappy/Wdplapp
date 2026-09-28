@@ -76,12 +76,27 @@ public class CaptainCardChoiceTests
     }
 
     [Fact]
-    public void A_cup_tie_signed_into_on_the_competitions_page_lands_on_the_captains_page()
+    public void A_live_tie_is_scored_from_its_own_row_on_the_competitions_tab()
+    {
+        var page = CaptainPage();
+
+        Assert.Contains("Score this tie", page);
+        Assert.Contains("data-tie=", page);
+
+        // The tab used to be a signpost to another page; now it is the way in.
+        Assert.DoesNotContain("Go to the competitions page", page);
+    }
+
+    [Fact]
+    public void The_competitions_page_no_longer_signs_captains_in_for_a_tie()
     {
         var comp = Read("comp", "index.html");
 
-        Assert.Contains("location.href='../captain/'", comp);
+        // Cup ties belong to the captains' own page: a second door here is a
+        // second place to look when the card is not where it was expected.
+        Assert.Contains("r.kind !== 'cup'", comp);
         Assert.DoesNotContain("location.href='tie.html'", comp);
+        Assert.DoesNotContain("call('captains','login'", comp);
     }
 
     private static string CardsBody()
