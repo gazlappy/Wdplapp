@@ -2218,16 +2218,22 @@ body.has-tick main{padding-bottom:120px;}
     return n;
   }
 
-  $('soloBtn').addEventListener('click', function(){
+  function takeBothSides(then){
     if(!window.confirm(
       'Enter both teams on this phone?\n\n'
       +'Use this when the other captain cannot get signal. They should watch as you enter it. '
       +'Scoring stays live - everything still goes through as you tap.')) return;
 
     call('scorecards','soloStart',{fixtureId:S.fixtureId})
-      .then(function(card){ render(card); say('You are now entering both teams.','ok'); })
+      .then(function(card){
+        render(card);
+        say('You are now entering both teams.','ok');
+        if(then) then();
+      })
       .catch(function(e){ say(e.message,'bad'); });
-  });
+  }
+
+  $('soloBtn').addEventListener('click', function(){ takeBothSides(); });
 
   $('soloOff').addEventListener('click', function(){
     call('scorecards','soloStop',{fixtureId:S.fixtureId})
@@ -2356,6 +2362,25 @@ body.has-tick main{padding-bottom:120px;}
         + 'This frame opens as soon as it is your turn.'
       : 'The away captain names theirs once the home captain has named that frame.';
     list.appendChild(note);
+
+    // Waiting on a captain who is not there is the dead end this hits most
+    // often - one person with both teams in front of them, and a card that
+    // will not let them get on with it. Taking both sides is the answer the
+    // page already has; this is where it is needed.
+    if(!S.solo && !S.otherDriving && S.card.toss_won_by){
+      var both=document.createElement('button');
+      both.className='go';
+      both.textContent='Enter both teams instead';
+      both.addEventListener('click', function(){
+        takeBothSides(function(){ openPicker(index, S.side); });
+      });
+      list.appendChild(both);
+
+      var why=document.createElement('div');
+      why.style.cssText='font-size:11px;color:var(--muted);padding:6px 0 2px';
+      why.textContent='Use that if you are filling the card in for both captains tonight.';
+      list.appendChild(why);
+    }
 
     var close=document.createElement('button');
     close.className='ghost';
