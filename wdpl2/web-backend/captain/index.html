@@ -199,6 +199,7 @@ table.tbl tr.us td{font-weight:700;}
   background:rgba(96,165,250,.18); color:#bfdbfe; border:1px solid rgba(96,165,250,.4);
 }
 .mini{padding:7px 11px; font-size:12px;}
+.stamp{margin:12px 0 0; font-size:11px; color:var(--muted); text-align:center;}
 .fx .score-tie{width:auto; padding:8px 12px; font-size:12px; white-space:nowrap;}
 .pick{display:block; width:100%; text-align:left; margin:0 0 8px; padding:12px 14px;
   border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--panel-2);
@@ -438,6 +439,7 @@ body.has-tick main{padding-bottom:120px;}
     <label for="pin" style="margin-top:12px">PIN</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
     <div class="row" style="margin-top:12px"><button id="loginBtn">Sign in</button></div>
+    <p class="stamp" id="stampLogin"></p>
   </section>
 
   <!-- Home: the night, if there is one, and the way to everything else -->
@@ -518,6 +520,7 @@ body.has-tick main{padding-bottom:120px;}
       <button class="ghost" id="refreshBtn">Check again</button>
       <button class="ghost" id="logoutBtn">Sign out</button>
     </div>
+    <p class="stamp" id="stampIdle"></p>
   </section>
 
   <!-- Two matches open at once: a cup tie on a league night, say -->
@@ -695,6 +698,26 @@ body.has-tick main{padding-bottom:120px;}
       'No cup tie is open for you yet. The league opens the card when the tie is about to start.';
   }
   function show(el,on){ el.classList.toggle('hidden', !on); }
+
+  /**
+   * Which copy of this page is running.
+   *
+   * A page held in a phone's cache looks exactly like the current one, and a
+   * fix that is on the server but not on the phone wastes an evening. This is
+   * the file's own Last-Modified, so it answers "is this the new one?" with a
+   * date the league can compare against when they published it.
+   */
+  (function stamp(){
+    var when = new Date(document.lastModified);
+    var text = isNaN(when) ? '' : 'Page updated ' + when.toLocaleDateString(undefined,
+      { day:'numeric', month:'short', year:'numeric' }) + ', ' + when.toLocaleTimeString(undefined,
+      { hour:'2-digit', minute:'2-digit' });
+
+    ['stampLogin','stampIdle'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.textContent = text;
+    });
+  })();
   function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
