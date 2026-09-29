@@ -1237,6 +1237,17 @@ nav a:hover, nav a.active {{
     border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 0.8rem;
 }}
 .gallery-categories .category-btn.active .category-count {{ background: rgba(255,255,255,0.25); }}
+.gallery-picker {{
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 24px;
+}}
+.gallery-picker label {{ font-weight: 700; color: var(--text-color, #0F172A); }}
+.gallery-picker select {{
+    font: inherit; font-size: 1rem; font-weight: 600; min-width: 240px; max-width: 100%;
+    padding: 10px 40px 10px 14px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border-color, #E2E8F0); background-color: var(--card-bg, #fff);
+    color: var(--text-color, #0F172A);
+}}
+.gallery-season-count {{ font-size: 0.85rem; font-weight: 500; color: var(--text-secondary, #64748B); margin-left: 6px; }}
 .gallery-season {{ margin: 0 0 36px; }}
 .gallery-season[hidden] {{ display: none; }}
 .gallery-season-title {{
@@ -1244,6 +1255,16 @@ nav a:hover, nav a.active {{
     border-bottom: 2px solid var(--border-color, #E2E8F0);
 }}
 .gallery-item {{ margin: 0; }}
+/* Grid: every tile the same shape, cropped to fill, so portrait and
+   landscape photos sit in tidy rows. Tapping shows the whole photo. */
+.gallery-grid:not(.gallery-masonry) .gallery-item img {{
+    display: block; aspect-ratio: 4 / 3; object-fit: cover; height: auto;
+    object-position: 50% 25%;   /* faces sit high in a portrait shot; do not crop them off */
+}}
+/* Masonry: photos at their own shape, in columns. */
+.gallery-masonry {{ display: block; columns: var(--gallery-columns, 3) 220px; column-gap: 16px; }}
+.gallery-masonry .gallery-item {{ break-inside: avoid; margin-bottom: 16px; }}
+.gallery-masonry .gallery-item img {{ display: block; }}
 .gallery-item .lightbox-link {{ display: block; }}
 @media (max-width: 768px) {{
     .gallery-grid {{ grid-template-columns: repeat(2, 1fr); gap: 12px; }}
@@ -2271,7 +2292,7 @@ nav a {{ padding: 5px 8px; font-size: 0.8rem; }}
 .page-canvas .leader-item {{ padding: 14px 16px; gap: 4px 12px; }}
 .page-canvas .result-item,
 .page-canvas .fixture-item {{ padding: 14px 16px; }}
-.gallery-grid {{ grid-template-columns: 1fr; }}
+.gallery-grid {{ grid-template-columns: repeat(2, 1fr); gap: 8px; }}
 .stats-grid {{ grid-template-columns: 1fr 1fr; }}
 .stat-card {{ padding: 12px; }}
 .stat-number {{ font-size: 1.2rem; }}

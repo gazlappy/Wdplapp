@@ -3488,20 +3488,28 @@ namespace Wdpl2.Services
             var albums = GalleryAlbums.For(
                 _settings.GalleryImages.Where(i => !string.IsNullOrEmpty(i.StoredFile)), _league.Seasons);
 
-            if (_settings.GalleryShowCategories && albums.Count > 1)
+            // A season list that is always there, even with one season: which
+            // season you are looking at should never be a guess, and the list
+            // is where the next season will appear. It opens on the newest
+            // season with photos; "All seasons" shows the lot. Without script
+            // every season shows, each under its own heading.
+            if (_settings.GalleryShowCategories && albums.Count > 0)
             {
-                html.AppendLine("            <div class=\"gallery-categories\" role=\"group\" aria-label=\"Show photos from\">");
-                html.AppendLine("                <button type=\"button\" class=\"category-btn active\" data-category=\"all\" aria-pressed=\"true\">All seasons</button>");
+                html.AppendLine("            <div class=\"gallery-picker\">");
+                html.AppendLine("                <label for=\"gallery-season-select\">Season</label>");
+                html.AppendLine("                <select id=\"gallery-season-select\">");
                 foreach (var album in albums)
-                    html.AppendLine($"                <button type=\"button\" class=\"category-btn\" data-category=\"{album.Key}\" aria-pressed=\"false\">{Esc(album.Title)} <span class=\"category-count\">{album.Images.Count}</span></button>");
+                    html.AppendLine($"                    <option value=\"{album.Key}\">{Esc(album.Title)} ({album.Images.Count} photo{(album.Images.Count == 1 ? "" : "s")})</option>");
+                if (albums.Count > 1)
+                    html.AppendLine($"                    <option value=\"all\">All seasons ({albums.Sum(a => a.Images.Count)} photos)</option>");
+                html.AppendLine("                </select>");
                 html.AppendLine("            </div>");
             }
 
             foreach (var album in albums)
             {
-                html.AppendLine($"            <section class=\"gallery-season\" data-category=\"{album.Key}\">");
-                if (albums.Count > 1)
-                    html.AppendLine($"                <h3 class=\"gallery-season-title\">{Esc(album.Title)}</h3>");
+                html.AppendLine($"            <section class=\"gallery-season\" data-category=\"{album.Key}\" id=\"season-{album.Key}\">");
+                html.AppendLine($"                <h3 class=\"gallery-season-title\">{Esc(album.Title)} <span class=\"gallery-season-count\">{album.Images.Count} photo{(album.Images.Count == 1 ? "" : "s")}</span></h3>");
                 html.AppendLine($"                <div class=\"gallery-grid gallery-{_settings.GalleryLayout}\" style=\"--gallery-columns: {_settings.GalleryColumns};\">");
 
                 foreach (var image in album.Images)
@@ -3564,21 +3572,26 @@ namespace Wdpl2.Services
             </div>
             <script>
             (function(){
-              var buttons = document.querySelectorAll('.category-btn');
+              var select = document.getElementById('gallery-season-select');
               var seasons = document.querySelectorAll('.gallery-season');
-              buttons.forEach(function(btn){
-                btn.addEventListener('click', function(){
-                  var want = btn.getAttribute('data-category');
-                  buttons.forEach(function(b){
-                    var on = b === btn;
-                    b.classList.toggle('active', on);
-                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-                  });
-                  seasons.forEach(function(s){
-                    s.hidden = !(want === 'all' || s.getAttribute('data-category') === want);
-                  });
+
+              function showSeason(want){
+                seasons.forEach(function(s){
+                  s.hidden = !(want === 'all' || s.getAttribute('data-category') === want);
                 });
-              });
+              }
+
+              if (select){
+                // A link can open a season directly: gallery.html#season=<key>
+                var asked = (location.hash.match(/season=([\w-]+)/) || [])[1];
+                if (asked && select.querySelector('option[value="' + asked + '"]')) select.value = asked;
+                showSeason(select.value);
+
+                select.addEventListener('change', function(){
+                  showSeason(select.value);
+                  if (history.replaceState) history.replaceState(null, '', '#season=' + select.value);
+                });
+              }
 
               var viewer = document.querySelector('.gallery-viewer');
               if (!viewer) return;

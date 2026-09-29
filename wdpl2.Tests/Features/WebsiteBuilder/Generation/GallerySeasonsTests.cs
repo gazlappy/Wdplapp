@@ -74,29 +74,35 @@ public class GallerySeasonsTests
     }
 
     [Fact]
-    public void The_page_has_a_button_and_a_section_per_season_in_the_same_order()
+    public void The_season_list_offers_each_season_newest_first_then_all()
     {
         var page = GalleryPage(Photo("a", Old), Photo("b", Now), Photo("c", Now), Photo("d", null));
 
-        var buttons = Regex.Matches(page, @"class=""category-btn[^""]*"" data-category=""([^""]+)""")
-            .Select(m => m.Groups[1].Value).ToList();
+        var options = Regex.Matches(page, @"<option value=""([^""]+)"">([^<]+)</option>")
+            .Select(m => (Key: m.Groups[1].Value, Text: m.Groups[2].Value)).ToList();
         var sections = Regex.Matches(page, @"<section class=""gallery-season"" data-category=""([^""]+)""")
             .Select(m => m.Groups[1].Value).ToList();
 
-        Assert.Equal("all", buttons[0]);
-        Assert.Equal(sections, buttons.Skip(1));
         Assert.Equal(new[] { Now.Id.ToString("N"), Old.Id.ToString("N"), "other" }, sections);
-        Assert.Contains("Winter 26-27 <span class=\"category-count\">2</span>", page);
+        Assert.Equal(sections.Append("all"), options.Select(o => o.Key));
+        Assert.Equal("Winter 26-27 (2 photos)", options[0].Text);
+        Assert.Equal("All seasons (4 photos)", options[^1].Text);
     }
 
+    /// <summary>
+    /// Every photo in one season still gets the list and the heading - which
+    /// season you are looking at is never a guess, and the list is where the
+    /// next season will appear.
+    /// </summary>
     [Fact]
-    public void One_season_needs_no_buttons_or_headings()
+    public void One_season_still_shows_its_name_and_the_list()
     {
         var page = GalleryPage(Photo("a", Now), Photo("b", Now));
 
-        Assert.DoesNotContain("class=\"category-btn", page);
-        Assert.DoesNotContain("class=\"gallery-season-title\"", page);
-        Assert.Contains("class=\"gallery-season\"", page);
+        Assert.Contains("id=\"gallery-season-select\"", page);
+        Assert.Contains("<option value=\"" + Now.Id.ToString("N") + "\">Winter 26-27 (2 photos)</option>", page);
+        Assert.DoesNotContain("value=\"all\"", page);          // nothing to combine
+        Assert.Contains("<h3 class=\"gallery-season-title\">Winter 26-27", page);
     }
 
     [Fact]
@@ -104,8 +110,9 @@ public class GallerySeasonsTests
     {
         var page = GalleryPage(Photo("a", Old), Photo("b", Now));
 
-        // The buttons were drawn before with nothing to make them work.
-        Assert.Contains("querySelectorAll('.category-btn')", page);
+        // The season choice was drawn before with nothing to make it work.
+        Assert.Contains("getElementById('gallery-season-select')", page);
+        Assert.Contains("showSeason(select.value)", page);
         Assert.Contains("class=\"gallery-viewer\" hidden", page);
         Assert.Contains("closest('.lightbox-link')", page);
     }
