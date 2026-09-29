@@ -3481,42 +3481,49 @@ namespace Wdpl2.Services
             html.AppendLine($"                <h2>&#128247; {Esc(_settings.GalleryPageTitle)}</h2>");
             html.AppendLine("            </div>");
 
-            var images = _settings.GalleryImages.OrderBy(i => i.SortOrder).ToList();
-            var categories = images.Select(i => i.Category).Distinct().ToList();
-            
-            if (_settings.GalleryShowCategories && categories.Count > 1)
+            // By season, newest first, then anything not tied to one. The
+            // season buttons only appear when there is more than one to pick.
+            var albums = GalleryAlbums.For(
+                _settings.GalleryImages.Where(i => i.ImageData.Length > 0), _league.Seasons);
+
+            if (_settings.GalleryShowCategories && albums.Count > 1)
             {
-                html.AppendLine("            <div class=\"gallery-categories\">");
-                html.AppendLine("                <button class=\"category-btn active\" data-category=\"all\">All</button>");
-                foreach (var category in categories)
-                {
-                    html.AppendLine($"                <button class=\"category-btn\" data-category=\"{category.ToLower().Replace(" ", "-")}\">{category}</button>");
-                }
+                html.AppendLine("            <div class=\"gallery-categories\" role=\"group\" aria-label=\"Show photos from\">");
+                html.AppendLine("                <button type=\"button\" class=\"category-btn active\" data-category=\"all\" aria-pressed=\"true\">All seasons</button>");
+                foreach (var album in albums)
+                    html.AppendLine($"                <button type=\"button\" class=\"category-btn\" data-category=\"{album.Key}\" aria-pressed=\"false\">{Esc(album.Title)} <span class=\"category-count\">{album.Images.Count}</span></button>");
                 html.AppendLine("            </div>");
             }
-            
-            html.AppendLine($"            <div class=\"gallery-grid gallery-{_settings.GalleryLayout}\" style=\"--gallery-columns: {_settings.GalleryColumns};\">");
-            
-            foreach (var image in images)
+
+            foreach (var album in albums)
             {
-                if (image.ImageData.Length == 0) continue;
-                
-                var mimeType = imageOptimizer.GetMimeType(image.FileName);
-                var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
-                var categoryClass = image.Category.ToLower().Replace(" ", "-");
-                
-                html.AppendLine($"                <div class=\"gallery-item\" data-category=\"{categoryClass}\">");
-                if (_settings.GalleryEnableLightbox)
-                    html.AppendLine($"                    <a href=\"{dataUrl}\" class=\"lightbox-link\">");
-                html.AppendLine($"                    <img src=\"{dataUrl}\" alt=\"{image.Caption}\" loading=\"lazy\">");
-                if (_settings.GalleryEnableLightbox)
-                    html.AppendLine("                    </a>");
-                if (_settings.GalleryShowCaptions && !string.IsNullOrWhiteSpace(image.Caption))
-                    html.AppendLine($"                    <p class=\"caption\">{image.Caption}</p>");
+                html.AppendLine($"            <section class=\"gallery-season\" data-category=\"{album.Key}\">");
+                if (albums.Count > 1)
+                    html.AppendLine($"                <h3 class=\"gallery-season-title\">{Esc(album.Title)}</h3>");
+                html.AppendLine($"                <div class=\"gallery-grid gallery-{_settings.GalleryLayout}\" style=\"--gallery-columns: {_settings.GalleryColumns};\">");
+
+                foreach (var image in album.Images)
+                {
+                    var mimeType = imageOptimizer.GetMimeType(image.FileName);
+                    var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
+                    var caption = Esc(image.Caption ?? "");
+
+                    html.AppendLine("                    <figure class=\"gallery-item\">");
+                    if (_settings.GalleryEnableLightbox)
+                        html.AppendLine($"                        <a href=\"{dataUrl}\" class=\"lightbox-link\" data-caption=\"{caption}\">");
+                    html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{caption}\" loading=\"lazy\">");
+                    if (_settings.GalleryEnableLightbox)
+                        html.AppendLine("                        </a>");
+                    if (_settings.GalleryShowCaptions && !string.IsNullOrWhiteSpace(image.Caption))
+                        html.AppendLine($"                        <figcaption class=\"caption\">{caption}</figcaption>");
+                    html.AppendLine("                    </figure>");
+                }
+
                 html.AppendLine("                </div>");
+                html.AppendLine("            </section>");
             }
-            
-            html.AppendLine("            </div>");
+
+            AppendGalleryScript(html);
             html.AppendLine("        </div>");
             html.AppendLine("    </div>");
             
@@ -3531,6 +3538,90 @@ namespace Wdpl2.Services
             return html.ToString();
         }
         
+        /// <summary>
+        /// Makes the season buttons filter, and opens a photo large in the page.
+        /// </summary>
+        /// <remarks>
+        /// The buttons and the viewer links were drawn before with nothing
+        /// behind them: a button did nothing, and a photo opened as a bare
+        /// image with no way back but the browser's own. Without script the
+        /// page still shows every season, and a photo still opens on its own.
+        /// </remarks>
+        private static void AppendGalleryScript(StringBuilder html)
+        {
+            html.AppendLine("""
+            <div class="gallery-viewer" hidden>
+                <figure class="gallery-viewer-box" role="dialog" aria-modal="true" aria-label="Photo">
+                    <button type="button" class="gallery-viewer-close" aria-label="Close">&times;</button>
+                    <button type="button" class="gallery-viewer-prev" aria-label="Previous photo">&#8249;</button>
+                    <img alt="">
+                    <button type="button" class="gallery-viewer-next" aria-label="Next photo">&#8250;</button>
+                    <figcaption></figcaption>
+                </figure>
+            </div>
+            <script>
+            (function(){
+              var buttons = document.querySelectorAll('.category-btn');
+              var seasons = document.querySelectorAll('.gallery-season');
+              buttons.forEach(function(btn){
+                btn.addEventListener('click', function(){
+                  var want = btn.getAttribute('data-category');
+                  buttons.forEach(function(b){
+                    var on = b === btn;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                  });
+                  seasons.forEach(function(s){
+                    s.hidden = !(want === 'all' || s.getAttribute('data-category') === want);
+                  });
+                });
+              });
+
+              var viewer = document.querySelector('.gallery-viewer');
+              if (!viewer) return;
+              var img = viewer.querySelector('img'), cap = viewer.querySelector('figcaption');
+              var shown = [], at = 0, opener = null;
+
+              function visibleLinks(){
+                return Array.prototype.filter.call(document.querySelectorAll('.lightbox-link'),
+                  function(a){ return !a.closest('.gallery-season[hidden]'); });
+              }
+              function show(i){
+                at = (i + shown.length) % shown.length;
+                var a = shown[at];
+                img.src = a.getAttribute('href');
+                img.alt = a.getAttribute('data-caption') || '';
+                cap.textContent = a.getAttribute('data-caption') || '';
+                viewer.querySelector('.gallery-viewer-prev').hidden = shown.length < 2;
+                viewer.querySelector('.gallery-viewer-next').hidden = shown.length < 2;
+              }
+              function close(){ viewer.hidden = true; img.src = ''; if (opener) opener.focus(); }
+
+              document.addEventListener('click', function(e){
+                var a = e.target.closest && e.target.closest('.lightbox-link');
+                if (!a) return;
+                e.preventDefault();
+                shown = visibleLinks();
+                opener = a;
+                show(shown.indexOf(a));
+                viewer.hidden = false;
+                viewer.querySelector('.gallery-viewer-close').focus();
+              });
+              viewer.addEventListener('click', function(e){ if (e.target === viewer) close(); });
+              viewer.querySelector('.gallery-viewer-close').addEventListener('click', close);
+              viewer.querySelector('.gallery-viewer-prev').addEventListener('click', function(){ show(at - 1); });
+              viewer.querySelector('.gallery-viewer-next').addEventListener('click', function(){ show(at + 1); });
+              document.addEventListener('keydown', function(e){
+                if (viewer.hidden) return;
+                if (e.key === 'Escape') close();
+                else if (e.key === 'ArrowLeft') show(at - 1);
+                else if (e.key === 'ArrowRight') show(at + 1);
+              });
+            })();
+            </script>
+""");
+        }
+
         private List<PlayerStat> CalculatePlayerStats(List<Player> players, List<Team> teams, List<Fixture> fixtures)
         {
             var stats = new List<PlayerStat>();

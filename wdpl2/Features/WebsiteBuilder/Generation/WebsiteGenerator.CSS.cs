@@ -1220,6 +1220,51 @@ nav a:hover, nav a.active {{
     color: var(--text-secondary);
 }}
 
+/* Seasons: a button per season, a heading above each, and a viewer for a photo tapped. */
+.gallery-categories {{
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px;
+}}
+.gallery-categories .category-btn {{
+    border: 1px solid var(--border-color, #E2E8F0); background: var(--card-bg, #fff);
+    color: var(--text-color, #0F172A); border-radius: 999px; padding: 8px 16px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}}
+.gallery-categories .category-btn.active {{
+    background: var(--primary-color, #3B82F6); border-color: var(--primary-color, #3B82F6); color: #fff;
+}}
+.gallery-categories .category-count {{
+    display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px;
+    border-radius: 999px; background: rgba(0,0,0,0.08); font-size: 0.8rem;
+}}
+.gallery-categories .category-btn.active .category-count {{ background: rgba(255,255,255,0.25); }}
+.gallery-season {{ margin: 0 0 36px; }}
+.gallery-season[hidden] {{ display: none; }}
+.gallery-season-title {{
+    font-size: 1.2rem; margin: 0 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color, #E2E8F0);
+}}
+.gallery-item {{ margin: 0; }}
+.gallery-item .lightbox-link {{ display: block; }}
+@media (max-width: 768px) {{
+    .gallery-grid {{ grid-template-columns: repeat(2, 1fr); gap: 12px; }}
+}}
+.gallery-viewer {{
+    position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.88);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+}}
+.gallery-viewer[hidden] {{ display: none; }}
+.gallery-viewer-box {{ position: relative; margin: 0; max-width: 100%; max-height: 100%; text-align: center; }}
+.gallery-viewer-box img {{ max-width: 92vw; max-height: 80vh; border-radius: 8px; display: block; margin: 0 auto; }}
+.gallery-viewer-box figcaption {{ color: #fff; margin-top: 10px; font-size: 0.95rem; }}
+.gallery-viewer-close, .gallery-viewer-prev, .gallery-viewer-next {{
+    position: fixed; border: 0; background: rgba(255,255,255,0.15); color: #fff;
+    width: 44px; height: 44px; border-radius: 50%; font-size: 28px; line-height: 1; cursor: pointer;
+}}
+.gallery-viewer-close {{ top: 14px; right: 14px; }}
+.gallery-viewer-prev {{ left: 10px; top: 50%; transform: translateY(-50%); }}
+.gallery-viewer-next {{ right: 10px; top: 50%; transform: translateY(-50%); }}
+.gallery-viewer [hidden] {{ display: none; }}
+
 .sponsors-grid {{
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

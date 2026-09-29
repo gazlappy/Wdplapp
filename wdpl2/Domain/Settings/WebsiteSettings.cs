@@ -1242,6 +1242,14 @@ namespace Wdpl2.Models
         public string FileName { get; set; } = "";
         public string Caption { get; set; } = "";
         public string Category { get; set; } = "General";
+
+        /// <summary>
+        /// The season the photo belongs to, which is how the gallery is
+        /// sorted on the website. Null for photos added before seasons were
+        /// used, or not tied to one - they show as "Other photos".
+        /// </summary>
+        public Guid? SeasonId { get; set; }
+
         public byte[] ImageData { get; set; } = Array.Empty<byte>();
         public DateTime DateAdded { get; set; } = DateTime.Now;
         public int Width { get; set; }

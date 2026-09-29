@@ -22,6 +22,11 @@
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Manage Photos" FontSize="14" FontAttributes="Bold"/>
+
+                    <Label Text="Season for new photos" FontSize="12" TextColor="#6B7280"/>
+                    <Picker x:Name="AddSeasonPicker"/>
+                    <Label Text="Photos you add go into this season on the website. You can move any photo afterwards."
+                           FontSize="11" TextColor="#9CA3AF"/>
                     
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                         <Button Grid.Column="0"
@@ -68,7 +73,7 @@
                     
                     <HorizontalStackLayout Spacing="8">
                         <CheckBox x:Name="GalleryShowCategoriesCheck" IsChecked="True"/>
-                        <Label Text="Show Categories" VerticalOptions="Center"/>
+                        <Label Text="Show season buttons on the website" VerticalOptions="Center"/>
                     </HorizontalStackLayout>
                     
                     <HorizontalStackLayout Spacing="8">
@@ -80,42 +85,18 @@
             
             <Frame BorderColor="#E5E7EB" Padding="15" CornerRadius="8">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Current Images" FontSize="14" FontAttributes="Bold"/>
-                    
-                    <CollectionView x:Name="ImageList" 
-                                    HeightRequest="200"
-                                    SelectionMode="None">
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Frame Padding="10" Margin="0,0,0,5" BorderColor="#E5E7EB" CornerRadius="6">
-                                    <Grid ColumnDefinitions="50,*,Auto" ColumnSpacing="10">
-                                        <Image Grid.Column="0" Source="{Binding Thumbnail}" 
-                                               HeightRequest="40" WidthRequest="40" 
-                                               Aspect="AspectFill" VerticalOptions="Center"/>
-                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                            <Label Text="{Binding FileName}" FontAttributes="Bold" LineBreakMode="TailTruncation"/>
-                                            <Label Text="{Binding Dimensions}" FontSize="11" TextColor="#6B7280"/>
-                                        </VerticalStackLayout>
-                                        <Button Grid.Column="2" 
-                                                Text="X" 
-                                                BackgroundColor="#EF4444" 
-                                                TextColor="White"
-                                                WidthRequest="35"
-                                                HeightRequest="35"
-                                                Padding="0"
-                                                CommandParameter="{Binding Id}"
-                                                Clicked="OnDeleteImageClicked"/>
-                                    </Grid>
-                                </Frame>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                        <CollectionView.EmptyView>
-                            <VerticalStackLayout Padding="20">
-                                <Label Text="No images yet" HorizontalOptions="Center" TextColor="#6B7280"/>
-                                <Label Text="Click Add Photos to get started" HorizontalOptions="Center" FontSize="12" TextColor="#9CA3AF"/>
-                            </VerticalStackLayout>
-                        </CollectionView.EmptyView>
-                    </CollectionView>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Label Text="Current Images" FontSize="14" FontAttributes="Bold" VerticalOptions="Center"/>
+                        <Picker Grid.Column="1" x:Name="ShowPicker" WidthRequest="260"
+                                SelectedIndexChanged="OnShowChanged"/>
+                    </Grid>
+
+                    <VerticalStackLayout x:Name="ImageRows" Spacing="6"/>
+
+                    <VerticalStackLayout x:Name="EmptyView" Padding="20" IsVisible="False">
+                        <Label x:Name="EmptyText" Text="No images yet" HorizontalOptions="Center" TextColor="#6B7280"/>
+                        <Label Text="Click Add Photos to get started" HorizontalOptions="Center" FontSize="12" TextColor="#9CA3AF"/>
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
             </Frame>
             
