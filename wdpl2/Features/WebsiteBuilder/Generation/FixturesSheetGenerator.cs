@@ -131,6 +131,7 @@ public class FixturesSheetGenerator
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
         sb.AppendLine(GenerateContent(divisions, venues, teams, fixtures, season));
+        sb.AppendLine(GetDateCardScript());
         if (_settings.CardTiltIntensity > 0 || _settings.LogoTiltIntensity > 0)
             sb.AppendLine(GenerateCardTiltScript());
         sb.AppendLine("</body></html>");
@@ -236,7 +237,7 @@ public class FixturesSheetGenerator
         }
         var teamNumbers = shared?.TeamNumbers ?? BuildTeamNumbers(teams);
         var specialEvents = GetSpecialEvents(season);
-        GenerateFixtureGridRows(sb, fixtures, teams, teamNumbers, divisions, shared, specialEvents, season);
+        GenerateFixtureGridRows(sb, fixtures, teams, venues, teamNumbers, divisions, shared, specialEvents, season);
         if (_settings.ShowDivisionLists)
             GenerateDivisionLists(sb, divisions, teams, venues, teamNumbers, shared?.SlotCount);
 
@@ -329,7 +330,7 @@ public class FixturesSheetGenerator
     private static bool IsWithinSeason(DateTime date, Season season) =>
         date.Date >= season.StartDate.Date && date.Date <= season.EndDate.Date;
 
-    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, Dictionary<Guid, int> teamNumbers, List<Division> divisions, SharedFixtureSheetSchedule? shared, List<SpecialEvent> specialEvents, Season season)
+    private void GenerateFixtureGridRows(StringBuilder sb, List<Fixture> fixtures, List<Team> teams, List<Venue> venues, Dictionary<Guid, int> teamNumbers, List<Division> divisions, SharedFixtureSheetSchedule? shared, List<SpecialEvent> specialEvents, Season season)
     {
         // Group fixtures by week date
         var weeks = fixtures
@@ -359,8 +360,11 @@ public class FixturesSheetGenerator
 
             if (hasFixtures)
             {
-                // Fixture week card (may also have an event annotation)
-                sb.AppendLine($"<div class=\"wk-card\" data-date=\"{date:yyyy-MM-dd}\">");
+                // Fixture week card (may also have an event annotation). A
+                // button to assistive technology as well as to a finger: it
+                // opens that night's fixtures.
+                var spoken = date.ToString("dddd d MMMM", CultureInfo.InvariantCulture);
+                sb.AppendLine($"<div class=\"wk-card\" data-date=\"{date:yyyy-MM-dd}\" tabindex=\"0\" role=\"button\" aria-haspopup=\"dialog\" aria-label=\"Show the fixtures for {spoken}\">");
                 sb.AppendLine($"<div class=\"wk-hdr\" style=\"background:{color};\">");
                 sb.AppendLine($"<div class=\"wk-day\">{day}</div>");
                 sb.AppendLine($"<div class=\"wk-month\">{monthName}</div>");
@@ -403,6 +407,7 @@ public class FixturesSheetGenerator
                     sb.AppendLine("</div>");
                 }
                 sb.AppendLine("</div>");
+                AppendDateDetail(sb, date, weekFixtures!, teams, venues, divisions);
                 sb.AppendLine("</div>");
             }
             else if (hasEvents)
@@ -420,6 +425,139 @@ public class FixturesSheetGenerator
 
         sb.AppendLine("</div>");
     }
+
+    /// <summary>
+    /// The night's fixtures by name, hidden inside its date card for the
+    /// pop-up a tap opens.
+    /// </summary>
+    /// <remarks>
+    /// The card itself shows team numbers, which is what the printed sheet is
+    /// for. Anyone looking at it on a phone wants the names, and where to go,
+    /// without cross-referencing the key. Written into the page rather than
+    /// looked up when tapped, so it works offline and in the downloaded copy.
+    /// Events for the date are not repeated here - the pop-up reads them off
+    /// the card.
+    /// </remarks>
+    private static void AppendDateDetail(StringBuilder sb, DateTime date, List<Fixture> dayFixtures,
+        List<Team> teams, List<Venue> venues, List<Division> divisions)
+    {
+        var title = date.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture);
+        sb.AppendLine($"<div class=\"wk-detail\" hidden=\"hidden\" data-title=\"{Esc(title)}\">");
+
+        string TeamName(Guid id) => teams.FirstOrDefault(t => t.Id == id)?.Name ?? "Unknown team";
+
+        foreach (var group in dayFixtures.GroupBy(f => f.DivisionId)
+                     .OrderBy(g => divisions.FindIndex(d => d.Id == g.Key)))
+        {
+            if (divisions.Count > 1)
+            {
+                var division = divisions.FirstOrDefault(d => d.Id == group.Key);
+                sb.AppendLine($"<div class=\"wkd-div\">{Esc(division?.Name ?? "Unassigned division")}</div>");
+            }
+
+            foreach (var f in group.OrderBy(f => TeamName(f.HomeTeamId)).ThenBy(f => f.Id))
+            {
+                var home = teams.FirstOrDefault(t => t.Id == f.HomeTeamId);
+                var venueId = f.VenueId ?? home?.VenueId;
+                var venue = venueId is null ? null : venues.FirstOrDefault(v => v.Id == venueId)?.Name;
+                var played = f.Frames.Any(fr => fr.Winner != FrameWinner.None);
+
+                sb.Append("<div class=\"wkd-row\">");
+                sb.Append($"<span class=\"wkd-teams\">{Esc(TeamName(f.HomeTeamId))} <span class=\"wkd-v\">v</span> {Esc(TeamName(f.AwayTeamId))}</span>");
+                if (played)
+                    sb.Append($"<span class=\"wkd-score\">{f.HomeScore}\u2013{f.AwayScore}</span>");
+                if (!string.IsNullOrWhiteSpace(venue))
+                    sb.Append($"<span class=\"wkd-venue\">{Esc(venue)}</span>");
+                sb.AppendLine("</div>");
+            }
+        }
+
+        sb.AppendLine("</div>");
+    }
+
+    /// <summary>
+    /// Opens a date card's fixtures in a pop-up. Needed wherever the sheet is
+    /// shown on screen: the standalone page and the website both include it.
+    /// </summary>
+    /// <remarks>
+    /// Safe to include more than once on a page. Clicks on the team-number
+    /// links still jump to the key, as they did before.
+    /// </remarks>
+    public string GetDateCardScript() => """
+<script>
+(function(){
+  if (window.__wkDateCards) return;
+  window.__wkDateCards = true;
+
+  var modal = null, lastCard = null;
+
+  function build(){
+    modal = document.createElement('div');
+    modal.className = 'wk-modal';
+    modal.hidden = true;
+    modal.innerHTML =
+        '<div class="wk-modal-box" role="dialog" aria-modal="true" aria-labelledby="wk-modal-title">'
+      +   '<div class="wk-modal-hdr"><h2 id="wk-modal-title"></h2>'
+      +   '<button type="button" class="wk-modal-close" aria-label="Close">&times;</button></div>'
+      +   '<div class="wk-modal-events"></div>'
+      +   '<div class="wk-modal-body"></div>'
+      + '</div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if (e.target === modal) close(); });
+    modal.querySelector('.wk-modal-close').addEventListener('click', close);
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && modal && !modal.hidden) close();
+    });
+  }
+
+  function open(card){
+    var detail = card.querySelector('.wk-detail');
+    if (!detail) return;
+    if (!modal) build();
+    lastCard = card;
+
+    modal.querySelector('#wk-modal-title').textContent = detail.getAttribute('data-title') || '';
+    var hdr = card.querySelector('.wk-hdr');
+    modal.querySelector('.wk-modal-hdr').style.backgroundColor = hdr ? hdr.style.background : '';
+
+    var events = modal.querySelector('.wk-modal-events');
+    events.innerHTML = '';
+    card.querySelectorAll('.wk-event').forEach(function(e){
+      var line = document.createElement('div');
+      line.className = 'wk-modal-event';
+      line.textContent = e.textContent;
+      events.appendChild(line);
+    });
+
+    modal.querySelector('.wk-modal-body').innerHTML = detail.innerHTML;
+    modal.hidden = false;
+    modal.querySelector('.wk-modal-close').focus();
+  }
+
+  function close(){
+    modal.hidden = true;
+    if (lastCard) lastCard.focus();
+  }
+
+  document.addEventListener('click', function(e){
+    if (!e.target.closest) return;
+    if (e.target.closest('a')) return;          // a team number jumps to the key
+    if (e.target.closest('.wk-modal')) return;
+    var card = e.target.closest('.wk-card');
+    if (card && card.querySelector('.wk-detail')) open(card);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var card = e.target;
+    if (card && card.classList && card.classList.contains('wk-card') && card.querySelector('.wk-detail')){
+      e.preventDefault();
+      open(card);
+    }
+  });
+})();
+</script>
+""";
 
     // ── Division Lists ───────────────────────────────────────
 
@@ -833,8 +971,56 @@ html, body {
 .footer-note-extra { margin-top: 4px; }
 .footer-contacts { color: #64748B; letter-spacing: 0.3px; }
 
+/* ── Date card pop-up ── */
+.wk-card[role="button"] { cursor: pointer; }
+.wk-card[role="button"]:focus-visible { outline: 3px solid #2563EB; outline-offset: 2px; }
+.wk-detail { display: none; }
+.wk-modal {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(15,23,42,0.55);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.wk-modal[hidden] { display: none; }
+.wk-modal-box {
+    background: #FFFFFF; color: #0F172A; width: 100%; max-width: 440px;
+    max-height: 85vh; overflow-y: auto; border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.wk-modal-hdr {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; background-color: #334155;
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 100%);
+    border-radius: 14px 14px 0 0;
+}
+.wk-modal-hdr h2 { font-size: 16px; font-weight: 800; color: #0F172A; }
+.wk-modal-close {
+    border: 0; background: rgba(255,255,255,0.7); color: #0F172A;
+    width: 34px; height: 34px; border-radius: 50%; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.wk-modal-events { padding: 0 16px; }
+.wk-modal-event {
+    margin-top: 12px; padding: 8px 10px; border-radius: 8px;
+    background: #FEF3C7; color: #78350F; font-size: 13px; font-weight: 700;
+}
+.wk-modal-body { padding: 8px 16px 16px; }
+.wkd-div {
+    margin: 14px 0 4px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+    text-transform: uppercase; color: #64748B;
+}
+.wkd-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+    padding: 9px 0; border-bottom: 1px solid #E2E8F0;
+}
+.wkd-row:last-child { border-bottom: 0; }
+.wkd-teams { font-size: 15px; font-weight: 700; }
+.wkd-v { color: #94A3B8; font-weight: 600; margin: 0 2px; }
+.wkd-score { font-size: 15px; font-weight: 800; color: #0F172A; grid-column: 2; grid-row: 1; }
+.wkd-venue { font-size: 12px; color: #64748B; grid-column: 1 / -1; }
+
 /* ── Print ── */
 @media print {
+    .wk-modal, .wk-detail { display: none !important; }
     html, body {
         margin: 0; padding: 0; background: white;
         -webkit-print-color-adjust: exact !important;

@@ -431,4 +431,79 @@ public class FixturesSheetGeneratorTests
             Assert.True(saved.SetEquals(expanded));
         }
     }
+
+    /// <summary>
+    /// A date card carries that night's fixtures by name, for the pop-up a
+    /// tap opens - the card itself only shows team numbers.
+    /// </summary>
+    [Fact]
+    public void A_date_card_holds_the_nights_fixtures_by_name_and_venue()
+    {
+        var (league, season) = CreateLeague();
+        var venue = new Venue { SeasonId = season.Id, Name = "Red Lion" };
+        league.Venues.Add(venue);
+        foreach (var team in league.Teams) team.VenueId = venue.Id;
+
+        var html = Render(league, season, new FixturesSheetSettings { ShowTeamNumbers = true });
+        var first = html.Descendants().Single(e => (string?)e.Attribute("data-date") == "2026-09-17");
+
+        Assert.Equal("button", (string?)first.Attribute("role"));
+        Assert.Equal("0", (string?)first.Attribute("tabindex"));
+        Assert.Contains("Thursday 17 September", (string?)first.Attribute("aria-label"));
+
+        var detail = Assert.Single(first.Elements().Where(e => (string?)e.Attribute("class") == "wk-detail"));
+        Assert.NotNull(detail.Attribute("hidden"));
+        Assert.Equal("Thursday 17 September 2026", (string?)detail.Attribute("data-title"));
+
+        var rows = detail.Elements().Where(e => (string?)e.Attribute("class") == "wkd-row").ToList();
+        Assert.Equal(league.Fixtures.Count(f => f.Date.Date == season.StartDate.Date), rows.Count);
+        Assert.All(rows, r => Assert.Contains(" v ", r.Value));
+        Assert.Contains(rows, r => r.Value.Contains("Alpha & Sons") && r.Value.Contains("Zulu"));
+        Assert.All(rows, r => Assert.Contains("Red Lion", r.Value));
+
+        // Two divisions on the night, so each is named above its matches.
+        Assert.Equal(2, detail.Elements().Count(e => (string?)e.Attribute("class") == "wkd-div"));
+    }
+
+    [Fact]
+    public void A_played_fixture_shows_its_score_in_the_pop_up()
+    {
+        var (league, season) = CreateLeague();
+        var played = league.Fixtures.First(f => f.Date.Date == season.StartDate.Date);
+        played.Frames.Add(new FrameResult { Number = 1, Winner = FrameWinner.Home });
+        played.Frames.Add(new FrameResult { Number = 2, Winner = FrameWinner.Home });
+        played.Frames.Add(new FrameResult { Number = 3, Winner = FrameWinner.Away });
+
+        var html = Render(league, season);
+        var scores = html.Descendants().Where(e => (string?)e.Attribute("class") == "wkd-score").Select(e => e.Value).ToList();
+
+        Assert.Equal(new[] { "2–1" }, scores);
+    }
+
+    [Fact]
+    public void An_event_only_card_opens_nothing()
+    {
+        var (league, season) = CreateLeague();
+        var settings = new FixturesSheetSettings { ShowSpecialEvents = true };
+        settings.SpecialEvents.Add(new SpecialEvent { Date = season.StartDate.AddDays(21), Description = "Cup night" });
+
+        var html = Render(league, season, settings);
+        var card = html.Descendants().Single(e => (string?)e.Attribute("data-date") == season.StartDate.AddDays(21).ToString("yyyy-MM-dd"));
+
+        Assert.Null(card.Attribute("role"));
+        Assert.DoesNotContain(card.Descendants(), e => (string?)e.Attribute("class") == "wk-detail");
+    }
+
+    [Fact]
+    public void The_pop_up_script_goes_wherever_the_sheet_is_shown()
+    {
+        var (league, season) = CreateLeague();
+        var generator = new FixturesSheetGenerator(league, new FixturesSheetSettings());
+
+        Assert.Contains("__wkDateCards", generator.GenerateFixturesSheet(season.Id));
+        Assert.Contains("closest('a')", generator.GetDateCardScript());   // team-number links still jump
+
+        // Printing never shows the pop-up or the hidden detail.
+        Assert.Contains(".wk-modal, .wk-detail { display: none !important; }", generator.GetEmbeddableCSS());
+    }
 }

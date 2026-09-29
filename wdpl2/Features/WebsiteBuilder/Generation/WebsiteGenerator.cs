@@ -1045,6 +1045,9 @@ namespace Wdpl2.Services
             html.AppendLine("            }");
             html.AppendLine("            </script>");
 
+            // Tapping a date card opens that night's fixtures by name.
+            html.AppendLine(fixturesSheetGenerator.GetDateCardScript());
+
             // Include card/logo tilt script from fixtures sheet
             if (!string.IsNullOrEmpty(sheetTiltScript))
                 html.AppendLine(sheetTiltScript);
