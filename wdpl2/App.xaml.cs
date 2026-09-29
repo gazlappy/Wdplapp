@@ -50,6 +50,27 @@ public partial class App : Application
         return window;
     }
 
+    private static async Task SettleGalleryAsync(StartupPage startup)
+    {
+        var gallery = DataStore.Data.WebsiteSettings.GalleryImages;
+        var waiting = gallery.Count(i => i.ImageData.Length > 0 || string.IsNullOrEmpty(i.StoredFile));
+        if (waiting == 0) return;
+
+        startup.Report($"Moving {waiting} photo(s) into the gallery…");
+        try
+        {
+            var (moved, failed) = await Task.Run(() => GalleryStore.ForLeague().Settle(DataStore.Data.WebsiteSettings));
+            if (moved > 0) await Task.Run(DataStore.Save);
+            if (failed.Count > 0)
+                System.Diagnostics.Debug.WriteLine($"Gallery: {failed.Count} photo(s) could not be moved: {string.Join(", ", failed)}");
+        }
+        catch (Exception ex)
+        {
+            // The league opens regardless; the photos stay where they were.
+            System.Diagnostics.Debug.WriteLine($"Gallery: settling photos failed: {ex.Message}");
+        }
+    }
+
     private async Task OpenTheLeagueAsync(Window window, StartupPage startup)
     {
         try
@@ -84,6 +105,12 @@ public partial class App : Application
             // The heavy part, and the part that has to leave the screen alone:
             // a season's fixtures is tens of thousands of frames.
             await Task.Run(DataStore.Load);
+
+            // Photos used to be kept inside the league file, which made saving
+            // it run out of memory once there were enough of them. Any still
+            // there - or waiting as originals in the gallery's incoming folder -
+            // are resized into the gallery store once, and the file shrinks.
+            await SettleGalleryAsync(startup);
 
             // Back on the thread that draws, because both of these touch it.
             _themeService.ApplyTheme();

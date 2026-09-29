@@ -175,6 +175,65 @@ namespace Wdpl2.Services
         }
 
         /// <summary>
+        /// Uploads the gallery's photo files to /gallery beside the website.
+        /// </summary>
+        /// <remarks>
+        /// Kept apart from the website upload on purpose. The pages are small
+        /// and change every week; the photos are large and, once stored, never
+        /// change - a photo keeps its file name for life. So photos already on
+        /// the server are skipped, and uploading the gallery after adding ten
+        /// photos sends ten, not the whole collection again.
+        /// </remarks>
+        /// <param name="files">Each photo as (local file, path under /gallery), e.g. "full/abc.jpg".</param>
+        public async Task<(bool success, string message, int uploaded, int skipped)> UploadGalleryAsync(
+            IReadOnlyList<(string LocalPath, string RemotePath)> files,
+            IProgress<UploadProgress>? progress = null)
+        {
+            if (string.IsNullOrWhiteSpace(_settings.FtpHost))
+                return (false, "FTP host is not configured - set it up in the Website Builder's deployment settings.", 0, 0);
+            if (string.IsNullOrWhiteSpace(_settings.FtpUsername))
+                return (false, "FTP username is not configured.", 0, 0);
+
+            var uploaded = 0;
+            var skipped = 0;
+            var root = NormalizePath(_settings.RemotePath) + "gallery/";
+
+            try
+            {
+                progress?.Report(new UploadProgress { Status = $"Connecting to {_settings.FtpHost}...", TotalFiles = files.Count });
+
+                await using var client = CreateClient();
+                await ConnectAsync(client);
+
+                var done = 0;
+                foreach (var (local, remote) in files)
+                {
+                    progress?.Report(new UploadProgress
+                    {
+                        CurrentFile = remote,
+                        FilesCompleted = done,
+                        TotalFiles = files.Count,
+                        Status = $"Photo {done + 1} of {files.Count}",
+                    });
+
+                    var status = await client.UploadFile(local, root + remote, FtpRemoteExists.Skip, createRemoteDir: true);
+                    if (status == FtpStatus.Failed)
+                        return (false, $"Could not upload {remote}. {uploaded} photo file(s) went up before it.", uploaded, skipped);
+
+                    if (status == FtpStatus.Skipped) skipped++; else uploaded++;
+                    done++;
+                }
+
+                progress?.Report(new UploadProgress { FilesCompleted = files.Count, TotalFiles = files.Count, Status = "Photos uploaded." });
+                return (true, $"Uploaded {uploaded} photo file(s); {skipped} were already on the website.", uploaded, skipped);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Photo upload failed after {uploaded} file(s): {ex.Message}", uploaded, skipped);
+            }
+        }
+
+        /// <summary>
         /// Verify uploaded files exist on the server
         /// </summary>
         public async Task<(bool success, List<string> foundFiles, string message)> VerifyUploadAsync()

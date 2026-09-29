@@ -12,6 +12,8 @@ public partial class GallerySettingsPage : ContentPage
 
     private const string NoSeason = "No season";
 
+    private readonly GalleryStore _store = GalleryStore.ForLeague();
+
     /// <summary>Newest first, which is the order the website shows them in.</summary>
     private List<Season> _seasons = new();
 
@@ -116,12 +118,8 @@ public partial class GallerySettingsPage : ContentPage
     /// <summary>One photo: what it is, which season it is in, and a way to remove it.</summary>
     private View ImageRow(GalleryImage image)
     {
-        ImageSource? thumbnail = null;
-        if (image.ImageData.Length > 0)
-        {
-            try { thumbnail = ImageSource.FromStream(() => new MemoryStream(image.ImageData)); }
-            catch { /* ignore bad data */ }
-        }
+        var thumbPath = string.IsNullOrEmpty(image.StoredFile) ? null : _store.ThumbPath(image.StoredFile);
+        ImageSource? thumbnail = thumbPath is not null && File.Exists(thumbPath) ? ImageSource.FromFile(thumbPath) : null;
 
         var season = new Picker { WidthRequest = 220, FontSize = 13 };
         season.ItemsSource = _seasons.Select(x => x.Name).Append(NoSeason).ToList();
@@ -200,38 +198,44 @@ public partial class GallerySettingsPage : ContentPage
             StatusLabel.IsVisible = true;
             AddPhotosBtn.IsEnabled = false;
 
-            var optimizer = new ImageOptimizationService();
+            // Each photo is resized into the gallery store as it comes in, and
+            // only its name goes into the league file. Holding the originals
+            // in the league file is what ran out of memory at 126 photos.
             var addedCount = 0;
+            var failed = new List<string>();
+            var season = SeasonForNewPhotos;
+            var order = League.WebsiteSettings.GalleryImages.Count;
 
             foreach (var file in files)
             {
+                StatusLabel.Text = $"Adding photo {addedCount + failed.Count + 1} of {files.Count}...";
                 try
                 {
-                    using var stream = await file.OpenReadAsync();
-                    using var memoryStream = new MemoryStream();
-                    await stream.CopyToAsync(memoryStream);
-                    var imageData = memoryStream.ToArray();
+                    var id = Guid.NewGuid();
+                    // OpenReadAsync rather than the path: on a phone the
+                    // picker hands back a stream, not a file.
+                    await using var stream = await file.OpenReadAsync();
+                    var (stored, width, height) = await Task.Run(() => _store.Import(stream, id));
 
-                    var (width, height) = await optimizer.GetImageDimensionsAsync(imageData);
-
-                    var galleryImage = new GalleryImage
+                    League.WebsiteSettings.GalleryImages.Add(new GalleryImage
                     {
+                        Id = id,
                         FileName = file.FileName,
-                        ImageData = imageData,
+                        StoredFile = stored,
                         Width = width,
                         Height = height,
                         DateAdded = DateTime.Now,
                         Caption = "",
                         Category = "General",
-                        SeasonId = SeasonForNewPhotos,
-                    };
-
-                    League.WebsiteSettings.GalleryImages.Add(galleryImage);
+                        SeasonId = season,
+                        SortOrder = order++,
+                    });
                     addedCount++;
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error adding {file.FileName}: {ex.Message}");
+                    failed.Add(file.FileName);
                 }
             }
 
@@ -239,9 +243,11 @@ public partial class GallerySettingsPage : ContentPage
             {
                 DataStore.Save();
                 RefreshImageList();
-                var into = SeasonForNewPhotos is Guid sid ? _seasons.First(x => x.Id == sid).Name : NoSeason;
-                StatusLabel.Text = $"Added {addedCount} image(s) to {into}";
-                StatusLabel.TextColor = Color.FromArgb("#10B981");
+                var into = season is Guid sid ? _seasons.First(x => x.Id == sid).Name : NoSeason;
+                StatusLabel.Text = $"Added {addedCount} photo(s) to {into}."
+                    + (failed.Count > 0 ? $" Could not read {failed.Count}: {string.Join(", ", failed.Take(5))}." : "")
+                    + " Use Upload photos to website to put them online.";
+                StatusLabel.TextColor = Color.FromArgb(failed.Count > 0 ? "#D97706" : "#10B981");
             }
             else
             {
@@ -277,6 +283,8 @@ public partial class GallerySettingsPage : ContentPage
 
         if (confirm)
         {
+            foreach (var image in League.WebsiteSettings.GalleryImages)
+                _store.Delete(image.StoredFile);
             League.WebsiteSettings.GalleryImages.Clear();
             DataStore.Save();
             RefreshImageList();
@@ -298,10 +306,51 @@ public partial class GallerySettingsPage : ContentPage
                 if (confirm)
                 {
                     League.WebsiteSettings.GalleryImages.Remove(image);
+                    _store.Delete(image.StoredFile);
                     DataStore.Save();
                     RefreshImageList();
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Sends the photos to the website, apart from the pages. Photos already
+    /// there are skipped, so this is quick after adding a handful.
+    /// </summary>
+    private async void OnUploadPhotosClicked(object sender, EventArgs e)
+    {
+        var stored = League.WebsiteSettings.GalleryImages
+            .Where(i => !string.IsNullOrEmpty(i.StoredFile) && File.Exists(_store.FullPath(i.StoredFile)))
+            .ToList();
+        if (stored.Count == 0)
+        {
+            await DisplayAlert("No photos", "There are no photos to upload yet.", "OK");
+            return;
+        }
+
+        var files = new List<(string LocalPath, string RemotePath)>();
+        foreach (var image in stored)
+        {
+            files.Add((_store.FullPath(image.StoredFile), $"{GalleryStore.FullFolder}/{image.StoredFile}"));
+            files.Add((_store.ThumbPath(image.StoredFile), $"{GalleryStore.ThumbFolder}/{image.StoredFile}"));
+        }
+
+        UploadPhotosBtn.IsEnabled = false;
+        StatusLabel.IsVisible = true;
+        StatusLabel.TextColor = Color.FromArgb("#3B82F6");
+        try
+        {
+            var progress = new Progress<UploadProgress>(p => StatusLabel.Text = p.Status);
+            var ftp = new FtpUploadService(League.WebsiteSettings);
+            var (ok, message, _, _) = await ftp.UploadGalleryAsync(files, progress);
+
+            StatusLabel.Text = message + (ok ? " Publish the website to show them in the gallery." : "");
+            StatusLabel.TextColor = Color.FromArgb(ok ? "#10B981" : "#EF4444");
+        }
+        finally
+        {
+            UploadPhotosBtn.IsEnabled = true;
         }
     }
 

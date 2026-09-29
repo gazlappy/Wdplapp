@@ -3464,8 +3464,7 @@ namespace Wdpl2.Services
         private string GenerateGalleryPage(Season season, WebsiteTemplate template)
         {
             var html = new StringBuilder();
-            var imageOptimizer = new ImageOptimizationService();
-            
+
             AppendDocumentHead(html, $"{_settings.GalleryPageTitle} - {_settings.LeagueName}", season);
             html.AppendLine("<body>");
             
@@ -3483,8 +3482,11 @@ namespace Wdpl2.Services
 
             // By season, newest first, then anything not tied to one. The
             // season buttons only appear when there is more than one to pick.
+            // Photos are files uploaded to /gallery beside the pages (see
+            // GalleryStore), linked rather than written into the page: 126 of
+            // them written in made a page - and the league file - a gigabyte.
             var albums = GalleryAlbums.For(
-                _settings.GalleryImages.Where(i => i.ImageData.Length > 0), _league.Seasons);
+                _settings.GalleryImages.Where(i => !string.IsNullOrEmpty(i.StoredFile)), _league.Seasons);
 
             if (_settings.GalleryShowCategories && albums.Count > 1)
             {
@@ -3504,14 +3506,15 @@ namespace Wdpl2.Services
 
                 foreach (var image in album.Images)
                 {
-                    var mimeType = imageOptimizer.GetMimeType(image.FileName);
-                    var dataUrl = imageOptimizer.ToDataUrl(image.ImageData, mimeType);
+                    var file = Uri.EscapeDataString(image.StoredFile);
+                    var full = $"gallery/{GalleryStore.FullFolder}/{file}";
+                    var thumb = $"gallery/{GalleryStore.ThumbFolder}/{file}";
                     var caption = Esc(image.Caption ?? "");
 
                     html.AppendLine("                    <figure class=\"gallery-item\">");
                     if (_settings.GalleryEnableLightbox)
-                        html.AppendLine($"                        <a href=\"{dataUrl}\" class=\"lightbox-link\" data-caption=\"{caption}\">");
-                    html.AppendLine($"                        <img src=\"{dataUrl}\" alt=\"{caption}\" loading=\"lazy\">");
+                        html.AppendLine($"                        <a href=\"{full}\" class=\"lightbox-link\" data-caption=\"{caption}\">");
+                    html.AppendLine($"                        <img src=\"{thumb}\" alt=\"{caption}\" loading=\"lazy\" width=\"{GalleryStore.ThumbEdge}\">");
                     if (_settings.GalleryEnableLightbox)
                         html.AppendLine("                        </a>");
                     if (_settings.GalleryShowCaptions && !string.IsNullOrWhiteSpace(image.Caption))

@@ -19,7 +19,7 @@ public class GallerySeasonsTests
         Caption = caption,
         SeasonId = season?.Id,
         SortOrder = order,
-        ImageData = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3 },
+        StoredFile = name + ".jpg",
     };
 
     [Fact]
@@ -117,5 +117,26 @@ public class GallerySeasonsTests
 
         Assert.Contains("Tom &amp; Jerry &lt;b&gt;win&lt;/b&gt;", page);
         Assert.DoesNotContain("<b>win</b>", page);
+    }
+
+    [Fact]
+    public void Photos_are_linked_as_files_not_written_into_the_page()
+    {
+        var page = GalleryPage(Photo("finals", Now, caption: "Finals"));
+
+        Assert.Contains("src=\"gallery/thumbs/finals.jpg\"", page);
+        Assert.Contains("href=\"gallery/full/finals.jpg\"", page);
+        Assert.DoesNotContain("data:image", page);
+    }
+
+    [Fact]
+    public void A_photo_not_yet_stored_is_left_off_the_page()
+    {
+        var waiting = Photo("waiting", Now);
+        waiting.StoredFile = "";
+        var page = GalleryPage(Photo("ready", Now), waiting);
+
+        Assert.Contains("gallery/thumbs/ready.jpg", page);
+        Assert.DoesNotContain("waiting", page);
     }
 }

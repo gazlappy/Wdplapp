@@ -1250,6 +1250,19 @@ namespace Wdpl2.Models
         /// </summary>
         public Guid? SeasonId { get; set; }
 
+        /// <summary>
+        /// The photo's file in the gallery store (see GalleryStore), resized
+        /// for the web. Empty until the photo has been stored.
+        /// </summary>
+        public string StoredFile { get; set; } = "";
+
+        /// <summary>
+        /// Only for reading photos saved before they were kept as files. It
+        /// held the whole original picture inside the league file - 126 phone
+        /// photos made that file a gigabyte, and the app ran out of memory
+        /// saving it. GalleryStore.Settle moves any bytes found here out to the
+        /// store and empties it; nothing writes to it any more.
+        /// </summary>
         public byte[] ImageData { get; set; } = Array.Empty<byte>();
         public DateTime DateAdded { get; set; } = DateTime.Now;
         public int Width { get; set; }

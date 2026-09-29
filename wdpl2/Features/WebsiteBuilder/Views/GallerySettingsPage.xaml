@@ -41,6 +41,13 @@
                                 BackgroundColor="#EF4444"/>
                     </Grid>
                     
+                    <Button x:Name="UploadPhotosBtn"
+                            Text="Upload photos to website"
+                            Clicked="OnUploadPhotosClicked"
+                            BackgroundColor="#0F766E"/>
+                    <Label Text="Sends the photos over FTP on their own, using the website's connection. Photos already online are skipped, so this is quick after adding a few."
+                           FontSize="11" TextColor="#9CA3AF"/>
+
                     <Label x:Name="StatusLabel" 
                            FontSize="12" 
                            TextColor="#6B7280"
