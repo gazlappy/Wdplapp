@@ -472,14 +472,14 @@ final class ScorecardsModule implements Module
                 throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
             }
             if (($card['card_kind'] ?? 'league') !== 'cup') {
-                throw new ApiError(409, 'not_a_cup', 'Only a cup tie is decided on a toss.');
+                throw new ApiError(409, 'not_a_cup', 'Only a cup tie is decided on a lag.');
             }
             if ($card['state'] !== self::STATE_LIVE) {
                 throw new ApiError(409, 'not_live', 'This card is no longer being scored.');
             }
             if ($card['toss_won_by'] !== null) {
                 throw new ApiError(409, 'already_tossed',
-                    'The toss has already been recorded. Ask the league if it is wrong.');
+                    'The lag has already been recorded. Ask the league if it is wrong.');
             }
 
             Db::query(
@@ -755,7 +755,7 @@ final class ScorecardsModule implements Module
 
             if ($cup && $card['toss_won_by'] === null) {
                 throw new ApiError(409, 'no_toss',
-                    'Toss for it first. The winner chooses home or away.');
+                    'Lag for it first. The winner chooses home or away.');
             }
 
             // A draw is shorthand for the picks it makes. Expanding it here

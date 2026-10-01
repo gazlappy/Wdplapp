@@ -1051,7 +1051,7 @@ public partial class CompsPage : ContentPage
 
         if (!await DisplayAlert("Open this tie for live scoring?",
                 $"{tie.CompetitionName} — {tie.RoundName}\n{tie.Describe(teams)}\n{format}\n\n"
-                + "The captains toss for home and away on the card, then fill it in turns. "
+                + "The captains lag for home and away - the winner chooses - then fill the card in turns. "
                 + "First to 8 frames wins the tie.\n\n"
                 + $"Both captains score it at {CupAddress()}.\n\n"
                 + "The website will own this card until you collect it.",

@@ -34,7 +34,7 @@
                                 FontSize="12" Padding="12,6"/>
                     </Grid>
 
-                    <Label Text="A cup tie is scored on a full scorecard, like a league night. On the night the captains toss for home and away, then fill the card in turns. First to 8 frames wins; the rest can be played out or left."
+                    <Label Text="A cup tie is scored on a full scorecard, like a league night. On the night the captains lag for home and away - the winner chooses - then fill the card in turns. First to 8 frames wins; the rest can be played out or left."
                            FontSize="11" TextColor="#94A3B8"/>
 
                     <Label x:Name="TieAddressLabel" FontSize="11" TextColor="#2563EB"/>

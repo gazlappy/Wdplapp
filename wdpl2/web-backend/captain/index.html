@@ -558,16 +558,16 @@ body.has-tick main{padding-bottom:120px;}
 
     <!-- A cup tie has no home team until the coin lands. -->
     <div class="msg warn hidden" id="tossBar" style="margin-top:10px">
-      <strong>Toss for home and away</strong>
+      <strong>Lag for home and away</strong>
       <p style="margin:6px 0 0; font-size:12px">
-        This is a cup tie, so there is no home team until you toss for it. Do it in front of
-        both captains: the winner chooses home or away. Home names the first player.
+        This is a cup tie, so there is no home team until you lag for it. Do it in front of
+        both captains: the winner of the lag chooses home or away. Home names the first player.
       </p>
       <div id="tossWho">
-        <p style="margin:10px 0 0; font-size:13px; font-weight:700">Who won the toss?</p>
+        <p style="margin:10px 0 0; font-size:13px; font-weight:700">Who won the lag?</p>
         <div class="row" style="margin-top:8px">
-          <button class="go" id="tossMine">We won the toss</button>
-          <button class="ghost" id="tossTheirs">They won the toss</button>
+          <button class="go" id="tossMine">We won the lag</button>
+          <button class="ghost" id="tossTheirs">They won the lag</button>
         </div>
       </div>
       <div id="tossPick" class="hidden">
@@ -1699,8 +1699,8 @@ body.has-tick main{padding-bottom:120px;}
     tossWinner = winner;
     var ours = winner === S.side;
     $('tossQuestion').textContent = ours
-      ? 'You won the toss. Do you want to be home or away?'
-      : (theirName() + ' won the toss. Did they choose home or away?');
+      ? 'You won the lag. Do you want to be home or away?'
+      : (theirName() + ' won the lag. Did they choose home or away?');
     show($('tossWho'), false);
     show($('tossPick'), true);
   }
@@ -1801,7 +1801,7 @@ body.has-tick main{padding-bottom:120px;}
 
   function cupLockReason(index, side){
     var frames=S.card.frames||[], n=frames.length;
-    if(!S.card.toss_won_by) return 'Toss for it first - the winner chooses home or away.';
+    if(!S.card.toss_won_by) return 'Lag for it first - the winner chooses home or away.';
 
     var inBlind = n>CUP_OPEN && index>=n-CUP_BLIND;
     if(inBlind){
