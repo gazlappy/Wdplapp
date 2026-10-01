@@ -298,6 +298,25 @@ test('a card that is not fifteen frames still behaves', function () {
     check(CupRules::openFramesDone($f), 'both sides should have named all ten');
 });
 
+echo "
+The toss
+";
+
+test('the winner who chooses home is home', function () {
+    same('home', CupRules::homeSide('home', 'home'), 'draw home won, chose home');
+    same('away', CupRules::homeSide('away', 'home'), 'draw away won, chose home');
+});
+
+test('the winner who chooses away puts the other side at home', function () {
+    same('away', CupRules::homeSide('home', 'away'), 'draw home won, chose away');
+    same('home', CupRules::homeSide('away', 'away'), 'draw away won, chose away');
+});
+
+test('anything unexpected falls back to the old rule: the winner is home', function () {
+    same('home', CupRules::homeSide('home', ''), 'no choice sent');
+    same('away', CupRules::homeSide('away', 'sideways'), 'nonsense choice');
+});
+
 echo "\n";
 echo $failed === 0 ? "PASS  {$passed} checks\n" : "FAIL  {$failed} failed, {$passed} passed\n";
 exit($failed === 0 ? 0 : 1);

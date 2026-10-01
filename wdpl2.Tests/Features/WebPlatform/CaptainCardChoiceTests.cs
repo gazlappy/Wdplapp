@@ -117,7 +117,7 @@ public class CaptainCardChoiceTests
     [Fact]
     public void The_squads_are_read_again_once_the_toss_is_known()
     {
-        var tossed = Regex.Match(CaptainPage(), @"function tossed\(wonBy\).*?\n  \}", RegexOptions.Singleline);
+        var tossed = Regex.Match(CaptainPage(), @"function tossed\([^)]*\).*?\n  \}", RegexOptions.Singleline);
 
         Assert.True(tossed.Success, "No tossed() in the captains' page.");
         Assert.Contains("loadRosters()", tossed.Value);
@@ -145,6 +145,23 @@ public class CaptainCardChoiceTests
 
         Assert.Contains("var locked = !mine || orderLocked(index, side);", page);
         Assert.DoesNotContain("!S.solo && (cup", page);
+    }
+
+    /// <summary>
+    /// The toss winner chooses home or away. The page asks who won and what
+    /// they chose, and the server works out which side is home from both.
+    /// </summary>
+    [Fact]
+    public void The_toss_sends_who_won_and_what_they_chose()
+    {
+        var page = CaptainPage();
+        Assert.Contains("call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy, choice:choice})", page);
+        Assert.Contains("id=\"tossHome\"", page);
+        Assert.Contains("id=\"tossAway\"", page);
+
+        var toss = Body("toss");
+        Assert.Contains("Http::field('choice', 'home')", toss);
+        Assert.Contains("CupRules::homeSide($wonBy, $choice)", toss);
     }
 
     private static string CardsBody() => Body("cards");

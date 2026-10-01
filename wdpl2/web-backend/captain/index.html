@@ -561,12 +561,24 @@ body.has-tick main{padding-bottom:120px;}
       <strong>Toss for home and away</strong>
       <p style="margin:6px 0 0; font-size:12px">
         This is a cup tie, so there is no home team until you toss for it. Do it in front of
-        both captains: the winner is home, names the first player, and takes the home half of
-        the card.
+        both captains: the winner chooses home or away. Home names the first player.
       </p>
-      <div class="row" style="margin-top:8px">
-        <button class="go" id="tossMine">We won the toss</button>
-        <button class="ghost" id="tossTheirs">They won the toss</button>
+      <div id="tossWho">
+        <p style="margin:10px 0 0; font-size:13px; font-weight:700">Who won the toss?</p>
+        <div class="row" style="margin-top:8px">
+          <button class="go" id="tossMine">We won the toss</button>
+          <button class="ghost" id="tossTheirs">They won the toss</button>
+        </div>
+      </div>
+      <div id="tossPick" class="hidden">
+        <p style="margin:10px 0 0; font-size:13px; font-weight:700" id="tossQuestion"></p>
+        <div class="row" style="margin-top:8px">
+          <button class="go" id="tossHome">Home</button>
+          <button class="go" id="tossAway">Away</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button class="ghost" id="tossBack">Back</button>
+        </div>
       </div>
     </div>
 
@@ -1677,8 +1689,35 @@ body.has-tick main{padding-bottom:120px;}
     return (card.decided_by==='home' ? $('homeName') : $('awayName')).textContent;
   }
 
-  function tossed(wonBy){
-    call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy})
+  /**
+   * Who won the toss, as the draw has the sides - the card is not turned
+   * round until the toss is recorded, so S.side is still the draw's here.
+   */
+  var tossWinner = null;
+
+  function askHomeOrAway(winner){
+    tossWinner = winner;
+    var ours = winner === S.side;
+    $('tossQuestion').textContent = ours
+      ? 'You won the toss. Do you want to be home or away?'
+      : (theirName() + ' won the toss. Did they choose home or away?');
+    show($('tossWho'), false);
+    show($('tossPick'), true);
+  }
+
+  function resetToss(){
+    tossWinner = null;
+    show($('tossPick'), false);
+    show($('tossWho'), true);
+  }
+
+  /** The other team's name, as the card currently shows it. */
+  function theirName(){
+    return (S.side === 'home' ? $('awayName') : $('homeName')).textContent || 'They';
+  }
+
+  function tossed(wonBy, choice){
+    call('scorecards','toss',{fixtureId:S.fixtureId, wonBy:wonBy, choice:choice})
       .then(function(card){
         render(card);
 
@@ -1690,13 +1729,17 @@ body.has-tick main{padding-bottom:120px;}
           ? 'You are home - name your first player.'
           : 'They are home. You name two once they have named their first.', 'ok');
       })
-      .catch(function(e){ say(e.message,'bad'); });
+      .catch(function(e){ say(e.message,'bad'); })
+      .then(resetToss);
   }
 
-  $('tossMine').addEventListener('click', function(){ tossed(S.side); });
+  $('tossMine').addEventListener('click', function(){ askHomeOrAway(S.side); });
   $('tossTheirs').addEventListener('click', function(){
-    tossed(S.side==='home' ? 'away' : 'home');
+    askHomeOrAway(S.side==='home' ? 'away' : 'home');
   });
+  $('tossHome').addEventListener('click', function(){ if(tossWinner) tossed(tossWinner, 'home'); });
+  $('tossAway').addEventListener('click', function(){ if(tossWinner) tossed(tossWinner, 'away'); });
+  $('tossBack').addEventListener('click', resetToss);
 
   /**
    * Mirrors the cup nomination order, so a slot can be greyed out before a tap
@@ -1758,7 +1801,7 @@ body.has-tick main{padding-bottom:120px;}
 
   function cupLockReason(index, side){
     var frames=S.card.frames||[], n=frames.length;
-    if(!S.card.toss_won_by) return 'Toss for it first - the winner of the toss is home.';
+    if(!S.card.toss_won_by) return 'Toss for it first - the winner chooses home or away.';
 
     var inBlind = n>CUP_OPEN && index>=n-CUP_BLIND;
     if(inBlind){

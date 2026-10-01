@@ -444,17 +444,25 @@ final class ScorecardsModule implements Module
     }
 
     /**
-     * Records who won the toss, and therefore who fills the card in as home.
+     * Records the toss: who won it, and whether they chose home or away.
      *
-     * A cup tie has no home team until the coin lands. Either captain may enter
-     * it - they are both standing there watching - but only once, because the
-     * whole card hangs off it: who is home, who names the first player, and
-     * which half of the scoreline belongs to which team.
+     * A cup tie has no home team until the coin lands and the winner has
+     * chosen. Either captain may enter it - they are both standing there
+     * watching - but only once, because the whole card hangs off it: who is
+     * home, who names the first player, and which half of the scoreline
+     * belongs to which team.
+     *
+     * toss_won_by stores the draw side that plays at HOME. Before the winner
+     * could choose, the winner was always home, so cards tossed under the old
+     * rule already hold the right answer and nothing downstream had to change.
+     * A caller that sends no choice (an older page) gets the old rule.
      */
     public static function toss()
     {
         $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
-        $won       = Http::requireField('wonBy') === 'away' ? 'away' : 'home';
+        $wonBy     = Http::requireField('wonBy') === 'away' ? 'away' : 'home';
+        $choice    = Http::field('choice', 'home') === 'away' ? 'away' : 'home';
+        $won       = CupRules::homeSide($wonBy, $choice);
 
         $side = self::requireSide($fixtureId);
 
@@ -747,7 +755,7 @@ final class ScorecardsModule implements Module
 
             if ($cup && $card['toss_won_by'] === null) {
                 throw new ApiError(409, 'no_toss',
-                    'Toss for it first. The winner of the toss is home.');
+                    'Toss for it first. The winner chooses home or away.');
             }
 
             // A draw is shorthand for the picks it makes. Expanding it here

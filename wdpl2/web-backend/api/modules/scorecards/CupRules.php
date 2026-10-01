@@ -6,8 +6,9 @@ declare(strict_types=1);
  *
  * A cup card is played the same way as a league night - same frames, same
  * scoring, same sign-off - but it is filled in differently, and which team is
- * home is decided by a coin toss on the night rather than by the fixture. Once
- * that coin has landed, home means home: the toss winner takes the home column,
+ * home is decided by a coin toss on the night rather than by the fixture: the
+ * winner of the toss chooses whether to be home or away. Once that is settled,
+ * home means home: the home team takes the home column,
  * the home squad, and the home half of the scoreline.
  *
  * A cup tie is won by the first team to eight frames rather than by playing all
@@ -33,6 +34,27 @@ declare(strict_types=1);
  */
 final class CupRules
 {
+    /**
+     * Which of the draw's two sides plays at home, once the toss is settled.
+     *
+     * The draw lists the teams in an order that means nothing on the night;
+     * the toss winner chooses home or away. Everything else on a cup card -
+     * the columns, the squads, the nomination order - only needs the answer,
+     * so this is what is stored.
+     *
+     * @param string $wonBy  the draw side that won the toss: 'home' or 'away'
+     * @param string $choice what the winner chose: 'home' or 'away'
+     * @return string the draw side that plays at home
+     */
+    public static function homeSide(string $wonBy, string $choice): string
+    {
+        $wonBy = $wonBy === 'away' ? 'away' : 'home';
+        if ($choice === 'away') {
+            return $wonBy === 'home' ? 'away' : 'home';
+        }
+        return $wonBy;
+    }
+
     /** Frames filled by the alternating turns before the blind five. */
     const OPEN_FRAMES = 10;
 
