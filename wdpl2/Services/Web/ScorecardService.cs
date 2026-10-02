@@ -252,6 +252,7 @@ public sealed class ScorecardService
         MatchDate = DateTime.TryParse(Text(row, "match_date"), out var d) ? d : null,
         HomeSigned = Text(row, "home_finalised_at") is not null,
         AwaySigned = Text(row, "away_finalised_at") is not null,
+        Notes = Text(row, "notes"),
     };
 
     // MySQL hands back numbers as strings through PDO, so accept either form.

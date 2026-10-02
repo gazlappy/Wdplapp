@@ -36,10 +36,17 @@ public partial class WebControlHub : ContentPage
     }
 
     /// <summary>
-    /// Says on the way in when a captain has written a note on a card.
+    /// The way into the message centre, saying on the way in when a captain
+    /// has written something new on a card.
     /// </summary>
+    /// <remarks>
+    /// Always there, so the history can be read with no connection; the
+    /// website is only asked what is new, and anything it has is kept.
+    /// </remarks>
     private async Task ShowMessagesAsync()
     {
+        ShowMessages(new List<ScorecardService.CardMessage>());
+
         try
         {
             var connection = await WebConnection.LoadAsync();
@@ -47,35 +54,43 @@ public partial class WebControlHub : ContentPage
 
             using var client = new WebApiClient(connection);
             var messages = await ScorecardService.GetMessagesAsync(client);
+            if (MessageArchive.Keep(DataStore.Data, messages) > 0) DataStore.SaveJsonOnly();
 
-            MessagesFrame.IsVisible = messages.Count > 0;
-            if (messages.Count == 0) return;
-
-            var unread = messages.Where(m => m.Unread).ToList();
-            var fresh = unread.Count > 0;
-
-            MessagesFrame.BorderColor = Color.FromArgb(fresh ? "#FCD34D" : "#E2E8F0");
-            MessagesFrame.BackgroundColor = Color.FromArgb(fresh ? "#FFFBEB" : "#FFFFFF");
-            MessagesTitle.TextColor = Color.FromArgb(fresh ? "#92400E" : "#1E293B");
-            MessagesLabel.TextColor = Color.FromArgb(fresh ? "#B45309" : "#64748B");
-            MessagesButton.BackgroundColor = Color.FromArgb(fresh ? "#D97706" : "#334155");
-
-            MessagesTitle.Text = unread.Count switch
-            {
-                0 => "Messages",
-                1 => "1 new message",
-                _ => $"{unread.Count} new messages",
-            };
-            MessagesLabel.Text = fresh
-                ? $"Latest from {unread[0].HomeTeam} v {unread[0].AwayTeam}: \"{Clip(unread[0].Text)}\""
-                : $"Notes captains wrote on their cards. {messages.Count} read.";
+            ShowMessages(messages);
         }
         catch
         {
             // As with the waiting players: an old backend or no connection
-            // should not stop the hub opening.
-            MessagesFrame.IsVisible = false;
+            // should not stop the hub opening. What is kept still shows.
         }
+    }
+
+    private void ShowMessages(List<ScorecardService.CardMessage> live)
+    {
+        var kept = DataStore.Data.CardMessages.Count;
+        var unread = live.Where(m => m.Unread).ToList();
+        var fresh = unread.Count > 0;
+
+        MessagesFrame.BorderColor = Color.FromArgb(fresh ? "#FCD34D" : "#E2E8F0");
+        MessagesFrame.BackgroundColor = Color.FromArgb(fresh ? "#FFFBEB" : "#FFFFFF");
+        MessagesTitle.TextColor = Color.FromArgb(fresh ? "#92400E" : "#1E293B");
+        MessagesLabel.TextColor = Color.FromArgb(fresh ? "#B45309" : "#64748B");
+        MessagesButton.BackgroundColor = Color.FromArgb(fresh ? "#D97706" : "#334155");
+
+        MessagesTitle.Text = unread.Count switch
+        {
+            0 => "Message centre",
+            1 => "Message centre - 1 new message",
+            _ => $"Message centre - {unread.Count} new messages",
+        };
+        MessagesLabel.Text = fresh
+            ? $"Latest from {unread[0].HomeTeam} v {unread[0].AwayTeam}: \"{Clip(unread[0].Text)}\""
+            : kept switch
+            {
+                0 => "Notes captains write on their scorecards will be kept here.",
+                1 => "1 message from captains' scorecards, nothing new.",
+                _ => $"{kept} messages from captains' scorecards, nothing new.",
+            };
     }
 
     private static string Clip(string text)

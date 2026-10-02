@@ -71,6 +71,9 @@ public sealed class ScorecardState
     /// <summary>True when this is a cup tie rather than a league night.</summary>
     public bool IsCup { get; init; }
 
+    /// <summary>What the captains wrote in the card's notes box, if anything.</summary>
+    public string? Notes { get; init; }
+
     /// <summary>
     /// The side that has already won a cup tie, if one has.
     /// </summary>

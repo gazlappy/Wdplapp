@@ -49,17 +49,17 @@
                 </Grid>
             </Frame>
 
-            <!-- Captains' notes from their scorecards. Here whenever there are
-                 any, amber while one is unread. -->
-            <Frame x:Name="MessagesFrame" IsVisible="False" BorderColor="#E2E8F0" Padding="14"
+            <!-- The message centre: captains' notes from their scorecards.
+                 Always here; amber while one is unread. -->
+            <Frame x:Name="MessagesFrame" BorderColor="#E2E8F0" Padding="14"
                    CornerRadius="10" BackgroundColor="White">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                        <Label x:Name="MessagesTitle" Text="Messages" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
+                        <Label x:Name="MessagesTitle" Text="Message centre" FontAttributes="Bold" FontSize="13" TextColor="#1E293B"/>
                         <Label x:Name="MessagesLabel" FontSize="11" TextColor="#64748B"
                                LineBreakMode="WordWrap"/>
                     </VerticalStackLayout>
-                    <Button x:Name="MessagesButton" Grid.Column="1" Text="Read" Clicked="OnMessagesClicked"
+                    <Button x:Name="MessagesButton" Grid.Column="1" Text="Open" Clicked="OnMessagesClicked"
                             BackgroundColor="#334155" TextColor="White" CornerRadius="8"
                             FontSize="12" Padding="16,6" VerticalOptions="Center"/>
                 </Grid>

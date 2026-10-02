@@ -1,20 +1,27 @@
+using Wdpl2.Models;
 using Wdpl2.Services.Web;
 using static Wdpl2.Services.Web.ScorecardService;
 
 namespace Wdpl2.Views.WebControl;
 
 /// <summary>
-/// The notes captains write on their scorecards, read as messages.
+/// The message centre: every note captains have written on their scorecards.
 /// </summary>
 /// <remarks>
-/// The notes box is on every card, but nothing read it - a captain could tell
-/// the league something and it would sit on the website unseen. Read and
-/// unread live on the website, so marking one here clears it on the admin
-/// page too.
+/// The list is the app's own archive (<see cref="MessageArchive"/>), topped up
+/// from the website each time the page opens, so it reaches back past anything
+/// the website still holds and still opens with no connection. Read and unread
+/// live on the website, which is why only a message still there can be new or
+/// be marked read; marking one here clears it on the admin page too.
 /// </remarks>
 public partial class MessagesPage : ContentPage
 {
-    private List<CardMessage> _messages = new();
+    private static LeagueData League => DataStore.Data;
+
+    // The website's current notes, for which kept messages are still unread.
+    private List<CardMessage> _live = new();
+    private List<Season> _seasons = new();
+    private bool _filling;
 
     public MessagesPage()
     {
@@ -24,6 +31,8 @@ public partial class MessagesPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        FillSeasons();
+        Render();
         await LoadAsync();
     }
 
@@ -31,6 +40,11 @@ public partial class MessagesPage : ContentPage
 
     private async void OnReadAllClicked(object? sender, EventArgs e) =>
         await RunAsync(client => MarkReadAsync(client, null));
+
+    private void OnFilterChanged(object? sender, EventArgs e)
+    {
+        if (!_filling) Render();
+    }
 
     private Task LoadAsync() => RunAsync(GetMessagesAsync);
 
@@ -44,21 +58,23 @@ public partial class MessagesPage : ContentPage
             var connection = await WebConnection.LoadAsync();
             using var client = new WebApiClient(connection);
 
-            _messages = await fetch(client);
+            _live = await fetch(client);
+
+            var added = MessageArchive.Keep(League, _live);
+            if (added > 0) DataStore.SaveJsonOnly();
+
             Render();
-            Report("", error: false);
+            Report(added > 0 ? $"{added} new message(s) kept from the website." : "", error: false);
         }
         catch (WebApiException ex)
         {
-            CountLabel.Text = "Could not read the website.";
             Report(ex.Code is "unknown_action" or "unknown_module"
-                ? "The website does not have messages yet. Deploy the backend, then install tables."
-                : ex.Message, error: true);
+                ? "The website does not have messages yet. Deploy the backend, then install tables. Showing the messages already kept."
+                : "Could not read the website, so this is what was kept before. " + ex.Message, error: true);
         }
         catch (InvalidOperationException ex)
         {
-            CountLabel.Text = "Could not read the website.";
-            Report(ex.Message, error: true);
+            Report("Could not read the website, so this is what was kept before. " + ex.Message, error: true);
         }
         finally
         {
@@ -67,40 +83,85 @@ public partial class MessagesPage : ContentPage
         }
     }
 
+    private void FillSeasons()
+    {
+        _filling = true;
+        try
+        {
+            _seasons = League.Seasons.OrderByDescending(s => s.StartDate).ToList();
+
+            SeasonPicker.Items.Clear();
+            SeasonPicker.Items.Add("All seasons");
+            foreach (var season in _seasons) SeasonPicker.Items.Add(season.Name);
+            SeasonPicker.SelectedIndex = 0;
+        }
+        finally
+        {
+            _filling = false;
+        }
+    }
+
+    private bool IsNew(CardMessageRecord kept) =>
+        _live.Any(m => m.Unread && m.FixtureId == kept.FixtureId && m.Text.Trim() == kept.Text);
+
     private void Render()
     {
         MessageList.Children.Clear();
 
-        var unread = _messages.Count(m => m.Unread);
-        EmptyLabel.IsVisible = _messages.Count == 0;
-        ReadAllButton.IsVisible = unread > 0;
+        var all = MessageArchive.Newest(League).ToList();
+        var unread = all.Count(IsNew);
 
-        CountLabel.Text = (_messages.Count, unread) switch
+        ReadAllButton.IsVisible = unread > 0;
+        CountLabel.Text = (all.Count, unread) switch
         {
-            (0, _) => "No messages",
-            (_, 0) => _messages.Count == 1 ? "1 message, read" : $"{_messages.Count} messages, all read",
-            (_, 1) => "1 new message",
-            _ => $"{unread} new messages",
+            (0, _) => "No messages yet",
+            (_, 0) => all.Count == 1 ? "1 message" : $"{all.Count} messages",
+            _ => $"{all.Count} messages, {unread} new",
         };
 
-        foreach (var message in _messages)
+        var shown = all.Where(Matches).ToList();
+        foreach (var message in shown)
             MessageList.Children.Add(Card(message));
+
+        EmptyLabel.IsVisible = shown.Count == 0;
+        EmptyLabel.Text = all.Count == 0
+            ? "No captain has written a note on a card yet. Anything they write will be kept here."
+            : "No message matches.";
     }
 
-    private View Card(CardMessage message)
+    private bool Matches(CardMessageRecord message)
     {
+        if (NewOnlyBox.IsChecked && !IsNew(message)) return false;
+
+        var index = SeasonPicker.SelectedIndex;
+        if (index > 0 && index <= _seasons.Count && message.SeasonId != _seasons[index - 1].Id) return false;
+
+        var search = SearchEntry.Text?.Trim();
+        if (string.IsNullOrEmpty(search)) return true;
+
+        return message.HomeTeam.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || message.AwayTeam.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || message.Text.Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private View Card(CardMessageRecord message)
+    {
+        var fresh = IsNew(message);
+
         var title = new Label
         {
-            Text = $"{message.HomeTeam} v {message.AwayTeam}" + (message.Unread ? "  •  NEW" : ""),
+            Text = $"{message.HomeTeam} v {message.AwayTeam}" + (fresh ? "  •  NEW" : ""),
             FontAttributes = FontAttributes.Bold,
             FontSize = 13,
-            TextColor = Color.FromArgb(message.Unread ? "#1D4ED8" : "#1E293B"),
+            TextColor = Color.FromArgb(fresh ? "#1D4ED8" : "#1E293B"),
         };
 
         var when = new List<string>();
         if (message.IsCup) when.Add("Cup tie");
-        if (message.MatchDate is { } date) when.Add(date.ToString("ddd d MMM"));
-        if (message.WrittenAt is { } at) when.Add("written " + at.ToString("d MMM, HH:mm"));
+        if (message.MatchDate is { } date) when.Add(date.ToString("ddd d MMM yyyy"));
+        if (message.SeasonId is { } seasonId && _seasons.FirstOrDefault(s => s.Id == seasonId) is { } season)
+            when.Add(season.Name);
+        when.Add("written " + (message.WrittenAt ?? message.KeptAt).ToString("d MMM, HH:mm"));
 
         var detail = new Label
         {
@@ -125,7 +186,7 @@ public partial class MessagesPage : ContentPage
         };
         heading.Add(new VerticalStackLayout { Spacing = 2, Children = { title, detail } });
 
-        if (message.Unread)
+        if (fresh)
         {
             var read = new Button
             {
@@ -147,8 +208,8 @@ public partial class MessagesPage : ContentPage
 
         return new Frame
         {
-            BorderColor = Color.FromArgb(message.Unread ? "#93C5FD" : "#E2E8F0"),
-            BackgroundColor = Color.FromArgb(message.Unread ? "#EFF6FF" : "#F8FAFC"),
+            BorderColor = Color.FromArgb(fresh ? "#93C5FD" : "#E2E8F0"),
+            BackgroundColor = Color.FromArgb(fresh ? "#EFF6FF" : "#F8FAFC"),
             CornerRadius = 8,
             Padding = new Thickness(12, 10),
             HasShadow = false,

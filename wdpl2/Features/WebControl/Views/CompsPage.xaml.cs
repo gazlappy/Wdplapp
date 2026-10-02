@@ -1121,6 +1121,7 @@ public partial class CompsPage : ContentPage
             using var client = new WebApiClient(connection);
 
             var (claimed, frames, wasClaimed) = await ScorecardService.ClaimAsync(client, card.FixtureId);
+            if (MessageArchive.Keep(League, claimed) > 0) DataStore.SaveJsonOnly();
 
             // Settle the players first, or the slots naming them land blank.
             var pulled = await CardCollect.ResolvePlayersAsync(

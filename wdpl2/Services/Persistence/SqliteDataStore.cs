@@ -772,6 +772,7 @@ public partial class SqliteDataStore : IDataStore
                 _cachedSnapshot.CalendarSettings = json.CalendarSettings;
                 _cachedSnapshot.DoublesPairings = json.DoublesPairings;
                 _cachedSnapshot.CollectedWebPlayers = json.CollectedWebPlayers;
+                _cachedSnapshot.CardMessages = json.CardMessages;
 
                 // Restore JSON-only Season properties (BlackoutDateTitles, Settings)
                 // that EF Core doesn't persist.

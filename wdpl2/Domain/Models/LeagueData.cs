@@ -47,6 +47,12 @@ namespace Wdpl2.Models
         public Dictionary<Guid, Guid> CollectedWebPlayers { get; set; } = new();
 
         /// <summary>
+        /// Every note captains have written on their scorecards that the app has
+        /// read, kept so the history outlives the website's copy.
+        /// </summary>
+        public List<CardMessageRecord> CardMessages { get; set; } = new();
+
+        /// <summary>
         /// Resolve the effective <see cref="AppSettings"/> for a season.
         /// Returns the season's own settings if customised, otherwise the global <see cref="Settings"/>.
         /// </summary>
