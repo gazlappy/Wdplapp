@@ -32,6 +32,62 @@ public partial class WebControlHub : ContentPage
         }
         _ = ShowEndpointAsync();
         _ = ShowWaitingAsync();
+        _ = ShowMessagesAsync();
+    }
+
+    /// <summary>
+    /// Says on the way in when a captain has written a note on a card.
+    /// </summary>
+    private async Task ShowMessagesAsync()
+    {
+        try
+        {
+            var connection = await WebConnection.LoadAsync();
+            if (!connection.IsConfigured) return;
+
+            using var client = new WebApiClient(connection);
+            var messages = await ScorecardService.GetMessagesAsync(client);
+
+            MessagesFrame.IsVisible = messages.Count > 0;
+            if (messages.Count == 0) return;
+
+            var unread = messages.Where(m => m.Unread).ToList();
+            var fresh = unread.Count > 0;
+
+            MessagesFrame.BorderColor = Color.FromArgb(fresh ? "#FCD34D" : "#E2E8F0");
+            MessagesFrame.BackgroundColor = Color.FromArgb(fresh ? "#FFFBEB" : "#FFFFFF");
+            MessagesTitle.TextColor = Color.FromArgb(fresh ? "#92400E" : "#1E293B");
+            MessagesLabel.TextColor = Color.FromArgb(fresh ? "#B45309" : "#64748B");
+            MessagesButton.BackgroundColor = Color.FromArgb(fresh ? "#D97706" : "#334155");
+
+            MessagesTitle.Text = unread.Count switch
+            {
+                0 => "Messages",
+                1 => "1 new message",
+                _ => $"{unread.Count} new messages",
+            };
+            MessagesLabel.Text = fresh
+                ? $"Latest from {unread[0].HomeTeam} v {unread[0].AwayTeam}: \"{Clip(unread[0].Text)}\""
+                : $"Notes captains wrote on their cards. {messages.Count} read.";
+        }
+        catch
+        {
+            // As with the waiting players: an old backend or no connection
+            // should not stop the hub opening.
+            MessagesFrame.IsVisible = false;
+        }
+    }
+
+    private static string Clip(string text)
+    {
+        var line = text.ReplaceLineEndings(" ");
+        return line.Length <= 80 ? line : line[..77] + "...";
+    }
+
+    private async void OnMessagesClicked(object? sender, EventArgs e)
+    {
+        var page = _services.GetService<MessagesPage>();
+        if (page is not null) await Navigation.PushAsync(page);
     }
 
     /// <summary>

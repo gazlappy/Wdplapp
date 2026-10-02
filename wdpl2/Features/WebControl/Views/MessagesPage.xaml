@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Wdpl2.Views.WebControl.MessagesPage"
+             Title="Messages">
+
+    <ScrollView BackgroundColor="#F8FAFC">
+        <VerticalStackLayout Padding="20,16" Spacing="12" MaximumWidthRequest="900" HorizontalOptions="Start">
+
+            <Label Text="Messages from captains" FontSize="20" FontAttributes="Bold" TextColor="#1E293B"/>
+            <Label Text="What captains write in the notes box on a scorecard. A message stays new until you mark it read, and shows as new again if a captain changes it. The website's admin page has the same list."
+                   FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap"/>
+
+            <Frame BorderColor="#E2E8F0" Padding="14" CornerRadius="10" BackgroundColor="White">
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Label x:Name="CountLabel" Text="Checking the website…" FontAttributes="Bold"
+                               FontSize="13" TextColor="#475569" VerticalOptions="Center"/>
+                        <Button Grid.Column="1" x:Name="ReadAllButton" Text="Mark all read"
+                                Clicked="OnReadAllClicked" IsVisible="False"
+                                BackgroundColor="#2563EB" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                        <Button Grid.Column="2" x:Name="RefreshButton" Text="Check again"
+                                Clicked="OnRefreshClicked"
+                                BackgroundColor="#334155" TextColor="White" CornerRadius="8"
+                                FontSize="12" Padding="12,6"/>
+                    </Grid>
+
+                    <VerticalStackLayout x:Name="MessageList" Spacing="8"/>
+
+                    <Label x:Name="EmptyLabel" IsVisible="False"
+                           Text="No captain has written a note on a card."
+                           FontSize="11" TextColor="#94A3B8"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label x:Name="StatusLabel" FontSize="12" TextColor="#64748B" LineBreakMode="WordWrap" Margin="4,0,0,16"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

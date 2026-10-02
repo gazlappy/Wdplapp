@@ -58,6 +58,8 @@ final class ScorecardsModule implements Module
                 card_kind    VARCHAR(8)  NOT NULL DEFAULT 'league',
                 toss_won_by  VARCHAR(8)  NULL,
                 first_break  VARCHAR(8)  NULL,
+                notes_at      DATETIME   NULL,
+                notes_read_at DATETIME   NULL,
                 PRIMARY KEY (fixture_id),
                 KEY idx_card_state (state)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -110,6 +112,13 @@ final class ScorecardsModule implements Module
             "ALTER TABLE wdpl_scorecards
                 ADD COLUMN IF NOT EXISTS first_break VARCHAR(8) NULL",
 
+            // The captains' notes are read by the league as messages: when
+            // one was last written, and when the league last read it, so an
+            // edited note shows as new again.
+            "ALTER TABLE wdpl_scorecards
+                ADD COLUMN IF NOT EXISTS notes_at DATETIME NULL,
+                ADD COLUMN IF NOT EXISTS notes_read_at DATETIME NULL",
+
             "ALTER TABLE wdpl_scorecard_frames
                 ADD COLUMN IF NOT EXISTS home_player_name VARCHAR(190) NULL,
                 ADD COLUMN IF NOT EXISTS home_player2_id CHAR(36) NULL,
@@ -135,6 +144,8 @@ final class ScorecardsModule implements Module
             'state'  => ['role' => Role::Admin,   'fn' => [self::class, 'state']],
             'view'      => ['role' => Role::Admin, 'fn' => [self::class, 'view']],
             'soloClear' => ['role' => Role::Admin, 'fn' => [self::class, 'soloClear']],
+            'messages'    => ['role' => Role::Admin, 'fn' => [self::class, 'messages']],
+            'messageRead' => ['role' => Role::Admin, 'fn' => [self::class, 'messageRead']],
 
             'mine'     => ['role' => Role::Captain, 'fn' => [self::class, 'mine']],
             'cards'    => ['role' => Role::Captain, 'fn' => [self::class, 'cards']],
@@ -209,6 +220,7 @@ final class ScorecardsModule implements Module
                  ON DUPLICATE KEY UPDATE state = VALUES(state), version = 1, frames_total = VALUES(frames_total),
                      max_per_player = VALUES(max_per_player), notes = NULL, opened_at = VALUES(opened_at),
                      card_kind = VALUES(card_kind), toss_won_by = NULL, first_break = NULL,
+                     notes_at = NULL, notes_read_at = NULL,
                      home_finalised_at = NULL, home_finalised_version = NULL,
                      away_finalised_at = NULL, away_finalised_version = NULL,
                      finalised_at = NULL, claimed_at = NULL',
@@ -416,6 +428,91 @@ final class ScorecardsModule implements Module
         }
 
         return self::readCard($fixtureId, null);
+    }
+
+    /**
+     * Every card the captains have written a note on, newest first.
+     *
+     * The notes box on the card is how a captain tells the league something
+     * about the night - a late start, a player who left, a dispute. This is
+     * where the league reads them. A note counts as unread until it is marked
+     * read, and again if a captain changes it afterwards.
+     *
+     * The line a solo submission adds is the card talking, not a captain, so
+     * it is left out; a card with nothing else on it has no message.
+     */
+    public static function messages()
+    {
+        $rows = Db::all(
+            "SELECT c.fixture_id, c.state, c.card_kind, c.notes, c.notes_at, c.notes_read_at, c.opened_at,
+                    f.match_date, h.name AS home_team_name, a.name AS away_team_name
+             FROM wdpl_scorecards c
+             LEFT JOIN wdpl_fixtures f ON f.id = c.fixture_id
+             LEFT JOIN wdpl_teams    h ON h.id = f.home_team_id
+             LEFT JOIN wdpl_teams    a ON a.id = f.away_team_id
+             WHERE c.notes IS NOT NULL AND c.notes <> ''
+             ORDER BY COALESCE(c.notes_at, c.opened_at) DESC"
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            $text = self::messageText((string)$row['notes']);
+            if ($text === '') {
+                continue;
+            }
+            $out[] = self::message($row, $text);
+        }
+        return $out;
+    }
+
+    /** One card's note, as the league reads it. */
+    public static function message(array $row, string $text): array
+    {
+        $at   = $row['notes_at'] ?? null;
+        $read = $row['notes_read_at'] ?? null;
+
+        return [
+            'fixture_id'     => $row['fixture_id'],
+            'is_cup'         => ($row['card_kind'] ?? 'league') === 'cup',
+            'state'          => $row['state'],
+            'match_date'     => $row['match_date'],
+            'home_team_name' => $row['home_team_name'],
+            'away_team_name' => $row['away_team_name'],
+            'text'           => $text,
+            'written_at'     => $at ?? $row['opened_at'],
+            'read_at'        => $read,
+            // MySQL DATETIMEs compare correctly as strings.
+            'unread'         => $read === null || ($at !== null && strcmp($at, $read) > 0),
+        ];
+    }
+
+    /** A card's note as a captain wrote it, without the solo submission's stamp. */
+    public static function messageText(string $notes): string
+    {
+        $text = preg_replace('/^\[Submitted from one device by the (home|away) captain\.\]\s*$/m', '', $notes);
+        return trim((string)$text);
+    }
+
+    /**
+     * Marks a card's note read - or every note, when no fixture is given.
+     */
+    public static function messageRead()
+    {
+        $raw = (string)Http::field('fixtureId', '');
+
+        if ($raw === '') {
+            Db::query(
+                "UPDATE wdpl_scorecards SET notes_read_at = UTC_TIMESTAMP()
+                  WHERE notes IS NOT NULL AND notes <> ''"
+            );
+        } else {
+            Db::query(
+                'UPDATE wdpl_scorecards SET notes_read_at = UTC_TIMESTAMP() WHERE fixture_id = ?',
+                [self::uuid($raw, 'fixtureId')]
+            );
+        }
+
+        return self::messages();
     }
 
     /**
@@ -839,10 +936,11 @@ final class ScorecardsModule implements Module
                 Db::query(
                     'UPDATE wdpl_scorecards
                         SET version = version + 1, notes = ?,
+                            notes_at = IF(? = 1, UTC_TIMESTAMP(), notes_at),
                             home_finalised_at = NULL, home_finalised_version = NULL,
                             away_finalised_at = NULL, away_finalised_version = NULL
                       WHERE fixture_id = ?',
-                    [$notes, $fixtureId]
+                    [$notes, (string)$notes !== (string)$card['notes'] ? 1 : 0, $fixtureId]
                 );
             }
 
@@ -1266,11 +1364,13 @@ final class ScorecardsModule implements Module
             Db::query(
                 'UPDATE wdpl_scorecards
                     SET state = ?, notes = ?, version = version + 1,
+                        notes_at = IF(? = 1, UTC_TIMESTAMP(), notes_at),
                         finalised_at = UTC_TIMESTAMP(),
                         home_finalised_at = UTC_TIMESTAMP(), home_finalised_version = version + 1,
                         away_finalised_at = UTC_TIMESTAMP(), away_finalised_version = version + 1
                   WHERE fixture_id = ?',
-                array(self::STATE_FINALISED, $stamp, $fixtureId)
+                array(self::STATE_FINALISED, $stamp,
+                      trim($notes) !== self::messageText((string)$card['notes']) ? 1 : 0, $fixtureId)
             );
 
             $result = self::readCard($fixtureId, $side);

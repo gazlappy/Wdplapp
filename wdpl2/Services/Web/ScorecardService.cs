@@ -81,6 +81,63 @@ public sealed class ScorecardService
         return ReadState(result);
     }
 
+    /// <summary>A note a captain wrote on a scorecard, as the league reads it.</summary>
+    public sealed record CardMessage(
+        Guid FixtureId,
+        string HomeTeam,
+        string AwayTeam,
+        bool IsCup,
+        DateTime? MatchDate,
+        string Text,
+        DateTime? WrittenAt,
+        bool Unread);
+
+    /// <summary>Every card with a captain's note on it, newest first.</summary>
+    public static async Task<List<CardMessage>> GetMessagesAsync(WebApiClient client) =>
+        ReadMessages(await client.AdminAsync("scorecards", "messages"));
+
+    /// <summary>
+    /// Marks one card's note read, or every note when <paramref name="fixtureId"/>
+    /// is null. Returns the list as it now stands.
+    /// </summary>
+    public static async Task<List<CardMessage>> MarkReadAsync(WebApiClient client, Guid? fixtureId) =>
+        ReadMessages(fixtureId is { } id
+            ? await client.AdminAsync("scorecards", "messageRead", new { fixtureId = id })
+            : await client.AdminAsync("scorecards", "messageRead", new { }));
+
+    public static List<CardMessage> ReadMessages(JsonElement rows)
+    {
+        var messages = new List<CardMessage>();
+        if (rows.ValueKind != JsonValueKind.Array) return messages;
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            messages.Add(new CardMessage(
+                OptionalGuid(row, "fixture_id") ?? Guid.Empty,
+                Text(row, "home_team_name") ?? "",
+                Text(row, "away_team_name") ?? "",
+                Flag(row, "is_cup"),
+                DateTime.TryParse(Text(row, "match_date"), out var d) ? d : null,
+                Text(row, "text") ?? "",
+                Utc(Text(row, "written_at")),
+                Flag(row, "unread")));
+        }
+
+        return messages;
+    }
+
+    // The server writes its times in UTC with no zone on them.
+    private static DateTime? Utc(string? raw) =>
+        DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+            out var t)
+            ? t.ToLocalTime()
+            : null;
+
+    private static bool Flag(JsonElement row, string name) =>
+        row.TryGetProperty(name, out var v)
+        && (v.ValueKind == JsonValueKind.True || Text(row, name) == "1");
+
     /// <summary>What a card held when it was abandoned.</summary>
     public sealed record ClosedCard(int FramesPlayed, int FramesTotal, int HomeScore, int AwayScore)
     {
