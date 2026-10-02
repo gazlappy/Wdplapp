@@ -132,6 +132,31 @@ test('a doubles partner joins a lead already named, and not before', function ()
     ok(NominationOrder::refusal($f, 0, 'home2', true) === null, 'partner refused after player 1');
 });
 
+test('a named player can be changed until the frame has a result', function () {
+    $f = card();
+    ok(pick($f, 0, 'home', true) === null, 'home 1');
+    ok(pick($f, 0, 'away', true) === null, 'away 1');
+    ok(pick($f, 1, 'away', true) === null, 'away 2');
+    // Home has named frame 1 and it is not played: home may swap that player,
+    // even though it is not home's turn to name anything new.
+    ok(NominationOrder::refusal($f, 0, 'home', true) === null, 'could not change frame 1 before it was played');
+    ok(NominationOrder::refusal($f, 0, 'home', true, true) === null, 'could not clear frame 1 before it was played');
+    // A frame home has not named is still subject to the order.
+    ok(NominationOrder::refusal($f, 3, 'home', true) !== null, 'home jumped ahead to frame 4');
+});
+
+test('once a frame has a result its players are held', function () {
+    $f = card();
+    put($f, 0, 'home', 'h1');
+    put($f, 0, 'away', 'a1');
+    $f[0]['winner'] = 'home';
+    $why = NominationOrder::refusal($f, 0, 'home', true);
+    ok($why !== null && strpos($why, 'Clear the result first') !== false, 'changed a played frame: ' . var_export($why, true));
+    ok(NominationOrder::refusal($f, 0, 'away', true, true) !== null, 'cleared a player from a played frame');
+    $f[0]['winner'] = 'none';
+    ok(NominationOrder::refusal($f, 0, 'home', true) === null, 'still held after the result was cleared');
+});
+
 echo "league night\n";
 
 test('home names any frame, any order', function () {

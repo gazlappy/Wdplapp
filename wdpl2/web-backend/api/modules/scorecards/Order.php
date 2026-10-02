@@ -27,7 +27,7 @@ final class NominationOrder
      * @param string $slot home|home2|away|away2
      * @param bool   $cup  true for a cup tie, false for a league night
      */
-    public static function refusal(array $frames, int $index, string $slot, bool $cup)
+    public static function refusal(array $frames, int $index, string $slot, bool $cup, bool $clearing = false)
     {
         if ($index < 0 || $index >= count($frames)) {
             return null;
@@ -35,13 +35,34 @@ final class NominationOrder
 
         $side    = ($slot === 'home' || $slot === 'home2') ? 'home' : 'away';
         $partner = ($slot === 'home2' || $slot === 'away2');
+        $frameNo = isset($frames[$index]['frame_no']) ? $frames[$index]['frame_no'] : ($index + 1);
+
+        if ($cup) {
+            // Players stay changeable until the frame is played. Once it has a
+            // result, who played it is part of that result - so it is held,
+            // and the way to change it is to clear the result first.
+            if (self::isScored($frames[$index])) {
+                return 'Frame ' . $frameNo . ' has a result. Clear the result first to change who played it.';
+            }
+
+            // A side that has already named this frame may change its mind:
+            // the turn was taken when the name went down, and swapping it
+            // does not take another.
+            if (!$partner && self::hasLead($frames[$index], $side)) {
+                return null;
+            }
+        }
+
+        // Clearing a slot is otherwise always allowed.
+        if ($clearing) {
+            return null;
+        }
 
         // A doubles partner joins a lead already named for that frame. The
         // order is decided by the leads; a partner is the second half of a
         // nomination that has already been allowed.
         if ($partner) {
             if (!self::hasLead($frames[$index], $side)) {
-                $frameNo = isset($frames[$index]['frame_no']) ? $frames[$index]['frame_no'] : ($index + 1);
                 return 'Name player 1 for frame ' . $frameNo . ' first.';
             }
             return null;
@@ -60,6 +81,12 @@ final class NominationOrder
         }
 
         return null;
+    }
+
+    private static function isScored(array $frame): bool
+    {
+        $winner = isset($frame['winner']) ? $frame['winner'] : 'none';
+        return $winner === 'home' || $winner === 'away';
     }
 
     private static function hasLead(array $frame, string $side): bool

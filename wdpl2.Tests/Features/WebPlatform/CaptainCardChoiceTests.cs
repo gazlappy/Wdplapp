@@ -134,7 +134,7 @@ public class CaptainCardChoiceTests
         var setPlayer = Regex.Match(php, @"case 'set_player':.*?case 'set_doubles':", RegexOptions.Singleline);
         Assert.True(setPlayer.Success, "No set_player branch in the scorecards module.");
 
-        Assert.Contains("NominationOrder::refusal($frames, $index, $slot, $cup)", setPlayer.Value);
+        Assert.Contains("NominationOrder::refusal($frames, $index, $slot, $cup, $clearing)", setPlayer.Value);
         Assert.DoesNotContain("!$driving", setPlayer.Value);
     }
 

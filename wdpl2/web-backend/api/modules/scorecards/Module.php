@@ -839,11 +839,11 @@ final class ScorecardsModule implements Module
                 // The order holds for everyone, solo included. Asked about the
                 // side the slot belongs to: without solo that is the sender's
                 // own, with it that is the team being entered.
-                if (!$clearing) {
-                    $why = NominationOrder::refusal($frames, $index, $slot, $cup);
-                    if ($why !== null) {
-                        return ['rejected' => $why, 'changed' => false, 'frame' => $frameNo];
-                    }
+                // Asked when clearing too: on a cup card a frame with a result
+                // keeps its players until the result is cleared.
+                $why = NominationOrder::refusal($frames, $index, $slot, $cup, $clearing);
+                if ($why !== null) {
+                    return ['rejected' => $why, 'changed' => false, 'frame' => $frameNo];
                 }
 
                 $reason = ScorecardRules::rejectPick($frames, $index, $slot, $playerId, $playerName, $maxPerPlayer);

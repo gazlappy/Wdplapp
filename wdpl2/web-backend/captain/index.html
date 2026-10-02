@@ -2087,6 +2087,13 @@ body.has-tick main{padding-bottom:120px;}
   function orderLocked(index, side){
     var frame=S.card.frames[index];
 
+    if(S.card.is_cup){
+      // Changeable until the frame is played; a result holds its players.
+      if(frameScored(frame)) return true;
+      // Already named by this side: it may change its mind.
+      if(hasLead(frame, side)) return false;
+    }
+
     // A doubles partner joins a lead already named for that frame.
     if(Number(frame.is_doubles) && hasLead(frame, side)) return false;
 
@@ -2094,7 +2101,14 @@ body.has-tick main{padding-bottom:120px;}
     return side==='away' && awayLocked(index);
   }
 
+  function frameScored(frame){
+    return frame.winner === 'home' || frame.winner === 'away';
+  }
+
   function orderReason(index, side){
+    var frame=S.card.frames[index];
+    if(S.card.is_cup && frameScored(frame))
+      return 'Frame '+frame.frame_no+' has a result. Clear the result first to change who played it.';
     if(S.card.is_cup) return cupLockReason(index, side);
     return awayLockMessage(index);
   }
