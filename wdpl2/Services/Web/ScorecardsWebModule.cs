@@ -12,7 +12,8 @@ public sealed class ScorecardsWebModule : IWebModule
     public string Title => "Live scorecards";
     public string Description => "Let captains score a match live, then collect the finished card.";
     public string Icon => "\U0001F3B1"; // billiards
-    public int SchemaVersion => 4;
+    // 5: first_break, for the alternating break on a cup card.
+    public int SchemaVersion => 5;
 
     public IReadOnlyList<string> ServerFiles { get; } = new[]
     {

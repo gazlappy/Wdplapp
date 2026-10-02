@@ -33,7 +33,7 @@ final class ScorecardsModule implements Module
 
     public static function title(): string { return 'Live scorecards'; }
 
-    public static function schemaVersion(): int { return 4; }
+    public static function schemaVersion(): int { return 5; }
 
     public static function tables(): array
     {
@@ -57,6 +57,7 @@ final class ScorecardsModule implements Module
                 solo_since   DATETIME    NULL,
                 card_kind    VARCHAR(8)  NOT NULL DEFAULT 'league',
                 toss_won_by  VARCHAR(8)  NULL,
+                first_break  VARCHAR(8)  NULL,
                 PRIMARY KEY (fixture_id),
                 KEY idx_card_state (state)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -104,6 +105,11 @@ final class ScorecardsModule implements Module
                 ADD COLUMN IF NOT EXISTS card_kind VARCHAR(8) NOT NULL DEFAULT 'league',
                 ADD COLUMN IF NOT EXISTS toss_won_by VARCHAR(8) NULL",
 
+            // Which side breaks frame 1 of a cup tie; the break alternates
+            // from there. Held as the card's side, chosen after the lag.
+            "ALTER TABLE wdpl_scorecards
+                ADD COLUMN IF NOT EXISTS first_break VARCHAR(8) NULL",
+
             "ALTER TABLE wdpl_scorecard_frames
                 ADD COLUMN IF NOT EXISTS home_player_name VARCHAR(190) NULL,
                 ADD COLUMN IF NOT EXISTS home_player2_id CHAR(36) NULL,
@@ -140,6 +146,7 @@ final class ScorecardsModule implements Module
             'soloStart' => ['role' => Role::Captain, 'fn' => [self::class, 'soloStart']],
             'soloStop'  => ['role' => Role::Captain, 'fn' => [self::class, 'soloStop']],
             'toss'      => ['role' => Role::Captain, 'fn' => [self::class, 'toss']],
+            'firstBreak' => ['role' => Role::Captain, 'fn' => [self::class, 'firstBreak']],
         ];
     }
 
@@ -201,7 +208,7 @@ final class ScorecardsModule implements Module
                  VALUES (?, ?, ?, 1, ?, ?, NULL, UTC_TIMESTAMP(), ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
                  ON DUPLICATE KEY UPDATE state = VALUES(state), version = 1, frames_total = VALUES(frames_total),
                      max_per_player = VALUES(max_per_player), notes = NULL, opened_at = VALUES(opened_at),
-                     card_kind = VALUES(card_kind), toss_won_by = NULL,
+                     card_kind = VALUES(card_kind), toss_won_by = NULL, first_break = NULL,
                      home_finalised_at = NULL, home_finalised_version = NULL,
                      away_finalised_at = NULL, away_finalised_version = NULL,
                      finalised_at = NULL, claimed_at = NULL',
@@ -340,7 +347,7 @@ final class ScorecardsModule implements Module
     {
         $rows = Db::all(
             "SELECT c.fixture_id, c.state, c.version, c.frames_total,
-                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by,
+                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by, c.first_break,
                     c.home_finalised_at, c.away_finalised_at, c.solo_by,
                     f.home_team_id, f.away_team_id,
                     h.name AS home_team_name, a.name AS away_team_name, f.match_date,
@@ -457,6 +464,52 @@ final class ScorecardsModule implements Module
      * rule already hold the right answer and nothing downstream had to change.
      * A caller that sends no choice (an older page) gets the old rule.
      */
+    /**
+     * Records which side breaks frame 1 of a cup tie. The break alternates
+     * from there, frame by frame (CupRules::breaker).
+     *
+     * Chosen after the lag, by either captain. It can be put right until a
+     * frame has a result - after that, changing it would rewrite who broke
+     * in frames already played.
+     */
+    public static function firstBreak()
+    {
+        $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
+        $first     = Http::requireField('side') === 'away' ? 'away' : 'home';
+
+        self::requireSide($fixtureId);
+
+        return Db::transaction(function () use ($fixtureId, $first) {
+            $card = Db::lockRow('wdpl_scorecards', 'fixture_id', $fixtureId);
+            if ($card === null) {
+                throw new ApiError(404, 'no_card', 'There is no card for that fixture.');
+            }
+            if (($card['card_kind'] ?? 'league') !== 'cup') {
+                throw new ApiError(409, 'not_a_cup', 'Only a cup tie alternates the break.');
+            }
+            if ($card['state'] !== self::STATE_LIVE) {
+                throw new ApiError(409, 'not_live', 'This card is no longer being scored.');
+            }
+            if ($card['toss_won_by'] === null) {
+                throw new ApiError(409, 'no_toss', 'Lag for home and away first.');
+            }
+
+            foreach (self::loadFrames($fixtureId) as $frame) {
+                if (($frame['winner'] ?? 'none') !== 'none') {
+                    throw new ApiError(409, 'break_locked',
+                        'The first break cannot be changed once a frame has a result.');
+                }
+            }
+
+            Db::query(
+                'UPDATE wdpl_scorecards SET first_break = ?, version = version + 1 WHERE fixture_id = ?',
+                [$first, $fixtureId]
+            );
+
+            return self::readCard($fixtureId, self::requireSide($fixtureId));
+        });
+    }
+
     public static function toss()
     {
         $fixtureId = self::uuid(Http::requireField('fixtureId'), 'fixtureId');
@@ -1232,7 +1285,7 @@ final class ScorecardsModule implements Module
     {
         $card = Db::one(
             'SELECT c.fixture_id, c.state, c.version, c.frames_total, c.max_per_player, c.notes,
-                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by,
+                    c.opened_at, c.finalised_at, c.claimed_at, c.card_kind, c.toss_won_by, c.first_break,
                     c.home_finalised_at, c.away_finalised_at, c.solo_by, c.solo_since,
                     f.match_date, f.home_team_id, f.away_team_id,
                     h.name AS home_team_name, a.name AS away_team_name, v.name AS venue_name

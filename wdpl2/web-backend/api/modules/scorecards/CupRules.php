@@ -55,6 +55,24 @@ final class CupRules
         return $wonBy;
     }
 
+    /**
+     * Who breaks in a frame, the break alternating from the first.
+     *
+     * @param int         $index 0-based frame
+     * @param string|null $first the side that breaks frame 1, or null if not yet chosen
+     * @return string|null 'home' or 'away', or null while the first break is unknown
+     */
+    public static function breaker(int $index, $first)
+    {
+        if ($first !== 'home' && $first !== 'away') {
+            return null;
+        }
+        if ($index % 2 === 0) {
+            return $first;
+        }
+        return $first === 'home' ? 'away' : 'home';
+    }
+
     /** Frames filled by the alternating turns before the blind five. */
     const OPEN_FRAMES = 10;
 

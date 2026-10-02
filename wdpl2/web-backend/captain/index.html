@@ -266,6 +266,23 @@ table.tbl tr.us td{font-weight:700;}
 .sc-row.set-b1{background:rgba(59,130,246,.07);}  .sc-row.set-b2{background:rgba(59,130,246,.12);}
 .sc-row.set-c1{background:rgba(13,138,90,.08);}   .sc-row.set-c2{background:rgba(13,138,90,.14);}
 .sc-row.current{background:rgba(245,158,11,.18) !important;}
+/* Who breaks: a small cue ball by the breaking side's player, on every frame,
+   brighter on the frame being played now. */
+.sc-row.breaks .sc-pill::before{content:'B'; display:inline-block; width:16px; height:16px; margin-right:6px;
+  border-radius:50%; background:#f1f5f9; color:#0f172a; font-size:10px; font-weight:800; line-height:16px;
+  text-align:center; vertical-align:1px;}
+.sc-row.away.breaks .sc-pill::before{content:none;}
+.sc-row.away.breaks .sc-pill::after{content:'B'; display:inline-block; width:16px; height:16px; margin-left:6px;
+  border-radius:50%; background:#f1f5f9; color:#0f172a; font-size:10px; font-weight:800; line-height:16px;
+  text-align:center; vertical-align:1px;}
+.sc-row.current.breaks .sc-pill::before, .sc-row.current.breaks .sc-pill::after{
+  background:var(--gold); box-shadow:0 0 0 3px rgba(255,209,102,.35);}
+.break-line{display:flex; align-items:center; gap:8px; margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm);
+  background:rgba(255,209,102,.12); border:1px solid rgba(255,209,102,.35); font-size:13px; font-weight:600;}
+.break-line .break-ball{display:inline-block; width:20px; height:20px; border-radius:50%; background:var(--gold);
+  color:#0f172a; font-size:11px; font-weight:800; line-height:20px; text-align:center; flex:none;}
+.break-line #breakText{flex:1;}
+.break-line button{width:auto; padding:4px 10px; font-size:12px;}
 .sc-num{font-size:11px; color:var(--muted); text-align:center; font-weight:700;}
 .sc-pill{
   padding:9px 8px; border-radius:var(--radius-sm); border:1px solid var(--line);
@@ -582,8 +599,24 @@ body.has-tick main{padding-bottom:120px;}
       </div>
     </div>
 
+    <!-- After the lag: who breaks frame 1. The break then alternates. -->
+    <div class="msg warn hidden" id="breakBar" style="margin-top:10px">
+      <strong>Who breaks first?</strong>
+      <p style="margin:6px 0 0; font-size:12px">The break then alternates, frame by frame.</p>
+      <div class="row" style="margin-top:8px">
+        <button class="go" id="breakHome">Home</button>
+        <button class="go" id="breakAway">Away</button>
+      </div>
+    </div>
+
     <div class="msg hidden" id="turnBar" style="margin-top:10px">
       <span id="turnText"></span>
+    </div>
+
+    <div class="break-line hidden" id="breakLine">
+      <span class="break-ball">B</span>
+      <span id="breakText"></span>
+      <button class="ghost" id="breakChange">Change</button>
     </div>
 
     <div class="row" id="drawBar" style="margin:10px 0 2px; align-items:center">
@@ -1666,6 +1699,7 @@ body.has-tick main{padding-bottom:120px;}
 
     show($('tossBar'), cup && !card.toss_won_by);
     show($('turnBar'), cup && !!card.toss_won_by && !S.solo);
+    renderBreak(card);
 
     if(!cup || !card.toss_won_by) return;
 
@@ -1688,6 +1722,46 @@ body.has-tick main{padding-bottom:120px;}
     if(!card.is_cup || !card.decided_by) return '';
     return (card.decided_by==='home' ? $('homeName') : $('awayName')).textContent;
   }
+
+  /** A frame on the card that already has a result. */
+  function anyScored(card){
+    return (card.frames||[]).some(function(f){ return f.winner==='home' || f.winner==='away'; });
+  }
+
+  /**
+   * The break: asked once the lag is settled, then a line saying who breaks
+   * the frame being played. It can be put right until a frame has a result.
+   */
+  function renderBreak(card){
+    var cup = !!card.is_cup, lagged = !!card.toss_won_by;
+    var asking = cup && lagged && (!card.first_break || S.choosingBreak);
+
+    $('breakHome').textContent = (card.home_team_name || 'Home') + ' (home)';
+    $('breakAway').textContent = (card.away_team_name || 'Away') + ' (away)';
+    show($('breakBar'), asking);
+
+    var known = cup && lagged && !!card.first_break && !S.choosingBreak;
+    show($('breakLine'), known);
+    if(!known) return;
+
+    var frames = card.frames||[], next = firstUnscored(frames);
+    if(next < 0 || next >= frames.length){
+      $('breakText').textContent = 'Every frame has a result.';
+    } else {
+      var who = breakerOf(next) === 'home' ? card.home_team_name : card.away_team_name;
+      $('breakText').textContent = 'Frame ' + frames[next].frame_no + ': ' + who + ' to break';
+    }
+    show($('breakChange'), !anyScored(card));
+  }
+
+  function chooseBreak(side){
+    call('scorecards','firstBreak',{fixtureId:S.fixtureId, side:side})
+      .then(function(card){ S.choosingBreak = false; render(card); })
+      .catch(function(e){ say(e.message,'bad'); });
+  }
+  $('breakHome').addEventListener('click', function(){ chooseBreak('home'); });
+  $('breakAway').addEventListener('click', function(){ chooseBreak('away'); });
+  $('breakChange').addEventListener('click', function(){ S.choosingBreak = true; renderBreak(S.card); });
 
   /**
    * Who won the toss, as the draw has the sides - the card is not turned
@@ -1883,9 +1957,17 @@ body.has-tick main{padding-bottom:120px;}
     });
   }
 
+  /** Who breaks a frame on a cup card, alternating from the first; null until chosen. */
+  function breakerOf(index){
+    var first = S.card && S.card.is_cup ? S.card.first_break : null;
+    if(first !== 'home' && first !== 'away') return null;
+    return index % 2 === 0 ? first : (first === 'home' ? 'away' : 'home');
+  }
+
   function sideRow(frame, index, side, isCurrent){
     var row=document.createElement('div');
-    row.className='sc-row '+side+' '+setBg(index)+(isCurrent?' current':'');
+    row.className='sc-row '+side+' '+setBg(index)+(isCurrent?' current':'')
+      +(breakerOf(index)===side?' breaks':'');
 
     var num=document.createElement('div');
     num.className='sc-num';

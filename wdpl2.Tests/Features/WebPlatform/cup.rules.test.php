@@ -317,6 +317,19 @@ test('anything unexpected falls back to the old rule: the winner is home', funct
     same('away', CupRules::homeSide('away', 'sideways'), 'nonsense choice');
 });
 
+test('the break alternates from whoever breaks first', function () {
+    same('home', CupRules::breaker(0, 'home'), 'frame 1, home first');
+    same('away', CupRules::breaker(1, 'home'), 'frame 2, home first');
+    same('home', CupRules::breaker(14, 'home'), 'frame 15, home first');
+    same('away', CupRules::breaker(0, 'away'), 'frame 1, away first');
+    same('home', CupRules::breaker(9, 'away'), 'frame 10, away first');
+});
+
+test('nobody breaks until the first break is chosen', function () {
+    same(null, CupRules::breaker(0, null), 'not chosen');
+    same(null, CupRules::breaker(3, 'sideways'), 'nonsense');
+});
+
 echo "\n";
 echo $failed === 0 ? "PASS  {$passed} checks\n" : "FAIL  {$failed} failed, {$passed} passed\n";
 exit($failed === 0 ? 0 : 1);

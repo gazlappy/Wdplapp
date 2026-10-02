@@ -164,6 +164,29 @@ public class CaptainCardChoiceTests
         Assert.Contains("CupRules::homeSide($wonBy, $choice)", toss);
     }
 
+    /// <summary>
+    /// After the lag a cup card asks who breaks first; the break alternates
+    /// from there. The page sends the choice, the server keeps it on the card
+    /// and refuses a change once a frame has a result.
+    /// </summary>
+    [Fact]
+    public void The_first_break_is_chosen_after_the_lag_and_held_once_scored()
+    {
+        var page = CaptainPage();
+        Assert.Contains("call('scorecards','firstBreak',{fixtureId:S.fixtureId, side:side})", page);
+        Assert.Contains("id=\"breakHome\"", page);
+        Assert.Contains("id=\"breakAway\"", page);
+
+        Assert.Contains("'firstBreak' => ['role' => Role::Captain", ScorecardsModule());
+        var body = Body("firstBreak");
+        Assert.Contains("toss_won_by", body);
+        Assert.Contains("break_locked", body);
+        Assert.Contains("first_break", body);
+
+        Assert.True(new Wdpl2.Services.Web.ScorecardsWebModule().SchemaVersion >= 5,
+            "first_break needs the schema bumped so Install tables adds the column.");
+    }
+
     private static string CardsBody() => Body("cards");
 
     /// <summary>One action's PHP, read out of the module.</summary>
